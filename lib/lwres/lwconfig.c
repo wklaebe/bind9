@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000, 2001, 2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: lwconfig.c,v 1.33.2.5 2005/06/08 00:12:18 marka Exp $ */
+/* $Id: lwconfig.c,v 1.33.2.7 2006/10/03 23:50:49 marka Exp $ */
 
 /***
  *** Module for parsing resolv.conf files.
@@ -559,7 +559,7 @@ lwres_conf_parse(lwres_context_t *ctx, const char *filename) {
 
 	errno = 0;
 	if ((fp = fopen(filename, "r")) == NULL)
-		return (LWRES_R_FAILURE);
+		return (LWRES_R_NOTFOUND);
 
 	ret = LWRES_R_SUCCESS;
 	do {

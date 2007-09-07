@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2006  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: interfacemgr.c,v 1.59.2.7 2004/08/10 04:58:00 jinmei Exp $ */
+/* $Id: interfacemgr.c,v 1.59.2.9 2006/01/04 23:50:16 marka Exp $ */
 
 #include <config.h>
 
@@ -553,9 +553,8 @@ do_ipv4(ns_interfacemgr_t *mgr) {
 			 * See if the address matches the listen-on statement;
 			 * if not, ignore the interface.
 			 */
-			result = dns_acl_match(&listen_netaddr, NULL,
-					       le->acl, &mgr->aclenv,
-					       &match, NULL);
+			(void)dns_acl_match(&listen_netaddr, NULL, le->acl,
+					    &mgr->aclenv, &match, NULL);
 			if (match <= 0)
 				continue;
 

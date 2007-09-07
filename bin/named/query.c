@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: query.c,v 1.198.2.22 2005/05/16 05:30:01 marka Exp $ */
+/* $Id: query.c,v 1.198.2.27 2006/05/18 03:19:09 marka Exp $ */
 
 #include <config.h>
 
@@ -2117,10 +2117,17 @@ query_recurse(ns_client_t *client, dns_rdatatype_t qtype, dns_name_t *qdomain,
 		    (client->attributes & NS_CLIENTATTR_TCP) == 0)
 			result = ns_client_replace(client);
 		if (result != ISC_R_SUCCESS) {
-			ns_client_log(client, NS_LOGCATEGORY_CLIENT,
-				      NS_LOGMODULE_QUERY, ISC_LOG_WARNING,
-				      "no more recursive clients: %s",
-				      isc_result_totext(result));
+			static isc_stdtime_t last = 0;
+			isc_stdtime_t now;
+			isc_stdtime_get(&now);
+			if (now != last) {
+				last = now;
+				ns_client_log(client, NS_LOGCATEGORY_CLIENT,
+					      NS_LOGMODULE_QUERY,
+					      ISC_LOG_WARNING,
+					      "no more recursive clients: %s",
+					      isc_result_totext(result));
+			}
 			return (result);
 		}
 	}
@@ -2278,7 +2285,7 @@ do { \
  *	ISC_R_NOTIMPLEMENTED	The rdata is not a known address type.
  */
 static isc_result_t
-rdata_tonetaddr(dns_rdata_t *rdata, isc_netaddr_t *netaddr) {
+rdata_tonetaddr(const dns_rdata_t *rdata, isc_netaddr_t *netaddr) {
 	struct in_addr ina;
 	struct in6_addr in6a;
 	
@@ -2304,7 +2311,7 @@ rdata_tonetaddr(dns_rdata_t *rdata, isc_netaddr_t *netaddr) {
  * sortlist statement.
  */
 static int
-query_sortlist_order_2element(dns_rdata_t *rdata, void *arg) {
+query_sortlist_order_2element(const dns_rdata_t *rdata, const void *arg) {
 	isc_netaddr_t netaddr;
 
 	if (rdata_tonetaddr(rdata, &netaddr) != ISC_R_SUCCESS)
@@ -2317,7 +2324,7 @@ query_sortlist_order_2element(dns_rdata_t *rdata, void *arg) {
  * of a 1-element top-level sortlist statement.
  */
 static int
-query_sortlist_order_1element(dns_rdata_t *rdata, void *arg) {
+query_sortlist_order_1element(const dns_rdata_t *rdata, const void *arg) {
 	isc_netaddr_t netaddr;
 
 	if (rdata_tonetaddr(rdata, &netaddr) != ISC_R_SUCCESS)
@@ -2333,7 +2340,7 @@ static void
 setup_query_sortlist(ns_client_t *client) {
 	isc_netaddr_t netaddr;
 	dns_rdatasetorderfunc_t order = NULL;
-	void *order_arg = NULL;
+	const void *order_arg = NULL;
 	
 	isc_netaddr_fromsockaddr(&netaddr, &client->peeraddr);
 	switch (ns_sortlist_setup(client->view->sortlist,
@@ -2410,6 +2417,7 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype) 
 	dns_zone_t *zone;
 	dns_rdata_cname_t cname;
 	dns_rdata_dname_t dname;
+	unsigned int options;
 	isc_boolean_t empty_wild;
 
 	CTRACE("query_find");
@@ -2434,6 +2442,7 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype) 
 	version = NULL;
 	zone = NULL;
 	empty_wild = ISC_FALSE;
+	options = 0;
 
 	if (event != NULL) {
 		/*
@@ -2501,12 +2510,14 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype) 
 	/*
 	 * First we must find the right database.
 	 */
-	result = query_getdb(client, client->query.qname, 0, &zone, &db,
+	options &= DNS_GETDB_NOLOG; /* Preserve DNS_GETDB_NOLOG. */
+	result = query_getdb(client, client->query.qname, options, &zone, &db,
 			     &version, &is_zone);
 	if (result != ISC_R_SUCCESS) {
-		if (result == DNS_R_REFUSED)
-			QUERY_ERROR(DNS_R_REFUSED);
-		else
+		if (result == DNS_R_REFUSED) {
+			if (!PARTIALANSWER(client))
+				QUERY_ERROR(DNS_R_REFUSED);
+		} else
 			QUERY_ERROR(DNS_R_SERVFAIL);
 		goto cleanup;
 	}
@@ -2986,6 +2997,8 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype) 
 		query_maybeputqname(client);
 		client->query.qname = tname;
 		want_restart = ISC_TRUE;
+		if (!WANTRECURSION(client))
+			options |= DNS_GETDB_NOLOG;
 		goto addauth;
 	case DNS_R_DNAME:
 		/*
@@ -3099,6 +3112,8 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype) 
 		client->query.qname = fname;
 		fname = NULL;
 		want_restart = ISC_TRUE;
+		if (!WANTRECURSION(client))
+			options |= DNS_GETDB_NOLOG;
 		goto addauth;
 	default:
 		/*

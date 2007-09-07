@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2006  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000, 2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: lwdgabn.c,v 1.13.2.1 2004/03/09 06:09:18 marka Exp $ */
+/* $Id: lwdgabn.c,v 1.13.2.3 2006/03/02 00:37:17 marka Exp $ */
 
 #include <config.h>
 
@@ -120,7 +120,7 @@ sort_addresses(ns_lwdclient_t *client) {
 	rankedaddress *addrs;
 	isc_netaddr_t remote;
 	dns_addressorderfunc_t order;
-	void *arg;
+	const void *arg;
 	ns_lwresd_t *lwresd = client->clientmgr->listener->manager;
 	unsigned int i;
 	isc_result_t result;

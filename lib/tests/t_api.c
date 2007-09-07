@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2006  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2001, 2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: t_api.c,v 1.48.2.4 2004/06/21 07:08:36 marka Exp $ */
+/* $Id: t_api.c,v 1.48.2.6 2006/01/04 23:50:18 marka Exp $ */
 
 #include <config.h>
 
@@ -537,7 +537,11 @@ t_fgetbs(FILE *fp) {
 			}
 		}
 		*p = '\0';
-		return(((c == EOF) && (n == 0U)) ? NULL : buf);
+		if (c == EOF && n == 0U) {
+			free(buf);
+			return (NULL);
+		}
+		return (buf);
 	} else {
 		fprintf(stderr, "malloc failed %d", errno);
 		return(NULL);
@@ -744,8 +748,10 @@ t_eval(const char *filename, int (*func)(char **), int nargs) {
 			/*
 			 * Skip comment lines.
 			 */
-			if ((isspace((unsigned char)*p)) || (*p == '#'))
+			if ((isspace((unsigned char)*p)) || (*p == '#')) {
+				(void)free(p);
 				continue;
+			}
 
 			cnt = t_bustline(p, tokens);
 			if (cnt == nargs) {

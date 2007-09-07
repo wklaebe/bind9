@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2006  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: check.h,v 1.4.2.1 2004/03/09 06:12:31 marka Exp $ */
+/* $Id: check.h,v 1.4.2.3 2006/03/02 00:37:18 marka Exp $ */
 
 #ifndef ISCCFG_CHECK_H
 #define ISCCFG_CHECK_H 1
@@ -28,7 +28,8 @@
 ISC_LANG_BEGINDECLS
 
 isc_result_t
-cfg_check_namedconf(cfg_obj_t *config, isc_log_t *logctx, isc_mem_t *mctx);
+cfg_check_namedconf(const cfg_obj_t *config, isc_log_t *logctx,
+		    isc_mem_t *mctx);
 /*
  * Check the syntactic validity of a configuration parse tree generated from
  * a named.conf file.
@@ -44,7 +45,7 @@ cfg_check_namedconf(cfg_obj_t *config, isc_log_t *logctx, isc_mem_t *mctx);
  */
 
 isc_result_t
-cfg_check_key(cfg_obj_t *config, isc_log_t *logctx);
+cfg_check_key(const cfg_obj_t *config, isc_log_t *logctx);
 /*
  * As above, but for a single 'key' statement.
  */

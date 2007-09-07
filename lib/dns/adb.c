@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: adb.c,v 1.181.2.22 2005/10/14 05:28:43 marka Exp $ */
+/* $Id: adb.c,v 1.181.2.24 2006/01/04 23:50:17 marka Exp $ */
 
 /*
  * Implementation notes
@@ -2808,8 +2808,7 @@ dns_adb_createfind(dns_adb_t *adb, isc_task_t *task, isc_taskaction_t action,
 		}
 	}
 
-	if (bucket != DNS_ADB_INVALIDBUCKET)
-		UNLOCK(&adb->namelocks[bucket]);
+	UNLOCK(&adb->namelocks[bucket]);
 
 	return (result);
 }

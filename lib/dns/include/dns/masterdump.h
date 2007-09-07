@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: masterdump.h,v 1.22.2.3 2005/09/06 02:11:55 marka Exp $ */
+/* $Id: masterdump.h,v 1.22.2.5 2006/03/02 00:37:17 marka Exp $ */
 
 #ifndef DNS_MASTERDUMP_H
 #define DNS_MASTERDUMP_H 1
@@ -159,7 +159,7 @@ dns_master_questiontotext(dns_name_t *owner_name,
 
 isc_result_t
 dns_rdataset_towire(dns_rdataset_t *rdataset,
-		    dns_name_t *owner_name,
+		    const dns_name_t *owner_name,
 		    dns_compress_t *cctx,
 		    isc_buffer_t *target,
 		    unsigned int *countp);

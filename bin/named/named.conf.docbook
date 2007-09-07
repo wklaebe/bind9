@@ -2,7 +2,7 @@
                "http://www.oasis-open.org/docbook/xml/4.0/docbookx.dtd"
 	       [<!ENTITY mdash "&#8212;">]>
 <!--
- - Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
  -
  - Permission to use, copy, modify, and distribute this software for any
  - purpose with or without fee is hereby granted, provided that the above
@@ -17,7 +17,7 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<!-- $Id: named.conf.docbook,v 1.1.6.4 2005/05/12 21:35:10 sra Exp $ -->
+<!-- $Id: named.conf.docbook,v 1.1.6.6 2006/05/17 00:34:34 marka Exp $ -->
 
 <refentry>
   <refentryinfo>
@@ -34,6 +34,7 @@
     <copyright>
       <year>2004</year>
       <year>2005</year>
+      <year>2006</year>
       <holder>Internet Systems Consortium, Inc. ("ISC")</holder>
     </copyright>
   </docinfo>
@@ -213,8 +214,8 @@ options {
 	rfc2308-type1 <replaceable>boolean</replaceable>; // not yet implemented
 	additional-from-auth <replaceable>boolean</replaceable>;
 	additional-from-cache <replaceable>boolean</replaceable>;
-	query-source <replaceable>querysource4</replaceable>;
-	query-source-v6 <replaceable>querysource6</replaceable>;
+	query-source <optional> address ( <replaceable>ipv4_address</replaceable> | * ) </optional> <optional> port ( <replaceable>integer</replaceable> | * ) </optional>;
+	query-source-v6 <optional> address ( <replaceable>ipv6_address</replaceable> | * ) </optional> <optional> port ( <replaceable>integer</replaceable> | * ) </optional>;
 	cleaning-interval <replaceable>integer</replaceable>;
 	min-roots <replaceable>integer</replaceable>; // not implemented
 	lame-ttl <replaceable>integer</replaceable>;
@@ -318,8 +319,8 @@ view <replaceable>string</replaceable> <replaceable>optional_class</replaceable>
 	rfc2308-type1 <replaceable>boolean</replaceable>; // not yet implemented
 	additional-from-auth <replaceable>boolean</replaceable>;
 	additional-from-cache <replaceable>boolean</replaceable>;
-	query-source <replaceable>querysource4</replaceable>;
-	query-source-v6 <replaceable>querysource6</replaceable>;
+	query-source <optional> address ( <replaceable>ipv4_address</replaceable> | * ) </optional> <optional> port ( <replaceable>integer</replaceable> | * ) </optional>;
+	query-source-v6 <optional> address ( <replaceable>ipv6_address</replaceable> | * ) </optional> <optional> port ( <replaceable>integer</replaceable> | * ) </optional>;
 	cleaning-interval <replaceable>integer</replaceable>;
 	min-roots <replaceable>integer</replaceable>; // not implemented
 	lame-ttl <replaceable>integer</replaceable>;

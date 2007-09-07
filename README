@@ -252,9 +252,23 @@ Building
 			is incompatable with the upcoming DS support
 			and SHOULD NOT be set unless you are currently
 			making use of it.
+		-DNS_CLIENT_DROPPORT=0
+			Disable dropping queries from particular well
+			known ports.
 
 	    LDFLAGS
 		Linker flags. Defaults to empty string.
+
+	The following need to be set when cross compiling.
+
+	    BUILD_CC
+		The native C compiler.
+	    BUILD_CFLAGS (optional)
+	    BUILD_CPPFLAGS (optional)
+		Possible Settings:
+		-DNEED_OPTARG=1		(optarg is not declared in <unistd.h>)
+	    BUILD_LDFLAGS (optional)
+	    BUILD_LIBS (optional)
 
 	To build shared libraries, specify "--with-libtool" on the
 	configure command line.

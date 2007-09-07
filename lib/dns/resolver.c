@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: resolver.c,v 1.218.2.42 2005/07/04 23:19:17 marka Exp $ */
+/* $Id: resolver.c,v 1.218.2.45 2006/01/06 00:48:37 marka Exp $ */
 
 #include <config.h>
 
@@ -896,9 +896,11 @@ fctx_query(fetchctx_t *fctx, dns_adbaddrinfo_t *addrinfo,
 		if (result != ISC_R_SUCCESS)
 			goto cleanup_query;
 
+#ifndef BROKEN_TCP_BIND_BEFORE_CONNECT
 		result = isc_socket_bind(query->tcpsocket, &addr);
 		if (result != ISC_R_SUCCESS)
 			goto cleanup_socket;
+#endif
 
 		/*
 		 * A dispatch will be created once the connect succeeds.
@@ -1144,6 +1146,12 @@ resquery_send(resquery_t *query) {
 	 */
 	if ((query->options & DNS_FETCHOPT_NOEDNS0) == 0)
 		fctx->qmessage->flags |= DNS_MESSAGEFLAG_CD;
+
+	/*
+	 * Clear CD if EDNS is not in use.
+	 */
+	if ((query->options & DNS_FETCHOPT_NOEDNS0) != 0)
+		fctx->qmessage->flags &= ~DNS_MESSAGEFLAG_CD;
 
 	/*
 	 * Add TSIG record tailored to the current recipient.

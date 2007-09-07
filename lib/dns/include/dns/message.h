@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2006  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: message.h,v 1.100.2.4 2004/03/09 06:11:19 marka Exp $ */
+/* $Id: message.h,v 1.100.2.7 2006/03/01 01:34:05 marka Exp $ */
 
 #ifndef DNS_MESSAGE_H
 #define DNS_MESSAGE_H 1
@@ -231,7 +231,7 @@ struct dns_message {
 	isc_region_t			saved;
 
 	dns_rdatasetorderfunc_t		order;
-	void *				order_arg;
+	const void *			order_arg;
 };
 
 /***
@@ -703,6 +703,27 @@ dns_message_findtype(dns_name_t *name, dns_rdatatype_t type,
  * Returns:
  *	ISC_R_SUCCESS		-- all is well.
  *	ISC_R_NOTFOUND		-- the desired type does not exist.
+ */
+
+isc_result_t
+dns_message_find(dns_name_t *name, dns_rdataclass_t rdclass,
+		 dns_rdatatype_t type, dns_rdatatype_t covers,
+		 dns_rdataset_t **rdataset);
+/*%<
+ * Search the name for the specified rdclass and type.  If it is found,
+ * *rdataset is filled in with a pointer to that rdataset.
+ *
+ * Requires:
+ *\li	if '**rdataset' is non-NULL, *rdataset needs to be NULL.
+ *
+ *\li	'type' be a valid type, and NOT dns_rdatatype_any.
+ *
+ *\li	If 'type' is dns_rdatatype_rrsig, 'covers' must be a valid type.
+ *	Otherwise it should be 0.
+ *
+ * Returns:
+ *\li	#ISC_R_SUCCESS		-- all is well.
+ *\li	#ISC_R_NOTFOUND		-- the desired type does not exist.
  */
 
 void
@@ -1226,7 +1247,7 @@ dns_message_getrawmessage(dns_message_t *msg);
 
 void
 dns_message_setsortorder(dns_message_t *msg, dns_rdatasetorderfunc_t order,
-			 void *order_arg);
+			 const void *order_arg);
 /*
  * Define the order in which RR sets get rendered by
  * dns_message_rendersection() to be the ascending order

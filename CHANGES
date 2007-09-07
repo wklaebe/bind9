@@ -1,4 +1,30 @@
 
+	--- 9.0.0rc5 released ---
+
+ 411.	[bug]		A typo in the HS A code caused an assertion failure.
+
+ 410.	[bug]		lwres_gethostbyname() and company set lwres_h_errno
+			to a random value on success.
+
+ 409.	[bug]		If named was shut down early in the startup
+			process, ns_omapi_shutdown() would attempt to lock
+			an unintialized mutex. [RT #262]
+
+ 408.	[bug]		stub zones could leak memory and reference counts if
+			all the masters were unreachable.
+
+ 407.	[bug]		isc_rwlock_lock() would needlessly block
+			readers when it reached the read quota even
+			if no writers were waiting.
+
+ 406.	[bug]		Log messages were occasionally lost or corrupted
+			due to a race condition in isc_log_doit().
+
+ 404.	[bug]		The request library didn't completely work with IPv6.
+
+ 381.	[bug]		Check for IPV6_RECVPKTINFO and use it instead of
+			IPV6_PKTINFO if found. [RT #229]
+
 	--- 9.0.0rc4 released ---
 
  403.	[bug]		"host" did not use the search list.
@@ -1265,7 +1291,7 @@
 				query-source-v6 transfer-source
 				transfer-source-v6 max-transfer-time-out
 				max-transfer-idle-out transfer-format
-				request-ixfr privide-ixfr cleaning-interval
+				request-ixfr provide-ixfr cleaning-interval
 				fetch-glue notify rfc2308-type1 lame-ttl
 				max-ncache-ttl min-roots
 

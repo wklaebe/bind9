@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dighost.c,v 1.221.2.11 2002/02/19 22:12:57 gson Exp $ */
+/* $Id: dighost.c,v 1.221.2.14 2002/08/06 02:40:11 marka Exp $ */
 
 /*
  * Notice to programmers:  Do not use this code as an example of how to
@@ -1664,7 +1664,7 @@ send_udp(dig_query_t *query) {
  */
 static void
 connect_timeout(isc_task_t *task, isc_event_t *event) {
-	dig_lookup_t *l=NULL;
+	dig_lookup_t *l=NULL, *n;
 	dig_query_t *query=NULL, *cq;
 
 	UNUSED(task);
@@ -1700,7 +1700,8 @@ connect_timeout(isc_task_t *task, isc_event_t *event) {
 			debug("making new TCP request, %d tries left",
 			      l->retries);
 			l->retries--;
-			requeue_lookup(l, ISC_TRUE);
+			n = requeue_lookup(l, ISC_TRUE);
+			n->origin = query->lookup->origin;
 			cancel_lookup(l);
 		}
 	} else {
@@ -2096,7 +2097,10 @@ recv_done(isc_task_t *task, isc_event_t *event) {
 	isc_result_t result;
 	dig_lookup_t *n, *l;
 	isc_boolean_t docancel = ISC_FALSE;
+	isc_boolean_t match = ISC_TRUE;
 	unsigned int parseflags;
+	dns_messageid_t id;
+	unsigned int msgflags;
 
 	UNUSED(task);
 	INSIST(!free_now);
@@ -2151,6 +2155,73 @@ recv_done(isc_task_t *task, isc_event_t *event) {
 
 	b = ISC_LIST_HEAD(sevent->bufferlist);
 	ISC_LIST_DEQUEUE(sevent->bufferlist, &query->recvbuf, link);
+
+	if (!l->tcp_mode &&
+	    !isc_sockaddr_equal(&sevent->address, &query->sockaddr)) {
+		char buf1[ISC_SOCKADDR_FORMATSIZE];
+		char buf2[ISC_SOCKADDR_FORMATSIZE];
+		isc_sockaddr_t any;
+
+		if (isc_sockaddr_pf(&query->sockaddr) == AF_INET) 
+			isc_sockaddr_any(&any);
+		else
+			isc_sockaddr_any6(&any);
+
+		/*
+		* We don't expect a match when the packet is 
+		* sent to 0.0.0.0, :: or to a multicast addresses.
+		* XXXMPA broadcast needs to be handled here as well.
+		*/
+		if ((!isc_sockaddr_eqaddr(&query->sockaddr, &any) &&
+		     !isc_sockaddr_ismulticast(&query->sockaddr)) ||
+		    isc_sockaddr_getport(&query->sockaddr) !=
+		    isc_sockaddr_getport(&sevent->address)) {
+			isc_sockaddr_format(&sevent->address, buf1,
+			sizeof(buf1));
+			isc_sockaddr_format(&query->sockaddr, buf2,
+			sizeof(buf2));
+			printf(";; reply from unexpected source: %s,"
+			" expected %s\n", buf1, buf2);
+			match = ISC_FALSE;
+		}
+	}
+
+ 	result = dns_message_peekheader(b, &id, &msgflags);
+	if (result != ISC_R_SUCCESS || l->sendmsg->id != id) {
+		if (l->tcp_mode) {
+			if (result == ISC_R_SUCCESS)
+				printf(";; ERROR: ID mismatch: "
+				       "expected ID %u, got %u\n",
+				       l->sendmsg->id, id);
+			else
+				printf(";; ERROR: short (< header size) message\n");
+			isc_event_free(&event);
+			clear_query(query);
+			check_next_lookup(l);
+			UNLOCK_LOOKUP;
+			return;
+		}
+		if (result == ISC_R_SUCCESS)
+			printf(";; Warning: ID mismatch: "
+			       "expected ID %u, got %u\n", l->sendmsg->id, id);
+		else
+			printf(";; Warning: short (< header size) message received\n");
+		match = ISC_FALSE;
+	}
+
+	if (!match) {
+		isc_buffer_invalidate(&query->recvbuf);
+		isc_buffer_init(&query->recvbuf, query->recvspace, COMMSIZE);
+		ISC_LIST_ENQUEUE(query->recvlist, &query->recvbuf, link);
+		result = isc_socket_recvv(query->sock, &query->recvlist, 1,
+					  global_task, recv_done, query);
+		check_result(result, "isc_socket_recvv");
+		recvcount++;
+		isc_event_free(&event);
+		UNLOCK_LOOKUP;
+		return;
+	}
+
 	result = dns_message_create(mctx, DNS_MESSAGE_INTENTPARSE, &msg);
 	check_result(result, "dns_message_create");
 
@@ -2202,6 +2273,7 @@ recv_done(isc_task_t *task, isc_event_t *event) {
 		printf(";; Truncated, retrying in TCP mode.\n");
 		n = requeue_lookup(l, ISC_TRUE);
 		n->tcp_mode = ISC_TRUE;
+		n->origin = query->lookup->origin;
 		dns_message_destroy(&msg);
 		isc_event_free(&event);
 		clear_query(query);

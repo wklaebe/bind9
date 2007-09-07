@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2000, 2001  Internet Software Consortium.
+ * Copyright (C) 2000-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: entropy.c,v 1.60.2.1 2001/10/22 23:28:18 gson Exp $ */
+/* $Id: entropy.c,v 1.60.2.3 2002/08/05 06:57:16 marka Exp $ */
 
 /*
  * This is the system depenedent part of the ISC entropy API.
@@ -23,6 +23,7 @@
 
 #include <config.h>
 
+#include <sys/param.h>	/* Openserver 5.0.6A and FD_SETSIZE */
 #include <sys/types.h>
 #include <sys/time.h>
 

@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: socket.c,v 1.5.2.5 2002/02/19 00:40:09 marka Exp $ */
+/* $Id: socket.c,v 1.5.2.7 2002/07/31 03:10:58 mayer Exp $ */
 
 
 #define MAKE_EXTERNAL 1
@@ -55,7 +55,7 @@
 #include "errno2result.h"
 
 #define MAX_SELECT_SECONDS 0
-#define MAX_SELECT_MILLISECONDS 400
+#define MAX_SELECT_MILLISECONDS 40
 /*
  * Some systems define the socket length argument as an int, some as size_t,
  * some as socklen_t.  This is here so it can be easily changed if needed.
@@ -1057,8 +1057,18 @@ doio_recv(isc_socket_t *sock, isc_socketevent_t *dev) {
 	if ((sock->type == isc_sockettype_tcp) && (cc == 0))
 		return (DOIO_EOF);
 
-	if (sock->type == isc_sockettype_udp)
+	if (sock->type == isc_sockettype_udp) {
 		dev->address.length = msghdr.msg_namelen;
+		if (isc_sockaddr_getport(&dev->address) == 0) {
+			if (isc_log_wouldlog(isc_lctx, IOEVENT_LEVEL)) {
+				socket_log(sock, &dev->address, IOEVENT,
+					   isc_msgcat, ISC_MSGSET_SOCKET,
+					   ISC_MSG_ZEROPORT, 
+					   "dropping source port zero packet");
+			}
+			return (DOIO_SOFT);
+		}
+	}
 
 	socket_log(sock, &dev->address, IOEVENT,
 		   isc_msgcat, ISC_MSGSET_SOCKET, ISC_MSG_PKTRECV,
@@ -2188,7 +2198,7 @@ watcher(void *uap) {
 	/* Timeout on select in case it's necesasary */
 	struct timeval tv;
 	tv.tv_sec = MAX_SELECT_SECONDS;
-	tv.tv_usec = MAX_SELECT_MILLISECONDS;
+	tv.tv_usec = MAX_SELECT_MILLISECONDS*1000;
 
 	/*
 	 * Get the control fd here.  This will never change.

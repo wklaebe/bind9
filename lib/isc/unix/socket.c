@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: socket.c,v 1.207.2.10 2002/03/20 20:56:44 marka Exp $ */
+/* $Id: socket.c,v 1.207.2.14 2002/07/11 04:04:26 marka Exp $ */
 
 #include <config.h>
 
@@ -948,8 +948,18 @@ doio_recv(isc_socket_t *sock, isc_socketevent_t *dev) {
 	if ((sock->type == isc_sockettype_tcp) && (cc == 0))
 		return (DOIO_EOF);
 
-	if (sock->type == isc_sockettype_udp)
+	if (sock->type == isc_sockettype_udp) {
 		dev->address.length = msghdr.msg_namelen;
+		if (isc_sockaddr_getport(&dev->address) == 0) {
+			if (isc_log_wouldlog(isc_lctx, IOEVENT_LEVEL)) {
+				socket_log(sock, &dev->address, IOEVENT,
+					   isc_msgcat, ISC_MSGSET_SOCKET,
+					   ISC_MSG_ZEROPORT, 
+					   "dropping source port zero packet");
+			}
+			return (DOIO_SOFT);
+		}
+	}
 
 	socket_log(sock, &dev->address, IOEVENT,
 		   isc_msgcat, ISC_MSGSET_SOCKET, ISC_MSG_PKTRECV,
@@ -1082,6 +1092,7 @@ doio_send(isc_socket_t *sock, isc_socketevent_t *dev) {
 		ALWAYS_HARD(ENOBUFS, ISC_R_NORESOURCES);
 		ALWAYS_HARD(EPERM, ISC_R_HOSTUNREACH);
 		ALWAYS_HARD(EPIPE, ISC_R_NOTCONNECTED);
+		ALWAYS_HARD(ECONNRESET, ISC_R_CONNECTIONRESET);
 
 #undef SOFT_OR_HARD
 #undef ALWAYS_HARD
@@ -1328,13 +1339,11 @@ isc_socket_create(isc_socketmgr_t *manager, int pf, isc_sockettype_t type,
 		case EPROTONOSUPPORT:
 		case EPFNOSUPPORT:
 		case EAFNOSUPPORT:
-#ifdef LINUX
 		/*
 		 * Linux 2.2 (and maybe others) return EINVAL instead of
 		 * EAFNOSUPPORT.
 		 */
 		case EINVAL:
-#endif
 			return (ISC_R_FAMILYNOSUPPORT);
 
 		default:
@@ -1735,6 +1744,9 @@ internal_accept(isc_task_t *me, isc_event_t *ev) {
 		if (SOFT_ERROR(errno))
 			goto soft_error;
 		switch (errno) {
+		case ENOBUFS:
+		case ENFILE:
+		case ENOMEM:
 		case ECONNRESET:
 		case ECONNABORTED:
 		case EHOSTUNREACH:

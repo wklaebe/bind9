@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: log.c,v 1.70.2.3 2002/02/08 03:57:38 marka Exp $ */
+/* $Id: log.c,v 1.70.2.5 2002/07/11 03:39:06 marka Exp $ */
 
 /* Principal Authors: DCL */
 
@@ -941,6 +941,8 @@ isc_log_setdebuglevel(isc_log_t *lctx, unsigned int level) {
 
 	REQUIRE(VALID_CONTEXT(lctx));
 
+	LOCK(&lctx->lock);
+
 	lctx->debug_level = level;
 	/*
 	 * Close ISC_LOG_DEBUGONLY channels if level is zero.
@@ -955,6 +957,7 @@ isc_log_setdebuglevel(isc_log_t *lctx, unsigned int level) {
 				(void)fclose(FILE_STREAM(channel));
 				FILE_STREAM(channel) = NULL;
 			}
+	UNLOCK(&lctx->lock);
 }
 
 unsigned int
@@ -1017,6 +1020,7 @@ isc_log_closefilelogs(isc_log_t *lctx) {
 
 	REQUIRE(VALID_CONTEXT(lctx));
 
+	LOCK(&lctx->lock);
 	for (channel = ISC_LIST_HEAD(lctx->logconfig->channels);
 	     channel != NULL;
 	     channel = ISC_LIST_NEXT(channel, link))
@@ -1026,6 +1030,7 @@ isc_log_closefilelogs(isc_log_t *lctx) {
 			(void)fclose(FILE_STREAM(channel));
 			FILE_STREAM(channel) = NULL;
 		}
+	UNLOCK(&lctx->lock);
 }
 
 /****

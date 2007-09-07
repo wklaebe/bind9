@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: zone.c,v 1.333.2.8 2002/03/29 00:20:07 marka Exp $ */
+/* $Id: zone.c,v 1.333.2.13 2002/08/06 02:24:15 marka Exp $ */
 
 #include <config.h>
 
@@ -1167,7 +1167,8 @@ zone_postload(dns_zone_t *zone, dns_db_t *db, isc_time_t loadtime,
 	/*
 	 * Apply update log, if any.
 	 */
-	if (zone->journal != NULL) {
+	if (zone->journal != NULL &&
+	    ! DNS_ZONE_OPTION(zone, DNS_ZONEOPT_NOMERGE)) {
 		result = dns_journal_rollforward(zone->mctx, db,
 						 zone->journal);
 		if (result != ISC_R_SUCCESS && result != ISC_R_NOTFOUND &&
@@ -1247,6 +1248,7 @@ zone_postload(dns_zone_t *zone, dns_db_t *db, isc_time_t loadtime,
 		    zone->type == dns_zone_stub) {
 			isc_time_t t;
 			isc_interval_t i;
+			unsigned int delay;
 
 			result = isc_file_getmodtime(zone->journal, &t);
 			if (result != ISC_R_SUCCESS)
@@ -1260,7 +1262,13 @@ zone_postload(dns_zone_t *zone, dns_db_t *db, isc_time_t loadtime,
 				isc_interval_set(&i, zone->retry, 0);
 				isc_time_add(&now, &i, &zone->expiretime);
 			}
-			zone->refreshtime = now;
+			delay = isc_random_jitter(zone->retry,
+						  (zone->retry * 3) / 4);
+			isc_interval_set(&i, delay, 0);
+			isc_time_add(&now, &i, &zone->refreshtime);
+			if (isc_time_compare(&zone->refreshtime,   
+					     &zone->expiretime) >= 0)
+				zone->refreshtime = now;
 		}
 		break;
 	default:
@@ -2148,7 +2156,8 @@ zone_needdump(dns_zone_t *zone, unsigned int delay) {
 	if (isc_time_isepoch(&zone->dumptime) ||
 	    isc_time_compare(&zone->dumptime, &dumptime) > 0)
 		zone->dumptime = dumptime;
-	zone_settimer(zone, &now);
+	if (zone->task != NULL)
+		zone_settimer(zone, &now);
 }
 
 static isc_result_t
@@ -5309,7 +5318,7 @@ dns_zonemgr_create(isc_mem_t *mctx, isc_taskmgr_t *taskmgr,
 
 	/* Create the zone task pool. */
 	result = isc_taskpool_create(taskmgr, mctx,
-				     8 /* XXX */, 0, &zmgr->zonetasks);
+				     8 /* XXX */, 2, &zmgr->zonetasks);
 	if (result != ISC_R_SUCCESS)
 		goto free_rwlock;
 

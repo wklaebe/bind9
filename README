@@ -44,6 +44,14 @@ BIND 9
 		Nominum, Inc.
 
 
+BIND 9.2.2 (release candidate 1)
+
+	BIND 9.2.1 is a maintenance release, containing fixes for
+	a number of bugs in 9.2.1 but no new features.
+
+	libbind: from BIND 8.3.3. [CERT CA-2002-19]
+	Mimimum OpenSSL version now 0.9.6e. [CERT CA-2002-23]
+
 BIND 9.2.1
 
 	BIND 9.2.1 is a maintenance release, containing fixes for
@@ -131,6 +139,11 @@ BIND 9.2.0
 		FreeBSD prior to 4.2 (and 4.2 if running as non-root)
 		and OpenBSD prior to 2.8 log messages like
 		"fcntl(8, F_SETFL, 4): Inappropriate ioctl for device".
+		This is due to a bug in "/dev/random" and impacts the
+		server's DNSSEC support.
+
+		OS X 10.1.4 (Darwin 5.4) reports errors like
+		"fcntl(3, F_SETFL, 4): Operation not supported by device".
 		This is due to a bug in "/dev/random" and impacts the
 		server's DNSSEC support.
 
@@ -298,9 +311,9 @@ Bug Reports and Mailing Lists
 		http://www.isc.org/ml-archives/
 
 	If you're planning on making changes to the BIND 9 source
-	code, you might want to join the BIND 9 Workers mailing list.
+	code, you might want to join the BIND Workers mailing list.
 	Send mail to
 
-		bind9-workers-request@isc.org
+		bind-workers-request@isc.org
 
 

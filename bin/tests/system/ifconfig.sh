@@ -15,7 +15,7 @@
 # NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
 # WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: ifconfig.sh,v 1.35.2.3 2002/03/26 00:54:50 marka Exp $
+# $Id: ifconfig.sh,v 1.35.2.5 2002/08/02 03:05:39 marka Exp $
 
 #
 # Set up interface aliases for bind9 system tests.
@@ -74,6 +74,12 @@ case "$1" in
 		    hpux)
 			ifconfig lo0:$ns 10.53.0.$ns up
 		        ;;
+		    *-sco3.2v*)
+			ifconfig lo0 alias 10.53.0.$ns
+			;;
+		    *-darwin5*)
+			ifconfig lo0 alias 10.53.0.$ns
+			;;
 	            *)
 			echo "Don't know how to set up interface.  Giving up."
 			exit 1
@@ -122,6 +128,12 @@ case "$1" in
 		    hpux)
 			ifconfig lo0:$ns 10.53.0.$ns down
 		        ;;
+		    *-sco3.2v*)
+			ifconfig lo0 -alias 10.53.0.$ns
+			;;
+		    *darwin5*)
+			ifconfig lo0 -alias 10.53.0.$ns
+			;;
 	            *)
 			echo "Don't know how to destroy interface.  Giving up."
 			exit 1

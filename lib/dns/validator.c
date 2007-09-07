@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2000, 2001  Internet Software Consortium.
+ * Copyright (C) 2000-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: validator.c,v 1.91.2.1 2001/09/19 21:51:40 bwelling Exp $ */
+/* $Id: validator.c,v 1.91.2.5 2002/08/05 06:57:12 marka Exp $ */
 
 #include <config.h>
 
@@ -362,7 +362,15 @@ nxtprovesnonexistence(dns_validator_t *val, dns_name_t *nxtname,
 {
 	int order;
 	dns_rdata_t rdata = DNS_RDATA_INIT;
+	isc_boolean_t isnxdomain;
 	isc_result_t result;
+
+	INSIST(DNS_MESSAGE_VALID(val->event->message));
+
+	if (val->event->message->rcode == dns_rcode_nxdomain)
+		isnxdomain = ISC_TRUE;
+	else
+		isnxdomain = ISC_FALSE;
 
 	result = dns_rdataset_first(nxtset);
 	if (result != ISC_R_SUCCESS) {
@@ -377,8 +385,13 @@ nxtprovesnonexistence(dns_validator_t *val, dns_name_t *nxtname,
 	order = dns_name_compare(val->event->name, nxtname);
 	if (order == 0) {
 		/*
-		 * The names are the same, so look for the type present bit.
+		 * The names are the same.  Look for the type present bit.
 		 */
+		if (isnxdomain) {
+			validator_log(val, ISC_LOG_DEBUG(3),
+				      "NXT record seen at nonexistent name");
+			return (ISC_FALSE);
+		}
 		if (val->event->type >= 128) {
 			validator_log(val, ISC_LOG_DEBUG(3), "invalid type %d",
 				      val->event->type);
@@ -397,6 +410,24 @@ nxtprovesnonexistence(dns_validator_t *val, dns_name_t *nxtname,
 		/*
 		 * The NXT owner name is less than the nonexistent name.
 		 */
+		if (!isnxdomain) {
+			validator_log(val, ISC_LOG_DEBUG(3),
+				      "missing NXT record at name");
+			return (ISC_FALSE);
+		}
+		if (dns_name_issubdomain(val->event->name, nxtname) &&
+		    dns_nxt_typepresent(&rdata, dns_rdatatype_ns) &&
+		    !dns_nxt_typepresent(&rdata, dns_rdatatype_soa))
+		{
+			/*
+			 * This NXT record is from somewhere higher in
+			 * the DNS, and at the parent of a delegation.
+			 * It can not be legitimately used here.
+			 */
+			validator_log(val, ISC_LOG_DEBUG(3),
+				      "ignoring parent nxt");
+			return (ISC_FALSE);
+		}
 		result = dns_rdata_tostruct(&rdata, &nxt, NULL);
 		if (result != ISC_R_SUCCESS)
 			return (ISC_FALSE);
@@ -1080,11 +1111,12 @@ validate(dns_validator_t *val, isc_boolean_t resume) {
 			validator_log(val, ISC_LOG_DEBUG(3),
 				      "marking as secure");
 			return (result);
-		}
-		else
+		} else {
 			validator_log(val, ISC_LOG_DEBUG(3),
 				      "verify failure: %s",
 				      isc_result_totext(result));
+			resume = ISC_FALSE;
+		}
 	}
 	if (result != ISC_R_NOMORE) {
 		validator_log(val, ISC_LOG_DEBUG(3),

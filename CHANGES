@@ -1,10 +1,233 @@
 
+	--- 9.2.2rc1 released ---
+
+1357.	[bug]		--enable-libbind would fail when not built in the
+			source tree for certain OS's.
+
+1356.	[security]	Support patches OpenSSL libraries.
+			http://www.cert.org/advisories/CA-2002-23.html
+
+1355.	[bug]		It was possible to trigger a INSIST when debugging
+			large dynamic updates. [RT #3390]
+
+1354.	[bug]		nsupdate was extremely wasteful of memory.
+
+1355.	[tuning]	Reduce the number of events / quantum for zone tasks.
+
+1354.	[doc]		lwres man pages had illegal nroff.
+
+1353.	[contrib]	sdb/ldap to version 0.9.
+
+1352.	[bug]		dig, host, nslookup when falling back to TCP use the
+			current search entry (if any). [RT #3374]
+
+1351.	[bug]		lwres_getipnodebyname() returned the wrong name
+			when given a IPv4 literal, af=AF_INET6 and AI_MAPPED
+			was set.
+
+1350.	[bug]		dns_name_fromtext() failed to handle too many labels
+			gracefully.
+
+1349.	[security]	Mimimum OpenSSL version now 0.9.6e (was 0.9.5a).
+			http://www.cert.org/advisories/CA-2002-23.html
+
+1346.	[bug]		Win32: select timeout in socket.c was too small
+			as value given was meant to be milliseconds and
+			timeval structure requires microseconds. This
+			caused high CPU loads with a compute bound loop.
+			[RT #3358]
+
+1345.	[port]		Use a explicit -Wformat with gcc.  Not all versions
+			include it in -Wall.
+
+1340.	[bug]		Delay and spread out the startup refresh load.
+
+1335.	[bug]		When performing a nonexistence proof, the validator
+			should discard parent NXTs from higher in the DNS.
+
+1334.	[bug]		When signing/verifying rdatasets, duplicate rdatas
+			need to be suppressed.
+
+1330.	[bug]		When processing events (non-threaded) only allow
+			the task one chance to use to use its quantum.
+
+1327.	[bug]		The validator would incorrectly mark data as insecure
+			when seeing a bogus signature before a correct
+			signature.
+
+1326.	[bug]		DNAME/CNAME signatures were not being cached when
+			validation was not being performed. [RT #3284]
+
+1325.	[bug]		If the tcpquota was exhausted it was possible to
+			to trigger a INSIST() failure.
+
+1324.	[port]		darwin: ifconfig.sh now supports darwin.
+
+1323.	[port]		linux: Slackware 4.0 needs <asm/unistd.h>. [RT #3205]
+
+1320.	[doc]		query-source-v6 was missing from options section.
+			[RT #3218]
+
+1319.	[func]		libbind: log attempts to exploit #1318.
+
+1318.	[bug]		libbind: Remote buffer overrun.
+
+1317.	[port]		libbind: TrueUNIX 5.1 does not like __align as a
+			element name.
+
+1316.	[bug]		libbind: gethostans() could get out of sync parsing
+			the response if there was a very long CNAME chain.
+
+1315.	[bug]		Options should apply to the internal _bind view.
+
+1314.	[port]		Handle ECONNRESET from sendmsg() [unix].
+
+1311.	[bug]		lwres_getrrsetbyname leaked memory.  [RT #3159]
+
+1310.	[bug]		'rndc stop' failed to cause zones to be flushed
+			sometimes. [RT #3157]
+
+1307.	[bug]		nsupdate: allow white space base64 key data.
+
+1306.	[bug]		Badly encoded LOC record when the size, horizontal
+			precision or vertical precision was 0.1m.
+
+1305.	[bug]		Document that internal zones are included in the
+			rndc status results.
+
+1298.	[bug]		The CINCLUDES macro in lib/dns/sec/dst/Makefile
+			could be left with a trailing "\" after configure
+			has been run.
+
+1297.	[port]		linux: make handling EINVAL from socket() no longer
+			conditional on #ifdef LINUX.
+
+1296.	[bug]		isc_log_closefilelogs() needed to lock the log
+			context.
+
+1295.	[bug]		isc_log_setdebuglevel() needed to lock the log
+			context.
+
+1294.	[func]		libbind: no longer attempts bit string labels for
+			IPv6 reverse resolution.  Try IP6.ARPA then IP6.INT
+			for nibble style resolution.
+
+1289.	[port]		See if -ldl is required for OpenSSL? [RT #2672]
+
+1288.	[bug]		Adjusted REQUIRE's in lib/dns/name.c to better
+			reflect written requirements.
+
+1287.	[bug]		REQUIRE that DNS_DBADD_MERGE only be set when adding
+			a rdataset to a zone db in the rbtdb implementation of
+			addrdataset.
+
+1286.	[bug]		dns_name_downcase() enforce requirement that
+			target != NULL or name->buffer != NULL.
+
+1284.	[bug]		The RTT estimate on unused servers was not aged.
+			[RT #2569]
+
+1282.	[port]		libbind: hpux 11.11 interface scaning.
+
+1280.	[bug]		libbind: escape '(' and ')' when coverting to
+			presentation form.
+
+1279.	[port]		Darwin uses (unsigned long) for size_t. [RT #2590]
+
+1276.	[bug]		libbind: const pointer conficts in res_debug.c.
+
+1275.	[port]		libbind: hpux: treat all hpux systems as BIG_ENDIAN.
+
+1274.	[bug]		Memory leak in lwres_gnbarequest_parse().
+
+1273.	[port]		libbind: solaris: 64 bit binary compatability.
+
+1272.	[contrib]	Berkeley DB 4.0 sdb implementation from
+			Nuno Miguel Rodrigues <nmr@co.sapo.pt>.
+
+1270.	[bug]		Check that system inet_pton() and inet_ntop() support
+			AF_INET6.
+
+1269.	[port]		Openserver: ifconfig.sh support.
+
+1268.	[port]		Openserver: the value FD_SETSIZE depends on whether
+			<sys/param.h> is included or not.  Be consistant.
+
+1266.	[bug]		ISC_LINK_INIT, ISC_LINK_UNLINK, ISC_LIST_DEQUEUE,
+			__ISC_LINK_UNLINKUNSAFE and __ISC_LIST_DEQUEUEUNSAFE
+			are not C++ compatible, use *_TYPE versions instead.
+
+1265.	[bug]		libbind: LINK_INIT and UNLINK were not compatible with
+			C++, use LINK_INIT_TYPE and UNLINK_TYPE instead.
+
+1263.	[bug]		Reference after free error if dns_dispatchmgr_create()
+			failed.
+
+1262.	[bug]		ns_server_destroy() failed to set *serverp to NULL.
+
+1261.	[func]		libbind: ns_sign2() and ns_sign_tcp() now provide
+			support for compressed TSIG owner names.
+
+1260.	[func]		libbind: res_update can now update IPv6 servers,
+			new function res_findzonecut2().
+
+1259.	[bug]		libbind: get_salen() IPv6 support was broken for OSs
+			w/o sa_len.
+
+1258.	[bug]		libbind: res_nametotype() and res_nametoclass() were
+			broken.
+
+1276.	[contrib]	'queryperf' now has EDNS (-e) + DNSSEC DO (-D) support.
+
+1275.	[bug]		When verifying that an NXT proves nonexistence, check
+			the rcode of the message and only do the matching NXT
+			check.  That is, for NXDOMAIN responses, check that
+			the name is in the range between the NXT owner and
+			next name, and for NOERROR NODATA responses, check
+			that the type is not present in the NXT bitmap.
+
+1257.	[bug]		Failure to write pid-file should not be fatal on
+			reload. [RT #2861]
+
+1253.	[bug]		The dnssec system test failed to remove the correct
+			files.
+
+1252.	[bug]		Dig, host and nslookup were not checking the address
+			the answer was coming from against the address it was
+			sent to. [RT# 2692]
+
+1248.	[bug]		DESTDIR was not being propogated between makes.
+
+1245.	[bug]		Treat ENOBUFS, ENOMEM and ENFILE as soft errors for
+			accept().
+
+1242.	[bug]		named-checkzone failed if a journal existed. [RT #2657]
+
+1241.	[bug]		Drop received UDP messsages with a zero source port
+			as these are invariably forged. [RT #2621]
+
+1209.	[bug]		Dig, host, nslookup were not checking the message ids
+			on the responses. [RT #2454]
+
+1097.	[func]		libbind: RES_PRF_TRUNC for dig.
+
+1096.	[func]		libbind: "DNSSEC OK" (DO) support.
+
+1095.	[func]		libbind: resolver option: no-tld-query.  disables
+			trying unqualified as a tld.  no_tld_query is also
+			supported for FreeBSD compatability.
+
+1094.	[func]		libbind: add support gcc's format string checking.
+
+1089.	[func]		libbind: inet_{cidr,net}_{pton,ntop}() now have IPv6
+			support.
+
 	--- 9.2.1 released ---
 
-1271.	[port]		win32: a make file contained absolute version specific
+1251.	[port]		win32: a make file contained absolute version specific
 			references.
 
-1269.	[bug]		Missing masters clause was not handled gracefully.
+1249.	[bug]		Missing masters clause was not handled gracefully.
 			[RT #2703]
 
 1244.	[bug]		Receiving a TCP message from a blackhole address would
@@ -1779,7 +2002,7 @@
  589.	[bug]		The server could deadlock if a zone was updated 
 			while being transferred out.
 
- 588.	[bug]		ctx->in_use was not being correctly initalised when
+ 588.	[bug]		ctx->in_use was not being correctly initialised when
 			when pushing a file for $INCLUDE. [RT #523]
 
  587.	[func]		A warning is now printed if the "allow-update"
@@ -1950,7 +2173,7 @@
  532.	[func]		Implement DNS UPDATE pseudo records using
 			DNS_RDATA_UPDATE flag.
 
- 531.	[func]		Rdata really should be initalized before being assigned
+ 531.	[func]		Rdata really should be initialized before being assigned
 			to (dns_rdata_fromwire(), dns_rdata_fromtext(),
 			dns_rdata_clone(), dns_rdata_fromregion()),
 			check that it is.
@@ -2747,7 +2970,7 @@
 			enough to hold any legal domain name in presentation
 			format + terminating NULL.
 
- 301.	[bug]		Uninitalised pointer in host:printmessage(). [RT #159]
+ 301.	[bug]		Uninitialised pointer in host:printmessage(). [RT #159]
 
  300.	[bug]		Using both <isc/net.h> and <lwres/net.h> didn't work
 			on platforms lacking IPv6 because each included their
@@ -2886,7 +3109,7 @@
 
  267.	[func]		Nsupdate is now provided in the distribution.
 
- 266.	[bug]		zone.c:save_nsrrset() node was not initalized.
+ 266.	[bug]		zone.c:save_nsrrset() node was not initialized.
 
  265.	[bug]		dns_request_create() now works for TCP.
 
@@ -2903,7 +3126,7 @@
 					severity error;
 				}
 
- 262.	[bug]		'master' was not initalized in zone.c:stub_callback().
+ 262.	[bug]		'master' was not initialized in zone.c:stub_callback().
 
  261.	[func]		Add dns_zone_markdirty().
 

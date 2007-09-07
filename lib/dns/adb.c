@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1999-2001  Internet Software Consortium.
+ * Copyright (C) 1999-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: adb.c,v 1.181.2.2 2001/11/15 00:35:17 marka Exp $ */
+/* $Id: adb.c,v 1.181.2.4 2002/08/05 06:57:11 marka Exp $ */
 
 /*
  * Implementation notes
@@ -3899,8 +3899,11 @@ dns_adb_adjustsrtt(dns_adb_t *adb, dns_adbaddrinfo_t *addr,
 	bucket = addr->entry->lock_bucket;
 	LOCK(&adb->entrylocks[bucket]);
 
-	new_srtt = (addr->entry->srtt / 10 * factor)
-		+ (rtt / 10 * (10 - factor));
+	if (factor == DNS_ADB_RTTADJAGE)
+		new_srtt = addr->entry->srtt * 98 / 100;
+	else
+		new_srtt = (addr->entry->srtt / 10 * factor)
+			+ (rtt / 10 * (10 - factor));
 
 	addr->entry->srtt = new_srtt;
 	addr->srtt = new_srtt;

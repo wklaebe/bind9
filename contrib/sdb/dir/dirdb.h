@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2000, 2001  Internet Software Consortium.
+ * Copyright (C) 2000-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -15,11 +15,11 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: pgsqldb.h,v 1.2 2001/01/09 21:46:27 bwelling Exp $ */
+/* $Id: dirdb.h,v 1.2.4.2 2002/08/05 06:57:07 marka Exp $ */
 
 #include <isc/types.h>
 
-isc_result_t pgsqldb_init(void);
+isc_result_t dirdb_init(void);
 
-void pgsqldb_clear(void);
+void dirdb_clear(void);
 

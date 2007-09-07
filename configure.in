@@ -1,4 +1,4 @@
-# Copyright (C) 1998-2001  Internet Software Consortium.
+# Copyright (C) 1998-2002  Internet Software Consortium.
 #
 # Permission to use, copy, modify, and distribute this software for any
 # purpose with or without fee is hereby granted, provided that the above
@@ -13,7 +13,7 @@
 # NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
 # WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-AC_REVISION($Revision: 1.294.2.7 $)
+AC_REVISION($Revision: 1.294.2.16 $)
 
 AC_INIT(lib/dns/name.c)
 AC_PREREQ(2.13)
@@ -231,8 +231,9 @@ AC_SUBST(ISC_PLATFORM_HAVELONGLONG)
 #
 case $ac_cv_header_unistd_h in
 yes)
-AC_MSG_CHECKING(if unistd.h defines fd_set)
+AC_MSG_CHECKING(if unistd.h or sys/types.h defines fd_set)
 AC_TRY_COMPILE([
+#include <sys/types.h> /* Ultrix */
 #include <unistd.h>],
 [fd_set read_set; return (0);],
 	[AC_MSG_RESULT(yes)
@@ -310,11 +311,52 @@ case "$use_openssl" in
 		DNS_OPENSSL_LIBS="-L$use_openssl/lib -lcrypto"
 		AC_MSG_RESULT(using openssl from $use_openssl/lib and $use_openssl/include)
 
-		AC_MSG_CHECKING(OpenSSL library version)
 		saved_cflags="$CFLAGS"
 		saved_libs="$LIBS"
 		CFLAGS="$CFLAGS $DST_OPENSSL_INC"
 		LIBS="$LIBS $DNS_OPENSSL_LIBS"
+		AC_MSG_CHECKING(whether linking with OpenSSL works)
+		AC_TRY_RUN([
+#include <openssl/err.h>
+int main() {
+	ERR_clear_error();
+	return (0);
+}
+],
+	        [AC_MSG_RESULT(yes)],
+		[AC_MSG_RESULT(no)
+		 AC_MSG_ERROR(Could not run test program using OpenSSL from
+$use_openssl/lib and $use_openssl/include.
+Please check the argument to --with-openssl and your
+shared library configuration (e.g., LD_LIBRARY_PATH).)],
+		[AC_MSG_RESULT(assuming it does work on target platform)])
+
+		AC_MSG_CHECKING(whether linking with OpenSSL requires -ldl)
+		AC_TRY_LINK([
+#include <openssl/err.h>],
+[ DSO_METHOD_dlfcn(); ],
+		[AC_MSG_RESULT(no)],
+		[LIBS="$LIBS -ldl"
+		AC_TRY_LINK([
+#include <openssl/err.h>
+],[ DSO_METHOD_dlfcn(); ],
+		[AC_MSG_RESULT(yes)
+		DNS_OPENSSL_LIBS="$DNS_OPENSSL_LIBS -ldl"
+		],
+		 [AC_MSG_RESULT(unknown)
+		 AC_MSG_ERROR(OpenSSL has unsupported dynamic loading)],
+		[AC_MSG_RESULT(assuming it does work on target platform)])
+		],
+		[AC_MSG_RESULT(assuming it does work on target platform)]
+		)
+		 
+#
+#	OpenSSLDie is new with CERT CS-2002-23.  If we see it we have may
+#	have a patched library otherwise check that we are greater than
+#	the fixed versions
+#
+		AC_CHECK_FUNC(OpenSSLDie,
+		AC_MSG_CHECKING(OpenSSL library version)
 		AC_TRY_RUN([
 #include <stdio.h>
 #include <openssl/opensslv.h>
@@ -331,6 +373,28 @@ int main() {
 		[AC_MSG_RESULT(not compatible)
 		 AC_MSG_ERROR(you need OpenSSL 0.9.5a or newer)],
 		[AC_MSG_RESULT(assuming target platform has compatible version)])
+		,
+	        AC_MSG_RESULT(did not find fixes for CERT CA-2002-23)
+		AC_MSG_CHECKING(OpenSSL library version)
+		AC_TRY_RUN([
+#include <stdio.h>
+#include <openssl/opensslv.h>
+int main() {
+        if ((OPENSSL_VERSION_NUMBER >= 0x0090605fL &&
+	     OPENSSL_VERSION_NUMBER < 0x009070000L) ||
+	     OPENSSL_VERSION_NUMBER >= 0x00907003L)
+                return (0);
+	printf("\n\nFound   OPENSSL_VERSION_NUMBER %#010x\n",
+		OPENSSL_VERSION_NUMBER);
+	printf("Require OPENSSL_VERSION_NUMBER 0x0090605f or greater (0.9.6e)\n"
+	       "Require OPENSSL_VERSION_NUMBER 0x00907003 or greater (0.9.7-beta2)\n\n");
+        return (1);
+}
+],
+	        [AC_MSG_RESULT(ok)],
+		[AC_MSG_RESULT(not compatible)
+		 AC_MSG_ERROR(you need OpenSSL 0.9.6e/0.9.7-beta2 (or newer): CERT CA-2002-23)],
+		[AC_MSG_RESULT(assuming target platform has compatible version)]))
 		CFLAGS="$saved_cflags"
 		LIBS="$saved_libs"
 		;;
@@ -696,7 +760,7 @@ MKDEPCFLAGS="-M"
 IRIX_DNSSEC_WARNINGS_HACK=""
 
 if test "X$GCC" = "Xyes"; then
-	STD_CWARNINGS="$STD_CWARNINGS -W -Wall -Wmissing-prototypes -Wcast-qual -Wwrite-strings"
+	STD_CWARNINGS="$STD_CWARNINGS -W -Wall -Wmissing-prototypes -Wcast-qual -Wwrite-strings -Wformat"
 else
 	case $host in
 	*-dec-osf*)
@@ -1109,12 +1173,14 @@ AC_SUBST(LWRES_HAVE_SIN6_SCOPE_ID)
 # which provides some (all?) of the desired functions.
 #
 
-AC_MSG_CHECKING([for inet_ntop])
-AC_TRY_LINK([
+AC_MSG_CHECKING([for inet_ntop with IPv6 support])
+AC_TRY_RUN([
 #include <sys/types.h>
+#include <sys/socket.h>
 #include <netinet/in.h>
-#include <arpa/inet.h>],
-        [inet_ntop(0, 0, 0, 0); return (0);],
+#include <arpa/inet.h>
+main() {
+char a[16],b[64]; return(inet_ntop(AF_INET6, a, b, sizeof(b)) == (char*)0);}],
         [AC_MSG_RESULT(yes)
         ISC_PLATFORM_NEEDNTOP="#undef ISC_PLATFORM_NEEDNTOP"],
 
@@ -1128,14 +1194,15 @@ AC_TRY_LINK([
 # addresses with less than four octets, like "1.2.3".  Also leading
 # zeros should also be rejected.
 
-AC_MSG_CHECKING([for inet_pton])
+AC_MSG_CHECKING([for working inet_pton with IPv6 support])
 AC_TRY_RUN([
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
-main() { char a[4]; return (inet_pton(AF_INET, "1.2.3", a) == 1 ? 1 :
-			    inet_pton(AF_INET, "1.2.3.04", a) == 1 ? 1 : 0); }],
+main() { char a[16]; return (inet_pton(AF_INET, "1.2.3", a) == 1 ? 1 :
+			     inet_pton(AF_INET, "1.2.3.04", a) == 1 ? 1 : 
+			     (inet_pton(AF_INET6, "::1.2.3.4", a) != 1)); }],
         [AC_MSG_RESULT(yes)
         ISC_PLATFORM_NEEDPTON="#undef ISC_PLATFORM_NEEDPTON"],
         [AC_MSG_RESULT(no)
@@ -1475,7 +1542,7 @@ case "$host" in
 	[*-bsdi4[12]*])
 		hack_shutup_stdargcast=yes
 		;;
-	*-solaris2.8)
+	[*-solaris2.[89]])
 		hack_shutup_pthreadonceinit=yes
 		;;
 esac

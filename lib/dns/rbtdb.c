@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1999-2001  Internet Software Consortium.
+ * Copyright (C) 1999-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rbtdb.c,v 1.168.2.1 2001/11/16 11:04:38 marka Exp $ */
+/* $Id: rbtdb.c,v 1.168.2.3 2002/08/05 06:57:11 marka Exp $ */
 
 /*
  * Principal Author: Bob Halley
@@ -3327,9 +3327,10 @@ add(dns_rbtdb_t *rbtdb, dns_rbtnode_t *rbtnode, rbtdb_version_t *rbtversion,
 	 * Caller must be holding the node lock.
 	 */
 
-	if ((options & DNS_DBADD_MERGE) != 0)
+	if ((options & DNS_DBADD_MERGE) != 0) {
+		REQUIRE(rbtversion != NULL);
 		merge = ISC_TRUE;
-	else
+	} else
 		merge = ISC_FALSE;
 
 	if ((options & DNS_DBADD_FORCE) != 0)

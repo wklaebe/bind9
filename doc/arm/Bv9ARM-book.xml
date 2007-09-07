@@ -2,7 +2,7 @@
 <!DOCTYPE book PUBLIC "-//OASIS//DTD DocBook XML V4.0//EN"
                "http://www.oasis-open.org/docbook/xml/4.0/docbookx.dtd">
 
-<!-- File: $Id: Bv9ARM-book.xml,v 1.155.2.18 2002/04/22 04:14:25 marka Exp $ -->
+<!-- File: $Id: Bv9ARM-book.xml,v 1.155.2.22 2002/07/02 14:01:45 marka Exp $ -->
 
 <book>
 <title>BIND 9 Administrator Reference Manual</title>
@@ -799,7 +799,10 @@ of a server.</para>
    <listitem><para>Flushes the server's cache.</para></listitem></varlistentry>
 
    <varlistentry><term><userinput>status</userinput></term>
-   <listitem><para>Display status of the server.</para></listitem></varlistentry>
+   <listitem><para>Display status of the server.
+Note the number of zones includes the internal <command>bind/CH</command> zone
+and the default <command>./IN</command> hint zone if there is not a
+explicit root zone configured.</para></listitem></varlistentry>
 
 </variablelist>
 
@@ -2465,7 +2468,16 @@ file.</para>
 <para>The <command>syslog</command> destination clause directs the
 channel to the system log.  Its argument is a
 syslog facility as described in the <command>syslog</command> man
-page. How <command>syslog</command> will handle messages sent to
+page. Known facilities are <command>kern</command>, <command>user</command>,
+<command>mail</command>, <command>daemon</command>, <command>auth</command>,
+<command>syslog</command>, <command>lpr</command>, <command>news</command>,
+<command>uucp</command>, <command>cron</command>, <command>authpriv</command>,
+<command>ftp</command>, <command>local0</command>, <command>local1</command>,
+<command>local2</command>, <command>local3</command>, <command>local4</command>,
+<command>local5</command>, <command>local6</command> and
+<command>local7</command>, however not all facilities are supported on
+all operating systems.
+How <command>syslog</command> will handle messages sent to
 this facility is described in the <command>syslog.conf</command> man
 page. If you have a system which uses a very old version of <command>syslog</command> that
 only uses two arguments to the <command>openlog()</command> function,
@@ -2789,6 +2801,7 @@ statement in the <filename>named.conf</filename> file:</para>
     <optional> listen-on <optional> port <replaceable>ip_port</replaceable> </optional> { <replaceable>address_match_list</replaceable> }; </optional>
     <optional> listen-on-v6 <optional> port <replaceable>ip_port</replaceable> </optional> { <replaceable>address_match_list</replaceable> }; </optional>
     <optional> query-source <optional> address ( <replaceable>ip_addr</replaceable> | <replaceable>*</replaceable> ) </optional> <optional> port ( <replaceable>ip_port</replaceable> | <replaceable>*</replaceable> ) </optional>; </optional>
+    <optional> query-source-v6 <optional> address ( <replaceable>ip_addr</replaceable> | <replaceable>*</replaceable> ) </optional> <optional> port ( <replaceable>ip_port</replaceable> | <replaceable>*</replaceable> ) </optional>; </optional>
     <optional> max-transfer-time-in <replaceable>number</replaceable>; </optional>
     <optional> max-transfer-time-out <replaceable>number</replaceable>; </optional>
     <optional> max-transfer-idle-in <replaceable>number</replaceable>; </optional>
@@ -3364,7 +3377,7 @@ a wildcard IP address (<command>INADDR_ANY</command>) will be used.
 If <command>port</command> is <command>*</command> or is omitted,
 a random unprivileged port will be used. The defaults are</para>
 <programlisting>query-source address * port *;
-query-source-v6 address * port *
+query-source-v6 address * port *;
 </programlisting>
 <note>
 <para>The address specified in the <command>query-source</command> option
@@ -4120,7 +4133,7 @@ key data.</para></sect2>
 <programlisting>view <replaceable>view_name</replaceable> <optional><replaceable>class</replaceable></optional> {
       match-clients { <replaceable>address_match_list</replaceable> } ;
       match-destinations { <replaceable>address_match_list</replaceable> } ;
-      match-recursive-only { <replaceable>yes_or_no</replaceable> } ;
+      match-recursive-only <replaceable>yes_or_no</replaceable> ;
       <optional> <replaceable>view_option</replaceable>; ...</optional>
       <optional> zone-statistics <replaceable>yes_or_no</replaceable> ; </optional>
       <optional> <replaceable>zone_statement</replaceable>; ...</optional>

@@ -1,3 +1,9 @@
+bind9 (1:9.3.4-2etch1) stable-security; urgency=high
+
+  * Fix DNS cache poisoning through predictable query IDs. (CVE-2007-2926)
+
+ -- Moritz Muehlenhoff <jmm@debian.org>  Tue, 24 Jul 2007 22:09:35 +0000
+
 bind9 (1:9.3.4-2) unstable; urgency=high
 
   * Actually really do the merge of 9.3.4.  Sigh.  Closes: #408925

@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: client.c,v 1.176.2.13.4.31.6.1 2007/06/26 04:14:55 marka Exp $ */
+/* $Id: client.c,v 1.176.2.13.4.31 2006/07/22 01:09:38 marka Exp $ */
 
 #include <config.h>
 

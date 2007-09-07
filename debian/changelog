@@ -1,3 +1,9 @@
+bind9 (1:9.2.4-1sarge3) oldstable-security; urgency=high
+
+  * Backport fix for CVE-2007-2926
+
+ -- Moritz Muehlenhoff <jmm@debian.org>  Wed, 25 Jul 2007 21:30:55 +0000
+
 bind9 (1:9.2.4-1sarge2) stable; urgency=low
 
   * Backport fix for CVE-2007-0494 (delta between 9.2.7 and 9.2.8)

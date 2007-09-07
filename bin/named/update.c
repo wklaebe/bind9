@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: update.c,v 1.88.2.11 2004/06/20 23:44:35 marka Exp $ */
+/* $Id: update.c,v 1.88.2.13 2004/07/23 02:57:00 marka Exp $ */
 
 #include <config.h>
 
@@ -1893,6 +1893,8 @@ send_update_event(ns_client_t *client, dns_zone_t *zone) {
 
 	evclient = NULL;
 	ns_client_attach(client, &evclient);
+	INSIST(client->nupdates == 0);
+	client->nupdates++;
 	event->ev_arg = evclient;
 
 	dns_zone_gettask(zone, &zonetask);
@@ -2456,26 +2458,29 @@ update_action(isc_task_t *task, isc_event_t *event) {
 
 			dns_journal_destroy(&journal);
 		}
+
+		/*
+		 * XXXRTH  Just a note that this committing code will have
+		 *	   to change to handle databases that need two-phase
+		 *	   commit, but this isn't a priority.
+		 */
+		update_log(client, zone, LOGLEVEL_DEBUG,
+			   "committing update transaction");
+		dns_db_closeversion(db, &ver, ISC_TRUE);
+
+		/*
+		 * Mark the zone as dirty so that it will be written to disk.
+		 */
+		dns_zone_markdirty(zone);
+
+		/*
+		 * Notify slaves of the change we just made.
+		 */
+		dns_zone_notify(zone);
+	} else {
+		update_log(client, zone, LOGLEVEL_DEBUG, "redundant request");
+		dns_db_closeversion(db, &ver, ISC_TRUE);
 	}
-
-	/*
-	 * XXXRTH  Just a note that this committing code will have to change
-	 *         to handle databases that need two-phase commit, but this
-	 *	   isn't a priority.
-	 */
-	update_log(client, zone, LOGLEVEL_DEBUG,
-		   "committing update transaction");
-	dns_db_closeversion(db, &ver, ISC_TRUE);
-
-	/*
-	 * Mark the zone as dirty so that it will be written to disk.
-	 */
-	dns_zone_markdirty(zone);
-
-	/*
-	 * Notify slaves of the change we just made.
-	 */
-	dns_zone_notify(zone);
 	result = ISC_R_SUCCESS;
 	goto common;
 
@@ -2523,6 +2528,8 @@ updatedone_action(isc_task_t *task, isc_event_t *event) {
 	INSIST(event->ev_type == DNS_EVENT_UPDATEDONE);
 	INSIST(task == client->task);
 
+	INSIST(client->nupdates > 0);
+	client->nupdates--;
 	respond(client, uev->result);
 	ns_client_detach(&client);
 	isc_event_free(&event);
@@ -2538,6 +2545,8 @@ forward_fail(isc_task_t *task, isc_event_t *event) {
 
 	UNUSED(task);
 
+	INSIST(client->nupdates > 0);
+	client->nupdates--;
 	respond(client, DNS_R_SERVFAIL);
 	ns_client_detach(&client);
 	isc_event_free(&event);
@@ -2568,6 +2577,8 @@ forward_done(isc_task_t *task, isc_event_t *event) {
 
 	UNUSED(task);
 
+	INSIST(client->nupdates > 0);
+	client->nupdates--;
 	ns_client_sendraw(client, uev->answer);
 	dns_message_destroy(&uev->answer);
 	isc_event_free(&event);
@@ -2609,6 +2620,8 @@ send_forward_event(ns_client_t *client, dns_zone_t *zone) {
 
 	evclient = NULL;
 	ns_client_attach(client, &evclient);
+	INSIST(client->nupdates == 0);
+	client->nupdates++;
 	event->ev_arg = evclient;
 
 	dns_zone_gettask(zone, &zonetask);

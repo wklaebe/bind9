@@ -1,4 +1,27 @@
 
+	--- 9.2.4rc7 released ---
+
+1694.	[bug]		Report if the builtin views of "_default" / "_bind"
+			are defined in named.conf. [RT #12023]
+
+1692.	[bug]		Don't set -I, -L and -R flags when libcrypto is in
+			/usr/lib. [RT #11971]
+
+1691.	[bug]		sdb's attachversion was not complete. [RT #11990]
+
+1690.	[bug]		Delay detaching view from the client until UPDATE
+			processing completes when shutting down. [RT #11714]
+
+1689.	[bug]		DNS_NAME_TOREGION() macros contained a gratuitous
+			semicolons. [RT #11707]
+
+1688.	[bug]		LDFLAGS was not supported.
+
+1687.	[bug]		Race condition in dispatch. [RT #10272]
+
+1686.	[bug]		Named sent a extraneous NOTIFY when it received a
+			redundant UPDATE request. [RT #11943]
+
 	--- 9.2.4rc6 released ---
 
 1685.	[bug]		Change #1679 loop tests weren't quite right.

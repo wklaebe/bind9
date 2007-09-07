@@ -1,3 +1,9 @@
+bind9 (1:9.4.0-2) unstable; urgency=low
+
+  * upload to unstable
+
+ -- LaMont Jones <lamont@debian.org>  Tue, 10 Apr 2007 11:12:16 -0600
+
 bind9 (1:9.4.0-1) experimental; urgency=low
 
   * New upstream version

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2007  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: interfaceiter.c,v 1.8 2004/03/05 05:11:57 marka Exp $ */
+/* $Id: interfaceiter.c,v 1.8.18.2 2007/06/18 23:46:32 tbox Exp $ */
 
 /*
  * Note that this code will need to be revisited to support IPv6 Interfaces.
@@ -38,6 +38,8 @@
 #include <isc/strerror.h>
 #include <isc/types.h>
 #include <isc/util.h>
+
+void InitSockets(void);
 
 /* Common utility functions */
 
@@ -114,6 +116,8 @@ isc_interfaceiter_create(isc_mem_t *mctx, isc_interfaceiter_t **iterp) {
 	iter = isc_mem_get(mctx, sizeof(*iter));
 	if (iter == NULL)
 		return (ISC_R_NOMEMORY);
+
+	InitSockets();
 
 	iter->mctx = mctx;
 	iter->buf = NULL;

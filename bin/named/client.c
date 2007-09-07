@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: client.c,v 1.219.18.20 2006/07/22 01:02:36 marka Exp $ */
+/* $Id: client.c,v 1.219.18.26 2007/06/26 02:56:59 marka Exp $ */
 
 #include <config.h>
 
@@ -1180,7 +1180,7 @@ client_addopt(ns_client_t *client) {
 	rdatalist->ttl = (client->extflags & DNS_MESSAGEEXTFLAG_REPLYPRESERVE);
 
 	/*
-	 * No ENDS options in the default case.
+	 * No EDNS options in the default case.
 	 */
 	rdata->data = NULL;
 	rdata->length = 0;
@@ -1226,7 +1226,8 @@ ns_client_isself(dns_view_t *myview, dns_tsigkey_t *mykey,
 		 dns_rdataclass_t rdclass, void *arg)
 {
 	dns_view_t *view;
-	dns_tsigkey_t *key;
+	dns_tsigkey_t *key = NULL;
+	dns_name_t *tsig = NULL;
 	isc_netaddr_t netsrc;
 	isc_netaddr_t netdst;
 
@@ -1241,7 +1242,6 @@ ns_client_isself(dns_view_t *myview, dns_tsigkey_t *mykey,
 	for (view = ISC_LIST_HEAD(ns_g_server->viewlist);
 	     view != NULL;
 	     view = ISC_LIST_NEXT(view, link)) {
-		dns_name_t *tsig = NULL;
 
 		if (view->matchrecursiveonly)
 			continue;
@@ -1440,6 +1440,14 @@ client_request(isc_task_t *task, isc_event_t *event) {
 	}
 
 	/*
+	 * Hash the incoming request here as it is after
+	 * dns_dispatch_importrecv().
+	 */
+	dns_dispatch_hash(&client->now, sizeof(client->now));
+	dns_dispatch_hash(isc_buffer_base(buffer),
+			  isc_buffer_usedlength(buffer));
+
+	/*
 	 * It's a request.  Parse it.
 	 */
 	result = dns_message_parse(client->message, buffer, 0);
@@ -1576,6 +1584,7 @@ client_request(isc_task_t *task, isc_event_t *event) {
 					 "failed to get request's "
 					 "destination: %s",
 					 isc_result_totext(result));
+			ns_client_next(client, ISC_R_SUCCESS);
 			goto cleanup;
 		}
 	}

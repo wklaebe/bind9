@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: validator.c,v 1.119.18.29 2007/01/08 02:41:59 marka Exp $ */
+/* $Id: validator.c,v 1.119.18.31 2007/04/27 06:37:38 marka Exp $ */
 
 /*! \file */
 
@@ -26,6 +26,7 @@
 #include <isc/string.h>
 #include <isc/task.h>
 #include <isc/util.h>
+#include <isc/sha2.h>
 
 #include <dns/db.h>
 #include <dns/ds.h>
@@ -351,10 +352,12 @@ dsfetched(isc_task_t *task, isc_event_t *event) {
 		if (result != DNS_R_WAIT)
 			validator_done(val, result);
 	} else if (eresult == DNS_R_NXRRSET ||
-		   eresult == DNS_R_NCACHENXRRSET)
+		   eresult == DNS_R_NCACHENXRRSET ||
+		   eresult == DNS_R_SERVFAIL)	/* RFC 1034 parent? */
 	{
 		validator_log(val, ISC_LOG_DEBUG(3),
-			      "falling back to insecurity proof");
+			      "falling back to insecurity proof (%s)",
+			      dns_result_totext(eresult));
 		val->attributes |= VALATTR_INSECURITY;
 		result = proveunsecure(val, ISC_FALSE);
 		if (result != DNS_R_WAIT)
@@ -1504,7 +1507,8 @@ dlv_validatezonekey(dns_validator_t *val) {
 						      dlv.algorithm))
 			continue;
 
-		if (dlv.digest_type == DNS_DSDIGEST_SHA256) {
+		if (dlv.digest_type == DNS_DSDIGEST_SHA256 &&
+		    dlv.length == ISC_SHA256_DIGESTLENGTH) {
 			digest_type = DNS_DSDIGEST_SHA256;
 			break;
 		}
@@ -1837,7 +1841,8 @@ validatezonekey(dns_validator_t *val) {
 						      ds.algorithm))
 			continue;
 
-		if (ds.digest_type == DNS_DSDIGEST_SHA256) {
+		if (ds.digest_type == DNS_DSDIGEST_SHA256 &&
+		    ds.length == ISC_SHA256_DIGESTLENGTH) {
 			digest_type = DNS_DSDIGEST_SHA256;
 			break;
 		}

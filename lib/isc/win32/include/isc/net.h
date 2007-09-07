@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: net.h,v 1.15.12.8 2004/03/09 05:21:09 marka Exp $ */
+/* $Id: net.h,v 1.15.12.10 2004/04/29 01:31:23 marka Exp $ */
 
 #ifndef ISC_NET_H
 #define ISC_NET_H 1
@@ -115,6 +115,11 @@ struct in6_pktinfo {
 	struct in6_addr ipi6_addr;    /* src/dst IPv6 address */
 	unsigned int    ipi6_ifindex; /* send/recv interface index */
 };
+#endif
+
+#if _MSC_VER < 1300
+#define in6addr_any isc_in6addr_any
+#define in6addr_loopback isc_in6addr_loopback
 #endif
 
 /*
@@ -261,6 +266,19 @@ isc_net_probe_ipv6only(void);
  * Returns:
  *
  *	ISC_R_SUCCESS		the option is supported for both TCP and UDP.
+ *	ISC_R_NOTFOUND		IPv6 itself or the option is not supported.
+ *	ISC_R_UNEXPECTED
+ */
+
+isc_result_t
+isc_net_probe_ipv6pktinfo(void);
+/*
+ * Check if the system's kernel supports the IPV6_(RECV)PKTINFO socket option
+ * for UDP sockets.
+ *
+ * Returns:
+ *
+ *	ISC_R_SUCCESS		the option is supported.
  *	ISC_R_NOTFOUND		IPv6 itself or the option is not supported.
  *	ISC_R_UNEXPECTED
  */

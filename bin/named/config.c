@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: config.c,v 1.11.2.4.8.25 2004/03/11 05:58:40 marka Exp $ */
+/* $Id: config.c,v 1.11.2.4.8.27 2004/04/20 14:12:08 marka Exp $ */
 
 #include <config.h>
 
@@ -44,14 +44,17 @@
 
 static char defaultconf[] = "\
 options {\n\
-#	blackhole {none;};\n\
-	coresize default;\n\
+#	blackhole {none;};\n"
+#ifndef WIN32
+"	coresize default;\n\
 	datasize default;\n\
-	deallocate-on-exit true;\n\
+	files default;\n\
+	stacksize default;\n"
+#endif
+"	deallocate-on-exit true;\n\
 #	directory <none>\n\
 	dump-file \"named_dump.db\";\n\
 	fake-iquery no;\n\
-	files default;\n\
 	has-old-clients false;\n\
 	heartbeat-interval 60;\n\
 	host-statistics no;\n\
@@ -77,7 +80,6 @@ options {\n\
 	serial-queries 20;\n\
 	serial-query-rate 20;\n\
 	server-id none;\n\
-	stacksize default;\n\
 	statistics-file \"named.stats\";\n\
 	statistics-interval 60;\n\
 	tcp-clients 100;\n\
@@ -193,7 +195,7 @@ ns_config_parsedefaults(cfg_parser_t *parser, cfg_obj_t **conf) {
 }
 
 isc_result_t
-ns_config_get(cfg_obj_t **maps, const char* name, cfg_obj_t **obj) {
+ns_config_get(cfg_obj_t **maps, const char *name, cfg_obj_t **obj) {
 	int i;
 
 	for (i = 0;; i++) {
@@ -201,6 +203,41 @@ ns_config_get(cfg_obj_t **maps, const char* name, cfg_obj_t **obj) {
 			return (ISC_R_NOTFOUND);
 		if (cfg_map_get(maps[i], name, obj) == ISC_R_SUCCESS)
 			return (ISC_R_SUCCESS);
+	}
+}
+
+isc_result_t
+ns_checknames_get(cfg_obj_t **maps, const char *which, cfg_obj_t **obj) {
+	cfg_listelt_t *element;
+	cfg_obj_t *checknames;
+	cfg_obj_t *type;
+	cfg_obj_t *value;
+	int i;
+
+	for (i = 0;; i++) {
+		if (maps[i] == NULL)
+			return (ISC_R_NOTFOUND);
+		checknames = NULL;
+		if (cfg_map_get(maps[i], "check-names", &checknames) == ISC_R_SUCCESS) {
+			/*
+			 * Zone map entry is not a list.
+			 */
+			if (checknames != NULL && !cfg_obj_islist(checknames)) {
+				*obj = checknames;
+				return (ISC_R_SUCCESS);
+			}
+			for (element = cfg_list_first(checknames);
+			     element != NULL;
+			     element = cfg_list_next(element)) {
+				value = cfg_listelt_value(element);
+				type = cfg_tuple_get(value, "type");
+				if (strcasecmp(cfg_obj_asstring(type), which) == 0) {
+					*obj = cfg_tuple_get(value, "mode");
+					return (ISC_R_SUCCESS);
+				}
+			}
+
+		}
 	}
 }
 

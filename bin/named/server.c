@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: server.c,v 1.339.2.15.2.49 2004/04/10 05:02:53 marka Exp $ */
+/* $Id: server.c,v 1.339.2.15.2.53 2004/04/20 14:12:08 marka Exp $ */
 
 #include <config.h>
 
@@ -376,6 +376,39 @@ configure_view_dnsseckeys(cfg_obj_t *vconfig, cfg_obj_t *config,
 	return (result);
 }
 
+static isc_result_t
+mustbesecure(cfg_obj_t *mbs, dns_resolver_t *resolver)
+{
+	cfg_listelt_t *element;
+	cfg_obj_t *obj;
+	const char *str;
+	dns_fixedname_t fixed;
+	dns_name_t *name;
+	isc_boolean_t value;
+	isc_result_t result;
+	isc_buffer_t b;
+	
+	dns_fixedname_init(&fixed);
+	name = dns_fixedname_name(&fixed);
+	for (element = cfg_list_first(mbs);
+	     element != NULL;
+	     element = cfg_list_next(element))
+	{
+		obj = cfg_listelt_value(element);
+		str = cfg_obj_asstring(cfg_tuple_get(obj, "name"));
+		isc_buffer_init(&b, str, strlen(str));
+		isc_buffer_add(&b, strlen(str));
+		CHECK(dns_name_fromtext(name, &b, dns_rootname,
+					ISC_FALSE, NULL));
+		value = cfg_obj_asboolean(cfg_tuple_get(obj, "value"));
+		CHECK(dns_resolver_setmustbesecure(resolver, name, value));
+	}
+
+	result = ISC_R_SUCCESS;
+	
+ cleanup:
+	return (result);
+}
 
 /*
  * Get a dispatch appropriate for the resolver of a given view.
@@ -824,33 +857,22 @@ configure_view(dns_view_t *view, cfg_obj_t *config, cfg_obj_t *vconfig,
 	 * Check-names.
 	 */
 	obj = NULL;
-	str = "";
-	result = ns_config_get(maps, "check-names", &obj);
+	result = ns_checknames_get(maps, "response", &obj);
 	INSIST(result == ISC_R_SUCCESS);
-	for (element = cfg_list_first(obj);
-	     element != NULL;
-	     element = cfg_list_next(element)) {
-		cfg_obj_t *value, *type;
-		value = cfg_listelt_value(element);
-		type = cfg_tuple_get(value, "type");
-		if (strcasecmp(cfg_obj_asstring(type), "response") == 0) {
-			str = cfg_obj_asstring(cfg_tuple_get(value, "mode"));
-			break;
-		}
-	}
 
-        if (strcasecmp(str, "fail") == 0) {
-                check = DNS_RESOLVER_CHECKNAMES |
+	str = cfg_obj_asstring(obj);
+	if (strcasecmp(str, "fail") == 0) {
+		check = DNS_RESOLVER_CHECKNAMES |
 			DNS_RESOLVER_CHECKNAMESFAIL;
 		view->checknames = ISC_TRUE;
-        } else if (strcasecmp(str, "warn") == 0) {
-                check = DNS_RESOLVER_CHECKNAMES;
+	} else if (strcasecmp(str, "warn") == 0) {
+		check = DNS_RESOLVER_CHECKNAMES;
 		view->checknames = ISC_FALSE;
-        } else if (strcasecmp(str, "ignore") == 0) {
+	} else if (strcasecmp(str, "ignore") == 0) {
 		check = 0;
 		view->checknames = ISC_FALSE;
 	} else
-                INSIST(0);
+		INSIST(0);
 
 	/*
 	 * Resolver.
@@ -904,7 +926,7 @@ configure_view(dns_view_t *view, cfg_obj_t *config, cfg_obj_t *vconfig,
 		udpsize = 512;
 	if (udpsize > 4096)
 		udpsize = 4096;
-	dns_resolver_setudpsize(view->resolver, udpsize);
+	dns_resolver_setudpsize(view->resolver, (isc_uint16_t)udpsize);
 	
 	/*
 	 * Set supported DNSSEC algorithms.
@@ -1164,9 +1186,15 @@ configure_view(dns_view_t *view, cfg_obj_t *config, cfg_obj_t *vconfig,
 	 * For now, there is only one kind of trusted keys, the
 	 * "security roots".
 	 */
-	if (view->enablednssec)
+	if (view->enablednssec) {
 		CHECK(configure_view_dnsseckeys(vconfig, config, mctx,
-					        &view->secroots));
+						&view->secroots));
+		dns_resolver_resetmustbesecure(view->resolver);
+		obj = NULL;
+		result = ns_config_get(maps, "dnssec-must-be-secure", &obj);
+		if (result == ISC_R_SUCCESS)
+			CHECK(mustbesecure(obj, view->resolver));
+	}
 
 	obj = NULL;
 	result = ns_config_get(maps, "max-cache-ttl", &obj);
@@ -1190,7 +1218,7 @@ configure_view(dns_view_t *view, cfg_obj_t *config, cfg_obj_t *vconfig,
 			view->preferred_glue = dns_rdatatype_aaaa;
 		else
 			view->preferred_glue = 0;
-        } else
+	} else
 		view->preferred_glue = 0;
 
 	obj = NULL;
@@ -1911,7 +1939,7 @@ adjust_interfaces(ns_server_t *server, isc_mem_t *mctx) {
  */
 static void
 interface_timer_tick(isc_task_t *task, isc_event_t *event) {
-        isc_result_t result;
+	isc_result_t result;
 	ns_server_t *server = (ns_server_t *) event->ev_arg;
 	INSIST(task == server->task);
 	UNUSED(task);
@@ -2031,7 +2059,7 @@ portlist_fromconf(dns_portlist_t *portlist, unsigned int family,
 	     element != NULL;
 	     element = cfg_list_next(element)) {
 		cfg_obj_t *obj = cfg_listelt_value(element);
-		in_port_t port = cfg_obj_asuint32(obj);
+		in_port_t port = (in_port_t)cfg_obj_asuint32(obj);
 		
 		result = dns_portlist_add(portlist, family, port);
 		if (result != ISC_R_SUCCESS)
@@ -2107,7 +2135,7 @@ load_configuration(const char *filename, ns_server_t *server,
 	 * option where the above parsing failed, parse resolv.conf.
 	 */
 	if (ns_g_lwresdonly &&
-            (lwresd_g_useresolvconf ||
+	    (lwresd_g_useresolvconf ||
 	     (!ns_g_conffileset && result == ISC_R_FILENOTFOUND)))
 	{
 		isc_log_write(ns_g_lctx,
@@ -2192,7 +2220,7 @@ load_configuration(const char *filename, ns_server_t *server,
 		udpsize = 512;
 	if (udpsize > 4096)
 		udpsize = 4096;
-	ns_g_udpsize = udpsize;
+	ns_g_udpsize = (isc_uint16_t)udpsize;
 
 	/*
 	 * Configure the zone manager.
@@ -3033,15 +3061,17 @@ start_reserved_dispatches(ns_server_t *server) {
 
 static void
 end_reserved_dispatches(ns_server_t *server, isc_boolean_t all) {
-	ns_dispatch_t *dispatch;
+	ns_dispatch_t *dispatch, *nextdispatch;
 
 	REQUIRE(NS_SERVER_VALID(server));
 
 	for (dispatch = ISC_LIST_HEAD(server->dispatches);
 	     dispatch != NULL;
-	     dispatch = ISC_LIST_NEXT(dispatch, link)) {
+	     dispatch = nextdispatch) {
+		nextdispatch = ISC_LIST_NEXT(dispatch, link);
 		if (!all && server->dispatchgen == dispatch-> dispatchgen)
 			continue;
+		ISC_LIST_UNLINK(server->dispatches, dispatch, link);
 		dns_dispatch_detach(&dispatch->dispatch);
 		isc_mem_put(server->mctx, dispatch, sizeof(*dispatch));
 	}
@@ -3082,29 +3112,29 @@ ns_add_reserved_dispatch(ns_server_t *server, isc_sockaddr_t *addr) {
 	dispatch->dispatchgen = server->dispatchgen;
 	dispatch->dispatch = NULL;
 
-        attrs = 0;
-        attrs |= DNS_DISPATCHATTR_UDP;
-        switch (isc_sockaddr_pf(addr)) {
-        case AF_INET:
-                attrs |= DNS_DISPATCHATTR_IPV4;
-                break;
-        case AF_INET6:
-                attrs |= DNS_DISPATCHATTR_IPV6;
-                break;
+	attrs = 0;
+	attrs |= DNS_DISPATCHATTR_UDP;
+	switch (isc_sockaddr_pf(addr)) {
+	case AF_INET:
+		attrs |= DNS_DISPATCHATTR_IPV4;
+		break;
+	case AF_INET6:
+		attrs |= DNS_DISPATCHATTR_IPV6;
+		break;
 	default:
 		result = ISC_R_NOTIMPLEMENTED;
 		goto cleanup;
-        }
-        attrmask = 0;
-        attrmask |= DNS_DISPATCHATTR_UDP;
-        attrmask |= DNS_DISPATCHATTR_TCP;
-        attrmask |= DNS_DISPATCHATTR_IPV4;
-        attrmask |= DNS_DISPATCHATTR_IPV6;
+	}
+	attrmask = 0;
+	attrmask |= DNS_DISPATCHATTR_UDP;
+	attrmask |= DNS_DISPATCHATTR_TCP;
+	attrmask |= DNS_DISPATCHATTR_IPV4;
+	attrmask |= DNS_DISPATCHATTR_IPV6;
 
 	result = dns_dispatch_getudp(ns_g_dispatchmgr, ns_g_socketmgr,
-                                     ns_g_taskmgr, &dispatch->addr, 4096,
-                                     1000, 32768, 16411, 16433,
-                                     attrs, attrmask, &dispatch->dispatch); 
+				     ns_g_taskmgr, &dispatch->addr, 4096,
+				     1000, 32768, 16411, 16433,
+				     attrs, attrmask, &dispatch->dispatch); 
 	if (result != ISC_R_SUCCESS)
 		goto cleanup;
 

@@ -1,4 +1,58 @@
 
+	--- 9.3.0beta3 released ---
+
+1624.	[bug]		zonemgr_putio() call should be locked. [RT# 11163]
+
+1623.	[bug]		A serial number of zero was being displayed in the
+			"sending notifies" log message when also-notify was
+			used. [RT #11177]
+
+1622.	[func]		probe the system to see if IPV6_(RECV)PKTINFO is
+			available, and suppress wildcard binding if not.
+
+1621.	[bug]		match-destinations did not work for IPv6 TCP queries.
+			[RT# 11156]
+
+1620.	[func]		When loading a zone report if it is signed. [RT #11149]
+
+1619.	[bug]		Missing ISC_LIST_UNLINK in end_reserved_dispatches().
+			[RT# 11118]
+
+1618.	[bug]		Fencepost errors in dns_name_ishostname() and
+			dns_name_ismailbox() could trigger a INSIST().
+
+1617.	[port]		win32: VC++ 6.0 support.
+
+1616.	[compat]	Ensure that named's version is visible in the core
+			dump. [RT #11127]
+
+1615.	[port]		Define ISC_SOCKADDR_LEN_T based on _BSD_SOCKLEN_T_ if
+			it is defined.
+
+1614.	[port]		win32: silence resource limit messages. [RT# 11101]
+
+1613.	[bug]		Builds would fail on machines w/o a if_nametoindex().
+			Missing #ifdef ISC_PLATFORM_HAVEIFNAMETOINDEX/#endif.
+			[RT #11119]
+
+1612.	[bug]		check-names at the option/view level could trigger
+			an INSIST. [RT# 11116]
+
+1611.	[bug]		solaris: IPv6 interface scanning failed to cope with
+			no active IPv6 interfaces.
+
+1610.	[bug]		On dual stack machines "dig -b" failed to set the
+			address type to be looked up with "@server".
+			[RT #11069]
+
+1600.	[bug]		Duplicate zone pre-load checks were not case
+			insensitive.
+
+1599.	[bug]		Fix memory leak on error path when checking named.conf.
+
+1598.	[func]		Specify that certain parts of the namespace must
+			be secure (dnssec-must-be-secure).
+
 	--- 9.3.0beta2 released ---
 
 1609.	[func]		dig now has support to chase DNSSEC signature chains.

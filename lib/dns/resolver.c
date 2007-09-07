@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: resolver.c,v 1.218.2.18.4.33 2004/03/16 03:18:02 marka Exp $ */
+/* $Id: resolver.c,v 1.218.2.18.4.36 2004/04/19 23:41:33 marka Exp $ */
 
 #include <config.h>
 
@@ -288,10 +288,14 @@ struct dns_resolver {
 	isc_uint32_t			lame_ttl;
 	ISC_LIST(alternate_t)		alternates;
 	isc_uint16_t			udpsize;
-#if USE_ALGLOG
+#if USE_ALGLOCK
 	isc_rwlock_t			alglock;
 #endif
 	dns_rbt_t *			algorithms;
+#if USE_MBSLOCK
+	isc_rwlock_t			mbslock;
+#endif
+	dns_rbt_t *			mustbesecure;
 	/* Locked by lock. */
 	unsigned int			references;
 	isc_boolean_t			exiting;
@@ -721,7 +725,7 @@ fctx_sendevents(fetchctx_t *fctx, isc_result_t result) {
 		       fctx->type == dns_rdatatype_any ||
 		       fctx->type == dns_rdatatype_rrsig);
 
-		isc_task_sendanddetach(&task, (isc_event_t **) (void *)&event);
+		isc_task_sendanddetach(&task, ISC_EVENT_PTR(&event));
 	}
 }
 
@@ -1559,7 +1563,7 @@ add_bad(fetchctx_t *fctx, isc_sockaddr_t *address, isc_result_t reason) {
 		sep2 = ") ";
 	} else if (reason == DNS_R_UNEXPECTEDOPCODE) {
 		isc_buffer_init(&b, code, sizeof(code) - 1);
-		dns_opcode_totext(fctx->rmessage->opcode, &b);
+		dns_opcode_totext((dns_opcode_t)fctx->rmessage->opcode, &b);
 		code[isc_buffer_usedlength(&b)] = '\0';
 		sep1 = "(";
 		sep2 = ") ";
@@ -5438,6 +5442,13 @@ destroy(dns_resolver_t *res) {
 		isc_mem_put(res->mctx, a, sizeof(*a));
 	}
 	dns_resolver_reset_algorithms(res);
+	dns_resolver_resetmustbesecure(res);
+#if USE_ALGLOCK
+	isc_rwlock_destroy(&res->alglock);
+#endif
+#if USE_MBSLOCK
+	isc_rwlock_destroy(&res->mbslock);
+#endif
 	res->magic = 0;
 	isc_mem_put(res->mctx, res, sizeof(*res));
 }
@@ -5518,6 +5529,7 @@ dns_resolver_create(dns_view_t *view,
 	ISC_LIST_INIT(res->alternates);
 	res->udpsize = RECV_BUFFER_SIZE;
 	res->algorithms = NULL;
+	res->mustbesecure = NULL;
 
 	res->nbuckets = ntasks;
 	res->activebuckets = ntasks;
@@ -5576,6 +5588,11 @@ dns_resolver_create(dns_view_t *view,
 	if (result != ISC_R_SUCCESS)
 		goto cleanup_primelock;
 #endif
+#if USE_MBSLOCK
+	result = isc_rwlock_init(&res->mbslock, 0, 0);
+	if (result != ISC_R_SUCCESS)
+		goto cleanup_alglock;
+#endif
 
 	res->magic = RES_MAGIC;
 
@@ -5583,9 +5600,15 @@ dns_resolver_create(dns_view_t *view,
 
 	return (ISC_R_SUCCESS);
 
+#if USE_MBSLOCK
+ cleanup_alglock:
 #if USE_ALGLOCK
+	isc_rwlock_destroy(&res->alglock);
+#endif
+#endif
+#if USE_ALGLOCK || USE_MBSLOCK
  cleanup_primelock:
-	DESTROYLOCK(&res->nlock);
+	DESTROYLOCK(&res->primelock);
 #endif
 
  cleanup_nlock:
@@ -6024,7 +6047,7 @@ dns_resolver_cancelfetch(dns_fetch_t *fetch) {
 		etask = event->ev_sender;
 		event->ev_sender = fctx;
 		event->result = ISC_R_CANCELED;
-		isc_task_sendanddetach(&etask, (isc_event_t **) (void *)&event);
+		isc_task_sendanddetach(&etask, ISC_EVENT_PTR(&event));
 	}
 	/*
 	 * The fctx continues running even if no fetches remain;
@@ -6286,14 +6309,12 @@ dns_resolver_algorithm_supported(dns_resolver_t *resolver, dns_name_t *name,
 
 	REQUIRE(VALID_RESOLVER(resolver));
 
-	if (resolver->algorithms == NULL)
-		return (dst_algorithm_supported(alg));
-	
 #if USE_ALGLOCK
-	RWLOCK(&resolver->alglock, isc_rwlocktype_read)
+	RWLOCK(&resolver->alglock, isc_rwlocktype_read);
 #endif
-	result = dns_rbt_findname(resolver->algorithms, name,
-				  DNS_RBTFIND_NOEXACT, NULL, &data);
+	if (resolver->algorithms == NULL)
+		goto unlock;
+	result = dns_rbt_findname(resolver->algorithms, name, 0, NULL, &data);
 	if (result == ISC_R_SUCCESS || result == DNS_R_PARTIALMATCH) {
 		len = alg/8 + 2;
 		mask = 1 << (alg%8);
@@ -6301,10 +6322,77 @@ dns_resolver_algorithm_supported(dns_resolver_t *resolver, dns_name_t *name,
 		if (len <= *algorithms && (algorithms[len-1] & mask) != 0)
 			found = ISC_TRUE;
 	}
+ unlock:
 #if USE_ALGLOCK
-	RWUNLOCK(&resolver->alglock, isc_rwlocktype_read)
+	RWUNLOCK(&resolver->alglock, isc_rwlocktype_read);
 #endif
 	if (found)
 		return (ISC_FALSE);
 	return (dst_algorithm_supported(alg));
+}
+
+void
+dns_resolver_resetmustbesecure(dns_resolver_t *resolver) {
+
+	REQUIRE(VALID_RESOLVER(resolver));
+
+#if USE_MBSLOCK
+	RWLOCK(&resolver->mbslock, isc_rwlocktype_write);
+#endif
+	if (resolver->mustbesecure != NULL)
+		dns_rbt_destroy(&resolver->mustbesecure);
+#if USE_MBSLOCK
+	RWUNLOCK(&resolver->mbslock, isc_rwlocktype_write);
+#endif
+}
+ 
+static isc_boolean_t yes = ISC_TRUE, no = ISC_FALSE;
+
+isc_result_t
+dns_resolver_setmustbesecure(dns_resolver_t *resolver, dns_name_t *name,
+                             isc_boolean_t value)
+{
+	isc_result_t result;
+
+	REQUIRE(VALID_RESOLVER(resolver));
+
+#if USE_MBSLOCK
+	RWLOCK(&resolver->mbslock, isc_rwlocktype_write);
+#endif
+	if (resolver->mustbesecure == NULL) {
+		result = dns_rbt_create(resolver->mctx, NULL, NULL,
+					&resolver->mustbesecure);
+		if (result != ISC_R_SUCCESS)
+			goto cleanup;
+	}
+	result = dns_rbt_addname(resolver->mustbesecure, name, 
+				 value ? &yes : &no);
+ cleanup:
+#if USE_MBSLOCK
+	RWUNLOCK(&resolver->mbslock, isc_rwlocktype_write);
+#endif
+	return (result);
+}
+
+isc_boolean_t
+dns_resolver_getmustbesecure(dns_resolver_t *resolver, dns_name_t *name) {
+	void *data = NULL;
+	isc_boolean_t value = ISC_FALSE;
+	isc_result_t result;
+
+	REQUIRE(VALID_RESOLVER(resolver));
+
+#if USE_MBSLOCK
+	RWLOCK(&resolver->mbslock, isc_rwlocktype_read);
+#endif
+	if (resolver->mustbesecure == NULL)
+		goto unlock;
+	result = dns_rbt_findname(resolver->mustbesecure, name, 0, NULL, &data);
+	if (result == ISC_R_SUCCESS || result == DNS_R_PARTIALMATCH)
+		value = *(isc_boolean_t*)data;
+ unlock:
+#if USE_MBSLOCK
+	RWUNLOCK(&resolver->mbslock, isc_rwlocktype_read);
+#endif
+	return (value);
 }

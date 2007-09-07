@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2000, 2001  Internet Software Consortium.
+ * Copyright (C) 2000, 2001, 2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: netdb.h,v 1.2 2001/07/08 05:09:07 mayer Exp $ */
+/* $Id: netdb.h,v 1.2.2.2 2003/07/22 04:03:50 marka Exp $ */
 
 #ifndef NETDB_H
 #define NETDB_H 1
@@ -26,7 +26,7 @@
 /*
  * Define if <netdb.h> does not declare struct addrinfo.
  */
-
+#if _MSC_VER < 1300
 struct addrinfo {
 	int		ai_flags;      /* AI_PASSIVE, AI_CANONNAME */
 	int		ai_family;     /* PF_xxx */
@@ -37,7 +37,7 @@ struct addrinfo {
 	struct sockaddr	*ai_addr;      /* Binary address */
 	struct addrinfo	*ai_next;      /* Next structure in linked list */
 };
-
+#endif
 
 /*
  * Undefine all #defines we are interested in as <netdb.h> may or may not have

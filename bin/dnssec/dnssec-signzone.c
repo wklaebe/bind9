@@ -17,7 +17,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dnssec-signzone.c,v 1.139.2.1.6.3 2003/02/17 07:05:03 marka Exp $ */
+/* $Id: dnssec-signzone.c,v 1.139.2.2 2003/03/06 04:38:13 marka Exp $ */
 
 #include <config.h>
 

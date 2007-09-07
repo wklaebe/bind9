@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1999-2001  Internet Software Consortium.
+ * Copyright (C) 1999-2001, 2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -15,13 +15,14 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rdataset.c,v 1.58 2001/06/05 09:23:14 marka Exp $ */
+/* $Id: rdataset.c,v 1.58.2.3 2003/08/05 00:42:55 marka Exp $ */
 
 #include <config.h>
 
 #include <stdlib.h>
 
 #include <isc/buffer.h>
+#include <isc/random.h>
 #include <isc/util.h>
 
 #include <dns/name.h>
@@ -51,7 +52,7 @@ dns_rdataset_init(dns_rdataset_t *rdataset) {
 	rdataset->private1 = NULL;
 	rdataset->private2 = NULL;
 	rdataset->private3 = NULL;
-	rdataset->private4 = NULL;
+	rdataset->privateuint4 = 0;
 	rdataset->private5 = NULL;
 }
 
@@ -76,7 +77,7 @@ dns_rdataset_invalidate(dns_rdataset_t *rdataset) {
 	rdataset->private1 = NULL;
 	rdataset->private2 = NULL;
 	rdataset->private3 = NULL;
-	rdataset->private4 = NULL;
+	rdataset->privateuint4 = 0;
 	rdataset->private5 = NULL;
 }
 
@@ -102,7 +103,7 @@ dns_rdataset_disassociate(dns_rdataset_t *rdataset) {
 	rdataset->private1 = NULL;
 	rdataset->private2 = NULL;
 	rdataset->private3 = NULL;
-	rdataset->private4 = NULL;
+	rdataset->privateuint4 = 0;
 	rdataset->private5 = NULL;
 }
 
@@ -363,7 +364,11 @@ towiresorted(dns_rdataset_t *rdataset, dns_name_t *owner_name,
 			/*
 			 * "Cyclic" order.
 			 */
-			unsigned int j = (((unsigned int)rand()) >> 3) % count;
+			isc_uint32_t val;
+			unsigned int j;
+
+			isc_random_get(&val);
+			j = val % count;
 			for (i = 0; i < count; i++) {
 				sorted[j].key = 0; /* Unused */
 				sorted[j].rdata = &shuffled[i];

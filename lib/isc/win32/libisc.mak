@@ -50,6 +50,7 @@ CLEAN :
 	-@erase "$(INTDIR)\event.obj"
 	-@erase "$(INTDIR)\file.obj"
 	-@erase "$(INTDIR)\fsaccess.obj"
+	-@erase "$(INTDIR)\hash.obj"
 	-@erase "$(INTDIR)\heap.obj"
 	-@erase "$(INTDIR)\hex.obj"
 	-@erase "$(INTDIR)\hmacmd5.obj"
@@ -85,6 +86,7 @@ CLEAN :
 	-@erase "$(INTDIR)\sockaddr.obj"
 	-@erase "$(INTDIR)\socket.obj"
 	-@erase "$(INTDIR)\stdio.obj"
+	-@erase "$(INTDIR)\strerror.obj"
 	-@erase "$(INTDIR)\stdtime.obj"
 	-@erase "$(INTDIR)\string.obj"
 	-@erase "$(INTDIR)\symtab.obj"
@@ -96,6 +98,7 @@ CLEAN :
 	-@erase "$(INTDIR)\timer.obj"
 	-@erase "$(INTDIR)\vc60.idb"
 	-@erase "$(INTDIR)\version.obj"
+	-@erase "$(INTDIR)\win32os.obj"
 	-@erase "$(OUTDIR)\libisc.exp"
 	-@erase "$(OUTDIR)\libisc.lib"
 	-@erase "..\..\..\Build\Release\libisc.dll"
@@ -167,6 +170,7 @@ LINK32_OBJS= \
 	"$(INTDIR)\resource.obj" \
 	"$(INTDIR)\socket.obj" \
 	"$(INTDIR)\stdio.obj" \
+	"$(INTDIR)\strerror.obj" \
 	"$(INTDIR)\stdtime.obj" \
 	"$(INTDIR)\syslog.obj" \
 	"$(INTDIR)\thread.obj" \
@@ -180,6 +184,7 @@ LINK32_OBJS= \
 	"$(INTDIR)\commandline.obj" \
 	"$(INTDIR)\error.obj" \
 	"$(INTDIR)\event.obj" \
+	"$(INTDIR)\hash.obj" \
 	"$(INTDIR)\heap.obj" \
 	"$(INTDIR)\hex.obj" \
 	"$(INTDIR)\hmacmd5.obj" \
@@ -208,7 +213,8 @@ LINK32_OBJS= \
 	"$(INTDIR)\symtab.obj" \
 	"$(INTDIR)\task.obj" \
 	"$(INTDIR)\taskpool.obj" \
-	"$(INTDIR)\timer.obj"
+	"$(INTDIR)\timer.obj" \
+	"$(INTDIR)\win32os.obj"
 
 "..\..\..\Build\Release\libisc.dll" : "$(OUTDIR)" $(DEF_FILE) $(LINK32_OBJS)
     $(LINK32) @<<
@@ -259,6 +265,8 @@ CLEAN :
 	-@erase "$(INTDIR)\file.sbr"
 	-@erase "$(INTDIR)\fsaccess.obj"
 	-@erase "$(INTDIR)\fsaccess.sbr"
+	-@erase "$(INTDIR)\hash.obj"
+	-@erase "$(INTDIR)\hash.sbr"
 	-@erase "$(INTDIR)\heap.obj"
 	-@erase "$(INTDIR)\heap.sbr"
 	-@erase "$(INTDIR)\hex.obj"
@@ -329,6 +337,8 @@ CLEAN :
 	-@erase "$(INTDIR)\socket.sbr"
 	-@erase "$(INTDIR)\stdio.obj"
 	-@erase "$(INTDIR)\stdio.sbr"
+	-@erase "$(INTDIR)\strerror.obj"
+	-@erase "$(INTDIR)\strerror.sbr"
 	-@erase "$(INTDIR)\stdtime.obj"
 	-@erase "$(INTDIR)\stdtime.sbr"
 	-@erase "$(INTDIR)\string.obj"
@@ -351,6 +361,8 @@ CLEAN :
 	-@erase "$(INTDIR)\vc60.pdb"
 	-@erase "$(INTDIR)\version.obj"
 	-@erase "$(INTDIR)\version.sbr"
+	-@erase "$(INTDIR)\win32os.obj"
+	-@erase "$(INTDIR)\win32os.sbr"
 	-@erase "$(OUTDIR)\libisc.bsc"
 	-@erase "$(OUTDIR)\libisc.exp"
 	-@erase "$(OUTDIR)\libisc.lib"
@@ -420,6 +432,7 @@ BSC32_SBRS= \
 	"$(INTDIR)\resource.sbr" \
 	"$(INTDIR)\socket.sbr" \
 	"$(INTDIR)\stdio.sbr" \
+	"$(INTDIR)\strerror.sbr" \
 	"$(INTDIR)\stdtime.sbr" \
 	"$(INTDIR)\syslog.sbr" \
 	"$(INTDIR)\thread.sbr" \
@@ -433,6 +446,7 @@ BSC32_SBRS= \
 	"$(INTDIR)\commandline.sbr" \
 	"$(INTDIR)\error.sbr" \
 	"$(INTDIR)\event.sbr" \
+	"$(INTDIR)\hash.sbr" \
 	"$(INTDIR)\heap.sbr" \
 	"$(INTDIR)\hex.sbr" \
 	"$(INTDIR)\hmacmd5.sbr" \
@@ -461,7 +475,8 @@ BSC32_SBRS= \
 	"$(INTDIR)\symtab.sbr" \
 	"$(INTDIR)\task.sbr" \
 	"$(INTDIR)\taskpool.sbr" \
-	"$(INTDIR)\timer.sbr"
+	"$(INTDIR)\timer.sbr" \
+	"$(INTDIR)\win32os.sbr" \
 
 "$(OUTDIR)\libisc.bsc" : "$(OUTDIR)" $(BSC32_SBRS)
     $(BSC32) @<<
@@ -492,6 +507,7 @@ LINK32_OBJS= \
 	"$(INTDIR)\resource.obj" \
 	"$(INTDIR)\socket.obj" \
 	"$(INTDIR)\stdio.obj" \
+	"$(INTDIR)\strerror.obj" \
 	"$(INTDIR)\stdtime.obj" \
 	"$(INTDIR)\syslog.obj" \
 	"$(INTDIR)\thread.obj" \
@@ -505,6 +521,7 @@ LINK32_OBJS= \
 	"$(INTDIR)\commandline.obj" \
 	"$(INTDIR)\error.obj" \
 	"$(INTDIR)\event.obj" \
+	"$(INTDIR)\hash.obj" \
 	"$(INTDIR)\heap.obj" \
 	"$(INTDIR)\hex.obj" \
 	"$(INTDIR)\hmacmd5.obj" \
@@ -533,7 +550,8 @@ LINK32_OBJS= \
 	"$(INTDIR)\symtab.obj" \
 	"$(INTDIR)\task.obj" \
 	"$(INTDIR)\taskpool.obj" \
-	"$(INTDIR)\timer.obj"
+	"$(INTDIR)\timer.obj" \
+	"$(INTDIR)\win32os.obj"
 
 "..\..\..\Build\Debug\libisc.dll" : "$(OUTDIR)" $(DEF_FILE) $(LINK32_OBJS)
     $(LINK32) @<<
@@ -857,6 +875,22 @@ SOURCE=.\stdio.c
 
 !ENDIF 
 
+SOURCE=.\strerror.c
+
+!IF  "$(CFG)" == "libisc - Win32 Release"
+
+
+"$(INTDIR)\strerror.obj" : $(SOURCE) "$(INTDIR)"
+
+
+!ELSEIF  "$(CFG)" == "libisc - Win32 Debug"
+
+
+"$(INTDIR)\strerror.obj"	"$(INTDIR)\strerror.sbr" : $(SOURCE) "$(INTDIR)"
+
+
+!ENDIF 
+
 SOURCE=.\stdtime.c
 
 !IF  "$(CFG)" == "libisc - Win32 Release"
@@ -1076,6 +1110,24 @@ SOURCE=..\event.c
 
 
 "$(INTDIR)\event.obj"	"$(INTDIR)\event.sbr" : $(SOURCE) "$(INTDIR)"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
+!ENDIF 
+
+SOURCE=..\hash.c
+
+!IF  "$(CFG)" == "libisc - Win32 Release"
+
+
+"$(INTDIR)\hash.obj" : $(SOURCE) "$(INTDIR)"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
+!ELSEIF  "$(CFG)" == "libisc - Win32 Debug"
+
+
+"$(INTDIR)\hash.obj"	"$(INTDIR)\hash.sbr" : $(SOURCE) "$(INTDIR)"
 	$(CPP) $(CPP_PROJ) $(SOURCE)
 
 
@@ -1598,6 +1650,24 @@ SOURCE=..\timer.c
 
 
 "$(INTDIR)\timer.obj"	"$(INTDIR)\timer.sbr" : $(SOURCE) "$(INTDIR)"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
+!ENDIF 
+
+SOURCE=.\win32os.c
+
+!IF  "$(CFG)" == "libisc - Win32 Release"
+
+
+"$(INTDIR)\win32os.obj" : $(SOURCE) "$(INTDIR)"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
+!ELSEIF  "$(CFG)" == "libisc - Win32 Debug"
+
+
+"$(INTDIR)\win32os.obj"	"$(INTDIR)\win32os.sbr" : $(SOURCE) "$(INTDIR)"
 	$(CPP) $(CPP_PROJ) $(SOURCE)
 
 

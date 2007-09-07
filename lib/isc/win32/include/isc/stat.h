@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2000, 2001  Internet Software Consortium.
+ * Copyright (C) 2000, 2001, 2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: stat.h,v 1.3 2001/07/09 21:06:30 gson Exp $ */
+/* $Id: stat.h,v 1.3.2.2 2003/07/22 04:03:52 marka Exp $ */
 
 #ifndef ISC_STAT_H
 #define ISC_STAT_H 1
@@ -37,7 +37,10 @@
 #define S_IWOTH _S_IWRITE	/* Other write permission */
 
 #ifndef S_ISDIR
-# define S_ISDIR(m)	((m & S_IFMT) == S_IFDIR)
+# define S_ISDIR(m)	(((m) & S_IFMT) == S_IFDIR)
+#endif
+#ifndef S_ISREG
+# define S_ISREG(m)	(((m) & S_IFMT) == S_IFREG)
 #endif
 
 #endif /* ISC_STAT_H */

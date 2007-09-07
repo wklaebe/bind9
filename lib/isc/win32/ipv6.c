@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1999-2001  Internet Software Consortium.
+ * Copyright (C) 1999-2001, 2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -15,15 +15,17 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: ipv6.c,v 1.4 2001/07/12 05:58:27 mayer Exp $ */
+/* $Id: ipv6.c,v 1.4.2.2 2003/07/22 04:03:50 marka Exp $ */
 
 #define off_t _off_t
 
 #include <isc/net.h>
 #include <isc/platform.h>
 
+#if _MSC_VER < 1300
 LIBISC_EXTERNAL_DATA const struct in6_addr in6addr_any =
 	IN6ADDR_ANY_INIT;
 
 LIBISC_EXTERNAL_DATA const struct in6_addr in6addr_loopback =
 	IN6ADDR_LOOPBACK_INIT;
+#endif

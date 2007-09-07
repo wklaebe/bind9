@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: net.c,v 1.3.8.2 2003/02/17 07:05:10 marka Exp $ */
+/* $Id: net.c,v 1.3.2.2 2003/03/06 04:38:24 marka Exp $ */
 
 #include <config.h>
 

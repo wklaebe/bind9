@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2000, 2001  Internet Software Consortium.
+ * Copyright (C) 2000, 2001, 2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: ipv6.h,v 1.9 2001/07/17 20:29:33 gson Exp $ */
+/* $Id: ipv6.h,v 1.9.2.2 2003/07/22 04:03:52 marka Exp $ */
 
 #ifndef ISC_IPV6_H
 #define ISC_IPV6_H 1
@@ -36,6 +36,7 @@
 #define PF_INET6 AF_INET6
 #endif
 
+#if _MSC_VER < 1300
 #define s6_addr8	s6_addr
 #define in6_addr in_addr6
 
@@ -97,6 +98,8 @@ struct in6_pktinfo {
  */
 #define IN6_IS_ADDR_MULTICAST(a)	\
 	((a)->s6_addr8[0] == 0xffU)
+
+#endif
 
 ISC_LANG_ENDDECLS
 

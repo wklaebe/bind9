@@ -83,6 +83,15 @@ isc_file_absolutepath
 isc_fsaccess_add
 isc_fsaccess_remove
 isc_fsaccess_set
+isc_hash_calc
+isc_hash_create
+isc_hash_ctxattach
+isc_hash_ctxcalc
+isc_hash_ctxcreate
+isc_hash_ctxdetach
+isc_hash_ctxinit
+isc_hash_destroy
+isc_hash_init
 isc_hex_totext
 isc_hex_decodestring
 isc_hex_tobuffer
@@ -240,6 +249,8 @@ isc_rwlock_lock
 isc_rwlock_trylock
 isc_rwlock_unlock
 isc_rwlock_destroy
+isc_rwlock_tryupgrade
+isc_rwlock_downgrade
 isc_serial_lt
 isc_serial_gt
 isc_serial_le
@@ -297,6 +308,7 @@ isc_stdio_read
 isc_stdio_write
 isc_stdio_flush
 isc_stdio_sync
+isc__strerror
 isc_string_touint64
 isc_string_separate
 isc_symtab_create

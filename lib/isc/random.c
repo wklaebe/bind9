@@ -15,11 +15,12 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: random.c,v 1.15 2001/01/09 21:56:22 bwelling Exp $ */
+/* $Id: random.c,v 1.15.2.2 2003/08/05 03:09:52 marka Exp $ */
 
 #include <config.h>
 
 #include <stdlib.h>
+#include <unistd.h>
 #include <time.h>		/* Required for time(). */
 
 #include <isc/mutex.h>
@@ -33,7 +34,17 @@ static isc_once_t once = ISC_ONCE_INIT;
 static void
 initialize_rand(void)
 {
-	srand(time(NULL));
+#ifndef HAVE_ARC4RANDOM
+	unsigned int pid = getpid();
+	
+	/*
+	 * The low bits of pid generally change faster.
+	 * Xor them with the high bits of time which change slowly.
+	 */
+	pid = ((pid << 16) & 0xffff0000) | ((pid >> 16) & 0xffff);
+
+	srand(time(NULL) ^ pid);
+#endif
 }
 
 static void
@@ -47,7 +58,11 @@ isc_random_seed(isc_uint32_t seed)
 {
 	initialize();
 
+#ifndef HAVE_ARC4RANDOM
 	srand(seed);
+#else
+	arc4random_addrandom((u_char *) &seed, sizeof(isc_uint32_t));
+#endif
 }
 
 void
@@ -57,7 +72,15 @@ isc_random_get(isc_uint32_t *val)
 
 	initialize();
 
-	*val = rand();
+#ifndef HAVE_ARC4RANDOM
+	/*
+	 * rand()'s lower bits are not random.
+	 * rand()'s upper bit is zero.
+	 */
+	*val = ((rand() >> 4) & 0xffff) | ((rand() << 12) & 0xffff0000) ;
+#else
+	*val = arc4random();
+#endif
 }
 
 isc_uint32_t
@@ -66,5 +89,9 @@ isc_random_jitter(isc_uint32_t max, isc_uint32_t jitter) {
 	if (jitter == 0)
 		return (max);
 	else
+#ifndef HAVE_ARC4RANDOM
 		return (max - rand() % jitter);
+#else
+		return (max - arc4random() % jitter);
+#endif
 }

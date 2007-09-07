@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1999-2002  Internet Software Consortium.
+ * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: ncache.c,v 1.24.2.2 2002/02/08 03:57:29 marka Exp $ */
+/* $Id: ncache.c,v 1.24.2.4 2003/07/22 04:03:42 marka Exp $ */
 
 #include <config.h>
 
@@ -246,6 +246,8 @@ dns_ncache_add(dns_message_t *message, dns_db_t *cache, dns_dbnode_t *node,
 	dns_rdataset_init(&ncrdataset);
 	dns_rdatalist_tordataset(&ncrdatalist, &ncrdataset);
 	ncrdataset.trust = trust;
+	if (message->rcode == dns_rcode_nxdomain)
+		ncrdataset.attributes |= DNS_RDATASETATTR_NXDOMAIN;
 
 	return (dns_db_addrdataset(cache, node, NULL, now, &ncrdataset,
 				   0, addedrdataset));

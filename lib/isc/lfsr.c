@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1999-2001  Internet Software Consortium.
+ * Copyright (C) 1999-2001, 2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: lfsr.c,v 1.11 2001/01/09 21:56:11 bwelling Exp $ */
+/* $Id: lfsr.c,v 1.11.2.2 2003/07/22 04:03:47 marka Exp $ */
 
 #include <config.h>
 
@@ -74,7 +74,7 @@ lfsr_generate(isc_lfsr_t *lfsr)
 	}
 
 	if (lfsr->state & 0x01) {
-		lfsr->state = ((lfsr->state ^ lfsr->tap) >> 1) | highbit;
+		lfsr->state = (lfsr->state >> 1) ^ lfsr->tap;
 		return (1);
 	} else {
 		lfsr->state >>= 1;

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000, 2001, 2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: ipv6.h,v 1.9.2.3 2004/03/09 06:12:23 marka Exp $ */
+/* $Id: ipv6.h,v 1.9.2.5 2005/02/09 05:11:52 marka Exp $ */
 
 #ifndef ISC_IPV6_H
 #define ISC_IPV6_H 1
@@ -57,7 +57,7 @@ struct in6_pktinfo {
  * Unspecified
  */
 
-#define IN6_IS_ADDR_UNSPECIFIED(x)      \
+#define IN6_IS_ADDR_UNSPECIFIED(x) (\
 *((u_long *)((x)->s6_addr)    ) == 0 && \
 *((u_long *)((x)->s6_addr) + 1) == 0 && \
 *((u_long *)((x)->s6_addr) + 2) == 0 && \

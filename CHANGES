@@ -1,4 +1,99 @@
 
+	--- 9.0.0rc2 released ---
+
+ 377.	[bug]		When additional data lookups were refused due to 
+			"allow-query", the databases were still being
+			attached causing reference leaks.
+
+ 376.	[bug]		The server should always use good entropy when
+			performing cryptographic functions needing entropy.
+
+ 375.	[bug]		Per-zone allow-query did not properly override the
+			view/global one for CNAME targets and additional
+			data [RT #220].
+
+ 374.	[bug]		SOA in authoritative negative responses had wrong TTL.
+
+ 373.	[func]		nslookup is now installed by "make install".
+
+ 372.	[bug]		Deal with Microsoft DNS servers appending two bytes of
+			garbage to zone transfer requests.
+
+ 371.	[bug]		At high debug levels, doing an outgoing zone transfer
+			of a very large RRset could cause an assertion failure
+			during logging.
+
+ 370.	[bug]		The error messages for rollforward failures were
+			overly terse.
+
+ 367.   [bug]		Allow proper selection of server on nslookup command
+			line.
+
+ 365.	[bug]		nsupdate -k leaked memory.
+
+ 362.	[bug]		rndc no longer aborts if the configuration file is
+			missing an options statement. [RT #209]
+
+ 359.	[bug]		dnssec-signzone occasionally signed glue records.
+
+ 357.	[bug]		The zone file parser crashed if the argument
+			to $INCLUDE was a quoted string.
+
+ 354.	[doc]		Man pages for the dnssec tools are now included in
+			the distribution, in doc/man/dnssec.
+
+ 353.	[bug]		double increment in lwres/gethost.c:copytobuf().
+			(RT# 187)
+
+ 352.	[bug]		Race condition in dns_client_t startup could cause
+			an assertion failure.
+
+ 351.	[bug]		Constructing a response with rcode SERVFAIL to a TSIG
+			signed query could crash the server.
+
+ 350.	[bug]		Also-notify lists specified in the global options
+			block were not correctly reference counted, causing
+			a memory leak.
+
+ 349.	[bug]		Processing a query with the CD bit set now works
+			as expected.
+
+ 344.	[bug]		When shutting down, lwresd sometimes tried
+			to shut down its client tasks twice, 
+			triggering an assertion.
+
+ 343.	[bug]		Although zone maintenance SOA queries and
+			notify requests were signed with TSIG keys
+			when configured for the server in case,
+			the TSIG was not verified on the response.
+
+ 342.	[bug]		The wrong name was being passed to
+			dns_name_dup() when generating a TSIG
+			key using TKEY.
+
+ 340.	[bug]		The top-level COPYRIGHT file was missing from
+			the distribution.
+
+ 339.	[bug]		DNSSEC validation of the response to an ANY
+			query at a name with a CNAME RR in a secure
+			zone triggered an assertion failure.
+
+ 337.	[bug]		"dig" did not recognize "nsap-ptr" as an RR type
+			on the command line.
+
+ 336.	[bug]		"dig -f" used 64 k of memory for each line in
+			the file.  It now uses much less, though still
+			proportionally to the file size.
+
+ 335.	[bug]		named would occasionally attempt recursion when
+			it was disallowed or undesired.
+
+ 333.	[bug]		The resolver incorrectly accepted referrals to
+			domains that were not parents of the query name,
+			causing assertion failures.
+
+ 331.	[bug]		Only log "recursion denied" if RD is set. (RT #178)
+
 	--- 9.0.0rc1 released ---
 
  329.	[func]		omapi_auth_register() now takes a size_t argument for

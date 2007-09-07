@@ -15,7 +15,7 @@
  * SOFTWARE.
  */
 
-/* $Id: server.c,v 1.200.2.2 2000/07/11 17:23:06 gson Exp $ */
+/* $Id: server.c,v 1.200.2.4 2000/08/08 19:25:50 gson Exp $ */
 
 #include <config.h>
 
@@ -1149,7 +1149,7 @@ load_configuration(const char *filename, ns_server_t *server,
 	configure_server_quota(cctx, dns_c_ctx_gettcpclients,
 				     &server->tcpquota, 100);
 	configure_server_quota(cctx, dns_c_ctx_getrecursiveclients,
-				     &server->recursionquota, 100);
+				     &server->recursionquota, 1000);
 
 	/*
 	 * Configure the zone manager.
@@ -1576,7 +1576,7 @@ ns_server_create(isc_mem_t *mctx, ns_server_t **serverp) {
 		   ISC_R_NOMEMORY : ISC_R_SUCCESS,
 		   "allocating reload event");
 
-	CHECKFATAL(dst_lib_init(ns_g_mctx, ns_g_entropy, 0),
+	CHECKFATAL(dst_lib_init(ns_g_mctx, ns_g_entropy, ISC_ENTROPY_GOODONLY),
 		   "initializing DST");
 
 	server->tkeyctx = NULL;

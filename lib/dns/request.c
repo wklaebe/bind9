@@ -15,7 +15,7 @@
  * SOFTWARE.
  */
 
-/* $Id: request.c,v 1.26 2000/06/22 21:54:44 tale Exp $ */
+/* $Id: request.c,v 1.26.2.2 2000/07/28 05:37:34 gson Exp $ */
 
 #include <config.h>
 
@@ -493,7 +493,8 @@ dns_request_create(dns_requestmgr_t *requestmgr, dns_message_t *message,
 	request->event->ev_sender = task;
 	request->event->request = request;
 	request->event->result = ISC_R_FAILURE;
-	request->tsigkey = key;
+	if (key != NULL)
+		dns_tsigkey_attach(key, &request->tsigkey);
 	
  use_tcp:
 	if ((options & DNS_REQUESTOPT_TCP) != 0) {
@@ -734,6 +735,8 @@ isc_result_t
 dns_request_getresponse(dns_request_t *request, dns_message_t *message,
 			isc_boolean_t preserve_order)
 {
+	isc_result_t result;
+
 	REQUIRE(VALID_REQUEST(request));
 	REQUIRE(request->answer != NULL);
 
@@ -742,7 +745,12 @@ dns_request_getresponse(dns_request_t *request, dns_message_t *message,
 
 	dns_message_setquerytsig(message, request->tsig);
 	dns_message_settsigkey(message, request->tsigkey);
-	return (dns_message_parse(message, request->answer, preserve_order));
+	result = dns_message_parse(message, request->answer, preserve_order);
+	if (result != ISC_R_SUCCESS)
+		return (result);
+	if (request->tsigkey != NULL)
+		result = dns_tsig_verify(request->answer, message, NULL, NULL);
+	return (result);
 }
 
 isc_boolean_t
@@ -927,6 +935,8 @@ req_destroy(dns_request_t *request) {
 		isc_timer_detach(&request->timer);
 	if (request->tsig != NULL)
 		isc_buffer_free(&request->tsig);
+	if (request->tsigkey != NULL)
+		dns_tsigkey_detach(&request->tsigkey);
 	requestmgr_detach(&request->requestmgr);
 	mctx = request->mctx;
 	isc_mem_put(mctx, request, sizeof(*request));

@@ -15,7 +15,7 @@
  * SOFTWARE.
  */
 
-/* $Id: nslookup.c,v 1.20.2.1 2000/07/10 19:11:38 bwelling Exp $ */
+/* $Id: nslookup.c,v 1.20.2.4 2000/08/07 23:56:33 gson Exp $ */
 
 #include <config.h>
 
@@ -59,6 +59,7 @@ extern int lookup_counter;
 extern char fixeddomain[MXNAME];
 extern int exitcode;
 extern isc_taskmgr_t *taskmgr;
+extern isc_mempool_t *commctx;
 extern char *progname;
 
 isc_boolean_t short_form = ISC_TRUE, printcmd = ISC_TRUE,
@@ -218,7 +219,8 @@ printsection(dig_query_t *query, dns_message_t *msg, isc_boolean_t headers,
 		     rdataset = ISC_LIST_NEXT(rdataset, link)) {
 			loopresult = dns_rdataset_first(rdataset);
 			while (loopresult == ISC_R_SUCCESS) {
-				dns_rdataset_current(rdataset, &rdata);				switch (rdata.type) {
+				dns_rdataset_current(rdataset, &rdata);
+				switch (rdata.type) {
 				case dns_rdatatype_a:
 					if (section != DNS_SECTION_ANSWER)
 						goto def_short_section;
@@ -585,6 +587,7 @@ show_settings(isc_boolean_t full) {
 
 static void
 setoption(char *opt) {
+	dig_server_t *srv;
 
 	if (strncasecmp(opt,"all",4) == 0) {
 		show_settings(ISC_TRUE);
@@ -635,10 +638,14 @@ setoption(char *opt) {
 		debugging = ISC_FALSE;
 	} else if (strncasecmp(opt, "sil",3) == 0) {
 		deprecation_msg = ISC_FALSE;
+	} else {
+		srv = make_server(opt);
+		debug("server is %s", srv->servername);
+		ISC_LIST_APPEND(server_list, srv, link);
 	}
 }
 
-static void
+static dig_lookup_t*
 addlookup(char *opt) {
 	dig_lookup_t *lookup;
 
@@ -651,7 +658,7 @@ addlookup(char *opt) {
 	strncpy (lookup->rttext, deftype, MXNAME);
 	strncpy (lookup->rctext, defclass, MXNAME);
 	lookup->namespace[0]=0;
-	lookup->sendspace[0]=0;
+	lookup->sendspace = NULL;
 	lookup->sendmsg=NULL;
 	lookup->name=NULL;
 	lookup->oname=NULL;
@@ -687,6 +694,7 @@ addlookup(char *opt) {
 	lookup->origin = NULL;
 	ISC_LIST_INIT(lookup->my_server_list);
 	debug("looking up %s", lookup->textname);
+	return (lookup);
 }
 
 static void
@@ -751,6 +759,7 @@ get_next_command(void) {
 static void
 parse_args(int argc, char **argv) {
 	dig_lookup_t *lookup = NULL;
+	isc_boolean_t have_lookup = ISC_FALSE;
 
 	for (argc--, argv++; argc > 0; argc--, argv++) {
 		debug ("main parsing %s", argv[0]);
@@ -762,10 +771,13 @@ parse_args(int argc, char **argv) {
 			}
 			if (argv[0][1] != 0)
 				setoption(&argv[0][1]);
+			else
+				have_lookup = ISC_TRUE;
 		} else {
-			if (lookup == NULL) {
+			if (!have_lookup) {
+				have_lookup = ISC_TRUE;
 				in_use = ISC_TRUE;
-				addlookup(argv[0]);
+				lookup = addlookup(argv[0]);
 			}
 			else
 				setsrv(argv[0]);
@@ -795,6 +807,8 @@ flush_lookup_list(void) {
 			if (ISC_LINK_LINKED(&q->lengthbuf, link))
 				ISC_LIST_DEQUEUE(q->lengthlist, &q->lengthbuf,
 						 link);
+			INSIST(q->recvspace != NULL);
+			isc_mempool_put(commctx, q->recvspace);
 			isc_buffer_invalidate(&q->recvbuf);
 			isc_buffer_invalidate(&q->lengthbuf);
 			qp = q;
@@ -814,6 +828,8 @@ flush_lookup_list(void) {
 		}
 		if (l->sendmsg != NULL)
 			dns_message_destroy(&l->sendmsg);
+		if (l->sendspace != NULL)
+			isc_mempool_put(commctx, l->sendspace);
 		if (l->timer != NULL)
 			isc_timer_detach(&l->timer);
 		lp = l;

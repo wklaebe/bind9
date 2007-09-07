@@ -68,19 +68,19 @@ BIND 9
 		Stichting NLnet - NLnet Foundation
 
 
-BIND 9.0.0rc1
+BIND 9.0.0rc2
 
-	BIND 9.0.0rc1 is a release candidate for the upcoming
+	BIND 9.0.0rc2 is a release candidate for the upcoming
 	9.0.0 release.  The only changes expected between
-	rc1 and the final release are bug fixes and documentation
+	rc2 and the final release are bug fixes and documentation
 	updates.
 
 	The 9.0.0 release, and this release candidate, is aimed at
 	early adopters and those who wish to make use of new 9.0
 	features, such as IPv6 and DNSSEC secure resolution support.
 
-	We are running 9.0.0rc1 in production, and it has been
-	used as a root name server.
+	We are running BIND 9 in production, and it has been used 
+	as a root name server.
 
 	The distribution includes a new lightweight resolver library
 	and associated resolver daemon.  These should still be considered
@@ -89,23 +89,11 @@ BIND 9.0.0rc1
 	The server-side support for DNSSEC secured zones is stable and
 	complete with the exception of the handling of wildcard records.
 	The support for secure resolution is still to be considered
-	experimental.
+	experimental.  For detailed information about the state of the
+	DNSSEC implementation, see the file doc/misc/dnssec.
 
-	There have been some changes since beta 5; the highlights are:
-
-		The communication between "rndc" and "named" is now
-		authenticated using digital signatures.  Because of
-		this, rndc now requires a configuration file "rndc.conf"
-		containing a shared secret, with a corresponding
-		"controls" clause in named.conf.
-
-		When the server is chrooted using the -t option,
-		it no longer needs copies of the passwd and group
-		files in the chroot environment.
-
-		Various bug fixes and cleanups, especially
-		in the dig, host, nslookup, and nsupdate
-		programs.
+	Several bugs found in rc1 have been fixed.  For a detailed 
+        list of user-visible changes, see the CHANGES file.
 
 	There are a few known bugs:
 
@@ -128,11 +116,15 @@ BIND 9.0.0rc1
 		for unknown reasons, but the server itself seems to
 		run fine.
 
+		On FreeBSD systems, the server logs error messages
+		like "fcntl(8, F_SETFL, 4): Inappropriate ioctl for
+		device".  This is due to a bug in the FreeSBD
+		/dev/random device.  The bug has been reported
+		to the FreeBSD maintainers.  A similar problem is
+		reported to exist on OpenBSD.
+
 	If you are upgrading from BIND 8, please read the migration
 	notes in doc/misc/migration.
-
-	For a detailed list of user-visible changes since beta 5, see
-	the CHANGES file.	
 
 
 Building
@@ -151,6 +143,11 @@ Building
 		NetBSD-current (with unproven-pthreads-0.17)
 		Red Hat Linux 6.0, 6.1, 6.2
 		Solaris 2.6, 7, 8 (beta)
+
+	We have received reports of success from users of the
+	following additional platforms:
+
+		Solaris 2.8
 
 	To build, just
 

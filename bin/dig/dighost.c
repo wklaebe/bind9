@@ -15,7 +15,7 @@
  * SOFTWARE.
  */
 
-/* $Id: dighost.c,v 1.58.2.5 2000/07/12 00:52:57 gson Exp $ */
+/* $Id: dighost.c,v 1.58.2.9 2000/08/07 23:50:13 gson Exp $ */
 
 /*
  * Notice to programmers:  Do not use this code as an example of how to
@@ -102,7 +102,7 @@ isc_buffer_t *namebuf = NULL;
 dns_tsigkey_t *key = NULL;
 isc_boolean_t validated = ISC_TRUE;
 isc_entropy_t *entp = NULL;
-
+isc_mempool_t *commctx = NULL;
 extern isc_boolean_t isc_mem_debugging;
 isc_boolean_t debugging = ISC_FALSE;
 char *progname = NULL;
@@ -140,7 +140,6 @@ hex_dump(isc_buffer_t *b) {
 	if (len % 16 != 0)
 		printf("\n");
 }
-
 
 void
 fatal(const char *format, ...) {
@@ -185,6 +184,26 @@ check_result(isc_result_t result, const char *msg) {
 	}
 }
 
+/*
+ * Create a server structure, which is part of the lookup structure.
+ * This is little more than a linked list of servers to query in hopes
+ * of finding the answer the user is looking for
+ */
+dig_server_t *
+make_server(const char *servname) {
+	dig_server_t *srv;
+
+	REQUIRE(servname != NULL);
+
+	debug("make_server(%s)",servname);
+	srv = isc_mem_allocate(mctx, sizeof(struct dig_server));
+	if (srv == NULL)
+		fatal("Memory allocation failure in %s:%d",
+		      __FILE__, __LINE__);
+	strncpy(srv->servername, servname, MXNAME);
+	return (srv);
+}
+
 isc_boolean_t
 isclass(char *text) {
 	/*
@@ -215,7 +234,7 @@ istype(char *text) {
 				  "wks", "ptr", "hinfo", "minfo",
 				  "mx", "txt", "rp", "afsdb",
 				  "x25", "isdn", "rt", "nsap",
-				  "nsap_ptr", "sig", "key", "px",
+				  "nsap-ptr", "sig", "key", "px",
 				  "gpos", "aaaa", "loc", "nxt",
 				  "srv", "naptr", "kx", "cert",
 				  "a6", "dname", "opt", "unspec",
@@ -252,7 +271,7 @@ requeue_lookup(dig_lookup_t *lookold, isc_boolean_t servers) {
 	strncpy(looknew->rttext, lookold-> rttext, 32);
 	strncpy(looknew->rctext, lookold-> rctext, 32);
 	looknew->namespace[0] = 0;
-	looknew->sendspace[0] = 0;
+	looknew->sendspace = NULL;
 	looknew->sendmsg = NULL;
 	looknew->name = NULL;
 	looknew->oname = NULL;
@@ -566,6 +585,16 @@ setup_libs(void) {
 	result = dst_lib_init(mctx, entp, 0);
 	check_result(result, "dst_lib_init");
 	is_dst_up = ISC_TRUE;
+
+	result = isc_mempool_create(mctx, COMMSIZE, &commctx);
+	check_result(result, "isc_mempool_create");
+	isc_mempool_setname(commctx, "COMMPOOL");
+	/*
+	 * 6 and 2 set as reasonable parameters for 3 or 4 nameserver
+	 * systems.
+	 */
+	isc_mempool_setfreemax(commctx, 6);
+	isc_mempool_setfillcount(commctx, 2);
 }
 
 static void
@@ -1079,6 +1108,10 @@ setup_lookup(dig_lookup_t *lookup) {
 		lookup->querysig = NULL;
 	}
 
+	lookup->sendspace = isc_mempool_get(commctx);
+	if (lookup->sendspace == NULL)
+		fatal("memory allocation failure");
+
 	debug("starting to render the message");
 	isc_buffer_init(&lookup->sendbuf, lookup->sendspace, COMMSIZE);
 	result = dns_message_renderbegin(lookup->sendmsg, &lookup->sendbuf);
@@ -1122,6 +1155,9 @@ setup_lookup(dig_lookup_t *lookup) {
 		ISC_LIST_INIT(query->recvlist);
 		ISC_LIST_INIT(query->lengthlist);
 		query->sock = NULL;
+		query->recvspace = isc_mempool_get(commctx);
+		if (query->recvspace == NULL)
+			fatal("memory allocation failure");
 
 		isc_buffer_init(&query->recvbuf, query->recvspace, COMMSIZE);
 		isc_buffer_init(&query->lengthbuf, query->lengthspace, 2);
@@ -1765,7 +1801,8 @@ recv_done(isc_task_t *task, isc_event_t *event) {
 			 * outages won't cause the XFR to abort
 			 */
 			if ((timeout != INT_MAX) &&
-			    (query->lookup->timer != NULL)) {
+                           (query->lookup->timer != NULL) &&
+                           query->lookup->doing_xfr ) {
 				if (timeout == 0) {
 					if (query->lookup->tcp_mode)
 						local_timeout = TCP_TIMEOUT;
@@ -2148,6 +2185,8 @@ free_lists(void) {
 			if (ISC_LINK_LINKED(&q->lengthbuf, link))
 				ISC_LIST_DEQUEUE(q->lengthlist, &q->lengthbuf,
 						 link);
+			INSIST(q->recvspace != NULL);
+			isc_mempool_put(commctx, q->recvspace);
 			isc_buffer_invalidate(&q->recvbuf);
 			isc_buffer_invalidate(&q->lengthbuf);
 			ptr = q;
@@ -2167,6 +2206,8 @@ free_lists(void) {
 		}
 		if (l->sendmsg != NULL)
 			dns_message_destroy(&l->sendmsg);
+		if (l->sendspace != NULL)
+			isc_mempool_put(commctx, l->sendspace);
 		if (l->querysig != NULL) {
 			debug("freeing buffer %p", l->querysig);
 			isc_buffer_free(&l->querysig);
@@ -2189,5 +2230,9 @@ free_lists(void) {
 	if (entp != NULL) {
 		debug("detach from entropy");
 		isc_entropy_detach(&entp);
+	}
+	if (commctx != NULL) {
+		debug("freeing commctx");
+		isc_mempool_destroy(&commctx);
 	}
 }

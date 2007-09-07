@@ -15,7 +15,7 @@
  * SOFTWARE.
  */
 
-/* $Id: zone.c,v 1.152.2.2 2000/07/10 22:43:38 gson Exp $ */
+/* $Id: zone.c,v 1.152.2.5 2000/08/06 22:07:25 gson Exp $ */
 
 #include <config.h>
 
@@ -698,9 +698,14 @@ dns_zone_load(dns_zone_t *zone) {
 		result = dns_journal_rollforward(zone->mctx, db,
 						 zone->journal);
 		if (result != ISC_R_SUCCESS && result != ISC_R_NOTFOUND &&
-		    result != DNS_R_UPTODATE && result != DNS_R_NOJOURNAL)
+		    result != DNS_R_UPTODATE && result != DNS_R_NOJOURNAL &&
+		    result != ISC_R_RANGE) {
+			zone_log(zone, me, ISC_LOG_ERROR,
+				 "dns_journal_rollforward returned: %s",
+				 dns_result_totext(result));
 			goto cleanup;
-		if (result == ISC_R_NOTFOUND) {
+		}
+		if (result == ISC_R_NOTFOUND || result == ISC_R_RANGE) {
 			zone_log(zone, me, ISC_LOG_ERROR,
 				 "journal out of sync with zone");
 			goto cleanup;
@@ -735,17 +740,15 @@ dns_zone_load(dns_zone_t *zone) {
 	case dns_zone_master:
 	case dns_zone_slave:
 	case dns_zone_stub:
-		if (soacount != 1 || nscount == 0) {
-			if (soacount != 1)
-				zone_log(zone, me, ISC_LOG_ERROR,
-					 "has %d SOA record%s", soacount,
-					 (soacount != 0) ? "s" : "");
-			if (nscount == 0)
-				zone_log(zone, me, ISC_LOG_ERROR,
-					 "no NS records");
+		if (soacount != 1) {
+			zone_log(zone, me, ISC_LOG_ERROR,
+				 "has %d SOA record%s", soacount,
+				 (soacount != 0) ? "s" : "");
 			result = DNS_R_BADZONE;
 			goto cleanup;
 		}
+		if (nscount == 0)
+			zone_log(zone, me, ISC_LOG_ERROR, "no NS records");
 		if (zone->db != NULL) {
 			if (!isc_serial_ge(serial, zone->serial)) {
 				zone_log(zone, me, ISC_LOG_ERROR,
@@ -836,7 +839,12 @@ zone_count_ns_rr(dns_db_t *db, dns_dbnode_t *node, dns_dbversion_t *version,
 	dns_rdataset_init(&rdataset);
 	result = dns_db_findrdataset(db, node, version, dns_rdatatype_ns,
 				     dns_rdatatype_none, 0, &rdataset, NULL);
-	if (result != ISC_R_SUCCESS)
+	if (result == ISC_R_NOTFOUND) {
+		*nscount = 0;
+		result = ISC_R_SUCCESS;
+		goto invalidate_rdataset;
+	}
+	else if (result != ISC_R_SUCCESS)
 		goto invalidate_rdataset;
 
 	count = 0;
@@ -1791,6 +1799,8 @@ notify_send_toaddr(isc_task_t *task, isc_event_t *event) {
 				    notify->zone->task,
 				    notify_done, notify,
 				    &notify->request);
+	if (key != NULL)
+		dns_tsigkey_detach(&key);
 	dns_message_destroy(&message);
  cleanup:
 	if (result != ISC_R_SUCCESS)
@@ -2650,6 +2660,8 @@ soa_query(isc_task_t *task, isc_event_t *event) {
 			 dns_result_totext(result));
 		goto cleanup;
 	}
+	if (key != NULL)
+		dns_tsigkey_detach(&key);
 	dns_message_destroy(&message);
 	isc_event_free(&event);
 	dns_zone_idetach(&zone);
@@ -3952,6 +3964,9 @@ got_transfer_quota(isc_task_t *task, isc_event_t *event) {
 	 */
 	if (result != ISC_R_SUCCESS)
 		zone_xfrdone(zone, result);
+
+	if (tsigkey != NULL)
+		dns_tsigkey_detach(&tsigkey);
 	
 	isc_event_free(&event);
 

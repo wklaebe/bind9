@@ -15,7 +15,7 @@
  * SOFTWARE.
  */
 
-/* $Id: message.c,v 1.131.2.2 2000/07/03 17:20:43 gson Exp $ */
+/* $Id: message.c,v 1.131.2.6 2000/08/07 22:07:09 gson Exp $ */
 
 /***
  *** Imports
@@ -30,6 +30,7 @@
 
 #include <dns/dnssec.h>
 #include <dns/keyvalues.h>
+#include <dns/log.h>
 #include <dns/message.h>
 #include <dns/rdata.h>
 #include <dns/rdatalist.h>
@@ -396,6 +397,8 @@ msgresetnames(dns_message_t *msg, unsigned int first_section) {
 				isc_mempool_put(msg->rdspool, rds);
 				rds = next_rds;
 			}
+			if (dns_name_dynamic(name))
+				dns_name_free(name, msg->mctx);
 			isc_mempool_put(msg->namepool, name);
 			name = next_name;
 		}
@@ -440,9 +443,10 @@ msgresetsigs(dns_message_t *msg, isc_boolean_t replying) {
 		isc_mempool_put(msg->namepool, msg->tsigname);
 		msg->tsig = NULL;
 		msg->tsigname = NULL;
-	} else if (msg->querytsig != NULL) {
+	} else if (msg->querytsig != NULL && !replying) {
 		dns_rdataset_disassociate(msg->querytsig);
 		isc_mempool_put(msg->rdspool, msg->querytsig);
+		msg->querytsig = NULL;
 	}
 	if (msg->sig0 != NULL) {
 		INSIST(dns_rdataset_isassociated(msg->sig0));
@@ -738,7 +742,7 @@ dns_message_destroy(dns_message_t **msgp) {
 }
 
 static isc_result_t
-simple_findname(dns_name_t **foundname, dns_name_t *target,
+findname(dns_name_t **foundname, dns_name_t *target,
 	 dns_namelist_t *section)
 {
 	dns_name_t *curr;
@@ -747,26 +751,6 @@ simple_findname(dns_name_t **foundname, dns_name_t *target,
 	     curr != NULL ;
 	     curr = ISC_LIST_PREV(curr, link)) {
 		if (dns_name_equal(curr, target)) {
-			if (foundname != NULL)
-				*foundname = curr;
-			return (ISC_R_SUCCESS);
-		}
-	}
-
-	return (ISC_R_NOTFOUND);
-}
-
-static isc_result_t
-findname(dns_name_t **foundname, dns_name_t *target, unsigned int attributes,
-	 dns_namelist_t *section)
-{
-	dns_name_t *curr;
-
-	for (curr = ISC_LIST_TAIL(*section) ;
-	     curr != NULL ;
-	     curr = ISC_LIST_PREV(curr, link)) {
-		if (dns_name_equal(curr, target) &&
-		    (curr->attributes & attributes) == attributes) {
 			if (foundname != NULL)
 				*foundname = curr;
 			return (ISC_R_SUCCESS);
@@ -952,7 +936,7 @@ getquestions(isc_buffer_t *source, dns_message_t *msg, dns_decompress_t *dctx)
 		 * name since we no longer need it, and set our name pointer
 		 * to point to the name we found.
 		 */
-		result = findname(&name2, name, 0, section);
+		result = findname(&name2, name, section);
 
 		/*
 		 * If it is the first name in the section, accept it.
@@ -1077,7 +1061,7 @@ getsection(isc_buffer_t *source, dns_message_t *msg, dns_decompress_t *dctx,
 	   dns_section_t sectionid, isc_boolean_t preserve_order)
 {
 	isc_region_t r;
-	unsigned int count, rdatalen, attributes;
+	unsigned int count, rdatalen;
 	dns_name_t *name;
 	dns_name_t *name2;
 	dns_rdataset_t *rdataset;
@@ -1232,32 +1216,18 @@ getsection(isc_buffer_t *source, dns_message_t *msg, dns_decompress_t *dctx,
 			result = ISC_R_NOMEMORY;
 			goto cleanup;
 		}
-		attributes = 0;
-		if (rdtype != dns_rdatatype_tsig) {
-			if (rdtype == dns_rdatatype_cname) {
-				name->attributes |= DNS_NAMEATTR_CNAME;
-				attributes = DNS_NAMEATTR_CNAME;
-				skip_name_search = ISC_TRUE;
-			} else if (rdtype == dns_rdatatype_dname) {
-				name->attributes |= DNS_NAMEATTR_DNAME;
-				attributes = DNS_NAMEATTR_DNAME;
-				skip_name_search = ISC_TRUE;
-			}
-			result = getrdata(source, msg, dctx, msg->rdclass,
-					  rdtype, rdatalen, rdata);
-		} else
+		if (rdtype == dns_rdatatype_tsig)
 			result = getrdata(source, msg, dctx, rdclass,
+					  rdtype, rdatalen, rdata);
+		else
+			result = getrdata(source, msg, dctx, msg->rdclass,
 					  rdtype, rdatalen, rdata);
 		if (result != ISC_R_SUCCESS)
 			goto cleanup;
 		rdata->rdclass = rdclass;
 		if (rdtype == dns_rdatatype_sig && rdata->length > 0) {
 			covers = dns_rdata_covers(rdata);
-			if (covers == dns_rdatatype_cname)
-				attributes = DNS_NAMEATTR_CNAME;
-			else if (covers == dns_rdatatype_dname)
-				attributes = DNS_NAMEATTR_DNAME;
-			else if (covers == 0 &&
+			if (covers == 0 &&
 				 sectionid == DNS_SECTION_ADDITIONAL)
 			{
 				if (msg->sig0 != NULL) {
@@ -1292,7 +1262,7 @@ getsection(isc_buffer_t *source, dns_message_t *msg, dns_decompress_t *dctx,
 			 * allocated name since we no longer need it, and set
 			 * our name pointer to point to the name we found.
 			 */
-			result = findname(&name2, name, attributes, section);
+			result = findname(&name2, name, section);
 
 			/*
 			 * If it is a new name, append to the section.
@@ -1515,8 +1485,15 @@ dns_message_parse(dns_message_t *msg, isc_buffer_t *source,
 		return (ret);
 
 	isc_buffer_remainingregion(source, &r);
-	if (r.length != 0)
-		return (DNS_R_FORMERR);
+	if (r.length != 0) {
+		if (r.length == 2 && r.base[0] == 'M' && r.base[1] == 'S') {
+			isc_log_write(dns_lctx, ISC_LOGCATEGORY_GENERAL,
+				      DNS_LOGMODULE_MESSAGE, ISC_LOG_INFO,
+				      "message has nonstandard Microsoft tag");
+		} else {
+			return (DNS_R_FORMERR);
+		}
+	}
 
 	if (msg->tsig != NULL || msg->tsigkey != NULL || msg->sig0 != NULL) {
 		msg->saved = isc_mem_get(msg->mctx, sizeof(isc_region_t));
@@ -2021,39 +1998,9 @@ dns_message_findname(dns_message_t *msg, dns_section_t section,
 			REQUIRE(*rdataset == NULL);
 	}
 
-	if (msg->from_to_wire == DNS_MESSAGE_INTENTPARSE) {
-		dns_rdatatype_t atype;
-		unsigned int attributes;
-		
-		/*
-		 * Figure out what attributes we should look for.
-		 */
-		if (type == dns_rdatatype_sig)
-			atype = covers;
-		else
-			atype = type;
-		attributes = 0;
-		if (atype == dns_rdatatype_cname)
-			attributes = DNS_NAMEATTR_CNAME;
-		else if (atype == dns_rdatatype_dname)
-			attributes = DNS_NAMEATTR_DNAME;
+	result = findname(&foundname, target,
+			  &msg->sections[section]);
 
-		/*
-		 * Search through, looking for the name.
-		 */
-		result = findname(&foundname, target, attributes,
-				  &msg->sections[section]);
-	} else {
-		/*
-		 * The message was not built by dns_message_parse()
-		 * and therefore does not have CNAMEs and DNAMEs
-		 * as separate names, and no DNS_NAMEATTR_CNAME
-		 * and DNS_NAMEATTR_DNAME attributes are maintained.
-		 * Therefore, we should not compare attributes.
-		 */
-		result = simple_findname(&foundname, target,
-					 &msg->sections[section]);
-	}
 	if (result == ISC_R_NOTFOUND)
 		return (DNS_R_NXDOMAIN);
 	else if (result != ISC_R_SUCCESS)
@@ -2122,6 +2069,8 @@ dns_message_puttempname(dns_message_t *msg, dns_name_t **item) {
 	REQUIRE(DNS_MESSAGE_VALID(msg));
 	REQUIRE(item != NULL && *item != NULL);
 
+	if (dns_name_dynamic(*item))
+		dns_name_free(*item, msg->mctx);
 	isc_mempool_put(msg->namepool, *item);
 	*item = NULL;
 }
@@ -2752,7 +2701,7 @@ dns_message_sectiontotext(dns_message_t *msg, dns_section_t section,
 	omit_final_dot = ISC_TF((flags & DNS_MESSAGETEXTFLAG_OMITDOT) != 0);
 
 	if (ISC_LIST_EMPTY(msg->sections[section]))
-		return ISC_R_SUCCESS;
+		return (ISC_R_SUCCESS);
 
 	if (section == DNS_SECTION_QUESTION)
 		no_rdata = ISC_TRUE;
@@ -2892,24 +2841,21 @@ dns_message_totext(dns_message_t *msg, dns_messagetextflag_t flags,
 			ADD_STRING(target, "cd ");
 		if (msg->opcode != dns_opcode_update) {
 			ADD_STRING(target, "; QUESTION: ");
-		}
-		else {
+		} else {
 			ADD_STRING(target, "; ZONE: ");
 		}
 		sprintf(buf, "%1u", msg->counts[DNS_SECTION_QUESTION]);
 		ADD_STRING(target, buf);
 		if (msg->opcode != dns_opcode_update) {
 			ADD_STRING(target, ", ANSWER: ");
-		}
-		else {
+		} else {
 			ADD_STRING(target, ", PREREQ: ");
 		}
 		sprintf(buf, "%1u", msg->counts[DNS_SECTION_ANSWER]);
 		ADD_STRING(target, buf);
 		if (msg->opcode != dns_opcode_update) {
 			ADD_STRING(target, ", AUTHORITY: ");
-		}
-		else {
+		} else {
 			ADD_STRING(target, ", UPDATE: ");
 		}
 		sprintf(buf, "%1u", msg->counts[DNS_SECTION_AUTHORITY]);

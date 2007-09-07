@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dighost.c,v 1.259.18.37 2006/12/07 06:08:02 marka Exp $ */
+/* $Id: dighost.c,v 1.259.18.39 2007/02/14 23:45:43 marka Exp $ */
 
 /*! \file
  *  \note
@@ -1635,7 +1635,7 @@ next_origin(dns_message_t *msg, dig_query_t *query) {
 	if (query->lookup->origin == NULL && query->lookup->need_search) {
 		lookup = requeue_lookup(query->lookup, ISC_TRUE);
 		lookup->origin = ISC_LIST_HEAD(search_list);
-		query->lookup->need_search = ISC_FALSE;
+		lookup->need_search = ISC_FALSE;
 	} else {
 		search = ISC_LIST_NEXT(query->lookup->origin, link);
 		if (search == NULL && query->lookup->done_as_is)

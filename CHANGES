@@ -1,4 +1,19 @@
 
+	--- 9.2.1 released ---
+
+1271.	[port]		win32: a make file contained absolute version specific
+			references.
+
+1269.	[bug]		Missing masters clause was not handled gracefully.
+			[RT #2703]
+
+1244.	[bug]		Receiving a TCP message from a blackhole address would
+			prevent further messages being received over that
+			interface.
+
+1178.	[bug]		Follow and cache (if appropriate) A6 and other
+			data chains to completion in the additional section.
+
 	--- 9.2.1rc2 released ---
 
 1240.	[bug]		It was possible to leak zone references by

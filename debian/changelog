@@ -1,3 +1,11 @@
+bind9 (1:9.3.2-2.1) unstable; urgency=low
+
+  * NMU.
+  * Drop explicit build dependency on gcc-3.4 / g++-3.4 on powerpc.
+    Closes: #342957, #385853.
+
+ -- Matthias Klose <doko@debian.org>  Sun,  3 Sep 2006 19:39:37 +0200
+
 bind9 (1:9.3.2-2) unstable; urgency=low
 
   * correct force-reload.  Closes: #333841

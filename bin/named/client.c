@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: client.c,v 1.176.2.1 2001/09/19 02:44:00 marka Exp $ */
+/* $Id: client.c,v 1.176.2.4 2001/10/12 19:14:47 gson Exp $ */
 
 #include <config.h>
 
@@ -1064,6 +1064,7 @@ client_request(isc_task_t *task, isc_event_t *event) {
 	int match;
 	dns_messageid_t id;
 	unsigned int flags;
+	isc_boolean_t notimp;
 
 	REQUIRE(event != NULL);
 	client = event->ev_arg;
@@ -1211,6 +1212,18 @@ client_request(isc_task_t *task, isc_event_t *event) {
 		goto cleanup;
 	}
 
+	switch (client->message->opcode) {
+	case dns_opcode_query:
+	case dns_opcode_update:
+	case dns_opcode_notify:
+		notimp = ISC_FALSE;
+		break;
+	case dns_opcode_iquery:
+	default:
+		notimp = ISC_TRUE;
+		break;
+	}
+
 	client->message->rcode = dns_rcode_noerror;
 
 	/*
@@ -1264,7 +1277,7 @@ client_request(isc_task_t *task, isc_event_t *event) {
 			      "message class could not be determined");
 		ns_client_dumpmessage(client,
 				      "message class could not be determined");
-		ns_client_error(client, DNS_R_FORMERR);
+		ns_client_error(client, notimp ? DNS_R_NOTIMP : DNS_R_FORMERR);
 		goto cleanup;
 	}
 
@@ -1313,7 +1326,7 @@ client_request(isc_task_t *task, isc_event_t *event) {
 			      NS_LOGMODULE_CLIENT, ISC_LOG_DEBUG(1),
 			      "no matching view in class '%s'", classname);
 		ns_client_dumpmessage(client, "no matching view in class");
-		ns_client_error(client, DNS_R_REFUSED);
+		ns_client_error(client, notimp ? DNS_R_NOTIMP : DNS_R_REFUSED);
 		goto cleanup;
 	}
 
@@ -1344,22 +1357,17 @@ client_request(isc_task_t *task, isc_event_t *event) {
 		ns_client_log(client, DNS_LOGCATEGORY_SECURITY,
 			      NS_LOGMODULE_CLIENT, ISC_LOG_DEBUG(3),
 			      "request is signed by a nonauthoritative key");
-		/*
-		 * Accept update messages signed by unknown keys so that
-		 * update forwarding works transparently through slaves
-		 * that don't have all the same keys as the master.
-		 */
-		if (!(client->message->tsigstatus == dns_tsigerror_badkey &&
-		      client->message->opcode == dns_opcode_update)) {
-			ns_client_error(client, sigresult);
-			goto cleanup;
-		}
 	} else {
 		/* There is a signature, but it is bad. */
 		ns_client_log(client, DNS_LOGCATEGORY_SECURITY,
 			      NS_LOGMODULE_CLIENT, ISC_LOG_ERROR,
 			      "request has invalid signature: %s",
 			      isc_result_totext(result));
+		/*
+		 * Accept update messages signed by unknown keys so that
+		 * update forwarding works transparently through slaves
+		 * that don't have all the same keys as the master.
+		 */
 		if (!(client->message->tsigstatus == dns_tsigerror_badkey &&
 		      client->message->opcode == dns_opcode_update)) {
 			ns_client_error(client, sigresult);

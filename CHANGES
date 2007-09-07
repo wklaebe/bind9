@@ -1,4 +1,30 @@
 
+	--- 9.2.4rc6 released ---
+
+1685.	[bug]		Change #1679 loop tests weren't quite right.
+
+1682.	[port]		Update configure test for (long long) printf format.
+			[RT #5066]
+
+1681.	[bug]		Only set SO_REUSEADDR when a port is specified in
+			isc_socket_bind(). [RT #11742]
+
+1679.	[bug]		When there was a single nameserver with multiple
+			addresses for a zone not all addresses were tried.
+			[RT #11706]
+
+1672.	[cleanup]	Tests which only function in a threaded build
+			now return R:THREADONLY (rather than R:UNTESTED)
+			in a non-threaded build.
+
+1671.	[contrib]	queryperf: add NAPTR to the list of known types.
+
+1669.	[bug]		Restore "update forwarding denied" log messages
+			accidentally suppressed by change #1633. [RT# 11657]
+
+1660.	[bug]		win32: connection_reset_fix() was being called
+			unconditionally.  [RT #11595]
+
 	--- 9.2.4rc5 released ---
 
 1655.	[bug]		Logging multiple versions w/o a size was broken.

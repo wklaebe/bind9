@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: resolver.c,v 1.218.2.31 2004/04/15 02:16:27 marka Exp $ */
+/* $Id: resolver.c,v 1.218.2.34 2004/07/03 00:56:55 marka Exp $ */
 
 #include <config.h>
 
@@ -1775,7 +1775,7 @@ possibly_mark(fetchctx_t *fctx, dns_adbaddrinfo_t *addr)
 
 static inline dns_adbaddrinfo_t *
 fctx_nextaddress(fetchctx_t *fctx) {
-	dns_adbfind_t *find;
+	dns_adbfind_t *find, *start;
 	dns_adbaddrinfo_t *addrinfo;
 
 	/*
@@ -1812,21 +1812,24 @@ fctx_nextaddress(fetchctx_t *fctx) {
 	 * Find the first unmarked addrinfo.
 	 */
 	addrinfo = NULL;
-	while (find != fctx->find) {
-		for (addrinfo = ISC_LIST_HEAD(find->list);
-		     addrinfo != NULL;
-		     addrinfo = ISC_LIST_NEXT(addrinfo, publink)) {
-			possibly_mark(fctx, addrinfo);
-			if (UNMARKED(addrinfo)) {
-				addrinfo->flags |= FCTX_ADDRINFO_MARK;
-				break;
+	if (find != NULL) {
+		start = find;
+		do {
+			for (addrinfo = ISC_LIST_HEAD(find->list);
+			     addrinfo != NULL;
+			     addrinfo = ISC_LIST_NEXT(addrinfo, publink)) {
+				possibly_mark(fctx, addrinfo);
+				if (UNMARKED(addrinfo)) {
+					addrinfo->flags |= FCTX_ADDRINFO_MARK;
+					break;
+				}
 			}
-		}
-		if (addrinfo != NULL)
-			break;
-		find = ISC_LIST_NEXT(find, publink);
-		if (find != fctx->find && find == NULL)
-			find = ISC_LIST_HEAD(fctx->finds);
+			if (addrinfo != NULL)
+				break;
+			find = ISC_LIST_NEXT(find, publink);
+			if (find == NULL)
+				find = ISC_LIST_HEAD(fctx->finds);
+		} while (find != start);
 	}
 
 	fctx->find = find;

@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: resolver.c,v 1.218.2.21 2003/09/19 06:17:53 marka Exp $ */
+/* $Id: resolver.c,v 1.218.2.24 2003/09/22 00:32:39 marka Exp $ */
 
 #include <config.h>
 
@@ -35,6 +35,7 @@
 #include <dns/ncache.h>
 #include <dns/peer.h>
 #include <dns/rdata.h>
+#include <dns/rdataclass.h>
 #include <dns/rdatalist.h>
 #include <dns/rdataset.h>
 #include <dns/rdatastruct.h>
@@ -347,7 +348,8 @@ fix_mustbedelegationornxdomain(dns_message_t *message, fetchctx_t *fctx) {
 			if (type == dns_rdatatype_soa &&
 			    dns_name_equal(name, domain))
 				keep_auth = ISC_TRUE;
-			if (type != dns_rdatatype_ns)
+			if (type != dns_rdatatype_ns &&
+			    type != dns_rdatatype_soa)
 				continue;
 			if (dns_name_equal(name, domain))
 				goto munge;
@@ -4454,14 +4456,23 @@ resquery_response(isc_task_t *task, isc_event_t *event) {
 	    fix_mustbedelegationornxdomain(message, fctx)) {
 		char namebuf[DNS_NAME_FORMATSIZE];
 		char domainbuf[DNS_NAME_FORMATSIZE];
+		char addrbuf[ISC_SOCKADDR_FORMATSIZE];
+		char classbuf[64];
+		char typebuf[64];
 
 		dns_name_format(&fctx->name, namebuf, sizeof(namebuf));
 		dns_name_format(&fctx->domain, domainbuf, sizeof(domainbuf));
+		dns_rdatatype_format(fctx->type, typebuf, sizeof(typebuf));
+		dns_rdataclass_format(fctx->res->rdclass, classbuf,
+				      sizeof(classbuf));
+		isc_sockaddr_format(&query->addrinfo->sockaddr, addrbuf,
+				    sizeof(addrbuf));
 
 		isc_log_write(dns_lctx, DNS_LOGCATEGORY_DELEGATION_ONLY,
 			     DNS_LOGMODULE_RESOLVER, ISC_LOG_NOTICE,
-			     "enforced delegation-only for '%s' (%s)",
-			     domainbuf, namebuf);
+			     "enforced delegation-only for '%s' (%s/%s/%s) "
+			     "from %s",
+			     domainbuf, namebuf, typebuf, classbuf, addrbuf);
 	}
 
 	/*

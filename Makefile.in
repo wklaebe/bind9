@@ -1,4 +1,4 @@
-# Copyright (C) 1998, 1999, 2000  Internet Software Consortium.
+# Copyright (C) 1998-2000  Internet Software Consortium.
 # 
 # Permission to use, copy, modify, and distribute this software for any
 # purpose with or without fee is hereby granted, provided that the above
@@ -13,6 +13,8 @@
 # ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
 # SOFTWARE.
 
+# $Id: Makefile.in,v 1.21.2.2 2000/06/27 00:46:05 explorer Exp $
+
 srcdir =	@srcdir@
 VPATH =		@srcdir@
 top_srcdir =	@top_srcdir@
@@ -24,23 +26,33 @@ TARGETS =
 DISTFILES =	CHANGES Makefile.in README \
 		acconfig.h aclocal.m4 config.guess config.h.in config.h.win32 \
 		config.status.win32 config.sub configure configure.in \
-		install-sh libtool.m4 ltconfig ltmain.sh \
-		bin lib make contrib \
+		isc-config.sh.in install-sh libtool.m4 ltconfig ltmain.sh \
+		lib make contrib \
 		version
-DOCDIRS =	arm draft misc rfc
+DOCDISTFILES =	arm draft misc rfc
+BINDISTFILES =	Makefile.in dig dnssec named nsupdate rndc tests
 
 @BIND9_MAKE_RULES@
 
 distclean::
-	rm -f config.cache config.h config.log config.status libtool TAGS
+	rm -f config.cache config.h config.log config.status TAGS
+	rm -f libtool isc-config.sh
+	rm -f util/conf.sh
 
 cleandir: distclean
+
+install:: isc-config.sh
+	${INSTALL_PROGRAM} isc-config.sh ${DESTDIR}${bindir}
 
 kit: kitclean
 	mkdir bind-${VERSION}
 	@(cd bind-${VERSION}; for i in ${DISTFILES}; do ln -s ../$$i $$i; done)
 	mkdir bind-${VERSION}/doc
-	@(cd bind-${VERSION}/doc; for i in ${DOCDIRS}; do ln -s ../../doc/$$i $$i; done)
+	@(cd bind-${VERSION}/doc; for i in ${DOCDISTFILES}; do \
+		ln -s ../../doc/$$i $$i; done)
+	mkdir bind-${VERSION}/bin
+	@(cd bind-${VERSION}/bin; for i in ${BINDISTFILES}; do \
+		ln -s ../../bin/$$i $$i; done)
 	gtar -c -v -z -h --exclude '*CVS*' -f bind-${VERSION}.tar.gz \
 		bind-${VERSION}
 	rm -rf bind-${VERSION}

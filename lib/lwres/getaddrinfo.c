@@ -1,9 +1,26 @@
+/*
+ * Portions Copyright (C) 1999, 2000  Internet Software Consortium.
+ * 
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ * 
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
+ * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
+ * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
+ * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+ * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
+ * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
+ * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
+ * SOFTWARE.
+ */
+
 /*-
  * Copyright (c) 1997 Berkeley Software Design, Inc. All rights reserved.
  * The Berkeley Software Design Inc. software License Agreement specifies
  * the terms and conditions for redistribution.
  *
- *	BSDI $Id: getaddrinfo.c,v 1.18 2000/06/01 17:39:24 tale Exp $
+ *	BSDI $Id: getaddrinfo.c,v 1.23.2.1 2000/06/26 23:08:45 explorer Exp $
  */
 
 #include <config.h>
@@ -159,9 +176,9 @@ lwres_getaddrinfo(const char *hostname, const char *servname,
 				return (EAI_SERVICE);
 			port = sp->s_port;
 			if (socktype == 0) {
-				if (strcmp(sp->s_proto, "tcp"))
+				if (strcmp(sp->s_proto, "tcp") == 0)
 					socktype = SOCK_STREAM;
-				else if (strcmp(sp->s_proto, "udp"))
+				else if (strcmp(sp->s_proto, "udp") == 0)
 					socktype = SOCK_DGRAM;
 			}
 		}
@@ -214,10 +231,42 @@ lwres_getaddrinfo(const char *hostname, const char *servname,
 	if (hostname != NULL &&
 	    (family == 0 || (flags & AI_NUMERICHOST) != 0)) {
 		char abuf[sizeof(struct in6_addr)];
-		char nbuf[sizeof("xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:xxxx00")];
+		char nbuf[NI_MAXHOST];
+		char ntmp[NI_MAXHOST];
 		int addrsize, addroff;
+#if defined(LWRES_HAVE_SIN6_SCOPE_ID)
+		char *p, *ep;
+		lwres_uint32_t scopeid;
+#endif
 
-		if (lwres_net_aton(hostname, (struct in_addr *)abuf)) {
+#if defined(LWRES_HAVE_SIN6_SCOPE_ID)
+		/* scope identifier portion */
+		ntmp[0] = '\0';
+		if (strchr(hostname, '%') != NULL) {
+			strncpy(ntmp, hostname, sizeof(ntmp) - 1);
+			ntmp[sizeof(ntmp) - 1] = '\0';
+			p = strchr(ntmp, '%');
+			ep = NULL;
+
+			/*
+			 * vendors may want to support non-numeric
+			 * scopeid around here.
+			 */
+
+			if (p != NULL)
+				scopeid = (lwres_uint32_t)strtoul(p + 1,
+								  &ep, 10);
+			if (p != NULL && ep != NULL && ep[0] == '\0')
+				*p = '\0';
+			else {
+				ntmp[0] = '\0';
+				scopeid = 0;
+			}
+		} else
+			scopeid = 0;
+#endif
+
+               if (lwres_net_pton(AF_INET, hostname, (struct in_addr *)abuf)) {
 			if (family == AF_INET6) {
 				/*
 				 * Convert to a V4 mapped address.
@@ -232,7 +281,13 @@ lwres_getaddrinfo(const char *hostname, const char *servname,
 			addroff = (char *)(&SIN(0)->sin_addr) - (char *)0;
 			family = AF_INET;
 			goto common;
-
+		} else if (ntmp[0] && lwres_net_pton(AF_INET6, ntmp, abuf)) {
+			if (family && family != AF_INET6)
+				return (EAI_NONAME);
+			addrsize = sizeof(struct in6_addr);
+			addroff = (char *)(&SIN6(0)->sin6_addr) - (char *)0;
+			family = AF_INET6;
+			goto common;
 		} else if (lwres_net_pton(AF_INET6, hostname, abuf)) {
 			if (family && family != AF_INET6)
 				return (EAI_NONAME);
@@ -249,12 +304,24 @@ lwres_getaddrinfo(const char *hostname, const char *servname,
 			SIN(ai->ai_addr)->sin_port = port;
 			memcpy((char *)ai->ai_addr + addroff, abuf, addrsize);
 			if (flags & AI_CANONNAME) {
-				lwres_net_ntop(family, abuf, nbuf,
-					       sizeof(nbuf));
-				ai->ai_canonname = strdup(nbuf);
+#if defined(LWRES_HAVE_SIN6_SCOPE_ID)
+				if (ai->ai_family == AF_INET6)
+					SIN6(ai->ai_addr)->sin6_scope_id = scopeid;
+#endif
+				if (lwres_getnameinfo(ai->ai_addr,
+				    ai->ai_addrlen, nbuf, sizeof(nbuf),
+						      NULL, 0,
+						      NI_NUMERICHOST) == 0) {
+					ai->ai_canonname = strdup(nbuf);
+					if (ai->ai_canonname == NULL)
+						return (EAI_MEMORY);
+				} else {
+					/* XXX raise error? */
+					ai->ai_canonname = NULL;
+				}
 			}
 			goto done;
-		} else if ((flags & AI_NUMERICHOST) != 0){
+		} else if ((flags & AI_NUMERICHOST) != 0) {
 			return (EAI_NONAME);
 		}
 	}
@@ -369,7 +436,7 @@ add_ipv4(const char *hostname, int flags, struct addrinfo **aip,
 	lwres_result_t lwres;
 	int result = 0;
 
-	lwres = lwres_context_create(&lwrctx, NULL, NULL, NULL);
+	lwres = lwres_context_create(&lwrctx, NULL, NULL, NULL, 0);
 	if (lwres != 0)
 		ERR(EAI_FAIL);
 	if (hostname == NULL && (flags & AI_PASSIVE) == 0) {
@@ -396,8 +463,11 @@ add_ipv4(const char *hostname, int flags, struct addrinfo **aip,
 			SIN(ai->ai_addr)->sin_port = port;
 			memcpy(&SIN(ai->ai_addr)->sin_addr,
 			       addr->address, 4);
-			if (flags & AI_CANONNAME)
+			if (flags & AI_CANONNAME) {
 				ai->ai_canonname = strdup(by->realname);
+				if (ai->ai_canonname == NULL)
+					ERR(EAI_MEMORY);
+			}
 			addr = LWRES_LIST_NEXT(addr, link);
 		}
 	}
@@ -422,7 +492,7 @@ add_ipv6(const char *hostname, int flags, struct addrinfo **aip,
 	lwres_result_t lwres;
 	int result = 0;
 
-	lwres = lwres_context_create(&lwrctx, NULL, NULL, NULL);
+	lwres = lwres_context_create(&lwrctx, NULL, NULL, NULL, 0);
 	if (lwres != 0)
 		ERR(EAI_FAIL);
 
@@ -449,8 +519,11 @@ add_ipv6(const char *hostname, int flags, struct addrinfo **aip,
 			SIN6(ai->ai_addr)->sin6_port = port;
 			memcpy(&SIN6(ai->ai_addr)->sin6_addr,
 			       addr->address, 16);
-			if (flags & AI_CANONNAME)
+			if (flags & AI_CANONNAME) {
 				ai->ai_canonname = strdup(by->realname);
+				if (ai->ai_canonname == NULL)
+					ERR(EAI_MEMORY);
+			}
 			addr = LWRES_LIST_NEXT(addr, link);
 		}
 	}

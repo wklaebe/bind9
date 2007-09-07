@@ -15,6 +15,8 @@
  * SOFTWARE.
  */
 
+/* $Id: notify.c,v 1.18 2000/06/23 17:26:36 marka Exp $ */
+
 #include <config.h>
 
 #include <dns/message.h>
@@ -129,6 +131,10 @@ respond(ns_client_t *client, isc_result_t result) {
 		return;
 	}
 	message->rcode = rcode;
+	if (rcode == dns_rcode_noerror)
+		message->flags |= DNS_MESSAGEFLAG_AA;
+	else
+		message->flags &= ~DNS_MESSAGEFLAG_AA;
 	ns_client_send(client);
 }
 

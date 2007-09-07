@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1996, 1997, 1998, 1999, 2000  Internet Software Consortium.
+ * Copyright (C) 1996-2000  Internet Software Consortium.
  * 
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -14,6 +14,8 @@
  * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
  * SOFTWARE.
  */
+
+/* $Id: types.h,v 1.5 2000/06/22 22:00:17 tale Exp $ */
 
 #ifndef OMAPI_TYPES_H
 #define OMAPI_TYPES_H 1

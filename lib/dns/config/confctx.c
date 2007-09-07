@@ -15,7 +15,7 @@
  * SOFTWARE.
  */
 
-/* $Id: confctx.c,v 1.68 2000/06/09 22:13:20 brister Exp $ */
+/* $Id: confctx.c,v 1.70.2.1 2000/06/28 00:32:18 explorer Exp $ */
 
 #include <config.h>
 
@@ -356,22 +356,6 @@ dns_c_checkconfig(dns_c_ctx_t *cfg)
 		isc_log_write(dns_lctx,DNS_LOGCATEGORY_CONFIG,
 			      DNS_LOGMODULE_CONFIG, ISC_LOG_WARNING,
 			      "option 'lame-ttl' is not yet "
-			      "implemented");
-	}
-	
-
-	if (dns_c_ctx_getmaxncachettl(cfg, &uintval) != ISC_R_NOTFOUND) {
-		isc_log_write(dns_lctx,DNS_LOGCATEGORY_CONFIG,
-			      DNS_LOGMODULE_CONFIG, ISC_LOG_WARNING,
-			      "option 'max-ncache-ttl' is not yet "
-			      "implemented");
-	}
-	
-
-	if (dns_c_ctx_getmaxcachettl(cfg, &uintval) != ISC_R_NOTFOUND) {
-		isc_log_write(dns_lctx,DNS_LOGCATEGORY_CONFIG,
-			      DNS_LOGMODULE_CONFIG, ISC_LOG_WARNING,
-			      "option 'max-cache-ttl' is not yet "
 			      "implemented");
 	}
 	
@@ -921,6 +905,8 @@ dns_c_ctx_optionsprint(FILE *fp, int indent, dns_c_options_t *options)
 	PRINT_CHAR_P(stats_filename, "statistics-file");
 	PRINT_CHAR_P(memstats_filename, "memstatistics-file");
 	PRINT_CHAR_P(named_xfer, "named-xfer");
+	PRINT_CHAR_P(random_device, "random-device");
+	PRINT_CHAR_P(random_seed_file, "random-seed-file");
 
 	PRINT_INTEGER(port, "port");
 	
@@ -1301,6 +1287,31 @@ dns_c_ctx_addnullchannel(dns_c_ctx_t *cfg, const char *name,
 
 
 isc_result_t
+dns_c_ctx_addstderrchannel(dns_c_ctx_t *cfg, const char *name,
+                           dns_c_logchan_t **chan)
+{
+	dns_c_logchan_t *newc;
+	isc_result_t res;
+
+	REQUIRE(DNS_C_CONFCTX_VALID(cfg));
+	REQUIRE(name != NULL);
+	REQUIRE(chan != NULL);
+	REQUIRE(cfg->logging != NULL);
+
+	res = dns_c_logchan_new(cfg->mem, name, dns_c_logchan_stderr, &newc);
+	if (res != ISC_R_SUCCESS) {
+		return (res);
+	}
+
+	res = dns_c_logginglist_addchannel(cfg->logging, newc, ISC_FALSE);
+
+	*chan = newc;
+	
+	return (res);
+}
+
+
+isc_result_t
 dns_c_ctx_addcategory(dns_c_ctx_t *cfg, const char *catname,
 		      dns_c_logcat_t **newcat)
 {
@@ -1413,6 +1424,8 @@ dns_c_ctx_optionsnew(isc_mem_t *mem, dns_c_options_t **options)
 	opts->stats_filename = NULL;
 	opts->memstats_filename = NULL;
 	opts->named_xfer = NULL;
+	opts->random_device = NULL;
+	opts->random_seed_file = NULL;
 
 	opts->port = NULL;
 	
@@ -1546,6 +1559,8 @@ dns_c_ctx_optionsdelete(dns_c_options_t **opts)
 	FREESTRING(stats_filename);
 	FREESTRING(memstats_filename);
 	FREESTRING(named_xfer);
+	FREESTRING(random_device);
+	FREESTRING(random_seed_file);
 
 	
 	FREEFIELD(expert_mode);
@@ -1701,6 +1716,16 @@ UNSETSTRING(memstatsfilename, memstats_filename)
 SETSTRING(namedxfer, named_xfer)
 GETSTRING(namedxfer, named_xfer)
 UNSETSTRING(namedxfer, named_xfer)
+
+
+SETSTRING(randomdevice, random_device)
+GETSTRING(randomdevice, random_device)
+UNSETSTRING(randomdevice, random_device)
+
+
+SETSTRING(randomseedfile, random_seed_file)
+GETSTRING(randomseedfile, random_seed_file)
+UNSETSTRING(randomseedfile, random_seed_file)
 
 
 GETBYTYPE(in_port_t, port, port)

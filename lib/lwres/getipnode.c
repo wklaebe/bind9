@@ -15,6 +15,8 @@
  * SOFTWARE.
  */
 
+/* $Id: getipnode.c,v 1.20.2.2 2000/06/27 23:44:19 gson Exp $ */
+
 #include <config.h>
 
 #include <sys/types.h>
@@ -159,7 +161,7 @@ lwres_getipnodebyname(const char *name, int af, int flags, int *error_num) {
 		return (copyandmerge(&he, NULL, af, error_num));
 	}
 
-	n = lwres_context_create(&lwrctx, NULL, NULL, NULL);
+	n = lwres_context_create(&lwrctx, NULL, NULL, NULL, 0);
 	if (n != 0) {
 		*error_num = NO_RECOVERY;
 		goto cleanup;
@@ -193,7 +195,10 @@ lwres_getipnodebyname(const char *name, int af, int flags, int *error_num) {
 				goto cleanup;
 			}
 		} else if (he1 == NULL) {
-			*error_num = HOST_NOT_FOUND;
+			if (n == LWRES_R_NOTFOUND)
+				*error_num = HOST_NOT_FOUND;
+			else
+				*error_num = NO_RECOVERY;
 			goto cleanup;
 		} 
 	} else
@@ -216,7 +221,7 @@ lwres_getipnodebyaddr(const void *src, size_t len, int af, int *error_num) {
 	struct hostent *he1, *he2;
 	lwres_context_t *lwrctx = NULL;
 	lwres_gnbaresponse_t *by = NULL;
-	int n;
+	lwres_result_t n;
 	union {
 		const void *konst;
 		struct in6_addr *in6;
@@ -269,13 +274,16 @@ lwres_getipnodebyaddr(const void *src, size_t len, int af, int *error_num) {
 
 		if (af == AF_INET6)
 			cp += 12;
-		n = lwres_context_create(&lwrctx, NULL, NULL, NULL);
-		if (n == 0)
+		n = lwres_context_create(&lwrctx, NULL, NULL, NULL, 0);
+		if (n == LWRES_R_SUCCESS)
 			n = lwres_getnamebyaddr(lwrctx, LWRES_ADDRTYPE_V4,
 						INADDRSZ, cp, &by);
-		if (n != 0) {
+		if (n != LWRES_R_SUCCESS) {
 			lwres_context_destroy(&lwrctx);
-			*error_num = HOST_NOT_FOUND;
+			if (n == LWRES_R_NOTFOUND)
+				*error_num = HOST_NOT_FOUND;
+			else
+				*error_num = NO_RECOVERY;
 			return (NULL);
 		}
 		he1 = hostfromaddr(by, AF_INET, cp);
@@ -306,8 +314,8 @@ lwres_getipnodebyaddr(const void *src, size_t len, int af, int *error_num) {
 		return (NULL);
 	}
 
-	n = lwres_context_create(&lwrctx, NULL, NULL, NULL);
-	if (n == 0)
+	n = lwres_context_create(&lwrctx, NULL, NULL, NULL, 0);
+	if (n == LWRES_R_SUCCESS)
 		n = lwres_getnamebyaddr(lwrctx, LWRES_ADDRTYPE_V6, IN6ADDRSZ,
 					src, &by);
 	if (n != 0) {
@@ -709,6 +717,8 @@ hostfromaddr(lwres_gnbaresponse_t *addr, int af, const void *src) {
 	 * Copy aliases.
 	 */
 	he->h_aliases = malloc(sizeof(char *) * (addr->naliases + 1));
+	if (he->h_aliases == NULL)
+		goto cleanup;
 	for (i = 0 ; i < addr->naliases; i++) {
 		he->h_aliases[i] = strdup(addr->aliases[i]);
 		if (he->h_aliases[i] == NULL)
@@ -742,7 +752,8 @@ hostfromaddr(lwres_gnbaresponse_t *addr, int af, const void *src) {
 	}
 	if (he != NULL && he->h_name != NULL)
 		free(he->h_name);
-	free(he);
+	if (he != NULL)
+		free(he);
 	return (NULL);
 }
 
@@ -820,6 +831,7 @@ hostfromname(lwres_gabnresponse_t *name, int af) {
 	}
 	if (he != NULL && he->h_name != NULL)
 		free(he->h_name);
-	free(he);
+	if (he != NULL)
+		free(he);
 	return (NULL);
 }

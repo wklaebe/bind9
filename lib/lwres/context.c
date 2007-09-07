@@ -15,6 +15,8 @@
  * SOFTWARE.
  */
 
+/* $Id: context.c,v 1.24 2000/06/22 21:59:23 tale Exp $ */
+
 #include <config.h>
 
 #include <fcntl.h>
@@ -43,6 +45,8 @@
 #define LWRES_SOCKADDR_LEN_T unsigned int
 #endif
 
+lwres_uint16_t lwres_udp_port = LWRES_UDP_PORT;
+
 static void *
 lwres_malloc(void *, size_t);
 
@@ -55,7 +59,8 @@ context_connect(lwres_context_t *);
 lwres_result_t
 lwres_context_create(lwres_context_t **contextp, void *arg,
 		     lwres_malloc_t malloc_function,
-		     lwres_free_t free_function)
+		     lwres_free_t free_function,
+		     unsigned int flags)
 {
 	lwres_context_t *ctx;
 
@@ -87,7 +92,8 @@ lwres_context_create(lwres_context_t **contextp, void *arg,
 	ctx->timeout = LWRES_DEFAULT_TIMEOUT;
 	ctx->serial = (lwres_uint32_t)ctx; /* XXXMLG */
 
-	(void)context_connect(ctx); /* XXXMLG */
+	if ((flags & LWRES_CONTEXT_SERVERMODE) == 0)
+		(void)context_connect(ctx); /* XXXMLG */
 
 	/*
 	 * Init resolv.conf bits.
@@ -176,7 +182,7 @@ context_connect(lwres_context_t *ctx) {
 	memset(&localhost, 0, sizeof(localhost));
 	localhost.sin_family = AF_INET;
 	localhost.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-	localhost.sin_port = htons(LWRES_UDP_PORT);
+	localhost.sin_port = htons(lwres_udp_port);
 
 	s = socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP);
 	if (s < 0)
@@ -269,7 +275,7 @@ lwres_context_sendrecv(lwres_context_t *ctx,
 	 * or if someone is sending us random stuff.
 	 */
 	if (sin.sin_addr.s_addr != htonl(INADDR_LOOPBACK)
-	    || sin.sin_port != htons(LWRES_UDP_PORT))
+	    || sin.sin_port != htons(lwres_udp_port))
 		goto again;
 
 	if (recvd_len != NULL)

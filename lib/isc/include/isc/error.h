@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1998, 1999, 2000  Internet Software Consortium.
+ * Copyright (C) 1998-2000  Internet Software Consortium.
  * 
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -15,11 +15,14 @@
  * SOFTWARE.
  */
 
+/* $Id: error.h,v 1.10 2000/06/22 21:57:28 tale Exp $ */
+
 #ifndef ISC_ERROR_H
 #define ISC_ERROR_H 1
 
 #include <stdarg.h>
 
+#include <isc/formatcheck.h>
 #include <isc/lang.h>
 
 ISC_LANG_BEGINDECLS
@@ -28,12 +31,18 @@ typedef void (*isc_errorcallback_t)(const char *, int, const char *, va_list);
 
 void
 isc_error_setunexpected(isc_errorcallback_t);
+
 void
 isc_error_setfatal(isc_errorcallback_t);
+
 void
-isc_error_unexpected(const char *, int, const char *, ...);
+isc_error_unexpected(const char *, int, const char *, ...)
+     ISC_FORMAT_PRINTF(3, 4);
+
 void
-isc_error_fatal(const char *, int, const char *, ...);
+isc_error_fatal(const char *, int, const char *, ...)
+     ISC_FORMAT_PRINTF(3, 4);
+
 void
 isc_error_runtimecheck(const char *, int, const char *);
 

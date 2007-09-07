@@ -1,11 +1,11 @@
 %{
 /*
- * Copyright (c) 1996-2000 by Internet Software Consortium.
- *
+ * Copyright (C) 1996-2000  Internet Software Consortium.
+ * 
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- *
+ * 
  * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
  * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
  * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
@@ -16,7 +16,7 @@
  * SOFTWARE.
  */
 
-/* $Id: confparser.y,v 1.96 2000/06/09 22:13:21 brister Exp $ */
+/* $Id: confparser.y,v 1.99 2000/06/21 22:44:19 tale Exp $ */
 
 #include <config.h>
 
@@ -321,6 +321,8 @@ static isc_boolean_t	int_too_big(isc_uint32_t base, isc_uint32_t mult);
 %token		L_OPTIONS
 %token		L_ORDER
 %token		L_OWNER
+%token		L_RANDOM_DEVICE
+%token		L_RANDOM_SEED_FILE
 %token		L_PERM
 %token		L_PIDFILE
 %token		L_PORT
@@ -352,6 +354,7 @@ static isc_boolean_t	int_too_big(isc_uint32_t base, isc_uint32_t mult);
 %token		L_STACKSIZE
 %token		L_STATS_FILE
 %token		L_STATS_INTERVAL
+%token		L_STDERR
 %token		L_STUB
 %token		L_SUBDOMAIN
 %token		L_SUPPORT_IXFR
@@ -577,6 +580,38 @@ option: /* Empty */
 			YYABORT;
 		} else if (tmpres != ISC_R_SUCCESS) {
 			parser_error(ISC_FALSE, "set named-xfer error: %s: %s",
+				     isc_result_totext(tmpres), $2);
+			YYABORT;
+		}
+
+		isc_mem_free(memctx, $2);
+	}
+	| L_RANDOM_DEVICE L_QSTRING
+	{
+		tmpres = dns_c_ctx_setrandomdevice(currcfg, $2);
+		if (tmpres == ISC_R_EXISTS) {
+			parser_error(ISC_FALSE,
+				     "cannot redefine random-device");
+			YYABORT;
+		} else if (tmpres != ISC_R_SUCCESS) {
+			parser_error(ISC_FALSE,
+				     "error setting random-device: %s: %s",
+				     isc_result_totext(tmpres), $2);
+			YYABORT;
+		}
+
+		isc_mem_free(memctx, $2);
+	}
+	| L_RANDOM_SEED_FILE L_QSTRING
+	{
+		tmpres = dns_c_ctx_setrandomseedfile(currcfg, $2);
+		if (tmpres == ISC_R_EXISTS) {
+			parser_error(ISC_FALSE,
+				     "cannot redefine random-seed-file");
+			YYABORT;
+		} else if (tmpres != ISC_R_SUCCESS) {
+			parser_error(ISC_FALSE,
+				     "error setting random-seed-file: %s: %s",
 				     isc_result_totext(tmpres), $2);
 			YYABORT;
 		}
@@ -2132,6 +2167,23 @@ channel_stmt:
 
 		tmpres = dns_c_ctx_addnullchannel(currcfg,
 						  $2, &newc);
+		if (tmpres == ISC_R_EXISTS) {
+			parser_error(ISC_FALSE,
+				     "cannot redefine channel %s", $2);
+			YYABORT;
+		} else if (tmpres != ISC_R_SUCCESS) {
+			parser_error(ISC_FALSE,
+				     "failed to add new channel '%s'", $2);
+			YYABORT;
+		}
+
+		isc_mem_free(memctx, $2);
+	} L_EOS optional_channel_opt_list L_RBRACE
+	| L_CHANNEL channel_name L_LBRACE L_STDERR {
+		dns_c_logchan_t *newc;
+
+		tmpres = dns_c_ctx_addstderrchannel(currcfg,
+                                                    $2, &newc);
 		if (tmpres == ISC_R_EXISTS) {
 			parser_error(ISC_FALSE,
 				     "cannot redefine channel %s", $2);
@@ -5128,6 +5180,8 @@ static struct token keyword_tokens [] = {
 	{ "pubkey",			L_PUBKEY },
 	{ "query-source",		L_QUERY_SOURCE },
 	{ "query-source-v6",		L_QUERY_SOURCE_V6 },
+	{ "random-device",		L_RANDOM_DEVICE },
+	{ "random-seed-file",		L_RANDOM_SEED_FILE },
 	{ "request-ixfr",		L_REQUEST_IXFR },
 	{ "rfc2308-type1",		L_RFC2308_TYPE1 },
 	{ "rrset-order",		L_RRSET_ORDER },
@@ -5145,6 +5199,7 @@ static struct token keyword_tokens [] = {
 	{ "stacksize",			L_STACKSIZE },
 	{ "statistics-file",		L_STATS_FILE },
 	{ "statistics-interval",	L_STATS_INTERVAL },
+	{ "stderr",			L_STDERR },
 	{ "stub",			L_STUB },
 	{ "support-ixfr",		L_SUPPORT_IXFR },
 	{ "syslog",			L_SYSLOG },

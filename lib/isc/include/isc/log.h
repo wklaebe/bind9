@@ -15,7 +15,7 @@
  * SOFTWARE.
  */
 
-/* $Id: log.h,v 1.22 2000/06/01 17:20:40 tale Exp $ */
+/* $Id: log.h,v 1.25 2000/06/19 21:45:03 explorer Exp $ */
 
 #ifndef ISC_LOG_H
 #define ISC_LOG_H 1
@@ -24,6 +24,7 @@
 #include <stdarg.h>
 #include <syslog.h> /* XXXDCL NT */
 
+#include <isc/formatcheck.h>
 #include <isc/lang.h>
 #include <isc/types.h>
 
@@ -498,7 +499,8 @@ isc_log_usechannel(isc_logconfig_t *lcfg, const char *name,
 
 void
 isc_log_write(isc_log_t *lctx, isc_logcategory_t *category,
-	      isc_logmodule_t *module, int level, const char *format, ...);
+	      isc_logmodule_t *module, int level, const char *format, ...)
+ISC_FORMAT_PRINTF(5, 6);
 /*
  * Write a message to the log channels.
  *
@@ -517,7 +519,7 @@ isc_log_write(isc_log_t *lctx, isc_logcategory_t *category,
  *	range of known ids, as estabished by isc_log_registercategories()
  *	and isc_log_registermodules().
  *
- *	level != ISC_LOG_DYNAMiC.  ISC_LOG_DYNAMIC is used only to define
+ *	level != ISC_LOG_DYNAMIC.  ISC_LOG_DYNAMIC is used only to define
  *	channels, and explicit debugging level must be identified for
  *	isc_log_write() via ISC_LOG_DEBUG(level).
  *
@@ -535,7 +537,8 @@ isc_log_write(isc_log_t *lctx, isc_logcategory_t *category,
 void
 isc_log_vwrite(isc_log_t *lctx, isc_logcategory_t *category,
 	       isc_logmodule_t *module, int level, const char *format,
-	       va_list args);
+	       va_list args)
+ISC_FORMAT_PRINTF(5, 0);
 /*
  * Write a message to the log channels.
  *
@@ -554,7 +557,7 @@ isc_log_vwrite(isc_log_t *lctx, isc_logcategory_t *category,
  *	range of known ids, as estabished by isc_log_registercategories()
  *	and isc_log_registermodules().
  *
- *	level != ISC_LOG_DYNAMiC.  ISC_LOG_DYNAMIC is used only to define
+ *	level != ISC_LOG_DYNAMIC.  ISC_LOG_DYNAMIC is used only to define
  *	channels, and explicit debugging level must be identified for
  *	isc_log_write() via ISC_LOG_DEBUG(level).
  *
@@ -571,7 +574,8 @@ isc_log_vwrite(isc_log_t *lctx, isc_logcategory_t *category,
 
 void
 isc_log_write1(isc_log_t *lctx, isc_logcategory_t *category,
-	      isc_logmodule_t *module, int level, const char *format, ...);
+	      isc_logmodule_t *module, int level, const char *format, ...)
+ISC_FORMAT_PRINTF(5, 6);
 /*
  * Write a message to the log channels, pruning duplicates that occur within
  * a configurable amount of seconds (see isc_log_[sg]etduplicateinterval).
@@ -581,7 +585,8 @@ isc_log_write1(isc_log_t *lctx, isc_logcategory_t *category,
 void
 isc_log_vwrite1(isc_log_t *lctx, isc_logcategory_t *category,
 	       isc_logmodule_t *module, int level, const char *format,
-	       va_list args);
+	       va_list args)
+ISC_FORMAT_PRINTF(5, 0);
 /*
  * Write a message to the log channels, pruning duplicates that occur within
  * a configurable amount of seconds (see isc_log_[sg]etduplicateinterval).

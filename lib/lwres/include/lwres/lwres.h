@@ -15,18 +15,17 @@
  * SOFTWARE.
  */
 
+/* $Id: lwres.h,v 1.38 2000/06/23 03:13:26 tale Exp $ */
+
 #ifndef LWRES_LWRES_H
 #define LWRES_LWRES_H 1
 
 #include <stdio.h>
-#include <stddef.h>
 
 #include <lwres/context.h>
-#include <lwres/int.h>
 #include <lwres/lang.h>
 #include <lwres/list.h>
 #include <lwres/lwpacket.h>
-#include <lwres/result.h>
 
 /*
  * Design notes:
@@ -227,6 +226,11 @@ typedef struct {
 #define LWRES_MAX_ADDRS			64		/* max # of addrs */
 
 LWRES_LANG_BEGINDECLS
+
+/*
+ * This is in host byte order.
+ */
+extern lwres_uint16_t lwres_udp_port;
 
 lwres_result_t
 lwres_gabnrequest_render(lwres_context_t *ctx, lwres_gabnrequest_t *req,

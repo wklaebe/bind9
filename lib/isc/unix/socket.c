@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1998, 1999, 2000  Internet Software Consortium.
+ * Copyright (C) 1998-2000  Internet Software Consortium.
  * 
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -14,6 +14,8 @@
  * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
  * SOFTWARE.
  */
+
+/* $Id: socket.c,v 1.142.2.1 2000/06/26 21:28:21 gson Exp $ */
 
 #include <config.h>
 
@@ -209,11 +211,9 @@ static void internal_recv(isc_task_t *, isc_event_t *);
 static void internal_send(isc_task_t *, isc_event_t *);
 static void process_cmsg(isc_socket_t *, struct msghdr *, isc_socketevent_t *);
 static void build_msghdr_send(isc_socket_t *, isc_socketevent_t *,
-			      struct msghdr *, struct iovec *, unsigned int,
-			      size_t *);
+			      struct msghdr *, struct iovec *, size_t *);
 static void build_msghdr_recv(isc_socket_t *, isc_socketevent_t *,
-			      struct msghdr *, struct iovec *, unsigned int,
-			      size_t *);
+			      struct msghdr *, struct iovec *, size_t *);
 
 #define SELECT_POKE_SHUTDOWN		(-1)
 #define SELECT_POKE_NOTHING		(-2)
@@ -366,6 +366,12 @@ process_cmsg(isc_socket_t *sock, struct msghdr *msg, isc_socketevent_t *dev) {
 		dev->attributes |= ISC_SOCKEVENTATTR_CTRUNC;
 #endif
 
+	/*
+	 * Check for multicast.
+	 */
+	if (isc_sockaddr_ismulticast(&dev->address))
+		dev->attributes |= ISC_SOCKEVENTATTR_MULTICAST;
+
 #ifndef USE_CMSG
 	return;
 #else
@@ -432,8 +438,7 @@ process_cmsg(isc_socket_t *sock, struct msghdr *msg, isc_socketevent_t *dev) {
  */
 static void
 build_msghdr_send(isc_socket_t *sock, isc_socketevent_t *dev,
-		  struct msghdr *msg, struct iovec *iov, unsigned int maxiov,
-		  size_t *write_countp)
+		  struct msghdr *msg, struct iovec *iov, size_t *write_countp)
 {
 	unsigned int iovcount;
 	isc_buffer_t *buffer;
@@ -481,7 +486,7 @@ build_msghdr_send(isc_socket_t *sock, isc_socketevent_t *dev,
 	}
 
 	while (buffer != NULL) {
-		INSIST(iovcount < maxiov);
+		INSIST(iovcount < MAXSCATTERGATHER_SEND);
 
 		isc_buffer_usedregion(buffer, &used);
 
@@ -550,8 +555,7 @@ build_msghdr_send(isc_socket_t *sock, isc_socketevent_t *dev,
  */
 static void
 build_msghdr_recv(isc_socket_t *sock, isc_socketevent_t *dev,
-		  struct msghdr *msg, struct iovec *iov, unsigned int maxiov,
-		  size_t *read_countp)
+		  struct msghdr *msg, struct iovec *iov, size_t *read_countp)
 {
 	unsigned int iovcount;
 	isc_buffer_t *buffer;
@@ -602,7 +606,7 @@ build_msghdr_recv(isc_socket_t *sock, isc_socketevent_t *dev,
 
 	iovcount = 0;
 	while (buffer != NULL) {
-		INSIST(iovcount < maxiov);
+		INSIST(iovcount < MAXSCATTERGATHER_RECV);
 
 		isc_buffer_availableregion(buffer, &available);
 
@@ -715,7 +719,6 @@ dump_msg(struct msghdr *msg) {
 #define DOIO_SOFT		1	/* i/o ok, soft error, no event sent */
 #define DOIO_HARD		2	/* i/o error, event sent */
 #define DOIO_EOF		3	/* EOF, no event sent */
-#define DOIO_UNEXPECTED		(-1)	/* bad stuff, no event sent */
 
 static int
 doio_recv(isc_socket_t *sock, isc_socketevent_t *dev) {
@@ -726,8 +729,7 @@ doio_recv(isc_socket_t *sock, isc_socketevent_t *dev) {
 	struct msghdr msghdr;
 	isc_buffer_t *buffer;
 
-	build_msghdr_recv(sock, dev, &msghdr, iov,
-			  MAXSCATTERGATHER_RECV, &read_count);
+	build_msghdr_recv(sock, dev, &msghdr, iov, &read_count);
 
 #if defined(ISC_SOCKET_DEBUG)
 	dump_msg(&msghdr);
@@ -851,9 +853,7 @@ doio_send(isc_socket_t *sock, isc_socketevent_t *dev) {
 	size_t write_count;
 	struct msghdr msghdr;
 
-	/* XXXMLG Should verify that we didn't overflow MAXSCATTERGATHER? */
-	build_msghdr_send(sock, dev, &msghdr, iov,
-			  MAXSCATTERGATHER_SEND, &write_count);
+	build_msghdr_send(sock, dev, &msghdr, iov, &write_count);
 
 	cc = sendmsg(sock->fd, &msghdr, 0);
 
@@ -1111,7 +1111,7 @@ isc_socket_create(isc_socketmgr_t *manager, int pf, isc_sockettype_t type,
 {
 	isc_socket_t *sock = NULL;
 	isc_result_t ret;
-#if defined(USE_CMSG)
+#if defined(USE_CMSG) || defined(SO_BSDCOMPAT)
 	int on = 1;
 #endif
 
@@ -1151,6 +1151,16 @@ isc_socket_create(isc_socketmgr_t *manager, int pf, isc_sockettype_t type,
 		return (ISC_R_UNEXPECTED);
 	}
 
+#ifdef SO_BSDCOMPAT
+	if (setsockopt(sock->fd, SOL_SOCKET, SO_BSDCOMPAT,
+		       (void *)&on, sizeof on) < 0) {
+		UNEXPECTED_ERROR(__FILE__, __LINE__,
+				 "setsockopt(%d, SO_BSDCOMPAT) failed",
+				 sock->fd);
+		/* Press on... */
+	}
+#endif
+
 #if defined(USE_CMSG)
 	if (type == isc_sockettype_udp) {
 
@@ -1158,7 +1168,8 @@ isc_socket_create(isc_socketmgr_t *manager, int pf, isc_sockettype_t type,
 		if (setsockopt(sock->fd, SOL_SOCKET, SO_TIMESTAMP,
 			       (void *)&on, sizeof on) < 0) {
 			UNEXPECTED_ERROR(__FILE__, __LINE__,
-					 "setsockopt(%d) failed", sock->fd);
+					 "setsockopt(%d, SO_TIMESTAMP) failed",
+					 sock->fd);
 			/* Press on... */
 		}
 #endif /* SO_TIMESTAMP */
@@ -1168,9 +1179,18 @@ isc_socket_create(isc_socketmgr_t *manager, int pf, isc_sockettype_t type,
 		    && (setsockopt(sock->fd, IPPROTO_IPV6, IPV6_PKTINFO,
 				   (void *)&on, sizeof (on)) < 0)) {
 			UNEXPECTED_ERROR(__FILE__, __LINE__,
-					 "setsockopt(%d) failed: %s",
+					 "setsockopt(%d, IPV6_PKTINFO) failed: %s",
 					 sock->fd, strerror(errno));
 		}
+
+#ifdef IPV6_USE_MIN_MTU        /*2292bis, not too common yet*/
+		/* use minimum MTU */
+		if (pf == AF_INET6) {
+			(void)setsockopt(sock->fd, IPPROTO_IPV6,
+					 IPV6_USE_MIN_MTU,
+					 (void *)&on, sizeof (on));
+		}
+#endif
 #endif /* ISC_PLATFORM_HAVEIPV6 */
 
 	}
@@ -1626,7 +1646,6 @@ internal_recv(isc_task_t *me, isc_event_t *ev) {
 			} while (dev != NULL);
 			goto poke;
 
-		case DOIO_UNEXPECTED:
 		case DOIO_SUCCESS:
 		case DOIO_HARD:
 			break;
@@ -1698,7 +1717,6 @@ internal_send(isc_task_t *me, isc_event_t *ev) {
 			goto poke;
 
 		case DOIO_HARD:
-		case DOIO_UNEXPECTED:
 		case DOIO_SUCCESS:
 			break;
 		}
@@ -1954,7 +1972,7 @@ isc_socketmgr_create(isc_mem_t *mctx, isc_socketmgr_t **managerp) {
 		return (ISC_R_NOMEMORY);
 	
 	manager->magic = SOCKET_MANAGER_MAGIC;
-	manager->mctx = mctx;
+	manager->mctx = NULL;
 	memset(manager->fds, 0, sizeof(manager->fds));
 	ISC_LIST_INIT(manager->socklist);
 	if (isc_mutex_init(&manager->lock) != ISC_R_SUCCESS) {
@@ -2014,6 +2032,8 @@ isc_socketmgr_create(isc_mem_t *mctx, isc_socketmgr_t **managerp) {
 		return (ISC_R_UNEXPECTED);
 	}
 
+	isc_mem_attach(mctx, &manager->mctx);
+
 	*managerp = manager;
 
 	return (ISC_R_SUCCESS);
@@ -2023,6 +2043,7 @@ void
 isc_socketmgr_destroy(isc_socketmgr_t **managerp) {
 	isc_socketmgr_t *manager;
 	int i;
+	isc_mem_t *mctx;
 
 	/*
 	 * Destroy a socket manager.
@@ -2070,15 +2091,18 @@ isc_socketmgr_destroy(isc_socketmgr_t **managerp) {
 	(void)isc_condition_destroy(&manager->shutdown_ok);
 	(void)isc_mutex_destroy(&manager->lock);
 	manager->magic = 0;
-	isc_mem_put(manager->mctx, manager, sizeof *manager);
+	mctx= manager->mctx;
+	isc_mem_put(mctx, manager, sizeof *manager);
+
+	isc_mem_detach(&mctx);
 
 	*managerp = NULL;
 }
 
 isc_result_t
 isc_socket_recvv(isc_socket_t *sock, isc_bufferlist_t *buflist,
-		 unsigned int minimum,
-		 isc_task_t *task, isc_taskaction_t action, const void *arg)
+		 unsigned int minimum, isc_task_t *task,
+		 isc_taskaction_t action, const void *arg)
 {
 	isc_socketevent_t *dev;
 	isc_socketmgr_t *manager;
@@ -2162,7 +2186,6 @@ isc_socket_recvv(isc_socket_t *sock, isc_bufferlist_t *buflist,
 		return (ISC_R_SUCCESS);
 
 	case DOIO_HARD:
-	case DOIO_UNEXPECTED:
 	case DOIO_SUCCESS:
 		UNLOCK(&sock->lock);
 		return (ISC_R_SUCCESS);
@@ -2262,7 +2285,6 @@ isc_socket_recv(isc_socket_t *sock, isc_region_t *region, unsigned int minimum,
 		return (ISC_R_SUCCESS);
 
 	case DOIO_HARD:
-	case DOIO_UNEXPECTED:
 	case DOIO_SUCCESS:
 		UNLOCK(&sock->lock);
 		return (ISC_R_SUCCESS);
@@ -2368,7 +2390,6 @@ isc_socket_sendto(isc_socket_t *sock, isc_region_t *region,
 		goto queue;
 
 	case DOIO_HARD:
-	case DOIO_UNEXPECTED:
 	case DOIO_SUCCESS:
 		UNLOCK(&sock->lock);
 		return (ISC_R_SUCCESS);
@@ -2479,7 +2500,6 @@ isc_socket_sendtov(isc_socket_t *sock, isc_bufferlist_t *buflist,
 		goto queue;
 
 	case DOIO_HARD:
-	case DOIO_UNEXPECTED:
 	case DOIO_SUCCESS:
 		UNLOCK(&sock->lock);
 		return (ISC_R_SUCCESS);
@@ -2666,6 +2686,9 @@ isc_socket_connect(isc_socket_t *sock, isc_sockaddr_t *addr,
 	manager = sock->manager;
 	REQUIRE(VALID_MANAGER(manager));
 	REQUIRE(addr != NULL);
+
+	if (isc_sockaddr_ismulticast(addr))
+		return (ISC_R_MULTICAST);
 
 	LOCK(&sock->lock);
 

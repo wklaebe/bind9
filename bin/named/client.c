@@ -15,6 +15,8 @@
  * SOFTWARE.
  */
 
+/* $Id: client.c,v 1.98 2000/06/22 23:48:07 marka Exp $ */
+
 #include <config.h>
 
 #include <isc/print.h>
@@ -72,7 +74,9 @@
 
 #define TCP_CLIENT(c)	(((c)->attributes & NS_CLIENTATTR_TCP) != 0)
 
+#define TCP_BUFFER_SIZE			(65535 + 2)
 #define SEND_BUFFER_SIZE		2048
+#define RECV_BUFFER_SIZE		2048
 
 struct ns_clientmgr {
 	/* Unlocked. */
@@ -223,6 +227,8 @@ client_free(ns_client_t *client) {
 	isc_mem_put(client->mctx, client->sendbuf, SEND_BUFFER_SIZE);
 	isc_timer_detach(&client->timer);
 	
+	if (client->tcpbuf != NULL)
+		isc_mem_put(client->mctx, client->tcpbuf, TCP_BUFFER_SIZE);
 	if (client->opt != NULL) {
 		INSIST(dns_rdataset_isassociated(client->opt));
 		dns_rdataset_disassociate(client->opt);
@@ -571,6 +577,12 @@ client_senddone(isc_task_t *task, isc_event_t *event) {
 
 	INSIST(client->nsends > 0);
 	client->nsends--;
+	
+	if (client->tcpbuf != NULL) {
+		INSIST(TCP_CLIENT(client));
+		isc_mem_put(client->mctx, client->tcpbuf, TCP_BUFFER_SIZE);
+		client->tcpbuf = NULL;
+	}
 
 	isc_event_free(&event);
 
@@ -599,7 +611,6 @@ ns_client_send(ns_client_t *client) {
 	if ((client->attributes & NS_CLIENTATTR_RA) != 0)
 		client->message->flags |= DNS_MESSAGEFLAG_RA;
 	
-	data = client->sendbuf;
 	/*
 	 * XXXRTH  The following doesn't deal with TSIGs, TCP buffer resizing,
 	 *         or ENDS1 more data packets.
@@ -608,9 +619,17 @@ ns_client_send(ns_client_t *client) {
 		/*
 		 * XXXRTH  "tcpbuffer" is a hack to get things working.
 		 */
-		isc_buffer_init(&tcpbuffer, data, SEND_BUFFER_SIZE);
-		isc_buffer_init(&buffer, data + 2, SEND_BUFFER_SIZE - 2);
+		INSIST(client->tcpbuf == NULL);
+		client->tcpbuf = isc_mem_get(client->mctx, TCP_BUFFER_SIZE);
+		if (client->tcpbuf == NULL) {
+			result = ISC_R_NOMEMORY;
+			goto done;
+		}
+		data = client->tcpbuf;
+		isc_buffer_init(&tcpbuffer, data, TCP_BUFFER_SIZE);
+		isc_buffer_init(&buffer, data + 2, TCP_BUFFER_SIZE - 2);
 	} else {
+		data = client->sendbuf;
 		if (client->udpsize < SEND_BUFFER_SIZE)
 			bufsize = client->udpsize;
 		else
@@ -623,7 +642,7 @@ ns_client_send(ns_client_t *client) {
 		goto done;
 	if (client->opt != NULL) {
 		result = dns_message_setopt(client->message, client->opt);
-		if (result != ISC_R_SUCCESS)
+		if (result != ISC_R_SUCCESS) 
 			goto done;
 		/*
 		 * XXXRTH dns_message_setopt() should probably do this...
@@ -683,7 +702,12 @@ ns_client_send(ns_client_t *client) {
 		client->nsends++;
 		return;
 	}
+
  done:
+	if (client->tcpbuf != NULL) {
+		isc_mem_put(client->mctx, client->tcpbuf, TCP_BUFFER_SIZE);
+		client->tcpbuf = NULL;
+	}
 	ns_client_next(client, result);
 }
 	
@@ -700,7 +724,7 @@ ns_client_error(ns_client_t *client, isc_result_t result) {
 	rcode = dns_result_torcode(result);
 
 	/*
-	 * message may be an in-progress reply that we had trouble
+	 * Message may be an in-progress reply that we had trouble
 	 * with, in which case QR will be set.  We need to clear QR before
 	 * calling dns_message_reply() to avoid triggering an assertion.
 	 */
@@ -755,7 +779,7 @@ client_addopt(ns_client_t *client) {
 	/*
 	 * Set Maximum UDP buffer size.
 	 */
-	rdatalist->rdclass = SEND_BUFFER_SIZE;
+	rdatalist->rdclass = RECV_BUFFER_SIZE;
 
 	/*
 	 * Set EXTENDED-RCODE, VERSION, and Z to 0.
@@ -825,6 +849,10 @@ client_request(isc_task_t *task, isc_event_t *event) {
 		} else {
 			client->attributes &= ~NS_CLIENTATTR_PKTINFO;
 		}
+		if ((devent->attributes & ISC_SOCKEVENTATTR_MULTICAST) != 0)
+			client->attributes |= NS_CLIENTATTR_MULTICAST;
+		else
+			client->attributes &= ~NS_CLIENTATTR_MULTICAST;
 	} else {
 		INSIST(TCP_CLIENT(client));
 		REQUIRE(event->ev_type == DNS_EVENT_TCPMSG);
@@ -845,8 +873,8 @@ client_request(isc_task_t *task, isc_event_t *event) {
 
 	if (exit_check(client))
 		goto cleanup_serverlock;
-	client->state = NS_CLIENTSTATE_WORKING;
-		
+	client->state = client->newstate = NS_CLIENTSTATE_WORKING;
+
 	isc_stdtime_get(&client->requesttime);
 	client->now = client->requesttime;
 
@@ -858,6 +886,15 @@ client_request(isc_task_t *task, isc_event_t *event) {
 		else
 			isc_task_shutdown(client->task);
 		goto cleanup_serverlock;
+	}
+
+	if ((client->attributes & NS_CLIENTATTR_MULTICAST) != 0) {
+		ns_client_log(client, NS_LOGCATEGORY_CLIENT,
+			      NS_LOGMODULE_CLIENT, ISC_LOG_DEBUG(2),
+			      "multicast request");
+#if 0
+		ns_client_error(client, DNS_R_REFUSED);
+#endif
 	}
 
 	result = dns_message_parse(client->message, buffer, ISC_FALSE);
@@ -1009,7 +1046,7 @@ client_request(isc_task_t *task, isc_event_t *event) {
 	    /* XXX this will log too much too early */
 	    ns_client_checkacl(client, "recursion",
 			       client->view->recursionacl,
-			       ISC_TRUE) == ISC_R_SUCCESS)
+			       ISC_TRUE, ISC_TRUE) == ISC_R_SUCCESS)
 		ra = ISC_TRUE;
 
 	if (ra == ISC_TRUE)
@@ -1142,6 +1179,7 @@ client_create(ns_clientmgr_t *manager, ns_client_t **clientp)
 	client->tcplistener = NULL;
 	client->tcpsocket = NULL;
 	client->tcpmsg_valid = ISC_FALSE;
+	client->tcpbuf = NULL;
 	client->opt = NULL;
 	client->udpsize = 512;
 	client->next = NULL;
@@ -1557,7 +1595,7 @@ ns_client_getsockaddr(ns_client_t *client) {
 isc_result_t
 ns_client_checkacl(ns_client_t  *client,
 		   const char *opname, dns_acl_t *acl,
-		   isc_boolean_t default_allow)
+		   isc_boolean_t default_allow, isc_boolean_t logfailure)
 {
 	isc_result_t result;
 	int match;
@@ -1589,7 +1627,8 @@ ns_client_checkacl(ns_client_t  *client,
 
  deny:
 	ns_client_log(client, DNS_LOGCATEGORY_SECURITY,
-		      NS_LOGMODULE_CLIENT, ISC_LOG_ERROR,
+		      NS_LOGMODULE_CLIENT,
+		      logfailure ? ISC_LOG_ERROR : ISC_LOG_DEBUG(3),
 		      "%s denied", opname);
 	return (DNS_R_REFUSED);
 }

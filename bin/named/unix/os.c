@@ -15,6 +15,8 @@
  * SOFTWARE.
  */
 
+/* $Id: os.c,v 1.18.2.1 2000/06/28 16:50:01 gson Exp $ */
+
 #include <config.h>
 
 #include <sys/stat.h>
@@ -38,6 +40,7 @@ static char *pidfile = NULL;
 #ifdef HAVE_LINUXTHREADS
 static pid_t mainpid = 0;
 static isc_boolean_t non_root_caps = ISC_FALSE;
+static isc_boolean_t non_root = ISC_FALSE;
 #endif
 
 #ifdef HAVE_LINUX_CAPABILITY_H
@@ -66,7 +69,7 @@ linux_setcaps(unsigned int caps) {
 	struct __user_cap_header_struct caphead;
 	struct __user_cap_data_struct cap;
 
-	if (getuid() != 0 && !non_root_caps)
+	if ((getuid() != 0 && !non_root_caps) || non_root)
 		return;
 
 	memset(&caphead, 0, sizeof caphead);
@@ -153,8 +156,11 @@ linux_keepcaps(void) {
 		if (errno != EINVAL)
 			ns_main_earlyfatal("prctl() failed: %s",
 					   strerror(errno));
-	} else
+	} else {
 		non_root_caps = ISC_TRUE;
+		if (getuid() != 0)
+			non_root = ISC_TRUE;
+	}
 }
 #endif
 
@@ -209,11 +215,20 @@ ns_os_daemonize(void) {
 	/*
 	 * Try to set stdin, stdout, and stderr to /dev/null, but press
 	 * on even if it fails.
+	 *
+	 * XXXMLG The close() calls here are unneeded on all but NetBSD, but
+	 * are harmless to include everywhere.  dup2() is supposed to close
+	 * the FD if it is in use, but unproven-pthreads-0.16 is broken
+	 * and will end up closing the wrong FD.  This will be fixed eventually,
+	 * and these calls will be removed.
 	 */
 	fd = open("/dev/null", O_RDWR, 0);
 	if (fd != -1) {
+		close(STDIN_FILENO);
 		(void)dup2(fd, STDIN_FILENO);
+		close(STDOUT_FILENO);
 		(void)dup2(fd, STDOUT_FILENO);
+		close(STDERR_FILENO);
 		(void)dup2(fd, STDERR_FILENO);
 		if (fd != STDIN_FILENO &&
 		    fd != STDOUT_FILENO &&

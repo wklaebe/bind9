@@ -15,29 +15,28 @@
  * SOFTWARE.
  */
 
-/* $Id: dig.h,v 1.22 2000/06/07 00:13:57 mws Exp $ */
+/* $Id: dig.h,v 1.25 2000/06/23 02:56:10 mws Exp $ */
 
 #ifndef DIG_H
 #define DIG_H
 
-#define SDIG_BUFFER_SIZE 2048
-#include <isc/lang.h>
-#include <isc/socket.h>
-#include <isc/buffer.h>
-#include <isc/bufferlist.h>
-#include <isc/sockaddr.h>
-#include <isc/boolean.h>
-#include <isc/mem.h>
-#include <isc/list.h>
-#include <isc/print.h>
 #include <dns/rdatalist.h>
 #include <dst/dst.h>
+#include <isc/boolean.h>
+#include <isc/buffer.h>
+#include <isc/bufferlist.h>
+#include <isc/lang.h>
+#include <isc/list.h>
+#include <isc/mem.h>
+#include <isc/print.h>
+#include <isc/sockaddr.h>
+#include <isc/socket.h>
 
 #define MXSERV 4
 #define MXNAME 256
 #define MXRD 32
 #define BUFSIZE 512
-#define COMMSIZE 32767
+#define COMMSIZE 0xffff
 #define RESOLVCONF "/etc/resolv.conf"
 #define OUTPUTBUF 32767
 #define LOOKUP_LIMIT 64
@@ -69,6 +68,8 @@ struct dig_lookup {
 		identify,
 		recurse,
 		aaonly,
+		adflag,
+		cdflag,
 		trace,
 		trace_root,
 		defname,

@@ -15,6 +15,8 @@
  * SOFTWARE.
  */
 
+/* $Id: ipv6.h,v 1.4 2000/06/23 03:12:42 tale Exp $ */
+
 #ifndef LWRES_IPV6_H
 #define LWRES_IPV6_H 1
 
@@ -30,10 +32,7 @@
  *** Imports.
  ***/
 
-#include <lwres/lang.h>
 #include <lwres/int.h>
-
-LWRES_LANG_BEGINDECLS
 
 /***
  *** Types.
@@ -114,7 +113,5 @@ struct in6_pktinfo {
         (((a)->s6_addr32[0] == 0) &&          \
          ((a)->s6_addr32[1] == 0) &&          \
          ((a)->s6_addr32[2] == htonl(0x0000ffff)))
-
-LWRES_LANG_ENDDECLS
 
 #endif /* LWRES_IPV6_H */

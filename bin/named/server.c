@@ -15,6 +15,8 @@
  * SOFTWARE.
  */
 
+/* $Id: server.c,v 1.200 2000/06/23 01:08:29 gson Exp $ */
+
 #include <config.h>
 
 #include <stdlib.h>
@@ -603,11 +605,15 @@ configure_view(dns_view_t *view, dns_c_ctx_t *cctx, dns_c_view_t *cview,
 	if (cview != NULL)
 		(void) dns_c_view_getauthnxdomain(cview, &view->auth_nxdomain);
 
-	view->transfer_format = dns_one_answer;	
-	(void) dns_c_ctx_gettransferformat(cctx, &view->transfer_format);
+	result = ISC_R_NOTFOUND;
 	if (cview != NULL)	
-		(void) dns_c_view_gettransferformat(cview,
-						    &view->transfer_format);
+		result = dns_c_view_gettransferformat(cview,
+						      &view->transfer_format);
+	if (result != ISC_R_SUCCESS)
+		result = dns_c_ctx_gettransferformat(cctx,
+						     &view->transfer_format);
+	if (result != ISC_R_SUCCESS)
+		view->transfer_format = dns_many_answers;
 
 	CHECK(configure_view_acl(cview, cctx, actx, ns_g_mctx,
 				 dns_c_view_getallowquery,
@@ -1186,7 +1192,7 @@ load_configuration(const char *filename, ns_server_t *server,
 		} else {
 			/* Not specified, use default. */
 			CHECK(ns_listenlist_default(ns_g_mctx, listen_port,
-						    &listenon));
+						    ISC_TRUE, &listenon));
 		}
 		ns_interfacemgr_setlistenon4(server->interfacemgr, listenon);
 		ns_listenlist_detach(&listenon);
@@ -1208,7 +1214,7 @@ load_configuration(const char *filename, ns_server_t *server,
 		} else {
 			/* Not specified, use default. */
 			CHECK(ns_listenlist_default(ns_g_mctx, listen_port,
-						    &listenon));
+						    ISC_FALSE, &listenon));
 		}
 		ns_interfacemgr_setlistenon6(server->interfacemgr, listenon);
 		ns_listenlist_detach(&listenon);
@@ -1316,7 +1322,7 @@ load_configuration(const char *filename, ns_server_t *server,
 	 */
 	{
 		dns_tkeyctx_t *t = NULL;
-		CHECKM(dns_tkeyctx_fromconfig(cctx, ns_g_mctx, server->entropy,
+		CHECKM(dns_tkeyctx_fromconfig(cctx, ns_g_mctx, ns_g_entropy,
 					      &t),
 		       "configuring TKEY");
 		if (server->tkeyctx != NULL)
@@ -1443,7 +1449,8 @@ run_server(isc_task_t *task, isc_event_t *event) {
 
 	isc_event_free(&event);
 
-	CHECKFATAL(dns_dispatchmgr_create(ns_g_mctx, &ns_g_dispatchmgr),
+	CHECKFATAL(dns_dispatchmgr_create(ns_g_mctx, ns_g_entropy,
+					  &ns_g_dispatchmgr),
 		   "creating dispatch manager");
 
 	CHECKFATAL(ns_clientmgr_create(ns_g_mctx, ns_g_taskmgr, ns_g_timermgr,
@@ -1499,9 +1506,8 @@ shutdown_server(isc_task_t *task, isc_event_t *event) {
 	ns_interfacemgr_detach(&server->interfacemgr);	
 
 	dns_dispatchmgr_destroy(&ns_g_dispatchmgr);
-	
+
 	dns_zonemgr_shutdown(server->zonemgr);
-	dns_zonemgr_detach(&server->zonemgr);
 
 	isc_task_detach(&server->task);
 
@@ -1559,15 +1565,11 @@ ns_server_create(isc_mem_t *mctx, ns_server_t **serverp) {
 		   ISC_R_NOMEMORY : ISC_R_SUCCESS,
 		   "allocating reload event");
 
-	server->entropy = NULL;
-	CHECKFATAL(isc_entropy_create(ns_g_mctx, &server->entropy),
-		   "initializing entropy pool");
-
-	CHECKFATAL(dst_lib_init(ns_g_mctx, server->entropy, 0),
+	CHECKFATAL(dst_lib_init(ns_g_mctx, ns_g_entropy, 0),
 		   "initializing DST");
 
 	server->tkeyctx = NULL;
-	CHECKFATAL(dns_tkeyctx_create(ns_g_mctx, server->entropy,
+	CHECKFATAL(dns_tkeyctx_create(ns_g_mctx, ns_g_entropy,
 				      &server->tkeyctx),
 		   "creating TKEY context");
 
@@ -1600,13 +1602,12 @@ ns_server_destroy(ns_server_t **serverp) {
 	ns_server_t *server = *serverp;
 	REQUIRE(NS_SERVER_VALID(server));
 
+	dns_zonemgr_detach(&server->zonemgr);
+
 	if (server->tkeyctx != NULL)
 		dns_tkeyctx_destroy(&server->tkeyctx);
 
 	dst_lib_destroy();
-
-	if (server->entropy != NULL)
-		isc_entropy_detach(&server->entropy);
 
 	isc_event_free(&server->reload_event);
 	

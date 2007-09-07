@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1998, 1999, 2000  Internet Software Consortium.
+ * Copyright (C) 1998-2000  Internet Software Consortium.
  * 
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -14,6 +14,8 @@
  * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
  * SOFTWARE.
  */
+
+/* $Id: thread.h,v 1.16 2000/06/22 21:58:27 tale Exp $ */
 
 #ifndef ISC_THREAD_H
 #define ISC_THREAD_H 1
@@ -32,6 +34,9 @@ typedef isc_threadresult_t (*isc_threadfunc_t)(isc_threadarg_t);
 
 isc_result_t
 isc_thread_create(isc_threadfunc_t, isc_threadarg_t, isc_thread_t *);
+
+void
+isc_thread_setconcurrency(unsigned int level);
 
 /* XXX We could do fancier error handling... */
 

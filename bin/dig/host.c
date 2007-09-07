@@ -15,23 +15,21 @@
  * SOFTWARE.
  */
 
-/* $Id: host.c,v 1.25 2000/06/06 23:06:24 mws Exp $ */
+/* $Id: host.c,v 1.29.2.1 2000/06/28 19:40:16 gson Exp $ */
 
 #include <config.h>
-
 #include <stdlib.h>
 
 extern int h_errno;
-
-#include <isc/app.h>
-#include <isc/commandline.h>
-#include <isc/string.h>
-#include <isc/util.h>
 
 #include <dns/message.h>
 #include <dns/name.h>
 #include <dns/rdata.h>
 #include <dns/rdataset.h>
+#include <isc/app.h>
+#include <isc/commandline.h>
+#include <isc/string.h>
+#include <isc/util.h>
 
 #include <dig/dig.h>
 
@@ -39,7 +37,7 @@ extern ISC_LIST(dig_lookup_t) lookup_list;
 extern ISC_LIST(dig_server_t) server_list;
 extern ISC_LIST(dig_searchlist_t) search_list;
 
-extern isc_boolean_t have_ipv6, show_details;
+extern isc_boolean_t have_ipv6, show_details, debugging;
 extern in_port_t port;
 extern unsigned int timeout;
 extern isc_mem_t *mctx;
@@ -543,7 +541,7 @@ parse_args(isc_boolean_t is_batchfile, int argc, char **argv) {
 
 	UNUSED(is_batchfile);
 
-	while ((c = isc_commandline_parse(argc, argv, "lvwrdt:c:aTCN:R:W:"))
+	while ((c = isc_commandline_parse(argc, argv, "lvwrdt:c:aTCN:R:W:D"))
 	       != EOF) {
 		switch (c) {
 		case 'l':
@@ -599,6 +597,9 @@ parse_args(isc_boolean_t is_batchfile, int argc, char **argv) {
 			debug ("Setting NDOTS to %s", 
 			       isc_commandline_argument);
 			ndots = atoi(isc_commandline_argument);
+			break;
+		case 'D':
+			debugging = ISC_TRUE;
 			break;
 		}
 	}
@@ -669,10 +670,13 @@ parse_args(isc_boolean_t is_batchfile, int argc, char **argv) {
 	lookup->retries = tries;
 	lookup->udpsize = 0;
 	lookup->nsfound = 0;
-	lookup->trace = showallsoa;
-	lookup->trace_root = ISC_FALSE;
+	lookup->trace = ISC_FALSE;
+	lookup->trace_root = showallsoa;
 	lookup->tcp_mode = tcpmode;
 	lookup->new_search = ISC_TRUE;
+	lookup->aaonly = ISC_FALSE;
+	lookup->adflag = ISC_FALSE;
+	lookup->cdflag = ISC_FALSE;
 	ISC_LIST_INIT(lookup->q);
 	ISC_LIST_APPEND(lookup_list, lookup, link);
 	lookup->origin = NULL;
@@ -681,28 +685,11 @@ parse_args(isc_boolean_t is_batchfile, int argc, char **argv) {
 
 int
 main(int argc, char **argv) {
-#ifdef TWIDDLE
-	FILE *fp;
-	int i, p;
-#endif
-
 	ISC_LIST_INIT(lookup_list);
 	ISC_LIST_INIT(server_list);
 	ISC_LIST_INIT(search_list);
 
 	debug ("dhmain()");
-#ifdef TWIDDLE
-	fp = fopen("/dev/urandom", "r");
-	if (fp != NULL) {
-		fread (&i, sizeof(int), 1, fp);
-		srandom(i);
-	}
-	else {
-		srandom ((int)&main);
-	}
-	p = getpid() % 16 + 8;
-	for (i = 0 ; i < p; i++);
-#endif
 	setup_libs();
 	parse_args(ISC_FALSE, argc, argv);
 	setup_system();

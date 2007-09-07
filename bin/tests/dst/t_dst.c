@@ -15,6 +15,8 @@
  * SOFTWARE.
  */
 
+/* $Id: t_dst.c,v 1.33 2000/06/22 21:51:07 tale Exp $ */
+
 #include <config.h>
 
 #include <sys/types.h>		/* Required for dirent.h */
@@ -338,8 +340,6 @@ static void
 t1(void) {
 	isc_mem_t	*mctx;
 	isc_entropy_t	*ectx;
-	isc_entropysource_t *devrandom;
-	isc_entropysource_t *randfile;
 	int		nfails;
 	int		nprobs;
 	int		result;
@@ -368,12 +368,8 @@ t1(void) {
 		t_result(T_UNRESOLVED);
 		return;
 	}
-	devrandom = NULL;
-	isc_entropy_createfilesource(ectx, "/dev/random", 0,
-			&devrandom);
-	randfile = NULL;
-	result = isc_entropy_createfilesource(ectx, "randomfile", 0,
-					      &randfile);
+	isc_entropy_createfilesource(ectx, "/dev/random");
+	result = isc_entropy_createfilesource(ectx, "randomfile");
 	if (isc_result != ISC_R_SUCCESS) {
 		t_info("isc_entropy_create failed %d\n",
 		       isc_result_totext(isc_result));
@@ -426,9 +422,6 @@ t1(void) {
 
 	dst_lib_destroy();
 
-	if (devrandom != NULL)
-		isc_entropy_destroysource(&devrandom);
-	isc_entropy_destroysource(&randfile);
 	isc_entropy_detach(&ectx);
 
 	isc_mem_destroy(&mctx);
@@ -813,8 +806,6 @@ t2_vfy(char **av) {
 	int		nprobs;
 	isc_mem_t	*mctx;
 	isc_entropy_t	*ectx;
-	isc_entropysource_t *devrandom;
-	isc_entropysource_t *randfile;
 	isc_result_t	isc_result;
 	int		result;
 
@@ -851,12 +842,8 @@ t2_vfy(char **av) {
 		       isc_result_totext(isc_result));
 		return(T_UNRESOLVED);
 	}
-	devrandom = NULL;
-	isc_entropy_createfilesource(ectx, "/dev/random", 0,
-			&devrandom);
-	randfile = NULL;
-	result = isc_entropy_createfilesource(ectx, "randomfile", 0,
-					      &randfile);
+	isc_entropy_createfilesource(ectx, "/dev/random");
+	result = isc_entropy_createfilesource(ectx, "randomfile");
 	if (isc_result != ISC_R_SUCCESS) {
 		t_info("isc_entropy_create failed %d\n",
 		       isc_result_totext(isc_result));
@@ -878,9 +865,6 @@ t2_vfy(char **av) {
 
 	dst_lib_destroy();
 
-	if (devrandom != NULL)
-		isc_entropy_destroysource(&devrandom);
-	isc_entropy_destroysource(&randfile);
 	isc_entropy_detach(&ectx);
 
 	isc_mem_destroy(&mctx);

@@ -15,6 +15,8 @@
  * SOFTWARE.
  */
 
+/* $Id: master.h,v 1.20 2000/06/22 21:55:46 tale Exp $ */
+
 #ifndef DNS_MASTER_H
 #define DNS_MASTER_H 1
 
@@ -75,13 +77,13 @@ dns_master_loadbuffer(isc_buffer_t *buffer,
  * 'callbacks->warn' to generate any error messages required.
  *
  * Requires:
- *	'master_file' to point to a valid string.
- *	'top' to point to a valid name.
- *	'origin' to point to a valid name.
- *	'callbacks->commit' to point ta a valid function.
- *	'callbacks->error' to point ta a valid function.
- *	'callbacks->warn' to point ta a valid function.
- *	'mctx' to point to a memory context.
+ *	'master_file' points to a valid string.
+ *	'top' points to a valid name.
+ *	'origin' points to a valid name.
+ *	'callbacks->commit' points to a valid function.
+ *	'callbacks->error' points to a valid function.
+ *	'callbacks->warn' points to a valid function.
+ *	'mctx' points to a valid memory context.
  *
  * Returns:
  *	ISC_R_SUCCESS upon successfully loading the master file.

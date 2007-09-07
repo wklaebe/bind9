@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1996, 1997, 1998, 1999, 2000  Internet Software Consortium.
+ * Copyright (C) 1996-2000  Internet Software Consortium.
  * 
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -15,7 +15,7 @@
  * SOFTWARE.
  */
 
-/* $Id: data.c,v 1.13 2000/05/24 18:43:28 tale Exp $ */
+/* $Id: data.c,v 1.15 2000/06/23 20:04:25 tale Exp $ */
 
 /* Principal Author: Ted Lemon */
 
@@ -117,7 +117,7 @@ omapi_data_reference(omapi_data_t **r, omapi_data_t *h) {
 
 void
 omapi_data_dereference(omapi_data_t **h) {
-	int length = 0;
+	unsigned int length = 0;
 
 
 	REQUIRE(h != NULL && *h != NULL);

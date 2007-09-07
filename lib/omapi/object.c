@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1996, 1997, 1998, 1999, 2000  Internet Software Consortium.
+ * Copyright (C) 1996-2000  Internet Software Consortium.
  * 
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -15,7 +15,7 @@
  * SOFTWARE.
  */
 
-/* $Id: object.c,v 1.16 2000/05/08 14:38:17 tale Exp $ */
+/* $Id: object.c,v 1.19 2000/06/23 21:05:20 tale Exp $ */
 
 /* Principal Author: Ted Lemon */
 
@@ -55,7 +55,7 @@ struct omapi_objecttype {
 
 	isc_result_t		(*create)(omapi_object_t **object);
 
-	isc_result_t		(*remove)(omapi_object_t *object);
+	isc_result_t		(*expunge)(omapi_object_t *object);
 };
 
 isc_result_t
@@ -246,7 +246,7 @@ omapi_object_register(omapi_objecttype_t **type, const char *name,
 
 		      isc_result_t (*create)(omapi_object_t **),
 
-		      isc_result_t (*remove)(omapi_object_t *))
+		      isc_result_t (*expunge)(omapi_object_t *))
 {
 	omapi_objecttype_t *t;
 
@@ -264,7 +264,7 @@ omapi_object_register(omapi_objecttype_t **type, const char *name,
 	t->stuff_values = stuff_values;
 	t->lookup = lookup;
 	t->create = create;
-	t->remove = remove;
+	t->expunge = expunge;
 
 	t->next = omapi_object_types;
 	omapi_object_types = t;
@@ -590,9 +590,9 @@ object_methodcreate(omapi_objecttype_t *type, omapi_object_t **object) {
 }
 
 isc_result_t
-object_methodremove(omapi_objecttype_t *type, omapi_object_t *object) {
-	if (type->remove != NULL)
-		return ((*(type->remove))(object));
+object_methodexpunge(omapi_objecttype_t *type, omapi_object_t *object) {
+	if (type->expunge != NULL)
+		return ((*(type->expunge))(object));
 	else
 		return (ISC_R_NOTIMPLEMENTED);
 }

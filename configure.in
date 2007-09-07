@@ -1,23 +1,28 @@
-dnl Copyright (C) 1998, 1999, 2000  Internet Software Consortium.
-dnl 
-dnl Permission to use, copy, modify, and distribute this software for any
-dnl purpose with or without fee is hereby granted, provided that the above
-dnl copyright notice and this permission notice appear in all copies.
-dnl 
-dnl THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
-dnl ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
-dnl OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
-dnl CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
-dnl DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
-dnl PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
-dnl ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
-dnl SOFTWARE.
+# Copyright (C) 1998-2000  Internet Software Consortium.
+# 
+# Permission to use, copy, modify, and distribute this software for any
+# purpose with or without fee is hereby granted, provided that the above
+# copyright notice and this permission notice appear in all copies.
+# 
+# THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
+# ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
+# OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
+# CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+# DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
+# PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
+# ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
+# SOFTWARE.
 
-AC_REVISION($Revision: 1.147 $)
+dnl
+AC_DIVERT_PUSH(AC_DIVERSION_NOTICE)dnl
+esyscmd([sed "s/^/# /" COPYRIGHT])dnl
+AC_DIVERT_POP()dnl
 
-AC_PREREQ(2.13)
+AC_REVISION($Revision: 1.165.2.2 $)
 
 AC_INIT(lib/dns/name.c)
+AC_PREREQ(2.13)
+
 AC_CONFIG_HEADER(config.h)
 
 AC_CANONICAL_HOST
@@ -29,11 +34,17 @@ AC_PROG_INSTALL
 AC_SUBST(STD_CINCLUDES)
 AC_SUBST(STD_CDEFINES)
 AC_SUBST(STD_CWARNINGS)
+AC_SUBST(CCOPT)
 
 AC_PATH_PROG(AR, ar)
 ARFLAGS="cruv"
 AC_SUBST(AR)
 AC_SUBST(ARFLAGS)
+
+# The POSIX ln(1) program.  Non-POSIX systems may substitute
+# "copy" or something.
+LN=ln
+AC_SUBST(LN)
 
 case "$AR" in
 	"")
@@ -263,10 +274,15 @@ AC_C_INLINE
 AC_TYPE_SIZE_T
 AC_HEADER_TIME
 
-AC_CHECK_LIB(pthread, pthread_create,,
-             AC_CHECK_LIB(pthread, __pthread_create)
-             AC_CHECK_LIB(pthread, __pthread_create_system)
-)
+case "$host" in
+	*-netbsd*)
+		;;
+	*)
+		AC_CHECK_LIB(pthread, pthread_create,,
+	             AC_CHECK_LIB(pthread, __pthread_create)
+        	     AC_CHECK_LIB(pthread, __pthread_create_system))
+		;;
+esac
 
 #
 # We'd like to use sigwait() too
@@ -307,6 +323,8 @@ case "$host" in
         #
 	*-solaris*)
 		AC_DEFINE(_POSIX_PTHREAD_SEMANTICS)
+		AC_CHECK_FUNC(pthread_setconcurrency,
+			      AC_DEFINE(CALL_PTHREAD_SETCONCURRENCY))
 		;;
         #
         # UnixWare does things its own way.
@@ -315,6 +333,11 @@ case "$host" in
 		AC_DEFINE(HAVE_UNIXWARE_SIGWAIT)
 		;;
 esac
+
+#
+# Look for sysconf to allow detection of the number of processors.
+#
+AC_CHECK_FUNC(sysconf, AC_DEFINE(HAVE_SYSCONF),)
 
 #
 # NLS
@@ -348,10 +371,12 @@ if test "X$GCC" = "Xyes"; then
 	case "$host" in
 		*-freebsd*)
 			CC="$CC -pthread"
+			CCOPT="$CCOPT -pthread"
 			STD_CDEFINES="$STD_CDEFINES -D_THREAD_SAFE"
 			;;
 		*-openbsd*)
 			CC="$CC -pthread"
+			CCOPT="$CCOPT -pthread"
 			;;
 		*-solaris*)
 			LIBS="$LIBS -lthread"
@@ -364,15 +389,18 @@ else
 	case "$host" in
 		*-dec-osf*)
 			CC="$CC -std -pthread"
+			CCOPT="$CCOPT -std -pthread"
 			MKDEPCC="$CC"
 			;;
 		*-solaris*)
 			CC="$CC -mt"
+			CCOPT="$CCOPT -mt"
 			MKDEPCC="$CC"
 			MKDEPCFLAGS="-xM"
 			;;
 		*-hp-hpux*)
 			CC="$CC -Ae -z +w1"
+			CCOPT="CCOPT -Ae -z"
                         LIBS="-Wl,+vnocompatwarnings $LIBS"
 			MKDEPPROG='cc -Ae -E -Wp,-M >/dev/null 2>>$TMP'
 			;;
@@ -392,6 +420,7 @@ else
 			;;
 		*-UnixWare*)
 			CC="$CC -Kthread -w"
+			CCOPT="$CCOPT -Kthread"
 			MKDEPCC="$CC"
 			YACC="yacc"	# bison calls alloca, avoid on UnixWare
 			;;
@@ -465,7 +494,8 @@ AC_TRY_COMPILE([
 #include <netdb.h>],
 [struct addrinfo a; return (0);],
 	[AC_MSG_RESULT(yes)
-	ISC_LWRES_NEEDADDRINFO="#undef ISC_LWRES_NEEDADDRINFO"],
+	ISC_LWRES_NEEDADDRINFO="#undef ISC_LWRES_NEEDADDRINFO"
+	AC_DEFINE(HAVE_ADDRINFO)],
 	[AC_MSG_RESULT(no)
 	ISC_LWRES_NEEDADDRINFO="#define ISC_LWRES_NEEDADDRINFO 1"])
 AC_SUBST(ISC_LWRES_NEEDADDRINFO)
@@ -549,7 +579,8 @@ AC_CHECK_FUNC(getnameinfo,
         [ISC_LWRES_GETNAMEINFOPROTO="#undef ISC_LWRES_GETNAMEINFOPROTO"],
         [ISC_LWRES_GETNAMEINFOPROTO="#define ISC_LWRES_GETNAMEINFOPROTO 1"])
 AC_CHECK_FUNC(getaddrinfo,
-        [ISC_LWRES_GETADDRINFOPROTO="#undef ISC_LWRES_GETADDRINFOPROTO"],
+        [ISC_LWRES_GETADDRINFOPROTO="#undef ISC_LWRES_GETADDRINFOPROTO"
+	AC_DEFINE(HAVE_GETADDRINFO)],
         [ISC_LWRES_GETADDRINFOPROTO="#define ISC_LWRES_GETADDRINFOPROTO 1"])
 AC_SUBST(ISC_LWRES_GETIPNODEPROTO)
 AC_SUBST(ISC_LWRES_GETADDRINFOPROTO)
@@ -713,6 +744,7 @@ case "$found_ipv6" in
 	yes)
 		ISC_PLATFORM_HAVEIPV6="#define ISC_PLATFORM_HAVEIPV6 1"
 		LWRES_PLATFORM_HAVEIPV6="#define LWRES_PLATFORM_HAVEIPV6 1"
+
 		AC_MSG_CHECKING(for in6addr_any)
 		AC_TRY_LINK([
 #include <sys/types.h>
@@ -726,6 +758,22 @@ $isc_netinetin6_hack],
 			[AC_MSG_RESULT(no)
 			 ISC_PLATFORM_NEEDIN6ADDRANY="#define ISC_PLATFORM_NEEDIN6ADDRANY 1"
 			 LWRES_PLATFORM_NEEDIN6ADDRANY="#define LWRES_PLATFORM_NEEDIN6ADDRANY 1"])
+
+		AC_MSG_CHECKING(for sin6_scope_id in struct sockaddr_in6)
+		AC_TRY_COMPILE([
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+$isc_netinetin6_hack
+$isc_netinet6in6_hack
+],
+		[struct sockaddr_in6 xyzzy; xyzzy.sin6_scope_id = 0; return (0);],
+			[AC_MSG_RESULT(yes)
+			 result="#define LWRES_HAVE_SIN6_SCOPE_ID 1"],
+			[AC_MSG_RESULT(no)
+			 result="#undef LWRES_HAVE_SIN6_SCOPE_ID"])
+		LWRES_HAVE_SIN6_SCOPE_ID="$result"
+
 		AC_MSG_CHECKING(for in6_pktinfo)
 		AC_TRY_COMPILE([
 #include <sys/types.h>
@@ -746,6 +794,7 @@ $isc_netinet6in6_hack
 		ISC_PLATFORM_NEEDIN6ADDRANY="#undef ISC_PLATFORM_NEEDIN6ADDRANY"
 		LWRES_PLATFORM_NEEDIN6ADDRANY="#undef LWRES_PLATFORM_NEEDIN6ADDRANY"
 		ISC_PLATFORM_HAVEIN6PKTINFO="#undef ISC_PLATFORM_HAVEIN6PKTINFO"
+		LWRES_HAVE_SIN6_SCOPE_ID="#define LWRES_HAVE_SIN6_SCOPE_ID 1"
 		ISC_IPV6_H="ipv6.h"
 		ISC_IPV6_O="ipv6.$O"
 		ISC_ISCIPV6_O="unix/ipv6.$O"
@@ -766,7 +815,7 @@ AC_SUBST(ISC_IPV6_H)
 AC_SUBST(ISC_IPV6_O)
 AC_SUBST(ISC_ISCIPV6_O)
 AC_SUBST(ISC_IPV6_C)
-
+AC_SUBST(LWRES_HAVE_SIN6_SCOPE_ID)
 #
 # Check for network functions that are often missing.  We do this
 # after the libtool checking, so we can put the right suffix on
@@ -995,9 +1044,9 @@ AC_OUTPUT(
 	bin/Makefile
 	bin/named/Makefile
 	bin/named/unix/Makefile
-	bin/lwresd/Makefile
 	bin/rndc/Makefile
 	bin/dig/Makefile
+	bin/nsupdate/Makefile
 	bin/tests/Makefile
 	bin/tests/names/Makefile
 	bin/tests/master/Makefile
@@ -1007,9 +1056,13 @@ AC_OUTPUT(
 	bin/tests/timers/Makefile
 	bin/tests/dst/Makefile
 	bin/tests/mem/Makefile
+	bin/tests/net/Makefile
 	bin/tests/sockaddr/Makefile
 	bin/tests/system/Makefile
 	bin/tests/system/conf.sh
+	bin/tests/system/lwresd/Makefile
 	bin/tests/headerdep_test.sh
 	bin/dnssec/Makefile
+	isc-config.sh
 )
+chmod a+x isc-config.sh

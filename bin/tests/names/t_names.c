@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1998, 1999, 2000  Internet Software Consortium.
+ * Copyright (C) 1998-2000  Internet Software Consortium.
  * 
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -14,6 +14,8 @@
  * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
  * SOFTWARE.
  */
+
+/* $Id: t_names.c,v 1.25 2000/06/22 21:51:14 tale Exp $ */
 
 #include <config.h>
 
@@ -2451,6 +2453,9 @@ t_dns_name_towire(void) {
 	t_dns_name_towire_2();
 }
 
+#if 0 /* This is silly.  A test should either exist, or not, but not
+       * one that just returns "UNTESTED."
+       */
 static const char *a53 =
 		"dns_name_concatenate(prefix, suffix, name, target) "
 		"concatenates prefix and suffix, stores the result "
@@ -2462,6 +2467,7 @@ t_dns_name_concatenate(void) {
 	t_assert("dns_name_concatenate", 1, T_REQUIRED, a53);
 	t_result(T_UNTESTED);
 }
+#endif
 
 testspec_t T_testlist[] = {
 	{	t_dns_label_countbits,		"dns_label_countbits"	},
@@ -2485,7 +2491,9 @@ testspec_t T_testlist[] = {
 	{	t_dns_name_towire,		"dns_name_towire"	},
 	{	t_dns_name_fromtext,		"dns_name_fromtext"	},
 	{	t_dns_name_totext,		"dns_name_totext"	},
+#if 0
 	{	t_dns_name_concatenate,		"dns_name_concatenate"	},
+#endif
 	{	NULL,				NULL			}
 
 };

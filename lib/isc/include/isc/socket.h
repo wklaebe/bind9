@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1998, 1999, 2000  Internet Software Consortium.
+ * Copyright (C) 1998-2000  Internet Software Consortium.
  * 
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -14,6 +14,8 @@
  * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
  * SOFTWARE.
  */
+
+/* $Id: socket.h,v 1.47 2000/06/22 21:58:03 tale Exp $ */
 
 #ifndef ISC_SOCKET_H
 #define ISC_SOCKET_H 1
@@ -122,6 +124,7 @@ struct isc_socket_connev {
  *		all the data is valid.
  * _TIMESTAMP:	The timestamp member is valid.
  * _PKTINFO:	The pktinfo member is valid.
+ * _MULTICAST:	The UDP packet was received via a multicast transmission.
  */
 #define ISC_SOCKEVENTATTR_ATTACHED		0x80000000U /* internal */
 #define ISC_SOCKEVENTATTR_FATALERROR		0x40000000U /* sock is dead */
@@ -129,6 +132,7 @@ struct isc_socket_connev {
 #define ISC_SOCKEVENTATTR_CTRUNC		0x00400000U /* public */
 #define ISC_SOCKEVENTATTR_TIMESTAMP		0x00200000U /* public */
 #define ISC_SOCKEVENTATTR_PKTINFO		0x00100000U /* public */
+#define ISC_SOCKEVENTATTR_MULTICAST		0x00080000U /* public */
 
 #define ISC_SOCKEVENT_ANYEVENT  (0)
 #define ISC_SOCKEVENT_RECVDONE	(ISC_EVENTCLASS_SOCKET + 1)

@@ -15,6 +15,8 @@
  * SOFTWARE.
  */
 
+/* $Id: ipv6.h,v 1.13 2000/06/22 21:57:37 tale Exp $ */
+
 #ifndef ISC_IPV6_H
 #define ISC_IPV6_H 1
 
@@ -122,5 +124,11 @@ struct sockaddr_in6 {
         (((a)->s6_addr32[0] == 0) &&          \
          ((a)->s6_addr32[1] == 0) &&          \
          ((a)->s6_addr32[2] == htonl(0x0000ffff)))
+
+/*
+ * Multicast
+ */
+#define IN6_IS_ADDR_MULTICAST(a)	\
+	((a)->s6_addr8[0] == 0xffU)
 
 #endif /* ISC_IPV6_H */

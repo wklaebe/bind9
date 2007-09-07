@@ -15,6 +15,8 @@
  * SOFTWARE.
  */
 
+/* $Id: client.h,v 1.37 2000/06/22 21:49:38 tale Exp $ */
+
 #ifndef NAMED_CLIENT_H
 #define NAMED_CLIENT_H 1
 
@@ -97,6 +99,7 @@ struct ns_client {
 	dns_dispatchevent_t *	dispevent;
 	isc_socket_t *		tcplistener;
 	isc_socket_t *		tcpsocket;
+	unsigned char *		tcpbuf;
 	dns_tcpmsg_t		tcpmsg;
 	isc_boolean_t		tcpmsg_valid;
 	isc_timer_t *		timer;
@@ -132,6 +135,7 @@ struct ns_client {
 #define NS_CLIENTATTR_TCP		0x01
 #define NS_CLIENTATTR_RA		0x02 /* Client gets recusive service */
 #define NS_CLIENTATTR_PKTINFO		0x04 /* pktinfo is valid */
+#define NS_CLIENTATTR_MULTICAST		0x08 /* recv'd from multicast */
 
 /***
  *** Functions
@@ -223,7 +227,8 @@ ns_client_getsockaddr(ns_client_t *client);
 isc_result_t
 ns_client_checkacl(ns_client_t  *client,
 		   const char *opname, dns_acl_t *acl,
-		   isc_boolean_t default_allow);
+		   isc_boolean_t default_allow,
+		   isc_boolean_t logfailure);
 /*
  * Convenience function for client request ACL checking.
  *

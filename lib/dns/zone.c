@@ -15,7 +15,7 @@
  * SOFTWARE.
  */
 
-/* $Id: zone.c,v 1.145 2000/06/09 06:16:18 marka Exp $ */
+/* $Id: zone.c,v 1.152 2000/06/23 17:26:38 marka Exp $ */
 
 #include <config.h>
 
@@ -156,7 +156,6 @@ struct dns_zone {
 	 */
 	ISC_LINK(dns_zone_t)	statelink;	
 	dns_zonelist_t	        *statelist;
-	
 };
 
 #define DNS_ZONE_FLAG(z,f) (((z)->flags & (f)) != 0)
@@ -185,7 +184,7 @@ struct dns_zone {
 struct dns_zonemgr {
 	unsigned int		magic;
 	isc_mem_t *		mctx;
-	int			refs;
+	int			refs; 		/* Locked by rwlock */
 	isc_taskmgr_t *		taskmgr;
 	isc_timermgr_t *	timermgr;
 	isc_socketmgr_t *	socketmgr;
@@ -509,6 +508,8 @@ dns_zone_setdbtype(dns_zone_t *zone, const char *db_type) {
 
 void
 dns_zone_setview(dns_zone_t *zone, dns_view_t *view) {
+	REQUIRE(DNS_ZONE_VALID(zone));
+
 	if (zone->view != NULL)
 		dns_view_weakdetach(&zone->view);
 	dns_view_weakattach(view, &zone->view);
@@ -517,6 +518,8 @@ dns_zone_setview(dns_zone_t *zone, dns_view_t *view) {
 
 dns_view_t *
 dns_zone_getview(dns_zone_t *zone) {
+	REQUIRE(DNS_ZONE_VALID(zone));
+
 	return (zone->view);
 }
      
@@ -1379,6 +1382,15 @@ dns_zone_maintenance(dns_zone_t *zone) {
 }
 
 void
+dns_zone_markdirty(dns_zone_t *zone) {
+	REQUIRE(DNS_ZONE_VALID(zone));
+
+	LOCK(&zone->lock);
+	zone->flags |= DNS_ZONEFLG_NEEDDUMP;
+	UNLOCK(&zone->lock);
+}
+
+void
 dns_zone_expire(dns_zone_t *zone) {
 	REQUIRE(DNS_ZONE_VALID(zone));
 
@@ -1979,7 +1991,7 @@ save_nsrrset(dns_message_t *message, dns_name_t *name,
 {
 	dns_rdataset_t *nsrdataset = NULL;
 	dns_rdataset_t *rdataset = NULL;
-	dns_dbnode_t *node;
+	dns_dbnode_t *node = NULL;
 	dns_rdata_ns_t ns;
 	isc_result_t result;
 	dns_rdata_t rdata;
@@ -2099,6 +2111,8 @@ stub_callback(isc_task_t *task, isc_event_t *event) {
 	DNS_ENTER;
 
 	isc_stdtime_get(&now);
+
+	isc_sockaddr_format(&zone->masteraddr, master, sizeof(master));
 
 	if (revent->result != ISC_R_SUCCESS) {
 		zone_log(zone, me, ISC_LOG_INFO, "failure for %s: %s",
@@ -2953,6 +2967,7 @@ notify_createmessage(dns_zone_t *zone, dns_message_t **messagep)
 		goto fail;
 
 	message->opcode = dns_opcode_notify;
+	message->flags |= DNS_MESSAGEFLAG_AA;
 	message->rdclass = zone->rdclass;
 
 	result = dns_message_gettempname(message, &tempname);
@@ -3379,6 +3394,7 @@ void
 dns_zone_setmaxxfrin(dns_zone_t *zone, isc_uint32_t maxxfrin) {
 	REQUIRE(DNS_ZONE_VALID(zone));
 	REQUIRE(maxxfrin != 0);
+
 	zone->maxxfrin = maxxfrin;
 }
 
@@ -3471,12 +3487,6 @@ dns_zone_getidleout(dns_zone_t *zone) {
 
 	return (zone->idleout);
 }
-
-#ifdef notyet
-static void
-record_serial() {
-}
-#endif
 
 static void
 notify_done(isc_task_t *task, isc_event_t *event) {
@@ -4100,6 +4110,19 @@ dns_zonemgr_releasezone(dns_zonemgr_t *zmgr, dns_zone_t *zone) {
 }
 
 void
+dns_zonemgr_attach(dns_zonemgr_t *source, dns_zonemgr_t **target) {
+	REQUIRE(DNS_ZONEMGR_VALID(source));
+	REQUIRE(target != NULL && *target == NULL);
+
+	RWLOCK(&source->rwlock, isc_rwlocktype_write);
+	REQUIRE(source->refs > 0);
+	source->refs++;
+	INSIST(source->refs > 0);
+	RWUNLOCK(&source->rwlock, isc_rwlocktype_write);
+	*target = source;
+}
+
+void
 dns_zonemgr_detach(dns_zonemgr_t **zmgrp) {
 	dns_zonemgr_t *zmgr;
 	isc_boolean_t free_now = ISC_FALSE;
@@ -4140,6 +4163,11 @@ dns_zonemgr_shutdown(dns_zonemgr_t *zmgr) {
 	REQUIRE(DNS_ZONEMGR_VALID(zmgr));
 
 	isc_ratelimiter_shutdown(zmgr->rl);
+
+	if (zmgr->task != NULL)
+		isc_task_destroy(&zmgr->task);
+	if (zmgr->zonetasks != NULL)
+		isc_taskpool_destroy(&zmgr->zonetasks);
 }
 
 static void
@@ -4151,12 +4179,7 @@ zonemgr_free(dns_zonemgr_t *zmgr) {
 
 	zmgr->magic = 0;
 
-	if (zmgr->task != NULL)
-		isc_task_destroy(&zmgr->task);
-	if (zmgr->zonetasks != NULL)
-		isc_taskpool_destroy(&zmgr->zonetasks);
-
-	isc_ratelimiter_destroy(&zmgr->rl);
+	isc_ratelimiter_detach(&zmgr->rl);
 
 	isc_rwlock_destroy(&zmgr->conflock);
 	isc_rwlock_destroy(&zmgr->rwlock);

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1996, 1997, 1998, 1999, 2000  Internet Software Consortium.
+ * Copyright (C) 1996-2000  Internet Software Consortium.
  * 
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -14,6 +14,8 @@
  * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
  * SOFTWARE.
  */
+
+/* $Id: message.c,v 1.25.2.1 2000/06/28 05:27:02 tale Exp $ */
 
 /*
  * Subroutines for dealing with message objects.
@@ -500,9 +502,11 @@ message_process(omapi_object_t *mo, omapi_object_t *po) {
 		 * All messages except for the first attempt to set 
 		 * the dst key used by the protocol must be signed.
 		 */
+#ifdef notyet /* not for 9.0.0 */
 		if (type != omapi_type_protocol && protocol->key == NULL)
 			return (send_status(po, ISC_R_NOPERM, message->id,
 					    "unauthorized access"));
+#endif /* notyet */
 
 		/*
 		 * If we weren't given a type, look the object up with
@@ -607,9 +611,11 @@ message_process(omapi_object_t *mo, omapi_object_t *po) {
 		if (connection->is_client)
 			return (ISC_R_UNEXPECTED);
 
+#ifdef notyet /* not for 9.0.0 */
 		if (protocol->key == NULL)
 			return (send_status(po, ISC_R_NOPERM, message->id,
 					    "unauthorized access"));
+#endif /* notyet */
 
 	refresh:
 		result = handle_lookup(&object, message->h);
@@ -721,7 +727,7 @@ message_process(omapi_object_t *mo, omapi_object_t *po) {
 			return (send_status(po, result, message->id,
 					    "no matching handle"));
 
-		result = object_methodremove(object->type, object);
+		result = object_methodexpunge(object->type, object);
 		if (result == ISC_R_NOTIMPLEMENTED)
 			return (send_status(po, ISC_R_NOTIMPLEMENTED,
 					    message->id,

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1998, 1999, 2000  Internet Software Consortium.
+ * Copyright (C) 1998-2000  Internet Software Consortium.
  * 
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -15,11 +15,13 @@
  * SOFTWARE.
  */
 
+/* $Id: sockaddr.h,v 1.30 2000/06/22 21:58:02 tale Exp $ */
+
 #ifndef ISC_SOCKADDR_H
 #define ISC_SOCKADDR_H 1
 
-#include <isc/net.h>
 #include <isc/lang.h>
+#include <isc/net.h>
 #include <isc/types.h>
 
 struct isc_sockaddr {
@@ -117,6 +119,12 @@ isc_sockaddr_format(isc_sockaddr_t *sa, char *array, unsigned int size);
  * Format a human-readable representation of the socket address '*sa'
  * into the character array 'array', which is of size 'size'.
  * The resulting string is guaranteed to be null-terminated.
+ */
+
+isc_boolean_t
+isc_sockaddr_ismulticast(isc_sockaddr_t *sa);
+/*
+ * Returns ISC_TRUE if the address is a multicast address
  */
 
 #define ISC_SOCKADDR_FORMATSIZE \

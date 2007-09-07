@@ -15,6 +15,8 @@
  * SOFTWARE.
  */
 
+/* $Id: gen-unix.h,v 1.9 2000/06/23 03:10:02 tale Exp $ */
+
 /*
  * This file is responsible for defining two operations that are not
  * directly portable between Unix-like systems and Windows NT, option
@@ -30,10 +32,10 @@
 #ifndef DNS_GEN_UNIX_H
 #define DNS_GEN_UNIX_H 1
 
-#include <sys/types.h>
+#include <sys/types.h>          /* Required on some systems for dirent.h. */
 
 #include <dirent.h>
-#include <unistd.h>
+#include <unistd.h>		/* XXXDCL Required for ?. */
 
 #include <isc/boolean.h>
 #include <isc/lang.h>

@@ -15,6 +15,8 @@
 # ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
 # SOFTWARE.
 
+# $Id: tests.sh,v 1.16 2000/06/22 21:52:19 tale Exp $
+
 #
 # Perform tests
 #
@@ -40,7 +42,7 @@ rm -f ns2/example.db
 cp ns2/example2.db ns2/example.db
 sleep 6
 kill -HUP `cat ns2/named.pid`
-sleep 6
+sleep 60
 
 $DIG +tcp +noadd +nosea +nostat +noquest +nocomm +nocmd a.example.\
 	@10.53.0.2 a -p 5300 > dig.out.ns2
@@ -61,7 +63,7 @@ cp ns2/example3.db ns2/example.db
 sleep 6
 kill -HUP `cat ns2/named.pid`
 (cd ns3 ; $NAMED -c named.conf -d 99 -g >> named.run 2>&1 & )
-sleep 6
+sleep 60
 
 $DIG +tcp +noadd +nosea +nostat +noquest +nocomm +nocmd a.example.\
 	@10.53.0.2 a -p 5300 > dig.out.ns2
@@ -81,7 +83,7 @@ kill `cat ns2/named.pid`
 cp ns2/example4.db ns2/example.db
 sleep 6
 (cd ns2 ; $NAMED -c named.conf -d 99 -g >> named.run 2>&1 & )
-sleep 6
+sleep 60
 
 $DIG +tcp +noadd +nosea +nostat +noquest +nocomm +nocmd a.example.\
 	@10.53.0.2 a -p 5300 > dig.out.ns2

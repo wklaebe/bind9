@@ -15,6 +15,8 @@
 # ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
 # SOFTWARE.
 
+# $Id: run.sh,v 1.26 2000/06/22 21:51:27 tale Exp $
+
 #
 # Run a system test.
 #
@@ -39,15 +41,6 @@ echo "S:$test:`date`" >&2
 echo "T:$test:1:A" >&2
 echo "A:System test $test" >&2
 
-# Irix does not have /var/run
-test -f /var/run/system_test_ifsetup ||
-test -f /etc/system_test_ifsetup ||
-    { echo "I:Interfaces not set up.  Not trying system tests." >&2;
-      echo "R:UNTESTED" >&2
-      echo "E:$test:`date`" >&2
-      exit 0;
-    }
-
 if [ x$PERL = x ]
 then
     echo "I:Perl not available.  Not trying system tests." >&2
@@ -55,6 +48,23 @@ then
     echo "E:$test:`date`" >&2
     exit 0;
 fi
+
+# Irix does not have /var/run
+#test -f /var/run/system_test_ifsetup ||
+#test -f /etc/system_test_ifsetup ||
+#    { echo "I:Interfaces not set up.  Not trying system tests." >&2;
+#      echo "R:UNTESTED" >&2
+#      echo "E:$test:`date`" >&2
+#      exit 0;
+#    }
+
+$PERL testsock.pl || {
+    echo "I:Interfaces not set up.  Not trying system tests." >&2;
+    echo "R:UNTESTED" >&2;
+    echo "E:$test:`date`" >&2;
+    exit 0;
+
+}
 
 # Set up any dynamically generated test data
 if test -f $test/setup.sh
@@ -83,7 +93,10 @@ fi
 sh stop.sh $test
 
 # Cleanup
-( cd $test ; sh clean.sh )
+if test -f $test/clean.sh
+then
+   ( cd $test && sh clean.sh "$@" )
+fi
 
 echo "E:$test:`date`"
 

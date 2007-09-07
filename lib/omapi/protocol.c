@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1996, 1997, 1998, 1999, 2000  Internet Software Consortium.
+ * Copyright (C) 1996-2000  Internet Software Consortium.
  * 
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -14,6 +14,8 @@
  * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
  * SOFTWARE.
  */
+
+/* $Id: protocol.c,v 1.28 2000/06/23 21:36:57 tale Exp $ */
 
 /*
  * Functions supporting the object management protocol.
@@ -48,7 +50,7 @@ typedef struct omapi_protocolheader {
 
 isc_result_t
 omapi_protocol_connect(omapi_object_t *h, const char *server_name,
-		       int port, omapi_object_t *authinfo)
+		       in_port_t port, omapi_object_t *authinfo)
 {
 	isc_result_t result;
 	omapi_protocol_t *obj = NULL;

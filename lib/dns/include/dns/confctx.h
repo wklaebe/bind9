@@ -15,6 +15,8 @@
  * SOFTWARE.
  */
 
+/* $Id: confctx.h,v 1.43 2000/06/22 21:55:20 tale Exp $ */
+
 #ifndef DNS_CONFCTX_H
 #define DNS_CONFCTX_H 1
 
@@ -115,6 +117,8 @@ struct dns_c_options {
 	char		       *stats_filename;
 	char		       *memstats_filename;
 	char		       *named_xfer;
+	char		       *random_device;
+	char		       *random_seed_file;
 
 	in_port_t 	       *port;
 
@@ -249,6 +253,8 @@ isc_result_t dns_c_ctx_addsyslogchannel(dns_c_ctx_t *cfg, const char *name,
 					dns_c_logchan_t **chan);
 isc_result_t dns_c_ctx_addnullchannel(dns_c_ctx_t *cfg, const char *name,
 				      dns_c_logchan_t **chan);
+isc_result_t dns_c_ctx_addstderrchannel(dns_c_ctx_t *cfg, const char *name,
+                                        dns_c_logchan_t **chan);
 
 isc_result_t dns_c_ctx_addcategory(dns_c_ctx_t *cfg, const char *catname,
 				   dns_c_logcat_t **newcat);
@@ -310,6 +316,16 @@ isc_result_t dns_c_ctx_unsetmemstatsfilename(dns_c_ctx_t *ctx);
 isc_result_t dns_c_ctx_setnamedxfer(dns_c_ctx_t *ctx, const char *newval);
 isc_result_t dns_c_ctx_getnamedxfer(dns_c_ctx_t *ctx, char **retval);
 isc_result_t dns_c_ctx_unsetnamedxfer(dns_c_ctx_t *ctx);
+
+
+isc_result_t dns_c_ctx_setrandomdevice(dns_c_ctx_t *ctx, const char *newval);
+isc_result_t dns_c_ctx_getrandomdevice(dns_c_ctx_t *ctx, char **retval);
+isc_result_t dns_c_ctx_unsetrandomdevice(dns_c_ctx_t *ctx);
+
+
+isc_result_t dns_c_ctx_setrandomseedfile(dns_c_ctx_t *ctx, const char *newval);
+isc_result_t dns_c_ctx_getrandomseedfile(dns_c_ctx_t *ctx, char **retval);
+isc_result_t dns_c_ctx_unsetrandomseedfile(dns_c_ctx_t *ctx);
 
 
 isc_result_t dns_c_ctx_setport(dns_c_ctx_t *cfg, in_port_t newval);

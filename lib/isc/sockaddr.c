@@ -15,6 +15,8 @@
  * SOFTWARE.
  */
 
+/* $Id: sockaddr.c,v 1.42 2000/06/22 21:57:12 tale Exp $ */
+
 #include <config.h>
 
 #include <stdio.h>
@@ -377,4 +379,12 @@ isc_sockaddr_getport(isc_sockaddr_t *sockaddr) {
 	}
 
 	return (port);
+}
+
+isc_boolean_t
+isc_sockaddr_ismulticast(isc_sockaddr_t *sockaddr) {
+	isc_netaddr_t netaddr;
+
+	isc_netaddr_fromsockaddr(&netaddr, sockaddr);
+	return (isc_netaddr_ismulticast(&netaddr));
 }

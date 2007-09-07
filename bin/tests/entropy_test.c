@@ -15,12 +15,16 @@
  * SOFTWARE.
  */
 
+/* $Id: entropy_test.c,v 1.12 2000/06/23 16:18:54 tale Exp $ */
+
+#include <config.h>
+
+#include <stdio.h>
+
 #include <isc/entropy.h>
 #include <isc/mem.h>
 #include <isc/util.h>
 #include <isc/string.h>
-
-#include <stdio.h>
 
 static void
 hex_dump(const char *msg, void *data, unsigned int length) {
@@ -53,7 +57,6 @@ main(int argc, char **argv) {
 	isc_mem_t *mctx;
 	unsigned char buffer[512];
 	isc_entropy_t *ent;
-	isc_entropysource_t *devrandom;
 	unsigned int returned;
 	unsigned int flags;
 	isc_result_t result;
@@ -72,17 +75,13 @@ main(int argc, char **argv) {
 	isc_entropy_stats(ent, stderr);
 
 #if 1
-	devrandom = NULL;
-	flags = 0;
-	CHECK("isc_entropy_createfilesource()",
-	      isc_entropy_createfilesource(ent, "/dev/random",
-					   flags, &devrandom));
+	CHECK("isc_entropy_createfilesource() 1",
+	      isc_entropy_createfilesource(ent, "/dev/random"));
+	CHECK("isc_entropy_createfilesource() 2",
+	      isc_entropy_createfilesource(ent, "/dev/random"));
 #else
-	devrandom = NULL;
-	flags = 0;
-	CHECK("isc_entropy_createfilesource()",
-	      isc_entropy_createfilesource(ent, "/tmp/foo",
-					   flags, &devrandom));
+	CHECK("isc_entropy_createfilesource() 3",
+	      isc_entropy_createfilesource(ent, "/tmp/foo"));
 #endif
 
 	fprintf(stderr,
@@ -100,7 +99,7 @@ main(int argc, char **argv) {
 
  any:
 	isc_entropy_stats(ent, stderr);
-	CHECK("isc_entropy_getdata()",
+	CHECK("isc_entropy_getdata() pseudorandom",
 	      isc_entropy_getdata(ent, buffer, 128, NULL, 0));
 	hex_dump("pseudorandom data", buffer, 128);
 
@@ -129,10 +128,10 @@ main(int argc, char **argv) {
 		isc_entropy_detach(&entcopy3);
 	}
 
-	isc_entropy_destroysource(&devrandom);
 	isc_entropy_detach(&ent);
 	isc_mem_stats(mctx, stderr);
 	isc_mem_destroy(&mctx);
 
 	return (0);
 }
+

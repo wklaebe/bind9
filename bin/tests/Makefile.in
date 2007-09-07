@@ -1,4 +1,4 @@
-# Copyright (C) 1998, 1999, 2000  Internet Software Consortium.
+# Copyright (C) 1998-2000  Internet Software Consortium.
 # 
 # Permission to use, copy, modify, and distribute this software for any
 # purpose with or without fee is hereby granted, provided that the above
@@ -12,6 +12,8 @@
 # PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
 # ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
 # SOFTWARE.
+
+# $Id: Makefile.in,v 1.96 2000/06/22 21:50:03 tale Exp $
 
 srcdir =	@srcdir@
 VPATH =		@srcdir@
@@ -37,7 +39,7 @@ LWRESDEPLIBS =	../../lib/lwres/liblwres.@A@
 
 LIBS =		@LIBS@
 
-SUBDIRS = db dst master mem names rbt sockaddr tasks timers system
+SUBDIRS = db dst master mem names net rbt sockaddr tasks timers system
 
 # Alphabetically
 TARGETS =	
@@ -50,10 +52,13 @@ XTARGETS =	adb_test \
 		dispatch_tcp_test \
 		dispatch_test \
 		entropy_test \
+		entropy2_test \
 		gxba_test \
 		gxbn_test \
 		hash_test \
+		fsaccess_test \
 		inter_test \
+		keyboard_test \
 		lex_test \
 		lfsr_test \
 		log_test \
@@ -89,10 +94,13 @@ SRCS =		adb_test.c \
 		dispatch_tcp_test.c \
 		dispatch_test.c \
 		entropy_test.c \
+		entropy2_test.c \
 		gxba_test.c \
 		gxbn_test.c \
 		hash_test.c \
+		fsaccess_test.c \
 		inter_test.c \
+		keyboard_test.c \
 		lex_test.c \
 		lfsr_test.c \
 		log_test.c \
@@ -167,6 +175,10 @@ hash_test: hash_test.@O@ ${ISCDEPLIBS}
 
 entropy_test: entropy_test.@O@ ${ISCDEPLIBS}
 	${LIBTOOL} ${CC} ${CFLAGS} -o $@ entropy_test.@O@ \
+		${ISCLIBS} ${LIBS}
+
+entropy2_test: entropy2_test.@O@ ${ISCDEPLIBS}
+	${LIBTOOL} ${CC} ${CFLAGS} -o $@ entropy2_test.@O@ \
 		${ISCLIBS} ${LIBS}
 
 sock_test: sock_test.@O@ ${ISCDEPLIBS}
@@ -257,8 +269,16 @@ tkey_test: tkey_test.@O@ ${ISCDEPLIBS} ${DNSDEPLIBS}
 	${LIBTOOL} ${CC} ${CFLAGS} -o $@ tkey_test.@O@ \
 		${DNSLIBS} ${ISCLIBS} ${LIBS}
 
+fsaccess_test: fsaccess_test.@O@ ${ISCDEPLIBS}
+	${LIBTOOL} ${CC} ${CFLAGS} -o $@ fsaccess_test.@O@ \
+		${ISCLIBS} ${LIBS}
+
 inter_test: inter_test.@O@ ${ISCDEPLIBS}
 	${LIBTOOL} ${CC} ${CFLAGS} -o $@ inter_test.@O@ \
+		${ISCLIBS} ${LIBS}
+
+keyboard_test: keyboard_test.@O@ ${ISCDEPLIBS}
+	${LIBTOOL} ${CC} ${CFLAGS} -o $@ keyboard_test.@O@ \
 		${ISCLIBS} ${LIBS}
 
 lwresconf_test: lwresconf_test.@O@ ${ISCDEPLIBS} ${LWRESDEPLIBS}

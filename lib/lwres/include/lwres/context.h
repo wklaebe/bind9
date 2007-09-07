@@ -15,6 +15,8 @@
  * SOFTWARE.
  */
 
+/* $Id: context.h,v 1.9 2000/06/22 21:59:44 tale Exp $ */
+
 #ifndef LWRES_CONTEXT_H
 #define LWRES_CONTEXT_H 1
 
@@ -49,10 +51,18 @@ typedef void (*lwres_free_t)(void *arg, void *mem, size_t length);
  * Share /etc/resolv.conf data between contexts.
  */
 
+/*
+ * _SERVERMODE
+ *	Don't allocate and connect a socket to the server, since the
+ *	caller _is_ a server.
+ */
+#define LWRES_CONTEXT_SERVERMODE	0x00000001U
+
 lwres_result_t
 lwres_context_create(lwres_context_t **contextp, void *arg,
 		     lwres_malloc_t malloc_function,
-		     lwres_free_t free_function);
+		     lwres_free_t free_function,
+		     unsigned int flags);
 /*
  * Allocate a lwres context.  This is used in all lwres calls.
  *

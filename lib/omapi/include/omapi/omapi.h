@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1996, 1997, 1998, 1999, 2000  Internet Software Consortium.
+ * Copyright (C) 1996-2000  Internet Software Consortium.
  * 
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -14,6 +14,8 @@
  * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
  * SOFTWARE.
  */
+
+/* $Id: omapi.h,v 1.13 2000/06/23 21:05:21 tale Exp $ */
 
 /*
  * Definitions for the object management API and protocol.
@@ -106,8 +108,8 @@ omapi_auth_use(omapi_object_t *manager, const char *name,
  * Public functions defined in protocol.c.
  */
 isc_result_t
-omapi_protocol_connect(omapi_object_t *object, const char *server, int port,
-		       omapi_object_t *authinfo);
+omapi_protocol_connect(omapi_object_t *object, const char *server,
+		       in_port_t port, omapi_object_t *authinfo);
 
 void
 omapi_protocol_disconnect(omapi_object_t *handle, isc_boolean_t force);
@@ -150,7 +152,7 @@ omapi_connection_puthandle(omapi_object_t *connection, omapi_object_t *object);
  */
 isc_result_t
 omapi_listener_listen(omapi_object_t *mgr, isc_sockaddr_t *addr,
-		      dns_acl_t *acl, int backlog,
+		      dns_acl_t *acl, unsigned int backlog,
 		      isc_taskaction_t destroy_action, void *destroy_arg);
 
 void
@@ -218,7 +220,7 @@ omapi_object_register(omapi_objecttype_t **type, const char *name,
 
 		      isc_result_t	((*create)(omapi_object_t **)),
 
-		      isc_result_t	((*remove)(omapi_object_t *)));
+		      isc_result_t	((*expunge)(omapi_object_t *)));
 
 isc_result_t
 omapi_object_set(omapi_object_t *handle, omapi_string_t *name,

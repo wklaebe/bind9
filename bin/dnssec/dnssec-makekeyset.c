@@ -17,6 +17,8 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
+/* $Id: dnssec-makekeyset.c,v 1.28 2000/06/22 21:49:02 tale Exp $ */
+
 #include <config.h>
 
 #include <stdlib.h>
@@ -343,6 +345,7 @@ main(int argc, char *argv[]) {
 		result = dns_dnssec_sign(domain, &rdataset, keynode->key,
 					 &starttime, &endtime, mctx, &b,
 					 rdata);
+		isc_entropy_stopcallbacksources(ectx);
 		if (result != ISC_R_SUCCESS)
 			fatal("failed to sign keyset with key %s/%s/%d: %s",
 			      nametostr(dst_key_name(keynode->key)),

@@ -15,6 +15,8 @@
 # ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
 # SOFTWARE.
 
+# $Id: conf.sh.in,v 1.4 2000/06/22 21:51:24 tale Exp $
+
 # 
 # Common configuration data for system tests, to be sourced into
 # other shell scripts.
@@ -27,6 +29,7 @@ TOP=${SYSTEMTESTTOP:=.}/../../..
 TOP=`cd $TOP && pwd`
 
 NAMED=$TOP/bin/named/named
+LWRESD=$TOP/bin/named/lwresd
 DIG=$TOP/bin/dig/dig
 KEYGEN=$TOP/bin/dnssec/dnssec-keygen
 SIGNER=$TOP/bin/dnssec/dnssec-signzone
@@ -38,4 +41,4 @@ PERL=@PERL@
 
 SUBDIRS="xfer dnssec xferquota"
 
-export NAMED DIG KEYGEN SIGNER KEYSIGNER KEYSETTOOL PERL SUBDIRS
+export NAMED LWRESD DIG KEYGEN SIGNER KEYSIGNER KEYSETTOOL PERL SUBDIRS

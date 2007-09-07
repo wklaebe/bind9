@@ -15,6 +15,8 @@
  * SOFTWARE.
  */
 
+/* $Id: query.c,v 1.109.2.1 2000/06/26 22:38:56 gson Exp $ */
+
 #include <config.h>
 
 #include <isc/mem.h>
@@ -66,6 +68,9 @@
 #define CTRACE(m) ((void)m)
 #define QTRACE(m) ((void)m)
 #endif
+
+#define DNS_GETDB_NOEXACT 0x01U
+#define DNS_GETDB_NOLOG 0x02U
 
 
 static isc_result_t
@@ -443,12 +448,14 @@ query_getdb(ns_client_t *client, dns_name_t *name, unsigned int options,
 	isc_boolean_t check_acl, new_zone;
 	dns_acl_t *queryacl;
 	ns_dbversion_t *dbversion;
+	unsigned int ztoptions;
 
 	/*
 	 * Find a database to answer the query.
 	 */
+	ztoptions = ((options & DNS_GETDB_NOEXACT) != 0) ? DNS_ZTFIND_NOEXACT : 0;
 
-	result = dns_zt_find(client->view->zonetable, name, options, NULL,
+	result = dns_zt_find(client->view->zonetable, name, ztoptions, NULL,
 			     zonep);
 	if (result == ISC_R_SUCCESS || result == DNS_R_PARTIALMATCH) {
 		result = dns_zone_getdb(*zonep, dbp);
@@ -515,11 +522,9 @@ query_getdb(ns_client_t *client, dns_name_t *name, unsigned int options,
 	}
 
 	if (check_acl) {
-		/*
-		 * XXX RTH  need a "should we log acl failure" flag.
-		 */
+		isc_boolean_t log = ISC_TF((options & DNS_GETDB_NOLOG) == 0);
 		result = ns_client_checkacl(client, "query", queryacl,
-					    ISC_TRUE);
+					    ISC_TRUE, log);
 		if (queryacl == client->view->queryacl) {
 			if (result == ISC_R_SUCCESS) {
 				/*
@@ -769,7 +774,8 @@ query_addadditional(void *arg, dns_name_t *name, dns_rdatatype_t qtype) {
 	/*
 	 * Find a database to answer the query.
 	 */
-	result = query_getdb(client, name, 0, &zone, &db, &version, &is_zone);
+	result = query_getdb(client, name, DNS_GETDB_NOLOG,
+			     &zone, &db, &version, &is_zone);
 	if (result != ISC_R_SUCCESS) {
 		/*
 		 * We don't want an ACL failure to fail the query.
@@ -1814,9 +1820,6 @@ query_recurse(ns_client_t *client, dns_rdatatype_t qtype, dns_name_t *qdomain,
 		return (ISC_R_NOMEMORY);
 	}
 
-	if ((client->attributes & NS_CLIENTATTR_TCP) != 0)
-		options |= DNS_FETCHOPT_TCP;
-
 	result = dns_resolver_createfetch(client->view->resolver,
 					  client->query.qname,
 					  qtype, qdomain, nameservers,
@@ -1871,7 +1874,7 @@ query_findparentkey(ns_client_t *client, dns_name_t *name,
 	is_zone = ISC_FALSE;
 	dns_fixedname_init(&pfoundname);
 
-	result = query_getdb(client, name, DNS_ZTFIND_NOEXACT,
+	result = query_getdb(client, name, DNS_GETDB_NOEXACT,
 			     &pzone, &pdb, &pversion, &is_zone);
 	if (result != ISC_R_SUCCESS)
 		goto cleanup;

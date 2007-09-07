@@ -15,6 +15,8 @@
  * SOFTWARE.
  */
 
+/* $Id: acconfig.h,v 1.23 2000/06/22 21:48:56 tale Exp $ */
+
 /***
  *** This file is not to be included by any public header files, because
  *** it does not get installed.
@@ -39,6 +41,9 @@
 /* define if LinuxThreads is in use */
 #undef HAVE_LINUXTHREADS
 
+/* define if sysconf() is available */
+#undef HAVE_SYSCONF
+
 /* define if catgets() is available */
 #undef HAVE_CATGETS
 
@@ -55,6 +60,17 @@
 
 /* define if chroot() is available */
 #undef HAVE_CHROOT
+
+/* define if struct addrinfo exists */
+#undef HAVE_ADDRINFO
+
+/* define is getaddrinfo() exists */
+#undef HAVE_GETADDRINFO
+
+/* define if pthread_setconcurrency() should be called to tell the
+ * OS how many threads we might want to run.
+ */
+#undef CALL_PTHREAD_SETCONCURRENCY
 
 /* Shut up warnings about sputaux in stdio.h on BSD/OS pre-4.1 */
 #undef SHUTUP_SPUTAUX

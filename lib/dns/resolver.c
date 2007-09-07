@@ -15,6 +15,8 @@
  * SOFTWARE.
  */
 
+/* $Id: resolver.c,v 1.137 2000/06/22 21:54:46 tale Exp $ */
+
 #include <config.h>
 
 #include <isc/task.h>
@@ -95,6 +97,7 @@ typedef struct query {
 	/* Locked by task event serialization. */
 	unsigned int			magic;
 	fetchctx_t *			fctx;
+	isc_mem_t *			mctx;
 	dns_dispatchmgr_t *		dispatchmgr;
 	dns_dispatch_t *		dispatch;
 	dns_adbaddrinfo_t *		addrinfo;
@@ -328,7 +331,7 @@ resquery_destroy(resquery_t **queryp) {
 	INSIST(query->tcpsocket == NULL);
 	
 	query->magic = 0;
-	isc_mem_put(query->fctx->res->mctx, query, sizeof *query);
+	isc_mem_put(query->mctx, query, sizeof *query);
 	*queryp = NULL;
 }
 
@@ -642,6 +645,7 @@ fctx_query(fetchctx_t *fctx, dns_adbaddrinfo_t *addrinfo,
 		result = ISC_R_NOMEMORY;
 		goto stop_idle_timer;
 	}
+	query->mctx = res->mctx;
 	query->options = options;
 	query->attributes = 0;
 	/*
@@ -1034,6 +1038,7 @@ resquery_connected(isc_task_t *task, isc_event_t *event) {
 			attrs = 0;
 			attrs |= DNS_DISPATCHATTR_TCP;
 			attrs |= DNS_DISPATCHATTR_PRIVATE;
+			attrs |= DNS_DISPATCHATTR_CONNECTED;
 			if (isc_sockaddr_pf(&query->addrinfo->sockaddr) ==
 			    AF_INET)
 				attrs |= DNS_DISPATCHATTR_IPV4;
@@ -1058,9 +1063,9 @@ resquery_connected(isc_task_t *task, isc_event_t *event) {
 				result = resquery_send(query);
 			
 			if (result != ISC_R_SUCCESS) {
-				fctx_cancelquery(&query, NULL, NULL,
-						 ISC_FALSE);
-				fctx_done(query->fctx, result);
+				fetchctx_t *fctx = query->fctx;
+				fctx_cancelquery(&query, NULL, NULL, ISC_FALSE);
+				fctx_done(fctx, result);
 			}
 		} else {
 			isc_socket_detach(&query->tcpsocket);
@@ -2255,7 +2260,7 @@ validated(isc_task_t *task, isc_event_t *event) {
         if (vevent->result != ISC_R_SUCCESS) {
 		FCTXTRACE("validation failed");
 		result = vevent->result;
-		goto respond;
+		goto noanswer_response;
 	}
 
 	isc_stdtime_get(&now);
@@ -2272,7 +2277,7 @@ validated(isc_task_t *task, isc_event_t *event) {
 		result = dns_db_findnode(fctx->res->view->cachedb,
 					 vevent->name, ISC_TRUE, &node);
 		if (result != ISC_R_SUCCESS)
-			goto respond;
+			goto noanswer_response;
 		
 		result = ncache_adderesult(fctx->rmessage,
 					   fctx->res->view->cachedb, node,
@@ -2280,10 +2285,9 @@ validated(isc_task_t *task, isc_event_t *event) {
 					   fctx->res->view->maxncachettl,
 					   ardataset, &eresult);
 		if (result != ISC_R_SUCCESS)
-			goto respond;			
+			goto noanswer_response;			
 
-		fctx->attributes |= FCTX_ATTR_HAVEANSWER;		
-		goto respond;
+		goto answer_response;
 	}
 
 	FCTXTRACE("validation OK");
@@ -2297,7 +2301,7 @@ validated(isc_task_t *task, isc_event_t *event) {
 	result = dns_db_findnode(fctx->res->view->cachedb,
 				 vevent->name, ISC_TRUE, &node);
 	if (result != ISC_R_SUCCESS)
-		goto respond;
+		goto noanswer_response;
 
 	result = dns_db_addrdataset(fctx->res->view->cachedb,
 				    node, NULL, now,
@@ -2305,7 +2309,7 @@ validated(isc_task_t *task, isc_event_t *event) {
 				    ardataset);
 	if (result != ISC_R_SUCCESS &&
 	    result != DNS_R_UNCHANGED)
-		goto respond;
+		goto noanswer_response;
 	if (vevent->sigrdataset != NULL) {
 		result = dns_db_addrdataset(fctx->res->view->cachedb,
 					    node, NULL, now,
@@ -2313,13 +2317,19 @@ validated(isc_task_t *task, isc_event_t *event) {
 					    asigrdataset);
 		if (result != ISC_R_SUCCESS &&
 		    result != DNS_R_UNCHANGED)
-			goto respond;
+			goto noanswer_response;
 	}
 	
-	fctx->attributes |= FCTX_ATTR_HAVEANSWER;
 	result = ISC_R_SUCCESS;
 
- respond:
+ answer_response:
+	/*
+	 * Respond with an answer, positive or negative,
+	 * as opposed to an error.  'node' must be non-NULL.
+	 */
+	
+	fctx->attributes |= FCTX_ATTR_HAVEANSWER;
+	
 	if (hevent != NULL) {
 		hevent->result = eresult;
 		dns_name_concatenate(vevent->name, NULL,
@@ -2330,6 +2340,7 @@ validated(isc_task_t *task, isc_event_t *event) {
 		clone_results(fctx);
 	}
 
+ noanswer_response:
 	if (node != NULL)
 		dns_db_detachnode(fctx->res->view->cachedb, &node);
 
@@ -4583,6 +4594,11 @@ dns_resolver_cancelfetch(dns_fetch_t *fetch) {
 
 	LOCK(&res->buckets[fctx->bucketnum].lock);
 
+	/*
+	 * Find the completion event for this fetch (as opposed
+	 * to those for other fetches that have joined the same
+	 * fctx) and send it with result = ISC_R_CANCELED.
+	 */
 	event = NULL;
 	if (fctx->state != fetchstate_done) {
 		for (event = ISC_LIST_HEAD(fctx->events);
@@ -4601,6 +4617,10 @@ dns_resolver_cancelfetch(dns_fetch_t *fetch) {
 		event->result = ISC_R_CANCELED;
 		isc_task_sendanddetach(&etask, (isc_event_t **)&event);
 	}
+	/*
+	 * The fctx continues running even if no fetches remain;
+	 * the answer is still cached.
+	 */
 
 	UNLOCK(&res->buckets[fctx->bucketnum].lock);
 }

@@ -1,8 +1,21 @@
 /*
- * Issues to be discussed:
- * - Return values.  There seems to be no standard for return value (RFC2553)
- *   but INRIA implementation returns EAI_xxx defined for getaddrinfo().
+ * Portions Copyright (C) 1999, 2000  Internet Software Consortium.
+ * 
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ * 
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
+ * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
+ * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
+ * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+ * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
+ * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
+ * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
+ * SOFTWARE.
  */
+
+/* $Id: getnameinfo.c,v 1.18.2.1 2000/06/28 22:01:06 gson Exp $ */
 
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
@@ -37,6 +50,13 @@
  * SUCH DAMAGE.
  */
 
+/*
+ * XXX
+ * Issues to be discussed:
+ * - Return values.  There seems to be no standard for return value (RFC2553)
+ *   but INRIA implementation returns EAI_xxx defined for getaddrinfo().
+ */
+
 #include <sys/types.h>
 #include <sys/socket.h>
 
@@ -60,9 +80,11 @@ static struct afd {
 	size_t a_addrlen;
 	size_t a_socklen;
 } afdl [] = {
-	/* first entry is linked last... */
-	{AF_INET, sizeof(struct in_addr), sizeof(struct sockaddr_in)},
-	{AF_INET6, sizeof(struct in6_addr), sizeof(struct sockaddr_in6)},
+	/*
+	 * First entry is linked last...
+	 */
+	{ AF_INET, sizeof(struct in_addr), sizeof(struct sockaddr_in) },
+	{ AF_INET6, sizeof(struct in6_addr), sizeof(struct sockaddr_in6) },
 	{0, 0, 0},
 };
 
@@ -89,7 +111,7 @@ lwres_getnameinfo(const struct sockaddr *sa, size_t salen, char *host,
 {
 	struct afd *afd;
 	struct servent *sp;
-	u_short port;
+	unsigned short port;
 #ifdef ISC_PLATFORM_HAVESALEN
 	size_t len;
 #endif
@@ -97,11 +119,12 @@ lwres_getnameinfo(const struct sockaddr *sa, size_t salen, char *host,
 	const void *addr;
 	char *p;
 #if 0
-	u_long v4a;
-	u_char pfx;
+	unsigned long v4a;
+	unsigned char pfx;
 #endif
 	char numserv[sizeof("65000")];
-	char numaddr[sizeof("abcd:abcd:abcd:abcd:abcd:abcd:255.255.255.255")];
+	char numaddr[sizeof("abcd:abcd:abcd:abcd:abcd:abcd:255.255.255.255")
+		    + 1 + sizeof("4294967295")];
 	const char *proto;
 	lwres_uint32_t lwf = 0;
 	lwres_context_t *lwrctx = NULL;
@@ -184,11 +207,37 @@ lwres_getnameinfo(const struct sockaddr *sa, size_t salen, char *host,
 #endif
 
 	if (host == NULL || hostlen == 0) {
-		/* what should we do? */
+		/*
+		 * What should we do?
+		 */
 	} else if (flags & NI_NUMERICHOST) {
 		if (lwres_net_ntop(afd->a_af, addr, numaddr, sizeof(numaddr))
 		    == NULL)
 			ERR(ENI_SYSTEM);
+#if defined(LWRES_HAVE_SIN6_SCOPE_ID)
+		if (afd->a_af == AF_INET6 &&
+		    ((const struct sockaddr_in6 *)sa)->sin6_scope_id) {
+			char *p = numaddr + strlen(numaddr);
+			const char *stringscope = NULL;
+#if 0
+			if ((flags & NI_NUMERICSCOPE) == 0) {
+				/*
+				 * Vendors may want to add support for
+				 * non-numeric scope identifier.
+				 */
+				stringscope = foo;
+			}
+#endif
+			if (stringscope == NULL) {
+				snprintf(p, sizeof(numaddr) - (p - numaddr),
+				    "%%%u",
+				    ((const struct sockaddr_in6 *)sa)->sin6_scope_id);
+			} else {
+				snprintf(p, sizeof(numaddr) - (p - numaddr),
+				    "%%%s", stringscope);
+			}
+		}
+#endif
 		if (strlen(numaddr) > hostlen)
 			ERR(ENI_MEMORY);
 		strcpy(host, numaddr);
@@ -204,7 +253,7 @@ lwres_getnameinfo(const struct sockaddr *sa, size_t salen, char *host,
 			INSIST(0);
 		}
 
-		n = lwres_context_create(&lwrctx, NULL, NULL, NULL);
+		n = lwres_context_create(&lwrctx, NULL, NULL, NULL, 0);
 		if (n == 0)
 			n = lwres_getnamebyaddr(lwrctx, lwf, afd->a_addrlen,
 						addr, &by);
@@ -228,7 +277,6 @@ lwres_getnameinfo(const struct sockaddr *sa, size_t salen, char *host,
 				ERR(ENI_MEMORY);
 			strcpy(host, numaddr);
 		}
-		lwres_context_destroy(&lwrctx);
 	}
 	result = SUCCESS;
  cleanup:

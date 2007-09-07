@@ -15,6 +15,8 @@
  * SOFTWARE.
  */
 
+/* $Id: lwresconf_test.c,v 1.7 2000/06/22 21:50:29 tale Exp $ */
+
 #include <config.h>
 
 #include <stdlib.h>
@@ -71,9 +73,9 @@ main(int argc, char *argv[]) {
 
 	ctx = NULL;
 #ifdef USE_ISC_MEM
-	ret = lwres_context_create(&ctx, mem, mem_alloc, mem_free);
+	ret = lwres_context_create(&ctx, mem, mem_alloc, mem_free, 0);
 #else
-	ret = lwres_context_create(&ctx, NULL, NULL, NULL);
+	ret = lwres_context_create(&ctx, NULL, NULL, NULL, 0);
 #endif
 	CHECK(ret, "lwres_context_create");
 

@@ -15,10 +15,9 @@
  * SOFTWARE.
  */
 
-/* $Id: dig.c,v 1.43 2000/06/07 00:13:54 mws Exp $ */
+/* $Id: dig.c,v 1.51.2.1 2000/06/28 19:40:12 gson Exp $ */
 
 #include <config.h>
-
 #include <stdlib.h>
 
 extern int h_errno;
@@ -32,7 +31,6 @@ extern int h_errno;
 #include <dns/rdata.h>
 #include <dns/rdataset.h>
 #include <dns/rdatatype.h>
-#include <dns/message.h>
 
 #include <dig/dig.h>
 
@@ -59,9 +57,6 @@ extern int ndots;
 extern int tries;
 extern int lookup_counter;
 extern char fixeddomain[MXNAME];
-#ifdef TWIDDLE
-extern isc_boolean_t twiddle;
-#endif
 extern int exitcode;
 extern isc_sockaddr_t bind_address;
 extern char keynametext[MXNAME];
@@ -81,7 +76,8 @@ isc_boolean_t identify = ISC_FALSE,
 	comments = ISC_TRUE, section_question = ISC_TRUE,
 	section_answer = ISC_TRUE, section_authority = ISC_TRUE,
 	section_additional = ISC_TRUE, recurse = ISC_TRUE,
-	defname = ISC_TRUE, aaonly = ISC_FALSE, tcpmode = ISC_FALSE;
+	defname = ISC_TRUE, aaonly = ISC_FALSE, tcpmode = ISC_FALSE,
+	adflag = ISC_FALSE, cdflag = ISC_FALSE;
 
 
 static const char *opcodetext[] = {
@@ -152,9 +148,6 @@ show_usage(void) {
 "                 +[no]recursive      (Recursive mode)\n"
 "                 +[no]aaonly         (Set AA flag in query)\n"
 "                 +[no]details        (Show details of all requests)\n"
-#ifdef TWIDDLE
-"                 +twiddle            (Intentionally form bad requests)\n"
-#endif
 "                 +ndots=###          (Set NDOTS value)\n"
 "                 +[no]comments       (Control display of comment lines)\n"
 "                 +[no]question       (Control display of question)\n"
@@ -164,10 +157,10 @@ show_usage(void) {
 "                 +[no]short          (Disable everything except short\n"
 "                                      form of answer)\n"
 "                 +qr                 (Print question before sending)\n"
-"        Additional d-opts subject to removal before release:\n"
+"                 +[no]cdflag         (Set or clear CD flag in query)\n"
+"                 +[no]adflag         (Set or clear AD flag in query)\n"
 "                 +[no]nssearch       (Search all authorative nameservers)\n"
 "                 +[no]identify       (ID responders in short answers)\n"
-"        Available but not yet completed:\n"
 "                 +[no]trace          (Trace delegation down from root)\n"
 "        global d-opts and servers (before host name) affect all queries.\n"
 "        local d-opts and servers (after host name) affect only that lookup.\n"
@@ -307,6 +300,7 @@ printmessage(dig_query_t *query, dns_message_t *msg, isc_boolean_t headers) {
 	isc_result_t result;
 	dns_messagetextflag_t flags;
 	isc_buffer_t *buf = NULL;
+	unsigned int len = OUTPUTBUF;
 
 	UNUSED (query);
 
@@ -314,7 +308,7 @@ printmessage(dig_query_t *query, dns_message_t *msg, isc_boolean_t headers) {
 
 	/*
 	 * Exitcode 9 means we timed out, but if we're printing a message,
-	 * we much have recovered.  Go ahead and reset it to code 0, and
+	 * we must have recovered.  Go ahead and reset it to code 0, and
 	 * call this a success.
 	 */
 	if (exitcode == 9)
@@ -330,7 +324,7 @@ printmessage(dig_query_t *query, dns_message_t *msg, isc_boolean_t headers) {
 
 	result = ISC_R_SUCCESS;
 
-	result = isc_buffer_allocate(mctx, &buf, OUTPUTBUF);
+	result = isc_buffer_allocate(mctx, &buf, len);
 	check_result (result, "isc_buffer_allocate");
 
 	if (query->lookup->comments && !short_form) {
@@ -392,17 +386,33 @@ printmessage(dig_query_t *query, dns_message_t *msg, isc_boolean_t headers) {
 
 	if (query->lookup->section_question && headers) {
 		if (!short_form) {
+ question_again:
 			result = dns_message_sectiontotext(msg,
 						       DNS_SECTION_QUESTION,
 						       flags, buf);
+			if (result == ISC_R_NOSPACE) {
+				len += OUTPUTBUF;
+				isc_buffer_free(&buf);
+				result = isc_buffer_allocate(mctx, &buf, len);
+				if (result == ISC_R_SUCCESS)
+					goto question_again;
+			}
 			check_result(result, "dns_message_sectiontotext");
 		}
 	}			
 	if (query->lookup->section_answer) {
 		if (!short_form) {
+ answer_again:
 			result = dns_message_sectiontotext(msg,
 						       DNS_SECTION_ANSWER,
 						       flags, buf);
+			if (result == ISC_R_NOSPACE) {
+				len += OUTPUTBUF;
+				isc_buffer_free(&buf);
+				result = isc_buffer_allocate(mctx, &buf, len);
+				if (result == ISC_R_SUCCESS)
+					goto answer_again;
+			}
 			check_result(result, "dns_message_sectiontotext");
 		}
 		else {
@@ -412,17 +422,33 @@ printmessage(dig_query_t *query, dns_message_t *msg, isc_boolean_t headers) {
 	}			
 	if (query->lookup->section_authority) {
 		if (!short_form) {
+ authority_again:
 			result = dns_message_sectiontotext(msg,
 						       DNS_SECTION_AUTHORITY,
 						       flags, buf);
+			if (result == ISC_R_NOSPACE) {
+				len += OUTPUTBUF;
+				isc_buffer_free(&buf);
+				result = isc_buffer_allocate(mctx, &buf, len);
+				if (result == ISC_R_SUCCESS)
+					goto authority_again;
+			}
 			check_result(result, "dns_message_sectiontotext");
 		}
 	}			
 	if (query->lookup->section_additional) {
 		if (!short_form) {
+ additional_again:
 			result = dns_message_sectiontotext(msg,
 						      DNS_SECTION_ADDITIONAL,
 						      flags, buf);
+			if (result == ISC_R_NOSPACE) {
+				len += OUTPUTBUF;
+				isc_buffer_free(&buf);
+				result = isc_buffer_allocate(mctx, &buf, len);
+				if (result == ISC_R_SUCCESS)
+					goto additional_again;
+			}
 			check_result(result, "dns_message_sectiontotext");
 			/* Only print the signature on the first record */
 			if (headers) {
@@ -539,6 +565,8 @@ parse_args(isc_boolean_t is_batchfile, int argc, char **argv) {
 	rv = argv;
 	for (rc--, rv++; rc > 0; rc--, rv++) {
 		debug ("Main parsing %s", rv[0]);
+		if (strncmp(rv[0], "%", 1) == 0) 
+			break;
 		if (strncmp(rv[0], "@", 1) == 0) {
 			srv = isc_mem_allocate(mctx,
 					       sizeof(struct dig_server));
@@ -667,12 +695,33 @@ parse_args(isc_boolean_t is_batchfile, int argc, char **argv) {
 				lookup->aaonly = ISC_FALSE;
 			else
 				aaonly = ISC_FALSE;
+		} else if (strncmp(rv[0], "+adf", 4) == 0) {
+			if (have_host) 
+				lookup->adflag = ISC_TRUE;
+			else
+				adflag = ISC_TRUE;
+		} else if (strncmp(rv[0], "+noadf", 6) == 0) {
+			if (have_host) 
+				lookup->adflag = ISC_FALSE;
+			else
+				adflag = ISC_FALSE;
+		} else if (strncmp(rv[0], "+cd", 3) == 0) {
+			if (have_host) 
+				lookup->cdflag = ISC_TRUE;
+			else
+				cdflag = ISC_TRUE;
+		} else if (strncmp(rv[0], "+nocd", 5) == 0) {
+			if (have_host) 
+				lookup->cdflag = ISC_FALSE;
+			else
+				cdflag = ISC_FALSE;
 		} else if (strncmp(rv[0], "+ns", 3) == 0) {
 			if (have_host) {
 				lookup->ns_search_only = ISC_TRUE;
+				lookup->trace_root = ISC_TRUE;
 				lookup->recurse = ISC_FALSE;
 				lookup->identify = ISC_TRUE;
-				lookup->trace = ISC_TRUE;
+				lookup->stats = ISC_FALSE;
 				if (!forcecomment)
 					lookup->comments = ISC_FALSE;
 				lookup->section_additional = ISC_FALSE;
@@ -682,6 +731,7 @@ parse_args(isc_boolean_t is_batchfile, int argc, char **argv) {
 				ns_search_only = ISC_TRUE;
 				recurse = ISC_FALSE;
 				identify = ISC_TRUE;
+				stats = ISC_FALSE;
 				if (!forcecomment)
 					comments = ISC_FALSE;
 				section_additional = ISC_FALSE;
@@ -865,10 +915,6 @@ parse_args(isc_boolean_t is_batchfile, int argc, char **argv) {
 				comments = ISC_FALSE;
 			}
 
-#ifdef TWIDDLE
-		} else if (strncmp(rv[0], "+twiddle", 6) == 0) {
-			twiddle = ISC_TRUE;
-#endif
 		} else if (strncmp(rv[0], "-c", 2) == 0) {
  			if (have_host) {
 				if (rv[0][2] != 0) {
@@ -987,8 +1033,8 @@ parse_args(isc_boolean_t is_batchfile, int argc, char **argv) {
 			lookup->origin = NULL;
 			lookup->querysig = NULL;
 			lookup->use_my_server_list = ISC_FALSE;
-			lookup->trace = ISC_TF(trace || ns_search_only);
-			lookup->trace_root = trace;
+			lookup->trace = trace;
+			lookup->trace_root = ISC_TF(trace || ns_search_only);
 			lookup->ns_search_only = ns_search_only;
 			lookup->doing_xfr = ISC_FALSE;
 			lookup->ixfr_serial = 0;
@@ -996,6 +1042,8 @@ parse_args(isc_boolean_t is_batchfile, int argc, char **argv) {
 			lookup->identify = identify;
 			lookup->recurse = recurse;
 			lookup->aaonly = aaonly;
+			lookup->adflag = adflag;
+			lookup->cdflag = cdflag;
 			lookup->retries = tries;
 			lookup->udpsize = bufsize;
 			lookup->nsfound = 0;
@@ -1053,12 +1101,14 @@ parse_args(isc_boolean_t is_batchfile, int argc, char **argv) {
 			lookup->doing_xfr = ISC_FALSE;
 			lookup->ixfr_serial = 0;
 			lookup->defname = ISC_FALSE;
-			lookup->trace = ISC_TF(trace || ns_search_only);
-			lookup->trace_root = trace;
+			lookup->trace_root = ISC_TF(trace || ns_search_only);
+			lookup->trace = trace;
 			lookup->ns_search_only = ns_search_only;
 			lookup->identify = identify;
 			lookup->recurse = recurse;
 			lookup->aaonly = aaonly;
+			lookup->adflag = adflag;
+			lookup->cdflag = cdflag;
 			lookup->retries = tries;
 			lookup->udpsize = bufsize;
 			lookup->nsfound = 0;
@@ -1128,12 +1178,14 @@ parse_args(isc_boolean_t is_batchfile, int argc, char **argv) {
 		lookup->doing_xfr = ISC_FALSE;
 		lookup->ixfr_serial = 0;
 		lookup->defname = ISC_FALSE;
-		lookup->trace = ISC_TF(trace || ns_search_only);
-		lookup->trace_root = trace;
+		lookup->trace_root = ISC_TF(trace || ns_search_only);
+		lookup->trace = trace;
 		lookup->ns_search_only = ns_search_only;
 		lookup->identify = identify;
 		lookup->recurse = recurse;
 		lookup->aaonly = aaonly;
+		lookup->adflag = adflag;
+		lookup->cdflag = cdflag;
 		lookup->retries = tries;
 		lookup->udpsize = bufsize;
 		lookup->nsfound = 0;
@@ -1158,28 +1210,11 @@ parse_args(isc_boolean_t is_batchfile, int argc, char **argv) {
 
 int
 main(int argc, char **argv) {
-#ifdef TWIDDLE
-	FILE *fp;
-	int i, p;
-#endif
-
 	ISC_LIST_INIT(lookup_list);
 	ISC_LIST_INIT(server_list);
 	ISC_LIST_INIT(search_list);
 
 	debug ("dhmain()");
-#ifdef TWIDDLE
-	fp = fopen("/dev/urandom", "r");
-	if (fp != NULL) {
-		fread (&i, sizeof(int), 1, fp);
-		srandom(i);
-	}
-	else {
-		srandom ((int)&main);
-	}
-	p = getpid()%16+8;
-	for (i = 0 ; i<p; i++);
-#endif
 	setup_libs();
 	parse_args(ISC_FALSE, argc, argv);
 	setup_system();

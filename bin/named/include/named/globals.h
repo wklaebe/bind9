@@ -15,6 +15,8 @@
  * SOFTWARE.
  */
 
+/* $Id: globals.h,v 1.42 2000/06/22 21:49:39 tale Exp $ */
+
 #ifndef NAMED_GLOBALS_H
 #define NAMED_GLOBALS_H 1
 
@@ -37,9 +39,10 @@
 #endif
 
 EXTERN isc_mem_t *		ns_g_mctx		INIT(NULL);
-EXTERN unsigned int		ns_g_cpus		INIT(1);
+EXTERN unsigned int		ns_g_cpus		INIT(0);
 EXTERN isc_taskmgr_t *		ns_g_taskmgr		INIT(NULL);
 EXTERN dns_dispatchmgr_t *	ns_g_dispatchmgr	INIT(NULL);
+EXTERN isc_entropy_t *		ns_g_entropy		INIT(NULL);
 /*
  * XXXRTH  We're going to want multiple timer managers eventually.  One
  *         for really short timers, another for client timers, and one
@@ -50,8 +53,10 @@ EXTERN isc_socketmgr_t *	ns_g_socketmgr		INIT(NULL);
 EXTERN omapi_object_t *		ns_g_omapimgr		INIT(NULL);
 EXTERN const char *		ns_g_version		INIT(VERSION);
 EXTERN in_port_t		ns_g_port		INIT(0);
+EXTERN in_port_t		lwresd_g_queryport	INIT(0);
 
 EXTERN ns_server_t *		ns_g_server		INIT(NULL);
+EXTERN ns_lwresd_t *		ns_g_lwresd		INIT(NULL);
 
 /*
  * Logging.
@@ -66,6 +71,7 @@ EXTERN unsigned int		ns_g_debuglevel		INIT(0);
  */
 EXTERN const char *		ns_g_conffile		INIT(NS_SYSCONFDIR
 							     "/named.conf");
+EXTERN const char *		lwresd_g_conffile      INIT("/etc/resolv.conf");
 
 /*
  * Misc.
@@ -77,6 +83,8 @@ EXTERN isc_boolean_t		ns_g_logstderr		INIT(ISC_FALSE);
 
 EXTERN const char *		ns_g_defaultpidfile 	INIT(NS_LOCALSTATEDIR
 							     "/run/named.pid");
+EXTERN const char *		lwresd_g_defaultpidfile INIT(NS_LOCALSTATEDIR
+							     "/run/lwresd.pid");
 EXTERN const char *		ns_g_username		INIT(NULL);
 
 /*

@@ -15,6 +15,8 @@
  * SOFTWARE.
  */
 
+/* $Id: result.h,v 1.8 2000/06/22 21:59:56 tale Exp $ */
+
 #ifndef LWRES_RESULT_H
 #define LWRES_RESULT_H 1
 
@@ -30,5 +32,6 @@ typedef unsigned int lwres_result_t;
 #define LWRES_R_NOTIMPLEMENTED		7
 #define LWRES_R_UNEXPECTED		8
 #define LWRES_R_TRAILINGDATA		9
+#define LWRES_R_INCOMPLETE		10
 
 #endif /* LWRES_RESULT_H */

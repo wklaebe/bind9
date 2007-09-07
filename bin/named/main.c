@@ -15,19 +15,24 @@
  * SOFTWARE.
  */
 
+/* $Id: main.c,v 1.71 2000/06/22 21:49:31 tale Exp $ */
+
 #include <config.h>
 
 #include <stdlib.h>
+#include <string.h>
 
 #include <isc/app.h>
 #include <isc/commandline.h>
+#include <isc/entropy.h>
+#include <isc/os.h>
 #include <isc/task.h>
 #include <isc/timer.h>
 #include <isc/util.h>
 
 #include <dns/dispatch.h>
-
 #include <dst/result.h>
+#include <dns/view.h>
 
 /*
  * Defining NS_MAIN provides storage declaratons (rather than extern)
@@ -41,9 +46,11 @@
 #include <named/omapi.h>
 #include <named/os.h>
 #include <named/server.h>
+#include <named/lwresd.h>
 #include <named/main.h>
 
 static isc_boolean_t	want_stats = ISC_FALSE;
+static isc_boolean_t	lwresd_only = ISC_FALSE;
 static const char *	program_name = "named";
 
 void
@@ -162,6 +169,15 @@ library_unexpected_error(const char *file, int line, const char *format,
 }
 
 static void
+lwresd_usage(void) {
+	fprintf(stderr,
+		"usage: lwresd [-C conffile] [-d debuglevel] "
+		"[-f|-g] [-n number_of_cpus]\n"
+		"              [-p listen-port] [-P query-port] [-s] "
+		"[-t chrootdir] [-u username] [-i pidfile]\n");
+}
+
+static void
 usage(void) {
 	fprintf(stderr,
 		"usage: named [-c conffile] [-d debuglevel] "
@@ -170,9 +186,95 @@ usage(void) {
 }
 
 static void 
+parse_lwresd_command_line(int argc, char *argv[]) {
+	int ch;
+	unsigned int port;
+
+	isc_commandline_errprint = ISC_FALSE;
+	while ((ch = isc_commandline_parse(argc, argv,
+					   "C:d:fgi:n:p:P:st:u:")) !=
+	       -1) {
+		switch (ch) {
+		case 'C':
+			lwresd_g_conffile = isc_commandline_argument;
+			break;
+		case 'd':
+			ns_g_debuglevel = atoi(isc_commandline_argument);
+			break;
+		case 'f':
+			ns_g_foreground = ISC_TRUE;
+			break;
+		case 'g':
+			ns_g_foreground = ISC_TRUE;
+			ns_g_logstderr = ISC_TRUE;
+			break;
+		case 'i':
+			lwresd_g_defaultpidfile = isc_commandline_argument;
+			break;
+		case 'n':
+			ns_g_cpus = atoi(isc_commandline_argument);
+			if (ns_g_cpus == 0)
+				ns_g_cpus = 1;
+			break;
+		case 'p':
+			port = atoi(isc_commandline_argument);
+			if (port < 1 || port > 65535)
+				ns_main_earlyfatal("port '%s' out of range",
+						   isc_commandline_argument);
+			ns_g_port = port;
+			break;
+		case 'P':
+			port = atoi(isc_commandline_argument);
+			if (port < 1 || port > 65535)
+				ns_main_earlyfatal("port '%s' out of range",
+						   isc_commandline_argument);
+			lwresd_g_queryport = port;
+			break;
+		case 's':
+			/* XXXRTH temporary syntax */
+			want_stats = ISC_TRUE;
+			break;
+		case 't':
+			/* XXXJAB should we make a copy? */
+			ns_g_chrootdir = isc_commandline_argument;
+			break;
+		case 'u':
+			ns_g_username = isc_commandline_argument;
+			break;
+		case '?':
+			lwresd_usage();
+			ns_main_earlyfatal("unknown option '-%c'",
+					   isc_commandline_option);
+		default:
+			ns_main_earlyfatal("parsing options returned %d", ch);
+		}
+	}
+
+	argc -= isc_commandline_index;
+	argv += isc_commandline_index;
+
+	if (argc > 0) {
+		lwresd_usage();
+		ns_main_earlyfatal("extra command line arguments");
+	}
+}
+
+static void 
 parse_command_line(int argc, char *argv[]) {
 	int ch;
 	unsigned int port;
+	char *s;
+
+	s = strrchr(argv[0], '/');
+	if (s == NULL)
+		s = argv[0];
+	else
+		s++;
+	if (strcmp(s, "lwresd") == 0) {
+		lwresd_only = ISC_TRUE;
+		parse_lwresd_command_line(argc, argv);
+		return;
+	}
 
 	isc_commandline_errprint = ISC_FALSE;
 	while ((ch = isc_commandline_parse(argc, argv,
@@ -242,6 +344,8 @@ static isc_result_t
 create_managers(void) {
 	isc_result_t result;
 
+	if (ns_g_cpus == 0)
+		ns_g_cpus = isc_os_ncpus();
 	result = isc_taskmgr_create(ns_g_mctx, ns_g_cpus, 0, &ns_g_taskmgr);
 	if (result != ISC_R_SUCCESS) {
 		UNEXPECTED_ERROR(__FILE__, __LINE__,
@@ -266,16 +370,29 @@ create_managers(void) {
 		return (ISC_R_UNEXPECTED);
 	}
 
+	result = isc_entropy_create(ns_g_mctx, &ns_g_entropy);
+	if (result != ISC_R_SUCCESS) {
+		UNEXPECTED_ERROR(__FILE__, __LINE__,
+				 "isc_entropy_create() failed: %s",
+				 isc_result_totext(result));
+		return (ISC_R_UNEXPECTED);
+	}
+
+	(void)isc_entropy_createfilesource(ns_g_entropy, "/dev/random");
+
 	return (ISC_R_SUCCESS);
 }
 
 static void
 destroy_managers(void) {
-	if (ns_g_omapimgr != NULL)
-		omapi_listener_shutdown(ns_g_omapimgr);
-	else
-		omapi_lib_destroy();
+	if (!lwresd_only) {
+		if (ns_g_omapimgr != NULL)
+			omapi_listener_shutdown(ns_g_omapimgr);
+		else
+			omapi_lib_destroy();
+	}
 
+	isc_entropy_detach(&ns_g_entropy);
 	/*
 	 * isc_taskmgr_destroy() will  block until all tasks have exited,
 	 */
@@ -323,29 +440,37 @@ setup(void) {
 		ns_main_earlyfatal("create_managers() failed: %s",
 				   isc_result_totext(result));
 
-	ns_server_create(ns_g_mctx, &ns_g_server);
-
-	result = ns_omapi_init();
-	if (result != ISC_R_SUCCESS)
-		ns_main_earlyfatal("omapi_lib_init() failed: %s",
-				   isc_result_totext(result));
-
-	result = ns_omapi_listen(&ns_g_omapimgr);
-	if (result == ISC_R_SUCCESS)
-		isc_log_write(ns_g_lctx, NS_LOGCATEGORY_GENERAL,
-			      NS_LOGMODULE_MAIN, ISC_LOG_DEBUG(3),
-			      "OMAPI started");
+	if (lwresd_only)
+		ns_lwresd_create(ns_g_mctx, NULL, &ns_g_lwresd);
 	else
-		isc_log_write(ns_g_lctx, NS_LOGCATEGORY_GENERAL,
-			      NS_LOGMODULE_MAIN, ISC_LOG_WARNING,
-			      "OMAPI failed to start: %s",
-			      isc_result_totext(result));
+		ns_server_create(ns_g_mctx, &ns_g_server);
+
+	if (!lwresd_only) {
+		result = ns_omapi_init();
+		if (result != ISC_R_SUCCESS)
+			ns_main_earlyfatal("omapi_lib_init() failed: %s",
+					   isc_result_totext(result));
+	
+		result = ns_omapi_listen(&ns_g_omapimgr);
+		if (result == ISC_R_SUCCESS)
+			isc_log_write(ns_g_lctx, NS_LOGCATEGORY_GENERAL,
+				      NS_LOGMODULE_MAIN, ISC_LOG_DEBUG(3),
+				      "OMAPI started");
+		else
+			isc_log_write(ns_g_lctx, NS_LOGCATEGORY_GENERAL,
+				      NS_LOGMODULE_MAIN, ISC_LOG_WARNING,
+				      "OMAPI failed to start: %s",
+				      isc_result_totext(result));
+	}
 }
 
 static void
 cleanup(void) {
 	destroy_managers();
-	ns_server_destroy(&ns_g_server);
+	if (lwresd_only)
+		ns_lwresd_destroy(&ns_g_lwresd);
+	else
+		ns_server_destroy(&ns_g_server);
 	isc_log_write(ns_g_lctx, NS_LOGCATEGORY_GENERAL, NS_LOGMODULE_MAIN,
 		      ISC_LOG_NOTICE, "exiting");
 	ns_log_shutdown();

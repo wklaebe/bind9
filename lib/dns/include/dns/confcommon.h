@@ -15,6 +15,8 @@
  * SOFTWARE.
  */
 
+/* $Id: confcommon.h,v 1.27 2000/06/22 21:55:18 tale Exp $ */
+
 #ifndef DNS_CONFCOMMON_H
 #define DNS_CONFCOMMON_H 1
 
@@ -160,7 +162,8 @@ typedef enum {
 typedef enum {
 	dns_c_logchan_file,
 	dns_c_logchan_syslog,
-	dns_c_logchan_null
+	dns_c_logchan_null,
+        dns_c_logchan_stderr
 } dns_c_logchantype_t;
 
 

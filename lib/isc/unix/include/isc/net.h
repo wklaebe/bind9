@@ -15,6 +15,8 @@
  * SOFTWARE.
  */
 
+/* $Id: net.h,v 1.21 2000/06/23 21:43:46 tale Exp $ */
+
 #ifndef ISC_NET_H
 #define ISC_NET_H 1
 
@@ -45,6 +47,9 @@
  * It ensures that INADDR_ANY, IN6ADDR_ANY_INIT, in6addr_any, and
  * in6addr_loopback are available.
  *
+ * It ensures that IN_MULTICAST() is available to check for multicast
+ * addresses.
+ *
  * MP:
  *	No impact.
  *
@@ -65,7 +70,6 @@
 /***
  *** Imports.
  ***/
-#include <isc/lang.h>
 #include <isc/platform.h>
 
 #include <sys/types.h>
@@ -80,6 +84,7 @@
 #include <netinet6/in6.h>	/* Required on BSD/OS for in6_pktinfo. */
 #endif
 
+#include <isc/lang.h>
 #include <isc/types.h>
 
 #ifndef AF_INET6
@@ -124,6 +129,12 @@ typedef isc_uint16_t in_port_t;
 #ifndef MSG_TRUNC
 #define ISC_PLATFORM_RECVOVERFLOW
 #endif
+
+#define ISC__IPADDR(x)	((isc_uint32_t)htonl((isc_uint32_t)(x)))
+
+#define ISC_IPADDR_ISMULTICAST(i) \
+		(((isc_uint32_t)(i) & ISC__IPADDR(0xf0000000)) \
+		 == ISC__IPADDR(0xe0000000))
 
 /***
  *** Functions.

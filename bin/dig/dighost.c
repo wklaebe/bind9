@@ -15,7 +15,7 @@
  * SOFTWARE.
  */
 
-/* $Id: dighost.c,v 1.49 2000/06/13 01:49:46 explorer Exp $ */
+/* $Id: dighost.c,v 1.58.2.2 2000/06/28 19:40:14 gson Exp $ */
 
 /*
  * Notice to programmers:  Do not use this code as an example of how to
@@ -27,36 +27,38 @@
  */
 
 #include <config.h>
-
 #include <stdlib.h>
 #include <unistd.h>
-
+#if defined(HAVE_ADDRINFO) && defined(HAVE_GETADDRINFO)
+#include <netdb.h>
+#include <string.h>
+#else
 extern int h_errno;
-
-#include <isc/app.h>
-#include <isc/netdb.h>
-#include <isc/string.h>
-#include <isc/task.h>
-#include <isc/timer.h>
-#include <isc/util.h>
-#include <isc/base64.h>
-#include <isc/lex.h>
-#include <isc/lang.h>
-#include <isc/types.h>
-#include <isc/entropy.h>
+#endif
 
 #include <dns/message.h>
 #include <dns/name.h>
 #include <dns/rdata.h>
 #include <dns/rdataclass.h>
-#include <dns/rdataset.h>
-#include <dns/rdatatype.h>
 #include <dns/rdatalist.h>
-#include <dns/result.h>
+#include <dns/rdataset.h>
 #include <dns/rdatastruct.h>
+#include <dns/rdatatype.h>
+#include <dns/result.h>
 #include <dns/tsig.h>
-
 #include <dst/dst.h>
+#include <isc/app.h>
+#include <isc/base64.h>
+#include <isc/entropy.h>
+#include <isc/lang.h>
+#include <isc/lex.h>
+#include <isc/netdb.h>
+#include <isc/result.h>
+#include <isc/string.h>
+#include <isc/task.h>
+#include <isc/timer.h>
+#include <isc/types.h>
+#include <isc/util.h>
 
 #include <dig/dig.h>
 
@@ -67,9 +69,6 @@ ISC_LIST(dig_searchlist_t) search_list;
 isc_boolean_t have_ipv6 = ISC_FALSE, specified_source = ISC_FALSE,
 	free_now = ISC_FALSE, show_details = ISC_FALSE, usesearch=ISC_TRUE,
 	qr = ISC_FALSE, is_dst_up = ISC_FALSE;
-#ifdef TWIDDLE
-isc_boolean_t twiddle = ISC_FALSE;
-#endif
 in_port_t port = 53;
 unsigned int timeout = 5;
 isc_mem_t *mctx = NULL;
@@ -220,33 +219,6 @@ istype(char *text) {
 	return ISC_FALSE;
 }
 
-
-#ifdef TWIDDLE
-void
-twiddlebuf(isc_buffer_t buf) {
-	isc_region_t r;
-	int len, pos, bit;
-	unsigned char bitfield;
-	int i, tw;
-
-	hex_dump(&buf);
-	tw=TWIDDLE;
-	printf ("Twiddling %d bits: ", tw);
-	for (i=0;i<tw;i++) {
-		isc_buffer_usedregion (&buf, &r);
-		len = r.length;
-		pos=(int)random();
-		pos = pos%len;
-		bit = (int)random()%8;
-		bitfield = 1 << bit;
-		printf ("%d@%03x ", bit, pos);
-		r.base[pos] ^= bitfield;
-	}
-	puts ("");
-	hex_dump(&buf);
-}
-#endif
-
 dig_lookup_t
 *requeue_lookup(dig_lookup_t *lookold, isc_boolean_t servers) {
 	dig_lookup_t *looknew;
@@ -285,6 +257,8 @@ dig_lookup_t
 	looknew->udpsize = lookold->udpsize;
 	looknew->recurse = lookold->recurse;
 	looknew->aaonly = lookold->aaonly;
+	looknew->adflag = lookold->adflag;
+	looknew->cdflag = lookold->cdflag;
 	looknew->ns_search_only = lookold->ns_search_only;
 	looknew->origin = NULL;
 	looknew->querysig = NULL;
@@ -352,7 +326,10 @@ setup_system(void) {
 	isc_lex_t *lex = NULL;
 	isc_stdtime_t now;
 	
+	debug ("setup_system()");
+
 	if (fixeddomain[0]!=0) {
+		debug("Using fixed domain %s", fixeddomain);
 		search = isc_mem_allocate( mctx, sizeof(struct dig_server));
 		if (search == NULL)
 			fatal("Memory allocation failure in %s:%d",
@@ -360,8 +337,6 @@ setup_system(void) {
 		strncpy(search->origin, fixeddomain, MXNAME - 1);
 		ISC_LIST_PREPEND(search_list, search, link);
 	}
-
-	debug ("setup_system()");
 
 	free_now = ISC_FALSE;
 	get_servers = ISC_TF(server_list.head == NULL);
@@ -721,7 +696,7 @@ followup_lookup(dns_message_t *msg, dig_query_t *query,
 		debug ("Firstname returned %s",
 			isc_result_totext(result));
 		if ((section == DNS_SECTION_ANSWER) &&
-		    query->lookup->trace)
+		    (query->lookup->trace || query->lookup->ns_search_only))
 			followup_lookup (msg, query, DNS_SECTION_AUTHORITY);
                 return;
 	}
@@ -772,13 +747,20 @@ followup_lookup(dns_message_t *msg, dig_query_t *query,
 						lookup->use_my_server_list = 
 							ISC_TRUE;
 						if (section ==
-						    DNS_SECTION_ANSWER)
-							lookup->trace =
+						    DNS_SECTION_ANSWER) {
+						      lookup->trace =
 								ISC_FALSE;
-						else
-							lookup->trace =
+						      lookup->ns_search_only =
+								ISC_FALSE;
+						}
+						else {
+						      lookup->trace =
 								query->
 								lookup->trace;
+						      lookup->ns_search_only =
+							query->
+							lookup->ns_search_only;
+						}
 						lookup->trace_root = ISC_FALSE;
 						ISC_LIST_INIT(lookup->
 							      my_server_list);
@@ -809,7 +791,7 @@ followup_lookup(dns_message_t *msg, dig_query_t *query,
 			break;
 	}
 	if ((lookup == NULL) && (section == DNS_SECTION_ANSWER) &&
-	    query->lookup->trace)
+	    (query->lookup->trace || query->lookup->ns_search_only))
 		followup_lookup(msg, query, DNS_SECTION_AUTHORITY);
 }
 
@@ -1033,7 +1015,7 @@ setup_lookup(dig_lookup_t *lookup) {
 	 * If this is a trace request, completely disallow recursion, since
 	 * it's meaningless for traces.
 	 */
-	if (lookup->recurse && !lookup->trace) {
+	if (lookup->recurse && !lookup->trace && !lookup->ns_search_only) {
 		debug ("Recursive query");
 		lookup->sendmsg->flags |= DNS_MESSAGEFLAG_RD;
 	}
@@ -1043,10 +1025,21 @@ setup_lookup(dig_lookup_t *lookup) {
 		lookup->sendmsg->flags |= DNS_MESSAGEFLAG_AA;
 	}
 
+	if (lookup->adflag) {
+		debug ("AD query");
+		lookup->sendmsg->flags |= DNS_MESSAGEFLAG_AD;
+	}
+
+	if (lookup->cdflag) {
+		debug ("CD query");
+		lookup->sendmsg->flags |= DNS_MESSAGEFLAG_CD;
+	}
+
 	dns_message_addname(lookup->sendmsg, lookup->name,
 			    DNS_SECTION_QUESTION);
 
 	if (lookup->trace_root) {
+		debug("Doing trace_root");
 		tr.base="SOA";
 		tr.length=3;
 	} else {
@@ -1208,11 +1201,6 @@ send_udp(dig_lookup_t *lookup) {
 		check_result(result, "isc_socket_recvv");
 		sendcount++;
 		debug("Sent count number %d", sendcount);
-#ifdef TWIDDLE
-		if (twiddle) {
-			twiddlebuf(lookup->sendbuf);
-		}
-#endif
 		ISC_LIST_ENQUEUE(query->sendlist, &lookup->sendbuf, link);
 		debug("Sending a request.");
 		result = isc_time_now(&query->time_sent);
@@ -1389,11 +1377,6 @@ launch_next_query(dig_query_t *query, isc_boolean_t include_question) {
 	isc_buffer_putuint16(&query->slbuf, query->lookup->sendbuf.used);
 	ISC_LIST_ENQUEUE(query->sendlist, &query->slbuf, link);
 	if (include_question) {
-#ifdef TWIDDLE
-		if (twiddle) {
-			twiddlebuf(query->lookup->sendbuf);
-		}
-#endif
 		ISC_LIST_ENQUEUE(query->sendlist, &query->lookup->sendbuf,
 				 link);
 	}
@@ -1493,7 +1476,6 @@ static void
 check_for_more_data(dig_query_t *query, dns_message_t *msg,
 		    isc_socketevent_t *sevent)
 {
-	dns_name_t *name = NULL;
 	dns_rdataset_t *rdataset = NULL;
 	dns_rdata_t rdata;
 	dns_rdata_soa_t soa;
@@ -1524,6 +1506,7 @@ check_for_more_data(dig_query_t *query, dns_message_t *msg,
 	check_result(result, "dns_message_firstname");
 #endif
 	do {
+		dns_name_t *name = NULL;
 		dns_message_currentname(msg, DNS_SECTION_ANSWER,
 					&name);
 		for (rdataset = ISC_LIST_HEAD(name->list);
@@ -1562,7 +1545,7 @@ check_for_more_data(dig_query_t *query, dns_message_t *msg,
 				if (rdata.type != dns_rdatatype_soa)
 					goto NEXT_RDATA;
 				/* Now we have an SOA.  Work with it. */
-				debug ("Got a SOA");
+				debug ("Got an SOA");
 				result = dns_rdata_tostruct(&rdata,
 							    &soa,
 							    mctx);
@@ -1589,6 +1572,7 @@ check_for_more_data(dig_query_t *query, dns_message_t *msg,
 					query->second_rr_rcvd = ISC_TRUE;
 					query->second_rr_serial =
 						soa.serial;
+					dns_rdata_freestruct(&soa);
 					goto NEXT_RDATA;
 				}
 				if (query->second_rr_serial == 0) {
@@ -1762,12 +1746,14 @@ recv_done(isc_task_t *task, isc_event_t *event) {
 		if (query->lookup->xfr_q == NULL)
 			query->lookup->xfr_q = query;
 		if (query->lookup->xfr_q == query) {
-			if (query->lookup->trace) {
-				if (show_details ||
+			if ((query->lookup->trace)||
+			    (query->lookup->ns_search_only)) {
+				debug ("In TRACE code");
+				if ((show_details ||
 				    ((dns_message_firstname(msg,
 							    DNS_SECTION_ANSWER)
-				      == ISC_R_SUCCESS) &&
-				     !query->lookup->trace_root)) {
+				      == ISC_R_SUCCESS))) &&
+				    !query->lookup->trace_root ) {
 					printmessage(query, msg, ISC_TRUE);
 				}
 				if ((msg->rcode != 0) &&
@@ -1821,8 +1807,16 @@ recv_done(isc_task_t *task, isc_event_t *event) {
 							     &ab);
 				check_result(result, "isc_sockaddr_totext");
 				isc_buffer_usedregion(&ab, &r);
-				received(b->used, r.length, (char *)r.base,
-					 query);
+				if ((( dns_message_firstname(msg,
+							    DNS_SECTION_ANSWER)
+				      == ISC_R_SUCCESS) &&
+				    query->lookup->ns_search_only &&
+				    !query->lookup->trace_root) ||
+				     query->lookup->trace) {
+					received(b->used, r.length,
+						 (char *)r.base,
+						 query);
+				}
 			}
 			query->working = ISC_FALSE;
 			query->lookup->pending = ISC_FALSE;
@@ -1854,7 +1848,12 @@ void
 get_address(char *host, in_port_t port, isc_sockaddr_t *sockaddr) {
 	struct in_addr in4;
 	struct in6_addr in6;
+#if defined(HAVE_ADDRINFO) && defined(HAVE_GETADDRINFO)
+	struct addrinfo *res = NULL;
+	int result;
+#else
 	struct hostent *he;
+#endif
 
 	debug("get_address()");
 
@@ -1863,14 +1862,26 @@ get_address(char *host, in_port_t port, isc_sockaddr_t *sockaddr) {
 	else if (inet_pton(AF_INET, host, &in4) == 1)
 		isc_sockaddr_fromin(sockaddr, &in4, port);
 	else {
+#if defined(HAVE_ADDRINFO) && defined(HAVE_GETADDRINFO)
+		result = getaddrinfo(host, NULL, NULL, &res);
+		if (result != 0) {
+			fatal ("Couldn't find server %s.  %s",
+			       host, gai_strerror(result));
+		}
+		memcpy(&sockaddr->type.sa,res->ai_addr, res->ai_addrlen);
+		sockaddr->length = res->ai_addrlen;
+		isc_sockaddr_setport(sockaddr, port);
+		freeaddrinfo(res);
+#else
 		he = gethostbyname(host);
 		if (he == NULL)
-		     fatal("Couldn't look up your server host %s.  errno=%d",
+		     fatal("Couldn't find server %s.  errno=%d",
 			      host, h_errno);
 		INSIST(he->h_addrtype == AF_INET);
 		isc_sockaddr_fromin(sockaddr,
 				    (struct in_addr *)(he->h_addr_list[0]),
 				    port);
+#endif
 	}
 }
 

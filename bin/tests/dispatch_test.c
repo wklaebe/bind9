@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1998, 1999, 2000  Internet Software Consortium.
+ * Copyright (C) 1998-2000  Internet Software Consortium.
  * 
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -14,6 +14,8 @@
  * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
  * SOFTWARE.
  */
+
+/* $Id: dispatch_test.c,v 1.43.2.1 2000/06/28 16:45:27 gson Exp $ */
 
 #include <config.h>
 
@@ -421,7 +423,7 @@ main(int argc, char *argv[]) {
 	RUNTIME_CHECK(isc_socketmgr_create(mctx, &socketmgr) == ISC_R_SUCCESS);
 
 	dispatchmgr = NULL;
-	RUNTIME_CHECK(dns_dispatchmgr_create(mctx, &dispatchmgr)
+	RUNTIME_CHECK(dns_dispatchmgr_create(mctx, NULL, &dispatchmgr)
 		      == ISC_R_SUCCESS);
 
 	isc_sockaddr_any(&sa);

@@ -15,6 +15,8 @@
  * SOFTWARE.
  */
 
+/* $Id: entropy.h,v 1.19 2000/06/23 03:01:12 tale Exp $ */
+
 #ifndef ISC_ENTROPY_H
 #define ISC_ENTROPY_H 1
 
@@ -59,10 +61,18 @@
 #include <stdio.h>
 
 #include <isc/lang.h>
-#include <isc/magic.h>
 #include <isc/types.h>
 
 ISC_LANG_BEGINDECLS
+
+/*
+ * Entropy callback function.
+ */
+typedef isc_result_t (*isc_entropystart_t)(isc_entropysource_t *source,
+					   void *arg, isc_boolean_t blocking);
+typedef isc_result_t (*isc_entropyget_t)(isc_entropysource_t *source,
+					 void *arg, isc_boolean_t blocking);
+typedef void (*isc_entropystop_t)(isc_entropysource_t *source, void *arg);
 
 /***
  *** Flags.
@@ -123,9 +133,7 @@ isc_entropy_detach(isc_entropy_t **entp);
  */
 
 isc_result_t
-isc_entropy_createfilesource(isc_entropy_t *ent, const char *fname,
-			     unsigned int flags,
-			     isc_entropysource_t **sourcep);
+isc_entropy_createfilesource(isc_entropy_t *ent, const char *fname);
 /*
  * Create a new entropy source from a file.
  *
@@ -157,7 +165,34 @@ isc_entropy_createsamplesource(isc_entropy_t *ent,
  * to the source via isc_entropy_addsamples(), below.
  */
 
+isc_result_t
+isc_entropy_createcallbacksource(isc_entropy_t *ent,
+				 isc_entropystart_t start,
+				 isc_entropyget_t get,
+				 isc_entropystop_t stop,
+				 void *arg,
+				 isc_entropysource_t **sourcep);
+/*
+ * Create an entropy source that is polled via a callback.  This would
+ * be used when keyboard input is used, or a GUI input method.  It can
+ * also be used to hook in any external entropy source.
+ *
+ * Samples are added via isc_entropy_addcallbacksample(), below.
+ * _addcallbacksample() is the only function which may be called from
+ * within an entropy API callback function.
+ */
+
 void
+isc_entropy_stopcallbacksources(isc_entropy_t *ent);
+/*
+ * Call the stop functions for callback sources that have had their
+ * start functions called.
+ */
+
+isc_result_t
+isc_entropy_addcallbacksample(isc_entropysource_t *source, isc_uint32_t sample,
+			      isc_uint32_t extra);
+isc_result_t
 isc_entropy_addsample(isc_entropysource_t *source, isc_uint32_t sample,
 		      isc_uint32_t extra);
 /*
@@ -168,6 +203,9 @@ isc_entropy_addsample(isc_entropysource_t *source, isc_uint32_t sample,
  *
  * The "extra" parameter is used only to add a bit more unpredictable
  * data.  It is not used other than included in the hash of samples.
+ *
+ * When in an entropy API callback function, _addcallbacksource() must be
+ * used.  At all other times, _addsample() must be used.
  */
 
 isc_result_t
@@ -179,8 +217,22 @@ isc_entropy_getdata(isc_entropy_t *ent, void *data, unsigned int length,
  */
 
 void
+isc_entropy_putdata(isc_entropy_t *ent, void *data, unsigned int length,
+		    isc_uint32_t entropy);
+/*
+ * Add "length" bytes in "data" to the entropy pool, incrementing the pool's
+ * entropy count by "entropy."
+ *
+ * These bytes will prime the pseudorandom portion even no entropy is actually
+ * added.
+ */
+
+void
 isc_entropy_stats(isc_entropy_t *ent, FILE *out);
+/*
+ * Dump some (trivial) stats to the stdio stream "out".
+ */
 
 ISC_LANG_ENDDECLS
 
-#endif /* ISC_BUFFER_H */
+#endif /* ISC_ENTROPY_H */

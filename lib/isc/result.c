@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1998, 1999, 2000  Internet Software Consortium.
+ * Copyright (C) 1998-2000  Internet Software Consortium.
  * 
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -14,6 +14,8 @@
  * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
  * SOFTWARE.
  */
+
+/* $Id: result.c,v 1.44 2000/06/22 21:57:10 tale Exp $ */
 
 #include <config.h>
 
@@ -78,7 +80,11 @@ static const char *text[ISC_R_NRESULTS] = {
 	"file already exists",			/* 39 */
 	"socket is not connected",		/* 40 */
 	"out of range",				/* 41 */
-	"out of entropy"			/* 42 */
+	"out of entropy",			/* 42 */
+	"invalid use of multicast address",	/* 43 */
+	"not a file",				/* 44 */
+	"not a directory",			/* 45 */
+	"queue is full"				/* 46 */
 };
 
 #define ISC_RESULT_RESULTSET			2

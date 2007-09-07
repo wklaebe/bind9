@@ -15,7 +15,7 @@
  * SOFTWARE.
  */
 
-/* $Id: confcommon.c,v 1.30 2000/06/01 18:25:42 tale Exp $ */
+/* $Id: confcommon.c,v 1.31.2.1 2000/06/30 15:51:46 gson Exp $ */
 
 #include <config.h>
 
@@ -106,29 +106,49 @@ static struct dsn_c_pvt_sfnt {
 
 
 static const char *category_nametable[] = {
+	"default",
+	"general",
+	"database",
+	"security",
+	"config",
+	"resolver",
+	"xfer-in",
+	"xfer-out",
+	"notify",
+	"client",
+	"network",
+	"update",
+#if 0
+	"client",
 	"cname",
 	"config",
 	"control",
+	"database",
 	"db",
 	"default",
 	"eventlib",
+	"general",
 	"insist",
 	"lame-servers",
 	"load",
 	"maintenance",
 	"ncache",
+	"network",
 	"notify",
 	"os",
 	"packet",
 	"panic",
 	"parser",
 	"queries",
+	"resolver",
 	"response-checks",
 	"security",
 	"statistics",
 	"update",
 	"xfer-in",
 	"xfer-out",
+#endif
+	
 	NULL
 };
 
@@ -719,7 +739,7 @@ dns_c_charptoname(isc_mem_t *mem, const char *keyval, dns_name_t **name) {
 	isc_buffer_init(&b2, keyval, len);
 	isc_buffer_add(&b2, len);
 	
-	res = dns_name_fromtext(&newkey, &b2, NULL, ISC_FALSE, NULL);
+	res = dns_name_fromtext(&newkey, &b2, dns_rootname, ISC_FALSE, NULL);
 	if (res != ISC_R_SUCCESS) {
 		return (res);
 	}

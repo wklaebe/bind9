@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1998, 1999, 2000  Internet Software Consortium.
+ * Copyright (C) 1998-2000  Internet Software Consortium.
  * 
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -15,11 +15,13 @@
  * SOFTWARE.
  */
 
+/* $Id: netaddr.h,v 1.13 2000/06/22 21:57:49 tale Exp $ */
+
 #ifndef ISC_NETADDR_H
 #define ISC_NETADDR_H 1
 
-#include <isc/net.h>
 #include <isc/lang.h>
+#include <isc/net.h>
 #include <isc/types.h>
 
 ISC_LANG_BEGINDECLS
@@ -91,6 +93,12 @@ isc_netaddr_fromin(isc_netaddr_t *netaddr, const struct in_addr *ina);
 
 void
 isc_netaddr_fromin6(isc_netaddr_t *netaddr, const struct in6_addr *ina6);
+
+isc_boolean_t
+isc_netaddr_ismulticast(isc_netaddr_t *na);
+/*
+ * Returns ISC_TRUE if the address is a multicast address
+ */
 
 ISC_LANG_ENDDECLS
 

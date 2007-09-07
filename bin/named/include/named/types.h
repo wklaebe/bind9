@@ -15,6 +15,8 @@
  * SOFTWARE.
  */
 
+/* $Id: types.h,v 1.13 2000/06/22 21:49:52 tale Exp $ */
+
 #ifndef NAMED_TYPES_H
 #define NAMED_TYPES_H 1
 
@@ -26,5 +28,8 @@ typedef struct ns_query			ns_query_t;
 typedef struct ns_server 		ns_server_t;
 typedef struct ns_interface 		ns_interface_t;
 typedef struct ns_interfacemgr		ns_interfacemgr_t;
+typedef struct ns_lwresd		ns_lwresd_t;
+typedef struct ns_lwdclient		ns_lwdclient_t;
+typedef struct ns_lwdclientmgr		ns_lwdclientmgr_t;
 
 #endif /* NAMED_TYPES_H */

@@ -15,6 +15,8 @@
  * SOFTWARE.
  */
 
+/* $Id: dispatch.h,v 1.32 2000/06/23 17:30:59 marka Exp $ */
+
 #ifndef DNS_DISPATCH_H
 #define DNS_DISPATCH_H 1
 
@@ -50,9 +52,9 @@
  ***/
 
 #include <isc/buffer.h>
-#include <isc/eventclass.h>
 #include <isc/lang.h>
 #include <isc/socket.h>
+#include <dns/types.h>
 
 #include <dns/types.h>
 
@@ -117,11 +119,11 @@ struct dns_dispatchevent {
 #define DNS_DISPATCHATTR_IPV6		0x00000010U
 #define DNS_DISPATCHATTR_ACCEPTREQUEST	0x00000020U
 #define DNS_DISPATCHATTR_MAKEQUERY	0x00000040U
-
-ISC_LANG_BEGINDECLS
+#define DNS_DISPATCHATTR_CONNECTED	0x00000080U
 
 isc_result_t
-dns_dispatchmgr_create(isc_mem_t *mctx, dns_dispatchmgr_t **mgrp);
+dns_dispatchmgr_create(isc_mem_t *mctx, isc_entropy_t *entropy,
+		       dns_dispatchmgr_t **mgrp);
 /*
  * Creates a new dispatchmgr object.
  *
@@ -129,6 +131,10 @@ dns_dispatchmgr_create(isc_mem_t *mctx, dns_dispatchmgr_t **mgrp);
  *	"mctx" be a valid memory context.
  *
  *	mgrp != NULL && *mgrp == NULL
+ *
+ *	"entropy" may be NULL, in which case an insecure random generator
+ *	will be used.  If it is non-NULL, it must be a valid entropy
+ *	source.
  *
  * Returns:
  *	ISC_R_SUCCESS	-- all ok
@@ -258,6 +264,14 @@ dns_dispatch_detach(dns_dispatch_t **dispp);
  *	< mumble >
  */
 
+void    
+dns_dispatch_starttcp(dns_dispatch_t *disp);
+/*
+ * Start processing of a TCP dispatch once the socket connects.
+ *
+ * Requires:
+ *	'disp' is valid.
+ */
 
 isc_result_t
 dns_dispatch_addresponse(dns_dispatch_t *disp, isc_sockaddr_t *dest,

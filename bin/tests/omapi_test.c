@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1996, 1997, 1998, 1999, 2000  Internet Software Consortium.
+ * Copyright (C) 1996-2000  Internet Software Consortium.
  * 
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -15,6 +15,8 @@
  * SOFTWARE.
  */
 
+/* $Id: omapi_test.c,v 1.22.2.2 2000/06/28 03:41:27 tale Exp $ */
+
 /* 
  * Test code for OMAPI.
  */
@@ -24,12 +26,14 @@
 
 #include <isc/commandline.h>
 #include <isc/condition.h>
+#include <isc/entropy.h>
 #include <isc/mem.h>
 #include <isc/socket.h>
 #include <isc/string.h>
 #include <isc/task.h>
 #include <isc/util.h>
 
+#include <dst/dst.h>
 #include <dst/result.h>
 
 #include <omapi/omapi.h>
@@ -618,6 +622,7 @@ main(int argc, char **argv) {
 	isc_boolean_t show_final_mem = ISC_FALSE;
 	isc_socketmgr_t *socketmgr = NULL;
 	isc_taskmgr_t *taskmgr = NULL;
+	isc_entropy_t *entropy = NULL;
 	int ch;
 
 	progname = strrchr(*argv, '/');
@@ -675,13 +680,20 @@ main(int argc, char **argv) {
 	RUNTIME_CHECK(isc_condition_init(&waiter) == ISC_R_SUCCESS);
 
 	/*
+	 * Initialize the signature library.
+	 */
+	RUNTIME_CHECK(isc_entropy_create(mctx, &entropy) == ISC_R_SUCCESS);
+	RUNTIME_CHECK(dst_lib_init(mctx, entropy, ISC_ENTROPY_BLOCKING)
+		      == ISC_R_SUCCESS);
+
+	/*
 	 * The secret key is shared on both the client and server side.
 	 */
 	RUNTIME_CHECK(omapi_auth_register(KEY1_NAME, "shhh, this is a secret",
 					  OMAPI_AUTH_HMACMD5)
 		      == ISC_R_SUCCESS);
 
-	if (argc > 1 && strcmp(argv[0], "listen") == 0) {
+	if (argc >= 1 && strcmp(argv[0], "listen") == 0) {
 		if (argc != 2) {
 			fprintf(stderr, "Usage: %s listen port\n", progname);
 			exit (1);
@@ -689,7 +701,7 @@ main(int argc, char **argv) {
 
 		do_listen(atoi(argv[1]));
 
-	} else if (argc > 1 && !strcmp (argv[0], "connect")) {
+	} else if (argc >= 1 && !strcmp (argv[0], "connect")) {
 		if (argc != 3) {
 			fprintf(stderr, "Usage: %s connect address port\n",
 				progname);
@@ -708,6 +720,9 @@ main(int argc, char **argv) {
 
 	isc_socketmgr_destroy(&socketmgr);
 	isc_taskmgr_destroy(&taskmgr);
+
+	dst_lib_destroy();
+	isc_entropy_detach(&entropy);
 
 	if (show_final_mem)
 		isc_mem_stats(mctx, stderr);

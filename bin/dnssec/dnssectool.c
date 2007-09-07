@@ -15,13 +15,17 @@
  * SOFTWARE.
  */
 
+/* $Id: dnssectool.c,v 1.12 2000/06/22 21:49:05 tale Exp $ */
+
 #include <config.h>
 
 #include <stdlib.h>
 
 #include <isc/buffer.h>
 #include <isc/entropy.h>
+#include <isc/keyboard.h>
 #include <isc/string.h>
+#include <isc/time.h>
 #include <isc/util.h>
 
 #include <dns/log.h>
@@ -35,7 +39,9 @@
 extern int verbose;
 extern const char *program;
 
-static isc_entropysource_t *filesource = NULL;
+static isc_entropysource_t *source = NULL;
+static isc_keyboard_t kbd;
+static isc_boolean_t wantkeyboard = ISC_FALSE;
 
 void
 fatal(const char *format, ...) {
@@ -168,28 +174,106 @@ setup_logging(int verbose, isc_mem_t *mctx, isc_log_t **logp) {
 	*logp = log;
 }
 
+static isc_result_t
+kbdstart(isc_entropysource_t *source, void *arg, isc_boolean_t blocking) {
+	isc_keyboard_t *kbd = (isc_keyboard_t *)arg;
+	static isc_boolean_t first = ISC_TRUE;
+
+	UNUSED(source);
+
+	if (!blocking)
+		return (ISC_R_NOENTROPY);
+	if (first) {
+		if (!wantkeyboard) {
+			fprintf(stderr, "You must use the keyboard to create "
+				"entropy, since your system is lacking\n");
+			fprintf(stderr, "/dev/random\n\n");
+		}
+		first = ISC_FALSE;
+	}
+	fprintf(stderr, "start typing:\n");
+	return (isc_keyboard_open(kbd));
+}
+
+static void
+kbdstop(isc_entropysource_t *source, void *arg) {
+	isc_keyboard_t *kbd = (isc_keyboard_t *)arg;
+
+	UNUSED(source);
+
+	fprintf(stderr, "stop typing.\r\n");
+	(void)isc_keyboard_close(kbd, 3);
+}
+
+static isc_result_t
+kbdget(isc_entropysource_t *source, void *arg, isc_boolean_t blocking) {
+	isc_keyboard_t *kbd = (isc_keyboard_t *)arg;
+	isc_result_t result;
+	isc_time_t t;
+	isc_uint32_t sample;
+	isc_uint32_t extra;
+	unsigned char c;
+
+	if (!blocking)
+		return (ISC_R_NOENTROPY);
+
+	result = isc_keyboard_getchar(kbd, &c);
+	if (result != ISC_R_SUCCESS)
+		return (result);
+
+	result = isc_time_now(&t);
+	if (result != ISC_R_SUCCESS)
+		return (result);
+
+        sample = isc_time_nanoseconds(&t);
+	extra = c;
+
+	result = isc_entropy_addcallbacksample(source, sample, extra);
+	if (result != ISC_R_SUCCESS) {
+		fprintf(stderr, "\r\n");
+		return (result);
+	}
+
+	fprintf(stderr, ".");
+	fflush(stderr);
+
+	return (result);
+}
+
 void
 setup_entropy(isc_mem_t *mctx, const char *randomfile, isc_entropy_t **ectx) {
 	isc_result_t result;
+
 	result = isc_entropy_create(mctx, ectx);
 	if (result != ISC_R_SUCCESS)
 		fatal("could not create entropy object");
-	if (randomfile != NULL) {
-		result = isc_entropy_createfilesource(*ectx, randomfile, 0,
-						      &filesource);
-		if (result == ISC_R_SUCCESS)
-			return;
+	if (randomfile != NULL && strcasecmp(randomfile, "keyboard") != 0) {
+		result = isc_entropy_createfilesource(*ectx, randomfile);
+		if (result != ISC_R_SUCCESS)
+			fatal("could not open randomdev %s: %s", randomfile,
+			      isc_result_totext(result));
 	}
-	result = isc_entropy_createfilesource(*ectx, "/dev/random", 0,
-					      &filesource);
-	if (result != ISC_R_SUCCESS)
-		fatal("No randomfile specified, and /dev/random not present.");
-	return;
+	else {
+		if (randomfile == NULL) {
+			result = isc_entropy_createfilesource(*ectx,
+							      "/dev/random");
+			if (result == ISC_R_SUCCESS)
+				return;
+		}
+		else
+			wantkeyboard = ISC_TRUE;
+		result = isc_entropy_createcallbacksource(*ectx, kbdstart,
+							  kbdget, kbdstop,
+							  &kbd, &source);
+		if (result != ISC_R_SUCCESS)
+			fatal("failed to open keyboard: %s\n",
+			      isc_result_totext(result));
+	}
 }
 
 void
 cleanup_entropy(isc_entropy_t **ectx) {
-	if (filesource != NULL)
-		isc_entropy_destroysource(&filesource);
+	if (source != NULL)
+		isc_entropy_destroysource(&source);
 	isc_entropy_detach(ectx);
 }

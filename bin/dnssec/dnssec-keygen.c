@@ -17,7 +17,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dnssec-keygen.c,v 1.34 2000/06/10 01:28:06 bwelling Exp $ */
+/* $Id: dnssec-keygen.c,v 1.36 2000/06/22 02:48:12 bwelling Exp $ */
 
 #include <config.h>
 
@@ -326,6 +326,7 @@ main(int argc, char **argv) {
 		/* generate the key */
 		ret = dst_key_generate(name, alg, size, param, flags, protocol,
 				       mctx, &key);
+		isc_entropy_stopcallbacksources(ectx);
 
 		if (ret != ISC_R_SUCCESS) {
 			fatal("failed to generate key %s/%s: %s\n",
@@ -370,7 +371,7 @@ main(int argc, char **argv) {
 	ret = dst_key_tofile(key, DST_TYPE_PUBLIC | DST_TYPE_PRIVATE, NULL);
 	if (ret != ISC_R_SUCCESS)
 		fatal("failed to write key %s/%s/%d: %s\n", nametostr(name),
-		      dst_key_id(key), algtostr(alg), isc_result_totext(ret));
+		      algtostr(alg), dst_key_id(key), isc_result_totext(ret));
 
 	isc_buffer_clear(&buf);
 	ret = dst_key_buildfilename(key, 0, NULL, &buf);

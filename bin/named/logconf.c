@@ -15,6 +15,8 @@
  * SOFTWARE.
  */
 
+/* $Id: logconf.c,v 1.22 2000/06/23 17:59:08 tale Exp $ */
+
 #include <config.h>
 
 #include <isc/string.h>
@@ -39,8 +41,29 @@ category_fromconf(dns_c_logcat_t *ccat, isc_logconfig_t *lctx) {
 	isc_logmodule_t *module;
 
 	category = isc_log_categorybyname(ns_g_lctx, ccat->catname);
+	if (category == NULL) {
+		isc_log_write(ns_g_lctx, DNS_LOGCATEGORY_CONFIG,
+			      NS_LOGMODULE_SERVER, ISC_LOG_ERROR,
+			      "unknown logging category '%s' ignored",
+			      ccat->catname);
+		/*
+		 * Allow further processing by returning success.
+		 */
+		return (ISC_R_SUCCESS);
+	}
+
 #ifdef notyet
 	module = isc_log_modulebyname(ns_g_lctx, ccat->modname);
+	if (module == NULL) {
+		isc_log_write(ns_g_lctx, DNS_LOGCATEGORY_CONFIG,
+			      NS_LOGMODULE_SERVER, ISC_LOG_ERROR,
+			      "unknown logging module '%s' ignored",
+			      ccat->modname);
+		/*
+		 * Allow further processing by returning success.
+		 */
+		return (ISC_R_SUCCESS);
+	}
 #else
 	module = NULL;
 #endif
@@ -114,6 +137,15 @@ channel_fromconf(dns_c_logchan_t *cchan, isc_logconfig_t *lctx) {
 			dest.facility = facility;
 		}
 		break;
+
+	case dns_c_logchan_stderr:
+		type = ISC_LOG_TOFILEDESC;
+		{
+			dest.file.stream = stderr;
+			dest.file.name = NULL;
+			dest.file.versions = ISC_LOG_ROLLNEVER;
+			dest.file.maximum_size = 0;
+		}
 
 	case dns_c_logchan_null:
 		break;

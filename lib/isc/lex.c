@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1998, 1999, 2000  Internet Software Consortium.
+ * Copyright (C) 1998-2000  Internet Software Consortium.
  * 
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -15,9 +15,12 @@
  * SOFTWARE.
  */
 
+/* $Id: lex.c,v 1.31 2000/06/23 22:32:10 brister Exp $ */
+
 #include <config.h>
 
 #include <ctype.h>
+#include <errno.h>
 #include <stdlib.h>
 
 #include <isc/buffer.h>
@@ -510,7 +513,10 @@ isc_lex_gettoken(isc_lex_t *lex, unsigned int options, isc_token_t *tokenp) {
 				    lex->specials[c]) {
 					pushback(source, c);
 					ulong = strtoul(lex->data, &e, 0);
-					if (*e == 0) {
+					if (ulong == ULONG_MAX &&
+					    errno == ERANGE) {
+						return (ISC_R_RANGE);
+					} else if (*e == 0) {
 						tokenp->type =
 							isc_tokentype_number;
 						tokenp->value.as_ulong =

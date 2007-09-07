@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1996, 1997, 1998, 1999, 2000  Internet Software Consortium.
+ * Copyright (C) 1996-2000  Internet Software Consortium.
  * 
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -14,6 +14,8 @@
  * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
  * SOFTWARE.
  */
+
+/* $Id: listener.c,v 1.26 2000/06/23 22:28:22 tale Exp $ */
 
 /*
  * Subroutines that support the generic listener object.
@@ -273,7 +275,7 @@ free_task:
 
 isc_result_t
 omapi_listener_listen(omapi_object_t *caller, isc_sockaddr_t *addr,
-		      dns_acl_t *acl, int max,
+		      dns_acl_t *acl, unsigned int backlog,
 		      isc_taskaction_t destroy_action, void *destroy_arg)
 {
 	isc_result_t result;
@@ -319,7 +321,7 @@ omapi_listener_listen(omapi_object_t *caller, isc_sockaddr_t *addr,
 		/*
 		 * Now tell the kernel to listen for connections.
 		 */
-		result = isc_socket_listen(listener->socket, max);
+		result = isc_socket_listen(listener->socket, backlog);
 
 	if (result == ISC_R_SUCCESS) {
 		/*

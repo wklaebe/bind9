@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dispatch.c,v 1.78.2.3 2001/02/07 18:50:37 gson Exp $ */
+/* $Id: dispatch.c,v 1.78.2.5 2001/02/17 00:56:29 gson Exp $ */
 
 #include <config.h>
 
@@ -622,6 +622,10 @@ udp_recv(isc_task_t *task, isc_event_t *ev_in) {
 	queue_response = ISC_FALSE;
 	if ((flags & DNS_MESSAGEFLAG_QR) == 0) {
 		resp = ISC_LIST_HEAD(disp->rq_handlers);
+		if (resp == NULL) {
+			free_buffer(disp, ev->region.base, ev->region.length);
+			goto restart;
+		}
 		while (resp != NULL) {
 			if (resp->item_out == ISC_FALSE)
 				break;
@@ -835,6 +839,8 @@ tcp_recv(isc_task_t *task, isc_event_t *ev_in) {
 		 * Query.
 		 */
 		resp = ISC_LIST_HEAD(disp->rq_handlers);
+		if (resp == NULL)
+			goto restart;
 		while (resp != NULL) {
 			if (resp->item_out == ISC_FALSE)
 				break;
@@ -936,6 +942,7 @@ startrecv(dns_dispatch_t *disp) {
 			res = isc_socket_recv(disp->socket, &region, 1,
 					      disp->task, udp_recv, disp);
 			if (res != ISC_R_SUCCESS) {
+				free_buffer(disp, region.base, region.length);
 				disp->shutdown_why = res;
 				disp->shutting_down = 1;
 				do_cancel(disp, NULL);

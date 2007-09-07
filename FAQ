@@ -45,7 +45,9 @@ BIND 8 incorrectly accepted files that had neither.
 Q: Why do I see 5 (or more) copies of named on Linux?
 
 A: Linux threads each show up as a process under ps.  The approximate
-number of threads running is n+4, where n is the number of CPUs.
+number of threads running is n+4, where n is the number of CPUs.  Note that
+the amount of memory used is not cumulative; if each process is using 10M of
+memory, only a total of 10M is used.
 
 
 Q: Why does BIND 9 log "permission denied" errors accessing its
@@ -106,3 +108,29 @@ mostly DNSSEC related.  These messages indicate that you have no source
 of entropy.  On systems with /dev/random or an equivalent, it is used by
 default.  A source of entropy can also be defined using the random-device
 option in named.conf.
+
+
+Q: I installed BIND 9 and restarted named, but it's still BIND 8.  Why?
+
+A: BIND 9 is installed under /usr/local by default.  BIND 8 is often
+installed under /usr.  Check that the correct named is running.
+
+
+Q: I'm trying to install on AIX and compilation is failing with
+errors like
+
+  "confparser.c", line 8244.1: 1506-343 (S) Redeclaration of
+  token_to_keyword differs from previous declaration on line 348 of
+  "confparser.c".
+
+A: You probably have a buggy version of GNU bison installed on your
+system.  Remove bison it from your path, remove the config.cache file,
+and rerun configure so that it picks up the AIX yacc instead.
+
+
+Q: I'm trying to use TSIG to authenticate dynamic updates or zone
+transfers.  I'm sure I have the keys set up correctly, but the server
+is rejecting the TSIG.  Why?
+
+A: This may be a clock skew problem.  Check that the the clocks on
+the client and server are properly synchronized (e.g., using ntp).

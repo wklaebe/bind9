@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: resolver.c,v 1.187.2.5 2001/02/02 01:32:25 gson Exp $ */
+/* $Id: resolver.c,v 1.187.2.7 2001/02/20 21:56:23 gson Exp $ */
 
 #include <config.h>
 
@@ -224,7 +224,7 @@ struct fetchctx {
 
 struct dns_fetch {
 	unsigned int			magic;
-	void *				private;
+	fetchctx_t *			private;
 };
 
 #define DNS_FETCH_MAGIC			0x46746368U	/* Ftch */
@@ -821,8 +821,8 @@ static isc_result_t
 resquery_send(resquery_t *query) {
 	fetchctx_t *fctx;
 	isc_result_t result;
-	dns_rdataset_t *qrdataset;
-	dns_name_t *qname;
+	dns_name_t *qname = NULL;
+	dns_rdataset_t *qrdataset = NULL;
 	isc_region_t r;
 	dns_resolver_t *res;
 	isc_task_t *task;
@@ -857,11 +857,9 @@ resquery_send(resquery_t *query) {
 		buffer = &query->buffer;
 	}
 
-	qname = NULL;
 	result = dns_message_gettempname(fctx->qmessage, &qname);
 	if (result != ISC_R_SUCCESS)
 		goto cleanup_temps;
-	qrdataset = NULL;
 	result = dns_message_gettemprdataset(fctx->qmessage, &qrdataset);
 	if (result != ISC_R_SUCCESS)
 		goto cleanup_temps;
@@ -2647,8 +2645,16 @@ cache_name(fetchctx_t *fctx, dns_name_t *name, isc_stdtime_t now) {
 			if (result != ISC_R_SUCCESS)
 				return (result);
 			anodep = &event->node;
-			if (fctx->type != dns_rdatatype_any &&
-			    fctx->type != dns_rdatatype_sig) {
+			/*
+			 * If this is an ANY or SIG query, we're not going
+			 * to return any rdatasets, unless we encountered
+			 * a CNAME or DNAME as "the answer".  In this case,
+			 * we're going to return DNS_R_CNAME or DNS_R_DNAME
+			 * and we must set up the rdatasets.
+			 */
+			if ((fctx->type != dns_rdatatype_any &&
+			    fctx->type != dns_rdatatype_sig) ||
+			    (name->attributes & DNS_NAMEATTR_CHAINING) != 0) {
 				ardataset = event->rdataset;
 				asigrdataset = event->sigrdataset;
 			}
@@ -3670,6 +3676,8 @@ answer_response(fetchctx_t *fctx) {
 					 */
 					if (want_chaining) {
 						chaining = ISC_TRUE;
+						name->attributes |=
+							DNS_NAMEATTR_CHAINING;
 						rdataset->attributes |=
 						    DNS_RDATASETATTR_CHAINING;
 						qname = &tname;
@@ -3782,6 +3790,8 @@ answer_response(fetchctx_t *fctx) {
 						if (result != ISC_R_SUCCESS)
 							return (result);
 						chaining = ISC_TRUE;
+						name->attributes |=
+							DNS_NAMEATTR_CHAINING;
 						rdataset->attributes |=
 						    DNS_RDATASETATTR_CHAINING;
 						qname = dns_fixedname_name(

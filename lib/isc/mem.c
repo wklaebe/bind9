@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: mem.c,v 1.75.2.1 2001/01/09 22:49:07 bwelling Exp $ */
+/* $Id: mem.c,v 1.75.2.4 2001/02/20 22:03:15 gson Exp $ */
 
 #include <config.h>
 
@@ -1401,6 +1401,13 @@ isc_mempool_destroy(isc_mempool_t **mpctxp) {
 	REQUIRE(mpctxp != NULL);
 	mpctx = *mpctxp;
 	REQUIRE(VALID_MEMPOOL(mpctx));
+#if ISC_MEMPOOL_NAMES
+	if (mpctx->allocated > 0)
+		UNEXPECTED_ERROR(__FILE__, __LINE__,
+				 "isc_mempool_destroy(): mempool %s "
+				 "leaked memory",
+				 mpctx->name);
+#endif
 	REQUIRE(mpctx->allocated == 0);
 
 	mctx = mpctx->mctx;

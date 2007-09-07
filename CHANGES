@@ -1,10 +1,73 @@
+
+	--- 9.2.1rc2 released ---
+
+1240.	[bug]		It was possible to leak zone references by
+			specifying an incorrect zone to rndc.
+
+1239.	[bug]		Under certain circumstances named could continue to
+			use a name after it had been freed triggering
+			INSIST() failures.  [RT #2614]
+
+1238.	[bug]		It is possible to lockup the server when shutting down
+			if notifies are being processed. [RT #2591]
+
+1237.	[bug]		nslookup: "set q=type" failed.
+
+1236.	[bug]		dns_rdata{class,type}_fromtext() didn't handle non
+			NULL terminated text regions. [RT #2588]
+
+1232.	[bug]		unix/errno2result() didn't handle EADDRNOTAVAIL.
+
+1231.	[port]		HPUX 11.11 recvmsg() can return spurious EADDRNOTAVAIL.
+
+1230.	[bug]		isccc_cc_isreply() and isccc_cc_isack() were broken.
+
+1229.	[bug]		named would crash if it received a TSIG signed
+			query as part of an AXFR response. [RT #2570]
+
+1228.	[bug]		'make install' did not depend on 'make all'. [RT #2559]
+
+1227.	[bug]		dns_lex_getmastertoken() now returns ISC_R_BADNUMBER
+			if a number was expected and some other token was
+			found. [RT#2532]
+
+1222.	[bug]		Specifying 'port *' did not always result in a system
+			selected (non-reserved) port being used. [RT #2537]
+
+1221.	[bug]		Zone types 'master', 'slave' and 'stub' were not being
+			compared case insensitively. [RT #2542]
+
+1218.	[bug]		Named incorrectly returned SERVFAIL rather than
+			NOTAUTH when there was a TSIG BADTIME error. [RT #2519]
+
+1216.	[bug]		Multiple server clauses for the same server were not
+			reported.  [RT #2514]
+
+1215.	[port]		solaris: add support to ifconfig.sh for x86 2.5.1
+
+1214.	[bug]		Win32: isc_file_renameunique() could leave zero length
+			files behind.
+
+1212.	[port]		libbind: 64k answer buffers were causing stack space
+			to be exceeded for certian OS.  Use heap space instead.
+
+1211.	[bug]		dns_name_fromtext() incorrectly handled certain
+			valid octal bitlabels. [RT #2483]
+
+1210.	[bug]		libbind: getnameinfo() failed to lookup IPv4 mapped /
+			compatible addresses. [RT #2461]
+
+1208.	[bug]		dns_master_load*() failed to log a error message if
+			an error was detected when parsing the ownername of
+			a record.  [RT #2448]
+
 	--- 9.2.1rc1 released ---
 
 1207.	[bug]		libbind: getaddrinfo() could call freeaddrinfo() with
 			an invalid pointer.
 
-1206.	[bug]		SERVFAIL and NOTIMP responses to a EDNS should trigger
-			a non-EDNS retry.
+1206.	[bug]		SERVFAIL and NOTIMP responses to an EDNS query should
+			trigger a non-EDNS retry.
 
 1205.	[bug]		OPT, TSIG and TKEY cannot be used to set the "class"
 			of the message. [RT #2449]

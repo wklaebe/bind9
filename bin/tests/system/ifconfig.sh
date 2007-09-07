@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Copyright (C) 2000, 2001  Internet Software Consortium.
+# Copyright (C) 2000-2002  Internet Software Consortium.
 #
 # Permission to use, copy, modify, and distribute this software for any
 # purpose with or without fee is hereby granted, provided that the above
@@ -15,7 +15,7 @@
 # NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
 # WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: ifconfig.sh,v 1.35.2.1 2001/11/05 04:29:35 marka Exp $
+# $Id: ifconfig.sh,v 1.35.2.3 2002/03/26 00:54:50 marka Exp $
 
 #
 # Set up interface aliases for bind9 system tests.
@@ -37,6 +37,9 @@ case "$1" in
 	for ns in 1 2 3 4 5
 	do
 		case "$sys" in
+		    *-pc-solaris2.5.1)
+			ifconfig lo0:$ns 10.53.0.$ns netmask 0xffffffff up
+			;;
 		    *-sun-solaris2.[6-7])
 			ifconfig lo0:$ns 10.53.0.$ns netmask 0xffffffff up
 			;;
@@ -82,6 +85,9 @@ case "$1" in
 	for ns in 5 4 3 2 1
 	do
 		case "$sys" in
+		    *-pc-solaris2.5.1)
+			ifconfig lo0:$ns 0.0.0.0 down
+			;;
 		    *-sun-solaris2.[6-7])
 			ifconfig lo0:$ns 10.53.0.$ns down
 			;;

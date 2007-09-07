@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rdata.c,v 1.147.2.5 2002/02/20 02:17:24 marka Exp $ */
+/* $Id: rdata.c,v 1.147.2.7 2002/03/27 23:52:33 marka Exp $ */
 
 #include <config.h>
 #include <ctype.h>
@@ -1028,7 +1028,7 @@ isc_result_t
 dns_rdataclass_fromtext(dns_rdataclass_t *classp, isc_textregion_t *source) {
 #define COMPARE(string, rdclass) \
 	if (((sizeof(string) - 1) == source->length) \
-	    && (strcasecmp(source->base, string) == 0)) { \
+	    && (strncasecmp(source->base, string, source->length) == 0)) { \
 		*classp = rdclass; \
 		return (ISC_R_SUCCESS); \
 	}
@@ -1045,12 +1045,18 @@ dns_rdataclass_fromtext(dns_rdataclass_t *classp, isc_textregion_t *source) {
 		 */
 		COMPARE("ch", dns_rdataclass_chaos);
 		COMPARE("chaos", dns_rdataclass_chaos);
+
 		if (source->length > 5 &&
-		    strncasecmp("class", source->base, 5) == 0)
-		{
+		    source->length < (5 + sizeof("65000")) &&
+		    strncasecmp("class", source->base, 5) == 0) {
+			char buf[sizeof("65000")];
 			char *endp;
-			int val = strtol(source->base + 5, &endp, 10);
-			if (*endp == '\0' && val >= 0 && val <= 0xffff) {
+			unsigned int val;
+
+			strncpy(buf, source->base + 5, source->length - 5);
+			buf[source->length - 5] = '\0';
+			val = strtoul(buf, &endp, 10);
+			if (*endp == '\0' && val <= 0xffff) {
 				*classp = (dns_rdataclass_t)val;
 				return (ISC_R_SUCCESS);
 			}
@@ -1144,12 +1150,18 @@ dns_rdatatype_fromtext(dns_rdatatype_t *typep, isc_textregion_t *source) {
 	 * to return a result to the caller if it is a valid (known)
 	 * rdatatype name.
 	 */
-	RDATATYPE_FROMTEXT_SW(hash, source->base, typep);
+	RDATATYPE_FROMTEXT_SW(hash, source->base, n, typep);
 
-	if (source->length > 4 && strncasecmp("type", source->base, 4) == 0) {
+	if (source->length > 4 && source->length < (4 + sizeof("65000")) &&
+	    strncasecmp("type", source->base, 4) == 0) {
+		char buf[sizeof("65000")];
 		char *endp;
-		int val = strtol(source->base + 4, &endp, 10);
-		if (*endp == '\0' && val >= 0 && val <= 0xffff) {
+		unsigned int val;
+
+		strncpy(buf, source->base + 4, source->length - 4);
+		buf[source->length - 4] = '\0';
+		val = strtoul(buf, &endp, 10);
+		if (*endp == '\0' && val <= 0xffff) {
 			*typep = (dns_rdatatype_t)val;
 			return (ISC_R_SUCCESS);
 		}

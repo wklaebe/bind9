@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1998-2001  Internet Software Consortium.
+ * Copyright (C) 1998-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: lex.c,v 1.66.2.3 2001/12/13 06:17:34 bwelling Exp $ */
+/* $Id: lex.c,v 1.66.2.5 2002/03/26 00:55:07 marka Exp $ */
 
 #include <config.h>
 
@@ -812,6 +812,8 @@ isc_lex_getmastertoken(isc_lex_t *lex, isc_token_t *token,
 		if (token->type == isc_tokentype_eol ||
 		    token->type == isc_tokentype_eof)
 			return (ISC_R_UNEXPECTEDEND);
+		if (expect == isc_tokentype_number)
+			return (ISC_R_BADNUMBER);
 		return (ISC_R_UNEXPECTEDTOKEN);
 	}
 	return (ISC_R_SUCCESS);

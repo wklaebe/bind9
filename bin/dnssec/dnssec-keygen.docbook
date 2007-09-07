@@ -1,8 +1,8 @@
-<!DOCTYPE book PUBLIC "-//OASIS//DTD DocBook XML V4.0//EN"
-               "http://www.oasis-open.org/docbook/xml/4.0/docbookx.dtd"
+<!DOCTYPE book PUBLIC "-//OASIS//DTD DocBook XML V4.2//EN"
+               "http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd"
 	       [<!ENTITY mdash "&#8212;">]>
 <!--
- - Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004, 2005, 2007  Internet Systems Consortium, Inc. ("ISC")
  - Copyright (C) 2000, 2001  Internet Software Consortium.
  -
  - Permission to use, copy, modify, and distribute this software for any
@@ -18,7 +18,7 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<!-- $Id: dnssec-keygen.docbook,v 1.3.2.4 2005/05/12 21:35:07 sra Exp $ -->
+<!-- $Id: dnssec-keygen.docbook,v 1.3.2.7 2007/05/09 02:11:44 marka Exp $ -->
 
 <refentry>
   <refentryinfo>
@@ -35,6 +35,7 @@
     <copyright>
       <year>2004</year>
       <year>2005</year>
+      <year>2007</year>
       <holder>Internet Systems Consortium, Inc. ("ISC")</holder>
     </copyright>
     <copyright>
@@ -258,7 +259,7 @@
       </listitem>
     </itemizedlist>
     <para>
-        <command>dnssec-keygen</command> creates two file, with names based
+        <command>dnssec-keygen</command> creates two files, with names based
 	on the printed string.  <filename>Knnnn.+aaa+iiiii.key</filename>
 	contains the public key, and
 	<filename>Knnnn.+aaa+iiiii.private</filename> contains the private
@@ -270,13 +271,13 @@
 	statement).
     </para>
     <para>
-        The <filename>.private</filename> file contains algorithm specific
+        The <filename>.private</filename> file contains algorithm-specific
 	fields.  For obvious security reasons, this file does not have
 	general read permission.
     </para>
     <para>
         Both <filename>.key</filename> and <filename>.private</filename>
-	files are generated for symmetric encryption algorithm such as
+	files are generated for symmetric encryption algorithms such as
 	HMAC-MD5, even though the public and private key are equivalent.
     </para>
   </refsect1>
@@ -300,7 +301,7 @@
     <para>
         In this example, <command>dnssec-keygen</command> creates
 	the files <filename>Kexample.com.+003+26160.key</filename> and
-	<filename>Kexample.com.+003+26160.private</filename>
+	<filename>Kexample.com.+003+26160.private</filename>.
     </para>
   </refsect1>
 

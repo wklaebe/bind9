@@ -1,7 +1,155 @@
 
+	--- 9.2.9b1 released ---
+
+2208.	[port]		win32: make sure both build methods produce the
+			same output. [RT #17058]
+
+2205.	[bug]		libbind: change #2119 broke thread support. [RT #16982]
+
+2203.	[security]	Query id generation was cryptographically weak.
+			[RT # 16915]
+
+2199.	[bug]		win32: don't call WSAStartup() while loading dlls.
+			[RT #16911]
+
+2198.	[bug]		win32: RegCloseKey() could be called when
+			RegOpenKeyEx() failed. [RT #16911]
+
+2197.	[bug]		Add INSIST to catch negative responses which are
+			not setting the event result code appropriately.
+			[RT #16909]
+
+2196.	[port]		win32: yield processor while waiting for once to
+			to complete. [RT #16958]
+
+2194.	[bug]		Close journal before calling 'done' in xfrin.c.
+
+2193.	[port]		win32: BINDInstall.exe is now linked statically.
+			[RT #16906]
+
+2192.	[port]		win32: use vcredist_x86.exe to install Visual
+			Studio's redistributable dlls if building with
+			Visual Stdio 2005 or later.
+
+2189.	[bug]		Handle socket() returning EINTR. [RT #15949]
+
+2186.	[port]		cygwin: libbind: check for struct sockaddr_storage
+			independently of IPv6. [RT #16482]
+
+2185.	[port]		sunos: libbind: check for ssize_t, memmove() and
+			memchr(). [RT #16463]
+
+2182.	[bug]		dns_dispatch_createtcp() and dispatch_createudp()
+			could return ISC_R_SUCCESS when they ran out of
+			memory. [RT #16365]
+
+2181.	[port]		sunos: libbind: add paths.h from BIND 8. [RT #16462]
+
+2177.	[bug]		Array bounds overrun on read (rcodetext). [RT #16798]
+
+2176.	[contrib]	dbus update to handle race condition during
+			initialisation (Bugzilla 235809). [RT #16842]
+
+2175.	[bug]		win32: windows broadcast condition variable support
+			was broken. [RT #16592]
+
+2174.	[bug]		I/O errors should always be fatal when reading
+			master files. [RT #16825]
+
+2173.	[port]		win32: When compiling with MSVS 2005 SP1 we also
+			need to ship Microsoft.VC80.MFCLOC.
+
+2172.	[bug]		query_addsoa() was being called with a non zone db.
+			[RT #16834]
+
+2169.	[bug]		host, nslookup: when reporting NXDOMAIN report the
+			given name and not the last name searched for.
+			[RT #16763]
+
+2168.	[bug]		nsupdate: in non-interactive mode treat syntax errors
+			as fatal errors. [RT #16785]
+
+2166.	[bug]		When running in batch mode, dig could misinterpret
+			a server address as a name to be looked up, causing
+			unexpected output. [RT #16743]
+
+2161.	[bug]		'rndc flush' could report a false success. [RT #16698]
+
+2156.	[bug]		Fix node reference leaks in lookup.c:lookup_find(),
+			resolver.c:validated() and resolver.c:cache_name().
+			Make lookup.c:lookup_find() robust against
+			event leaks. [RT #16685]
+
+2155.	[contrib]	SQLite sdb module from jaboydjr@netwalk.com.
+			[RT #16694]
+
+2151.	[bug]		Missing newline in usage message for journalprint.
+			[RT #16679]
+
+2147.	[bug]		libbind: remove potential buffer overflow from
+			hmac_link.c. [RT #16437]
+
+2146.	[cleanup]	Silence Linux's spurious "obsolete setsockopt
+			SO_BSDCOMPAT" message. [RT #16641]
+
+2143.	[bug]		We failed to restart the IPv6 client when the
+			kernel failed to return the destination the
+			packet was sent to. [RT #16613]
+
+2142.	[bug]		Handle master files with a modification time that
+			matches the epoch. [RT# 16612]
+
+2140.	[bug]		libbind: missing unlock on pthread_key_create()
+			failures. [RT #16654]
+
+2139.	[bug]		dns_view_find() was being called with wrong type
+			in adb.c. [RT #16670]
+
+2136.	[bug]		nslookup/host looped if there was no search list
+			and the host didn't exist. [RT #16657]
+
+2132.	[bug]		Missing unlock on out of memory in
+			dns_dispatchmgr_setudp().
+
+2128.	[doc]		xsltproc --nonet, update DTD versions.  [RT #16635]
+
+2127.	[port]		Improved OpenSSL 0.9.8 support. [RT #16563]
+
+2120.	[doc]		Fix markup on nsupdate man page. [RT #16556]
+
+2119.	[compat]	libbind: allow res_init() to succeed enough to
+			return the default domain even if it was unable
+			to allocate memory.
+
+2118.	[bug]		Handle response with long chains of domain name
+			compression pointers which point to other compression
+			pointers. [RT #16427]
+
+2116.	[bug]		'rndc reload' could cause the cache to continually
+			be cleaned. [RT #16401]
+
+2115.	[bug]		'rndc reconfig' could trigger a INSIST if the
+			number of masters for a zone was reduced. [RT #16444]
+
+2114.	[bug]		dig/host/nslookup: searches for names with multiple
+			labels were failing. [RT #16447]
+
+2113.	[bug]		nsupdate: if a zone is specified it should be used
+			for server discover. [RT# 16455]
+			
+2112.	[security]	Warn if weak RSA exponent is used. [RT #16460]
+
+2111.	[bug]		Fix a number of errors reported by Coverity.
+			[RT #16507]
+
+2110.	[bug]		"minimal-response yes;" interacted badly with BIND 8
+			priming queries. [RT #16491]
+
+2109.	[port]		libbind: silence aix 5.3 compiler warnings. [RT #16502]
+
 	--- 9.2.8 released ---
 
-2126.	[securityt]	Serialise validation of type ANY responses. [RT #16555]
+2126.	[security]	Serialise validation of type ANY responses. [RT #16555]
 
 	--- 9.2.7 released ---
 
@@ -194,7 +342,7 @@
 			hex strings with comments. [RT #15814]
 
 1974.	[doc]		List each of the zone types and associated zone
-			options seperately in the ARM.
+			options separately in the ARM.
 
 1972.	[contrib]	DBUS dynamic forwarders integation from
 			Jason Vas Dias <jvdias@redhat.com>.
@@ -4711,7 +4859,7 @@
 			and has been removed.
 
  170.	[cleanup]	Remove inter server consistancy checks from zone,
-			these should return as a seperate module in 9.1.
+			these should return as a separate module in 9.1.
 			dns_zone_checkservers(), dns_zone_checkparents(),
 			dns_zone_checkchildren(), dns_zone_checkglue().
 

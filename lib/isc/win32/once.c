@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2007  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: once.c,v 1.9.2.1 2004/03/09 06:12:19 marka Exp $ */
+/* $Id: once.c,v 1.9.2.3 2007/06/18 23:45:27 tbox Exp $ */
 
 /* Principal Authors: DCL */
 
@@ -41,8 +41,11 @@ isc_once_do(isc_once_t *controller, void(*function)(void)) {
 		} else {
 			while (controller->status == ISC_ONCE_INIT_NEEDED) {
 				/*
-				 * Spin wait.
+				 * Sleep(0) indicates that this thread 
+				 * should be suspended to allow other 
+				 * waiting threads to execute.
 				 */
+				Sleep(0);
 			}
 		}
 	}

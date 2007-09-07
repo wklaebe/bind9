@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2007  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,13 +15,11 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: DLLMain.c,v 1.3.2.2 2004/03/09 06:12:16 marka Exp $ */
+/* $Id: DLLMain.c,v 1.3.2.4 2007/06/18 23:45:27 tbox Exp $ */
 
 #include <windows.h>
 #include <stdio.h>
 
-BOOL InitSockets(void);
- 
 /*
  * Called when we enter the DLL
  */
@@ -35,8 +33,6 @@ __declspec(dllexport) BOOL WINAPI DllMain(HINSTANCE hinstDLL,
 	 * initialization or a call to LoadLibrary. 
 	 */
 	case DLL_PROCESS_ATTACH: 
-		if (!InitSockets())
-			return (FALSE);
 		break; 
  
 	/* The attached process creates a new thread.  */

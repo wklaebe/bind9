@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rbtdb.c,v 1.168.2.26 2006/03/02 23:16:56 marka Exp $ */
+/* $Id: rbtdb.c,v 1.168.2.28 2007/02/06 00:01:22 marka Exp $ */
 
 /*
  * Principal Author: Bob Halley
@@ -69,6 +69,14 @@
 
 #ifdef DNS_RBTDB_VERSION64
 typedef isc_uint64_t			rbtdb_serial_t;
+/*%
+ * Make casting easier in symbolic debuggers by using different names
+ * for the 64 bit version.
+ */
+#define dns_rbtdb_t dns_rbtdb64_t
+#define rdatasetheader_t rdatasetheader64_t
+#define rbtdb_version_t rbtdb_version64_t
+#define rbtdb_search_t rbtdb_search64_t
 #else
 typedef isc_uint32_t			rbtdb_serial_t;
 #endif

@@ -1,8 +1,8 @@
-<!DOCTYPE book PUBLIC "-//OASIS//DTD DocBook XML V4.0//EN"
-               "http://www.oasis-open.org/docbook/xml/4.0/docbookx.dtd"
+<!DOCTYPE book PUBLIC "-//OASIS//DTD DocBook XML V4.2//EN"
+               "http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd"
 	       [<!ENTITY mdash "&#8212;">]>
 <!--
- - Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
  - Copyright (C) 2000, 2001, 2003  Internet Software Consortium.
  -
  - Permission to use, copy, modify, and distribute this software for any
@@ -18,7 +18,7 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<!-- $Id: nsupdate.docbook,v 1.8.2.9 2005/05/12 21:35:11 sra Exp $ -->
+<!-- $Id: nsupdate.docbook,v 1.8.2.14 2007/05/09 02:11:44 marka Exp $ -->
 
 <refentry>
 <refentryinfo>
@@ -34,6 +34,8 @@
     <copyright>
       <year>2004</year>
       <year>2005</year>
+      <year>2006</year>
+      <year>2007</year>
       <holder>Internet Systems Consortium, Inc. ("ISC")</holder>
     </copyright>
     <copyright>
@@ -107,7 +109,7 @@ HMAC-MD5, which is defined in RFC 2104.
 Once other algorithms are defined for TSIG, applications will need to
 ensure they select the appropriate algorithm as well as the key when
 authenticating each other.
-For instance suitable
+For instance, suitable
 <type>key</type>
 and
 <type>server</type>
@@ -202,11 +204,9 @@ name server.
 The command formats and their meaning are as follows:
 <variablelist>
 <varlistentry><term>
-<cmdsynopsis>
 <command>server</command>
 <arg choice="req">servername</arg>
 <arg choice="opt">port</arg>
-</cmdsynopsis>
 </term>
 <listitem>
 <para>
@@ -228,11 +228,9 @@ used.
 </varlistentry>
 
 <varlistentry><term>
-<cmdsynopsis>
 <command>local</command>
 <arg choice="req">address</arg>
 <arg choice="opt">port</arg>
-</cmdsynopsis>
 </term>
 <listitem>
 <para>
@@ -250,10 +248,8 @@ If no port number is specified, the system will assign one.
 </varlistentry>
 
 <varlistentry><term>
-<cmdsynopsis>
 <command>zone</command>
 <arg choice="req">zonename</arg>
-</cmdsynopsis>
 </term>
 <listitem>
 <para>
@@ -269,30 +265,26 @@ will attempt determine the correct zone to update based on the rest of the input
 </varlistentry>
 
 <varlistentry><term>
-<cmdsynopsis>
 <command>class</command>
 <arg choice="req">classname</arg>
-</cmdsynopsis>
 </term>
 <listitem>
 <para>
 Specify the default class.
-If no <parameter>class</parameter> is specified the default class is
+If no <parameter>class</parameter> is specified, the default class is
 <parameter>IN</parameter>.
 </para>
 </listitem>
 </varlistentry>
 
 <varlistentry><term>
-<cmdsynopsis>
 <command>key</command>
 <arg choice="req">name</arg>
 <arg choice="req">secret</arg>
-</cmdsynopsis>
 </term>
 <listitem>
 <para>
-Specifies that all updates are to be TSIG signed using the
+Specifies that all updates are to be TSIG-signed using the
 <parameter>keyname</parameter> <parameter>keysecret</parameter> pair.
 The <command>key</command> command
 overrides any key specified on the command line via
@@ -302,10 +294,8 @@ overrides any key specified on the command line via
 </varlistentry>
 
 <varlistentry><term>
-<cmdsynopsis>
 <command>prereq nxdomain</command>
 <arg choice="req">domain-name</arg>
-</cmdsynopsis>
 </term>
 <listitem>
 <para>
@@ -317,10 +307,8 @@ Requires that no resource record of any type exists with name
 
 
 <varlistentry><term>
-<cmdsynopsis>
 <command>prereq yxdomain</command>
 <arg choice="req">domain-name</arg>
-</cmdsynopsis>
 </term>
 <listitem>
 <para>
@@ -332,12 +320,10 @@ exists (has as at least one resource record, of any type).
 </varlistentry>
 
 <varlistentry><term>
-<cmdsynopsis>
 <command>prereq nxrrset</command>
 <arg choice="req">domain-name</arg>
 <arg choice="opt">class</arg>
 <arg choice="req">type</arg>
-</cmdsynopsis>
 </term>
 <listitem>
 <para>
@@ -355,12 +341,10 @@ is omitted, IN (internet) is assumed.
 
 
 <varlistentry><term>
-<cmdsynopsis>
 <command>prereq yxrrset</command>
 <arg choice="req">domain-name</arg>
 <arg choice="opt">class</arg>
 <arg choice="req">type</arg>
-</cmdsynopsis>
 </term>
 <listitem>
 <para>
@@ -378,13 +362,11 @@ is omitted, IN (internet) is assumed.
 </varlistentry>
 
 <varlistentry><term>
-<cmdsynopsis>
 <command>prereq yxrrset</command>
 <arg choice="req">domain-name</arg>
 <arg choice="opt">class</arg>
 <arg choice="req">type</arg>
 <arg choice="req" rep="repeat">data</arg>
-</cmdsynopsis>
 </term>
 <listitem>
 <para>
@@ -412,13 +394,11 @@ RDATA.
 </varlistentry>
 
 <varlistentry><term>
-<cmdsynopsis>
 <command>update delete</command>
 <arg choice="req">domain-name</arg>
 <arg choice="opt">ttl</arg>
 <arg choice="opt">class</arg>
 <arg choice="opt">type <arg choice="opt" rep="repeat">data</arg></arg>
-</cmdsynopsis>
 </term>
 <listitem>
 <para>
@@ -439,14 +419,12 @@ is ignored, and is only allowed for compatibility.
 </varlistentry>
 
 <varlistentry><term>
-<cmdsynopsis>
 <command>update add</command>
 <arg choice="req">domain-name</arg>
 <arg choice="req">ttl</arg>
 <arg choice="opt">class</arg>
 <arg choice="req">type</arg>
 <arg choice="req" rep="repeat">data</arg>
-</cmdsynopsis>
 </term>
 <listitem>
 <para>
@@ -460,9 +438,7 @@ and
 </varlistentry>
 
 <varlistentry><term>
-<cmdsynopsis>
 <command>show</command>
-</cmdsynopsis>
 </term>
 <listitem>
 <para>
@@ -473,9 +449,7 @@ updates specified since the last send.
 </varlistentry>
 
 <varlistentry><term>
-<cmdsynopsis>
 <command>send</command>
-</cmdsynopsis>
 </term>
 <listitem>
 <para>
@@ -516,10 +490,10 @@ master name server for
 Any A records for
 <type>oldhost.example.com</type>
 are deleted.
-and an A record for
+And an A record for
 <type>newhost.example.com</type>
-it IP address 172.16.1.1 is added.
-The newly-added record has a 1 day TTL (86400 seconds)
+with IP address 172.16.1.1 is added.
+The newly-added record has a 1 day TTL (86400 seconds).
 <programlisting>
 # nsupdate
 > prereq nxdomain nickname.example.com

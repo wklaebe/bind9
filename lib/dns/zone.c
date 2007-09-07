@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: zone.c,v 1.333.2.44 2006/05/18 02:30:20 marka Exp $ */
+/* $Id: zone.c,v 1.333.2.48 2007/02/26 23:45:24 tbox Exp $ */
 
 #include <config.h>
 
@@ -945,6 +945,7 @@ zone_load(dns_zone_t *zone, unsigned int flags) {
 			result = isc_file_getmodtime(zone->masterfile,
 						     &filetime);
 			if (result == ISC_R_SUCCESS &&
+			    DNS_ZONE_FLAG(zone, DNS_ZONEFLG_LOADED) &&
 			    isc_time_compare(&filetime, &zone->loadtime) <= 0) {
 				dns_zone_log(zone, ISC_LOG_DEBUG(1),
 					     "skipping load: master file older "
@@ -1158,6 +1159,59 @@ zone_startload(dns_db_t *db, dns_zone_t *zone, isc_time_t loadtime) {
 	return (result);
 }
 
+/*
+ * OpenSSL verification of RSA keys with exponent 3 is known to be
+ * broken prior OpenSSL 0.9.8c/0.9.7k.  Look for such keys and warn
+ * if they are in use.
+ */
+static void
+zone_check_keys(dns_zone_t *zone, dns_db_t *db) {
+	dns_dbnode_t *node = NULL;
+	dns_dbversion_t *version = NULL;
+	dns_rdata_key_t key;
+	dns_rdata_t rdata = DNS_RDATA_INIT;
+	dns_rdataset_t rdataset;
+	isc_result_t result;
+
+	result = dns_db_findnode(db, &zone->origin, ISC_FALSE, &node);
+	if (result != ISC_R_SUCCESS)
+		goto cleanup;
+
+	dns_db_currentversion(db, &version);
+	dns_rdataset_init(&rdataset);
+	result = dns_db_findrdataset(db, node, version, dns_rdatatype_key,
+				     dns_rdatatype_none, 0, &rdataset, NULL);
+	if (result != ISC_R_SUCCESS)
+		goto cleanup;
+
+	for (result = dns_rdataset_first(&rdataset);
+	     result == ISC_R_SUCCESS;
+	     result = dns_rdataset_next(&rdataset)) 
+	{
+		dns_rdataset_current(&rdataset, &rdata);
+		result = dns_rdata_tostruct(&rdata, &key, NULL);
+		INSIST(result == ISC_R_SUCCESS);
+		
+		if (key.algorithm == DST_ALG_RSAMD5 && key.datalen > 1 &&
+		    key.data[0] == 1 && key.data[1] == 3)
+		{
+			dns_zone_log(zone, ISC_LOG_WARNING,
+				     "weak RSAMD5 (%u) key found "
+				     "(exponent=3)", key.algorithm);
+			break;
+		}
+		dns_rdata_reset(&rdata);
+	}
+	dns_rdataset_disassociate(&rdataset);
+
+ cleanup:
+	if (node != NULL)
+		dns_db_detachnode(db, &node);
+	if (version != NULL)
+		dns_db_closeversion(db, &version, ISC_FALSE);
+	
+}
+
 static isc_result_t
 zone_postload(dns_zone_t *zone, dns_db_t *db, isc_time_t loadtime,
 	      isc_result_t result)
@@ -1321,6 +1375,12 @@ zone_postload(dns_zone_t *zone, dns_db_t *db, isc_time_t loadtime,
 		goto cleanup;
 	}
 
+
+	/*
+	 * Check for weak KEY's.
+	 */
+	if (zone->type == dns_zone_master)
+		zone_check_keys(zone, db);
 
 #if 0
 	/* destroy notification example. */
@@ -1815,6 +1875,37 @@ dns_zone_setmasters(dns_zone_t *zone, const isc_sockaddr_t *masters,
 	return (result);
 }
 
+static isc_boolean_t
+same_masters(const isc_sockaddr_t *old, const isc_sockaddr_t *new,
+	     isc_uint32_t count)
+{
+	unsigned int i;
+
+	for (i = 0; i < count; i++)
+		if (!isc_sockaddr_equal(&old[i], &new[i]))
+			return (ISC_FALSE);
+	return (ISC_TRUE);
+}
+
+static isc_boolean_t
+same_keynames(dns_name_t **old, dns_name_t **new, isc_uint32_t count) {
+	unsigned int i;
+
+	if (old == NULL && new == NULL)
+		return (ISC_TRUE);
+	if (old == NULL || new == NULL)
+		return (ISC_FALSE);
+
+	for (i = 0; i < count; i++) {
+		if (old[i] == NULL && new[i] == NULL)
+			continue;
+		if (old[i] == NULL || new[i] == NULL ||
+		     !dns_name_equal(old[i], new[i]))
+			return (ISC_FALSE);
+	}
+	return (ISC_TRUE);
+}
+
 isc_result_t
 dns_zone_setmasterswithkeys(dns_zone_t *zone,
 			    const isc_sockaddr_t *masters,
@@ -1833,6 +1924,19 @@ dns_zone_setmasterswithkeys(dns_zone_t *zone,
 	}
 
 	LOCK_ZONE(zone);
+	/* 
+	 * The refresh code assumes that 'masters' wouldn't change under it.
+	 * If it will change then kill off any current refresh in progress
+	 * and update the masters info.  If it won't change then we can just
+	 * unlock and exit.
+	 */
+	if (count != zone->masterscnt ||
+	    !same_masters(zone->masters, masters, count) ||
+	    !same_keynames(zone->masterkeynames, keynames, count)) {
+		if (zone->request != NULL)
+			dns_request_cancel(zone->request);
+	} else
+		goto unlock;
 	if (zone->masters != NULL) {
 		isc_mem_put(zone->mctx, zone->masters,
 			    zone->masterscnt * sizeof *new);
@@ -3736,7 +3840,7 @@ ns_query(dns_zone_t *zone, dns_rdataset_t *soardataset, dns_stub_t *stub) {
 			char namebuf[DNS_NAME_FORMATSIZE];
 			dns_name_format(keyname, namebuf, sizeof(namebuf));
 			dns_zone_log(zone, ISC_LOG_ERROR,
-			             "unable to find key: %s", namebuf);
+				     "unable to find key: %s", namebuf);
 		}
 	}
 	if (key == NULL)
@@ -3789,7 +3893,7 @@ ns_query(dns_zone_t *zone, dns_rdataset_t *soardataset, dns_stub_t *stub) {
 	if (message != NULL)
 		dns_message_destroy(&message);
   unlock:
-        if (key != NULL)
+	if (key != NULL)
 		dns_tsigkey_detach(&key);
 	UNLOCK_ZONE(zone);
 	return;

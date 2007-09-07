@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: query.c,v 1.198.2.27 2006/05/18 03:19:09 marka Exp $ */
+/* $Id: query.c,v 1.198.2.30 2007/04/30 23:45:27 tbox Exp $ */
 
 #include <config.h>
 
@@ -671,7 +671,7 @@ query_getzonedb(ns_client_t *client, dns_name_t *name, unsigned int options,
 						      ISC_LOG_DEBUG(3),
 						      "%s approved", msg);
 				}
-		    	} else {
+			} else {
 				ns_client_aclmsg("query", name,
 						 client->view->rdclass,
 						 msg, sizeof(msg));
@@ -1387,7 +1387,7 @@ query_addadditional(void *arg, dns_name_t *name, dns_rdatatype_t qtype) {
 		 * we could raise the priority of glue records.
 		 */
 		eresult = query_addadditional(client, name, dns_rdatatype_key);
- 	} else if (type == dns_rdatatype_srv && trdataset != NULL) {
+	} else if (type == dns_rdatatype_srv && trdataset != NULL) {
 		/*
 		 * If we're adding SRV records to the additional data
 		 * section, it's helpful if we add the SRV additional data
@@ -3192,6 +3192,21 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype) 
 				 * an error unless we were searching for
 				 * glue.  Ugh.
 				 */
+				if (!is_zone) {
+					authoritative = ISC_FALSE;
+					dns_rdatasetiter_destroy(&rdsiter);
+					if (RECURSIONOK(client)) {
+						result = query_recurse(client,
+								       qtype,
+								       NULL,
+								       NULL);
+						if (result == ISC_R_SUCCESS)
+						    client->query.attributes |=
+							NS_QUERYATTR_RECURSING;
+						else
+						    QUERY_ERROR(DNS_R_SERVFAIL);					}
+					goto addauth;
+				}
 				/*
 				 * We were searching for SIG records in
 				 * a nonsecure zone.  Send a "no error,
@@ -3224,6 +3239,13 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype) 
 			sigrdatasetp = &sigrdataset;
 		else
 			sigrdatasetp = NULL;
+		/*  
+		 * BIND 8 priming queries need the additional section.
+		 */
+		if (is_zone && qtype == dns_rdatatype_ns &&
+		    dns_name_equal(client->query.qname, dns_rootname))
+			client->query.attributes &= ~NS_QUERYATTR_NOADDITIONAL;
+
 		query_addrrset(client, &fname, &rdataset, sigrdatasetp, dbuf,
 			       DNS_SECTION_ANSWER);
 		/*
@@ -3770,7 +3792,7 @@ synth_finish(ns_client_t *client, isc_result_t result) {
 static signed char ascii2hex[256] = {
 	-1, -1, -1, -1, -1, -1, -1, -1,	-1, -1, -1, -1, -1, -1, -1, -1,
 	-1, -1, -1, -1, -1, -1, -1, -1,	-1, -1, -1, -1, -1, -1, -1, -1,
-        -1, -1, -1, -1, -1, -1, -1, -1,	-1, -1, -1, -1, -1, -1, -1, -1,
+	-1, -1, -1, -1, -1, -1, -1, -1,	-1, -1, -1, -1, -1, -1, -1, -1,
 	 0,  1,  2,  3,  4,  5,  6,  7,  8,  9, -1, -1, -1, -1, -1, -1,
 	-1, 10, 11, 12, 13, 14, 15, -1,	-1, -1, -1, -1, -1, -1, -1, -1,
 	-1, -1, -1, -1, -1, -1, -1, -1,	-1, -1, -1, -1, -1, -1, -1, -1,

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: client.c,v 1.176.2.24 2006/07/22 01:09:04 marka Exp $ */
+/* $Id: client.c,v 1.176.2.28 2007/06/26 04:24:52 marka Exp $ */
 
 #include <config.h>
 
@@ -1087,7 +1087,7 @@ client_addopt(ns_client_t *client) {
 #endif
 
 	/*
-	 * No ENDS options in the default case.
+	 * No EDNS options in the default case.
 	 */
 	rdata->data = NULL;
 	rdata->length = 0;
@@ -1284,6 +1284,14 @@ client_request(isc_task_t *task, isc_event_t *event) {
 	}
 
 	/*
+	 * Hash the incoming request here as it is after
+	 * dns_dispatch_importrecv().
+	 */
+	dns_dispatch_hash(&client->now, sizeof(client->now));
+	dns_dispatch_hash(isc_buffer_base(buffer),
+			  isc_buffer_usedlength(buffer));
+
+	/*
 	 * It's a request.  Parse it.
 	 */
 	result = dns_message_parse(client->message, buffer, 0);
@@ -1344,7 +1352,7 @@ client_request(isc_task_t *task, isc_event_t *event) {
 		}
 
 		/*
-		 * Do we understand this version of ENDS?
+		 * Do we understand this version of EDNS?
 		 *
 		 * XXXRTH need library support for this!
 		 */
@@ -1393,6 +1401,7 @@ client_request(isc_task_t *task, isc_event_t *event) {
 					 "failed to get request's "
 					 "destination: %s",
 					 isc_result_totext(result));
+			ns_client_next(client, ISC_R_SUCCESS);
 			goto cleanup;
 		}
 	} else {

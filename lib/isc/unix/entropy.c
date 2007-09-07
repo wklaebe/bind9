@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: entropy.c,v 1.60.2.6 2005/07/12 05:47:53 marka Exp $ */
+/* $Id: entropy.c,v 1.60.2.8 2006/12/07 23:57:55 marka Exp $ */
 
 /*
  * This is the system depenedent part of the ISC entropy API.
@@ -349,9 +349,6 @@ isc_entropy_createfilesource(isc_entropy_t *ent, const char *fname) {
 	close(fd);
 
  errout:
-	if (source != NULL)
-		isc_mem_put(ent->mctx, source, sizeof(isc_entropysource_t));
-
 	UNLOCK(&ent->lock);
 
 	return (ret);

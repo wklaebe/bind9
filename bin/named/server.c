@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: server.c,v 1.339.2.37 2006/03/01 01:34:05 marka Exp $ */
+/* $Id: server.c,v 1.339.2.40 2007/04/03 23:42:54 tbox Exp $ */
 
 #include <config.h>
 
@@ -238,6 +238,12 @@ configure_view_dnsseckey(const cfg_obj_t *vconfig, const cfg_obj_t *key,
 	isc_buffer_usedregion(&keydatabuf, &r);
 	keystruct.datalen = r.length;
 	keystruct.data = r.base;
+
+	if (keystruct.algorithm == DST_ALG_RSAMD5 &&
+	    r.length > 1 && r.base[0] == 1 && r.base[1] == 3)
+		cfg_obj_log(key, ns_g_lctx, ISC_LOG_WARNING,
+			    "trusted key '%s' has a weak exponent",
+			    keynamestr);
 
 	CHECK(dns_rdata_fromstruct(NULL,
 				   keystruct.common.rdclass,
@@ -3136,7 +3142,8 @@ isc_result_t
 ns_server_flushcache(ns_server_t *server, char *args) {
 	char *ptr, *viewname;
 	dns_view_t *view;
-	isc_boolean_t flushed = ISC_FALSE;
+	isc_boolean_t flushed;
+	isc_boolean_t found;
 	isc_result_t result;
 
 	/* Skip the command name. */
@@ -3149,22 +3156,27 @@ ns_server_flushcache(ns_server_t *server, char *args) {
 
 	result = isc_task_beginexclusive(server->task);
 	RUNTIME_CHECK(result == ISC_R_SUCCESS);
+	flushed = ISC_TRUE;
+	found = ISC_FALSE;
 	for (view = ISC_LIST_HEAD(server->viewlist);
 	     view != NULL;
 	     view = ISC_LIST_NEXT(view, link))
 	{
 		if (viewname != NULL && strcasecmp(viewname, view->name) != 0)
 			continue;
+		found = ISC_TRUE;
 		result = dns_view_flushcache(view);
 		if (result != ISC_R_SUCCESS)
-			goto out;
-		flushed = ISC_TRUE;
+			flushed = ISC_FALSE;
 	}
-	if (flushed)
+	if (flushed && found) {
 		result = ISC_R_SUCCESS;
-	else
-		result = ISC_R_FAILURE;
- out:
+	} else {
+		if (!found)
+			result = ISC_R_NOTFOUND;
+		else
+			result = ISC_R_FAILURE;
+	}
 	isc_task_endexclusive(server->task);	
 	return (result);
 }

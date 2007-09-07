@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2007  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2001, 2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: db.h,v 1.67.2.4 2004/03/09 06:11:14 marka Exp $ */
+/* $Id: db.h,v 1.67.2.6 2007/03/06 02:10:58 tbox Exp $ */
 
 #ifndef DNS_DB_H
 #define DNS_DB_H 1
@@ -825,7 +825,7 @@ dns_db_attachnode(dns_db_t *db, dns_dbnode_t *source, dns_dbnode_t **targetp);
  *
  *	'source' is a valid node.
  *
- *	'targetp' points to a NULL dns_node_t *.
+ *	'targetp' points to a NULL dns_dbnode_t *.
  *
  * Ensures:
  *

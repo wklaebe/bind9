@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: client.c,v 1.176.2.13.4.28 2006/01/04 23:50:19 marka Exp $ */
+/* $Id: client.c,v 1.176.2.13.4.31 2006/07/22 01:09:38 marka Exp $ */
 
 #include <config.h>
 
@@ -291,8 +291,17 @@ exit_check(ns_client_t *client) {
 		}
 		/*
 		 * I/O cancel is complete.  Burn down all state
-		 * related to the current request.
+		 * related to the current request.  Ensure that
+		 * the client is on the active list and not the
+		 * recursing list.
 		 */
+		LOCK(&client->manager->lock);
+		if (client->list == &client->manager->recursing) {
+			ISC_LIST_UNLINK(*client->list, client, link);
+			ISC_LIST_APPEND(client->manager->active, client, link);
+			client->list = &client->manager->active;
+		}
+		UNLOCK(&client->manager->lock);
 		ns_client_endrequest(client);
 
 		client->state = NS_CLIENTSTATE_READING;
@@ -1309,6 +1318,7 @@ client_request(isc_task_t *task, isc_event_t *event) {
 			      NS_LOGMODULE_CLIENT, ISC_LOG_DEBUG(2),
 			      "dropping multicast request");
 		ns_client_next(client, DNS_R_REFUSED);
+		goto cleanup;
 	}
 
 	result = dns_message_peekheader(buffer, &id, &flags);
@@ -1599,12 +1609,15 @@ client_request(isc_task_t *task, isc_event_t *event) {
 	 * Decide whether recursive service is available to this client.
 	 * We do this here rather than in the query code so that we can
 	 * set the RA bit correctly on all kinds of responses, not just
-	 * responses to ordinary queries.
+	 * responses to ordinary queries.  Note if you can't query the
+	 * cache there is no point in setting RA.
 	 */
 	ra = ISC_FALSE;
 	if (client->view->resolver != NULL &&
 	    client->view->recursion == ISC_TRUE &&
 	    ns_client_checkaclsilent(client, client->view->recursionacl,
+				     ISC_TRUE) == ISC_R_SUCCESS &&
+	    ns_client_checkaclsilent(client, client->view->queryacl,
 				     ISC_TRUE) == ISC_R_SUCCESS)
 		ra = ISC_TRUE;
 
@@ -2430,4 +2443,21 @@ ns_client_dumprecursing(FILE *f, ns_clientmgr_t *manager) {
 		client = ISC_LIST_NEXT(client, link);
 	}
 	UNLOCK(&manager->lock);
+}
+
+void
+ns_client_qnamereplace(ns_client_t *client, dns_name_t *name) {
+
+	if (client->manager != NULL)
+		LOCK(&client->manager->lock);
+	if (client->query.restarts > 0) {
+		/*
+		 * client->query.qname was dynamically allocated.
+		 */
+		dns_message_puttempname(client->message,
+					&client->query.qname);
+	}
+	client->query.qname = name;
+	if (client->manager != NULL)
+		UNLOCK(&client->manager->lock);
 }

@@ -1,4 +1,78 @@
 
+	--- 9.3.3rc1 released ---
+
+2071.	[port]		Test whether gcc accepts -fno-strict-aliasing.
+			[RT #16324]
+
+2070.	[bug]		The remote address was not always displayed when
+			reporting dispatch failures. [RT #16315]
+
+2069.	[bug]		Cross compiling was not working. [RT #16330]
+
+2067.	[bug]		'rndc' could close the socket too early triggering
+			a INSIST under Windows. [RT #16317]
+
+2065.	[bug]		libbind: probe for HPUX prototypes for
+			endprotoent_r() and endservent_r().  [RT 16313]
+
+2064.	[bug]		libbind: silence AIX compiler warnings. [RT #16218]
+
+2063.	[bug]		Change #1955 introduced a bug which caused the first
+			'rndc flush' call to not free memory. [RT #16244]
+
+2062.	[bug]		'dig +nssearch' was reusing a buffer before it had
+			been returned by the socket code. [RT #16307]
+
+2057.	[bug]		Make setting "ra" dependent on both allow-query and
+			allow-recursion. [RT #16290]
+
+2056.	[bug]		dig: ixfr= was not being treated case insensitively
+			at all times. [RT #15955]
+
+2055.	[bug]		Missing goto after dropping multicast query.
+			[RT #15944]
+
+2054.	[port]		freebsd: do not explicitly link against -lpthread.
+			[RT #16170]
+
+2053.	[port]		netbsd:libbind: silence compiler warnings. [RT #16220]
+
+2052.	[bug]		'rndc' improve connect failed message to report
+			the failing address. [RT #15978]
+
+2051.	[port]		More strtol() fixes. [RT #16249]
+
+2050.	[bug]		Parsing of NSAP records was not case insensitive.
+			[RT #16287]
+
+2049.	[bug]		Restore SOA before AXFR when falling back from
+			a attempted IXFR when transfering in a zone.
+			Allow a initial SOA query before attempting
+			a AXFR to be requested. [RT #16156]
+
+2048.	[bug]		It was possible to loop forever when using
+			avoid-v4-udp-ports / avoid-v6-udp-ports when
+			the OS always returned the same local port.
+			[RT #16182]
+
+2047.	[bug]		Failed to initialise the interface flags to zero.
+			[RT #16245]
+
+2043.	[port]		nsupdate/nslookup: Force the flushing of the prompt
+			for interactive sessions. [RT#16148]
+
+2038.	[bug]		dig/nslookup/host was unlinking from wrong list
+			when handling errors. [RT #16122]
+
+2037.	[func]		When unlinking the first or last element in a list
+			check that the list head points to the element to
+			be unlinked. [RT #15959]
+
+2036.	[bug]		'rndc recursing' could cause trigger a REQUIRE.
+			[RT #16075]
+
+2034.	[bug]		gcc: set -fno-strict-aliasing. [RT #16124]
+
 	--- 9.3.3b1 released ---
 
 2031.	[bug]		Emit a error message when "rndc refresh" is called on

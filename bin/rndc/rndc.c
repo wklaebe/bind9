@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rndc.c,v 1.77.2.5.2.17 2006/03/02 00:37:20 marka Exp $ */
+/* $Id: rndc.c,v 1.77.2.5.2.19 2006/08/04 03:03:08 marka Exp $ */
 
 /*
  * Principal Author: DCL
@@ -154,6 +154,11 @@ rndc_senddone(isc_task_t *task, isc_event_t *event) {
 	if (sevent->result != ISC_R_SUCCESS)
 		fatal("send failed: %s", isc_result_totext(sevent->result));
 	isc_event_free(&event);
+	if (sends == 0 && recvs == 0) {
+		isc_socket_detach(&sock);
+		isc_task_shutdown(task);
+		RUNTIME_CHECK(isc_app_shutdown() == ISC_R_SUCCESS);
+	}
 }
 
 static void
@@ -204,9 +209,11 @@ rndc_recvdone(isc_task_t *task, isc_event_t *event) {
 
 	isc_event_free(&event);
 	isccc_sexpr_free(&response);
-	isc_socket_detach(&sock);
-	isc_task_shutdown(task);
-	RUNTIME_CHECK(isc_app_shutdown() == ISC_R_SUCCESS);
+	if (sends == 0 && recvs == 0) {
+		isc_socket_detach(&sock);
+		isc_task_shutdown(task);
+		RUNTIME_CHECK(isc_app_shutdown() == ISC_R_SUCCESS);
+	}
 }
 
 static void
@@ -288,6 +295,7 @@ rndc_recvnonce(isc_task_t *task, isc_event_t *event) {
 
 static void
 rndc_connected(isc_task_t *task, isc_event_t *event) {
+	char socktext[ISC_SOCKADDR_FORMATSIZE];
 	isc_socketevent_t *sevent = (isc_socketevent_t *)event;
 	isccc_sexpr_t *request = NULL;
 	isccc_sexpr_t *data;
@@ -301,17 +309,19 @@ rndc_connected(isc_task_t *task, isc_event_t *event) {
 	connects--;
 
 	if (sevent->result != ISC_R_SUCCESS) {
+		isc_sockaddr_format(&serveraddrs[currentaddr], socktext,
+				    sizeof(socktext));
 		if (sevent->result != ISC_R_CANCELED &&
-		    currentaddr < nserveraddrs)
+		    ++currentaddr < nserveraddrs)
 		{
-			notify("connection failed: %s",
+			notify("connection failed: %s: %s", socktext,
 			       isc_result_totext(sevent->result));
 			isc_socket_detach(&sock);
 			isc_event_free(&event);
-			rndc_startconnect(&serveraddrs[currentaddr++], task);
+			rndc_startconnect(&serveraddrs[currentaddr], task);
 			return;
 		} else
-			fatal("connect failed: %s",
+			fatal("connect failed: %s: %s", socktext,
 			      isc_result_totext(sevent->result));
 	}
 
@@ -369,7 +379,7 @@ rndc_start(isc_task_t *task, isc_event_t *event) {
 	get_addresses(servername, (in_port_t) remoteport);
 
 	currentaddr = 0;
-	rndc_startconnect(&serveraddrs[currentaddr++], task);
+	rndc_startconnect(&serveraddrs[currentaddr], task);
 }
 
 static void

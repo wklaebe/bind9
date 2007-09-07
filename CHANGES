@@ -1,4 +1,48 @@
 
+	--- 9.4.0rc1 released ---
+
+2118.	[bug]		Handle response with long chains of domain name
+			compression pointers which point to other compression
+			pointers. [RT #16427]
+
+2117.	[bug]		DNSSEC fixes: named could fail to cache NSEC records
+			which could lead to validation failures.  named didn't
+			handle negative DS responses that were in the process
+			of being validated.  Check CNAME bit before accepting
+			NODATA proof. To be able to ignore a child NSEC there
+			must be SOA (and NS) set in the bitmap. [RT #16399]
+
+2116.	[bug]		'rndc reload' could cause the cache to continually
+			be cleaned. [RT #16401]
+
+2115.	[bug]		'rndc reconfig' could trigger a INSIST if the
+			number of masters for a zone was reduced. [RT #16444]
+
+2114.	[bug]		dig/host/nslookup: searches for names with multiple
+			labels were failing. [RT #16447]
+
+2113.	[bug]		nsupdate: if a zone is specified it should be used
+			for server discover. [RT# 16455]
+
+2112.	[security]	Warn if weak RSA exponent is used. [RT #16460]
+
+2111.	[bug]		Fix a number of errors reported by Coverity.
+			[RT #16507]
+
+2110.	[bug]		"minimal-response yes;" interacted badly with BIND 8
+			priming queries. [RT #16491]
+
+2109.	[port]		libbind: silence aix 5.3 compiler warnings. [RT #16502]
+
+2107.	[bug]		dighost.c: more cleanup of buffers. [RT #16499]
+
+2104.	[port]		Fix Solaris SMF error message.
+
+2103.	[port]		Add /usr/sfw to list of locations for OpenSSL
+			under Solaris.
+
+2102.	[port]		Silence solaris 10 warnings.
+
 	--- 9.4.0b4 released ---
 
 2101.	[bug]		OpenSSL version checks were not quite right.

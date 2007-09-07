@@ -1,4 +1,24 @@
 
+	--- 9.1.1rc5 released ---
+
+ 778.	[bug]		When starting cache cleaning, cleaning_timer_action()
+			returned without first pausing the iterator, which
+			could cause deadlock. [RT #998]
+
+ 777.	[bug]		An empty forwarders list in a zone failed to override
+			global forwarders. [RT #995]
+
+ 775.   [bug]		Address match lists with invalid netmasks caused
+			the configuration parser to abort with an assertion
+			failure. [RT #996]
+
+ 772.	[bug]		Owner names could be incorrectly omitted from cache
+			dumps in the presence of negative caching entries.
+			[RT #991]
+
+ 686.   [bug]		dig and nslookup can now be properly aborted during
+			blocking operations. [RT #568]
+
 	--- 9.1.1rc4 released ---
 
  767.	[bug]		The configuration parser handled invalid ports badly.

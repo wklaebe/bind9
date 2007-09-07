@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: resource.c,v 1.6.2.1 2001/01/09 22:51:23 bwelling Exp $ */
+/* $Id: resource.c,v 1.6.2.3 2001/06/09 00:58:11 gson Exp $ */
 
 #include <config.h>
 
@@ -23,6 +23,7 @@
 #include <sys/time.h>	/* Required on some systems for <sys/resource.h>. */
 #include <sys/resource.h>
 
+#include <isc/platform.h>
 #include <isc/resource.h>
 #include <isc/result.h>
 #include <isc/util.h>
@@ -30,11 +31,7 @@
 #include "errno2result.h"
 
 #ifndef HAVE_RLIM_T
-/*
- * quad_t is right for BSD/OS, the only system for which the lack of rlim_t
- * has been observed so far.
- */
-typedef quad_t rlim_t;
+typedef ISC_PLATFORM_RLIMITTYPE rlim_t;
 #endif
 
 static isc_result_t
@@ -62,7 +59,11 @@ resource2rlim(isc_resource_t resource, int *rlim_resource) {
 #endif
 		break;
 	case isc_resource_openfiles:
+#ifdef RLIMIT_NOFILE
 		*rlim_resource = RLIMIT_NOFILE;
+#else
+		result = ISC_R_NOTIMPLEMENTED;
+#endif
 		break;
 	case isc_resource_processes:
 #ifdef RLIMIT_NPROC

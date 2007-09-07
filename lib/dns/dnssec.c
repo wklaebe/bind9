@@ -16,7 +16,7 @@
  */
 
 /*
- * $Id: dnssec.c,v 1.56.2.4 2001/04/17 17:37:20 gson Exp $
+ * $Id: dnssec.c,v 1.56.2.7 2001/06/14 13:56:40 gson Exp $
  */
 
 
@@ -168,11 +168,12 @@ dns_dnssec_sign(dns_name_t *name, dns_rdataset_t *set, dst_key_t *key,
 	dns_rdata_t tmpsigrdata;
 	dns_rdata_t *rdatas;
 	int nrdatas, i;
-	isc_buffer_t b, sigbuf, envbuf;
+	isc_buffer_t sigbuf, envbuf;
 	isc_region_t r;
 	dst_context_t *ctx = NULL;
 	isc_result_t ret;
-	unsigned char data[300];
+	isc_buffer_t *databuf = NULL;
+	char data[256 + 8];
 	isc_uint32_t flags;
 	unsigned int sigsize;
 	dns_fixedname_t fnewname;
@@ -219,20 +220,27 @@ dns_dnssec_sign(dns_name_t *name, dns_rdataset_t *set, dst_key_t *key,
 	if (ret != ISC_R_SUCCESS)
 		return (ret);
 	sig.siglen = sigsize;
+	/*
+	 * The actual contents of sig.signature are not important yet, since
+	 * they're not used in digest_sig().
+	 */
 	sig.signature = isc_mem_get(mctx, sig.siglen);
 	if (sig.signature == NULL)
 		return (ISC_R_NOMEMORY);
 
-	isc_buffer_init(&b, data, sizeof(data));
-	dns_rdata_init(&tmpsigrdata);
-	ret = dns_rdata_fromstruct(&tmpsigrdata, sig.common.rdclass,
-				   sig.common.rdtype, &sig, &b);
+	ret = isc_buffer_allocate(mctx, &databuf, sigsize + 256 + 18);
 	if (ret != ISC_R_SUCCESS)
 		goto cleanup_signature;
 
+	dns_rdata_init(&tmpsigrdata);
+	ret = dns_rdata_fromstruct(&tmpsigrdata, sig.common.rdclass,
+				   sig.common.rdtype, &sig, databuf);
+	if (ret != ISC_R_SUCCESS)
+		goto cleanup_databuf;
+
 	ret = dst_context_create(key, mctx, &ctx);
 	if (ret != ISC_R_SUCCESS)
-		goto cleanup_signature;
+		goto cleanup_databuf;
 
 	/*
 	 * Digest the SIG rdata.
@@ -309,6 +317,9 @@ cleanup_array:
 	isc_mem_put(mctx, rdatas, nrdatas * sizeof(dns_rdata_t));
 cleanup_context:
 	dst_context_destroy(&ctx);
+cleanup_databuf:
+	if (databuf != NULL)
+		isc_buffer_free(&databuf);
 cleanup_signature:
 	isc_mem_put(mctx, sig.signature, sig.siglen);
 
@@ -531,7 +542,7 @@ dns_dnssec_signmessage(dns_message_t *msg, dst_key_t *key) {
 	unsigned char header[DNS_MESSAGE_HEADERLEN];
 	isc_buffer_t headerbuf, databuf, sigbuf;
 	unsigned int sigsize;
-	isc_buffer_t *dynbuf;
+	isc_buffer_t *dynbuf = NULL;
 	dns_rdata_t *rdata;
 	dns_rdatalist_t *datalist;
 	dns_rdataset_t *dataset;
@@ -623,7 +634,6 @@ dns_dnssec_signmessage(dns_message_t *msg, dst_key_t *key) {
 
 	rdata = NULL;
 	RETERR(dns_message_gettemprdata(msg, &rdata));
-	dynbuf = NULL;
 	RETERR(isc_buffer_allocate(msg->mctx, &dynbuf, 1024));
 	RETERR(dns_rdata_fromstruct(rdata, dns_rdataclass_any,
 				    dns_rdatatype_sig, &sig, dynbuf));
@@ -679,12 +689,14 @@ dns_dnssec_verifymessage(isc_buffer_t *source, dns_message_t *msg,
 	REQUIRE(msg != NULL);
 	REQUIRE(key != NULL);
 
-	if (is_response(msg))
-		REQUIRE(msg->query != NULL);
-
 	mctx = msg->mctx;
 
 	msg->verify_attempted = 1;
+
+	if (is_response(msg)) {
+		if (msg->query == NULL)
+			return (DNS_R_UNEXPECTEDTSIG);
+	}
 
 	isc_buffer_usedregion(source, &source_r);
 

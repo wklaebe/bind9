@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: xfrin.c,v 1.109.2.3 2001/05/14 03:22:05 marka Exp $ */
+/* $Id: xfrin.c,v 1.109.2.5 2001/06/07 19:02:00 gson Exp $ */
 
 #include <config.h>
 
@@ -526,6 +526,13 @@ xfr_rr(dns_xfrin_ctx_t *xfr, dns_name_t *name, isc_uint32_t ttl,
 		break;
 
 	case XFRST_AXFR:
+		/*
+		 * Old BIND's sent cross class A records for non IN classes.
+		 */
+		if (rdata->type == dns_rdatatype_a &&
+		    rdata->rdclass != xfr->rdclass &&
+		    xfr->rdclass != dns_rdataclass_in)
+			break;
 		CHECK(axfr_putdata(xfr, DNS_DIFFOP_ADD, name, ttl, rdata));
 		if (rdata->type == dns_rdatatype_soa) {
 			CHECK(axfr_commit(xfr));
@@ -1099,6 +1106,7 @@ xfrin_recv_done(isc_task_t *task, isc_event_t *ev) {
 			FAIL(result);
 		xfrin_log(xfr, ISC_LOG_DEBUG(3), "got %s, retrying with AXFR",
 		       isc_result_totext(result));
+ try_axfr:
 		dns_message_destroy(&msg);
 		xfrin_reset(xfr);
 		xfr->reqtype = dns_rdatatype_soa;
@@ -1106,6 +1114,21 @@ xfrin_recv_done(isc_task_t *task, isc_event_t *ev) {
 		xfrin_start(xfr);
 		return;
 	}
+
+	/*
+	 * Does the server know about IXFR?  If it doesn't we will get
+	 * a message with a empty answer section or a potentially a CNAME /
+	 * DNAME, the later is handled by xfr_rr() which will return FORMERR
+	 * if the first RR in the answer section is not a SOA record.
+	 */
+	if (xfr->reqtype == dns_rdatatype_ixfr &&
+	    xfr->state == XFRST_INITIALSOA &&
+	    msg->counts[DNS_SECTION_ANSWER] == 0) {
+		xfrin_log(xfr, ISC_LOG_DEBUG(3),
+			  "empty answer section, retrying with AXFR");
+		goto try_axfr;
+	}
+
 
 	result = dns_message_checksig(msg, dns_zone_getview(xfr->zone));
 	if (result != ISC_R_SUCCESS) {

@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dighost.c,v 1.174.2.8 2001/04/26 18:20:47 gson Exp $ */
+/* $Id: dighost.c,v 1.174.2.11 2001/06/15 01:37:30 bwelling Exp $ */
 
 /*
  * Notice to programmers:  Do not use this code as an example of how to
@@ -158,6 +158,9 @@ recv_done(isc_task_t *task, isc_event_t *event);
 
 static void
 connect_timeout(isc_task_t *task, isc_event_t *event);
+
+static void
+launch_next_query(dig_query_t *query, isc_boolean_t include_question);
 
 char *
 next_token(char **stringp, const char *delim) {
@@ -1785,6 +1788,8 @@ connect_timeout(isc_task_t *task, isc_event_t *event) {
 		fputs(l->cmdline, stdout);
 		printf(";; connection timed out; no servers could be "
 		       "reached\n");
+		if (exitcode < 9)
+			exitcode = 9;
 		cancel_lookup(l);
 	}
 	UNLOCK_LOOKUP;
@@ -1850,11 +1855,13 @@ tcp_length_done(isc_task_t *task, isc_event_t *event) {
 	b = ISC_LIST_HEAD(sevent->bufferlist);
 	ISC_LIST_DEQUEUE(sevent->bufferlist, &query->lengthbuf, link);
 	length = isc_buffer_getuint16(b);
-	if (length > COMMSIZE) {
+	if (length == 0) {
 		isc_event_free(&event);
-		fatal("Length of %X was longer than I can handle!",
-		      length);
+		launch_next_query(query, ISC_FALSE);
+		UNLOCK_LOOKUP;
+		return;
 	}
+
 	/*
 	 * Even though the buffer was already init'ed, we need
 	 * to redo it now, to force the length we want.

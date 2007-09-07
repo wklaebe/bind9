@@ -1,4 +1,4 @@
-# Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
+# Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
 # Copyright (C) 1998-2003  Internet Software Consortium.
 #
 # Permission to use, copy, modify, and distribute this software for any
@@ -18,7 +18,7 @@ AC_DIVERT_PUSH(1)dnl
 esyscmd([sed "s/^/# /" COPYRIGHT])dnl
 AC_DIVERT_POP()dnl
 
-AC_REVISION($Revision: 1.294.2.23.2.51 $)
+AC_REVISION($Revision: 1.294.2.23.2.60 $)
 
 AC_INIT(lib/dns/name.c)
 AC_PREREQ(2.13)
@@ -416,6 +416,9 @@ case "$use_openssl" in
 			*-solaris*)
 				DNS_OPENSSL_LIBS="-L$use_openssl/lib -R$use_openssl/lib -lcrypto"
 				;;
+			*-hp-hpux*)
+				DNS_OPENSSL_LIBS="-L$use_openssl/lib -Wl,+b: -lcrypto"
+				;;
 			*)
 				DNS_OPENSSL_LIBS="-L$use_openssl/lib -lcrypto"
 				;;
@@ -462,6 +465,15 @@ shared library configuration (e.g., LD_LIBRARY_PATH).)],
 		[AC_MSG_RESULT(assuming it does work on target platform)]
 		)
 		 
+		AC_CHECK_FUNC(DH_generate_parameters,
+			      AC_DEFINE(HAVE_DH_GENERATE_PARAMETERS, 1,
+					[Define if libcrypto has DH_generate_parameters]))
+		AC_CHECK_FUNC(RSA_generate_key,
+			      AC_DEFINE(HAVE_RSA_GENERATE_KEY, 1,
+					[Define if libcrypto has RSA_generate_key]))
+		AC_CHECK_FUNC(DSA_generate_parameters,
+			      AC_DEFINE(HAVE_DSA_GENERATE_PARAMETERS, 1,
+					[Define if libcrypto has DSA_generate_parameters]))
 #
 #	OpenSSLDie is new with CERT CS-2002-23.  If we see it we have may
 #	have a patched library otherwise check that we are greater than
@@ -789,7 +801,7 @@ MKDEPCFLAGS="-M"
 IRIX_DNSSEC_WARNINGS_HACK=""
 
 if test "X$GCC" = "Xyes"; then
-	STD_CWARNINGS="$STD_CWARNINGS -W -Wall -Wmissing-prototypes -Wcast-qual -Wwrite-strings -Wformat"
+	STD_CWARNINGS="$STD_CWARNINGS -W -Wall -Wmissing-prototypes -Wcast-qual -Wwrite-strings -Wformat -Wpointer-arith"
 	case "$host" in
 	*-hp-hpux*)
 		LDFLAGS="-Wl,+vnocompatwarnings $LDFLAGS"
@@ -1567,11 +1579,11 @@ AC_SUBST(ISC_PLATFORM_NEEDMEMMOVE)
 
 AC_CHECK_FUNC(strtoul,
 	[ISC_PLATFORM_NEEDSTRTOUL="#undef ISC_PLATFORM_NEEDSTRTOUL"
-	 LWRES_PLATFORM_NEEDSTRTOUL="#undef ISC_PLATFORM_NEEDSTRTOUL"
+	 LWRES_PLATFORM_NEEDSTRTOUL="#undef LWRES_PLATFORM_NEEDSTRTOUL"
 	 GENRANDOMLIB=""],
 	[ISC_PLATFORM_NEEDSTRTOUL="#define ISC_PLATFORM_NEEDSTRTOUL 1"
-	 LWRES_PLATFORM_NEEDSTRTOUL="#define ISC_PLATFORM_NEEDSTRTOUL 1"
-	 "GENRANDOMLIB=${ISCLIBS}"])
+	 LWRES_PLATFORM_NEEDSTRTOUL="#define LWRES_PLATFORM_NEEDSTRTOUL 1"
+	 GENRANDOMLIB="${ISCLIBS}"])
 AC_SUBST(ISC_PLATFORM_NEEDSTRTOUL)
 AC_SUBST(LWRES_PLATFORM_NEEDSTRTOUL)
 AC_SUBST(GENRANDOMLIB)
@@ -1686,6 +1698,7 @@ AC_TRY_COMPILE([
 [optarg = 0;],
 [AC_MSG_RESULT(yes)],
 [AC_MSG_RESULT(no)
+GEN_NEED_OPTARG="-DNEED_OPTARG=1"
 AC_DEFINE(NEED_OPTARG, 1, [Defined if extern char *optarg is not declared.])])
 
 #
@@ -1746,6 +1759,17 @@ case "$host" in
 		;;
 	*)
 		;;
+esac
+
+#
+# Some hosts need msg_namelen to match the size of the socket structure.
+# Some hosts don't set msg_namelen appropriately on return from recvmsg().
+#
+case $host in
+*os2*|*hp-mpeix*)
+	AC_DEFINE(BROKEN_RECVMSG, 1,
+		  [Define if recvmsg() does not meet all of the BSD socket API specifications.])
+	;;
 esac
 
 #
@@ -1858,6 +1882,16 @@ case "$host" in
 	;;
 *) AC_DEFINE(PORT_NONBLOCK, O_NONBLOCK,
 	     [Sets which flag to pass to open/fcntl to make non-blocking (O_NDELAY/O_NONBLOCK).])
+	;;
+esac
+#
+# Solaris 2.5.1 and earlier cannot bind() then connect() a TCP socket.
+# This prevents the source address being set.
+#
+case "$host" in
+*-solaris2.[[012345]]|*-solaris2.5.1)
+	AC_DEFINE(BROKEN_TCP_BIND_BEFORE_CONNECT, 1,
+		  [Define if you cannot bind() before connect() for TCP sockets.])
 	;;
 esac
 #
@@ -2035,6 +2069,28 @@ LIBBIND9_API=$srcdir/lib/bind9/api
 
 AC_SUBST_FILE(LIBLWRES_API)
 LIBLWRES_API=$srcdir/lib/lwres/api
+
+if test "cross_compiling" = "yes"; then
+	if test -z "$BUILD_CC"; then
+		AC_ERROR([BUILD_CC not set])
+	fi
+	BUILD_CFLAGS="$BUILD_CFLAGS"
+	BUILD_CPPFLAGS="$BUILD_CPPFLAGS"
+	BUILD_LDFLAGS="$BUILD_LDFLAGS"
+	BUILD_LIBS="$BUILD_LIBS"
+else
+	BUILD_CC="$CC" 
+	BUILD_CFLAGS="$CFLAGS" 
+	BUILD_CPPFLAGS="$CPPFLAGS $GEN_NEED_OPTARG"
+	BUILD_LDFLAGS="$LDFLAGS"
+	BUILD_LIBS="$LIBS"
+fi
+
+AC_SUBST(BUILD_CC)
+AC_SUBST(BUILD_CFLAGS)
+AC_SUBST(BUILD_CPPFLAGS)
+AC_SUBST(BUILD_LDFLAGS)
+AC_SUBST(BUILD_LIBS)
 
 AC_OUTPUT(
 	make/rules

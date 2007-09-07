@@ -332,7 +332,7 @@ getaddrinfo(hostname, servname, hints, res)
 	pai->ai_family = PF_UNSPEC;
 	pai->ai_socktype = ANY;
 	pai->ai_protocol = ANY;
-#ifdef __sparcv9
+#if defined(sun) && defined(_SOCKLEN_T) && defined(__sparcv9)
 	/*
 	 * clear _ai_pad to preserve binary
 	 * compatibility with previously compiled 64-bit
@@ -340,7 +340,7 @@ getaddrinfo(hostname, servname, hints, res)
 	 * guaranteeing the upper 32-bits are empty.
 	 */
 	pai->_ai_pad = 0;
-#endif /* __sparcv9 */
+#endif
 	pai->ai_addrlen = 0;
 	pai->ai_canonname = NULL;
 	pai->ai_addr = NULL;
@@ -365,7 +365,7 @@ getaddrinfo(hostname, servname, hints, res)
 		}
 		memcpy(pai, hints, sizeof(*pai));
 
-#ifdef __sparcv9
+#if defined(sun) && defined(_SOCKLEN_T) && defined(__sparcv9)
 		/*
 		 * We need to clear _ai_pad to preserve binary
 		 * compatibility.  See prior comment.
@@ -575,10 +575,6 @@ getaddrinfo(hostname, servname, hints, res)
 	}
 
 	freeaddrinfo(afai);	/* afai must not be NULL at this point. */
-
-	/* we must not have got any errors. */
-	if (error != 0) /* just for diagnosis */
-		abort();
 
 	if (sentinel.ai_next) {
 good:
@@ -804,7 +800,7 @@ explore_numeric(pai, hostname, servname, res)
 			    pai->ai_family == PF_UNSPEC /*?*/) {
 				GET_AI(cur->ai_next, afd, pton);
 				GET_PORT(cur->ai_next, servname);
-				while (cur && cur->ai_next)
+				while (cur->ai_next)
 					cur = cur->ai_next;
 			} else
 				ERR(EAI_FAMILY);	/*xxx*/
@@ -817,7 +813,7 @@ explore_numeric(pai, hostname, servname, res)
 			    pai->ai_family == PF_UNSPEC /*?*/) {
 				GET_AI(cur->ai_next, afd, pton);
 				GET_PORT(cur->ai_next, servname);
-				while (cur && cur->ai_next)
+				while (cur->ai_next)
 					cur = cur->ai_next;
 			} else
 				ERR(EAI_FAMILY);	/*xxx*/
@@ -1202,7 +1198,7 @@ hostent2addrinfo(hp, pai)
 			 */
 			GET_CANONNAME(cur->ai_next, hp->h_name);
 		}
-		while (cur && cur->ai_next) /* no need to loop, actually. */
+		while (cur->ai_next) /* no need to loop, actually. */
 			cur = cur->ai_next;
 		continue;
 

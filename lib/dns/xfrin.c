@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: xfrin.c,v 1.124.2.4.2.12 2005/11/03 23:08:41 marka Exp $ */
+/* $Id: xfrin.c,v 1.124.2.4.2.15 2006/01/04 23:50:20 marka Exp $ */
 
 #include <config.h>
 
@@ -797,7 +797,18 @@ xfrin_create(isc_mem_t *mctx,
 	return (ISC_R_SUCCESS);
 
  failure:
-	xfrin_fail(xfr, result, "failed creating transfer context");
+	if (xfr->timer != NULL)
+		isc_timer_detach(&xfr->timer);
+	if (dns_name_dynamic(&xfr->name))
+		dns_name_free(&xfr->name, xfr->mctx);
+	if (xfr->tsigkey != NULL)
+		dns_tsigkey_detach(&xfr->tsigkey);
+	if (xfr->db != NULL)
+		dns_db_detach(&xfr->db);
+	isc_task_detach(&xfr->task);
+	dns_zone_idetach(&xfr->zone);
+	isc_mem_put(mctx, xfr, sizeof(*xfr));
+
 	return (result);
 }
 
@@ -808,7 +819,9 @@ xfrin_start(dns_xfrin_ctx_t *xfr) {
 				isc_sockaddr_pf(&xfr->sourceaddr),
 				isc_sockettype_tcp,
 				&xfr->socket));
+#ifndef BROKEN_TCP_BIND_BEFORE_CONNECT
 	CHECK(isc_socket_bind(xfr->socket, &xfr->sourceaddr));
+#endif
 	CHECK(isc_socket_connect(xfr->socket, &xfr->masteraddr, xfr->task,
 				 xfrin_connect_done, xfr));
 	xfr->connects++;

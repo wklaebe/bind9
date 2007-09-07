@@ -265,9 +265,22 @@ Building
 		Enable DNSSEC signature chasing support in dig.
 		  -DDIG_SIGCHASE=1 (sets -DDIG_SIGCHASE_TD=1 and
 				    -DDIG_SIGCHASE_BU=1)
+		Disable dropping queries from particular well known ports.
+		  -DNS_CLIENT_DROPPORT=0
 
 	    LDFLAGS
 		Linker flags. Defaults to empty string.
+
+	The following need to be set when cross compiling.
+
+	    BUILD_CC
+		The native C compiler.
+	    BUILD_CFLAGS (optional)
+	    BUILD_CPPFLAGS (optional)
+		Possible Settings:
+		-DNEED_OPTARG=1		(optarg is not declared in <unistd.h>)
+	    BUILD_LDFLAGS (optional)
+	    BUILD_LIBS (optional)
 
 	To build shared libraries, specify "--with-libtool" on the
 	configure command line.

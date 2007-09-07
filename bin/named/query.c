@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: query.c,v 1.198.2.13.4.36 2005/08/11 05:25:20 marka Exp $ */
+/* $Id: query.c,v 1.198.2.13.4.41 2006/05/18 03:15:46 marka Exp $ */
 
 #include <config.h>
 
@@ -2091,17 +2091,31 @@ query_recurse(ns_client_t *client, dns_rdatatype_t qtype, dns_name_t *qdomain,
 		result = isc_quota_attach(&ns_g_server->recursionquota,
 					  &client->recursionquota);
 		if  (result == ISC_R_SOFTQUOTA) {
-			ns_client_log(client, NS_LOGCATEGORY_CLIENT,
-				      NS_LOGMODULE_QUERY, ISC_LOG_WARNING,
-				      "recursive-clients soft limit exceeded, "
-				      "aborting oldest query");
+			static isc_stdtime_t last = 0;
+			isc_stdtime_t now;
+			isc_stdtime_get(&now);
+			if (now != last) {
+				last = now;
+				ns_client_log(client, NS_LOGCATEGORY_CLIENT,
+					      NS_LOGMODULE_QUERY,
+					      ISC_LOG_WARNING,
+					      "recursive-clients soft limit "
+					      "exceeded, aborting oldest query");
+			}
 			ns_client_killoldestquery(client);
 			result = ISC_R_SUCCESS;
 		} else if (result == ISC_R_QUOTA) {
-			ns_client_log(client, NS_LOGCATEGORY_CLIENT,
-				      NS_LOGMODULE_QUERY, ISC_LOG_WARNING,
-				      "no more recursive clients: %s",
-				      isc_result_totext(result));
+			static isc_stdtime_t last = 0;
+			isc_stdtime_t now;
+			isc_stdtime_get(&now);
+			if (now != last) {
+				last = now;
+				ns_client_log(client, NS_LOGCATEGORY_CLIENT,
+					      NS_LOGMODULE_QUERY,
+					      ISC_LOG_WARNING,
+					      "no more recursive clients: %s",
+					      isc_result_totext(result));
+			}
 			ns_client_killoldestquery(client);
 		}
 		if (result == ISC_R_SUCCESS && !client->mortal &&
@@ -2182,7 +2196,7 @@ do { \
  *	ISC_R_NOTIMPLEMENTED	The rdata is not a known address type.
  */
 static isc_result_t
-rdata_tonetaddr(dns_rdata_t *rdata, isc_netaddr_t *netaddr) {
+rdata_tonetaddr(const dns_rdata_t *rdata, isc_netaddr_t *netaddr) {
 	struct in_addr ina;
 	struct in6_addr in6a;
 	
@@ -2208,7 +2222,7 @@ rdata_tonetaddr(dns_rdata_t *rdata, isc_netaddr_t *netaddr) {
  * sortlist statement.
  */
 static int
-query_sortlist_order_2element(dns_rdata_t *rdata, void *arg) {
+query_sortlist_order_2element(const dns_rdata_t *rdata, const void *arg) {
 	isc_netaddr_t netaddr;
 
 	if (rdata_tonetaddr(rdata, &netaddr) != ISC_R_SUCCESS)
@@ -2221,7 +2235,7 @@ query_sortlist_order_2element(dns_rdata_t *rdata, void *arg) {
  * of a 1-element top-level sortlist statement.
  */
 static int
-query_sortlist_order_1element(dns_rdata_t *rdata, void *arg) {
+query_sortlist_order_1element(const dns_rdata_t *rdata, const void *arg) {
 	isc_netaddr_t netaddr;
 
 	if (rdata_tonetaddr(rdata, &netaddr) != ISC_R_SUCCESS)
@@ -2237,7 +2251,7 @@ static void
 setup_query_sortlist(ns_client_t *client) {
 	isc_netaddr_t netaddr;
 	dns_rdatasetorderfunc_t order = NULL;
-	void *order_arg = NULL;
+	const void *order_arg = NULL;
 	
 	isc_netaddr_fromsockaddr(&netaddr, &client->peeraddr);
 	switch (ns_sortlist_setup(client->view->sortlist,
@@ -2469,7 +2483,7 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype)
 	/*
 	 * First we must find the right database.
 	 */
-	options = 0;
+	options &= DNS_GETDB_NOLOG; /* Preserve DNS_GETDB_NOLOG. */
 	if (dns_rdatatype_atparent(qtype) &&
 	    !dns_name_equal(client->query.qname, dns_rootname))
 		options |= DNS_GETDB_NOEXACT;
@@ -2509,9 +2523,10 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype)
 		}
 	}
 	if (result != ISC_R_SUCCESS) {
-		if (result == DNS_R_REFUSED)
-			QUERY_ERROR(DNS_R_REFUSED);
-		else
+		if (result == DNS_R_REFUSED) {
+			if (!PARTIALANSWER(client))
+				QUERY_ERROR(DNS_R_REFUSED);
+		} else
 			QUERY_ERROR(DNS_R_SERVFAIL);
 		goto cleanup;
 	}
@@ -2998,6 +3013,8 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype)
 		query_maybeputqname(client);
 		client->query.qname = tname;
 		want_restart = ISC_TRUE;
+		if (!WANTRECURSION(client))
+			options |= DNS_GETDB_NOLOG;
 		goto addauth;
 	case DNS_R_DNAME:
 		/*
@@ -3115,6 +3132,8 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype)
 		client->query.qname = fname;
 		fname = NULL;
 		want_restart = ISC_TRUE;
+		if (!WANTRECURSION(client))
+			options |= DNS_GETDB_NOLOG;
 		goto addauth;
 	default:
 		/*

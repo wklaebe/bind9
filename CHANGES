@@ -1,4 +1,19 @@
 
+	--- 9.2.0rc3 released ---
+
+ 990.	[bug]		The rndc-confgen man page was not installed.
+
+ 989.	[bug]		Report filename if $INCLUDE fails for file related
+			errors. [RT #1736]
+
+ 987.	[bug]		"dig -help" didn't show "+[no]stats".
+
+ 986.	[bug]		"dig +noall" failed to clear stats and command
+			printing.
+
+ 984.	[bug]		Multithreading should be enabled by default on
+			Solaris 2.7 and newer, but it wasn't.
+
 	--- 9.2.0rc2 released ---
 
  980.	[bug]		Incoming zone transfers restarting after an error

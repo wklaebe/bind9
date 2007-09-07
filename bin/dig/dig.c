@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dig.c,v 1.157.2.13.2.18 2004/06/07 03:56:25 marka Exp $ */
+/* $Id: dig.c,v 1.157.2.13.2.20 2004/06/23 04:19:40 marka Exp $ */
 
 #include <config.h>
 #include <stdlib.h>
@@ -40,15 +40,6 @@
 #include <dns/rdatatype.h>
 #include <dns/rdataclass.h>
 #include <dns/result.h>
-
-#ifdef DIG_SIGCHASE
-#ifndef DIG_SIGCHASE_BU
-#define DIG_SIGCHASE_BU 1
-#endif
-#ifndef DIG_SIGCHASE_TD
-#define DIG_SIGCHASE_TD 1
-#endif
-#endif
 
 #include <dig/dig.h>
 
@@ -197,7 +188,7 @@ help(void) {
 "\n"
 "                 +[no]fail           (Don't try next server on SERVFAIL)\n"
 "                 +[no]besteffort     (Try to parse even illegal messages)\n"
-"                 +[no]aaonly         (Set AA flag in query)\n"
+"                 +[no]aaonly         (Set AA flag in query (+[no]aaflag))\n"
 "                 +[no]adflag         (Set AD flag in query)\n"
 "                 +[no]cdflag         (Set CD flag in query)\n"
 "                 +[no]cl             (Control display of class in records)\n"
@@ -747,8 +738,8 @@ plus_option(char *option, isc_boolean_t is_batchfile,
 	switch (cmd[0]) {
 	case 'a':
 		switch (cmd[1]) {
-		case 'a': /* aaflag */
-			FULLCHECK("aaflag");
+		case 'a': /* aaonly / aaflag */
+			FULLCHECK2("aaonly", "aaflag");
 			lookup->aaonly = state;
 			break;
 		case 'd': 

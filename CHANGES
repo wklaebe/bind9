@@ -1,4 +1,8 @@
 
+	--- 9.2.8 released ---
+
+2126.	[securityt]	Serialise validation of type ANY responses. [RT #16555]
+
 	--- 9.2.7 released ---
 
 2107.	[bug]		dighost.c: more cleanup of buffers. [RT #16499]

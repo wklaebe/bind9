@@ -2,7 +2,7 @@
 <!DOCTYPE book PUBLIC "-//OASIS//DTD DocBook XML V4.0//EN"
                "http://www.oasis-open.org/docbook/xml/4.0/docbookx.dtd">
 
-<!-- File: $Id: Bv9ARM-book.xml,v 1.155.2.10 2001/11/07 19:07:29 gson Exp $ -->
+<!-- File: $Id: Bv9ARM-book.xml,v 1.155 2001/08/28 17:37:24 gson Exp $ -->
 
 <book>
 <title>BIND 9 Administrator Reference Manual</title>
@@ -158,8 +158,8 @@ domain.</para>
 
 <para>For example, a domain name for a host at the
 company <emphasis>Example, Inc.</emphasis> could be
-<literal>mail.example.com</literal>,
-where <literal>com</literal> is the
+<literal>mail.example.net</literal>,
+were <literal>com</literal> is the
 top level domain to which
 <literal>ourhost.example.com</literal> belongs,
 <literal>example</literal> is
@@ -705,7 +705,7 @@ of a server.</para>
               <para>The <command>named-checkzone</command> program checks a master file for
               syntax and consistency.</para>
               <cmdsynopsis label="Usage">
-                <command>named-checkzone</command>
+                <command>check-zone</command>
                 <arg>-dq</arg>
                 <arg>-c <replaceable>class</replaceable></arg>
                 <arg choice="plain"><replaceable>zone</replaceable></arg>
@@ -764,11 +764,7 @@ of a server.</para>
    </varlistentry>
 
    <varlistentry><term><userinput>querylog</userinput></term>
-   <listitem><para>Toggle query logging. Query logging can also be enabled
-   by explictly directing the <command>queries</command>
-   <command>category</command> to a <command>channel</command> in the
-   <command>logging</command> section of
-   <filename>named.conf</filename>.</para></listitem></varlistentry>
+   <listitem><para>Toggle query logging.</para></listitem></varlistentry>
 
    <varlistentry><term><userinput>dumpdb</userinput></term>
    <listitem><para>Dump the server's caches to the dump file. </para></listitem></varlistentry>
@@ -1144,7 +1140,7 @@ options {
     ...
 };
 
-zone "site1.example.com" {                      // sample master zone
+zone "site1.example.com" {                      // sample slave zone
   type master;
   file "m/site1.example.com";
   forwarders { };                               // do normal iterative
@@ -1432,10 +1428,9 @@ allow-update { key host1-host2. ;};
       the zone keys of any secure delegated zones.  Zone keys must
       have the same name as the zone, a name type of
       <command>ZONE</command>, and must be usable for authentication.
-      It is recommended that zone keys use a cryptographic algorithm
-      designated as "mandatory to implement" by the IETF; currently
-      these are RSASHA1 (which is not yet supported in BIND 9.2)
-      and DSA.</para>
+      It is recommended that zone keys be mandatory to implement a
+      cryptographic algorithm; currently the only key mandatory to
+      implement an algorithm is DSA.</para>
 
       <para>The following command will generate a 768 bit DSA key for
       the <filename>child.example</filename> zone:</para>
@@ -1794,7 +1789,7 @@ that is distinct from and simpler than the full DNS protocol.</para></sect1>
 run the resolver daemon <command>lwresd</command>.</para>
 <para>By default, applications using the lightweight resolver library will make
 UDP requests to the IPv4 loopback address (127.0.0.1) on port 921.  The
-address can be overridden by <command>lwserver</command> lines in
+address can be overriden by <command>lwserver</command> lines in
 <filename>/etc/resolv.conf</filename>.
 The daemon will try to find the answer to the questions "what are the
 addresses for host
@@ -1899,9 +1894,9 @@ separated by semicolons and ending with a semicolon.</para></entry>
 </row>
 <row rowsep = "0">
 <entry colname = "1"><para><varname>number</varname></para></entry>
-<entry colname = "2"><para>A non-negative 32 bit unsigned integer
-(i.e., a number between 0 and 4294967295, inclusive).
-Its acceptable value might further
+<entry colname = "2"><para>A non-negative integer with an entire
+range limited by the range of a C language signed integer (2,147,483,647
+on a machine with 32 bit integers). Its acceptable value might further
 be limited by the context in which it is used.</para></entry>
 </row>
 <row rowsep = "0">
@@ -1912,17 +1907,18 @@ a pathname, such as <filename>zones/master/my.test.domain</filename>.</para></en
 <row rowsep = "0">
 <entry colname = "1"><para><varname>size_spec</varname></para></entry>
 <entry colname = "2"><para>A number, the word <userinput>unlimited</userinput>,
-or the word <userinput>default</userinput>.</para><para>
-An <varname>unlimited</varname> <varname>size_spec</varname> requests unlimited
+or the word <userinput>default</userinput>.</para><para>The maximum
+value of <varname>size_spec</varname> is that of unsigned long integers
+on the machine. An <varname>unlimited</varname> <varname>size_spec</varname> requests unlimited
 use, or the maximum available amount. A <varname>default size_spec</varname> uses
 the limit that was in force when the server was started.</para><para>A <varname>number</varname> can
 optionally be followed by a scaling factor: <userinput>K</userinput> or <userinput>k</userinput> for
 kilobytes, <userinput>M</userinput> or <userinput>m</userinput> for
 megabytes, and <userinput>G</userinput> or <userinput>g</userinput> for gigabytes,
-which scale by 1024, 1024*1024, and 1024*1024*1024 respectively.</para>
-<para>The value must be representable as a 64-bit unsigned integer
-(0 to 18446744073709551615, inclusive).
- Using <varname>unlimited</varname> is the best way
+which scale by 1024, 1024*1024, and 1024*1024*1024 respectively.</para><para>Integer
+storage overflow is currently silently ignored during conversion
+of scaled values, resulting in values less than intended, possibly
+even negative. Using <varname>unlimited</varname> is the best way
 to safely set a really large number.</para></entry>
 </row>
 <row rowsep = "0">
@@ -2155,7 +2151,7 @@ Usage</title>
 
       <para>The following ACLs are built-in:</para>
 
-<informaltable colsep = "0"  rowsep = "0"><tgroup cols = "2"
+      <informaltable colsep = "0"  rowsep = "0"><tgroup cols = "2"
     colsep = "0" rowsep = "0" tgroupstyle = "3Level-table">
 <colspec colname = "1" colnum = "1" colsep = "0" colwidth = "1.130in"/>
 <colspec colname = "2" colnum = "2" colsep = "0" colwidth = "4.000in"/>
@@ -2170,27 +2166,18 @@ Usage</title>
 </row>
 <row rowsep = "0">
 <entry colname = "1"><para><command>localhost</command></para></entry>
-<entry colname = "2"><para>Matches the IPv4 addresses of all network
-interfaces on the system.</para></entry>
+<entry colname = "2"><para>Matches the IP addresses of all interfaces
+on the system.</para></entry>
 </row>
 <row rowsep = "0">
 <entry colname = "1"><para><command>localnets</command></para></entry>
-<entry colname = "2"><para>Matches any host on an IPv4 network for which
+<entry colname = "2"><para>Matches any host on a network for which
 the system has an interface.</para></entry>
 </row>
 </tbody>
 </tgroup></informaltable>
-
-<para>The <command>localhost</command> and <command>localnets</command>
-ACLs do not currently support IPv6 (that is,
-<command>localhost</command> does not match the host's IPv6 addresses,
-and <command>localnets</command> does not match the host's attached
-IPv6 networks) due to the lack of a standard method of determining the
-complete set of local IPv6 addresses for a host.
-</para>
-
-</sect2>
-<sect2>
+    </sect2>
+    <sect2>
       <title><command>controls</command> Statement Grammar</title>
 <programlisting><command>controls</command> {
    inet ( ip_addr | * ) <optional> port ip_port </optional> allow { <replaceable> address_match_list </replaceable> }
@@ -2516,7 +2503,7 @@ used is described in <xref linkend="the_category_phrase"/>.
 </para>
 
 <programlisting>channel "default_syslog" {
-    syslog daemon;                      // send to syslog's daemon
+    syslog daemon;                      // end to syslog's daemon
                                         // facility
     severity info;                      // only send priority info
                                         // and higher
@@ -2661,7 +2648,7 @@ the <command>null</command> channel.</para></entry>
 </row>
 <row rowsep = "0">
 <entry colname = "1"><para><command>queries</command></para></entry>
-<entry colname = "2"><para>Queries. Using the category <command>queries</command> will enable query logging.</para></entry>
+<entry colname = "2"><para>Queries.</para></entry>
 </row>
 <row rowsep = "0">
 <entry colname = "1"><para><command>dispatch</command></para></entry>
@@ -2811,8 +2798,6 @@ statement in the <filename>named.conf</filename> file:</para>
     <optional> sig-validity-interval <replaceable>number</replaceable> ; </optional>
     <optional> min-roots <replaceable>number</replaceable>; </optional>
     <optional> use-ixfr <replaceable>yes_or_no</replaceable> ; </optional>
-    <optional> provide-ixfr <replaceable>yes_or_no</replaceable>; </optional>
-    <optional> request-ixfr <replaceable>yes_or_no</replaceable>; </optional>
     <optional> treat-cr-as-space <replaceable>yes_or_no</replaceable> ; </optional>
     <optional> min-refresh-time <replaceable>number</replaceable> ; </optional>
     <optional> max-refresh-time <replaceable>number</replaceable> ; </optional>
@@ -2922,7 +2907,11 @@ receiving and sending DNS protocol traffic.
 The default is 53.  This option is mainly intended for server testing;
 a server using a port other than 53 will not be able to communicate with
 the global DNS.
-</para>
+The <command>port</command> option should be placed at
+the beginning of the options block, before
+any other options that take port numbers or IP addresses,
+to ensure that the port value takes effect for all addresses
+used by the server.</para>
 </listitem></varlistentry>
 
 <varlistentry><term><command>random-device</command></term>
@@ -3098,22 +3087,6 @@ If you need to disable IXFR to a particular server or servers see
 the information on the <command>provide-ixfr</command> option
 in <xref linkend="server_statement_definition_and_usage"/>. See also
 <xref linkend="incremental_zone_transfers"/>.
-</para></listitem></varlistentry>
-
-<varlistentry><term><command>provide-ixfr</command></term>
-<listitem>
-<para>
-See the description of
-<command>provide-ixfr</command> in
-<xref linkend="server_statement_definition_and_usage"/>
-</para></listitem></varlistentry>
-
-<varlistentry><term><command>request-ixfr</command></term>
-<listitem>
-<para>
-See the description of
-<command>request-ixfr</command> in
-<xref linkend="server_statement_definition_and_usage"/>
 </para></listitem></varlistentry>
 
 <varlistentry><term><command>treat-cr-as-space</command></term>
@@ -3407,7 +3380,7 @@ hour).</para>
 <listitem><para>Slave servers will periodically query master servers
 to find out if zone serial numbers have changed. Each such query uses
 a minute amount of the slave server's network bandwidth.  To limit the
-amount of bandwidth used, BIND 9 limits the rate at which queries are
+amount of bandwith used, BIND 9 limits the rate at which queries are
 sent.  The value of the <command>serial-query-rate</command> option,
 an integer, is the maximum number of queries sent per second.
 The default is 20.
@@ -3587,7 +3560,7 @@ and ignored for BIND 8 compatibility.</para>
 <varlistentry><term><command>recursive-clients</command></term>
 <listitem><para>The maximum number of simultaneous recursive lookups
 the server will perform on behalf of clients.  The default is
-<literal>1000</literal>.  Because each recursing client uses a fair
+<literal>1000</literal>.  Because each recursing clients uses a fair
 bit of memory, on the order of 20 kilobytes, the value of the
 <command>recursive-clients</command> option may have to be decreased
 on hosts with limited memory.
@@ -3841,7 +3814,7 @@ PTR records.</para>
 basis by adding a
 <command>allow-v6-synthesis { <replaceable>address_match_list</replaceable> };</command>
 clause to the <command>options</command> or <command>view</command> statement.
-When it is enabled, recursive
+ When it is enabled, recursive
 AAAA queries cause the server to first try an A6 lookup and if that
 fails, an AAAA lookups.  No matter which one succeeds, the results are
 returned as a set of synthetic AAAA records.  Similarly, recursive PTR
@@ -4029,14 +4002,14 @@ zone transfer when the given remote server, a slave, requests it.
 If set to <command>yes</command>, incremental transfer will be provided
 whenever possible. If set to <command>no</command>, all transfers
 to the remote server will be nonincremental. If not set, the value
-of the <command>provide-ixfr</command> option in the view or
-global options block is used as a default.</para>
+of the <command>provide-ixfr</command> option in the global options block
+is used as a default.</para>
 
 <para>The <command>request-ixfr</command> clause determines whether
 the local server, acting as a slave, will request incremental zone
 transfers from the given remote server, a master. If not set, the
-value of the <command>request-ixfr</command> option in the view or
-global options block is used as a default.</para>
+value of the <command>request-ixfr</command> option in the global
+options block is used as a default.</para>
 
 <para>IXFR requests to servers that do not support IXFR will automatically
 fall back to AXFR.  Therefore, there is no need to manually list
@@ -4303,7 +4276,7 @@ of type <command>forward</command> can contain a <command>forward</command> and/
 which will apply to queries within the domain given by the zone
 name. If no <command>forwarders</command> statement is present or
 an empty list for <command>forwarders</command> is given, then no
-forwarding will be done for the domain, canceling the effects of
+forwarding will be done for the domain, cancelling the effects of
 any forwarders in the <command>options</command> statement. Thus
 if you want to use this type of zone to change the behavior of the
 global <command>forward</command> option (that is, "forward first
@@ -4401,7 +4374,7 @@ The default is the empty list.</para>
 <listitem><para>
 This option was used in BIND 8 to restrict the character set of
 domain names in master files and/or DNS responses received from the
-network.  BIND 9 does not restrict the character set of domain names
+netowrk.  BIND 9 does not restrict the character set of domain names
 and does not implement the <command>check-names</command> option.
 </para>
 </listitem></varlistentry>

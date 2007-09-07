@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: zone.c,v 1.333.2.5 2001/11/13 18:57:11 gson Exp $ */
+/* $Id: zone.c,v 1.333.2.2 2001/09/05 00:38:01 gson Exp $ */
 
 #include <config.h>
 
@@ -279,8 +279,8 @@ struct dns_zonemgr {
 	dns_zonelist_t		xfrin_in_progress;
 
 	/* Configuration data. */
-	isc_uint32_t		transfersin;
-	isc_uint32_t		transfersperns;
+	int			transfersin;
+	int			transfersperns;
 	unsigned int		serialqueryrate;
 
 	/* Locked by iolock */
@@ -432,8 +432,8 @@ static void zone_notify(dns_zone_t *zone);
 
 #define ENTER zone_debuglog(zone, me, 1, "enter")
 
-static const unsigned int dbargc_default = 1;
-static const char *dbargv_default[] = { "rbt" };
+const unsigned int dbargc_default = 1;
+const char *dbargv_default[] = { "rbt" };
 
 /***
  ***	Public functions.
@@ -2816,8 +2816,10 @@ save_nsrrset(dns_message_t *message, dns_name_t *name,
 		result = dns_rdata_tostruct(&rdata, &ns, NULL);
 		dns_rdata_reset(&rdata);
 		RUNTIME_CHECK(result == ISC_R_SUCCESS);
-		if (!dns_name_issubdomain(&ns.name, name))
+		if (!dns_name_issubdomain(&ns.name, name)) {
+			result = dns_rdataset_next(nsrdataset);
 			continue;
+		}
 		rdataset = NULL;
 		result = dns_message_findname(message, DNS_SECTION_ADDITIONAL,
 					      &ns.name, dns_rdatatype_a6,
@@ -5531,13 +5533,13 @@ zonemgr_free(dns_zonemgr_t *zmgr) {
 }
 
 void
-dns_zonemgr_settransfersin(dns_zonemgr_t *zmgr, isc_uint32_t value) {
+dns_zonemgr_settransfersin(dns_zonemgr_t *zmgr, int value) {
 	REQUIRE(DNS_ZONEMGR_VALID(zmgr));
 
 	zmgr->transfersin = value;
 }
 
-isc_uint32_t
+int
 dns_zonemgr_getttransfersin(dns_zonemgr_t *zmgr) {
 	REQUIRE(DNS_ZONEMGR_VALID(zmgr));
 
@@ -5545,13 +5547,13 @@ dns_zonemgr_getttransfersin(dns_zonemgr_t *zmgr) {
 }
 
 void
-dns_zonemgr_settransfersperns(dns_zonemgr_t *zmgr, isc_uint32_t value) {
+dns_zonemgr_settransfersperns(dns_zonemgr_t *zmgr, int value) {
 	REQUIRE(DNS_ZONEMGR_VALID(zmgr));
 
 	zmgr->transfersperns = value;
 }
 
-isc_uint32_t
+int
 dns_zonemgr_getttransfersperns(dns_zonemgr_t *zmgr) {
 	REQUIRE(DNS_ZONEMGR_VALID(zmgr));
 
@@ -5614,9 +5616,9 @@ static isc_result_t
 zmgr_start_xfrin_ifquota(dns_zonemgr_t *zmgr, dns_zone_t *zone) {
 	dns_peer_t *peer = NULL;
 	isc_netaddr_t masterip;
-	isc_uint32_t nxfrsin, nxfrsperns;
+	int nxfrsin, nxfrsperns;
 	dns_zone_t *x;
-	isc_uint32_t maxtransfersin, maxtransfersperns;
+	int maxtransfersin, maxtransfersperns;
 	isc_event_t *e;
 
 	/*

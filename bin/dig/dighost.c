@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dighost.c,v 1.221.2.7 2001/11/15 01:24:12 marka Exp $ */
+/* $Id: dighost.c,v 1.221 2001/08/08 22:54:14 gson Exp $ */
 
 /*
  * Notice to programmers:  Do not use this code as an example of how to
@@ -373,7 +373,6 @@ make_empty_lookup(void) {
 	looknew->cdflag = ISC_FALSE;
 	looknew->ns_search_only = ISC_FALSE;
 	looknew->origin = NULL;
-	looknew->tsigctx = NULL;
 	looknew->querysig = NULL;
 	looknew->retries = tries;
 	looknew->nsfound = 0;
@@ -441,7 +440,6 @@ clone_lookup(dig_lookup_t *lookold, isc_boolean_t servers) {
 	looknew->section_authority = lookold->section_authority;
 	looknew->section_additional = lookold->section_additional;
 	looknew->retries = lookold->retries;
-	looknew->tsigctx = NULL;
 
 	if (servers)
 		clone_server_list(lookold->my_server_list,
@@ -546,7 +544,6 @@ setup_file_key(void) {
 	if (result != ISC_R_SUCCESS) {
 		printf(";; Couldn't create key %s: %s\n",
 		       keynametext, isc_result_totext(result));
-		goto failure;
 	}
 	dstkey = NULL;
  failure:
@@ -585,7 +582,7 @@ setup_system(void) {
 
 	free_now = ISC_FALSE;
 	get_servers = ISC_TF(server_list.head == NULL);
-	fp = fopen(RESOLV_CONF, "r");
+	fp = fopen(RESOLVCONF, "r");
 	/* XXX Use lwres resolv.conf reader */
 	if (fp == NULL)
 		goto no_file;
@@ -744,7 +741,9 @@ setup_libs(void) {
  * options are UDP buffer size and the DO bit.
  */
 static void
-add_opt(dns_message_t *msg, isc_uint16_t udpsize, isc_boolean_t dnssec) {
+add_opt(dns_message_t *msg, isc_uint16_t udpsize, isc_boolean_t dnssec
+	)
+{
 	dns_rdataset_t *rdataset = NULL;
 	dns_rdatalist_t *rdatalist = NULL;
 	dns_rdata_t *rdata = NULL;
@@ -904,9 +903,6 @@ try_clear_lookup(dig_lookup_t *lookup) {
 	if (lookup->sendspace != NULL)
 		isc_mempool_put(commctx, lookup->sendspace);
 
-	if (lookup->tsigctx != NULL)
-		dst_context_destroy(&lookup->tsigctx);
-
 	isc_mem_free(mctx, lookup);
 	return (ISC_TRUE);
 }
@@ -1025,9 +1021,9 @@ followup_lookup(dns_message_t *msg, dig_query_t *query, dns_section_t section)
 			if (!success) {
 				success = ISC_TRUE;
 				lookup_counter++;
+				cancel_lookup(query->lookup);
 				lookup = requeue_lookup(query->lookup,
 							ISC_FALSE);
-				cancel_lookup(query->lookup);
 				lookup->doing_xfr = ISC_FALSE;
 				if (!lookup->trace_root &&
 				    section == DNS_SECTION_ANSWER)
@@ -1081,9 +1077,9 @@ next_origin(dns_message_t *msg, dig_query_t *query) {
 		 * Then we just did rootorg; there's nothing left.
 		 */
 		return (ISC_FALSE);
+	cancel_lookup(query->lookup);
 	lookup = requeue_lookup(query->lookup, ISC_TRUE);
 	lookup->origin = ISC_LIST_NEXT(query->lookup->origin, link);
-	cancel_lookup(query->lookup);
 	return (ISC_TRUE);
 }
 
@@ -1355,8 +1351,10 @@ setup_lookup(dig_lookup_t *lookup) {
 					 &lookup->sendbuf);
 	check_result(result, "dns_message_renderbegin");
 	if (lookup->udpsize > 0 || lookup->dnssec) {
+
 		if (lookup->udpsize == 0)
 			lookup->udpsize = 2048;
+
 		add_opt(lookup->sendmsg, lookup->udpsize, lookup->dnssec);
 	}
 
@@ -1699,9 +1697,9 @@ connect_timeout(isc_task_t *task, isc_event_t *event) {
 		} else {
 			debug("making new TCP request, %d tries left",
 			      l->retries);
+			cancel_lookup(l);
 			l->retries--;
 			requeue_lookup(l, ISC_TRUE);
-			cancel_lookup(l);
 		}
 	} else {
 		fputs(l->cmdline, stdout);
@@ -2166,7 +2164,6 @@ recv_done(isc_task_t *task, isc_event_t *event) {
 		result = dns_message_settsigkey(msg, key);
 		check_result(result, "dns_message_settsigkey");
 		msg->tsigctx = l->tsigctx;
-		l->tsigctx = NULL;
 		if (l->msgcounter != 0)
 			msg->tcp_continuation = 1;
 		l->msgcounter++;
@@ -2246,7 +2243,6 @@ recv_done(isc_task_t *task, isc_event_t *event) {
 			validated = ISC_FALSE;
 		}
 		l->tsigctx = msg->tsigctx;
-		msg->tsigctx = NULL;
 		if (l->querysig != NULL) {
 			debug("freeing querysig buffer %p", l->querysig);
 			isc_buffer_free(&l->querysig);
@@ -2268,9 +2264,9 @@ recv_done(isc_task_t *task, isc_event_t *event) {
 
 			if (timeout == 0) {
 				if (l->tcp_mode)
-					local_timeout = TCP_TIMEOUT * 4;
+					local_timeout = TCP_TIMEOUT;
 				else
-					local_timeout = UDP_TIMEOUT * 4;
+					local_timeout = UDP_TIMEOUT;
 			} else {
 				if (timeout < (INT_MAX / 4))
 					local_timeout = timeout * 4;

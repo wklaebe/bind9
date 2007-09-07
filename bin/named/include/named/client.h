@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: client.h,v 1.60.2.2 2001/11/15 02:51:46 marka Exp $ */
+/* $Id: client.h,v 1.60 2001/08/28 03:57:59 marka Exp $ */
 
 #ifndef NAMED_CLIENT_H
 #define NAMED_CLIENT_H 1
@@ -91,7 +91,6 @@ struct ns_client {
 	int			nreads;
 	int			nsends;
 	int			nrecvs;
-	int			nctls;
 	int			references;
 	unsigned int		attributes;
 	isc_task_t *		task;
@@ -145,6 +144,7 @@ struct ns_client {
 	 */
 	client_list_t		*list;
 };
+
 
 #define NS_CLIENT_MAGIC			ISC_MAGIC('N','S','C','c')
 #define NS_CLIENT_VALID(c)		ISC_MAGIC_VALID(c, NS_CLIENT_MAGIC)

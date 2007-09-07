@@ -52,7 +52,7 @@
 /* BIND Id: gethnamaddr.c,v 8.15 1996/05/22 04:56:30 vixie Exp $ */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static const char rcsid[] = "$Id: dns_ho.c,v 1.5.2.1 2001/11/02 20:35:28 gson Exp $";
+static const char rcsid[] = "$Id: dns_ho.c,v 1.5 2001/07/02 00:44:50 marka Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 /* Imports. */
@@ -1400,8 +1400,7 @@ gethostans(struct irs_ho *this,
 				buflen -= nn;
 			}
 			/* Ensure alignment. */
-			bp = (char *)(((u_long)bp + (sizeof(align) - 1)) &
-				      ~(sizeof(align) - 1));
+			bp += sizeof(align) - ((u_long)bp % sizeof(align));
 			/* Avoid overflows. */
 			if (bp + n >= &pvt->hostbuf[sizeof pvt->hostbuf]) {
 				had_error++;
@@ -1422,8 +1421,6 @@ gethostans(struct irs_ho *this,
 						had_error++;
 						break;
 					}
-					if (m == 0)
-						continue;
 					if (hap < &pvt->h_addr_ptrs[MAXADDRS-1])
 						hap++;
 
@@ -1494,8 +1491,6 @@ add_hostent(struct pvt *pvt, char *bp, char **hap, struct addrinfo *ai)
 {
 	int addrlen;
 	char *addrp;
-	const char **tap;
-	char *obp = bp;
 
 	switch(ai->ai_addr->sa_family) {
 	case AF_INET6:
@@ -1510,26 +1505,26 @@ add_hostent(struct pvt *pvt, char *bp, char **hap, struct addrinfo *ai)
 		return(-1);	/* abort? */
 	}
 
-	/* Ensure alignment. */
-	bp = (char *)(((u_long)bp + (sizeof(align) - 1)) &
-		      ~(sizeof(align) - 1));
-	/* Avoid overflows. */
+	bp += sizeof(align) - ((u_long)bp % sizeof(align));
 	if (bp + addrlen >= &pvt->hostbuf[sizeof pvt->hostbuf])
 		return(-1);
 	if (hap >= &pvt->h_addr_ptrs[MAXADDRS-1])
-		return(0); /* fail, but not treat it as an error. */
-
+		return(addrlen); /* fail, but not treat it as an error. */
+#if 0
 	/* Suppress duplicates. */
 	for (tap = (const char **)pvt->h_addr_ptrs;
 	     *tap != NULL;
 	     tap++)
-		if (memcmp(*tap, addrp, addrlen) == 0)
+		if (memcmp(*tap, cp, n) == 0)
 			break;
-	if (*tap != NULL)
-		return (0);
+	if (*tap != NULL) {
+		cp += n;
+		continue;
+	}
+#endif
 
 	memcpy(*hap = bp, addrp, addrlen);
-	return((bp + addrlen) - obp);
+	return(addrlen);
 }
 
 static void
@@ -1541,10 +1536,7 @@ map_v4v6_hostent(struct hostent *hp, char **bpp, int *lenp) {
 	hp->h_addrtype = AF_INET6;
 	hp->h_length = IN6ADDRSZ;
 	for (ap = hp->h_addr_list; *ap; ap++) {
-		int i = (u_long)*bpp % sizeof(align);
-
-		if (i != 0)
-			i = sizeof(align) - i;
+		int i = sizeof(align) - ((u_long)*bpp % sizeof(align));
 
 		if (*lenp < (i + IN6ADDRSZ)) {
 			/* Out of memory.  Truncate address list here. */

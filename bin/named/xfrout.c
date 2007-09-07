@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: xfrout.c,v 1.101.2.3 2001/10/30 01:28:29 marka Exp $ */
+/* $Id: xfrout.c,v 1.101.2.1 2001/08/31 00:37:12 gson Exp $ */
 
 #include <config.h>
 
@@ -889,7 +889,6 @@ ns_xfr_start(ns_client_t *client, dns_rdatatype_t reqtype) {
 	char *journalfile;
 	char msg[DNS_RDATACLASS_FORMATSIZE + DNS_NAME_FORMATSIZE
 		 + sizeof("zone transfer '/'")];
-	isc_boolean_t is_poll = ISC_FALSE;
 
 	switch (reqtype) {
 	case dns_rdatatype_axfr:
@@ -1075,7 +1074,6 @@ ns_xfr_start(ns_client_t *client, dns_rdatatype_t reqtype) {
 		    (client->attributes & NS_CLIENTATTR_TCP) == 0)
 		{
 			CHECK(soa_rrstream_create(mctx, db, ver, &stream));
-			is_poll = ISC_TRUE;
 			goto have_stream;
 		}
 		journalfile = dns_zone_getjournal(zone);
@@ -1093,7 +1091,6 @@ ns_xfr_start(ns_client_t *client, dns_rdatatype_t reqtype) {
 				    ISC_LOG_DEBUG(4),
 				    "IXFR version not in journal, "
 				    "falling back to AXFR");
-			mnemonic = "AXFR-style IXFR";
 			goto axfr_fallback;
 		}
 		CHECK(result);
@@ -1134,12 +1131,8 @@ ns_xfr_start(ns_client_t *client, dns_rdatatype_t reqtype) {
 
 	CHECK(xfr->stream->methods->first(xfr->stream));
 
-	if (is_poll)
-		xfrout_log1(client, question_name, question_class,
-			    ISC_LOG_DEBUG(1), "IXFR poll up to date");
-	else
-		xfrout_log1(client, question_name, question_class,
-			    ISC_LOG_INFO, "%s started", mnemonic);
+	xfrout_log1(client, question_name, question_class, ISC_LOG_INFO,
+		    "%s started", mnemonic);
 
 	/*
 	 * Hand the context over to sendstream().  Set xfr to NULL;

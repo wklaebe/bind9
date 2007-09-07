@@ -50,7 +50,7 @@
 
 /*
  *	@(#)resolv.h	8.1 (Berkeley) 6/2/93
- *	$Id: resolv.h,v 1.7.2.2 2001/11/03 00:21:34 gson Exp $
+ *	$Id: resolv.h,v 1.7 2001/06/25 00:30:46 marka Exp $
  */
 
 #ifndef _RESOLV_H_
@@ -178,8 +178,7 @@ struct __res_state {
 	int	_vcsock;		/* PRIVATE: for res_send VC i/o */
 	u_int	_flags;			/* PRIVATE: see below */
 	union {
-		/* On an 32-bit arch this means 512b total. */
-		char	pad[72 - 3*sizeof (int) - 2*sizeof (void *)];
+		char	pad[52];	/* On an i386 this means 512b total. */
 		struct {
 			u_int16_t		nscount;
 			u_int16_t		nstimes[MAXNS];	/* ms. */
@@ -236,11 +235,11 @@ union res_sockaddr_union {
 #define	RES_KEEPTSIG	0x00010000	/* do not strip TSIG records */
 #define	RES_BLAST	0x00020000	/* blast all recursive servers */
 #define RES_NO_NIBBLE	0x00040000	/* disable IPv6 nibble mode reverse */
-#define RES_NO_BITSTRING 0x00080000	/* disable IPv6 bit string mode reverse */
+#define RES_NO_BITSTRING 0x00080000	/* disable IPv6 bits tring mode reverse */
 /* KAME extensions: use higher bit to avoid conflict with ISC use */
-#define RES_USE_DNAME	0x10000000	/* use DNAME */
-#define RES_USE_A6	0x20000000	/* use A6 */
 #define RES_USE_EDNS0	0x40000000	/* use EDNS0 if configured */
+#define RES_USE_A6	0x20000000	/* use A6 */
+#define RES_USE_DNAME	0x10000000	/* use DNAME */
 
 #define RES_DEFAULT	(RES_RECURSE | RES_DEFNAMES | RES_DNSRCH)
 

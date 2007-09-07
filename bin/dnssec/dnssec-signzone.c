@@ -17,7 +17,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dnssec-signzone.c,v 1.139.2.1 2001/10/05 00:21:48 bwelling Exp $ */
+/* $Id: dnssec-signzone.c,v 1.139 2001/07/22 06:09:41 mayer Exp $ */
 
 #include <config.h>
 
@@ -491,8 +491,7 @@ hasnullkey(dns_rdataset_t *rdataset) {
 		result = dns_dnssec_keyfromrdata(dns_rootname,
 						 &rdata, mctx, &key);
 		if (result != ISC_R_SUCCESS)
-			fatal("could not convert KEY into internal format: %s",
-			      isc_result_totext(result));
+			fatal("could not convert KEY into internal format");
 		if (dst_key_isnullkey(key))
 			found = ISC_TRUE;
 		dst_key_free(&key);
@@ -1685,8 +1684,7 @@ main(int argc, char *argv[]) {
 						       DST_TYPE_PRIVATE,
 						       mctx, &newkey);
 			if (result != ISC_R_SUCCESS)
-				fatal("cannot load key %s: %s", argv[i],
-				      isc_result_totext(result)); 
+				fatal("cannot load key %s", argv[i]); 
 
 			key = ISC_LIST_HEAD(keylist);
 			while (key != NULL) {

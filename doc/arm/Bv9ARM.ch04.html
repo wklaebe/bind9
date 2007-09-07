@@ -88,7 +88,7 @@ HREF="Bv9ARM.ch04.html#incremental_zone_transfers"
 ></DT
 ><DT
 >4.3. <A
-HREF="Bv9ARM.ch04.html#AEN725"
+HREF="Bv9ARM.ch04.html#AEN720"
 >Split DNS</A
 ></DT
 ><DT
@@ -98,12 +98,12 @@ HREF="Bv9ARM.ch04.html#tsig"
 ></DT
 ><DT
 >4.5. <A
-HREF="Bv9ARM.ch04.html#AEN885"
+HREF="Bv9ARM.ch04.html#AEN880"
 >TKEY</A
 ></DT
 ><DT
 >4.6. <A
-HREF="Bv9ARM.ch04.html#AEN900"
+HREF="Bv9ARM.ch04.html#AEN895"
 >SIG(0)</A
 ></DT
 ><DT
@@ -113,7 +113,7 @@ HREF="Bv9ARM.ch04.html#DNSSEC"
 ></DT
 ><DT
 >4.8. <A
-HREF="Bv9ARM.ch04.html#AEN985"
+HREF="Bv9ARM.ch04.html#AEN980"
 >IPv6 Support in <SPAN
 CLASS="acronym"
 >BIND</SPAN
@@ -274,7 +274,7 @@ CLASS="sect1"
 ><H1
 CLASS="sect1"
 ><A
-NAME="AEN725"
+NAME="AEN720"
 >4.3. Split DNS</A
 ></H1
 ><P
@@ -535,7 +535,7 @@ CLASS="varname"
     ...
 };
 
-zone "site1.example.com" {                      // sample master zone
+zone "site1.example.com" {                      // sample slave zone
   type master;
   file "m/site1.example.com";
   forwarders { };                               // do normal iterative
@@ -672,7 +672,7 @@ CLASS="sect2"
 ><H2
 CLASS="sect2"
 ><A
-NAME="AEN816"
+NAME="AEN811"
 >4.4.1. Generate Shared Keys for Each Pair of Hosts</A
 ></H2
 ><P
@@ -690,7 +690,7 @@ CLASS="sect3"
 ><H3
 CLASS="sect3"
 ><A
-NAME="AEN821"
+NAME="AEN816"
 >4.4.1.1. Automatic Generation</A
 ></H3
 ><P
@@ -732,7 +732,7 @@ CLASS="sect3"
 ><H3
 CLASS="sect3"
 ><A
-NAME="AEN832"
+NAME="AEN827"
 >4.4.1.2. Manual Generation</A
 ></H3
 ><P
@@ -753,7 +753,7 @@ CLASS="sect2"
 ><H2
 CLASS="sect2"
 ><A
-NAME="AEN837"
+NAME="AEN832"
 >4.4.2. Copying the Shared Secret to Both Machines</A
 ></H2
 ><P
@@ -765,7 +765,7 @@ CLASS="sect2"
 ><H2
 CLASS="sect2"
 ><A
-NAME="AEN840"
+NAME="AEN835"
 >4.4.3. Informing the Servers of the Key's Existence</A
 ></H2
 ><P
@@ -813,7 +813,7 @@ CLASS="sect2"
 ><H2
 CLASS="sect2"
 ><A
-NAME="AEN852"
+NAME="AEN847"
 >4.4.4. Instructing the Server to Use the Key</A
 ></H2
 ><P
@@ -873,7 +873,7 @@ CLASS="sect2"
 ><H2
 CLASS="sect2"
 ><A
-NAME="AEN868"
+NAME="AEN863"
 >4.4.5. TSIG Key Based Access Control</A
 ></H2
 ><P
@@ -919,7 +919,7 @@ CLASS="sect2"
 ><H2
 CLASS="sect2"
 ><A
-NAME="AEN881"
+NAME="AEN876"
 >4.4.6. Errors</A
 ></H2
 ><P
@@ -948,7 +948,7 @@ CLASS="sect1"
 ><H1
 CLASS="sect1"
 ><A
-NAME="AEN885"
+NAME="AEN880"
 >4.5. TKEY</A
 ></H1
 ><P
@@ -1014,7 +1014,7 @@ CLASS="sect1"
 ><H1
 CLASS="sect1"
 ><A
-NAME="AEN900"
+NAME="AEN895"
 >4.6. SIG(0)</A
 ></H1
 ><P
@@ -1086,7 +1086,7 @@ CLASS="sect2"
 ><H2
 CLASS="sect2"
 ><A
-NAME="AEN917"
+NAME="AEN912"
 >4.7.1. Generating Keys</A
 ></H2
 ><P
@@ -1104,10 +1104,9 @@ CLASS="command"
 CLASS="command"
 >ZONE</B
 >, and must be usable for authentication.
-      It is recommended that zone keys use a cryptographic algorithm
-      designated as "mandatory to implement" by the IETF; currently
-      these are RSASHA1 (which is not yet supported in BIND 9.2)
-      and DSA.</P
+      It is recommended that zone keys be mandatory to implement a
+      cryptographic algorithm; currently the only key mandatory to
+      implement an algorithm is DSA.</P
 ><P
 >The following command will generate a 768 bit DSA key for
       the <TT
@@ -1166,7 +1165,7 @@ CLASS="sect2"
 ><H2
 CLASS="sect2"
 ><A
-NAME="AEN937"
+NAME="AEN932"
 >4.7.2. Creating a Keyset</A
 ></H2
 ><P
@@ -1219,7 +1218,7 @@ CLASS="sect2"
 ><H2
 CLASS="sect2"
 ><A
-NAME="AEN949"
+NAME="AEN944"
 >4.7.3. Signing the Child's Keyset</A
 ></H2
 ><P
@@ -1269,7 +1268,7 @@ CLASS="sect2"
 ><H2
 CLASS="sect2"
 ><A
-NAME="AEN962"
+NAME="AEN957"
 >4.7.4. Signing the Zone</A
 ></H2
 ><P
@@ -1331,7 +1330,7 @@ CLASS="sect2"
 ><H2
 CLASS="sect2"
 ><A
-NAME="AEN978"
+NAME="AEN973"
 >4.7.5. Configuring Servers</A
 ></H2
 ><P
@@ -1359,7 +1358,7 @@ CLASS="sect1"
 ><H1
 CLASS="sect1"
 ><A
-NAME="AEN985"
+NAME="AEN980"
 >4.8. IPv6 Support in <SPAN
 CLASS="acronym"
 >BIND</SPAN
@@ -1419,7 +1418,7 @@ CLASS="sect2"
 ><H2
 CLASS="sect2"
 ><A
-NAME="AEN1001"
+NAME="AEN996"
 >4.8.1. Address Lookups Using AAAA Records</A
 ></H2
 ><P
@@ -1441,7 +1440,7 @@ CLASS="sect2"
 ><H2
 CLASS="sect2"
 ><A
-NAME="AEN1006"
+NAME="AEN1001"
 >4.8.2. Address Lookups Using A6 Records</A
 ></H2
 ><P
@@ -1461,7 +1460,7 @@ CLASS="sect3"
 ><H3
 CLASS="sect3"
 ><A
-NAME="AEN1010"
+NAME="AEN1005"
 >4.8.2.1. A6 Chains</A
 ></H3
 ><P
@@ -1507,7 +1506,7 @@ CLASS="sect3"
 ><H3
 CLASS="sect3"
 ><A
-NAME="AEN1021"
+NAME="AEN1016"
 >4.8.2.2. A6 Records for DNS Servers</A
 ></H3
 ><P
@@ -1537,7 +1536,7 @@ CLASS="sect2"
 ><H2
 CLASS="sect2"
 ><A
-NAME="AEN1027"
+NAME="AEN1022"
 >4.8.3. Address to Name Lookups Using Nibble Format</A
 ></H2
 ><P
@@ -1568,7 +1567,7 @@ CLASS="sect2"
 ><H2
 CLASS="sect2"
 ><A
-NAME="AEN1034"
+NAME="AEN1029"
 >4.8.4. Address to Name Lookups Using Bitstring Format</A
 ></H2
 ><P
@@ -1595,7 +1594,7 @@ CLASS="sect2"
 ><H2
 CLASS="sect2"
 ><A
-NAME="AEN1041"
+NAME="AEN1036"
 >4.8.5. Using DNAME for Delegation of IPv6 Reverse Addresses</A
 ></H2
 ><P

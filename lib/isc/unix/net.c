@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: net.c,v 1.22.2.2 2001/11/02 00:20:12 marka Exp $ */
+/* $Id: net.c,v 1.22 2001/07/09 21:05:59 gson Exp $ */
 
 #include <config.h>
 
@@ -26,15 +26,11 @@
 #include <isc/msgs.h>
 #include <isc/net.h>
 #include <isc/once.h>
-#include <isc/strerror.h>
 #include <isc/string.h>
 #include <isc/util.h>
 
 #if defined(ISC_PLATFORM_HAVEIPV6) && defined(ISC_PLATFORM_NEEDIN6ADDRANY)
 const struct in6_addr isc_net_in6addrany = IN6ADDR_ANY_INIT;
-#endif
-
-#if defined(ISC_PLATFORM_HAVEIPV6) && defined(ISC_PLATFORM_NEEDIN6ADDRLOOPBACK)
 const struct in6_addr isc_net_in6addrloop = IN6ADDR_LOOPBACK_INIT;
 #endif
 
@@ -46,7 +42,6 @@ static isc_result_t
 try_proto(int domain) {
 	int s;
 	isc_result_t result = ISC_R_SUCCESS;
-	char strbuf[ISC_STRERRORSIZE];
 
 	s = socket(domain, SOCK_STREAM, 0);
 	if (s == -1) {
@@ -62,14 +57,13 @@ try_proto(int domain) {
 #endif
 			return (ISC_R_NOTFOUND);
 		default:
-			isc__strerror(errno, strbuf, sizeof(strbuf));
 			UNEXPECTED_ERROR(__FILE__, __LINE__,
 					 "socket() %s: %s",
 					 isc_msgcat_get(isc_msgcat,
 							ISC_MSGSET_GENERAL,
 							ISC_MSG_FAILED,
 							"failed"),
-					 strbuf);
+					 strerror(errno));
 			return (ISC_R_UNEXPECTED);
 		}
 	}

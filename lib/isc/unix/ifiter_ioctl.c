@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: ifiter_ioctl.c,v 1.19.2.1 2001/10/22 23:28:19 gson Exp $ */
+/* $Id: ifiter_ioctl.c,v 1.19 2001/07/09 21:05:58 gson Exp $ */
 
 /*
  * Obtain the list of network interfaces using the SIOCGLIFCONF ioctl.
@@ -73,7 +73,6 @@ isc_result_t
 isc_interfaceiter_create(isc_mem_t *mctx, isc_interfaceiter_t **iterp) {
 	isc_interfaceiter_t *iter;
 	isc_result_t result;
-	char strbuf[ISC_STRERRORSIZE];
 
 	REQUIRE(mctx != NULL);
 	REQUIRE(iterp != NULL);
@@ -90,14 +89,13 @@ isc_interfaceiter_create(isc_mem_t *mctx, isc_interfaceiter_t **iterp) {
 	 * Create an unbound datagram socket to do the SIOCGLIFADDR ioctl on.
 	 */
 	if ((iter->socket = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
-		isc__strerror(errno, strbuf, sizeof(strbuf));
 		UNEXPECTED_ERROR(__FILE__, __LINE__,
 				 isc_msgcat_get(isc_msgcat,
 						ISC_MSGSET_IFITERIOCTL,
 						ISC_MSG_MAKESCANSOCKET,
 						"making interface "
 						"scan socket: %s"),
-				 strbuf);
+				 strerror(errno));
 		result = ISC_R_UNEXPECTED;
 		goto socket_failure;
 	}
@@ -132,14 +130,13 @@ isc_interfaceiter_create(isc_mem_t *mctx, isc_interfaceiter_t **iterp) {
 		if (ioctl(iter->socket, SIOCGLIFCONF, (char *)&iter->ifc)
 		    == -1) {
 			if (errno != EINVAL) {
-				isc__strerror(errno, strbuf, sizeof(strbuf));
 				UNEXPECTED_ERROR(__FILE__, __LINE__,
 						 isc_msgcat_get(isc_msgcat,
 							ISC_MSGSET_IFITERIOCTL,
 							ISC_MSG_GETIFCONFIG,
 							"get interface "
 							"configuration: %s"),
-						 strbuf);
+						 strerror(errno));
 				result = ISC_R_UNEXPECTED;
 				goto ioctl_failure;
 			}
@@ -212,7 +209,6 @@ internal_current(isc_interfaceiter_t *iter) {
 	struct lifreq *ifrp;
 	struct lifreq lifreq;
 	int family;
-	char strbuf[ISC_STRERRORSIZE];
 
 	REQUIRE(VALID_IFITER(iter));
 	REQUIRE (iter->pos < (unsigned int) iter->ifc.lifc_len);
@@ -248,10 +244,10 @@ internal_current(isc_interfaceiter_t *iter) {
 	 * and is really hard to shut up.
 	 */
 	if (ioctl(iter->socket, SIOCGLIFFLAGS, (char *) &lifreq) < 0) {
-		isc__strerror(errno, strbuf, sizeof(strbuf));
 		UNEXPECTED_ERROR(__FILE__, __LINE__,
 				 "%s: getting interface flags: %s",
-				 lifreq.lifr_name, strbuf);
+				 lifreq.lifr_name,
+				 strerror(errno));
 		return (ISC_R_IGNORE);
 	}
 
@@ -275,14 +271,14 @@ internal_current(isc_interfaceiter_t *iter) {
 		 */
 		if (ioctl(iter->socket, SIOCGLIFDSTADDR, (char *)&lifreq)
 		    < 0) {
-			isc__strerror(errno, strbuf, sizeof(strbuf));
 			UNEXPECTED_ERROR(__FILE__, __LINE__,
 				isc_msgcat_get(isc_msgcat,
 					       ISC_MSGSET_IFITERIOCTL,
 					       ISC_MSG_GETDESTADDR,
 					       "%s: getting "
 					       "destination address: %s"),
-					 lifreq.lifr_name, strbuf);
+					 lifreq.lifr_name,
+					 strerror(errno));
 			return (ISC_R_IGNORE);
 		}
 		get_addr(family, &iter->current.dstaddress,
@@ -303,13 +299,13 @@ internal_current(isc_interfaceiter_t *iter) {
 		 */
 		if (ioctl(iter->socket, SIOCGLIFNETMASK, (char *)&lifreq)
 		    < 0) {
-			isc__strerror(errno, strbuf, sizeof(strbuf));
 			UNEXPECTED_ERROR(__FILE__, __LINE__,
 				isc_msgcat_get(isc_msgcat,
 					       ISC_MSGSET_IFITERIOCTL,
 					       ISC_MSG_GETNETMASK,
 					       "%s: getting netmask: %s"),
-					 lifreq.lifr_name, strbuf);
+					 lifreq.lifr_name,
+					 strerror(errno));
 			return (ISC_R_IGNORE);
 		}
 		get_addr(family, &iter->current.netmask,

@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: message.c,v 1.194.2.1 2001/11/15 01:24:07 marka Exp $ */
+/* $Id: message.c,v 1.194 2001/07/10 20:09:24 gson Exp $ */
 
 /***
  *** Imports
@@ -2911,7 +2911,8 @@ dns_message_pseudosectiontotext(dns_message_t *msg,
 		sprintf(buf, "%7u\n",
 			(unsigned int)ps->rdclass);
 		ADD_STRING(target, buf);
-		return (ISC_R_SUCCESS);
+		result = ISC_R_SUCCESS;
+		return (result);
 	case DNS_PSEUDOSECTION_TSIG:
 		ps = dns_message_gettsig(msg, &name);
 		if (ps == NULL)

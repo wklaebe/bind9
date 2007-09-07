@@ -44,10 +44,10 @@ BIND 9
 		Nominum, Inc.
 
 
-BIND 9.2.0rc10
+BIND 9.2.0rc2
 
-	BIND 9.2.0rc10 is a release candidate for BIND 9.2.0.
-	It fixes a number of bugs in 9.2.0rc9.
+	BIND 9.2.0rc2 is a release candidate for BIND 9.2.0.
+	It fixes a number of bugs in 9.2.0rc1.
 
 	BIND 9.2.0 has a number of new features over 9.1,
 	including:
@@ -149,15 +149,12 @@ Building
 		COMPAQ Tru64 UNIX 4.0D
 		COMPAQ Tru64 UNIX 5 (with IPv6 EAK)
 		FreeBSD 3.4-STABLE, 3.5, 4.0, 4.1
-		HP-UX 11.x, x < 11
+		HP-UX 11
 		IRIX64 6.5
 		NetBSD 1.5
 		Red Hat Linux 6.0, 6.1, 6.2, 7.0
 		Solaris 2.6, 7, 8
 		Windows NT/W2K
-
-	HP-UX 11.11 is not yet supported due to its incompatible
-	SIOCGLIFCONF ioctl.
 
 	Additionally, we have unverified reports of success building
 	previous versions of BIND 9 from users of the following systems:
@@ -166,11 +163,9 @@ Building
 		SuSE Linux 7.0
 		Slackware Linux 7.x, 8.0
 	        Red Hat Linux 7.1
-		OpenBSD 2.6, 2.8, 2.9
+		OpenBSD 2.6, 2.8, -current
 		UnixWare 7.1.1
 		HP-UX 10.20
-		BSD/OS 4.2
-		OpenUNIX 8
 
 	To build, just
 
@@ -202,8 +197,7 @@ Building
 	To build shared libraries, specify "--with-libtool" on the
 	configure command line.
 
-	For the server to support DNSSEC, you need to build it
-	with crypto support.  You must have OpenSSL 0.9.5a
+	To build with DNSSEC support, you must have OpenSSL 0.9.5a
 	or newer installed and specify "--with-openssl" on the
 	configure command line.  If OpenSSL is installed under
 	a nonstandard prefix, you can tell configure where to

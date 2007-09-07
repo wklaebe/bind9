@@ -23,7 +23,6 @@
 @NEED_GETTIMEOFDAY@
 @HAVE_STRNDUP@
 @USE_FIONBIO_IOCTL@
-@USE_SYSERROR_LIST@
 
 /* XXX sunos and cygwin needs O_NDELAY */
 #define PORT_NONBLOCK O_NONBLOCK
@@ -336,11 +335,7 @@ int setpassent(int stayopen);
 #endif
 
 #define gettimeofday isc__gettimeofday
-#ifdef NEED_GETTIMEOFDAY
-int isc__gettimeofday(struct timeval *tvp, struct _TIMEZONE *tzp);
-#else
 int isc__gettimeofday(struct timeval *tp, struct timezone *tzp);
-#endif
 
 int getnetgrent(const char **machinep, const char **userp,
 		const char **domainp);

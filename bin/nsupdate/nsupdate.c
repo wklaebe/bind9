@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: nsupdate.c,v 1.103.2.6 2001/11/06 21:50:35 bwelling Exp $ */
+/* $Id: nsupdate.c,v 1.103.2.1 2001/09/04 19:35:49 gson Exp $ */
 
 #include <config.h>
 
@@ -273,86 +273,100 @@ reset_system(void) {
 }
 
 static void
-setup_keystr(void) {
+setup_key(void) {
 	unsigned char *secret = NULL;
 	int secretlen;
 	isc_buffer_t secretbuf;
 	isc_result_t result;
-	isc_buffer_t keynamesrc;
-	char *secretstr;
-	char *s;
 	dns_fixedname_t fkeyname;
 	dns_name_t *keyname;
 
 	dns_fixedname_init(&fkeyname);
 	keyname = dns_fixedname_name(&fkeyname);
 
-	debug("Creating key...");
+	if (keystr != NULL) {
+		isc_buffer_t keynamesrc;
+		char *secretstr;
+		char *s;
 
-	s = strchr(keystr, ':');
-	if (s == NULL || s == keystr || *s == 0)
-		fatal("key option must specify keyname:secret");
-	secretstr = s + 1;
+		debug("Creating key...");
 
-	isc_buffer_init(&keynamesrc, keystr, s - keystr);
-	isc_buffer_add(&keynamesrc, s - keystr);
+		s = strchr(keystr, ':');
+		if (s == NULL || s == keystr || *s == 0)
+			fatal("key option must specify keyname:secret");
+		secretstr = s + 1;
 
-	debug("namefromtext");
-	result = dns_name_fromtext(keyname, &keynamesrc, dns_rootname,
-				   ISC_FALSE, NULL);
-	check_result(result, "dns_name_fromtext");
+		isc_buffer_init(&keynamesrc, keystr, s - keystr);
+		isc_buffer_add(&keynamesrc, s - keystr);
 
-	secretlen = strlen(secretstr) * 3 / 4;
-	secret = isc_mem_allocate(mctx, secretlen);
-	if (secret == NULL)
-		fatal("out of memory");
+		debug("namefromtext");
+		result = dns_name_fromtext(keyname, &keynamesrc, dns_rootname,
+					   ISC_FALSE, NULL);
+		check_result(result, "dns_name_fromtext");
 
-	isc_buffer_init(&secretbuf, secret, secretlen);
-	result = isc_base64_decodestring(secretstr, &secretbuf);
-	if (result != ISC_R_SUCCESS) {
-		fprintf(stderr, "could not create key from %s: %s\n",
-			keystr, isc_result_totext(result));
-		goto failure;
+		secretlen = strlen(secretstr) * 3 / 4;
+		secret = isc_mem_allocate(mctx, secretlen);
+		if (secret == NULL)
+			fatal("out of memory");
+
+		isc_buffer_init(&secretbuf, secret, secretlen);
+		result = isc_base64_decodestring(secretstr, &secretbuf);
+		if (result != ISC_R_SUCCESS) {
+			fprintf(stderr, "could not create key from %s: %s\n",
+				keystr, isc_result_totext(result));
+			goto failure;
+		}
+
+		secretlen = isc_buffer_usedlength(&secretbuf);
+		debug("close");
+	} else {
+		dst_key_t *dstkey = NULL;
+
+		result = dst_key_fromnamedfile(keyfile, DST_TYPE_PRIVATE,
+					       mctx, &dstkey);
+		if (result != ISC_R_SUCCESS) {
+			fprintf(stderr, "could not read key from %s: %s\n",
+				keyfile, isc_result_totext(result));
+			goto failure;
+		}
+		secretlen = (dst_key_size(dstkey) + 7) >> 3;
+		secret = isc_mem_allocate(mctx, secretlen);
+		if (secret == NULL)
+			fatal("out of memory");
+		isc_buffer_init(&secretbuf, secret, secretlen);
+		result = dst_key_tobuffer(dstkey, &secretbuf);
+		if (result != ISC_R_SUCCESS) {
+			fprintf(stderr, "could not read key from %s: %s\n",
+				keyfile, isc_result_totext(result));
+			goto failure;
+		}
+		result = dns_name_concatenate(dst_key_name(dstkey), NULL,
+					      keyname, NULL);
+		check_result(result, "dns_name_concatenate");
+		dst_key_free(&dstkey);
+				    
 	}
-
-	secretlen = isc_buffer_usedlength(&secretbuf);
 
 	debug("keycreate");
 	result = dns_tsigkey_create(keyname, dns_tsig_hmacmd5_name,
-				    secret, secretlen, ISC_TRUE, NULL,
-				    0, 0, mctx, NULL, &key);
-	if (result != ISC_R_SUCCESS)
+				    secret, secretlen, ISC_TRUE, NULL, 0, 0,
+				    mctx, NULL, &key);
+	if (result != ISC_R_SUCCESS) {
+		char *str;
+		if (keystr != NULL)
+			str = keystr;
+		else
+			str = keyfile;
 		fprintf(stderr, "could not create key from %s: %s\n",
-			keystr, dns_result_totext(result));
+			str, dns_result_totext(result));
+	}
+	isc_mem_free(mctx, secret);
+	return;
+
  failure:
+
 	if (secret != NULL)
 		isc_mem_free(mctx, secret);
-}
-
-static void
-setup_keyfile(void) {
-	dst_key_t *dstkey = NULL;
-	isc_result_t result;
-
-	debug("Creating key...");
-
-	result = dst_key_fromnamedfile(keyfile, DST_TYPE_PRIVATE, mctx,
-				       &dstkey);
-	if (result != ISC_R_SUCCESS) {
-		fprintf(stderr, "could not read key from %s: %s\n",
-			keyfile, isc_result_totext(result));
-		return;
-	}
-	result = dns_tsigkey_createfromkey(dst_key_name(dstkey),
-					   dns_tsig_hmacmd5_name,
-					   dstkey, ISC_FALSE, NULL,
-					   0, 0, mctx, NULL, &key);
-	if (result != ISC_R_SUCCESS) {
-		fprintf(stderr, "could not create key from %s: %s\n",
-			keyfile, isc_result_totext(result));
-		dst_key_free(&dstkey);
-		return;
-	}
 }
 
 static void
@@ -457,34 +471,29 @@ setup_system(void) {
 	if (lwresult != LWRES_R_SUCCESS)
 		fatal("lwres_context_create failed");
 
-	(void)lwres_conf_parse(lwctx, RESOLV_CONF);
+	lwresult = lwres_conf_parse(lwctx, RESOLV_CONF);
+	if (lwresult != LWRES_R_SUCCESS)
+		fprintf(stderr,
+			"an error was encountered in %s\n", RESOLV_CONF);
+
 	lwconf = lwres_conf_get(lwctx);
 
 	ns_total = lwconf->nsnext;
-	if (ns_total <= 0) {
-		/* No name servers in resolv.conf; default to loopback. */
-		struct in_addr localhost;
-		ns_total = 1;
-		servers = isc_mem_get(mctx, ns_total * sizeof(isc_sockaddr_t));
-		if (servers == NULL)
-			fatal("out of memory");
-		localhost.s_addr = htonl(INADDR_LOOPBACK);
-		isc_sockaddr_fromin(&servers[0], &localhost, DNSDEFAULTPORT);
-	} else {
-		servers = isc_mem_get(mctx, ns_total * sizeof(isc_sockaddr_t));
-		if (servers == NULL)
-			fatal("out of memory");
-		for (i = 0; i < ns_total; i++) {
-			if (lwconf->nameservers[i].family == LWRES_ADDRTYPE_V4) {
-				struct in_addr in4;
-				memcpy(&in4, lwconf->nameservers[i].address, 4);
-				isc_sockaddr_fromin(&servers[i], &in4, DNSDEFAULTPORT);
-			} else {
-				struct in6_addr in6;
-				memcpy(&in6, lwconf->nameservers[i].address, 16);
-				isc_sockaddr_fromin6(&servers[i], &in6,
-						     DNSDEFAULTPORT);
-			}
+	if (ns_total <= 0)
+		fatal("no valid servers found");
+	servers = isc_mem_get(mctx, ns_total * sizeof(isc_sockaddr_t));
+	if (servers == NULL)
+		fatal("out of memory");
+	for (i = 0; i < ns_total; i++) {
+		if (lwconf->nameservers[i].family == LWRES_ADDRTYPE_V4) {
+			struct in_addr in4;
+			memcpy(&in4, lwconf->nameservers[i].address, 4);
+			isc_sockaddr_fromin(&servers[i], &in4, DNSDEFAULTPORT);
+		} else {
+			struct in6_addr in6;
+			memcpy(&in6, lwconf->nameservers[i].address, 16);
+			isc_sockaddr_fromin6(&servers[i], &in6,
+					     DNSDEFAULTPORT);
 		}
 	}
 
@@ -559,10 +568,8 @@ setup_system(void) {
 	else
 		origin = dns_rootname;
 
-	if (keystr != NULL)
-		setup_keystr();
-	else if (keyfile != NULL)
-		setup_keyfile();
+	if (keystr != NULL || keyfile != NULL)
+		setup_key();
 }
 
 static void
@@ -658,8 +665,7 @@ parse_args(int argc, char **argv) {
 			fprintf(stderr, "%s: invalid argument -%c\n",
 				argv[0], ch);
 			fprintf(stderr, "usage: nsupdate [-d] "
-				"[-y keyname:secret | -k keyfile] [-v] "
-				"[filename]\n");
+				"[-y keyname:secret | -k keyfile] [-v]\n");
 			exit(1);
 		}
 	}
@@ -1089,7 +1095,6 @@ evaluate_zone(char *cmdline) {
 	result = dns_name_fromtext(userzone, &b, dns_rootname, ISC_FALSE,
 				   NULL);
 	if (result != ISC_R_SUCCESS) {
-		userzone = NULL; /* Lest it point to an invalid name */
 		fprintf(stderr, "could not parse zone name\n");
 		return (STATUS_SYNTAX);
 	}
@@ -1147,7 +1152,6 @@ update_addordelete(char *cmdline, isc_boolean_t isdelete) {
 			goto doneparsing;
 		}
 	}
-	errno = 0;
 	ttl = strtol(word, &endp, 0);
 	if (*endp != '\0') {
 		if (isdelete) {
@@ -1161,9 +1165,7 @@ update_addordelete(char *cmdline, isc_boolean_t isdelete) {
 
 	if (isdelete)
 		ttl = 0;
-	else if (ttl < 0 || ttl > TTL_MAX ||
-		 (ttl == LONG_MAX && errno == ERANGE))
-	{
+	else if (ttl < 0 || ttl > TTL_MAX || errno == ERANGE) {
 		/*
 		 * The errno test is needed to catch when strtol()
 		 * overflows on a platform where sizeof(int) ==

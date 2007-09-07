@@ -13,7 +13,12 @@
 # NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
 # WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-AC_REVISION($Revision: 1.294.2.6 $)
+dnl
+AC_DIVERT_PUSH(AC_DIVERSION_NOTICE)dnl
+esyscmd([sed "s/^/# /" COPYRIGHT])dnl
+AC_DIVERT_POP()dnl
+
+AC_REVISION($Revision: 1.294 $)
 
 AC_INIT(lib/dns/name.c)
 AC_PREREQ(2.13)
@@ -193,7 +198,7 @@ AC_CHECK_HEADERS(fcntl.h sys/time.h unistd.h sys/sockio.h sys/select.h sys/sysct
 
 AC_C_CONST
 AC_C_INLINE
-AC_CHECK_FUNC(sysctlbyname, AC_DEFINE(HAVE_SYSCTLBYNAME))
+AC_CHECK_FUNC(sysctlbyname, AC_DEFINE(HAVE_SYSCTLBYNAME),)
 
 #
 # UnixWare 7.1.1 with the feature supplement to the UDK compiler
@@ -275,8 +280,8 @@ AC_C_BIGENDIAN
 #
 AC_MSG_CHECKING(for OpenSSL library)
 AC_ARG_WITH(openssl,
-[  --with-openssl[=PATH]   Build with OpenSSL [yes|no|path].
-                          (Required for DNSSEC)],
+[  --with-openssl=PATH  Specify path for system-supplied openssl
+                        (required for DNSSEC)],
     use_openssl="$withval", use_openssl="no")
 
 case "$use_openssl" in
@@ -429,11 +434,11 @@ AC_MSG_CHECKING(whether to build with thread support)
 case $host in
 *-dec-osf*)
 	use_threads=true ;;
-[*-solaris2.[0-6]])
+[*-solaris-2[0-6]])
 	# Thread signals are broken on Solaris 2.6; they are sometimes
 	# delivered to the wrong thread.
 	use_threads=false ;;
-*-solaris*)
+*-solaris-2*)
 	use_threads=true ;;
 *-ibm-aix*)
 	use_threads=true ;;
@@ -1014,30 +1019,13 @@ $isc_netinetin6_hack
 $isc_netinet6in6_hack
 $isc_in_addr6_hack
 ],
-		[struct in6_addr in6; in6 = in6addr_any; return (in6.s6_addr[0]);],
+		[struct in6_addr in6; in6 = in6addr_any; return (0);],
 			[AC_MSG_RESULT(yes)
 			 ISC_PLATFORM_NEEDIN6ADDRANY="#undef ISC_PLATFORM_NEEDIN6ADDRANY"
 			 LWRES_PLATFORM_NEEDIN6ADDRANY="#undef LWRES_PLATFORM_NEEDIN6ADDRANY"],
 			[AC_MSG_RESULT(no)
 			 ISC_PLATFORM_NEEDIN6ADDRANY="#define ISC_PLATFORM_NEEDIN6ADDRANY 1"
 			 LWRES_PLATFORM_NEEDIN6ADDRANY="#define LWRES_PLATFORM_NEEDIN6ADDRANY 1"])
-
-		AC_MSG_CHECKING(for in6addr_loopback)
-		AC_TRY_LINK([
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-$isc_netinetin6_hack
-$isc_netinet6in6_hack
-$isc_in_addr6_hack
-],
-		[struct in6_addr in6; in6 = in6addr_loopback; return (in6.s6_addr[0]);],
-			[AC_MSG_RESULT(yes)
-			 ISC_PLATFORM_NEEDIN6ADDRLOOPBACK="#undef ISC_PLATFORM_NEEDIN6ADDRLOOPBACK"
-			 LWRES_PLATFORM_NEEDIN6ADDRLOOPBACK="#undef LWRES_PLATFORM_NEEDIN6ADDRLOOPBACK"],
-			[AC_MSG_RESULT(no)
-			 ISC_PLATFORM_NEEDIN6ADDRLOOPBACK="#define ISC_PLATFORM_NEEDIN6ADDRLOOPBACK 1"
-			 LWRES_PLATFORM_NEEDIN6ADDRLOOPBACK="#define LWRES_PLATFORM_NEEDIN6ADDRLOOPBACK 1"])
 
 		AC_MSG_CHECKING(for sin6_scope_id in struct sockaddr_in6)
 		AC_TRY_COMPILE([
@@ -1092,8 +1080,6 @@ AC_SUBST(ISC_PLATFORM_HAVEINADDR6)
 AC_SUBST(LWRES_PLATFORM_HAVEINADDR6)
 AC_SUBST(ISC_PLATFORM_NEEDIN6ADDRANY)
 AC_SUBST(LWRES_PLATFORM_NEEDIN6ADDRANY)
-AC_SUBST(ISC_PLATFORM_NEEDIN6ADDRLOOPBACK)
-AC_SUBST(LWRES_PLATFORM_NEEDIN6ADDRLOOPBACK)
 AC_SUBST(ISC_PLATFORM_HAVEIN6PKTINFO)
 AC_SUBST(ISC_PLATFORM_FIXIN6ISADDR)
 AC_SUBST(ISC_IPV6_H)
@@ -1237,7 +1223,8 @@ AC_TRY_COMPILE([
 #include <netdb.h>],
 [struct rrsetinfo r; return (0);],
 	[AC_MSG_RESULT(yes)
-	ISC_LWRES_NEEDRRSETINFO="#undef ISC_LWRES_NEEDRRSETINFO"],
+	ISC_LWRES_NEEDRRSETINFO="#undef ISC_LWRES_NEEDRRSETINFO"
+	AC_DEFINE(HAVE_RRSETINFO)],
 	[AC_MSG_RESULT(no)
 	ISC_LWRES_NEEDRRSETINFO="#define ISC_LWRES_NEEDRRSETINFO 1"])
 AC_SUBST(ISC_LWRES_NEEDRRSETINFO)
@@ -1358,7 +1345,6 @@ AC_CHECK_FUNC(vsnprintf,
 	 ISC_PLATFORM_NEEDVSNPRINTF="#define ISC_PLATFORM_NEEDVSNPRINTF 1"])
 AC_SUBST(ISC_PLATFORM_NEEDSTRSEP)
 AC_SUBST(ISC_PLATFORM_NEEDVSNPRINTF)
-AC_CHECK_FUNC(strerror, AC_DEFINE(HAVE_STRERROR))
 
 AC_SUBST(ISC_EXTRA_OBJS)
 AC_SUBST(ISC_EXTRA_SRCS)

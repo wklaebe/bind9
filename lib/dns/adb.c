@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: adb.c,v 1.181.2.2 2001/11/15 00:35:17 marka Exp $ */
+/* $Id: adb.c,v 1.181 2001/08/08 22:54:36 gson Exp $ */
 
 /*
  * Implementation notes
@@ -113,7 +113,7 @@ struct dns_adb {
 	unsigned int			magic;
 
 	isc_mutex_t			lock;
-	isc_mutex_t			reflock; /* Covers irefcnt, erefcnt */
+	isc_mutex_t			ilock;
 	isc_mem_t		       *mctx;
 	dns_view_t		       *view;
 	isc_timermgr_t		       *timermgr;
@@ -299,7 +299,8 @@ static void print_namehook_list(FILE *, const char *legend,
 static void print_find_list(FILE *, dns_adbname_t *);
 static void print_fetch_list(FILE *, dns_adbname_t *);
 static inline void dec_adb_irefcnt(dns_adb_t *);
-static inline void inc_adb_erefcnt(dns_adb_t *);
+static inline void inc_adb_erefcnt(dns_adb_t *, isc_boolean_t);
+static inline void dec_adb_erefcnt(dns_adb_t *, isc_boolean_t);
 static inline void inc_entry_refcnt(dns_adb_t *, dns_adbentry_t *,
 				    isc_boolean_t);
 static inline void dec_entry_refcnt(dns_adb_t *, dns_adbentry_t *,
@@ -1164,16 +1165,18 @@ static inline void
 check_exit(dns_adb_t *adb) {
 	isc_event_t *event;
 	isc_task_t *etask;
-	isc_boolean_t zeroirefcnt, zeroerefcnt;
+	isc_boolean_t zeroirefcnt;
 
 	/*
 	 * The caller must be holding the adb lock.
 	 */
 
-	LOCK(&adb->reflock);
-	zeroirefcnt = ISC_TF(adb->irefcnt == 0);
-	zeroerefcnt = ISC_TF(adb->erefcnt == 0);
-	UNLOCK(&adb->reflock);
+	LOCK(&adb->ilock);
+	if (adb->irefcnt == 0)
+		zeroirefcnt = ISC_TRUE;
+	else
+		zeroirefcnt = ISC_FALSE;
+	UNLOCK(&adb->ilock);
 
 	if (adb->shutting_down && zeroirefcnt &&
 	    isc_mempool_getallocated(adb->ahmp) == 0) {
@@ -1193,7 +1196,7 @@ check_exit(dns_adb_t *adb) {
 		 * If there aren't any external references either, we're
 		 * done.  Send the control event to initiate shutdown.
 		 */
-		if (zeroerefcnt) {
+		if (adb->erefcnt == 0) {
 			INSIST(!adb->cevent_sent);	/* Sanity check. */
 			event = &adb->cevent;
 			isc_task_send(adb->task, &event);
@@ -1204,19 +1207,38 @@ check_exit(dns_adb_t *adb) {
 
 static inline void
 dec_adb_irefcnt(dns_adb_t *adb) {
-	LOCK(&adb->reflock);
+	LOCK(&adb->ilock);
 
 	INSIST(adb->irefcnt > 0);
 	adb->irefcnt--;
 
-	UNLOCK(&adb->reflock);
+	UNLOCK(&adb->ilock);
 }
 
 static inline void
-inc_adb_erefcnt(dns_adb_t *adb) {
-	LOCK(&adb->reflock);
+inc_adb_erefcnt(dns_adb_t *adb, isc_boolean_t lock) {
+	if (lock)
+		LOCK(&adb->lock);
+
 	adb->erefcnt++;
-	UNLOCK(&adb->reflock);
+
+	if (lock)
+		UNLOCK(&adb->lock);
+}
+
+static inline void
+dec_adb_erefcnt(dns_adb_t *adb, isc_boolean_t lock) {
+	if (lock)
+		LOCK(&adb->lock);
+
+	INSIST(adb->erefcnt > 0);
+	adb->erefcnt--;
+
+	if (adb->erefcnt == 0)
+		check_exit(adb);
+
+	if (lock)
+		UNLOCK(&adb->lock);
 }
 
 static inline void
@@ -2109,7 +2131,7 @@ destroy(dns_adb_t *adb) {
 	isc_mutexblock_destroy(adb->entrylocks, NBUCKETS);
 	isc_mutexblock_destroy(adb->namelocks, NBUCKETS);
 
-	DESTROYLOCK(&adb->reflock);
+	DESTROYLOCK(&adb->ilock);
 	DESTROYLOCK(&adb->lock);
 	DESTROYLOCK(&adb->mplock);
 
@@ -2176,7 +2198,7 @@ dns_adb_create(isc_mem_t *mem, dns_view_t *view, isc_timermgr_t *timermgr,
 	if (result != ISC_R_SUCCESS)
 		goto fail0c;
 
-	result = isc_mutex_init(&adb->reflock);
+	result = isc_mutex_init(&adb->ilock);
 	if (result != ISC_R_SUCCESS)
 		goto fail0d;
 
@@ -2286,7 +2308,7 @@ dns_adb_create(isc_mem_t *mem, dns_view_t *view, isc_timermgr_t *timermgr,
 	if (adb->af6mp != NULL)
 		isc_mempool_destroy(&adb->af6mp);
 
-	DESTROYLOCK(&adb->reflock);
+	DESTROYLOCK(&adb->ilock);
  fail0d:
 	DESTROYLOCK(&adb->mplock);
  fail0c:
@@ -2303,33 +2325,24 @@ dns_adb_attach(dns_adb_t *adb, dns_adb_t **adbx) {
 	REQUIRE(DNS_ADB_VALID(adb));
 	REQUIRE(adbx != NULL && *adbx == NULL);
 
-	inc_adb_erefcnt(adb);
+	inc_adb_erefcnt(adb, ISC_TRUE);
 	*adbx = adb;
 }
 
 void
 dns_adb_detach(dns_adb_t **adbx) {
 	dns_adb_t *adb;
-	isc_boolean_t zeroerefcnt;
 
 	REQUIRE(adbx != NULL && DNS_ADB_VALID(*adbx));
 
 	adb = *adbx;
 	*adbx = NULL;
 
-	INSIST(adb->erefcnt > 0);
-
-	LOCK(&adb->reflock);
-	adb->erefcnt--;
-	zeroerefcnt = ISC_TF(adb->erefcnt == 0);
-	UNLOCK(&adb->reflock);
-
-	if (zeroerefcnt) {
-		LOCK(&adb->lock);
-		check_exit(adb);
+	LOCK(&adb->lock);
+	dec_adb_erefcnt(adb, ISC_FALSE);
+	if (adb->erefcnt == 0)
 		INSIST(adb->shutting_down);
-		UNLOCK(&adb->lock);
-	}
+	UNLOCK(&adb->lock);
 }
 
 void
@@ -2350,9 +2363,12 @@ dns_adb_whenshutdown(dns_adb_t *adb, isc_task_t *task, isc_event_t **eventp) {
 
 	LOCK(&adb->lock);
 
-	LOCK(&adb->reflock);
-	zeroirefcnt = ISC_TF(adb->irefcnt == 0);
-	UNLOCK(&adb->reflock);
+	LOCK(&adb->ilock);
+	if (adb->irefcnt == 0)
+		zeroirefcnt = ISC_TRUE;
+	else
+		zeroirefcnt = ISC_FALSE;
+	UNLOCK(&adb->ilock);
 
 	if (adb->shutting_down && zeroirefcnt &&
 	    isc_mempool_getallocated(adb->ahmp) == 0) {

@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dig.c,v 1.157.2.3 2001/11/15 01:24:10 marka Exp $ */
+/* $Id: dig.c,v 1.157 2001/08/23 04:39:31 marka Exp $ */
 
 #include <config.h>
 #include <stdlib.h>
@@ -184,7 +184,6 @@ help(void) {
 "                 +[no]answer         (Control display of answer)\n"
 "                 +[no]authority      (Control display of authority)\n"
 "                 +[no]additional     (Control display of additional)\n"
-"                 +[no]stats          (Control display of statistics)\n"
 "                 +[no]short          (Disable everything except short\n"
 "                                      form of answer)\n"
 "                 +[no]all            (Set or clear all display flags)\n"
@@ -652,8 +651,6 @@ plus_option(char *option, isc_boolean_t is_batchfile,
 			lookup->section_answer = state;
 			lookup->section_additional = state;
 			lookup->comments = state;
-			lookup->stats = state;
-			printcmd = state;
 			break;
 		case 'n': /* answer */
 			lookup->section_answer = state;
@@ -793,7 +790,6 @@ plus_option(char *option, isc_boolean_t is_batchfile,
 			if (state) {
 				printcmd = ISC_FALSE;
 				lookup->section_additional = ISC_FALSE;
-				lookup->section_answer = ISC_TRUE;
 				lookup->section_authority = ISC_FALSE;
 				lookup->section_question = ISC_FALSE;
 				lookup->comments = ISC_FALSE;
@@ -856,9 +852,9 @@ plus_option(char *option, isc_boolean_t is_batchfile,
 		}
 		break;
 	case 'v':
-		if (!is_batchfile)
-			lookup->tcp_mode = state;
-		break;
+			if (!is_batchfile)
+				lookup->tcp_mode = state;
+			break;
 	default:
 	invalid_option:
 	need_value:

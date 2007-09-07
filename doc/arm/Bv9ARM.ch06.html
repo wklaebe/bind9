@@ -91,7 +91,7 @@ HREF="Bv9ARM.ch06.html#Configuration_File_Grammar"
 ></DT
 ><DT
 >6.3. <A
-HREF="Bv9ARM.ch06.html#AEN3524"
+HREF="Bv9ARM.ch06.html#AEN3497"
 >Zone File</A
 ></DT
 ></DL
@@ -145,7 +145,7 @@ file documentation:</P
 ><DIV
 CLASS="informaltable"
 ><A
-NAME="AEN1103"
+NAME="AEN1098"
 ></A
 ><P
 ></P
@@ -476,9 +476,9 @@ WIDTH="362"
 ALIGN="LEFT"
 VALIGN="MIDDLE"
 ><P
->A non-negative 32 bit unsigned integer
-(i.e., a number between 0 and 4294967295, inclusive).
-Its acceptable value might further
+>A non-negative integer with an entire
+range limited by the range of a C language signed integer (2,147,483,647
+on a machine with 32 bit integers). Its acceptable value might further
 be limited by the context in which it is used.</P
 ></TD
 ></TR
@@ -534,7 +534,12 @@ CLASS="userinput"
 ></TT
 >.</P
 ><P
->&#13;An <TT
+>The maximum
+value of <TT
+CLASS="varname"
+>size_spec</TT
+> is that of unsigned long integers
+on the machine. An <TT
 CLASS="varname"
 >unlimited</TT
 > <TT
@@ -585,11 +590,11 @@ CLASS="userinput"
 ></TT
 > for gigabytes,
 which scale by 1024, 1024*1024, and 1024*1024*1024 respectively.</P
->
-<P
->The value must be representable as a 64-bit unsigned integer
-(0 to 18446744073709551615, inclusive).
- Using <TT
+><P
+>Integer
+storage overflow is currently silently ignored during conversion
+of scaled values, resulting in values less than intended, possibly
+even negative. Using <TT
 CLASS="varname"
 >unlimited</TT
 > is the best way
@@ -735,7 +740,7 @@ CLASS="sect3"
 ><H3
 CLASS="sect3"
 ><A
-NAME="AEN1265"
+NAME="AEN1261"
 >6.1.1.1. Syntax</A
 ></H3
 ><PRE
@@ -766,7 +771,7 @@ CLASS="sect3"
 ><H3
 CLASS="sect3"
 ><A
-NAME="AEN1273"
+NAME="AEN1269"
 >6.1.1.2. Definition and Usage</A
 ></H3
 ><P
@@ -877,7 +882,7 @@ CLASS="sect2"
 ><H2
 CLASS="sect2"
 ><A
-NAME="AEN1302"
+NAME="AEN1298"
 >6.1.2. Comment Syntax</A
 ></H2
 ><P
@@ -896,7 +901,7 @@ CLASS="sect3"
 ><H3
 CLASS="sect3"
 ><A
-NAME="AEN1307"
+NAME="AEN1303"
 >6.1.2.1. Syntax</A
 ></H3
 ><P
@@ -928,7 +933,7 @@ CLASS="sect3"
 ><H3
 CLASS="sect3"
 ><A
-NAME="AEN1316"
+NAME="AEN1312"
 >6.1.2.2. Definition and Usage</A
 ></H3
 ><P
@@ -1038,7 +1043,7 @@ CLASS="acronym"
 ><DIV
 CLASS="informaltable"
 ><A
-NAME="AEN1340"
+NAME="AEN1336"
 ></A
 ><P
 ></P
@@ -1266,7 +1271,7 @@ CLASS="sect2"
 ><H2
 CLASS="sect2"
 ><A
-NAME="AEN1409"
+NAME="AEN1405"
 >6.2.1. <B
 CLASS="command"
 >acl</B
@@ -1313,7 +1318,7 @@ CLASS="command"
 ><DIV
 CLASS="informaltable"
 ><A
-NAME="AEN1422"
+NAME="AEN1418"
 ></A
 ><P
 ></P
@@ -1376,8 +1381,8 @@ WIDTH="384"
 ALIGN="LEFT"
 VALIGN="MIDDLE"
 ><P
->Matches the IPv4 addresses of all network
-interfaces on the system.</P
+>Matches the IP addresses of all interfaces
+on the system.</P
 ></TD
 ></TR
 ><TR
@@ -1396,7 +1401,7 @@ WIDTH="384"
 ALIGN="LEFT"
 VALIGN="MIDDLE"
 ><P
->Matches any host on an IPv4 network for which
+>Matches any host on a network for which
 the system has an interface.</P
 ></TD
 ></TR
@@ -1405,33 +1410,13 @@ the system has an interface.</P
 ><P
 ></P
 ></DIV
-><P
->The <B
-CLASS="command"
->localhost</B
-> and <B
-CLASS="command"
->localnets</B
->
-ACLs do not currently support IPv6 (that is,
-<B
-CLASS="command"
->localhost</B
-> does not match the host's IPv6 addresses,
-and <B
-CLASS="command"
->localnets</B
-> does not match the host's attached
-IPv6 networks) due to the lack of a standard method of determining the
-complete set of local IPv6 addresses for a host.
-</P
 ></DIV
 ><DIV
 CLASS="sect2"
 ><H2
 CLASS="sect2"
 ><A
-NAME="AEN1456"
+NAME="AEN1447"
 >6.2.3. <B
 CLASS="command"
 >controls</B
@@ -1698,7 +1683,7 @@ CLASS="sect2"
 ><H2
 CLASS="sect2"
 ><A
-NAME="AEN1520"
+NAME="AEN1511"
 >6.2.5. <B
 CLASS="command"
 >include</B
@@ -1718,7 +1703,7 @@ CLASS="sect2"
 ><H2
 CLASS="sect2"
 ><A
-NAME="AEN1525"
+NAME="AEN1516"
 >6.2.6. <B
 CLASS="command"
 >include</B
@@ -1747,7 +1732,7 @@ CLASS="sect2"
 ><H2
 CLASS="sect2"
 ><A
-NAME="AEN1532"
+NAME="AEN1523"
 >6.2.7. <B
 CLASS="command"
 >key</B
@@ -1781,7 +1766,7 @@ CLASS="sect2"
 ><H2
 CLASS="sect2"
 ><A
-NAME="AEN1539"
+NAME="AEN1530"
 >6.2.8. <B
 CLASS="command"
 >key</B
@@ -1859,7 +1844,7 @@ CLASS="sect2"
 ><H2
 CLASS="sect2"
 ><A
-NAME="AEN1557"
+NAME="AEN1548"
 >6.2.9. <B
 CLASS="command"
 >logging</B
@@ -2019,7 +2004,7 @@ CLASS="sect2"
 ><H2
 CLASS="sect2"
 ><A
-NAME="AEN1597"
+NAME="AEN1588"
 >6.2.10. <B
 CLASS="command"
 >logging</B
@@ -2082,7 +2067,7 @@ CLASS="sect3"
 ><H3
 CLASS="sect3"
 ><A
-NAME="AEN1613"
+NAME="AEN1604"
 >6.2.10.1. The <B
 CLASS="command"
 >channel</B
@@ -2397,7 +2382,7 @@ HREF="Bv9ARM.ch06.html#the_category_phrase"
 ><PRE
 CLASS="programlisting"
 >channel "default_syslog" {
-    syslog daemon;                      // send to syslog's daemon
+    syslog daemon;                      // end to syslog's daemon
                                         // facility
     severity info;                      // only send priority info
                                         // and higher
@@ -2524,7 +2509,7 @@ CLASS="acronym"
 ><DIV
 CLASS="informaltable"
 ><A
-NAME="AEN1717"
+NAME="AEN1708"
 ></A
 ><P
 ></P
@@ -2814,10 +2799,7 @@ WIDTH="322"
 ALIGN="LEFT"
 VALIGN="MIDDLE"
 ><P
->Queries. Using the category <B
-CLASS="command"
->queries</B
-> will enable query logging.</P
+>Queries.</P
 ></TD
 ></TR
 ><TR
@@ -2895,7 +2877,7 @@ CLASS="sect2"
 ><H2
 CLASS="sect2"
 ><A
-NAME="AEN1828"
+NAME="AEN1818"
 >6.2.11. <B
 CLASS="command"
 >lwres</B
@@ -2992,7 +2974,7 @@ CLASS="sect2"
 ><H2
 CLASS="sect2"
 ><A
-NAME="AEN1852"
+NAME="AEN1842"
 >6.2.12. <B
 CLASS="command"
 >lwres</B
@@ -3066,7 +3048,7 @@ CLASS="sect2"
 ><H2
 CLASS="sect2"
 ><A
-NAME="AEN1871"
+NAME="AEN1861"
 >6.2.13. <B
 CLASS="command"
 >options</B
@@ -3902,24 +3884,6 @@ CLASS="replaceable"
 >]
     [<SPAN
 CLASS="optional"
-> provide-ixfr <TT
-CLASS="replaceable"
-><I
->yes_or_no</I
-></TT
->; </SPAN
->]
-    [<SPAN
-CLASS="optional"
-> request-ixfr <TT
-CLASS="replaceable"
-><I
->yes_or_no</I
-></TT
->; </SPAN
->]
-    [<SPAN
-CLASS="optional"
 > treat-cr-as-space <TT
 CLASS="replaceable"
 ><I
@@ -4025,7 +3989,7 @@ CLASS="sect2"
 ><H2
 CLASS="sect2"
 ><A
-NAME="AEN2089"
+NAME="AEN2075"
 >6.2.14. <B
 CLASS="command"
 >options</B
@@ -4269,7 +4233,14 @@ receiving and sending DNS protocol traffic.
 The default is 53.  This option is mainly intended for server testing;
 a server using a port other than 53 will not be able to communicate with
 the global DNS.
-</P
+The <B
+CLASS="command"
+>port</B
+> option should be placed at
+the beginning of the options block, before
+any other options that take port numbers or IP addresses,
+to ensure that the port value takes effect for all addresses
+used by the server.</P
 ></DD
 ><DT
 ><B
@@ -4825,42 +4796,6 @@ HREF="Bv9ARM.ch04.html#incremental_zone_transfers"
 ><DT
 ><B
 CLASS="command"
->provide-ixfr</B
-></DT
-><DD
-><P
->&#13;See the description of
-<B
-CLASS="command"
->provide-ixfr</B
-> in
-<A
-HREF="Bv9ARM.ch06.html#server_statement_definition_and_usage"
->Section 6.2.16</A
->
-</P
-></DD
-><DT
-><B
-CLASS="command"
->request-ixfr</B
-></DT
-><DD
-><P
->&#13;See the description of
-<B
-CLASS="command"
->request-ixfr</B
-> in
-<A
-HREF="Bv9ARM.ch06.html#server_statement_definition_and_usage"
->Section 6.2.16</A
->
-</P
-></DD
-><DT
-><B
-CLASS="command"
 >treat-cr-as-space</B
 ></DT
 ><DD
@@ -5008,7 +4943,7 @@ CLASS="sect3"
 ><H3
 CLASS="sect3"
 ><A
-NAME="AEN2389"
+NAME="AEN2362"
 >6.2.14.2. Forwarding</A
 ></H3
 ><P
@@ -5212,7 +5147,7 @@ CLASS="sect3"
 ><H3
 CLASS="sect3"
 ><A
-NAME="AEN2454"
+NAME="AEN2427"
 >6.2.14.4. Interfaces</A
 ></H3
 ><P
@@ -5307,7 +5242,7 @@ CLASS="sect3"
 ><H3
 CLASS="sect3"
 ><A
-NAME="AEN2480"
+NAME="AEN2453"
 >6.2.14.5. Query Address</A
 ></H3
 ><P
@@ -5472,7 +5407,7 @@ CLASS="command"
 >Slave servers will periodically query master servers
 to find out if zone serial numbers have changed. Each such query uses
 a minute amount of the slave server's network bandwidth.  To limit the
-amount of bandwidth used, BIND 9 limits the rate at which queries are
+amount of bandwith used, BIND 9 limits the rate at which queries are
 sent.  The value of the <B
 CLASS="command"
 >serial-query-rate</B
@@ -5739,7 +5674,7 @@ CLASS="sect3"
 ><H3
 CLASS="sect3"
 ><A
-NAME="AEN2619"
+NAME="AEN2592"
 >6.2.14.7. Operating System Resource Limits</A
 ></H3
 ><P
@@ -5859,7 +5794,7 @@ CLASS="sect3"
 ><H3
 CLASS="sect3"
 ><A
-NAME="AEN2656"
+NAME="AEN2629"
 >6.2.14.8. Server  Resource Limits</A
 ></H3
 ><P
@@ -5893,7 +5828,7 @@ the server will perform on behalf of clients.  The default is
 <TT
 CLASS="literal"
 >1000</TT
->.  Because each recursing client uses a fair
+>.  Because each recursing clients uses a fair
 bit of memory, on the order of 20 kilobytes, the value of the
 <B
 CLASS="command"
@@ -5943,7 +5878,7 @@ CLASS="sect3"
 ><H3
 CLASS="sect3"
 ><A
-NAME="AEN2684"
+NAME="AEN2657"
 >6.2.14.9. Periodic Task Intervals</A
 ></H3
 ><P
@@ -6310,7 +6245,7 @@ CLASS="command"
 ><DIV
 CLASS="informaltable"
 ><A
-NAME="AEN2772"
+NAME="AEN2745"
 ></A
 ><P
 ></P
@@ -6473,7 +6408,7 @@ CLASS="command"
 CLASS="command"
 >view</B
 > statement.
-When it is enabled, recursive
+ When it is enabled, recursive
 AAAA queries cause the server to first try an A6 lookup and if that
 fails, an AAAA lookups.  No matter which one succeeds, the results are
 returned as a set of synthetic AAAA records.  Similarly, recursive PTR
@@ -6697,7 +6632,7 @@ number is identical to the number in the beginning line.</P
 ><DIV
 CLASS="informaltable"
 ><A
-NAME="AEN2884"
+NAME="AEN2857"
 ></A
 ><P
 ></P
@@ -7000,8 +6935,8 @@ to the remote server will be nonincremental. If not set, the value
 of the <B
 CLASS="command"
 >provide-ixfr</B
-> option in the view or
-global options block is used as a default.</P
+> option in the global options block
+is used as a default.</P
 ><P
 >The <B
 CLASS="command"
@@ -7012,8 +6947,8 @@ transfers from the given remote server, a master. If not set, the
 value of the <B
 CLASS="command"
 >request-ixfr</B
-> option in the view or
-global options block is used as a default.</P
+> option in the global
+options block is used as a default.</P
 ><P
 >IXFR requests to servers that do not support IXFR will automatically
 fall back to AXFR.  Therefore, there is no need to manually list
@@ -7133,7 +7068,7 @@ CLASS="sect2"
 ><H2
 CLASS="sect2"
 ><A
-NAME="AEN2999"
+NAME="AEN2972"
 >6.2.17. <B
 CLASS="command"
 >trusted-keys</B
@@ -7208,7 +7143,7 @@ CLASS="sect2"
 ><H2
 CLASS="sect2"
 ><A
-NAME="AEN3015"
+NAME="AEN2988"
 >6.2.18. <B
 CLASS="command"
 >trusted-keys</B
@@ -7243,7 +7178,7 @@ CLASS="sect2"
 ><H2
 CLASS="sect2"
 ><A
-NAME="AEN3023"
+NAME="AEN2996"
 >6.2.19. <B
 CLASS="command"
 >view</B
@@ -7318,7 +7253,7 @@ CLASS="sect2"
 ><H2
 CLASS="sect2"
 ><A
-NAME="AEN3039"
+NAME="AEN3012"
 >6.2.20. <B
 CLASS="command"
 >view</B
@@ -7969,7 +7904,7 @@ CLASS="sect2"
 ><H2
 CLASS="sect2"
 ><A
-NAME="AEN3190"
+NAME="AEN3163"
 >6.2.22. <B
 CLASS="command"
 >zone</B
@@ -7980,13 +7915,13 @@ CLASS="sect3"
 ><H3
 CLASS="sect3"
 ><A
-NAME="AEN3193"
+NAME="AEN3166"
 >6.2.22.1. Zone Types</A
 ></H3
 ><DIV
 CLASS="informaltable"
 ><A
-NAME="AEN3195"
+NAME="AEN3168"
 ></A
 ><P
 ></P
@@ -8174,7 +8109,7 @@ an empty list for <B
 CLASS="command"
 >forwarders</B
 > is given, then no
-forwarding will be done for the domain, canceling the effects of
+forwarding will be done for the domain, cancelling the effects of
 any forwarders in the <B
 CLASS="command"
 >options</B
@@ -8224,7 +8159,7 @@ CLASS="sect3"
 ><H3
 CLASS="sect3"
 ><A
-NAME="AEN3250"
+NAME="AEN3223"
 >6.2.22.2. Class</A
 ></H3
 ><P
@@ -8262,7 +8197,7 @@ CLASS="sect3"
 ><H3
 CLASS="sect3"
 ><A
-NAME="AEN3260"
+NAME="AEN3233"
 >6.2.22.3. Zone Options</A
 ></H3
 ><P
@@ -8430,7 +8365,7 @@ CLASS="command"
 ><P
 >&#13;This option was used in BIND 8 to restrict the character set of
 domain names in master files and/or DNS responses received from the
-network.  BIND 9 does not restrict the character set of domain names
+netowrk.  BIND 9 does not restrict the character set of domain names
 and does not implement the <B
 CLASS="command"
 >check-names</B
@@ -8903,7 +8838,7 @@ CLASS="varname"
 ><DIV
 CLASS="informaltable"
 ><A
-NAME="AEN3494"
+NAME="AEN3467"
 ></A
 ><P
 ></P
@@ -9010,7 +8945,7 @@ CLASS="sect1"
 ><H1
 CLASS="sect1"
 ><A
-NAME="AEN3524"
+NAME="AEN3497"
 >6.3. Zone File</A
 ></H1
 ><DIV
@@ -9031,7 +8966,7 @@ CLASS="sect3"
 ><H3
 CLASS="sect3"
 ><A
-NAME="AEN3529"
+NAME="AEN3502"
 >6.3.1.1. Resource Records</A
 ></H3
 ><P
@@ -9054,7 +8989,7 @@ HREF="Bv9ARM.ch06.html#rrset_ordering"
 ><DIV
 CLASS="informaltable"
 ><A
-NAME="AEN3535"
+NAME="AEN3508"
 ></A
 ><P
 ></P
@@ -9165,7 +9100,7 @@ or historical (h) and no longer in general use):</P
 ><DIV
 CLASS="informaltable"
 ><A
-NAME="AEN3567"
+NAME="AEN3540"
 ></A
 ><P
 ></P
@@ -9542,7 +9477,7 @@ are currently valid in the DNS:</P
 ><DIV
 CLASS="informaltable"
 ><A
-NAME="AEN3679"
+NAME="AEN3652"
 ></A
 ><P
 ></P
@@ -9594,7 +9529,7 @@ data that describes the resource:</P
 ><DIV
 CLASS="informaltable"
 ><A
-NAME="AEN3695"
+NAME="AEN3668"
 ></A
 ><P
 ></P
@@ -9771,7 +9706,7 @@ CLASS="sect3"
 ><H3
 CLASS="sect3"
 ><A
-NAME="AEN3743"
+NAME="AEN3716"
 >6.3.1.2. Textual expression of RRs</A
 ></H3
 ><P
@@ -9801,7 +9736,7 @@ knowledge of the typical representation for the data.</P
 ><DIV
 CLASS="informaltable"
 ><A
-NAME="AEN3750"
+NAME="AEN3723"
 ></A
 ><P
 ></P
@@ -10010,7 +9945,7 @@ domain names.</P
 ><DIV
 CLASS="informaltable"
 ><A
-NAME="AEN3816"
+NAME="AEN3789"
 ></A
 ><P
 ></P
@@ -10101,7 +10036,7 @@ CLASS="sect2"
 ><H2
 CLASS="sect2"
 ><A
-NAME="AEN3844"
+NAME="AEN3817"
 >6.3.2. Discussion of MX Records</A
 ></H2
 ><P
@@ -10134,7 +10069,7 @@ pointed to by the CNAME.</P
 ><DIV
 CLASS="informaltable"
 ><A
-NAME="AEN3850"
+NAME="AEN3823"
 ></A
 ><P
 ></P
@@ -10430,7 +10365,7 @@ used in a zone file.</P
 ><DIV
 CLASS="informaltable"
 ><A
-NAME="AEN3942"
+NAME="AEN3915"
 ></A
 ><P
 ></P
@@ -10513,7 +10448,7 @@ CLASS="sect2"
 ><H2
 CLASS="sect2"
 ><A
-NAME="AEN3965"
+NAME="AEN3938"
 >6.3.4. Inverse Mapping in IPv4</A
 ></H2
 ><P
@@ -10537,7 +10472,7 @@ CLASS="optional"
 ><DIV
 CLASS="informaltable"
 ><A
-NAME="AEN3970"
+NAME="AEN3943"
 ></A
 ><P
 ></P
@@ -10617,7 +10552,7 @@ CLASS="sect2"
 ><H2
 CLASS="sect2"
 ><A
-NAME="AEN3992"
+NAME="AEN3965"
 >6.3.5. Other Zone File Directives</A
 ></H2
 ><P
@@ -10642,7 +10577,7 @@ CLASS="sect3"
 ><H3
 CLASS="sect3"
 ><A
-NAME="AEN3999"
+NAME="AEN3972"
 >6.3.5.1. The <B
 CLASS="command"
 >$ORIGIN</B
@@ -10712,7 +10647,7 @@ CLASS="sect3"
 ><H3
 CLASS="sect3"
 ><A
-NAME="AEN4019"
+NAME="AEN3992"
 >6.3.5.2. The <B
 CLASS="command"
 >$INCLUDE</B
@@ -10794,7 +10729,7 @@ CLASS="sect3"
 ><H3
 CLASS="sect3"
 ><A
-NAME="AEN4039"
+NAME="AEN4012"
 >6.3.5.3. The <B
 CLASS="command"
 >$TTL</B
@@ -10834,7 +10769,7 @@ CLASS="sect2"
 ><H2
 CLASS="sect2"
 ><A
-NAME="AEN4050"
+NAME="AEN4023"
 >6.3.6. <SPAN
 CLASS="acronym"
 >BIND</SPAN
@@ -10913,7 +10848,7 @@ CLASS="literal"
 ><DIV
 CLASS="informaltable"
 ><A
-NAME="AEN4070"
+NAME="AEN4043"
 ></A
 ><P
 ></P

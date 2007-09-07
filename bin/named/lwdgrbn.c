@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2006  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000, 2001, 2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,9 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: lwdgrbn.c,v 1.11.208.5 2006/01/04 23:50:19 marka Exp $ */
+/* $Id: lwdgrbn.c,v 1.13.18.3 2005/11/30 03:44:38 marka Exp $ */
+
+/*! \file */
 
 #include <config.h>
 

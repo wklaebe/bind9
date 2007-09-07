@@ -1,5 +1,5 @@
 /*
- * Portions Copyright (C) 2004, 2006  Internet Systems Consortium, Inc. ("ISC")
+ * Portions Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
  * Portions Copyright (C) 1999-2002  Internet Software Consortium.
  * Portions Copyright (C) 1995-2000 by Network Associates, Inc.
  *
@@ -16,7 +16,7 @@
  * IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: openssldsa_link.c,v 1.1.4.3 2006/03/02 00:37:20 marka Exp $ */
+/* $Id: openssldsa_link.c,v 1.1.6.5 2006/03/02 00:37:21 marka Exp $ */
 
 #ifdef OPENSSL
 
@@ -124,7 +124,7 @@ openssldsa_verify(dst_context_t *dctx, const isc_region_t *sig) {
 	if (sig->length < 2 * ISC_SHA1_DIGESTLENGTH + 1)
 		return (DST_R_VERIFYFAILURE);
 
-	cp++;	/* Skip T */
+	cp++;	/*%< Skip T */
 	dsasig = DSA_SIG_new();
 	dsasig->r = BN_bin2bn(cp, ISC_SHA1_DIGESTLENGTH, NULL);
 	cp += ISC_SHA1_DIGESTLENGTH;
@@ -490,9 +490,9 @@ static dst_func_t openssldsa_functions = {
 	openssldsa_adddata,
 	openssldsa_sign,
 	openssldsa_verify,
-	NULL, /* computesecret */
+	NULL, /*%< computesecret */
 	openssldsa_compare,
-	NULL, /* paramcompare */
+	NULL, /*%< paramcompare */
 	openssldsa_generate,
 	openssldsa_isprivate,
 	openssldsa_destroy,
@@ -500,7 +500,7 @@ static dst_func_t openssldsa_functions = {
 	openssldsa_fromdns,
 	openssldsa_tofile,
 	openssldsa_parse,
-	NULL, /* cleanup */
+	NULL, /*%< cleanup */
 };
 
 isc_result_t
@@ -518,3 +518,4 @@ dst__openssldsa_init(dst_func_t **funcp) {
 EMPTY_TRANSLATION_UNIT
 
 #endif /* OPENSSL */
+/*! \file */

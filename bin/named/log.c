@@ -15,7 +15,9 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: log.c,v 1.33.2.1.10.6 2005/05/24 23:58:17 marka Exp $ */
+/* $Id: log.c,v 1.37.18.4 2005/05/20 01:21:44 marka Exp $ */
+
+/*! \file */
 
 #include <config.h>
 
@@ -29,9 +31,10 @@
 #define ISC_FACILITY LOG_DAEMON
 #endif
 
-/*
+/*%
  * When adding a new category, be sure to add the appropriate
- * #define to <named/log.h>.
+ * #define to <named/log.h> and to update the list in
+ * bin/check/check-tool.c.
  */
 static isc_logcategory_t categories[] = {
 	{ "",		 		0 },
@@ -44,7 +47,7 @@ static isc_logcategory_t categories[] = {
 	{ NULL, 			0 }
 };
 
-/*
+/*%
  * When adding a new module, be sure to add the appropriate
  * #define to <dns/log.h>.
  */

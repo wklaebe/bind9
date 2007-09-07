@@ -1,5 +1,5 @@
 /*
- * Portions Copyright (C) 2004, 2006  Internet Systems Consortium, Inc. ("ISC")
+ * Portions Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
  * Portions Copyright (C) 1999-2002  Internet Software Consortium.
  * Portions Copyright (C) 1995-2000 by Network Associates, Inc.
  *
@@ -18,7 +18,7 @@
 
 /*
  * Principal Author: Brian Wellington
- * $Id: openssldh_link.c,v 1.1.4.3 2006/03/02 00:37:20 marka Exp $
+ * $Id: openssldh_link.c,v 1.1.6.6 2006/03/02 00:37:21 marka Exp $
  */
 
 #ifdef OPENSSL
@@ -222,7 +222,7 @@ openssldh_generate(dst_key_t *key, int generator) {
 		{
 			dh = DH_new();
 			if (dh == NULL)
-				return (ISC_R_NOMEMORY);
+				return (dst__openssl_toresult(ISC_R_NOMEMORY));
 			if (key->key_size == 768)
 				dh->p = &bn768;
 			else if (key->key_size == 1024)
@@ -358,7 +358,7 @@ openssldh_fromdns(dst_key_t *key, isc_buffer_t *data) {
 
 	dh = DH_new();
 	if (dh == NULL)
-		return (ISC_R_NOMEMORY);
+		return (dst__openssl_toresult(ISC_R_NOMEMORY));
 	dh->flags &= ~DH_FLAG_CACHE_MONT_P;
 
 	/*
@@ -637,11 +637,11 @@ openssldh_cleanup(void) {
 }
 
 static dst_func_t openssldh_functions = {
-	NULL, /* createctx */
-	NULL, /* destroyctx */
-	NULL, /* adddata */
-	NULL, /* openssldh_sign */
-	NULL, /* openssldh_verify */
+	NULL, /*%< createctx */
+	NULL, /*%< destroyctx */
+	NULL, /*%< adddata */
+	NULL, /*%< openssldh_sign */
+	NULL, /*%< openssldh_verify */
 	openssldh_computesecret,
 	openssldh_compare,
 	openssldh_paramcompare,
@@ -679,3 +679,4 @@ dst__openssldh_init(dst_func_t **funcp) {
 EMPTY_TRANSLATION_UNIT
 
 #endif /* OPENSSL */
+/*! \file */

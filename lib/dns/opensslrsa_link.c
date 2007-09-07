@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2006  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -17,7 +17,7 @@
 
 /*
  * Principal Author: Brian Wellington
- * $Id: opensslrsa_link.c,v 1.1.4.9 2006/11/07 21:28:40 marka Exp $
+ * $Id: opensslrsa_link.c,v 1.1.6.7 2006/03/02 00:37:21 marka Exp $
  */
 #ifdef OPENSSL
 
@@ -39,22 +39,6 @@
 #include <openssl/err.h>
 #include <openssl/objects.h>
 #include <openssl/rsa.h>
-#if OPENSSL_VERSION_NUMBER > 0x00908000L
-#include <openssl/bn.h>
-#endif
-
-/*
- * We don't use configure for windows so enforce the OpenSSL version
- * here.  Unlike with configure we don't support overriding this test.
- */
-#ifdef WIN32
-#if !((OPENSSL_VERSION_NUMBER >= 0x009070cfL && \
-       OPENSSL_VERSION_NUMBER < 0x00908000L) || \
-      OPENSSL_VERSION_NUMBER >= 0x0090804fL) 
-#error Please upgrade OpenSSL to 0.9.8d/0.9.7l or greater.
-#endif
-#endif
-
 
 	/*
 	 * XXXMPA  Temporarially disable RSA_BLINDING as it requires
@@ -284,57 +268,110 @@ opensslrsa_compare(const dst_key_t *key1, const dst_key_t *key2) {
 	return (ISC_TRUE);
 }
 
-static isc_result_t
-opensslrsa_generate(dst_key_t *key, int exp) {
-#if OPENSSL_VERSION_NUMBER > 0x00908000L
-	BN_GENCB cb;
-	RSA *rsa = RSA_new();
-	BIGNUM *e = BN_new();
+#ifndef HAVE_RSA_GENERATE_KEY
+/* ====================================================================
+ * Copyright (c) 1998-2002 The OpenSSL Project.  All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ *
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in
+ *    the documentation and/or other materials provided with the
+ *    distribution.
+ *
+ * 3. All advertising materials mentioning features or use of this
+ *    software must display the following acknowledgment:
+ *    "This product includes software developed by the OpenSSL Project
+ *    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+ *
+ * 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+ *    endorse or promote products derived from this software without
+ *    prior written permission. For written permission, please contact
+ *    openssl-core@openssl.org.
+ *
+ * 5. Products derived from this software may not be called "OpenSSL"
+ *    nor may "OpenSSL" appear in their names without prior written
+ *    permission of the OpenSSL Project.
+ *
+ * 6. Redistributions of any form whatsoever must retain the following
+ *    acknowledgment:
+ *    "This product includes software developed by the OpenSSL Project
+ *    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+ * EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+ * ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+ * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+ * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+ * OF THE POSSIBILITY OF SUCH DAMAGE.
+ * ====================================================================
+ *
+ * This product includes cryptographic software written by Eric Young
+ * (eay@cryptsoft.com).  This product includes software written by Tim
+ * Hudson (tjh@cryptsoft.com).
+ *
+ */
+static RSA *
+RSA_generate_key(int bits, unsigned long e_value,
+		 void (*callback)(int,int,void *), void *cb_arg)
+{
+        BN_GENCB cb;
+        size_t i;
+        RSA *rsa = RSA_new();
+        BIGNUM *e = BN_new();
 
-	if (rsa == NULL || e == NULL)
+        if (rsa == NULL || e == NULL)
 		goto err;
 
-	if (exp == 0) {
-		/* RSA_F4 0x10001 */
-		BN_set_bit(e, 0);
-		BN_set_bit(e, 16);
-	} else {
-		/* F5 0x100000001 */
-		BN_set_bit(e, 0);
-		BN_set_bit(e, 32);
+        /* The problem is when building with 8, 16, or 32 BN_ULONG,
+         * unsigned long can be larger */
+        for (i = 0; i < sizeof(unsigned long) * 8; i++) {
+                if ((e_value & (1UL<<i)) != 0)
+                        BN_set_bit(e, i);
 	}
 
-	BN_GENCB_set_old(&cb, NULL, NULL);
+        BN_GENCB_set_old(&cb, callback, cb_arg);
 
-	if (RSA_generate_key_ex(rsa, key->key_size, e, &cb)) {
-		BN_free(e);
-		SET_FLAGS(rsa);
-		key->opaque = rsa;
-		return (ISC_R_SUCCESS);
-	}
-
+        if (RSA_generate_key_ex(rsa, bits, e, &cb)) {
+                BN_free(e);
+                return (rsa);
+        }
 err:
-	if (e != NULL)
+        if (e != NULL)
 		BN_free(e);
-	if (rsa != NULL)
+        if (rsa != NULL)
 		RSA_free(rsa);
-	return (dst__openssl_toresult(DST_R_OPENSSLFAILURE));
-#else
+        return (NULL);
+}
+#endif
+
+static isc_result_t
+opensslrsa_generate(dst_key_t *key, int exp) {
 	RSA *rsa;
 	unsigned long e;
 
 	if (exp == 0)
-	       e = RSA_F4;
+		e = RSA_3;
 	else
-	       e = 0x40000003;
+		e = RSA_F4;
 	rsa = RSA_generate_key(key->key_size, e, NULL, NULL);
 	if (rsa == NULL)
-	       return (dst__openssl_toresult(DST_R_OPENSSLFAILURE));
+		return (dst__openssl_toresult(DST_R_OPENSSLFAILURE));
 	SET_FLAGS(rsa);
 	key->opaque = rsa;
 
 	return (ISC_R_SUCCESS);
-#endif
 }
 
 static isc_boolean_t
@@ -367,7 +404,7 @@ opensslrsa_todns(const dst_key_t *key, isc_buffer_t *data) {
 	e_bytes = BN_num_bytes(rsa->e);
 	mod_bytes = BN_num_bytes(rsa->n);
 
-	if (e_bytes < 256) {	/* key exponent is <= 2040 bits */
+	if (e_bytes < 256) {	/*%< key exponent is <= 2040 bits */
 		if (r.length < 1)
 			return (ISC_R_NOSPACE);
 		isc_buffer_putuint8(data, (isc_uint8_t) e_bytes);
@@ -403,7 +440,7 @@ opensslrsa_fromdns(dst_key_t *key, isc_buffer_t *data) {
 
 	rsa = RSA_new();
 	if (rsa == NULL)
-		return (ISC_R_NOMEMORY);
+		return (dst__openssl_toresult(ISC_R_NOMEMORY));
 	SET_FLAGS(rsa);
 
 	if (r.length < 1) {
@@ -598,9 +635,9 @@ static dst_func_t opensslrsa_functions = {
 	opensslrsa_adddata,
 	opensslrsa_sign,
 	opensslrsa_verify,
-	NULL, /* computesecret */
+	NULL, /*%< computesecret */
 	opensslrsa_compare,
-	NULL, /* paramcompare */
+	NULL, /*%< paramcompare */
 	opensslrsa_generate,
 	opensslrsa_isprivate,
 	opensslrsa_destroy,
@@ -608,7 +645,7 @@ static dst_func_t opensslrsa_functions = {
 	opensslrsa_fromdns,
 	opensslrsa_tofile,
 	opensslrsa_parse,
-	NULL, /* cleanup */
+	NULL, /*%< cleanup */
 };
 
 isc_result_t
@@ -626,3 +663,4 @@ dst__opensslrsa_init(dst_func_t **funcp) {
 EMPTY_TRANSLATION_UNIT
 
 #endif /* OPENSSL */
+/*! \file */

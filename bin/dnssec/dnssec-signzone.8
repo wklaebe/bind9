@@ -1,4 +1,4 @@
-.\" Copyright (C) 2004, 2005 Internet Systems Consortium, Inc. ("ISC")
+.\" Copyright (C) 2004-2006 Internet Systems Consortium, Inc. ("ISC")
 .\" Copyright (C) 2000-2003 Internet Software Consortium.
 .\" 
 .\" Permission to use, copy, modify, and distribute this software for any
@@ -13,17 +13,14 @@
 .\" OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 .\" PERFORMANCE OF THIS SOFTWARE.
 .\"
-.\" $Id: dnssec-signzone.8,v 1.23.2.1.4.11 2006/06/29 13:02:30 marka Exp $
+.\" $Id: dnssec-signzone.8,v 1.28.18.13 2006/04/23 10:12:41 marka Exp $
 .\"
 .hy 0
 .ad l
-.\"     Title: dnssec\-signzone
-.\"    Author: 
-.\" Generator: DocBook XSL Stylesheets v1.70.1 <http://docbook.sf.net/>
-.\"      Date: June 30, 2000
-.\"    Manual: BIND9
-.\"    Source: BIND9
-.\"
+.\" ** You probably do not want to edit this file directly **
+.\" It was generated using the DocBook XSL Stylesheets (version 1.69.1).
+.\" Instead of manually editing it, you probably should edit the DocBook XML
+.\" source for it and then use the DocBook XSL Stylesheets to regenerate it.
 .TH "DNSSEC\-SIGNZONE" "8" "June 30, 2000" "BIND9" "BIND9"
 .\" disable hyphenation
 .nh
@@ -33,7 +30,7 @@
 dnssec\-signzone \- DNSSEC zone signing tool
 .SH "SYNOPSIS"
 .HP 16
-\fBdnssec\-signzone\fR [\fB\-a\fR] [\fB\-c\ \fR\fB\fIclass\fR\fR] [\fB\-d\ \fR\fB\fIdirectory\fR\fR] [\fB\-e\ \fR\fB\fIend\-time\fR\fR] [\fB\-f\ \fR\fB\fIoutput\-file\fR\fR] [\fB\-g\fR] [\fB\-h\fR] [\fB\-k\ \fR\fB\fIkey\fR\fR] [\fB\-l\ \fR\fB\fIdomain\fR\fR] [\fB\-i\ \fR\fB\fIinterval\fR\fR] [\fB\-n\ \fR\fB\fInthreads\fR\fR] [\fB\-o\ \fR\fB\fIorigin\fR\fR] [\fB\-p\fR] [\fB\-r\ \fR\fB\fIrandomdev\fR\fR] [\fB\-s\ \fR\fB\fIstart\-time\fR\fR] [\fB\-t\fR] [\fB\-v\ \fR\fB\fIlevel\fR\fR] [\fB\-z\fR] {zonefile} [key...]
+\fBdnssec\-signzone\fR [\fB\-a\fR] [\fB\-c\ \fR\fB\fIclass\fR\fR] [\fB\-d\ \fR\fB\fIdirectory\fR\fR] [\fB\-e\ \fR\fB\fIend\-time\fR\fR] [\fB\-f\ \fR\fB\fIoutput\-file\fR\fR] [\fB\-g\fR] [\fB\-h\fR] [\fB\-k\ \fR\fB\fIkey\fR\fR] [\fB\-l\ \fR\fB\fIdomain\fR\fR] [\fB\-i\ \fR\fB\fIinterval\fR\fR] [\fB\-I\ \fR\fB\fIinput\-format\fR\fR] [\fB\-j\ \fR\fB\fIjitter\fR\fR] [\fB\-N\ \fR\fB\fIsoa\-serial\-format\fR\fR] [\fB\-o\ \fR\fB\fIorigin\fR\fR] [\fB\-O\ \fR\fB\fIoutput\-format\fR\fR] [\fB\-p\fR] [\fB\-r\ \fR\fB\fIrandomdev\fR\fR] [\fB\-s\ \fR\fB\fIstart\-time\fR\fR] [\fB\-t\fR] [\fB\-v\ \fR\fB\fIlevel\fR\fR] [\fB\-z\fR] {zonefile} [key...]
 .SH "DESCRIPTION"
 .PP
 \fBdnssec\-signzone\fR
@@ -41,49 +38,49 @@ signs a zone. It generates NSEC and RRSIG records and produces a signed version 
 \fIkeyset\fR
 file for each child zone.
 .SH "OPTIONS"
-.TP 3n
+.TP
 \-a
 Verify all generated signatures.
-.TP 3n
+.TP
 \-c \fIclass\fR
 Specifies the DNS class of the zone.
-.TP 3n
+.TP
 \-k \fIkey\fR
 Treat specified key as a key signing key ignoring any key flags. This option may be specified multiple times.
-.TP 3n
+.TP
 \-l \fIdomain\fR
 Generate a DLV set in addition to the key (DNSKEY) and DS sets. The domain is appended to the name of the records.
-.TP 3n
+.TP
 \-d \fIdirectory\fR
 Look for
 \fIkeyset\fR
 files in
 \fBdirectory\fR
 as the directory
-.TP 3n
+.TP
 \-g
 Generate DS records for child zones from keyset files. Existing DS records will be removed.
-.TP 3n
+.TP
 \-s \fIstart\-time\fR
 Specify the date and time when the generated RRSIG records become valid. This can be either an absolute or relative time. An absolute start time is indicated by a number in YYYYMMDDHHMMSS notation; 20000530144500 denotes 14:45:00 UTC on May 30th, 2000. A relative start time is indicated by +N, which is N seconds from the current time. If no
 \fBstart\-time\fR
 is specified, the current time minus 1 hour (to allow for clock skew) is used.
-.TP 3n
+.TP
 \-e \fIend\-time\fR
 Specify the date and time when the generated RRSIG records expire. As with
 \fBstart\-time\fR, an absolute time is indicated in YYYYMMDDHHMMSS notation. A time relative to the start time is indicated with +N, which is N seconds from the start time. A time relative to the current time is indicated with now+N. If no
 \fBend\-time\fR
 is specified, 30 days from the start time is used as a default.
-.TP 3n
+.TP
 \-f \fIoutput\-file\fR
 The name of the output file containing the signed zone. The default is to append
 \fI.signed\fR
 to the input file.
-.TP 3n
+.TP
 \-h
 Prints a short summary of the options and arguments to
 \fBdnssec\-signzone\fR.
-.TP 3n
+.TP
 \-i \fIinterval\fR
 When a previously signed zone is passed as input, records may be resigned. The
 \fBinterval\fR
@@ -96,16 +93,54 @@ or
 are specified,
 \fBdnssec\-signzone\fR
 generates signatures that are valid for 30 days, with a cycle interval of 7.5 days. Therefore, if any existing RRSIG records are due to expire in less than 7.5 days, they would be replaced.
-.TP 3n
+.TP
+\-I \fIinput\-format\fR
+The format of the input zone file. Possible formats are
+\fB"text"\fR
+(default) and
+\fB"raw"\fR. This option is primarily intended to be used for dynamic signed zones so that the dumped zone file in a non\-text format containing updates can be signed directly. The use of this option does not make much sense for non\-dynamic zones.
+.TP
+\-j \fIjitter\fR
+When signing a zone with a fixed signature lifetime, all RRSIG records issued at the time of signing expires simultaneously. If the zone is incrementally signed, i.e. a previously signed zone is passed as input to the signer, all expired signatures has to be regenerated at about the same time. The
+\fBjitter\fR
+option specifies a jitter window that will be used to randomize the signature expire time, thus spreading incremental signature regeneration over time.
+.sp
+Signature lifetime jitter also to some extent benefits validators and servers by spreading out cache expiration, i.e. if large numbers of RRSIGs don't expire at the same time from all caches there will be less congestion than if all validators need to refetch at mostly the same time.
+.TP
 \-n \fIncpus\fR
 Specifies the number of threads to use. By default, one thread is started for each detected CPU.
-.TP 3n
+.TP
+\-N \fIsoa\-serial\-format\fR
+The SOA serial number format of the signed zone. Possible formats are
+\fB"keep"\fR
+(default),
+\fB"increment"\fR
+and
+\fB"unixtime"\fR.
+.RS
+.TP
+\fB"keep"\fR
+Do not modify the SOA serial number.
+.TP
+\fB"increment"\fR
+Increment the SOA serial number using RFC 1982 arithmetics.
+.TP
+\fB"unixtime"\fR
+Set the SOA serial number to the number of seconds since epoch.
+.RE
+.TP
 \-o \fIorigin\fR
 The zone origin. If not specified, the name of the zone file is assumed to be the origin.
-.TP 3n
+.TP
+\-O \fIoutput\-format\fR
+The format of the output file containing the signed zone. Possible formats are
+\fB"text"\fR
+(default) and
+\fB"raw"\fR.
+.TP
 \-p
 Use pseudo\-random data when signing the zone. This is faster, but less secure, than using real random data. This option may be useful when signing large zones or when the entropy source is limited.
-.TP 3n
+.TP
 \-r \fIrandomdev\fR
 Specifies the source of randomness. If the operating system does not provide a
 \fI/dev/random\fR
@@ -114,19 +149,19 @@ or equivalent device, the default source of randomness is keyboard input.
 specifies the name of a character device or file containing random data to be used instead of the default. The special value
 \fIkeyboard\fR
 indicates that keyboard input should be used.
-.TP 3n
+.TP
 \-t
 Print statistics at completion.
-.TP 3n
+.TP
 \-v \fIlevel\fR
 Sets the debugging level.
-.TP 3n
+.TP
 \-z
 Ignore KSK flag on key when determining what to sign.
-.TP 3n
+.TP
 zonefile
 The file containing the zone to be signed.
-.TP 3n
+.TP
 key
 The keys used to sign the zone. If no keys are specified, the default all zone keys that have private key files in the current directory.
 .SH "EXAMPLE"
@@ -158,5 +193,3 @@ RFC 2535.
 .SH "AUTHOR"
 .PP
 Internet Systems Consortium
-.SH "COPYRIGHT"
-Copyright \(co 2004, 2005 Internet Systems Consortium, Inc. ("ISC")

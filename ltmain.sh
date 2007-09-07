@@ -1488,17 +1488,9 @@ EOF
 	;;
 
      -mt|-mthreads|-kthread|-Kthread|-pthread|-pthreads|--thread-safe)
-	case $host in
-	*-*-freebsd*)
-	   compile_command="$compile_command $arg"
-	   finalize_command="$finalize_command $arg"
-	   ;;
-	*)
-	   case "$archive_cmds" in
-	     *"\$LD"*) ;;
-	     *) deplibs="$deplibs $arg";;
-	   esac
-	   ;;
+	case "$archive_cmds" in
+	 *"\$LD"*) ;;
+	 *) deplibs="$deplibs $arg";;
 	esac
 	continue
 	;;

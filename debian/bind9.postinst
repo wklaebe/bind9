@@ -1,0 +1,60 @@
+#!/bin/sh
+
+set -e
+
+if [ "$1" = configure ]; then
+    lastversion="$2";
+
+    # lets give them a bind user/group in all cases.
+    getent group bind >/dev/null 2>&1 || addgroup --system bind
+    getent passwd bind >/dev/null 2>&1 ||
+	adduser --system --home /var/cache/bind --no-create-home \
+		--disabled-password --ingroup bind bind
+
+    if [ ! -s /etc/bind/rndc.key ]; then
+	rndc-confgen -r /dev/urandom -a
+    fi
+
+    localconf=""
+    if [ ! -f /etc/default/bind9 ]; then
+	for file in /etc/bind/named.conf /etc/bind/named.conf.local; do
+	    theirs=$(md5sum $file | sed 's/ .*$//')
+	    mine=$(dpkg --status bind9 | grep "^ $file " | sed -n 's/.* //p')
+	    if [ "$mine" != "$theirs" ]; then
+		localconf="y"
+	    fi
+	done
+	if [ -n "$localconf" ]; then
+	    echo 'OPTIONS=""' >> /etc/default/bind9
+	else
+	    echo 'OPTIONS="-u bind"' >> /etc/default/bind9
+	fi
+	echo '# Set RESOLVCONF=no to not run resolvconf' >> /etc/default/bind9
+	echo 'RESOLVCONF=yes' >> /etc/default/bind9
+    fi
+
+    # Deal with the aftermath of 9.2.1-5  - it's a hack, but hey..
+    if [ "$lastversion" = "9.2.1-5" ]; then
+	ugid=$(ls -l /etc/bind/rndc.key | awk '{print $3 $4}')
+	if [ "$ugid" = "bindbind" ]; then
+	    chown root:root /etc/bind/rndc.key
+	    chown root:bind /var/run/bind/run
+	    chown root:bind /var/cache/bind
+	fi
+    fi
+
+    uid=$(ls -ln /etc/bind/rndc.key | awk '{print $3}')
+    if [ "$uid" = "0" ]; then
+	[ -n "$localconf" ] || chown bind /etc/bind/rndc.key
+	chgrp bind /etc/bind
+	chmod g+s /etc/bind
+	chgrp bind /etc/bind/rndc.key /var/run/bind/run /var/cache/bind
+	chgrp bind /etc/bind/named.conf*
+	chmod g+r /etc/bind/rndc.key /etc/bind/named.conf*
+	chmod g+rwx /var/run/bind/run /var/cache/bind
+    fi
+
+fi
+
+
+#DEBHELPER#

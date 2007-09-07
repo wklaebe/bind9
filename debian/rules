@@ -1,0 +1,129 @@
+#!/usr/bin/make -f
+# Sample debian/rules that uses debhelper.
+# GNU copyright 1997 to 1999 by Joey Hess.
+
+# Uncomment this to turn on verbose mode.
+#export DH_VERBOSE=1
+
+ifndef DEB_HOST_ARCH
+DEB_BUILD_ARCH := $(shell dpkg --print-installation-architecture)
+endif
+export arch = $(DEB_HOST_ARCH)
+
+#gcc3_4_arch = $(findstring $(arch),powerpc)
+#
+#ifeq ($(arch),$(gcc3_4_arch))
+#export CC=gcc-3.4
+#export CXX=g++-3.4
+#endif
+
+export CFLAGS=-fno-strict-aliasing
+
+configure: configure-stamp
+configure-stamp:
+	dh_testdir
+	./configure --prefix=/usr \
+		--mandir=\$${prefix}/share/man \
+		--infodir=\$${prefix}/share/info \
+		--sysconfdir=/etc/bind \
+		--localstatedir=/var/run/bind \
+		--enable-threads \
+		--with-libtool \
+		--enable-shared \
+		--enable-static \
+		--with-openssl=/usr \
+		--with-gnu-ld \
+		--enable-ipv6
+	touch configure-stamp
+
+build: configure-stamp build-stamp
+build-stamp:
+	dh_testdir
+	LD_LIBRARY_PATH=$$(pwd)/lib/isc/.libs:$$(pwd)/lib/isccc/.libs:$$(pwd)/isccfg/.libs:$${LD_LIBRARY_PATH} $(MAKE)
+	touch build-stamp
+
+autofiles:
+	libtoolize --automake --copy --force
+	aclocal
+	#automake
+	autoheader
+	autoconf
+	rm -rf autom4te.cache
+
+clean:
+	dh_testdir
+	dh_testroot
+	-$(MAKE) distclean
+	find . -name \*.o -exec rm {} \;
+	rm -f build-stamp configure-stamp
+	dh_clean
+
+ETCBIND=debian/bind9/etc/bind
+install: build
+	dh_testdir
+	dh_testroot
+	dh_clean -k
+	dh_installdirs
+	$(MAKE) install DESTDIR=`pwd`/debian/bind9
+	install -c -o bin -g bin -m 444 debian/db.0 ${ETCBIND}/db.0
+	install -c -o bin -g bin -m 444 debian/db.0 ${ETCBIND}/db.255
+	install -c -o bin -g bin -m 444 debian/db.empty ${ETCBIND}
+	install -c -o bin -g bin -m 444 debian/zones.rfc1918 ${ETCBIND}
+	install -c -o bin -g bin -m 444 debian/db.127 ${ETCBIND}
+	install -c -o bin -g bin -m 444 debian/db.local ${ETCBIND}
+	install -c -o bin -g bin -m 444 debian/db.root ${ETCBIND}
+	install -c -o bin -g bin -m 440 debian/named.conf ${ETCBIND}
+	install -c -o bin -g bin -m 440 debian/named.conf.local ${ETCBIND}
+	install -c -o bin -g bin -m 440 debian/named.conf.options ${ETCBIND}
+	cp doc/arm/*.html debian/bind9-doc/usr/share/doc/bind9-doc/arm
+
+# Build architecture-independent files here.
+binary-indep: build install
+	dh_testdir -i
+	dh_testroot -i
+	dh_installdocs -i
+	dh_installexamples -i
+	dh_installmenu -i
+	dh_installcron -i
+	dh_installinfo -i
+	dh_installchangelogs CHANGES -i
+	dh_link -i
+	dh_compress -i
+	dh_fixperms -i
+	dh_installdeb -i
+	for i in $$(sed -n '/^Package:/s/^.* //p' debian/control); do cat debian/vars.in >> debian/$$i.substvars; done
+	cat debian/vars.in >> debian/substvars
+	dh_gencontrol -i
+	dh_md5sums -i
+	dh_builddeb -i
+
+# Build architecture-dependent files here.
+binary-arch: build install
+	dh_testdir -a
+	dh_testroot -a
+	dh_installdocs -a
+	dh_installexamples -a
+	dh_installmenu -a
+	dh_installinit -a -- defaults 15 85
+	dh_installcron -a
+	dh_installmanpages -pbind9 runmdn.1 mdnconv.1 zone2ldap.1 nslint.8
+	dh_installinfo -a
+	dh_installchangelogs CHANGES -a
+	dh_movefiles --sourcedir=debian/bind9 -a
+	( cd debian/bind9/usr ; rm -fr bin include lib )
+	rmdir debian/bind9/usr/share/man/man[13]
+	dh_link -a
+	dh_strip -a
+	dh_compress -a
+	dh_fixperms -a
+	dh_makeshlibs -a
+	dh_installdeb -a
+	dh_shlibdeps -l"debian/libbind9-0/usr/lib:debian/libdns21/usr/lib:debian/libisc11/usr/lib:debian/libisccc0/usr/lib:debian/libisccfg1/usr/lib:debian/liblwres9/usr/lib:/usr/lib/libfakeroot" -a
+	for i in $$(sed -n '/^Package:/s/^.* //p' debian/control); do cat debian/vars.in >> debian/$$i.substvars; done
+	cat debian/vars.in >> debian/substvars
+	dh_gencontrol -a
+	dh_md5sums -a
+	dh_builddeb -a
+
+binary: binary-indep binary-arch
+.PHONY: build clean binary-indep binary-arch binary install configure

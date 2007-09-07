@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: client.c,v 1.136.2.1 2001/01/09 22:31:50 bwelling Exp $ */
+/* $Id: client.c,v 1.136.2.2 2001/01/16 23:25:16 bwelling Exp $ */
 
 #include <config.h>
 
@@ -244,8 +244,6 @@ client_free(ns_client_t *client) {
 		dns_message_puttemprdataset(client->message, &client->opt);
 	}
 	dns_message_destroy(&client->message);
-	if (client->task != NULL)
-		isc_task_detach(&client->task);
 	if (client->manager != NULL) {
 		manager = client->manager;
 		LOCK(&manager->lock);
@@ -257,6 +255,14 @@ client_free(ns_client_t *client) {
 			need_clientmgr_destroy = ISC_TRUE;
 		UNLOCK(&manager->lock);
 	}
+
+	/*
+	 * Detaching the task must be done after unlinking from
+	 * the manager's lists because the manager accesses
+	 * client->task.
+	 */
+	if (client->task != NULL)
+		isc_task_detach(&client->task);
 
 	CTRACE("free");
 	client->magic = 0;

@@ -1,4 +1,29 @@
 
+	--- 9.1.0 released ---
+
+ 687.	[bug]		Only say we have IPv6, with sufficent functionality,
+			if it has actually been tested.  [RT #586]
+
+ 685.	[bug]		nslookup should use the search list/domain options
+			from resolv.conf by default. [RT #405, #630]
+
+ 684.	[bug]		Memory leak with view forwarders. [RT #656]
+
+ 683.	[bug]		File descriptor leak in isc_lex_openfile().
+
+ 682.	[bug]		nslookup displayed SOA records incorrectly. [RT #665]
+
+ 681.	[bug]		$GENERATE specifying output format was broken. [RT #653]
+
+ 680.	[bug]		dns_rdata_fromstruct() mishandled options bigger
+			than 255 octets.
+
+ 652.	[bug]		zone_saveunique() did not report the new name.
+			[RT #668]
+
+ 650.	[bug]		SIG(0) records were being generated and verified
+			incorrectly. [RT #606]
+
 	--- 9.1.0rc1 released ---
 
  679.	[bug]		$INCLUDE could leak memory and file descriptors on
@@ -14,7 +39,7 @@
 			'lame-servers' rather than 'resolver', so as not
 			to be gratuitously incompatible with BIND 8.
 
- 675.	[func]		TKEY queries could cause the server to leak
+ 675.	[bug]		TKEY queries could cause the server to leak
 			memory.
 
  672.	[bug]		The wrong time was in the "time signed" field when

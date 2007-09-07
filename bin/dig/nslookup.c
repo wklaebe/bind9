@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: nslookup.c,v 1.69.2.1 2001/01/09 22:31:25 bwelling Exp $ */
+/* $Id: nslookup.c,v 1.69.2.3 2001/01/17 19:37:37 gson Exp $ */
 
 #include <config.h>
 
@@ -269,9 +269,6 @@ printsection(dig_query_t *query, dns_message_t *msg, isc_boolean_t headers,
 					ptr = next_token(&input, " \t\r\n");
 					if (ptr == NULL)
 						break;
-					ptr = next_token(&input, " \t\r\n");
-					if (ptr == NULL)
-						break;
 					printf("\tserial = %s\n",
 					       ptr);
 					ptr = next_token(&input, " \t\r\n");
@@ -430,9 +427,6 @@ detailsection(dig_query_t *query, dns_message_t *msg, isc_boolean_t headers,
 						break;
 					printf("\tmail addr = %s\n",
 					       ptr);
-					ptr = next_token(&input, " \t\r\n");
-					if (ptr == NULL)
-						break;
 					ptr = next_token(&input, " \t\r\n");
 					if (ptr == NULL)
 						break;
@@ -862,6 +856,7 @@ static void
 parse_args(int argc, char **argv) {
 	isc_boolean_t have_lookup = ISC_FALSE;
 
+	usesearch = ISC_TRUE;
 	for (argc--, argv++; argc > 0; argc--, argv++) {
 		debug("main parsing %s", argv[0]);
 		if (argv[0][0] == '-') {

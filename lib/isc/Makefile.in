@@ -97,6 +97,7 @@ libisc.la: ${OBJS}
 		${CC} ${ALL_CFLAGS} ${LDFLAGS} -o libisc.la -rpath ${libdir} \
 		-version-info ${LIBINTERFACE}:${LIBREVISION}:${LIBAGE} \
 		${OBJS} ${LIBS}
+	ln -sf .libs/libisc.so .
 
 timestamp: libisc.@A@
 	touch timestamp
@@ -108,4 +109,4 @@ install:: timestamp installdirs
 	${LIBTOOL_MODE_INSTALL} ${INSTALL_DATA} libisc.@A@ ${DESTDIR}${libdir}
 
 clean distclean::
-	rm -f libisc.@A@ libisc.la timestamp
+	rm -f libisc.@A@ libisc.la timestamp libisc.so

@@ -39,7 +39,7 @@ ISCLIBS =	../../lib/isc/libisc.@A@
 
 ISCDEPLIBS =	../../lib/isc/libisc.@A@
 
-LIBS =		@LIBS@
+LIBS =		@LIBS@ -L../../lib/isc -lcrypto
 
 # Alphabetically
 
@@ -115,6 +115,7 @@ libdns.la: ${OBJS}
 		${CC} ${ALL_CFLAGS} ${LDFLAGS} -o libdns.la -rpath ${libdir} \
 		-version-info ${LIBINTERFACE}:${LIBREVISION}:${LIBAGE} \
 		${OBJS} ${ISCLIBS} @DNS_CRYPTO_LIBS@ ${LIBS}
+	ln -sf .libs/libdns.so .
 
 timestamp: libdns.@A@
 	touch timestamp
@@ -129,6 +130,7 @@ clean distclean::
 	rm -f libdns.@A@ timestamp
 	rm -f gen code.h include/dns/enumtype.h include/dns/enumclass.h
 	rm -f include/dns/rdatastruct.h
+	rm -f libdns.so
 
 newrr::
 	rm -f code.h include/dns/enumtype.h include/dns/enumclass.h

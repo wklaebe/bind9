@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: validator.c,v 1.85 2000/11/08 00:51:24 bwelling Exp $ */
+/* $Id: validator.c,v 1.87 2000/12/11 19:24:26 bwelling Exp $ */
 
 #include <config.h>
 
@@ -364,7 +364,11 @@ nxtprovesnonexistence(dns_validator_t *val, dns_name_t *nxtname,
 	isc_result_t result;
 
 	result = dns_rdataset_first(nxtset);
-	INSIST(result == ISC_R_SUCCESS);
+	if (result != ISC_R_SUCCESS) {
+		validator_log(val, ISC_LOG_DEBUG(3),
+			"failure processing NXT set");
+		return (ISC_FALSE);
+	}
 	dns_rdataset_current(nxtset, &rdata);
 
 	validator_log(val, ISC_LOG_DEBUG(3),
@@ -393,8 +397,9 @@ nxtprovesnonexistence(dns_validator_t *val, dns_name_t *nxtname,
 		 * The NXT owner name is less than the nonexistent name.
 		 */
 		result = dns_rdata_tostruct(&rdata, &nxt, NULL);
+		if (result != ISC_R_SUCCESS)
+			return (ISC_FALSE);
 		dns_rdata_reset(&rdata);
-		INSIST(result == ISC_R_SUCCESS);
 		order = dns_name_compare(val->event->name, &nxt.next);
 		if (order >= 0) {
 			/*
@@ -404,10 +409,20 @@ nxtprovesnonexistence(dns_validator_t *val, dns_name_t *nxtname,
 			 */
 			dns_rdata_sig_t siginfo;
 			result = dns_rdataset_first(signxtset);
-			INSIST (result == ISC_R_SUCCESS);
+			if (result != ISC_R_SUCCESS) {
+				validator_log(val, ISC_LOG_DEBUG(3),
+					"failure processing SIG NXT set");
+				dns_rdata_freestruct(&nxt);
+				return (ISC_FALSE);
+			}
 			dns_rdataset_current(signxtset, &rdata);
 			result = dns_rdata_tostruct(&rdata, &siginfo, NULL);
-			INSIST (result == ISC_R_SUCCESS);
+			if (result != ISC_R_SUCCESS) {
+				validator_log(val, ISC_LOG_DEBUG(3),
+					"failure processing SIG NXT set");
+				dns_rdata_freestruct(&nxt);
+				return (ISC_FALSE);
+			}
 			if (!dns_name_equal(&siginfo.signer, &nxt.next)) {
 				validator_log(val, ISC_LOG_DEBUG(3),
 					"next name is not greater");
@@ -1069,7 +1084,12 @@ validate(dns_validator_t *val, isc_boolean_t resume) {
 				      "verify failure: %s",
 				      isc_result_totext(result));
 	}
-	INSIST(result == ISC_R_NOMORE);
+	if (result != ISC_R_NOMORE) {
+		validator_log(val, ISC_LOG_DEBUG(3),
+			      "failed to iterate signatures: %s",
+			      isc_result_totext(result));
+		return (result);
+	}
 
 	validator_log(val, ISC_LOG_INFO, "no valid signature found");
 	return (DNS_R_NOVALIDSIG);
@@ -1145,7 +1165,8 @@ nxtvalidate(dns_validator_t *val, isc_boolean_t resume) {
 					continue;
 
 				result = dns_rdataset_first(rdataset);
-				INSIST(result == ISC_R_SUCCESS);
+				if (result != ISC_R_SUCCESS)
+					return (result);
 				dns_rdataset_current(rdataset, &nxt);
 				if (dns_nxt_typepresent(&nxt,
 							dns_rdatatype_soa))
@@ -1623,7 +1644,7 @@ validator_logv(dns_validator_t *val, isc_logcategory_t *category,
 static void
 validator_log(dns_validator_t *val, int level, const char *fmt, ...)
 {
-        va_list ap;
+	va_list ap;
 
 	if (! isc_log_wouldlog(dns_lctx, level))
 		return;

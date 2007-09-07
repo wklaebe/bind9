@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: log.c,v 1.49 2000/11/24 01:37:24 marka Exp $ */
+/* $Id: log.c,v 1.55 2000/12/23 19:23:48 tale Exp $ */
 
 /* Principal Authors: DCL */
 
@@ -32,6 +32,7 @@
 #include <isc/log.h>
 #include <isc/magic.h>
 #include <isc/mem.h>
+#include <isc/msgs.h>
 #include <isc/print.h>
 #include <isc/string.h>
 #include <isc/time.h>
@@ -225,17 +226,19 @@ roll_log(isc_logchannel_t *channel);
 static void
 isc_log_doit(isc_log_t *lctx, isc_logcategory_t *category,
 	     isc_logmodule_t *module, int level, isc_boolean_t write_once,
+	     isc_msgcat_t *msgcat, int msgset, int msg,
 	     const char *format, va_list args);
 
 /*
  * Convenience macros.
  */
 
-#define FACILITY(channel)	(channel->destination.facility)
-#define FILE_NAME(channel)	(channel->destination.file.name)
-#define FILE_STREAM(channel)	(channel->destination.file.stream)
-#define FILE_VERSIONS(channel)	(channel->destination.file.versions)
-#define FILE_MAXSIZE(channel)	(channel->destination.file.maximum_size)
+#define FACILITY(channel)	 (channel->destination.facility)
+#define FILE_NAME(channel)	 (channel->destination.file.name)
+#define FILE_STREAM(channel)	 (channel->destination.file.stream)
+#define FILE_VERSIONS(channel)	 (channel->destination.file.versions)
+#define FILE_MAXSIZE(channel)	 (channel->destination.file.maximum_size)
+#define FILE_MAXREACHED(channel) (channel->destination.file.maximum_reached)
 
 /****
  **** Public interfaces.
@@ -722,8 +725,9 @@ isc_log_createchannel(isc_logconfig_t *lcfg, const char *name,
 		FILE_NAME(channel) =
 			isc_mem_strdup(mctx, destination->file.name);
 		FILE_STREAM(channel) = NULL;
-		FILE_MAXSIZE(channel) = destination->file.maximum_size;
 		FILE_VERSIONS(channel) = destination->file.versions;
+		FILE_MAXSIZE(channel) = destination->file.maximum_size;
+		FILE_MAXREACHED(channel) = ISC_FALSE;
 		break;
 
 	case ISC_LOG_TOFILEDESC:
@@ -801,7 +805,6 @@ isc_log_usechannel(isc_logconfig_t *lcfg, const char *name,
 void
 isc_log_write(isc_log_t *lctx, isc_logcategory_t *category,
 	      isc_logmodule_t *module, int level, const char *format, ...)
-
 {
 	va_list args;
 
@@ -810,7 +813,8 @@ isc_log_write(isc_log_t *lctx, isc_logcategory_t *category,
 	 */
 
 	va_start(args, format);
-	isc_log_doit(lctx, category, module, level, ISC_FALSE, format, args);
+	isc_log_doit(lctx, category, module, level, ISC_FALSE,
+		     NULL, 0, 0, format, args);
 	va_end(args);
 }
 
@@ -818,18 +822,17 @@ void
 isc_log_vwrite(isc_log_t *lctx, isc_logcategory_t *category,
 	       isc_logmodule_t *module, int level,
 	       const char *format, va_list args)
-
 {
 	/*
 	 * Contract checking is done in isc_log_doit().
 	 */
-	isc_log_doit(lctx, category, module, level, ISC_FALSE, format, args);
+	isc_log_doit(lctx, category, module, level, ISC_FALSE,
+		     NULL, 0, 0, format, args);
 }
 
 void
 isc_log_write1(isc_log_t *lctx, isc_logcategory_t *category,
 	       isc_logmodule_t *module, int level, const char *format, ...)
-
 {
 	va_list args;
 
@@ -838,7 +841,8 @@ isc_log_write1(isc_log_t *lctx, isc_logcategory_t *category,
 	 */
 
 	va_start(args, format);
-	isc_log_doit(lctx, category, module, level, ISC_TRUE, format, args);
+	isc_log_doit(lctx, category, module, level, ISC_TRUE,
+		     NULL, 0, 0, format, args);
 	va_end(args);
 }
 
@@ -846,12 +850,74 @@ void
 isc_log_vwrite1(isc_log_t *lctx, isc_logcategory_t *category,
 		isc_logmodule_t *module, int level,
 		const char *format, va_list args)
-
 {
 	/*
 	 * Contract checking is done in isc_log_doit().
 	 */
-	isc_log_doit(lctx, category, module, level, ISC_TRUE, format, args);
+	isc_log_doit(lctx, category, module, level, ISC_TRUE,
+		     NULL, 0, 0, format, args);
+}
+
+void
+isc_log_iwrite(isc_log_t *lctx, isc_logcategory_t *category,
+	       isc_logmodule_t *module, int level,
+	       isc_msgcat_t *msgcat, int msgset, int msg,
+	       const char *format, ...)
+{
+	va_list args;
+
+	/*
+	 * Contract checking is done in isc_log_doit().
+	 */
+
+	va_start(args, format);
+	isc_log_doit(lctx, category, module, level, ISC_FALSE,
+		     msgcat, msgset, msg, format, args);
+	va_end(args);
+}
+
+void
+isc_log_ivwrite(isc_log_t *lctx, isc_logcategory_t *category,
+	       isc_logmodule_t *module, int level,
+	       isc_msgcat_t *msgcat, int msgset, int msg,
+	       const char *format, va_list args)
+{
+	/*
+	 * Contract checking is done in isc_log_doit().
+	 */
+	isc_log_doit(lctx, category, module, level, ISC_FALSE,
+		     msgcat, msgset, msg, format, args);
+}
+
+void
+isc_log_iwrite1(isc_log_t *lctx, isc_logcategory_t *category,
+		isc_logmodule_t *module, int level,
+		isc_msgcat_t *msgcat, int msgset, int msg,
+		const char *format, ...)
+{
+	va_list args;
+
+	/*
+	 * Contract checking is done in isc_log_doit().
+	 */
+
+	va_start(args, format);
+	isc_log_doit(lctx, category, module, level, ISC_TRUE,
+		     msgcat, msgset, msg, format, args);
+	va_end(args);
+}
+
+void
+isc_log_ivwrite1(isc_log_t *lctx, isc_logcategory_t *category,
+		 isc_logmodule_t *module, int level,
+		 isc_msgcat_t *msgcat, int msgset, int msg,
+		 const char *format, va_list args)
+{
+	/*
+	 * Contract checking is done in isc_log_doit().
+	 */
+	isc_log_doit(lctx, category, module, level, ISC_TRUE,
+		     msgcat, msgset, msg, format, args);
 }
 
 void
@@ -968,7 +1034,8 @@ assignchannel(isc_logconfig_t *lcfg, unsigned int category_id,
 
 	new_item->channel = channel;
 	new_item->module = module;
-	ISC_LIST_PREPENDUNSAFE(lcfg->channellists[category_id], new_item, link);
+	ISC_LIST_INITANDPREPEND(lcfg->channellists[category_id],
+			       new_item, link);
 
 	/*
 	 * Remember the highest logging level set by any channel in the
@@ -1230,11 +1297,13 @@ isc_log_wouldlog(isc_log_t *lctx, int level) {
 static void
 isc_log_doit(isc_log_t *lctx, isc_logcategory_t *category,
 	     isc_logmodule_t *module, int level, isc_boolean_t write_once,
+	     isc_msgcat_t *msgcat, int msgset, int msg,
 	     const char *format, va_list args)
 {
 	int syslog_level;
 	char time_string[64];
 	char level_string[24];
+	const char *iformat;
 	struct stat statbuf;
 	isc_boolean_t matched = ISC_FALSE;
 	isc_boolean_t printtime, printtag;
@@ -1264,6 +1333,11 @@ isc_log_doit(isc_log_t *lctx, isc_logcategory_t *category,
 
 	if (! isc_log_wouldlog(lctx, level))
 		return;
+
+	if (msgcat != NULL)
+		iformat = isc_msgcat_get(msgcat, msgset, msg, format);
+	else
+		iformat = format;
 
 	time_string[0]  = '\0';
 	level_string[0] = '\0';
@@ -1364,14 +1438,22 @@ isc_log_doit(isc_log_t *lctx, isc_logcategory_t *category,
 				 * "Should never happen."
 				 */
 				snprintf(time_string, sizeof(time_string),
-					 "Bad 00 99:99:99.999 ");
+					 isc_msgcat_get(isc_msgcat,
+						      ISC_MSGSET_LOG,
+						      ISC_MSG_BADTIME,
+						      "Bad 00 99:99:99.999 "));
 
 		}
 
 		if ((channel->flags & ISC_LOG_PRINTLEVEL) != 0 &&
 		    level_string[0] == '\0') {
 			if (level < ISC_LOG_CRITICAL)
-				sprintf(level_string, "level %d: ", level);
+				sprintf(level_string,
+					isc_msgcat_get(isc_msgcat,
+						       ISC_MSGSET_LOG,
+						       ISC_MSG_LEVEL,
+						       "level %d: "),
+					level);
 			else if (level > ISC_LOG_DYNAMIC)
 				sprintf(level_string, "%s %d: ",
 					log_level_strings[0], level);
@@ -1385,7 +1467,7 @@ isc_log_doit(isc_log_t *lctx, isc_logcategory_t *category,
 		 */
 		if (lctx->buffer[0] == '\0') {
 			(void)vsnprintf(lctx->buffer, sizeof(lctx->buffer),
-					format, args);
+					iformat, args);
 
 			/*
 			 * Check for duplicates.
@@ -1508,6 +1590,31 @@ isc_log_doit(isc_log_t *lctx, isc_logcategory_t *category,
 
 		switch (channel->type) {
 		case ISC_LOG_TOFILE:
+			if (FILE_MAXREACHED(channel)) {
+				/*
+				 * If the file can be rolled, OR
+				 * If the file no longer exists, OR
+				 * If the file is less than the maximum size,
+				 *    (such as if it had been renamed and
+				 *     a new one touched, or it was truncated
+				 *     in place)
+				 * ... then close it to trigger reopening.
+				 */
+				if (FILE_VERSIONS(channel) !=
+				    ISC_LOG_ROLLNEVER ||
+				    (stat(FILE_NAME(channel), &statbuf) != 0 &&
+				     errno == ENOENT) ||
+				    statbuf.st_size < FILE_MAXSIZE(channel)) {
+					fclose(FILE_STREAM(channel));
+					FILE_STREAM(channel) = NULL;
+					FILE_MAXREACHED(channel) = ISC_FALSE;
+				} else
+					/*
+					 * Eh, skip it.
+					 */
+					break;
+			}
+
 			if (FILE_STREAM(channel) == NULL) {
 				result = isc_log_open(channel);
 				if (result != ISC_R_SUCCESS)
@@ -1537,8 +1644,8 @@ isc_log_doit(isc_log_t *lctx, isc_logcategory_t *category,
 
 			/*
 			 * If the file now exceeds its maximum size
-			 * threshold, close it and mark it ready
-			 * for reopening the next time the channel is used.
+			 * threshold, note it so that it will not be logged
+			 * to any more.
 			 */
 			if (FILE_MAXSIZE(channel) != 0) {
 				INSIST(channel->type == ISC_LOG_TOFILE);
@@ -1547,10 +1654,8 @@ isc_log_doit(isc_log_t *lctx, isc_logcategory_t *category,
 				/* XXXDCL complain if fstat fails? */
 				if (fstat(fileno(FILE_STREAM(channel)),
 					  &statbuf) >= 0 &&
-				    statbuf.st_size > FILE_MAXSIZE(channel)) {
-					fclose(FILE_STREAM(channel));
-					FILE_STREAM(channel) = NULL;
-				}
+				    statbuf.st_size > FILE_MAXSIZE(channel))
+					FILE_MAXREACHED(channel) = ISC_TRUE;
 			}
 
 			break;

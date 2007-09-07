@@ -16,7 +16,7 @@
  */
 
 /*
- * $Id: tsig.c,v 1.96 2000/11/15 00:52:04 gson Exp $
+ * $Id: tsig.c,v 1.98 2000/12/08 03:10:32 bwelling Exp $
  * Principal Author: Brian Wellington
  */
 
@@ -25,6 +25,7 @@
 
 #include <isc/buffer.h>
 #include <isc/mem.h>
+#include <isc/print.h>
 #include <isc/string.h>		/* Required for HP/UX (and others?) */
 #include <isc/util.h>
 
@@ -107,6 +108,25 @@ dns_name_t *dns_tsig_gssapims_name = &gsstsigms.name;
 
 static isc_result_t
 tsig_verify_tcp(isc_buffer_t *source, dns_message_t *msg);
+
+static void
+tsig_log(dns_tsigkey_t *key, int level, const char *fmt, ...) {
+	va_list ap;
+	char message[4096];
+	char namestr[DNS_NAME_FORMATSIZE];
+
+	if (isc_log_wouldlog(dns_lctx, level) == ISC_FALSE)
+		return;
+	if (key != NULL)
+		dns_name_format(&key->name, namestr, sizeof(namestr));
+	else
+		strcpy(namestr, "<null>");
+	va_start(ap, fmt);
+	vsnprintf(message, sizeof(message), fmt, ap);
+	va_end(ap);
+	isc_log_write(dns_lctx, DNS_LOGCATEGORY_DNSSEC, DNS_LOGMODULE_TSIG,
+		      level, "tsig key '%s': %s", namestr, message);
+}
 
 isc_result_t
 dns_tsigkey_createfromkey(dns_name_t *name, dns_name_t *algorithm,
@@ -680,6 +700,8 @@ dns_tsig_verify(isc_buffer_t *source, dns_message_t *msg,
 	     !dns_name_equal(&tsig.algorithm, &querytsig.algorithm)))
 	{
 		msg->tsigstatus = dns_tsigerror_badkey;
+		tsig_log(msg->tsigkey, 2,
+			 "key name and algorithm do not match");
 		return (DNS_R_TSIGVERIFYFAILURE);
 	}
 
@@ -707,6 +729,7 @@ dns_tsig_verify(isc_buffer_t *source, dns_message_t *msg,
 						 mctx, NULL, &msg->tsigkey);
 			if (ret != ISC_R_SUCCESS)
 				return (ret);
+			tsig_log(msg->tsigkey, 2, "unknown key");
 			return (DNS_R_TSIGVERIFYFAILURE);
 		}
 		msg->tsigkey = tsigkey;
@@ -719,6 +742,12 @@ dns_tsig_verify(isc_buffer_t *source, dns_message_t *msg,
 	 */
 	if (abs(now - tsig.timesigned) > tsig.fudge) {
 		msg->tsigstatus = dns_tsigerror_badtime;
+		if (now > tsig.timesigned + tsig.fudge)
+			tsig_log(msg->tsigkey, 2,
+				 "signature has expired");
+		else
+			tsig_log(msg->tsigkey, 2,
+				 "signature is in the future");
 		return (DNS_R_TSIGVERIFYFAILURE);
 	}
 
@@ -831,6 +860,8 @@ dns_tsig_verify(isc_buffer_t *source, dns_message_t *msg,
 		if (ret == DST_R_VERIFYFAILURE) {
 			msg->tsigstatus = dns_tsigerror_badsig;
 			ret = DNS_R_TSIGVERIFYFAILURE;
+			tsig_log(msg->tsigkey, 2,
+				 "signature failed to verify");
 			goto cleanup_context;
 		} else if (ret != ISC_R_SUCCESS)
 			goto cleanup_context;
@@ -840,6 +871,7 @@ dns_tsig_verify(isc_buffer_t *source, dns_message_t *msg,
 		   tsig.error != dns_tsigerror_badkey)
 	{
 		msg->tsigstatus = dns_tsigerror_badsig;
+		tsig_log(msg->tsigkey, 2, "signature was empty");
 		return (DNS_R_TSIGVERIFYFAILURE);
 	}
 
@@ -922,6 +954,8 @@ tsig_verify_tcp(isc_buffer_t *source, dns_message_t *msg) {
 		{
 			msg->tsigstatus = dns_tsigerror_badkey;
 			ret = DNS_R_TSIGVERIFYFAILURE;
+			tsig_log(msg->tsigkey, 2,
+				 "key name and algorithm do not match");
 			goto cleanup_querystruct;
 		}
 
@@ -932,6 +966,12 @@ tsig_verify_tcp(isc_buffer_t *source, dns_message_t *msg) {
 		if (abs(now - tsig.timesigned) > tsig.fudge) {
 			msg->tsigstatus = dns_tsigerror_badtime;
 			ret = DNS_R_TSIGVERIFYFAILURE;
+			if (now > tsig.timesigned + tsig.fudge)
+				tsig_log(msg->tsigkey, 2,
+					 "signature has expired");
+			else
+				tsig_log(msg->tsigkey, 2,
+					 "signature is in the future");
 			goto cleanup_querystruct;
 		}
 	}
@@ -1029,14 +1069,19 @@ tsig_verify_tcp(isc_buffer_t *source, dns_message_t *msg) {
 		if (tsig.siglen == 0) {
 			if (tsig.error != dns_rcode_noerror)
 				ret = DNS_R_TSIGERRORSET;
-			else
+			else {
+				tsig_log(msg->tsigkey, 2,
+					 "signature is empty");
 				ret = DNS_R_TSIGVERIFYFAILURE;
+			}
 			goto cleanup_context;
 		}
 
 		ret = dst_context_verify(msg->tsigctx, &sig_r);
 		if (ret == DST_R_VERIFYFAILURE) {
 			msg->tsigstatus = dns_tsigerror_badsig;
+			tsig_log(msg->tsigkey, 2,
+				 "signature failed to verify");
 			ret = DNS_R_TSIGVERIFYFAILURE;
 			goto cleanup_context;
 		}

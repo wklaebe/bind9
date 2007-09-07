@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: confzone.h,v 1.49 2000/11/28 22:42:37 gson Exp $ */
+/* $Id: confzone.h,v 1.50 2000/12/13 00:15:34 tale Exp $ */
 
 #ifndef DNS_CONFZONE_H
 #define DNS_CONFZONE_H 1
@@ -116,7 +116,6 @@ struct dns_c_master_zone {
 	isc_uint32_t		max_trans_idle_out;
 	isc_uint32_t		sig_valid_interval;
 
-	
 	isc_sockaddr_t		notify_source;
 	isc_sockaddr_t		notify_source_v6;
 	isc_sockaddr_t		transfer_source;
@@ -138,6 +137,7 @@ struct dns_c_slave_zone {
 	dns_severity_t	check_names;
 	dns_c_ipmatchlist_t    *allow_update;
 	dns_c_ipmatchlist_t    *allow_update_forwarding;
+	dns_c_ipmatchlist_t    *allow_notify;
 	dns_c_ipmatchlist_t    *allow_query;
 	dns_c_ipmatchlist_t    *allow_transfer;
 	dns_c_iplist_t	       *also_notify;
@@ -159,7 +159,6 @@ struct dns_c_slave_zone {
 	isc_uint32_t		max_trans_time_out;
 	isc_uint32_t		max_trans_idle_in;
 	isc_uint32_t		max_trans_idle_out;
-
 
 	isc_uint32_t		min_retry_time;
 	isc_uint32_t		max_retry_time;
@@ -315,7 +314,11 @@ isc_result_t dns_c_zone_getssuauth(dns_c_zone_t *zone,
 				   dns_ssutable_t **ssutable);
 
 
-
+isc_result_t dns_c_zone_setallownotify(dns_c_zone_t *zone,
+				       dns_c_ipmatchlist_t *ipml,
+				       isc_boolean_t deepcopy);
+isc_result_t dns_c_zone_getallownotify(dns_c_zone_t *zone,
+				       dns_c_ipmatchlist_t **retval);
 
 isc_result_t dns_c_zone_setallowquery(dns_c_zone_t *zone,
 				      dns_c_ipmatchlist_t *ipml,
@@ -460,10 +463,6 @@ isc_result_t dns_c_zone_setmaxrefreshtime(dns_c_zone_t *zone,
 					  isc_uint32_t newval);
 isc_result_t dns_c_zone_getmaxrefreshtime(dns_c_zone_t *zone,
 					  isc_uint32_t *retval);
-
-
-
-
 
 isc_result_t dns_c_zone_setmaxixfrlog(dns_c_zone_t *zone,
 				      isc_uint32_t newval);

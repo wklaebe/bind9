@@ -15,7 +15,12 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: timedb.c,v 1.4 2000/11/20 19:50:02 bwelling Exp $ */
+/* $Id: timedb.c,v 1.6 2000/12/10 07:53:12 gson Exp $ */
+
+/*
+ * A simple database driver that enables the server to return the
+ * current time in a DNS record.
+ */
 
 #include <config.h>
 
@@ -31,10 +36,7 @@
 
 #include <named/globals.h>
 
-/*
- * A simple database driver that enables the server to return the
- * current time in a DNS record.
- */
+#include "timedb.h"
 
 static dns_sdbimplementation_t *timedb = NULL;
 

@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: client.c,v 1.135 2000/12/02 05:57:16 gson Exp $ */
+/* $Id: client.c,v 1.136 2000/12/19 19:21:39 gson Exp $ */
 
 #include <config.h>
 
@@ -1855,7 +1855,7 @@ ns_client_logv(ns_client_t *client, isc_logcategory_t *category,
 	   isc_logmodule_t *module, int level, const char *fmt, va_list ap)
 {
 	char msgbuf[2048];
-	char peerbuf[256];
+	char peerbuf[ISC_SOCKADDR_FORMATSIZE];
 
 	vsnprintf(msgbuf, sizeof(msgbuf), fmt, ap);
 

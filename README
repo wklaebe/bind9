@@ -45,10 +45,14 @@ BIND 9
 
 
 
-BIND 9.1.0b1
+BIND 9.1.0b2
 
-	BIND 9.1.0b1 is the first beta release of BIND 9.1.0.
-	It includes a number of new features:
+	BIND 9.1.0b2 is the second beta release of BIND 9.1.0.
+	It fixes a number of bugs in 9.1.0b1 and adds some new
+	features such as a multithreaded DNSSEC signer and
+	support for "rndc dumpdb" command.
+
+	Other features added since 9.0.x include:
 
 	  - Many BIND 8 features previously unimplemented in BIND 9,
 	    including domain-specific forwarding, the $GENERATE
@@ -59,7 +63,7 @@ BIND 9.1.0b1
 	    by the "allow-update-forwarding" option
 
 	  - A new, simplified database interface and a number of
-	    sample drivers based on it; see doc/dev/sdb for details
+	    sample drivers based on it; see doc/misc/sdb for details
 
 	  - Support for building single-threaded servers for 
 	    environments that do not supply POSIX threads
@@ -145,7 +149,7 @@ Building
 		HP-UX 11
 		IRIX64 6.5
 		NetBSD-current (with unproven-pthreads-0.17)
-		Red Hat Linux 6.0, 6.1, 6.2
+		Red Hat Linux 6.0, 6.1, 6.2, 7.0
 		Solaris 2.6, 7, 8
 
 	Additionally, we have unverified reports of success building
@@ -154,8 +158,7 @@ Building
 		Slackware Linux 7.0 with 2.4.0-test6 kernel and glibc 2.1.3
 		Slackware Linux 7.0.1 with glibc 2.1.3
 		OpenBSD 2.6, 2.8, -current
-		UnixWare 7.1.1 once the IN6_IS_ADDR_MULTICAST macro in
-			/usr/include/netinet/in6_f.h is repaired (== vs =).
+		UnixWare 7.1.1
 
 	To build, just
 
@@ -210,6 +213,10 @@ Building
 	on your system, and some require Perl; see bin/tests/system/README
 	for details.
 
+	Linux systems do not provide useful core dumps for multithreaded 
+	programs unless the kernel patch in contrib/linux/coredump-patch
+	has been applied.  We recommend all Linux users to install this
+	patch so that any server crashes can be properly diagnosed.
 
 Documentation
 

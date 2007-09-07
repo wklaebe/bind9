@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: server.c,v 1.269 2000/12/05 17:23:45 gson Exp $ */
+/* $Id: server.c,v 1.276 2000/12/15 21:11:38 gson Exp $ */
 
 #include <config.h>
 
@@ -495,17 +495,6 @@ configure_view(dns_view_t *view, dns_c_ctx_t *cctx, dns_c_view_t *cview,
 	dns_cache_detach(&cache);
 
 	/*
-	 * XXXRTH  Temporary support for loading cache contents.
-	 */
-	if (ns_g_cachefile != NULL) {
-		isc_log_write(ns_g_lctx, NS_LOGCATEGORY_GENERAL,
-			      NS_LOGMODULE_SERVER, ISC_LOG_DEBUG(1),
-			      "loading cache '%s'", ns_g_cachefile);
-		/* DNS_R_SEENINCLUDE should be impossible here. */
-		CHECK(dns_db_load(view->cachedb, ns_g_cachefile));
-	}
-
-	/*
 	 * Resolver.
 	 *
 	 * XXXRTH  Hardwired number of tasks.
@@ -711,6 +700,32 @@ configure_view(dns_view_t *view, dns_c_ctx_t *cctx, dns_c_view_t *cview,
 		if (val > 7 * 24 * 3600)
 			val = 7 * 24 * 3600;
 		view->maxncachettl = val;
+	}
+	{
+		char *cachefile = NULL, *p = NULL;
+		if (cview != NULL)
+			result = dns_c_view_getcachefile(cview, &cachefile);
+		else
+			result = dns_c_ctx_getcachefile(cctx, &cachefile);
+		if (result != ISC_R_SUCCESS && result != ISC_R_NOTFOUND)
+			goto cleanup;
+		if (cachefile != NULL) {
+			p = isc_mem_strdup(view->mctx, cachefile);
+			if (p == NULL) {
+				result = ISC_R_NOMEMORY;
+				goto cleanup;
+			}
+		}
+		if (view->cachefile != NULL)
+			isc_mem_free(view->mctx, view->cachefile);
+		view->cachefile = p;
+		if (view->cachefile != NULL) {
+			isc_log_write(ns_g_lctx, NS_LOGCATEGORY_GENERAL,
+				      NS_LOGMODULE_SERVER, ISC_LOG_DEBUG(1),
+				      "loading cache '%s'", view->cachefile);
+			/* DNS_R_SEENINCLUDE should be impossible here. */
+			CHECK(dns_db_load(view->cachedb, view->cachefile));
+		}
 	}
 
 	result = ISC_R_SUCCESS;
@@ -1277,6 +1292,10 @@ options_callback(dns_c_ctx_t *cctx, void *uap) {
 static void
 scan_interfaces(ns_server_t *server, isc_boolean_t verbose) {
 	ns_interfacemgr_scan(server->interfacemgr, verbose);
+	/*
+	 * Update the "localhost" and "localnets" ACLs to match the
+	 * current set of network interfaces.
+	 */
 	dns_aclenv_copy(&server->aclenv,
 			ns_interfacemgr_getaclenv(server->interfacemgr));
 }
@@ -1323,6 +1342,21 @@ setstatsfile(ns_server_t *server, const char *name) {
 	if (server->statsfile != NULL)
 		isc_mem_free(server->mctx, server->statsfile);
 	server->statsfile = p;
+	return (ISC_R_SUCCESS);
+}
+
+static isc_result_t
+setdumpfile(ns_server_t *server, const char *name) {
+	char *p;
+
+	REQUIRE(name != NULL);
+
+	p = isc_mem_strdup(server->mctx, name);
+	if (p == NULL)
+		return (ISC_R_NOMEMORY);
+	if (server->dumpfile != NULL)
+		isc_mem_free(server->mctx, server->dumpfile);
+	server->dumpfile = p;
 	return (ISC_R_SUCCESS);
 }
 
@@ -1376,6 +1410,7 @@ load_configuration(const char *filename, ns_server_t *server,
 	dns_dispatch_t *dispatchv6 = NULL;
 	char *pidfilename;
 	char *statsfilename;
+	char *dumpfilename;
 	isc_uint32_t interface_interval;
 	isc_uint32_t heartbeat_interval;
 	in_port_t listen_port;
@@ -1748,6 +1783,13 @@ load_configuration(const char *filename, ns_server_t *server,
 		CHECKM(setstatsfile(server, statsfilename), "strdup");		
 	}
 
+	result = dns_c_ctx_getdumpfilename(cctx, &dumpfilename);
+	if (result == ISC_R_NOTFOUND) {
+		CHECKM(setdumpfile(server, "named_dump.db"), "strdup");
+	} else {
+		CHECKM(setdumpfile(server, dumpfilename), "strdup");		
+	}
+
  cleanup:
 	ns_aclconfctx_destroy(&aclconfctx);
 
@@ -1998,6 +2040,10 @@ ns_server_create(isc_mem_t *mctx, ns_server_t **serverp) {
 	CHECKFATAL(dns_stats_alloccounters(ns_g_mctx, &server->querystats),
 		   "dns_stats_alloccounters");
 
+	server->dumpfile = isc_mem_strdup(server->mctx, "named.dump");
+	CHECKFATAL(server->dumpfile == NULL ? ISC_R_NOMEMORY : ISC_R_SUCCESS,
+		   "isc_mem_strdup");
+
 	server->flushonshutdown = ISC_FALSE;
 	server->log_queries = ISC_FALSE;
 
@@ -2012,6 +2058,8 @@ ns_server_destroy(ns_server_t **serverp) {
 
 	dns_stats_freecounters(server->mctx, &server->querystats);
 	isc_mem_free(server->mctx, server->statsfile);
+
+	isc_mem_free(server->mctx, server->dumpfile);
 
 	dns_loadmgr_detach(&server->loadmgr);
 	dns_zonemgr_detach(&server->zonemgr);
@@ -2181,6 +2229,7 @@ isc_result_t
 ns_server_reloadcommand(ns_server_t *server, char *args) {
 	isc_result_t result;
 	dns_zone_t *zone = NULL;
+	dns_zonetype_t type;
 	
 	UNUSED(server);
 	result = zone_from_args(server, args, &zone);
@@ -2189,7 +2238,11 @@ ns_server_reloadcommand(ns_server_t *server, char *args) {
 	if (zone == NULL) {
 		ns_server_reloadwanted(server);
 	} else {
-		dns_zone_forcereload(zone);
+		type = dns_zone_gettype(zone);
+		if (type == dns_zone_slave || type == dns_zone_stub)
+			dns_zone_refresh(zone);
+		else
+			dns_zone_load(zone);
 		dns_zone_detach(&zone);
 	}
 	return (ISC_R_SUCCESS);
@@ -2217,7 +2270,7 @@ ns_server_refreshcommand(ns_server_t *server, char *args) {
 
 isc_result_t
 ns_server_togglequerylog(ns_server_t *server) {
-	server->log_queries = ! server->log_queries;
+	server->log_queries = server->log_queries ? ISC_FALSE : ISC_TRUE;
 	
 	isc_log_write(ns_g_lctx, NS_LOGCATEGORY_GENERAL,
 		      NS_LOGMODULE_SERVER, ISC_LOG_INFO,
@@ -2341,6 +2394,29 @@ ns_server_dumpstats(ns_server_t *server) {
 	fprintf(fp, "--- Statistics Dump --- (%lu)\n", (unsigned long)now);
 	dns_zonemgr_unlockconf(server->zonemgr, isc_rwlocktype_read);
 
+ cleanup:
+	if (fp != NULL)
+		(void)isc_stdio_close(fp);
+	return (result);
+}
+
+isc_result_t
+ns_server_dumpdb(ns_server_t *server) {
+	FILE *fp = NULL;
+	dns_view_t *view;
+	isc_result_t result;
+
+	CHECKM(isc_stdio_open(server->dumpfile, "w", &fp),
+	       "could not open dump file");
+
+	for (view = ISC_LIST_HEAD(server->viewlist);
+	     view != NULL;
+	     view = ISC_LIST_NEXT(view, link))
+	{
+		if (view->cachedb != NULL)
+			CHECKM(dns_view_dumpdbtostream(view, fp),
+			       "could not dump view databases");
+	}
  cleanup:
 	if (fp != NULL)
 		(void)isc_stdio_close(fp);

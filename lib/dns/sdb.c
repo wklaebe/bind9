@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: sdb.c,v 1.20 2000/12/01 01:22:43 marka Exp $ */
+/* $Id: sdb.c,v 1.23 2000/12/21 01:58:37 bwelling Exp $ */
 
 #include <config.h>
 
@@ -114,6 +114,20 @@ typedef struct sdb_rdatasetiter {
 /* This is a reasonable value */
 #define SDB_DEFAULT_TTL		(60 * 60 * 24)
 
+#define MAYBE_LOCK(sdb)							\
+	do {								\
+		unsigned int flags = sdb->implementation->flags;	\
+		if ((flags & DNS_SDBFLAG_THREADSAFE) == 0)		\
+			LOCK(&sdb->lock);				\
+	} while (0)
+
+#define MAYBE_UNLOCK(sdb)						\
+	do {								\
+		unsigned int flags = sdb->implementation->flags;	\
+		if ((flags & DNS_SDBFLAG_THREADSAFE) == 0)		\
+			UNLOCK(&sdb->lock);				\
+	} while (0)
+
 static int dummy;
 
 static isc_result_t dns_sdb_create(isc_mem_t *mctx, dns_name_t *origin,
@@ -193,6 +207,9 @@ dns_sdb_register(const char *drivername, const dns_sdbmethods_t *methods,
 	REQUIRE(methods->lookup != NULL);
 	REQUIRE(mctx != NULL);
 	REQUIRE(sdbimp != NULL && *sdbimp == NULL);
+	REQUIRE((flags & ~(DNS_SDBFLAG_RELATIVEOWNER |
+			   DNS_SDBFLAG_RELATIVERDATA |
+			   DNS_SDBFLAG_THREADSAFE)) == 0);
 
 	imp = isc_mem_get(mctx, sizeof(dns_sdbimplementation_t));
 	if (imp == NULL)
@@ -663,14 +680,18 @@ findnode(dns_db_t *db, dns_name_t *name, isc_boolean_t create,
 
 	isorigin = dns_name_equal(name, &sdb->common.origin);
 
+	MAYBE_LOCK(sdb);
 	result = imp->methods->lookup(sdb->zone, namestr, sdb->dbdata, node);
+	MAYBE_UNLOCK(sdb);
 	if (result != ISC_R_SUCCESS && !isorigin) {
 		destroynode(node);
 		return (result);
 	}
 
 	if (isorigin && imp->methods->authority != NULL) {
+		MAYBE_LOCK(sdb);
 		result = imp->methods->authority(sdb->zone, sdb->dbdata, node);
+		MAYBE_UNLOCK(sdb);
 		if (result != ISC_R_SUCCESS) {
 			destroynode(node);
 			return (result);
@@ -937,7 +958,9 @@ createiterator(dns_db_t *db, isc_boolean_t relative_names,
 	sdbiter->current = NULL;
 	sdbiter->origin = NULL;
 
+	MAYBE_LOCK(sdb);
 	result = imp->methods->allnodes(sdb->zone, sdb->dbdata, sdbiter);
+	MAYBE_UNLOCK(sdb);
 	if (result != ISC_R_SUCCESS) {
 		dbiterator_destroy((dns_dbiterator_t **)&sdbiter);
 		return (result);
@@ -1201,7 +1224,7 @@ dns_sdb_create(isc_mem_t *mctx, dns_name_t *origin, dns_dbtype_t type,
 
 static void
 disassociate(dns_rdataset_t *rdataset) {
-        dns_dbnode_t *node = rdataset->private5;
+	dns_dbnode_t *node = rdataset->private5;
 	dns_sdbnode_t *sdbnode = (dns_sdbnode_t *) node;
 	dns_db_t *db = (dns_db_t *) sdbnode->sdb;
 
@@ -1309,7 +1332,7 @@ dbiterator_next(dns_dbiterator_t *iterator) {
 
 static isc_result_t
 dbiterator_current(dns_dbiterator_t *iterator, dns_dbnode_t **nodep,
-		                   dns_name_t *name)
+		   dns_name_t *name)
 {
 	sdb_dbiterator_t *sdbiter = (sdb_dbiterator_t *)iterator;
 
@@ -1326,7 +1349,7 @@ dbiterator_pause(dns_dbiterator_t *iterator) {
 	return (ISC_R_SUCCESS);
 }
 
-isc_result_t
+static isc_result_t
 dbiterator_origin(dns_dbiterator_t *iterator, dns_name_t *name) {
 	UNUSED(iterator);
 	return (dns_name_concatenate(dns_rootname, NULL, name, NULL));

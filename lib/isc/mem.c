@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: mem.c,v 1.68 2000/12/01 00:52:38 gson Exp $ */
+/* $Id: mem.c,v 1.75 2000/12/22 18:30:26 gson Exp $ */
 
 #include <config.h>
 
@@ -26,6 +26,7 @@
 #include <limits.h>
 
 #include <isc/mem.h>
+#include <isc/msgs.h>
 #include <isc/ondestroy.h>
 #include <isc/string.h>
 
@@ -175,7 +176,10 @@ add_trace_entry(isc_mem_t *mctx, const void *ptr, unsigned int size
 	unsigned int i;
 
 	if (MEM_TRACE)
-		fprintf(stderr, "add %p size %u file %s line %u mctx %p\n",
+		fprintf(stderr, isc_msgcat_get(isc_msgcat, ISC_MSGSET_MEM,
+					       ISC_MSG_ADDTRACE,
+					       "add %p size %u "
+					       "file %s line %u mctx %p\n"),
 			ptr, size, file, line, mctx);
 
 	if (!MEM_RECORD)
@@ -224,7 +228,10 @@ delete_trace_entry(isc_mem_t *mctx, const void *ptr, unsigned int size,
 	unsigned int i;
 
 	if (MEM_TRACE)
-		fprintf(stderr, "del %p size %u file %s line %u mctx %p\n",
+		fprintf(stderr, isc_msgcat_get(isc_msgcat, ISC_MSGSET_MEM,
+					       ISC_MSG_DELTRACE,
+					       "del %p size %u "
+					       "file %s line %u mctx %p\n"),
 			ptr, size, file, line, mctx);
 
 	if (!MEM_RECORD)
@@ -545,6 +552,21 @@ mem_getunlocked(isc_mem_t *ctx, size_t size) {
 	return (ret);
 }
 
+#if ISC_MEM_FILL && ISC_MEM_CHECKOVERRUN
+static inline void
+check_overrun(void *mem, size_t size, size_t new_size) {
+	unsigned char *cp;
+
+	cp = (unsigned char *)mem;
+	cp += size;
+	while (size < new_size) {
+		INSIST(*cp == 0xbe);
+		cp++;
+		size++;
+	}
+}
+#endif
+
 static inline void
 mem_putunlocked(isc_mem_t *ctx, void *mem, size_t size) {
 	size_t new_size = quantize(size);
@@ -664,7 +686,9 @@ isc_mem_createx(size_t init_max_size, size_t target_size,
 		(memfree)(arg, ctx->freelists);
 		(memfree)(arg, ctx);
 		UNEXPECTED_ERROR(__FILE__, __LINE__,
-				 "isc_mutex_init() failed");
+				 "isc_mutex_init() %s",
+				 isc_msgcat_get(isc_msgcat, ISC_MSGSET_GENERAL,
+						ISC_MSG_FAILED, "failed"));
 		return (ISC_R_UNEXPECTED);
 	}
 	ctx->references = 1;
@@ -822,7 +846,6 @@ isc__mem_putanddetach(isc_mem_t **ctxp, void *ptr, size_t size FLARG) {
 void
 isc_mem_destroy(isc_mem_t **ctxp) {
 	isc_mem_t *ctx;
-	isc_boolean_t want_destroy = ISC_FALSE;
 
 	/*
 	 * This routine provides legacy support for callers who use mctxs
@@ -836,12 +859,9 @@ isc_mem_destroy(isc_mem_t **ctxp) {
 	LOCK(&ctx->lock);
 	REQUIRE(ctx->references == 1);
 	ctx->references--;
-	if (ctx->references == 0)
-		want_destroy = ISC_TRUE;
 	UNLOCK(&ctx->lock);
 
-	if (want_destroy)
-		destroy(ctx);
+	destroy(ctx);
 
 	*ctxp = NULL;
 }
@@ -869,21 +889,6 @@ isc_mem_restore(isc_mem_t *ctx) {
 	return (result);
 }
 
-#if ISC_MEM_FILL && ISC_MEM_CHECKOVERRUN
-static inline void
-check_overrun(void *mem, size_t size, size_t new_size) {
-	unsigned char *cp;
-
-	cp = (unsigned char *)mem;
-	cp += size;
-	while (size < new_size) {
-		INSIST(*cp == 0xbe);
-		cp++;
-		size++;
-	}
-}
-#endif
-
 void *
 isc__mem_get(isc_mem_t *ctx, size_t size FLARG) {
 	void *ptr;
@@ -907,8 +912,10 @@ isc__mem_get(isc_mem_t *ctx, size_t size FLARG) {
 
 	if (call_water) {
 		/* XXX remove */
-		fprintf(stderr, "calling water(%p,ISC_MEM_HIWATER)\n",
-			 ctx->water_arg);
+		fprintf(stderr, "%s water(%p, ISC_MEM_HIWATER)\n",
+			isc_msgcat_get(isc_msgcat, ISC_MSGSET_GENERAL,
+				       ISC_MSG_CALLING, "calling"),
+			ctx->water_arg);
 		(ctx->water)(ctx->water_arg, ISC_MEM_HIWATER);
 	}
 
@@ -938,8 +945,10 @@ isc__mem_put(isc_mem_t *ctx, void *ptr, size_t size FLARG)
 
 	if (call_water) {
 		/* XXX remove */
-		fprintf(stderr, "calling water(%p,ISC_MEM_LOWATER)\n",
-			 ctx->water_arg);
+		fprintf(stderr, "%s water(%p,ISC_MEM_LOWATER)\n",
+			isc_msgcat_get(isc_msgcat, ISC_MSGSET_GENERAL,
+				       ISC_MSG_CALLING, "calling"),
+			ctx->water_arg);
 		(ctx->water)(ctx->water_arg, ISC_MEM_LOWATER);
 	}
 }
@@ -1005,10 +1014,27 @@ isc_mem_stats(isc_mem_t *ctx, FILE *out) {
 	 */
 	pool = ISC_LIST_HEAD(ctx->pools);
 	if (pool != NULL) {
-		fprintf(out, "[Pool statistics]\n");
+		fprintf(out, isc_msgcat_get(isc_msgcat, ISC_MSGSET_MEM,
+					    ISC_MSG_POOLSTATS,
+					    "[Pool statistics]\n"));
 		fprintf(out, "%15s %10s %10s %10s %10s %10s %10s %10s %1s\n",
-			"name", "size", "maxalloc", "allocated", "freecount",
-			"freemax", "fillcount", "gets", "L");
+			isc_msgcat_get(isc_msgcat, ISC_MSGSET_MEM,
+				       ISC_MSG_POOLNAME, "name"),
+			isc_msgcat_get(isc_msgcat, ISC_MSGSET_MEM,
+				       ISC_MSG_POOLSIZE, "size"),
+			isc_msgcat_get(isc_msgcat, ISC_MSGSET_MEM,
+				       ISC_MSG_POOLMAXALLOC, "maxalloc"),
+			isc_msgcat_get(isc_msgcat, ISC_MSGSET_MEM,
+				       ISC_MSG_POOLALLOCATED, "allocated"),
+			isc_msgcat_get(isc_msgcat, ISC_MSGSET_MEM,
+				       ISC_MSG_POOLFREECOUNT, "freecount"),
+			isc_msgcat_get(isc_msgcat, ISC_MSGSET_MEM,
+				       ISC_MSG_POOLFREEMAX, "freemax"),
+			isc_msgcat_get(isc_msgcat, ISC_MSGSET_MEM,
+				       ISC_MSG_POOLFILLCOUNT, "fillcount"),
+			isc_msgcat_get(isc_msgcat, ISC_MSGSET_MEM,
+				       ISC_MSG_POOLGETS, "gets"),
+			"L");
 	}
 	while (pool != NULL) {
 		fprintf(out, "%15s %10lu %10u %10u %10u %10u %10u %10u %s\n",
@@ -1020,19 +1046,29 @@ isc_mem_stats(isc_mem_t *ctx, FILE *out) {
 	}
 
 #if ISC_MEM_TRACKLINES
-	if (isc_mem_debugging > 1) {
+	if (MEM_RECORD) {
 		debuglink_t *dl;
 		unsigned int i;
 
-		fprintf(out, "DUMP OF ALL OUTSTANDING MEMORY ALLOCATIONS\n");
+		fprintf(out, isc_msgcat_get(isc_msgcat, ISC_MSGSET_MEM,
+					    ISC_MSG_DUMPALLOC,
+					    "DUMP OF ALL OUTSTANDING "
+					    "MEMORY ALLOCATIONS\n"));
 		dl = ISC_LIST_HEAD(ctx->debuglist);
 		if (dl == NULL)
-			fprintf(out, "\tNone.\n");
+			fprintf(out, isc_msgcat_get(isc_msgcat, ISC_MSGSET_MEM,
+						    ISC_MSG_NONE,
+						    "\tNone.\n"));
 		while (dl != NULL) {
 			for (i = 0 ; i < DEBUGLIST_COUNT ; i++)
 				if (dl->ptr[i] != NULL)
 					fprintf(out,
-						"\tptr %p file %s line %u\n",
+						isc_msgcat_get(isc_msgcat,
+							   ISC_MSGSET_MEM,
+							   ISC_MSG_PTRFILELINE,
+							   "\tptr %p "
+							   "file %s "
+							   "line %u\n"),
 						dl->ptr[i], dl->file[i],
 						dl->line[i]);
 			dl = ISC_LIST_NEXT(dl, link);
@@ -1330,7 +1366,7 @@ isc_mempool_create(isc_mem_t *mctx, size_t size, isc_mempool_t **mpctxp) {
 
 	*mpctxp = mpctx;
 
-	ISC_LIST_APPENDUNSAFE(mctx->pools, mpctx, link);
+	ISC_LIST_INITANDAPPEND(mctx->pools, mpctx, link);
 
 	UNLOCK(&mctx->lock);
 

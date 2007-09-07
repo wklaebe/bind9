@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: confview.c,v 1.62 2000/12/01 23:27:42 marka Exp $ */
+/* $Id: confview.c,v 1.66 2000/12/13 00:15:24 tale Exp $ */
 
 #include <config.h>
 
@@ -143,6 +143,8 @@ PVT_CONCAT(dns_c_view_unset, FUNCNAME)(dns_c_view_t *view) {	\
 	}							\
 }
 
+
+
 #define BYTYPE_FUNCS(TYPE, FUNC, FIELD) \
 	SETBYTYPE(TYPE, FUNC, FIELD) \
 	GETBYTYPE(TYPE, FUNC, FIELD) \
@@ -209,6 +211,64 @@ PVT_CONCAT(dns_c_view_get, FUNCNAME)(dns_c_view_t *view,		\
 	GETIPMLIST(FUNC, FIELD) \
 	UNSETIPMLIST(FUNC, FIELD)
 
+
+#define SETSTRING(FUNC, FIELD)						     \
+isc_result_t								     \
+PVT_CONCAT(dns_c_view_set, FUNC)(dns_c_view_t *view, const char *newval)     \
+{									     \
+	char *p = NULL;							     \
+									     \
+	REQUIRE(DNS_C_VIEW_VALID(view));				     \
+	REQUIRE(newval != NULL);					     \
+	REQUIRE(*newval != '\0');					     \
+									     \
+	if (newval != NULL) {						     \
+		p = isc_mem_strdup(view->mem, newval);			     \
+		if (p == NULL)						     \
+			return (ISC_R_NOMEMORY);			     \
+	}								     \
+	if (view->FIELD != NULL) {					     \
+		isc_mem_free(view->mem, view->FIELD);			     \
+		view->FIELD = NULL;					     \
+	}						 		     \
+	view->FIELD = p;						     \
+	return (ISC_R_SUCCESS);						     \
+}
+
+
+#define GETSTRING(FUNC, FIELD)						\
+isc_result_t								\
+PVT_CONCAT(dns_c_view_get, FUNC)(dns_c_view_t *view, char **retval)	\
+{									\
+	REQUIRE(DNS_C_VIEW_VALID(view));				\
+	REQUIRE(retval != NULL);					\
+									\
+	*retval = view->FIELD;						\
+									\
+	return (*retval == NULL ? ISC_R_NOTFOUND : ISC_R_SUCCESS);	\
+}
+
+
+#define UNSETSTRING(FUNC, FIELD)				\
+isc_result_t							\
+PVT_CONCAT(dns_c_view_unset, FUNC)(dns_c_view_t *view)		\
+{								\
+	REQUIRE(DNS_C_VIEW_VALID(view));			\
+								\
+	if (view->FIELD == NULL) {				\
+		return (ISC_R_NOTFOUND);			\
+	}							\
+								\
+	isc_mem_free(view->mem, view->FIELD);			\
+	view->FIELD = NULL;					\
+								\
+	return (ISC_R_SUCCESS);					\
+}
+
+#define STRING_FUNCS(FUNC, FIELD) \
+	SETSTRING(FUNC, FIELD) \
+	GETSTRING(FUNC, FIELD) \
+	UNSETSTRING(FUNC, FIELD)
 
 isc_result_t
 dns_c_viewtable_new(isc_mem_t *mem, dns_c_viewtable_t **viewtable) {
@@ -470,6 +530,7 @@ dns_c_view_new(isc_mem_t *mem, const char *name, dns_rdataclass_t viewclass,
 	view->forwarders = NULL;
 	view->also_notify = NULL;
 
+	view->allownotify = NULL;
 	view->allowquery = NULL;
 	view->allowupdateforwarding = NULL;
 	view->transferacl = NULL;
@@ -526,6 +587,8 @@ dns_c_view_new(isc_mem_t *mem, const char *name, dns_rdataclass_t viewclass,
 
 	view->trusted_keys = NULL;
 
+	view->cache_file = NULL;
+
 #if 0
 	view->max_transfer_time_in = NULL;
 	view->max_transfer_idle_in = NULL;
@@ -563,7 +626,24 @@ dns_c_view_print(FILE *fp, int indent, dns_c_view_t *view) {
 		port = isc_sockaddr_getport(view->FIELD);	\
 								\
 		dns_c_printtabs(fp, indent + 1);		\
-		fprintf(fp, NAME " address ");			\
+		fprintf(fp, "%s ", NAME);			\
+								\
+		dns_c_print_ipaddr(fp, view->FIELD);		\
+								\
+		if (port == 0) {				\
+			fprintf(fp, " port *");			\
+		} else {					\
+			fprintf(fp, " port %d", port);		\
+		}						\
+		fprintf(fp, " ;\n");				\
+	}
+
+#define PRINT_QUERYSOURCE(FIELD, NAME)				\
+	if (view->FIELD != NULL) {				\
+		port = isc_sockaddr_getport(view->FIELD);	\
+								\
+		dns_c_printtabs(fp, indent + 1);		\
+		fprintf(fp, "%s address ", NAME);		\
 								\
 		dns_c_print_ipaddr(fp, view->FIELD);		\
 								\
@@ -610,6 +690,7 @@ dns_c_view_print(FILE *fp, int indent, dns_c_view_t *view) {
 			fputs("no", fp);			\
 		else						\
 			fputs("explicit", fp);			\
+		fprintf(fp, ";\n");				\
 	}
 
 #define PRINT_AS_DIALUPTYPE(FIELD, NAME)			\
@@ -642,6 +723,13 @@ dns_c_view_print(FILE *fp, int indent, dns_c_view_t *view) {
 		dns_c_printtabs(fp, indent + 1);		\
 		fprintf(fp, "%s %lu;\n",NAME,			\
 			(unsigned long)(*view->FIELD / 60));	\
+	}
+
+#define PRINT_AS_DAYS(FIELD, NAME)				\
+	if (view->FIELD != NULL) {				\
+		dns_c_printtabs(fp, indent + 1);		\
+		fprintf(fp, "%s %lu;\n",NAME,			\
+			(unsigned long)(*view->FIELD / (24 * 60 * 60)));  \
 	}
 
 #define PRINT_AS_SIZE_CLAUSE(FIELD, NAME)				\
@@ -679,6 +767,7 @@ dns_c_view_print(FILE *fp, int indent, dns_c_view_t *view) {
 		fprintf(fp, ";\n");
 	}
 
+	PRINT_IPMLIST(allownotify, "allow-notify");
 	PRINT_IPMLIST(allowquery, "allow-query");
 	PRINT_IPMLIST(allowupdateforwarding, "allow-update-forwarding");
 	PRINT_IPMLIST(transferacl, "alllow-transfer");
@@ -737,8 +826,8 @@ dns_c_view_print(FILE *fp, int indent, dns_c_view_t *view) {
 	PRINT_IPANDPORT(transfer_source, "transfer-source");
 	PRINT_IPANDPORT(transfer_source_v6, "transfer-source-v6");
 
-	PRINT_IPANDPORT(query_source, "query-source");
-	PRINT_IPANDPORT(query_source_v6, "query-source-v6");
+	PRINT_QUERYSOURCE(query_source, "query-source");
+	PRINT_QUERYSOURCE(query_source_v6, "query-source-v6");
 
 	PRINT_AS_MINUTES(max_transfer_time_out, "max-transfer-time-out");
 	PRINT_AS_MINUTES(max_transfer_idle_out, "max-transfer-idle-out");
@@ -748,13 +837,12 @@ dns_c_view_print(FILE *fp, int indent, dns_c_view_t *view) {
 	PRINT_INT32(lamettl, "lame-ttl");
 	PRINT_INT32(max_ncache_ttl, "max-ncache-ttl");
 	PRINT_INT32(max_cache_ttl, "max-cache-ttl");
-	PRINT_INT32(sig_valid_interval, "sig-validity-interval");
+	PRINT_AS_DAYS(sig_valid_interval, "sig-validity-interval");
 
 	PRINT_INT32(min_retry_time, "min-retry-time");
 	PRINT_INT32(max_retry_time, "max-retry-time");
 	PRINT_INT32(min_refresh_time, "min-refresh-time");
 	PRINT_INT32(max_refresh_time, "max-refresh-time");
-
 
 	PRINT_AS_SIZE_CLAUSE(max_cache_size, "max-cache-size");
 
@@ -850,6 +938,7 @@ dns_c_view_delete(dns_c_view_t **viewptr) {
 		dns_c_iplist_detach(&view->also_notify);
 	}
 
+	FREEIPMLIST(allownotify);
 	FREEIPMLIST(allowquery);
 	FREEIPMLIST(allowupdateforwarding);
 	FREEIPMLIST(transferacl);
@@ -909,6 +998,8 @@ dns_c_view_delete(dns_c_view_t **viewptr) {
 	dns_c_view_unsetpeerlist(view);
 
 	dns_c_view_unsettrustedkeys(view);
+
+	dns_c_view_unsetcachefile(view);
 
 #if 0
 	FREEFIELD(max_transfer_time_in);
@@ -1494,6 +1585,7 @@ dns_c_view_settrustedkeys(dns_c_view_t *view, dns_c_tkeylist_t *newval,
 **
 */
 
+IPMLIST_FUNCS(allownotify, allownotify)
 IPMLIST_FUNCS(allowquery, allowquery)
 IPMLIST_FUNCS(allowupdateforwarding, allowupdateforwarding)
 IPMLIST_FUNCS(transferacl, transferacl)
@@ -1524,6 +1616,8 @@ SOCKADDR_FUNCS(transfersourcev6, transfer_source_v6)
 SOCKADDR_FUNCS(querysource, query_source)
 SOCKADDR_FUNCS(querysourcev6, query_source_v6)
 
+STRING_FUNCS(cachefile, cache_file)
+
 UINT32_FUNCS(maxtransfertimeout, max_transfer_time_out)
 UINT32_FUNCS(maxtransferidleout, max_transfer_idle_out)
 UINT32_FUNCS(cleaninterval, clean_interval)
@@ -1538,7 +1632,6 @@ UINT32_FUNCS(minretrytime, min_retry_time)
 UINT32_FUNCS(maxretrytime, max_retry_time)
 UINT32_FUNCS(minrefreshtime, min_refresh_time)
 UINT32_FUNCS(maxrefreshtime, max_refresh_time)
-
 
 BYTYPE_FUNCS(dns_c_addata_t, additionaldata, additional_data)
 BYTYPE_FUNCS(dns_transfer_format_t, transferformat, transfer_format)

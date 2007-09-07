@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: xfrout.c,v 1.83 2000/12/04 06:31:41 gson Exp $ */
+/* $Id: xfrout.c,v 1.87 2000/12/22 18:32:06 gson Exp $ */
 
 #include <config.h>
 
@@ -263,7 +263,7 @@ log_rr(dns_name_t *name, dns_rdata_t *rdata, isc_uint32_t ttl) {
 	char mem[2000];
 	dns_rdatalist_t rdl;
 	dns_rdataset_t rds;
-	dns_rdata_t rd;
+	dns_rdata_t rd = DNS_RDATA_INIT;
 
 	rdl.type = rdata->type;
 	rdl.rdclass = rdata->rdclass;
@@ -1045,7 +1045,7 @@ ns_xfr_start(ns_client_t *client, dns_rdatatype_t reqtype) {
 		 */
 		if (DNS_SERIAL_GE(begin_serial, current_serial) ||
 		    (client->attributes & NS_CLIENTATTR_TCP) == 0)
-	        {
+		{
 			CHECK(soa_rrstream_create(mctx, db, ver, &stream));
 			goto have_stream;
 		}
@@ -1446,9 +1446,9 @@ sendstream(xfrout_ctx_t *xfr) {
 		xfr->client->message = msg;
 		msg = NULL;
 		ns_client_send(xfr->client);
+		xfr->stream->methods->pause(xfr->stream);
 		xfrout_ctx_destroy(&xfr);
-		result = ISC_R_SUCCESS;
-		goto done;
+		return;
 	}
 
 	/* Advance lasttsig to be the last TSIG generated */
@@ -1478,7 +1478,6 @@ sendstream(xfrout_ctx_t *xfr) {
 		dns_message_destroy(&msg);
 	}
 
- done:
 	/*
 	 * Make sure to release any locks held by database
 	 * iterators before returning from the event handler.
@@ -1607,7 +1606,7 @@ static void
 xfrout_log1(ns_client_t *client, dns_name_t *zonename, int level,
 	    const char *fmt, ...)
 {
-        va_list ap;
+	va_list ap;
 	va_start(ap, fmt);
 	xfrout_logv(client, zonename, level, fmt, ap);
 	va_end(ap);
@@ -1618,7 +1617,7 @@ xfrout_log1(ns_client_t *client, dns_name_t *zonename, int level,
  */
 static void
 xfrout_log(xfrout_ctx_t *xfr, unsigned int level, const char *fmt, ...) {
-        va_list ap;
+	va_list ap;
 	va_start(ap, fmt);
 	xfrout_logv(xfr->client, xfr->qname, level, fmt, ap);
 	va_end(ap);

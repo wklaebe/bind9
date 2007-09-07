@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dispatch.c,v 1.75 2000/11/10 03:08:57 gson Exp $ */
+/* $Id: dispatch.c,v 1.78 2000/12/26 09:48:41 bwelling Exp $ */
 
 #include <config.h>
 
@@ -642,7 +642,7 @@ udp_recv(isc_task_t *task, isc_event_t *ev_in) {
 		UNLOCK(&qid->lock);
 		dispatch_log(disp, LVL(90),
 			     "search for response in bucket %d: %s",
-			     bucket, (resp == NULL ? "NOT FOUND" : "FOUND"));
+			     bucket, (resp == NULL ? "not found" : "found"));
 
 		if (resp == NULL) {
 			free_buffer(disp, ev->region.base, ev->region.length);
@@ -854,7 +854,7 @@ tcp_recv(isc_task_t *task, isc_event_t *ev_in) {
 		UNLOCK(&qid->lock);
 		dispatch_log(disp, LVL(90),
 			     "search for response in bucket %d: %s",
-			     bucket, (resp == NULL ? "NOT FOUND" : "FOUND"));
+			     bucket, (resp == NULL ? "not found" : "found"));
 
 		if (resp == NULL)
 			goto restart;
@@ -1155,7 +1155,8 @@ dns_dispatchmgr_create(isc_mem_t *mctx, isc_entropy_t *entropy,
 void
 dns_dispatchmgr_setblackhole(dns_dispatchmgr_t *mgr, dns_acl_t *blackhole) {
 	REQUIRE(VALID_DISPATCHMGR(mgr));
-	REQUIRE(mgr->blackhole == NULL);
+	if (mgr->blackhole != NULL)
+		dns_acl_detach(&mgr->blackhole);
 	dns_acl_attach(blackhole, &mgr->blackhole);
 }
 
@@ -2043,7 +2044,7 @@ dns_dispatch_addrequest(dns_dispatch_t *disp,
 	res->arg = arg;
 	res->item_out = ISC_FALSE;
 	ISC_LIST_INIT(res->items);
-	ISC_LIST_APPENDUNSAFE(disp->rq_handlers, res, link);
+	ISC_LIST_INITANDAPPEND(disp->rq_handlers, res, link);
 
 	request_log(disp, res, LVL(90), "attaching task %p", res->task);
 

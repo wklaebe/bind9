@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: validator.h,v 1.14 2000/12/01 01:03:12 gson Exp $ */
+/* $Id: validator.h,v 1.17 2000/12/22 23:01:56 gson Exp $ */
 
 #ifndef DNS_VALIDATOR_H
 #define DNS_VALIDATOR_H 1
@@ -52,6 +52,10 @@
 #include <isc/mutex.h>
 
 #include <dns/types.h>
+#include <dns/rdataset.h>
+#include <dns/rdatastruct.h> /* for dns_rdata_sig_t */
+
+#include <dst/dst.h>
 
 /*
  * A dns_validatorevent_t is sent when a 'validation' completes.

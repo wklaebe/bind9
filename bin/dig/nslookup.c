@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: nslookup.c,v 1.63 2000/10/31 03:21:39 marka Exp $ */
+/* $Id: nslookup.c,v 1.69 2000/12/11 19:15:46 bwelling Exp $ */
 
 #include <config.h>
 
@@ -110,16 +110,16 @@ static const char *rtypetext[] = {
 	"md = ",			/* 3 */
 	"mf = ",			/* 4 */
 	"canonical name = ",		/* 5 */
-	"soa = ",		       	/* 6 */
-	"mb = ",		       	/* 7 */
-	"mg = ",		       	/* 8 */
-	"mr = ",		       	/* 9 */
-	"rtype_10 = ",		       	/* 10 */
+	"soa = ",			/* 6 */
+	"mb = ",			/* 7 */
+	"mg = ",			/* 8 */
+	"mr = ",			/* 9 */
+	"rtype_10 = ",			/* 10 */
 	"protocol = ",			/* 11 */
 	"name = ",			/* 12 */
 	"hinfo = ",			/* 13 */
 	"minfo = ",			/* 14 */
-	"mail exchanger = ",	       	/* 15 */
+	"mail exchanger = ",		/* 15 */
 	"text = ",			/* 16 */
 	"rp = ",       			/* 17 */
 	"afsdb = ",			/* 18 */
@@ -130,31 +130,26 @@ static const char *rtypetext[] = {
 	"nsap_ptr = ",			/* 23 */
 	"signature = ",			/* 24 */
 	"key = ",			/* 25 */
-	"px = ",		       	/* 26 */
-	"gpos = ",		       	/* 27 */
-	"has AAAA address",	        /* 28 */
-	"loc = ",		       	/* 29 */
+	"px = ",			/* 26 */
+	"gpos = ",			/* 27 */
+	"has AAAA address",		/* 28 */
+	"loc = ",			/* 29 */
 	"next = ",			/* 30 */
 	"rtype_31 = ",			/* 31 */
 	"rtype_32 = ",			/* 32 */
-	"service = ",	       		/* 33 */
+	"service = ",			/* 33 */
 	"rtype_34 = ",			/* 34 */
 	"naptr = ",			/* 35 */
 	"kx = ",			/* 36 */
 	"cert = ",			/* 37 */
 	"v6 address = ",		/* 38 */
 	"dname = ",			/* 39 */
-	"rtype_40 = ",       		/* 40 */
+	"rtype_40 = ",			/* 40 */
 	"optional = "};			/* 41 */
 
 
 static void flush_lookup_list(void);
 static void getinput(isc_task_t *task, isc_event_t *event);
-
-static void
-show_usage(void) {
-	fputs("Usage:\n", stderr);
-}
 
 void
 dighost_shutdown(void) {
@@ -351,6 +346,7 @@ detailsection(dig_query_t *query, dns_message_t *msg, isc_boolean_t headers,
 	dns_name_t *name;
 	dns_rdataset_t *rdataset = NULL;
 	dns_rdata_t rdata = DNS_RDATA_INIT;
+	char namestore[DNS_NAME_MAXTEXT + 1]; /* Leave room for the NULL */
 	char *ptr;
 	char *input;
 
@@ -389,6 +385,19 @@ detailsection(dig_query_t *query, dns_message_t *msg, isc_boolean_t headers,
 		for (rdataset = ISC_LIST_HEAD(name->list);
 		     rdataset != NULL;
 		     rdataset = ISC_LIST_NEXT(rdataset, link)) {
+			if (section == DNS_SECTION_QUESTION) {
+				dns_name_format(name, namestore,
+						sizeof(namestore));
+				printf("\t%s, ", namestore);
+				dns_rdatatype_format(rdataset->type,
+						     namestore,
+						     sizeof(namestore));
+				printf("type = %s, ", namestore);
+				dns_rdataclass_format(rdataset->rdclass,
+						      namestore,
+						      sizeof(namestore));
+				printf("class = %s\n", namestore);
+			}
 			loopresult = dns_rdataset_first(rdataset);
 			while (loopresult == ISC_R_SUCCESS) {
 				dns_rdataset_current(rdataset, &rdata);
@@ -550,6 +559,7 @@ show_settings(isc_boolean_t full, isc_boolean_t serv_only) {
 	isc_sockaddr_t sockaddr;
 	isc_buffer_t *b = NULL;
 	isc_result_t result;
+	dig_searchlist_t *listent;
 
 	srv = ISC_LIST_HEAD(server_list);
 
@@ -580,7 +590,13 @@ show_settings(isc_boolean_t full, isc_boolean_t serv_only) {
 	printf("\t  timeout = %d\t\tretry = %d\tport = %d\n",
 		timeout, tries, port);
 	printf("\t  querytype = %-8s\tclass = %s\n", deftype, defclass);
-	printf("\t  domain = %s\n", fixeddomain);
+	if (fixeddomain[0] != 0)
+		printf("\t  domain = %s\n", fixeddomain);
+	else if (!ISC_LIST_EMPTY(search_list)) {
+		listent = ISC_LIST_HEAD(search_list);
+		printf("\t  domain = %s\n", listent->origin);
+	} else
+		printf("\t  domain =\n");
 
 }
 
@@ -637,7 +653,7 @@ setoption(char *opt) {
 			safecpy(defclass, &opt[3], MXRD);
 	} else if (strncasecmp(opt, "type=", 5) == 0) {
 		if (testtype(&opt[5]))
-			safecpy(deftype, &opt[3], MXRD);
+			safecpy(deftype, &opt[5], MXRD);
 	} else if (strncasecmp(opt, "ty=", 3) == 0) {
 		if (testtype(&opt[3]))
 			safecpy(deftype, &opt[3], MXRD);
@@ -664,6 +680,10 @@ setoption(char *opt) {
 		timeout = atoi(&opt[8]);
 	} else if (strncasecmp(opt, "t=", 2) == 0) {
 		timeout = atoi(&opt[2]);
+ 	} else if (strncasecmp(opt, "rec", 3) == 0) {
+		recurse = ISC_TRUE;
+	} else if (strncasecmp(opt, "norec", 5) == 0) {
+		recurse = ISC_FALSE;
 	} else if (strncasecmp(opt, "retry=", 6) == 0) {
 		tries = atoi(&opt[6]);
 	} else if (strncasecmp(opt, "ret=", 4) == 0) {
@@ -695,7 +715,7 @@ setoption(char *opt) {
 	}
 }
 
-static dig_lookup_t*
+static void
 addlookup(char *opt) {
 	dig_lookup_t *lookup;
 	isc_result_t result;
@@ -723,11 +743,14 @@ addlookup(char *opt) {
 	if (get_reverse(store, opt, lookup->nibble) == ISC_R_SUCCESS) {
 		safecpy(lookup->textname, store, sizeof(lookup->textname));
 		lookup->rdtype = dns_rdatatype_ptr;
+		lookup->rdtypeset = ISC_TRUE;
 	} else {
 		safecpy(lookup->textname, opt, sizeof(lookup->textname));
 		lookup->rdtype = rdtype;
+		lookup->rdtypeset = ISC_TRUE;
 	}
 	lookup->rdclass = rdclass;
+	lookup->rdclassset = ISC_TRUE;
 	lookup->trace = ISC_TF(trace || ns_search_only);
 	lookup->trace_root = trace;
 	lookup->ns_search_only = ns_search_only;
@@ -750,7 +773,6 @@ addlookup(char *opt) {
 	lookup->origin = NULL;
 	ISC_LIST_INIT(lookup->my_server_list);
 	debug("looking up %s", lookup->textname);
-	return (lookup);
 }
 
 static void
@@ -783,7 +805,7 @@ setsrv(char *opt) {
 	if (srv == NULL)
 		fatal("Memory allocation failure.");
 	safecpy(srv->servername, opt, MXNAME-1);
-	ISC_LIST_APPENDUNSAFE(server_list, srv, link);
+	ISC_LIST_INITANDAPPEND(server_list, srv, link);
 }
 
 static void
@@ -838,17 +860,11 @@ get_next_command(void) {
 
 static void
 parse_args(int argc, char **argv) {
-	dig_lookup_t *lookup = NULL;
 	isc_boolean_t have_lookup = ISC_FALSE;
 
 	for (argc--, argv++; argc > 0; argc--, argv++) {
 		debug("main parsing %s", argv[0]);
 		if (argv[0][0] == '-') {
-			if ((argv[0][1] == 'h') &&
-			    (argv[0][2] == 0)) {
-				show_usage();
-				exit (1);
-			}
 			if (argv[0][1] != 0)
 				setoption(&argv[0][1]);
 			else
@@ -857,7 +873,7 @@ parse_args(int argc, char **argv) {
 			if (!have_lookup) {
 				have_lookup = ISC_TRUE;
 				in_use = ISC_TRUE;
-				lookup = addlookup(argv[0]);
+				addlookup(argv[0]);
 			}
 			else
 				setsrv(argv[0]);

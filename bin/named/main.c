@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: main.c,v 1.95 2000/11/27 19:12:23 gson Exp $ */
+/* $Id: main.c,v 1.97 2000/12/12 23:05:54 bwelling Exp $ */
 
 #include <config.h>
 
@@ -54,7 +54,7 @@
 /*
  * Include header files for database drivers here.
  */
-/* #include <xxdb.h> */
+/* #include "xxdb.h" */
 
 static isc_boolean_t	want_stats = ISC_FALSE;
 static const char *	program_name = "named";
@@ -346,10 +346,6 @@ parse_command_line(int argc, char *argv[]) {
 		case 'v':
 			printf("BIND %s\n", ns_g_version);
 			exit(0);
-		case 'x':
-			/* XXXRTH temporary syntax */
-			ns_g_cachefile = isc_commandline_argument;
-			break;
 		case '?':
 			usage();
 			ns_main_earlyfatal("unknown option '-%c'",

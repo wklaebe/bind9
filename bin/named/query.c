@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: query.c,v 1.159 2000/12/05 19:17:32 gson Exp $ */
+/* $Id: query.c,v 1.163 2000/12/27 23:01:25 marka Exp $ */
 
 #include <config.h>
 
@@ -67,13 +67,13 @@
 #define CTRACE(m)       isc_log_write(ns_g_lctx, \
 				      NS_LOGCATEGORY_CLIENT, \
 				      NS_LOGMODULE_QUERY, \
-                                      ISC_LOG_DEBUG(3), \
-                                      "client %p: %s", client, (m))
+				      ISC_LOG_DEBUG(3), \
+				      "client %p: %s", client, (m))
 #define QTRACE(m)       isc_log_write(ns_g_lctx, \
 				      NS_LOGCATEGORY_GENERAL, \
 				      NS_LOGMODULE_QUERY, \
-                                      ISC_LOG_DEBUG(3), \
-                                      "query %p: %s", query, (m))
+				      ISC_LOG_DEBUG(3), \
+				      "query %p: %s", query, (m))
 #else
 #define CTRACE(m) ((void)m)
 #define QTRACE(m) ((void)m)
@@ -152,7 +152,7 @@ query_reset(ns_client_t *client, isc_boolean_t everything) {
 		dns_db_closeversion(dbversion->db, &dbversion->version,
 				    ISC_FALSE);
 		dns_db_detach(&dbversion->db);
-		ISC_LIST_APPENDUNSAFE(client->query.freeversions,
+		ISC_LIST_INITANDAPPEND(client->query.freeversions,
 				      dbversion, link);
 	}
 	ISC_LIST_INIT(client->query.activeversions);
@@ -381,7 +381,7 @@ query_newdbversion(ns_client_t *client, unsigned int n) {
 		if (dbversion != NULL) {
 			dbversion->db = NULL;
 			dbversion->version = NULL;
-			ISC_LIST_APPENDUNSAFE(client->query.freeversions,
+			ISC_LIST_INITANDAPPEND(client->query.freeversions,
 					      dbversion, link);
 		} else {
 			/*
@@ -1198,8 +1198,12 @@ query_addadditional(void *arg, dns_name_t *name, dns_rdatatype_t qtype) {
 					goto addname;
 				if (WANTDNSSEC(client) && sigrdataset == NULL)
 					goto addname;
-			} else
+			} else {
 				dns_rdataset_disassociate(rdataset);
+				if (sigrdataset != NULL &&
+				    dns_rdataset_isassociated(sigrdataset))
+					dns_rdataset_disassociate(sigrdataset);
+			}
 		}
 		result = dns_db_findrdataset(db, node, version,
 					     dns_rdatatype_aaaa, 0,
@@ -2377,7 +2381,7 @@ query_find(ns_client_t *client, dns_fetchevent_t *event) {
 		if (result == DNS_R_REFUSED)
 			QUERY_ERROR(DNS_R_REFUSED);
 		else
-		        QUERY_ERROR(DNS_R_SERVFAIL);
+			QUERY_ERROR(DNS_R_SERVFAIL);
 		goto cleanup;
 	}
 
@@ -2865,8 +2869,10 @@ query_find(ns_client_t *client, dns_fetchevent_t *event) {
 		if (result != ISC_R_SUCCESS)
 			goto cleanup;
 		result = dns_rdataset_first(trdataset);
-		if (result != ISC_R_SUCCESS)
+		if (result != ISC_R_SUCCESS) {
+			dns_message_puttempname(client->message, &tname);
 			goto cleanup;
+		}
 		dns_rdataset_current(trdataset, &rdata);
 		result = dns_rdata_tostruct(&rdata, &cname, NULL);
 		dns_rdata_reset(&rdata);
@@ -2916,13 +2922,17 @@ query_find(ns_client_t *client, dns_fetchevent_t *event) {
 		if (result != ISC_R_SUCCESS)
 			goto cleanup;
 		result = dns_rdataset_first(trdataset);
-		if (result != ISC_R_SUCCESS)
+		if (result != ISC_R_SUCCESS) {
+			dns_message_puttempname(client->message, &tname);
 			goto cleanup;
+		}
 		dns_rdataset_current(trdataset, &rdata);
 		result = dns_rdata_tostruct(&rdata, &dname, NULL);
 		dns_rdata_reset(&rdata);
-		if (result != ISC_R_SUCCESS)
+		if (result != ISC_R_SUCCESS) {
+			dns_message_puttempname(client->message, &tname);
 			goto cleanup;
+		}
 		dns_name_init(tname, NULL);
 		dns_name_clone(&dname.dname, tname);
 		dns_rdata_freestruct(&dname);
@@ -2933,15 +2943,21 @@ query_find(ns_client_t *client, dns_fetchevent_t *event) {
 		prefix = dns_fixedname_name(&fixed);
 		result = dns_name_split(client->query.qname, nlabels, nbits,
 					prefix, NULL);
-		if (result != ISC_R_SUCCESS)
+		if (result != ISC_R_SUCCESS) {
+			dns_message_puttempname(client->message, &tname);
 			goto cleanup;
+		}
 		INSIST(fname == NULL);
 		dbuf = query_getnamebuf(client);
-		if (dbuf == NULL)
+		if (dbuf == NULL) {
+			dns_message_puttempname(client->message, &tname);
 			goto cleanup;
+		}
 		fname = query_newname(client, dbuf, &b);
-		if (fname == NULL)
+		if (fname == NULL) {
+			dns_message_puttempname(client->message, &tname);
 			goto cleanup;
+		}
 		result = dns_name_concatenate(prefix, tname, fname, NULL);
 		if (result != ISC_R_SUCCESS) {
 			dns_message_puttempname(client->message, &tname);

@@ -13,7 +13,7 @@
 # NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
 # WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: rules.in,v 1.23 2000/11/09 17:49:37 gson Exp $
+# $Id: rules.in,v 1.25 2000/12/15 08:28:45 gson Exp $
 
 ###
 ### Common Makefile rules for BIND 9.

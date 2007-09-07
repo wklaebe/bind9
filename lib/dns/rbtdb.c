@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rbtdb.c,v 1.136 2000/12/01 01:22:41 marka Exp $ */
+/* $Id: rbtdb.c,v 1.139 2000/12/07 23:37:52 marka Exp $ */
 
 /*
  * Principal Author: Bob Halley
@@ -501,7 +501,7 @@ add_changed(dns_rbtdb_t *rbtdb, rbtdb_version_t *version,
 		INSIST(node->references != 0);
 		changed->node = node;
 		changed->dirty = ISC_FALSE;
-		ISC_LIST_APPENDUNSAFE(version->changed_list, changed, link);
+		ISC_LIST_INITANDAPPEND(version->changed_list, changed, link);
 	} else
 		version->commit_ok = ISC_FALSE;
 
@@ -3276,11 +3276,17 @@ add(dns_rbtdb_t *rbtdb, dns_rbtnode_t *rbtnode, rbtdb_version_t *rbtversion,
 			unsigned int flags = 0;
 			INSIST(rbtversion->serial >= header->serial);
 			merged = NULL;
+			result = ISC_R_SUCCESS;
+			
 			if ((options & DNS_DBADD_EXACT) != 0)
 				flags |= DNS_RDATASLAB_EXACT;
-			if (newheader->ttl != header->ttl)
+			if ((options & DNS_DBADD_EXACTTTL) != 0 &&
+			     newheader->ttl != header->ttl)
+					result = DNS_R_NOTEXACT;
+			else if (newheader->ttl != header->ttl)
 				flags |= DNS_RDATASLAB_FORCE;
-			result = dns_rdataslab_merge(
+			if (result == ISC_R_SUCCESS)
+				result = dns_rdataslab_merge(
 					     (unsigned char *)header,
 					     (unsigned char *)newheader,
 					     (unsigned int)(sizeof *newheader),
@@ -3492,7 +3498,7 @@ subtractrdataset(dns_db_t *db, dns_dbnode_t *node, dns_dbversion_t *version,
 	if (result != ISC_R_SUCCESS)
 		return (result);
 	newheader = (rdatasetheader_t *)region.base;
-	newheader->ttl = 0;
+	newheader->ttl = rdataset->ttl;
 	newheader->type = RBTDB_RDATATYPE_VALUE(rdataset->type,
 						rdataset->covers);
 	newheader->attributes = 0;
@@ -3526,9 +3532,14 @@ subtractrdataset(dns_db_t *db, dns_dbnode_t *node, dns_dbversion_t *version,
 	if (header != NULL && EXISTS(header)) {
 		unsigned int flags = 0;
 		subresult = NULL;
-		if ((options & DNS_DBSUB_EXACT) != 0)
+		result = ISC_R_SUCCESS;
+		if ((options & DNS_DBSUB_EXACT) != 0) {
 			flags |= DNS_RDATASLAB_EXACT;
-		result = dns_rdataslab_subtract(
+			if (newheader->ttl != header->ttl)
+				result = DNS_R_NOTEXACT;
+		}
+		if (result == ISC_R_SUCCESS)
+			result = dns_rdataslab_subtract(
 					(unsigned char *)header,
 					(unsigned char *)newheader,
 					(unsigned int)(sizeof *newheader),

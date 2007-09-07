@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: confzone.c,v 1.70 2000/12/01 19:50:51 gson Exp $ */
+/* $Id: confzone.c,v 1.72 2000/12/13 00:15:26 tale Exp $ */
 
 #include <config.h>
 
@@ -42,6 +42,7 @@
 #define MZ_MAX_TRANS_TIME_OUT_BIT	6
 #define MZ_MAX_TRANS_IDLE_OUT_BIT	7
 #define MZ_SIG_VALID_INTERVAL_BIT	8
+/* #define unused			9 */
 #define MZ_MIN_RETRY_TIME_BIT		10
 #define MZ_MAX_RETRY_TIME_BIT		11
 #define MZ_MIN_REFRESH_TIME_BIT		12
@@ -68,6 +69,7 @@
 #define SZ_MAINT_IXFR_BASE_BIT                  10
 #define SZ_MAX_IXFR_LOG_BIT                     11
 #define SZ_FORWARD_BIT                          12
+/* #define unused 				13 */
 #define SZ_MIN_RETRY_TIME_BIT			14
 #define SZ_MAX_RETRY_TIME_BIT			15
 #define SZ_MIN_REFRESH_TIME_BIT			16
@@ -1230,9 +1232,113 @@ dns_c_zone_getssuauth(dns_c_zone_t *zone, dns_ssutable_t **retval) {
 }
 
 
+isc_result_t
+dns_c_zone_setallownotify(dns_c_zone_t *zone,
+			 dns_c_ipmatchlist_t *ipml,
+			 isc_boolean_t deepcopy)
+{
+	dns_c_ipmatchlist_t **p = NULL;
+	isc_boolean_t existed;
+	isc_result_t res;
+
+	REQUIRE(DNS_C_ZONE_VALID(zone));
+	REQUIRE(DNS_C_IPMLIST_VALID(ipml));
+
+	switch (zone->ztype) {
+	case dns_c_zone_master:
+		isc_log_write(dns_lctx, DNS_LOGCATEGORY_CONFIG,
+			      DNS_LOGMODULE_CONFIG, ISC_LOG_CRITICAL,
+			      "master zones do not have an allow_notify field");
+		return (ISC_R_FAILURE);
+
+	case dns_c_zone_slave:
+		p = &zone->u.szone.allow_notify;
+		break;
+
+	case dns_c_zone_stub:
+		isc_log_write(dns_lctx, DNS_LOGCATEGORY_CONFIG,
+			      DNS_LOGMODULE_CONFIG, ISC_LOG_CRITICAL,
+			      "stub zones do not have an allow_notify field");
+		return (ISC_R_FAILURE);
+
+	case dns_c_zone_hint:
+		isc_log_write(dns_lctx, DNS_LOGCATEGORY_CONFIG,
+			      DNS_LOGMODULE_CONFIG, ISC_LOG_CRITICAL,
+			      "hint zones do not have an allow_notify field");
+		return (ISC_R_FAILURE);
+
+	case dns_c_zone_forward:
+		isc_log_write(dns_lctx, DNS_LOGCATEGORY_CONFIG,
+			      DNS_LOGMODULE_CONFIG, ISC_LOG_CRITICAL,
+			      "forward zones do not have an "
+			      "allow_notify field");
+		return (ISC_R_FAILURE);
+	}
+
+	existed = (*p != NULL ? ISC_TRUE : ISC_FALSE);
+
+	res = set_ipmatch_list_field(zone->mem, p,
+				     ipml, deepcopy);
+	if (res == ISC_R_SUCCESS && existed) {
+		res = ISC_R_EXISTS;
+	}
+
+	return (res);
+}
+
+
 /*
  *
  */
+
+isc_result_t
+dns_c_zone_getallownotify(dns_c_zone_t *zone, dns_c_ipmatchlist_t **retval) {
+	dns_c_ipmatchlist_t *p = NULL;
+	isc_result_t res;
+
+	REQUIRE(DNS_C_ZONE_VALID(zone));
+	REQUIRE(retval != NULL);
+
+	switch (zone->ztype) {
+	case dns_c_zone_master:
+		isc_log_write(dns_lctx, DNS_LOGCATEGORY_CONFIG,
+			      DNS_LOGMODULE_CONFIG, ISC_LOG_CRITICAL,
+			      "master zones do not have an allow_notify field");
+		return (ISC_R_FAILURE);
+
+	case dns_c_zone_slave:
+		p = zone->u.szone.allow_notify;
+		break;
+
+	case dns_c_zone_stub:
+		isc_log_write(dns_lctx, DNS_LOGCATEGORY_CONFIG,
+			      DNS_LOGMODULE_CONFIG, ISC_LOG_CRITICAL,
+			      "stub zones do not have an allow_notify field");
+		return (ISC_R_FAILURE);
+
+	case dns_c_zone_hint:
+		isc_log_write(dns_lctx, DNS_LOGCATEGORY_CONFIG,
+			      DNS_LOGMODULE_CONFIG, ISC_LOG_CRITICAL,
+			      "hint zones do not have an allow_notify field");
+		return (ISC_R_FAILURE);
+
+	case dns_c_zone_forward:
+		isc_log_write(dns_lctx, DNS_LOGCATEGORY_CONFIG,
+			      DNS_LOGMODULE_CONFIG, ISC_LOG_CRITICAL,
+			      "forward zones do not have an "
+			      "allow_notify field");
+		return (ISC_R_FAILURE);
+	}
+
+	if (p != NULL) {
+		dns_c_ipmatchlist_attach(p, retval);
+		res = ISC_R_SUCCESS;
+	} else {
+		res = ISC_R_NOTFOUND;
+	}
+
+	return (res);
+}
 
 isc_result_t
 dns_c_zone_setallowquery(dns_c_zone_t *zone,
@@ -3935,9 +4041,6 @@ dns_c_zone_getmaxrefreshtime(dns_c_zone_t *zone, isc_uint32_t *retval) {
 	return (res);
 }
 
-
-
-
 /*
  *
  */
@@ -4737,7 +4840,7 @@ master_zone_print(FILE *fp, int indent, dns_c_masterzone_t *mzone) {
 	if (DNS_C_CHECKBIT(MZ_SIG_VALID_INTERVAL_BIT, &mzone->setflags)) {
 		dns_c_printtabs(fp, indent);
 		fprintf(fp, "sig-validity-interval %d;\n",
-			mzone->sig_valid_interval);
+			mzone->sig_valid_interval / (60 * 60 * 24));
 	}
 
 	if (DNS_C_CHECKBIT(MZ_MIN_RETRY_TIME_BIT, &mzone->setflags)) {
@@ -4759,7 +4862,6 @@ master_zone_print(FILE *fp, int indent, dns_c_masterzone_t *mzone) {
 		dns_c_printtabs(fp, indent);
 		fprintf(fp, "max-refresh-time %d;\n", mzone->max_refresh_time);
 	}
-
 
 	if (mzone->pubkeylist != NULL) {
 		fprintf(fp, "\n");
@@ -4872,6 +4974,14 @@ slave_zone_print(FILE *fp, int indent, dns_c_slavezone_t *szone) {
 		fprintf(fp, ";\n");
 	}
 
+	if (szone->allow_notify != NULL &&
+	    !ISC_LIST_EMPTY(szone->allow_notify->elements)) {
+		dns_c_printtabs(fp, indent);
+		fprintf(fp, "allow-notify ");
+		dns_c_ipmatchlist_print(fp, indent + 1,
+					szone->allow_notify);
+		fprintf(fp, ";\n");
+	}
 
 	if (szone->allow_query != NULL &&
 	    !ISC_LIST_EMPTY(szone->allow_query->elements)) {
@@ -5283,6 +5393,7 @@ slave_zone_init(dns_c_slavezone_t *szone) {
 	szone->master_ips = NULL;
 	szone->allow_update = NULL;
 	szone->allow_update_forwarding = NULL;
+	szone->allow_notify = NULL;
 	szone->allow_query = NULL;
 	szone->allow_transfer = NULL;
 	szone->also_notify = NULL;
@@ -5483,6 +5594,8 @@ slave_zone_clear(isc_mem_t *mem, dns_c_slavezone_t *szone) {
 	if (szone->allow_update_forwarding != NULL)
 		dns_c_ipmatchlist_detach(&szone->allow_update_forwarding);
 
+	if (szone->allow_notify != NULL)
+		dns_c_ipmatchlist_detach(&szone->allow_notify);
 
 	if (szone->allow_query != NULL)
 		dns_c_ipmatchlist_detach(&szone->allow_query);

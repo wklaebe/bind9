@@ -33,7 +33,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: confparser.y.dirty,v 1.36 2000/12/02 00:57:43 marka Exp $ */
+/* $Id: confparser.y.dirty,v 1.44 2000/12/20 03:36:19 marka Exp $ */
 
 #include <config.h>
 
@@ -263,6 +263,7 @@ static isc_boolean_t	int_too_big(isc_uint32_t base, isc_uint32_t mult);
 %token		L_ADDRESS
 %token		L_ALGID
 %token		L_ALLOW
+%token		L_ALLOW_NOTIFY
 %token		L_ALLOW_QUERY
 %token		L_ALLOW_RECURSION
 %token		L_ALLOW_TRANSFER
@@ -273,7 +274,7 @@ static isc_boolean_t	int_too_big(isc_uint32_t base, isc_uint32_t mult);
 %token		L_BANG
 %token		L_BLACKHOLE
 %token		L_BOGUS
-%token		L_MAX_CACHE_SIZE
+%token		L_CACHE_FILE
 %token		L_CATEGORY
 %token		L_CHANNEL
 %token		L_CHECK_NAMES
@@ -296,6 +297,7 @@ static isc_boolean_t	int_too_big(isc_uint32_t base, isc_uint32_t mult);
 %token		L_END_INCLUDE
 %token		L_EOS
 %token		L_EXPERT_MODE
+%token		L_EXPLICIT
 %token		L_FAIL
 %token		L_FAKE_IQUERY
 %token		L_FALSE
@@ -335,6 +337,7 @@ static isc_boolean_t	int_too_big(isc_uint32_t base, isc_uint32_t mult);
 %token		L_MASTERS
 %token		L_MATCH_CLIENTS
 %token		L_MAXIMAL
+%token		L_MAX_CACHE_SIZE
 %token		L_MAX_CACHE_TTL
 %token		L_MAX_LOG_SIZE_IXFR
 %token		L_MAX_NCACHE_TTL
@@ -433,7 +436,6 @@ static isc_boolean_t	int_too_big(isc_uint32_t base, isc_uint32_t mult);
 %token		L_WILDCARD
 %token		L_YES
 %token		L_ZONE
-%token		L_EXPLICIT
 
 
 %type <addata>		additional_data
@@ -487,6 +489,7 @@ static isc_boolean_t	int_too_big(isc_uint32_t base, isc_uint32_t mult);
 %type <text>		channel_name
 %type <text>		domain_name
 %type <text>		key_value
+%type <text>		maybe_key
 %type <kidlist>		control_keys
 %type <kidlist>		keyid_list
 %type <searchlist>	searchlist
@@ -777,6 +780,21 @@ option: /* Empty */
 			YYABORT;
 		} else if (tmpres != ISC_R_SUCCESS) {
 			parser_error(ISC_FALSE, "set dumpfile error %s: %s",
+				     isc_result_totext(tmpres), $2);
+			YYABORT;
+		}
+
+		isc_mem_free(memctx, $2);
+	}
+	| L_CACHE_FILE L_QSTRING
+	{
+		tmpres = dns_c_ctx_setcachefile(currcfg, $2);
+		if (tmpres == ISC_R_EXISTS) {
+			parser_error(ISC_FALSE,
+				     "cannot redefine cache-file");
+			YYABORT;
+		} else if (tmpres != ISC_R_SUCCESS) {
+			parser_error(ISC_FALSE, "set cachefile error %s: %s",
 				     isc_result_totext(tmpres), $2);
 			YYABORT;
 		}
@@ -1161,6 +1179,23 @@ option: /* Empty */
 			YYABORT;
 		}
 	}
+	| L_ALLOW_NOTIFY L_LBRACE address_match_list L_RBRACE
+	{
+		if ($3 == NULL)
+			YYABORT;
+
+		tmpres = dns_c_ctx_setallownotify(currcfg, $3);
+		dns_c_ipmatchlist_detach(&$3);
+
+		if (tmpres == ISC_R_EXISTS) {
+			parser_error(ISC_FALSE,
+				     "cannot redefine allow-notify list");
+			YYABORT;
+		} else if (tmpres != ISC_R_SUCCESS) {
+			parser_error(ISC_FALSE, "failed to set allow-notify");
+			YYABORT;
+		}
+	}
 	| L_ALLOW_QUERY L_LBRACE address_match_list L_RBRACE
 	{
 		if ($3 == NULL)
@@ -1278,7 +1313,7 @@ option: /* Empty */
 	}
 	| L_MAX_TRANSFER_TIME_IN L_INTEGER
 	{
-		if ( int_too_big($2, 60) ) {
+		if (int_too_big($2, 60)) {
 			parser_error(ISC_FALSE,
 				     "integer value too big: %u", $2);
 			YYABORT;
@@ -1311,7 +1346,7 @@ option: /* Empty */
 	}
 	| L_MAX_TRANSFER_TIME_OUT L_INTEGER
 	{
-		if ( int_too_big($2, 60) ) {
+		if (int_too_big($2, 60)) {
 			parser_error(ISC_FALSE,
 				     "integer value too big: %u", $2);
 			YYABORT;
@@ -1330,7 +1365,7 @@ option: /* Empty */
 	}
 	| L_MAX_TRANSFER_IDLE_IN L_INTEGER
 	{
-		if ( int_too_big($2, 60) ) {
+		if (int_too_big($2, 60)) {
 			parser_error(ISC_FALSE,
 				     "integer value too big: %u", $2);
 			YYABORT;
@@ -1349,7 +1384,7 @@ option: /* Empty */
 	}
 	| L_MAX_TRANSFER_IDLE_OUT L_INTEGER
 	{
-		if ( int_too_big($2, 60) ) {
+		if (int_too_big($2, 60)) {
 			parser_error(ISC_FALSE,
 				     "integer value too big: %u", $2);
 			YYABORT;
@@ -1381,7 +1416,13 @@ option: /* Empty */
 	}
 	| L_SIG_VALIDITY_INTERVAL L_INTEGER
 	{
-		tmpres = dns_c_ctx_setsigvalidityinterval(currcfg, $2);
+		if (int_too_big($2, 60 * 60 * 24)) {
+			parser_error(ISC_FALSE,
+				     "integer value too big: %u", $2);
+			YYABORT;
+		}
+		tmpres = dns_c_ctx_setsigvalidityinterval(currcfg,
+							  $2 * 60 * 60 * 24);
 		if (tmpres == ISC_R_EXISTS) {
 			parser_error(ISC_FALSE,
 				     "cannot redefine sig-validity-interval");
@@ -1444,7 +1485,7 @@ option: /* Empty */
 	}
 	| L_CLEAN_INTERVAL L_INTEGER
 	{
-		if ( int_too_big($2, 60) ) {
+		if (int_too_big($2, 60)) {
 			parser_error(ISC_FALSE,
 				     "integer value too big: %u", $2);
 			YYABORT;
@@ -1463,7 +1504,7 @@ option: /* Empty */
 	}
 	| L_INTERFACE_INTERVAL L_INTEGER
 	{
-		if ( int_too_big($2, 60) ) {
+		if (int_too_big($2, 60)) {
 			parser_error(ISC_FALSE,
 				     "integer value too big: %u", $2);
 			YYABORT;
@@ -1482,7 +1523,7 @@ option: /* Empty */
 	}
 	| L_STATS_INTERVAL L_INTEGER
 	{
-		if ( int_too_big($2, 60) ) {
+		if (int_too_big($2, 60)) {
 			parser_error(ISC_FALSE,
 				     "integer value too big: %u", $2);
 			YYABORT;
@@ -1592,7 +1633,7 @@ option: /* Empty */
 	}
 	| L_HEARTBEAT L_INTEGER
 	{
-		if ( int_too_big($2, 60) ) {
+		if (int_too_big($2, 60)) {
 			parser_error(ISC_FALSE,
 				     "integer value too big: %u", $2);
 			YYABORT;
@@ -1869,6 +1910,14 @@ transfer_format: L_ONE_ANSWER
 	}
 	;
 
+maybe_key: /* nothing */
+	{
+		$$ = NULL;
+	}
+	| L_SEC_KEY any_string
+	{
+		$$ = $2;
+	};
 
 maybe_wild_addr: ip4_address
 	| ip6_address
@@ -1972,7 +2021,7 @@ ip_and_port_element: ip_address maybe_zero_port
 	};
 
 
-ip_and_port_list: ip_and_port_element L_EOS
+ip_and_port_list: ip_and_port_element maybe_key L_EOS
 	{
 		dns_c_iplist_t *list;
 
@@ -1983,25 +2032,31 @@ ip_and_port_list: ip_and_port_element L_EOS
 			YYABORT;
 		}
 
-		tmpres = dns_c_iplist_append(list, $1);
+		tmpres = dns_c_iplist_append(list, $1, $2);
 		if (tmpres != ISC_R_SUCCESS) {
 			parser_error(ISC_TRUE,
 				     "failed to append master address");
 			YYABORT;
 		}
 
+		if ($2 != NULL) {
+			isc_mem_free(memctx, $2);
+		}
 
 		$$ = list;
 	}
-	| ip_and_port_list ip_and_port_element L_EOS
+	| ip_and_port_list ip_and_port_element maybe_key L_EOS
 	{
-		tmpres = dns_c_iplist_append($1, $2);
+		tmpres = dns_c_iplist_append($1, $2, $3);
 		if (tmpres != ISC_R_SUCCESS) {
 			parser_error(ISC_TRUE,
 				     "failed to append master address");
 			YYABORT;
 		}
 
+		if ($3 != NULL) {
+			isc_mem_free(memctx, $3);
+		}
 
 		$$ = $1;
 	}
@@ -2370,7 +2425,7 @@ forwarders_in_addr_list: forwarders_in_addr L_EOS
 forwarders_in_addr: ip_address
 	{
 		tmpres = dns_c_iplist_append(currcfg->options->forwarders,
-					     $1);
+					     $1, NULL);
 		if (tmpres != ISC_R_SUCCESS) {
 			parser_error(ISC_FALSE,
 				     "failed to add forwarders "
@@ -3575,6 +3630,7 @@ secret: L_SECRET any_string L_EOS
 view_stmt: L_VIEW any_string optional_class L_LBRACE
 	{
 		dns_c_view_t *view;
+		dns_rdataclass_t rdclass;
 
 		if (currcfg->views == NULL) {
 			tmpres = dns_c_viewtable_new(currcfg->mem,
@@ -3586,8 +3642,10 @@ view_stmt: L_VIEW any_string optional_class L_LBRACE
 				YYABORT;
 			}
 		}
+		rdclass = ($3 == dns_rdataclass_reserved0) ?
+			  dns_rdataclass_in : $3;
 
-		tmpres = dns_c_view_new(currcfg->mem, $2, $3, &view);
+		tmpres = dns_c_view_new(currcfg->mem, $2, rdclass, &view);
 		if (tmpres != ISC_R_SUCCESS) {
 			isc_mem_free(memctx, $2);
 			parser_error(ISC_FALSE,
@@ -3650,6 +3708,25 @@ view_option: L_FORWARD zone_forward_opt
 		} else if (tmpres != ISC_R_SUCCESS) {
 			parser_error(ISC_FALSE,
 				     "failed to set view forwarders");
+			YYABORT;
+		}
+	}
+	| L_ALLOW_NOTIFY L_LBRACE address_match_list L_RBRACE
+	{
+		dns_c_view_t *view = dns_c_ctx_getcurrview(currcfg);
+
+		INSIST(view != NULL);
+
+		tmpres = dns_c_view_setallownotify(view, $3);
+		dns_c_ipmatchlist_detach(&$3);
+
+		if (tmpres == ISC_R_EXISTS) {
+			parser_error(ISC_FALSE,
+				     "cannot redefine view allow-notify");
+			YYABORT;
+		} else if (tmpres != ISC_R_SUCCESS) {
+			parser_error(ISC_FALSE,
+				     "failed to set view allow-notify");
 			YYABORT;
 		}
 	}
@@ -4142,7 +4219,7 @@ view_option: L_FORWARD zone_forward_opt
 
 		INSIST(view != NULL);
 
-		if ( int_too_big($2, 60) ) {
+		if (int_too_big($2, 60)) {
 			parser_error(ISC_FALSE,
 				     "integer value too big: %u", $2);
 			YYABORT;
@@ -4167,7 +4244,7 @@ view_option: L_FORWARD zone_forward_opt
 
 		INSIST(view != NULL);
 
-		if ( int_too_big($2, 60) ) {
+		if (int_too_big($2, 60)) {
 			parser_error(ISC_FALSE,
 				     "integer value too big: %u", $2);
 			YYABORT;
@@ -4192,7 +4269,7 @@ view_option: L_FORWARD zone_forward_opt
 
 		INSIST(view != NULL);
 
-		if ( int_too_big($2, 60) ) {
+		if (int_too_big($2, 60)) {
 			parser_error(ISC_FALSE,
 				     "integer value too big: %u", $2);
 			YYABORT;
@@ -4352,7 +4429,13 @@ view_option: L_FORWARD zone_forward_opt
 
 		INSIST(view != NULL);
 
-		tmpres = dns_c_view_setsigvalidityinterval(view, $2);
+		if (int_too_big($2, 60 * 60 * 24)) {
+			parser_error(ISC_FALSE,
+				     "integer value too big: %u", $2);
+			YYABORT;
+		}
+		tmpres = dns_c_view_setsigvalidityinterval(view,
+							   $2 * 60 * 60 * 24);
 		if (tmpres == ISC_R_EXISTS) {
 			parser_error(ISC_FALSE,
 				     "cannot redefine view "
@@ -4441,6 +4524,25 @@ view_option: L_FORWARD zone_forward_opt
 				     "failed to set view max-cache-size");
 			YYABORT;
 		}
+	}
+	| L_CACHE_FILE L_QSTRING
+	{
+		dns_c_view_t *view = dns_c_ctx_getcurrview(currcfg);
+
+		INSIST(view != NULL);
+
+		tmpres = dns_c_view_setcachefile(view, $2);
+		if (tmpres == ISC_R_EXISTS) {
+			parser_error(ISC_FALSE,
+				     "cannot redefine cache-file");
+			YYABORT;
+		} else if (tmpres != ISC_R_SUCCESS) {
+			parser_error(ISC_FALSE, "set cachefile error %s: %s",
+				     isc_result_totext(tmpres), $2);
+			YYABORT;
+		}
+
+		isc_mem_free(memctx, $2);
 	}
 	| key_stmt
 	| zone_stmt
@@ -4699,6 +4801,8 @@ domain_name: L_QSTRING
 zone_stmt: L_ZONE domain_name optional_class L_LBRACE L_TYPE zone_type L_EOS
 	{
 		dns_c_zone_t *zone;
+		dns_c_view_t *view = dns_c_ctx_getcurrview(currcfg);
+		dns_rdataclass_t rdclass;
 
 		if (currcfg->zlist == NULL) {
 			tmpres = dns_c_zonelist_new(currcfg->mem,
@@ -4712,10 +4816,17 @@ zone_stmt: L_ZONE domain_name optional_class L_LBRACE L_TYPE zone_type L_EOS
 				YYABORT;
 			}
 		}
+		rdclass = $3;
+		if (rdclass == dns_rdataclass_reserved0) {
+			if (view != NULL)
+				(void)dns_c_view_getviewclass(view, &rdclass);
+			else
+				rdclass = dns_rdataclass_in;
+		}
 
 		/* XXX internal name support needed! */
 		tmpres = dns_c_zone_new(currcfg->mem,
-					$6, $3, $2, $2, &zone);
+					$6, rdclass, $2, $2, &zone);
 		if (tmpres != ISC_R_SUCCESS) {
 			isc_log_write(dns_lctx, DNS_LOGCATEGORY_CONFIG,
 				      DNS_LOGMODULE_CONFIG,
@@ -4839,7 +4950,7 @@ wild_class_name: any_string
 
 optional_class: /* Empty */
 	{
-		$$ = dns_rdataclass_in;
+		$$ = dns_rdataclass_reserved0;
 	}
 	| class_name
 	;
@@ -4879,7 +4990,7 @@ zone_option_list: zone_option L_EOS
  */
 zone_non_type_keywords: L_FILE | L_FILE_IXFR | L_IXFR_TMP | L_MASTERS |
 	L_TRANSFER_SOURCE | L_CHECK_NAMES | L_ALLOW_UPDATE |
-	L_ALLOW_UPDATE_FORWARDING | L_ALLOW_QUERY |
+	L_ALLOW_UPDATE_FORWARDING | L_ALLOW_NOTIFY | L_ALLOW_QUERY |
 	L_ALLOW_TRANSFER | L_FORWARD | L_FORWARDERS | L_MAX_TRANSFER_TIME_IN |
 	L_TCP_CLIENTS | L_RECURSIVE_CLIENTS | L_UPDATE_POLICY | L_DENY |
 	L_MAX_TRANSFER_TIME_OUT | L_MAX_TRANSFER_IDLE_IN |
@@ -4887,8 +4998,7 @@ zone_non_type_keywords: L_FILE | L_FILE_IXFR | L_IXFR_TMP | L_MASTERS |
 	L_MAINTAIN_IXFR_BASE | L_PUBKEY | L_ALSO_NOTIFY | L_DIALUP |
 	L_ENABLE_ZONE | L_DATABASE | L_PORT | L_MIN_RETRY_TIME |
 	L_MAX_RETRY_TIME | L_MIN_REFRESH_TIME | L_MAX_REFRESH_TIME |
-	L_ZONE_STATISTICS | L_NOTIFY_SOURCE |
-	L_NOTIFY_SOURCE_V6
+	L_ZONE_STATISTICS | L_NOTIFY_SOURCE | L_NOTIFY_SOURCE_V6 |
 	;
 
 
@@ -5162,6 +5272,24 @@ zone_option: L_FILE L_QSTRING
 			YYABORT;
 		}
 	}
+	| L_ALLOW_NOTIFY L_LBRACE address_match_list L_RBRACE
+	{
+		dns_c_zone_t *zone = dns_c_ctx_getcurrzone(currcfg);
+
+		INSIST(zone != NULL);
+
+		tmpres = dns_c_zone_setallownotify(zone,
+						  $3, ISC_FALSE);
+		if (tmpres == ISC_R_EXISTS) {
+			parser_error(ISC_FALSE,
+				     "cannot redefine zone allow-notify");
+			YYABORT;
+		} else if (tmpres != ISC_R_SUCCESS) {
+			parser_error(ISC_FALSE,
+				     "failed to set zone allow-notify");
+			YYABORT;
+		}
+	}
 	| L_ALLOW_QUERY L_LBRACE address_match_list L_RBRACE
 	{
 		dns_c_zone_t *zone = dns_c_ctx_getcurrzone(currcfg);
@@ -5253,7 +5381,7 @@ zone_option: L_FILE L_QSTRING
 
 		INSIST(zone != NULL);
 
-		if ( int_too_big($2, 60) ) {
+		if (int_too_big($2, 60)) {
 			parser_error(ISC_FALSE,
 				     "integer value too big: %u", $2);
 			YYABORT;
@@ -5278,7 +5406,7 @@ zone_option: L_FILE L_QSTRING
 
 		INSIST(zone != NULL);
 
-		if ( int_too_big($2, 60) ) {
+		if (int_too_big($2, 60)) {
 			parser_error(ISC_FALSE,
 				     "integer value too big: %u", $2);
 			YYABORT;
@@ -5303,7 +5431,7 @@ zone_option: L_FILE L_QSTRING
 
 		INSIST(zone != NULL);
 
-		if ( int_too_big($2, 60) ) {
+		if (int_too_big($2, 60)) {
 			parser_error(ISC_FALSE,
 				     "integer value too big: %u", $2);
 			YYABORT;
@@ -5328,7 +5456,7 @@ zone_option: L_FILE L_QSTRING
 
 		INSIST(zone != NULL);
 
-		if ( int_too_big($2, 60) ) {
+		if (int_too_big($2, 60)) {
 			parser_error(ISC_FALSE,
 				     "integer value too big: %u", $2);
 			YYABORT;
@@ -5353,7 +5481,13 @@ zone_option: L_FILE L_QSTRING
 
 		INSIST(zone != NULL);
 
-		tmpres = dns_c_zone_setsigvalidityinterval(zone, $2);
+		if (int_too_big($2, 60 * 60 * 24)) {
+			parser_error(ISC_FALSE,
+				     "integer value too big: %u", $2);
+			YYABORT;
+		}
+		tmpres = dns_c_zone_setsigvalidityinterval(zone,
+							   $2 * 60 * 60 * 24);
 		if (tmpres == ISC_R_EXISTS) {
 			parser_error(ISC_FALSE,
 				     "cannot redefine zone "
@@ -5659,7 +5793,7 @@ in_addr_list: in_addr_elem L_EOS
 			YYABORT;
 		}
 
-		tmpres = dns_c_iplist_append(list, $1);
+		tmpres = dns_c_iplist_append(list, $1, NULL);
 		if (tmpres != ISC_R_SUCCESS) {
 			parser_error(ISC_TRUE,
 				     "failed to append master address");
@@ -5670,7 +5804,7 @@ in_addr_list: in_addr_elem L_EOS
 	}
 	| in_addr_list in_addr_elem L_EOS
 	{
-		tmpres = dns_c_iplist_append($1, $2);
+		tmpres = dns_c_iplist_append($1, $2, NULL);
 		if (tmpres != ISC_R_SUCCESS) {
 			parser_error(ISC_TRUE,
 				     "failed to append master address");
@@ -5844,8 +5978,12 @@ lwres_option: L_LISTEN_ON port_ip_list
 	| L_VIEW any_string optional_class
 	{
 		dns_c_lwres_t *lwres;
+		dns_rdataclass_t rdclass;
+
 		lwres = ISC_LIST_TAIL(currcfg->lwres->lwreslist);
-		tmpres = dns_c_lwres_setview(lwres, $2, $3);
+		rdclass = ($3 == dns_rdataclass_reserved0) ?
+			  dns_rdataclass_in : $3;
+		tmpres = dns_c_lwres_setview(lwres, $2, rdclass);
 		if (tmpres == ISC_R_EXISTS) {
 			parser_error(ISC_FALSE, "cannot redefine view");
 			YYABORT;
@@ -5952,6 +6090,7 @@ static struct token keyword_tokens [] = {
 	{ "address",			L_ADDRESS },
 	{ "algorithm",			L_ALGID },
 	{ "allow",			L_ALLOW },
+	{ "allow-notify",		L_ALLOW_NOTIFY },
 	{ "allow-query",		L_ALLOW_QUERY },
 	{ "allow-recursion",		L_ALLOW_RECURSION },
 	{ "allow-transfer",		L_ALLOW_TRANSFER },
@@ -5961,6 +6100,7 @@ static struct token keyword_tokens [] = {
 	{ "auth-nxdomain",		L_AUTH_NXDOMAIN },
 	{ "blackhole",			L_BLACKHOLE },
 	{ "bogus",			L_BOGUS },
+	{ "cache-file",			L_CACHE_FILE },
 	{ "category",			L_CATEGORY },
 	{ "channel",			L_CHANNEL },
 	{ "check-names",		L_CHECK_NAMES },
@@ -6350,36 +6490,13 @@ yylex(void)
 		res = 0;
 		break;
 
-	case ISC_R_UNBALANCED:
-		parser_error(ISC_TRUE,
-			     "%s: %lu: unbalanced parentheses",
-			     isc_lex_getsourcename(mylexer),
-			     isc_lex_getsourceline(mylexer));
-		res = -1;
-		break;
-
 	case ISC_R_NOSPACE:
-		parser_error(ISC_TRUE,
-			     "%s: %lu: token too big",
-			     isc_lex_getsourcename(mylexer),
-			     isc_lex_getsourceline(mylexer));
-		res = -1;
-		break;
-
-	case ISC_R_UNEXPECTEDEND:
-		parser_error(ISC_TRUE,
-			     "%s: %lu: unexpected EOF",
-			     isc_lex_getsourcename(mylexer),
-			     isc_lex_getsourceline(mylexer));
+		parser_error(ISC_TRUE, "token too big");
 		res = -1;
 		break;
 
 	default:
-		parser_error(ISC_TRUE,
-			     "%s: %lu unknown lexer error (%d)",
-			     isc_lex_getsourcename(mylexer),
-			     isc_lex_getsourceline(mylexer),
-			     (int)res);
+		parser_error(ISC_TRUE, "%s", isc_result_totext(res));
 		res = -1;
 		break;
 	}
@@ -6397,6 +6514,7 @@ static char *
 token_to_text(int token, YYSTYPE lval) {
 	static char buffer[1024];
 	const char *tk;
+	const char *p;
 
 	/*
 	 * Yacc keeps token numbers above 128, it seems.
@@ -6404,6 +6522,8 @@ token_to_text(int token, YYSTYPE lval) {
 	if (token < 128) {
 		if (token == 0)
 			strncpy(buffer, "<end of file>", sizeof buffer);
+		else if (token < 0)
+			strncpy(buffer, "<invalid token>", sizeof buffer);
 		else
 			if ((unsigned int) sprintf(buffer, "'%c'", token)
 			    >= sizeof buffer) {
@@ -6426,32 +6546,49 @@ token_to_text(int token, YYSTYPE lval) {
 			}
 			break;
 		case L_IP6ADDR:
-			strcpy(buffer, "UNAVAILABLE-IPV6-ADDRESS");
-			inet_ntop(AF_INET6, lval.ip6_addr.s6_addr,
-				  buffer, sizeof buffer);
+			p = inet_ntop(AF_INET6, lval.ip6_addr.s6_addr,
+				      &buffer[1], (sizeof buffer) - 2);
+			if (p == NULL)
+				strcpy(buffer, "UNAVAILABLE-IPV6-ADDRESS");
+			else {
+				buffer[0] = '\'';
+				strcat(buffer, "'");
+			}
 			break;
 		case L_IP4ADDR:
-			strcpy(buffer, "UNAVAILABLE-IPV4-ADDRESS");
-			inet_ntop(AF_INET, &lval.ip4_addr.s_addr,
-				  buffer, sizeof buffer);
+			p = inet_ntop(AF_INET, &lval.ip4_addr.s_addr,
+				      &buffer[1], (sizeof buffer) - 2);
+			if (p == NULL)
+				strcpy(buffer, "UNAVAILABLE-IPV4-ADDRESS");
+			else {
+				buffer[0] = '\'';
+				strcat(buffer, "'");
+			}
 			break;
 		case L_IP4PREFIX: {
 			int i;
-			strcpy(buffer, "UNAVAILABLE-IPV4-ADDRESS");
-			inet_ntop(AF_INET, &lval.ip4_addr.s_addr,
-				  buffer, sizeof buffer);
-			/*
-			 * Remove trailing zeros added in. We may remove too
-			 * many but we need to remove at least one.
-			 */
-			for (i = 0; i < 3; i++)
-				if (strcmp(&buffer[strlen(buffer) - 2],
-				   	   ".0") == 0)
-					buffer[strlen(buffer) - 2] = '\0';
+			p = inet_ntop(AF_INET, &lval.ip4_addr.s_addr,
+				      &buffer[1], (sizeof buffer) - 2);
+			if (p == NULL)
+				strcpy(buffer, "UNAVAILABLE-IPV4-ADDRESS");
+			else {
+				buffer[0] = '\'';
+				/*
+				 * Remove trailing zeros added in. We may
+				 * remove too many but we need to remove at
+				 * least one.
+				 */
+				for (i = 0; i < 3; i++)
+					if (strcmp(&buffer[strlen(buffer) - 2],
+						   ".0") == 0)
+						buffer[strlen(buffer) - 2] =
+							'\0';
+				strcat(buffer, "'");
+			}
 			break;
 		}
 		case L_INTEGER:
-			sprintf(buffer, "%lu", (unsigned long)lval.ul_int);
+			sprintf(buffer, "'%lu'", (unsigned long)lval.ul_int);
 			break;
 		case L_END_INCLUDE:
 			strcpy (buffer, "<end of include>");
@@ -6519,10 +6656,10 @@ parser_complain(isc_boolean_t is_warning, isc_boolean_t print_last_token,
 		if (dns_lctx != NULL) {
 			isc_log_write(dns_lctx, DNS_LOGCATEGORY_CONFIG,
 				       DNS_LOGMODULE_CONFIG, level,
-				      "%s%s near '%s'", where, message,
+				      "%s%s near %s", where, message,
 				       token_to_text(lasttoken, lastyylval));
 		} else {
-			fprintf(stderr, "%s%s near '%s'\n", where, message,
+			fprintf(stderr, "%s%s near %s\n", where, message,
 				token_to_text(lasttoken, lastyylval));
 		}
 	} else {

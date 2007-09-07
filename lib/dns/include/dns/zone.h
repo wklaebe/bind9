@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: zone.h,v 1.93 2000/12/01 23:49:57 gson Exp $ */
+/* $Id: zone.h,v 1.95 2000/12/28 01:29:08 marka Exp $ */
 
 #ifndef DNS_ZONE_H
 #define DNS_ZONE_H 1
@@ -375,6 +375,9 @@ dns_zone_maintenance(dns_zone_t *zone);
 isc_result_t
 dns_zone_setmasters(dns_zone_t *zone, isc_sockaddr_t *masters,
 		    isc_uint32_t count);
+isc_result_t
+dns_zone_setmasterswithkeys(dns_zone_t *zone, isc_sockaddr_t *masters,
+			    dns_name_t **keynames, isc_uint32_t count);
 /*
  *	Set the list of master servers for the zone.
  *
@@ -382,12 +385,17 @@ dns_zone_setmasters(dns_zone_t *zone, isc_sockaddr_t *masters,
  *	'zone' to be a valid zone.
  *	'masters' array of isc_sockaddr_t with port set or NULL.
  *	'count' the number of masters.
+ *      'keynames' array of dns_name_t's for tsig keys or NULL.
+ *
+ *      dns_zone_setmasters() is just a wrapper to setmasterswithkeys(),
+ *      passing NULL in the keynames field.
  *
  * 	If 'masters' is NULL then 'count' must be zero.
  *
  * Returns:
  *	ISC_R_SUCCESS
  *	ISC_R_NOMEMORY
+ *      Any result dns_name_dup() can return, if keynames!=NULL
  */
 
 isc_result_t
@@ -488,7 +496,6 @@ dns_zone_setmaxretrytime(dns_zone_t *zone, isc_uint32_t val);
  *	val > 0.
  */
 
-
 isc_result_t
 dns_zone_setxfrsource4(dns_zone_t *zone, isc_sockaddr_t *xfrsource);
 /*
@@ -582,6 +589,16 @@ dns_zone_getnotifysrc6(dns_zone_t *zone);
  */
 
 void
+dns_zone_setnotifyacl(dns_zone_t *zone, dns_acl_t *acl);
+/*
+ *	Sets the notify acl list for the zone.
+ *
+ * Require:
+ *	'zone' to be a valid zone.
+ *	'acl' to be a valid acl.
+ */
+
+void
 dns_zone_setqueryacl(dns_zone_t *zone, dns_acl_t *acl);
 /*
  *	Sets the query acl list for the zone.
@@ -621,6 +638,18 @@ dns_zone_setxfracl(dns_zone_t *zone, dns_acl_t *acl);
  *	'acl' to be valid acl.
  */
 
+dns_acl_t *
+dns_zone_getnotifyacl(dns_zone_t *zone);
+/*
+ * 	Returns the current notify acl or NULL.
+ *
+ * Require:
+ *	'zone' to be a valid zone.
+ *
+ * Returns:
+ *	acl a pointer to the acl.
+ *	NULL
+ */
 
 dns_acl_t *
 dns_zone_getqueryacl(dns_zone_t *zone);
@@ -692,6 +721,14 @@ dns_zone_clearforwardacl(dns_zone_t *zone);
  *	'zone' to be a valid zone.
  */
 
+void
+dns_zone_clearnotifyacl(dns_zone_t *zone);
+/*
+ *	Clear the current notify acl.
+ *
+ * Require:
+ *	'zone' to be a valid zone.
+ */
 
 void
 dns_zone_clearqueryacl(dns_zone_t *zone);
@@ -1004,8 +1041,9 @@ dns_zone_forwardupdate(dns_zone_t *zone, dns_message_t *msg,
  * Forward 'msg' to each master in turn until we get an answer or we
  * have exausted the list of masters. 'callback' will be called with
  * ISC_R_SUCCESS if we get an answer and the returned message will be
- * passed, otherwise a non ISC_R_SUCCESS result code will be passed and
- * msg will be NULL.
+ * passed as 'answer_message', otherwise a non ISC_R_SUCCESS result code
+ * will be passed and answer_message will be NULL.  The callback function
+ * is responsible for destroying 'answer_message'.
  *		(callback)(callback_arg, result, answer_message);
  *
  * Require:

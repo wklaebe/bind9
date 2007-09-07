@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: request.c,v 1.42 2000/11/03 08:54:18 marka Exp $ */
+/* $Id: request.c,v 1.45 2000/12/22 19:39:01 gson Exp $ */
 
 #include <config.h>
 
@@ -88,11 +88,15 @@ struct dns_request {
 
 #define DNS_REQUEST_F_CONNECTING 0x0001
 #define DNS_REQUEST_F_CANCELED 0x0002
-#define DNS_REQUEST_F_TCP 0x0008		/* This request used TCP */
+#define DNS_REQUEST_F_TIMEDOUT 0x0004	/* cancelled due to a timeout */
+#define DNS_REQUEST_F_TCP 0x0008	/* This request used TCP */
 #define DNS_REQUEST_CANCELED(r) \
 	(((r)->flags & DNS_REQUEST_F_CANCELED) != 0)
 #define DNS_REQUEST_CONNECTING(r) \
 	(((r)->flags & DNS_REQUEST_F_CONNECTING) != 0)
+#define DNS_REQUEST_TIMEDOUT(r) \
+	(((r)->flags & DNS_REQUEST_F_TIMEDOUT) != 0)
+
 
 /***
  *** Forward
@@ -198,30 +202,30 @@ void
 dns_requestmgr_whenshutdown(dns_requestmgr_t *requestmgr, isc_task_t *task,
 			    isc_event_t **eventp)
 {
-        isc_task_t *clone;
-        isc_event_t *event;
+	isc_task_t *clone;
+	isc_event_t *event;
 
 	req_log(ISC_LOG_DEBUG(3), "dns_requestmgr_whenshutdown");
 
-        REQUIRE(VALID_REQUESTMGR(requestmgr));
-        REQUIRE(eventp != NULL);
+	REQUIRE(VALID_REQUESTMGR(requestmgr));
+	REQUIRE(eventp != NULL);
 
-        event = *eventp;
-        *eventp = NULL;
+	event = *eventp;
+	*eventp = NULL;
 
-        LOCK(&requestmgr->lock);
+	LOCK(&requestmgr->lock);
 
-        if (requestmgr->exiting) {
-                /*
-                 * We're already shutdown.  Send the event.
-                 */
-                event->ev_sender = requestmgr;
-                isc_task_send(task, &event);
-        } else {
-                clone = NULL;
-                isc_task_attach(task, &clone);
-                event->ev_sender = clone;
-                ISC_LIST_APPEND(requestmgr->whenshutdown, event, ev_link);
+	if (requestmgr->exiting) {
+		/*
+		 * We're already shutdown.  Send the event.
+		 */
+		event->ev_sender = requestmgr;
+		isc_task_send(task, &event);
+	} else {
+		clone = NULL;
+		isc_task_attach(task, &clone);
+		event->ev_sender = clone;
+		ISC_LIST_APPEND(requestmgr->whenshutdown, event, ev_link);
 	}
 	UNLOCK(&requestmgr->lock);
 }
@@ -229,7 +233,7 @@ dns_requestmgr_whenshutdown(dns_requestmgr_t *requestmgr, isc_task_t *task,
 void
 dns_requestmgr_shutdown(dns_requestmgr_t *requestmgr) {
 
-        REQUIRE(VALID_REQUESTMGR(requestmgr));
+	REQUIRE(VALID_REQUESTMGR(requestmgr));
 
 	req_log(ISC_LOG_DEBUG(3), "dns_requestmgr_shutdown: %p", requestmgr);
 
@@ -268,8 +272,8 @@ requestmgr_attach(dns_requestmgr_t *source, dns_requestmgr_t **targetp) {
 	 * Locked by caller.
 	 */
 
-        REQUIRE(VALID_REQUESTMGR(source));
-        REQUIRE(targetp != NULL && *targetp == NULL);
+	REQUIRE(VALID_REQUESTMGR(source));
+	REQUIRE(targetp != NULL && *targetp == NULL);
 
 	REQUIRE(!source->exiting);
 
@@ -283,7 +287,7 @@ requestmgr_attach(dns_requestmgr_t *source, dns_requestmgr_t **targetp) {
 static void
 requestmgr_detach(dns_requestmgr_t **requestmgrp) {
 	dns_requestmgr_t *requestmgr;
-	isc_boolean_t need_destroy  =ISC_FALSE;
+	isc_boolean_t need_destroy = ISC_FALSE;
 
 	REQUIRE(requestmgrp != NULL);
 	requestmgr = *requestmgrp;
@@ -312,8 +316,8 @@ requestmgr_detach(dns_requestmgr_t **requestmgrp) {
 void
 dns_requestmgr_attach(dns_requestmgr_t *source, dns_requestmgr_t **targetp) {
 
-        REQUIRE(VALID_REQUESTMGR(source));
-        REQUIRE(targetp != NULL && *targetp == NULL);
+	REQUIRE(VALID_REQUESTMGR(source));
+	REQUIRE(targetp != NULL && *targetp == NULL);
 	REQUIRE(!source->exiting);
 
 	LOCK(&source->lock);
@@ -1103,7 +1107,8 @@ dns_request_cancel(dns_request_t *request) {
 	LOCK(&request->requestmgr->locks[request->hash]);
 	if (!DNS_REQUEST_CANCELED(request)) {
 		req_cancel(request);
-		req_sendevent(request, ISC_R_CANCELED);
+		if (!DNS_REQUEST_CONNECTING(request))
+			req_sendevent(request, ISC_R_CANCELED);
 	}
 	UNLOCK(&request->requestmgr->locks[request->hash]);
 	return (ISC_R_SUCCESS);
@@ -1141,7 +1146,6 @@ dns_request_usedtcp(dns_request_t *request) {
 void
 dns_request_destroy(dns_request_t **requestp) {
 	dns_request_t *request;
-	isc_boolean_t need_destroy = ISC_FALSE;
 
 	REQUIRE(requestp != NULL && VALID_REQUEST(*requestp));
 
@@ -1153,12 +1157,10 @@ dns_request_destroy(dns_request_t **requestp) {
 	LOCK(&request->requestmgr->lock);
 	ISC_LIST_UNLINK(request->requestmgr->requests, request, link);
 	UNLOCK(&request->requestmgr->lock);
-	if (!DNS_REQUEST_CONNECTING(request))
-		need_destroy = ISC_TRUE;
+	INSIST(!DNS_REQUEST_CONNECTING(request));
 	UNLOCK(&request->requestmgr->locks[request->hash]);
 
-	if (need_destroy)
-		req_destroy(request);
+	req_destroy(request);
 
 	*requestp = NULL;
 }
@@ -1179,19 +1181,29 @@ req_connected(isc_task_t *task, isc_event_t *event) {
 
 	req_log(ISC_LOG_DEBUG(3), "req_connected: request %p", request);
 
+	LOCK(&request->requestmgr->locks[request->hash]);
 	request->flags &= ~DNS_REQUEST_F_CONNECTING;
 
 	if (DNS_REQUEST_CANCELED(request)) {
-		req_destroy(request);
+		/*
+		 * Send delayed event.
+		 */
+		if (DNS_REQUEST_TIMEDOUT(request))
+			req_sendevent(request, ISC_R_TIMEDOUT);
+		else
+			req_sendevent(request, ISC_R_CANCELED);
 	} else {
 		dns_dispatch_starttcp(request->dispatch);
 		result = sevent->result;
 		if (result == ISC_R_SUCCESS)
 			result = req_send(request, task, NULL);
 
-		if (sevent->result != ISC_R_SUCCESS)
-			dns_request_cancel(request);
+		if (sevent->result != ISC_R_SUCCESS) {
+			req_cancel(request);
+			req_sendevent(request, ISC_R_CANCELED);
+		}
 	}
+	UNLOCK(&request->requestmgr->locks[request->hash]);
 	isc_event_free(&event);
 }
 
@@ -1267,8 +1279,10 @@ req_timeout(isc_task_t *task, isc_event_t *event) {
 
 	UNUSED(task);
 	LOCK(&request->requestmgr->locks[request->hash]);
+	request->flags |= DNS_REQUEST_F_TIMEDOUT;
 	req_cancel(request);
-	req_sendevent(request, ISC_R_TIMEDOUT);
+	if (!DNS_REQUEST_CONNECTING(request))
+		req_sendevent(request, ISC_R_TIMEDOUT);
 	UNLOCK(&request->requestmgr->locks[request->hash]);
 	isc_event_free(&event);
 }

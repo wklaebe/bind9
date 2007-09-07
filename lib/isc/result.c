@@ -15,14 +15,14 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: result.c,v 1.50 2000/11/18 02:56:45 gson Exp $ */
+/* $Id: result.c,v 1.52 2000/12/27 00:11:24 bwelling Exp $ */
 
 #include <config.h>
 
 #include <stdlib.h>
 
 #include <isc/lib.h>
-#include <isc/msgcat.h>
+#include <isc/msgs.h>
 #include <isc/mutex.h>
 #include <isc/once.h>
 #include <isc/resultclass.h>
@@ -88,7 +88,8 @@ static const char *text[ISC_R_NRESULTS] = {
 	"address family mismatch",		/* 47 */
 	"address family not supported",		/* 48 */
 	"bad hex encoding",			/* 49 */
-	"too many open files"			/* 50 */
+	"too many open files",			/* 50 */
+	"not blocking"				/* 51 */
 };
 
 #define ISC_RESULT_RESULTSET			2
@@ -142,7 +143,10 @@ initialize_action(void) {
 				isc_msgcat, ISC_RESULT_RESULTSET);
 	if (result != ISC_R_SUCCESS)
 		UNEXPECTED_ERROR(__FILE__, __LINE__,
-				 "register_table() failed: %u", result);
+				 "register_table() %s: %u",
+				 isc_msgcat_get(isc_msgcat, ISC_MSGSET_GENERAL,
+						ISC_MSG_FAILED, "failed"),
+				 result);
 }
 
 static void

@@ -15,13 +15,15 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: net.c,v 1.13 2000/09/15 20:52:27 bwelling Exp $ */
+/* $Id: net.c,v 1.16 2000/12/19 19:29:13 gson Exp $ */
 
 #include <config.h>
 
 #include <errno.h>
 #include <unistd.h>
 
+#include <isc/log.h>
+#include <isc/msgs.h>
 #include <isc/net.h>
 #include <isc/once.h>
 #include <isc/string.h>
@@ -38,6 +40,7 @@ static isc_result_t	ipv6_result = ISC_R_NOTFOUND;
 static isc_result_t
 try_proto(int domain) {
 	int s;
+	isc_result_t result = ISC_R_SUCCESS;
 
 	s = socket(domain, SOCK_STREAM, 0);
 	if (s == -1) {
@@ -54,14 +57,62 @@ try_proto(int domain) {
 			return (ISC_R_NOTFOUND);
 		default:
 			UNEXPECTED_ERROR(__FILE__, __LINE__,
-					 "socket() failed: %s",
+					 "socket() %s: %s",
+					 isc_msgcat_get(isc_msgcat,
+							ISC_MSGSET_GENERAL,
+							ISC_MSG_FAILED,
+							"failed"),
 					 strerror(errno));
 			return (ISC_R_UNEXPECTED);
 		}
 	}
-	close (s);
 
-	return (ISC_R_SUCCESS);
+#ifdef ISC_PLATFORM_HAVEIPV6
+#ifdef WANT_IPV6
+#ifdef ISC_PLATFORM_HAVEIN6PKTINFO
+	if (domain == PF_INET6) {
+		struct sockaddr_in6 sin6;
+		unsigned int len;
+
+		/*
+		 * Check to see if IPv6 is broken, as is common on Linux.
+		 */
+		len = sizeof(sin6);
+		if (getsockname(s, (struct sockaddr *)&sin6, (void *)&len) < 0) {
+			isc_log_write(isc_lctx, ISC_LOGCATEGORY_GENERAL,
+				      ISC_LOGMODULE_SOCKET, ISC_LOG_ERROR,
+				      "Retrieving the address of an IPv6 "
+				      "socket from the kernel failed.");
+			isc_log_write(isc_lctx, ISC_LOGCATEGORY_GENERAL,
+				      ISC_LOGMODULE_SOCKET, ISC_LOG_ERROR,
+				      "IPv6 support is disabled.");
+			result = ISC_R_NOTFOUND;
+		} else {
+			if (len == sizeof(struct sockaddr_in6))
+				result = ISC_R_SUCCESS;
+			else {
+				isc_log_write(isc_lctx,
+					      ISC_LOGCATEGORY_GENERAL,
+					      ISC_LOGMODULE_SOCKET,
+					      ISC_LOG_ERROR,
+					      "IPv6 structures in kernel and "
+					      "user space do not match.");
+				isc_log_write(isc_lctx,
+					      ISC_LOGCATEGORY_GENERAL,
+					      ISC_LOGMODULE_SOCKET,
+					      ISC_LOG_ERROR,
+					      "IPv6 support is disabled.");
+				result = ISC_R_NOTFOUND;
+			}
+		}
+	}
+#endif
+#endif
+#endif
+
+	close(s);
+
+	return (result);
 }
 
 static void

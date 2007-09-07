@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rdata.c,v 1.132 2000/11/20 21:58:01 gson Exp $ */
+/* $Id: rdata.c,v 1.137 2000/12/19 04:46:36 marka Exp $ */
 
 #include <config.h>
 #include <ctype.h>
@@ -171,7 +171,7 @@ static inline isc_result_t
 name_duporclone(dns_name_t *source, isc_mem_t *mctx, dns_name_t *target) {
 
 	if (mctx != NULL)
-                return (dns_name_dup(source, mctx, target));
+		return (dns_name_dup(source, mctx, target));
 	dns_name_clone(source, target);
 	return (ISC_R_SUCCESS);
 }
@@ -328,10 +328,19 @@ dns_rdata_init(dns_rdata_t *rdata) {
 	/* ISC_LIST_INIT(rdata->list); */
 }
 
+#if 0
 #define DNS_RDATA_INITIALIZED(rdata) \
 	((rdata)->data == NULL && (rdata)->length == 0 && \
 	 (rdata)->rdclass == 0 && (rdata)->type == 0 && (rdata)->flags == 0 && \
 	 !ISC_LINK_LINKED((rdata), link))
+#else
+#ifdef ISC_LIST_CHECKINIT
+#define DNS_RDATA_INITIALIZED(rdata) \
+	(!ISC_LINK_LINKED((rdata), link))
+#else
+#define DNS_RDATA_INITIALIZED(rdata) ISC_TRUE
+#endif
+#endif
 #define DNS_RDATA_VALIDFLAGS(rdata) \
 	(((rdata)->flags & ~DNS_RDATA_UPDATE) == 0)
 
@@ -496,7 +505,7 @@ dns_rdata_fromwire(dns_rdata_t *rdata, dns_rdataclass_t rdclass,
 
 isc_result_t
 dns_rdata_towire(dns_rdata_t *rdata, dns_compress_t *cctx,
-	         isc_buffer_t *target)
+		 isc_buffer_t *target)
 {
 	isc_result_t result = ISC_R_NOTIMPLEMENTED;
 	isc_boolean_t use_default = ISC_FALSE;
@@ -575,7 +584,8 @@ unknown_fromtext(dns_rdataclass_t rdclass, dns_rdatatype_t type,
 	if (result != ISC_R_SUCCESS)
 		return (result);
 	
-	result = isc_hex_tobuffer(lexer, buf, token.value.as_ulong);
+	result = isc_hex_tobuffer(lexer, buf,
+				  (unsigned int)token.value.as_ulong);
 	if (result != ISC_R_SUCCESS)
 	       goto failure;
 	if (isc_buffer_usedlength(buf) != token.value.as_ulong) {
@@ -921,7 +931,7 @@ dns_mnemonic_fromtext(unsigned int *valuep, isc_textregion_t *source,
 	int i;
 
 	if (isdigit(source->base[0] & 0xff) &&
-            source->length <= NUMBERSIZE - 1) {
+	    source->length <= NUMBERSIZE - 1) {
 		unsigned int n;
 		char *e;
 		char buffer[NUMBERSIZE];
@@ -1555,7 +1565,7 @@ mem_tobuffer(isc_buffer_t *target, void *base, unsigned int length) {
 	isc_region_t tr;
 
 	isc_buffer_availableregion(target, &tr);
-        if (length > tr.length)
+	if (length > tr.length)
 		return (ISC_R_NOSPACE);
 	memcpy(tr.base, base, length);
 	isc_buffer_add(target, length);

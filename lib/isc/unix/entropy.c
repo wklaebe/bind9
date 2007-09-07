@@ -15,9 +15,12 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: entropy.c,v 1.51 2000/11/23 01:04:00 bwelling Exp $ */
+/* $Id: entropy.c,v 1.54 2000/12/27 00:11:26 bwelling Exp $ */
 
 #include <config.h>
+
+#include <sys/types.h>
+#include <sys/time.h>
 
 #include <errno.h>
 #include <fcntl.h>
@@ -29,6 +32,7 @@
 #include <isc/list.h>
 #include <isc/magic.h>
 #include <isc/mem.h>
+#include <isc/msgs.h>
 #include <isc/mutex.h>
 #include <isc/region.h>
 #include <isc/sha1.h>
@@ -438,7 +442,8 @@ get_from_callback(isc_entropysource_t *source, unsigned int desired,
 			added += got;
 			desired -= ISC_MIN(got, desired);
 			result = ISC_R_SUCCESS;
-		} else if (result != ISC_R_SUCCESS)
+		} else if (result != ISC_R_SUCCESS &&
+			   result != ISC_R_NOTBLOCKING)
 			source->bad = ISC_TRUE;
 
 	}
@@ -1354,9 +1359,11 @@ isc_entropy_putdata(isc_entropy_t *ent, void *data, unsigned int length,
 static void
 dumpstats(isc_entropy_t *ent, FILE *out) {
 	fprintf(out,
-		"Entropy pool %p:  refcnt %u"
-		" cursor %u, rotate %u entropy %u pseudo %u nsources %u"
-		" nextsource %p initialized %u initcount %u\n",
+		isc_msgcat_get(isc_msgcat, ISC_MSGSET_ENTROPY,
+			       ISC_MSG_ENTROPYSTATS,
+			       "Entropy pool %p:  refcnt %u cursor %u,"
+			       " rotate %u entropy %u pseudo %u nsources %u"
+			       " nextsource %p initialized %u initcount %u\n"),
 		ent, ent->refcnt,
 		ent->pool.cursor, ent->pool.rotate,
 		ent->pool.entropy, ent->pool.pseudo,

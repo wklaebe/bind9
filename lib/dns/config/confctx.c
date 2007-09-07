@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: confctx.c,v 1.109 2000/12/02 00:25:42 gson Exp $ */
+/* $Id: confctx.c,v 1.113 2000/12/13 00:15:18 tale Exp $ */
 
 #include <config.h>
 
@@ -349,12 +349,6 @@ dns_c_checkconfig(dns_c_ctx_t *cfg)
 			      "option 'named-xfer' is obsolete");
 	}
 
-	if (dns_c_ctx_getdumpfilename(cfg, &cpval) != ISC_R_NOTFOUND) {
-		isc_log_write(dns_lctx, DNS_LOGCATEGORY_CONFIG,
-			      DNS_LOGMODULE_CONFIG, ISC_LOG_WARNING,
-			      "option 'dump-file' is not yet implemented");
-	}
-
 	if (dns_c_ctx_getmemstatsfilename(cfg, &cpval) != ISC_R_NOTFOUND) {
 		isc_log_write(dns_lctx, DNS_LOGCATEGORY_CONFIG,
 			      DNS_LOGMODULE_CONFIG, ISC_LOG_WARNING,
@@ -526,6 +520,16 @@ dns_c_checkconfig(dns_c_ctx_t *cfg)
 		if (tmpres != ISC_R_SUCCESS) {
 			result = tmpres;
 		}
+	}
+
+	if (dns_c_ctx_getcachefile(cfg, &cpval) == ISC_R_SUCCESS &&
+	    cfg->views != NULL)
+	{
+		isc_log_write(dns_lctx, DNS_LOGCATEGORY_CONFIG,
+			      DNS_LOGMODULE_CONFIG, ISC_LOG_WARNING,
+			      "option 'cachefile' cannot be present if views "
+			      "are present");
+		result = ISC_R_FAILURE;
 	}
 
 	return (result);
@@ -866,10 +870,19 @@ dns_c_ctx_optionsprint(FILE *fp, int indent, dns_c_options_t *options)
 			(unsigned long)(*options->FIELD / 60));	\
 	}
 
-#define PRINT_IF_EQUAL(VAL, STRVAL, FIELD, NAME)		\
+#define PRINT_AS_DAYS(FIELD, NAME)				\
 	if (options->FIELD != NULL) {				\
 		dns_c_printtabs(fp, indent + 1);		\
-		fprintf(fp, "%s %s;\n", NAME, STRVAL);		\
+		fprintf(fp, "%s %lu;\n",NAME,			\
+			(unsigned long)(*options->FIELD / (24 * 60 * 60))); \
+	}
+
+#define PRINT_IF_EQUAL(VAL, STRVAL, FIELD, NAME)		\
+	if (options->FIELD != NULL) {				\
+		if ((*options->FIELD) == (VAL)) {		\
+			dns_c_printtabs(fp, indent + 1);	\
+			fprintf(fp, "%s %s;\n", NAME, STRVAL);	\
+		}						\
 	}
 
 #define PRINT_AS_BOOLEAN(FIELD, NAME)				\
@@ -902,7 +915,24 @@ dns_c_ctx_optionsprint(FILE *fp, int indent, dns_c_options_t *options)
 		port = isc_sockaddr_getport(options->FIELD);	\
 								\
 		dns_c_printtabs(fp, indent + 1);		\
-		fprintf(fp, NAME " address ");			\
+		fprintf(fp, "%s ", NAME);			\
+								\
+		dns_c_print_ipaddr(fp, options->FIELD);		\
+								\
+		if (port == 0) {				\
+			fprintf(fp, " port *");			\
+		} else {					\
+			fprintf(fp, " port %d", port);		\
+		}						\
+		fprintf(fp, " ;\n");				\
+	}
+
+#define PRINT_QUERYSOURCE(FIELD, NAME)				\
+	if (options->FIELD != NULL) {				\
+		port = isc_sockaddr_getport(options->FIELD);	\
+								\
+		dns_c_printtabs(fp, indent + 1);		\
+		fprintf(fp, "%s address ", NAME);		\
 								\
 		dns_c_print_ipaddr(fp, options->FIELD);		\
 								\
@@ -950,6 +980,7 @@ dns_c_ctx_optionsprint(FILE *fp, int indent, dns_c_options_t *options)
 	PRINT_CHAR_P(pid_filename, "pid-file");
 	PRINT_CHAR_P(stats_filename, "statistics-file");
 	PRINT_CHAR_P(memstats_filename, "memstatistics-file");
+	PRINT_CHAR_P(cache_filename, "cache-file");
 	PRINT_CHAR_P(named_xfer, "named-xfer");
 	PRINT_CHAR_P(random_device, "random-device");
 	PRINT_CHAR_P(random_seed_file, "random-seed-file");
@@ -977,14 +1008,13 @@ dns_c_ctx_optionsprint(FILE *fp, int indent, dns_c_options_t *options)
 	PRINT_INTEGER(recursive_clients, "recursive-clients");
 	PRINT_INTEGER(min_roots, "min-roots");
 	PRINT_INTEGER(serial_queries, "serial-queries");
-	PRINT_INTEGER(sig_valid_interval, "sig-validity-interval");
+	PRINT_AS_DAYS(sig_valid_interval, "sig-validity-interval");
 
 	PRINT_INTEGER(min_retry_time, "min-retry-time");
 	PRINT_INTEGER(max_retry_time, "max-retry-time");
 	PRINT_INTEGER(min_refresh_time, "min-refresh-time");
 	PRINT_INTEGER(max_refresh_time, "max-refresh-time");
 
-	
 	PRINT_AS_SIZE_CLAUSE(max_cache_size, "max-cache-size");
 
 	PRINT_AS_SIZE_CLAUSE(data_size, "datasize");
@@ -1038,8 +1068,8 @@ dns_c_ctx_optionsprint(FILE *fp, int indent, dns_c_options_t *options)
 	PRINT_IPANDPORT(transfer_source, "transfer-source");
 	PRINT_IPANDPORT(transfer_source_v6, "transfer-source-v6");
 
-	PRINT_IPANDPORT(query_source, "query-source");
-	PRINT_IPANDPORT(query_source_v6, "query-source-v6");
+	PRINT_QUERYSOURCE(query_source, "query-source");
+	PRINT_QUERYSOURCE(query_source_v6, "query-source-v6");
 
 	if (options->additional_data != NULL) {
 		dns_c_printtabs(fp, indent + 1);
@@ -1054,6 +1084,7 @@ dns_c_ctx_optionsprint(FILE *fp, int indent, dns_c_options_t *options)
 
 	fprintf(fp, "\n");
 
+	PRINT_IPMLIST(queryacl, "allow-notify");
 	PRINT_IPMLIST(queryacl, "allow-query");
 	PRINT_IPMLIST(transferacl, "allow-transfer");
 	PRINT_IPMLIST(recursionacl, "allow-recursion");
@@ -1491,6 +1522,7 @@ dns_c_ctx_optionsnew(isc_mem_t *mem, dns_c_options_t **options)
 	opts->pid_filename = NULL;
 	opts->stats_filename = NULL;
 	opts->memstats_filename = NULL;
+	opts->cache_filename = NULL;
 	opts->named_xfer = NULL;
 	opts->random_device = NULL;
 	opts->random_seed_file = NULL;
@@ -1529,7 +1561,6 @@ dns_c_ctx_optionsnew(isc_mem_t *mem, dns_c_options_t **options)
 	opts->max_retry_time = NULL;
 	opts->min_refresh_time = NULL;
 	opts->max_refresh_time = NULL;
-
 
 	opts->expert_mode = NULL;
 	opts->fake_iquery = NULL;
@@ -1576,6 +1607,7 @@ dns_c_ctx_optionsnew(isc_mem_t *mem, dns_c_options_t **options)
 
 	opts->transfer_format = NULL;
 
+	opts->notifyacl = NULL;
 	opts->queryacl = NULL;
 	opts->transferacl = NULL;
 	opts->recursionacl = NULL;
@@ -1638,6 +1670,7 @@ dns_c_ctx_optionsdelete(dns_c_options_t **opts)
 	FREESTRING(pid_filename);
 	FREESTRING(stats_filename);
 	FREESTRING(memstats_filename);
+	FREESTRING(cache_filename);
 	FREESTRING(named_xfer);
 	FREESTRING(random_device);
 	FREESTRING(random_seed_file);
@@ -1725,6 +1758,7 @@ dns_c_ctx_optionsdelete(dns_c_options_t **opts)
 
 	FREEFIELD(transfer_format);
 
+	FREEIPMLIST(notifyacl);
 	FREEIPMLIST(queryacl);
 	FREEIPMLIST(transferacl);
 	FREEIPMLIST(recursionacl);
@@ -1778,6 +1812,7 @@ STRING_FUNCS(dumpfilename, dump_filename)
 STRING_FUNCS(pidfilename, pid_filename)
 STRING_FUNCS(statsfilename, stats_filename)
 STRING_FUNCS(memstatsfilename, memstats_filename)
+STRING_FUNCS(cachefile, cache_filename)
 STRING_FUNCS(namedxfer, named_xfer)
 STRING_FUNCS(randomdevice, random_device)
 STRING_FUNCS(randomseedfile, random_seed_file)
@@ -1814,7 +1849,6 @@ UINT32_FUNCS(minretrytime, min_retry_time)
 UINT32_FUNCS(maxretrytime, max_retry_time)
 UINT32_FUNCS(minrefreshtime, min_refresh_time)
 UINT32_FUNCS(maxrefreshtime, max_refresh_time)
-
 
 BOOL_FUNCS(expertmode, expert_mode)
 BOOL_FUNCS(fakeiquery, fake_iquery)
@@ -2040,6 +2074,7 @@ dns_c_ctx_unsetchecknames(dns_c_ctx_t *cfg,
 	return (ISC_R_SUCCESS);
 }
 
+IPMLIST_FUNCS(allownotify, notifyacl)
 IPMLIST_FUNCS(allowquery, queryacl)
 IPMLIST_FUNCS(allowtransfer, transferacl)
 IPMLIST_FUNCS(allowrecursion, recursionacl)

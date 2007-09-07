@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: masterdump.c,v 1.36 2000/11/09 19:33:49 gson Exp $ */
+/* $Id: masterdump.c,v 1.38 2000/12/11 19:24:12 bwelling Exp $ */
 
 #include <config.h>
 
@@ -163,7 +163,7 @@ dns_master_style_explicitttl = {
  */
 dns_master_style_t
 dns_masterfile_style_debug = {
-        DNS_STYLEFLAG_REL_OWNER,
+	DNS_STYLEFLAG_REL_OWNER,
 	24, 32, 40, 48, 80, 8
 };
 
@@ -306,7 +306,7 @@ totext_ctx_init(const dns_master_style_t *style, dns_totext_ctx_t *ctx) {
 				      ctx->style.tab_width, target)) \
 		     != ISC_R_SUCCESS) \
 			    return (result); \
-        } while (0)
+	} while (0)
 
 
 /*
@@ -678,8 +678,8 @@ dump_order(const dns_rdataset_t *rds) {
 
 static int
 dump_order_compare(const void *a, const void *b) {
-	return (dump_order(*((const dns_rdataset_t **) a)) -
-		dump_order(*((const dns_rdataset_t **) b)));
+	return (dump_order(*((const dns_rdataset_t * const *) a)) -
+		dump_order(*((const dns_rdataset_t * const *) b)));
 }
 
 /*
@@ -821,7 +821,7 @@ dns_master_dumptostream(isc_mem_t *mctx, dns_db_t *db,
 
 	result = dns_db_createiterator(db,
 		       ((ctx.style.flags & DNS_STYLEFLAG_REL_OWNER) != 0) ?
-		           ISC_TRUE : ISC_FALSE,
+			   ISC_TRUE : ISC_FALSE,
 		       &dbiter);
 	if (result != ISC_R_SUCCESS)
 		goto create_iter_failure;

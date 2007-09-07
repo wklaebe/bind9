@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: getrrset.c,v 1.3 2000/11/28 01:50:46 gson Exp $ */
+/* $Id: getrrset.c,v 1.5 2000/12/21 00:27:53 bwelling Exp $ */
 
 #include <config.h>
 
@@ -87,6 +87,14 @@ lwres_getrrsetbyname(const char *hostname, unsigned int rdclass,
 		goto fail;
 	}
 
+	/*
+	 * Don't allow queries of class or type ANY
+	 */
+	if (rdclass == 0xff || rdtype == 0xff) {
+		result = ERRSET_INVAL;
+		goto fail;
+	}
+
 	lwresult = lwres_context_create(&lwrctx, NULL, NULL, NULL, 0);
 	if (lwresult != LWRES_R_SUCCESS) {
 		result = lwresult_to_result(lwresult);
@@ -133,8 +141,6 @@ lwres_getrrsetbyname(const char *hostname, unsigned int rdclass,
 
 	if ((response->flags & LWRDATA_VALIDATED) != 0)
 		rrset->rri_flags |= RRSET_VALIDATED;
-	if ((response->flags & LWRDATA_AUTHORITATIVE) != 0)
-		rrset->rri_flags |= RRSET_AUTHORITATIVE;
 
 	rrset->rri_nrdatas = response->nrdatas;
 	rrset->rri_rdatas = sane_calloc(rrset->rri_nrdatas,

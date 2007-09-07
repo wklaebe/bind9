@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: nsupdate.c,v 1.70 2000/12/01 21:37:33 gson Exp $ */
+/* $Id: nsupdate.c,v 1.75 2000/12/11 23:09:40 marka Exp $ */
 
 #include <config.h>
 
@@ -118,6 +118,7 @@ static isc_entropy_t *entp = NULL;
 static isc_boolean_t shuttingdown = ISC_FALSE;
 static FILE *input;
 static isc_boolean_t interactive = ISC_TRUE;
+static isc_boolean_t seenerror = ISC_FALSE;
 
 typedef struct nsu_requestinfo {
 	dns_message_t *msg;
@@ -490,21 +491,21 @@ setup_system(void) {
 
 static void
 get_address(char *host, in_port_t port, isc_sockaddr_t *sockaddr) {
-        struct in_addr in4;
-        struct in6_addr in6;
+	struct in_addr in4;
+	struct in6_addr in6;
 #if defined(HAVE_ADDRINFO) && defined(HAVE_GETADDRINFO)
 	struct addrinfo *res = NULL;
 	int result;
 #else
-        struct hostent *he;
+	struct hostent *he;
 #endif
 
-        ddebug("get_address()");
-        if (have_ipv6 && inet_pton(AF_INET6, host, &in6) == 1)
-                isc_sockaddr_fromin6(sockaddr, &in6, port);
-        else if (inet_pton(AF_INET, host, &in4) == 1)
-                isc_sockaddr_fromin(sockaddr, &in4, port);
-        else {
+	ddebug("get_address()");
+	if (have_ipv6 && inet_pton(AF_INET6, host, &in6) == 1)
+		isc_sockaddr_fromin6(sockaddr, &in6, port);
+	else if (inet_pton(AF_INET, host, &in4) == 1)
+		isc_sockaddr_fromin(sockaddr, &in4, port);
+	else {
 #if defined(HAVE_ADDRINFO) && defined(HAVE_GETADDRINFO)
 		result = getaddrinfo(host, NULL, NULL, &res);
 		if (result != 0) {
@@ -516,16 +517,16 @@ get_address(char *host, in_port_t port, isc_sockaddr_t *sockaddr) {
 		isc_sockaddr_setport(sockaddr, port);
 		freeaddrinfo(res);
 #else
-                he = gethostbyname(host);
-                if (he == NULL)
-                     fatal("Couldn't look up your server host %s.  errno=%d",
-                              host, h_errno);
-                INSIST(he->h_addrtype == AF_INET);
-                isc_sockaddr_fromin(sockaddr,
-                                    (struct in_addr *)(he->h_addr_list[0]),
-                                    port);
+		he = gethostbyname(host);
+		if (he == NULL)
+		     fatal("Couldn't look up your server host %s.  errno=%d",
+			      host, h_errno);
+		INSIST(he->h_addrtype == AF_INET);
+		isc_sockaddr_fromin(sockaddr,
+				    (struct in_addr *)(he->h_addr_list[0]),
+				    port);
 #endif
-        }
+	}
 }
 
 static void
@@ -969,7 +970,7 @@ update_addordelete(char *cmdline, isc_boolean_t isdelete) {
 			 * which will be equal to TTL_MAX.
 			 */
 			fprintf(stderr, "ttl '%s' is out of range "
-				"(1 to %d)\n", word, TTL_MAX);
+				"(0 to %d)\n", word, TTL_MAX);
 			goto failure;
 		}
 	} else
@@ -1193,6 +1194,7 @@ update_completed(isc_task_t *task, isc_event_t *event) {
 	if (reqev->result != ISC_R_SUCCESS) {
 		fprintf(stderr, "; Communication with server failed: %s\n",
 			isc_result_totext(reqev->result));
+		seenerror = ISC_TRUE;
 		goto done;
 	}
 
@@ -1201,6 +1203,8 @@ update_completed(isc_task_t *task, isc_event_t *event) {
 	result = dns_request_getresponse(reqev->request, rcvmsg,
 					 DNS_MESSAGEPARSE_PRESERVEORDER);
 	check_result(result, "dns_request_getresponse");
+	if (rcvmsg->rcode != dns_rcode_noerror)
+		seenerror = ISC_TRUE;
 	if (debugging) {
 		isc_buffer_t *buf = NULL;
 		int bufsz;
@@ -1275,7 +1279,7 @@ recvsoa(isc_task_t *task, isc_event_t *event) {
 	dns_name_t *name = NULL;
 	dns_rdataset_t *soaset = NULL;
 	dns_rdata_soa_t soa;
-	dns_rdata_t soarr;
+	dns_rdata_t soarr = DNS_RDATA_INIT;
 	int pass = 0;
 	dns_name_t master;
 	isc_sockaddr_t *serveraddr, tempaddr;
@@ -1283,6 +1287,7 @@ recvsoa(isc_task_t *task, isc_event_t *event) {
 	nsu_requestinfo_t *reqinfo;
 	dns_message_t *soaquery = NULL;
 	isc_sockaddr_t *addr;
+	isc_boolean_t seencname = ISC_FALSE;
 
 	UNUSED(task);
 
@@ -1311,11 +1316,10 @@ recvsoa(isc_task_t *task, isc_event_t *event) {
 		ddebug("Destroying request [%lx]", request);
 		dns_request_destroy(&request);
 		dns_message_renderreset(soaquery);
-		sendrequest(localaddr,&servers[ns_inuse], soaquery, &request);
+		sendrequest(localaddr, &servers[ns_inuse], soaquery, &request);
 		isc_mem_put(mctx, reqinfo, sizeof(nsu_requestinfo_t));
 		return;
 	}
-	dns_message_destroy(&soaquery);
 	isc_mem_put(mctx, reqinfo, sizeof(nsu_requestinfo_t));
 
 	ddebug("About to create rcvmsg");
@@ -1374,12 +1378,50 @@ recvsoa(isc_task_t *task, isc_event_t *event) {
 					      &soaset);
 		if (result == ISC_R_SUCCESS)
 			break;
+		if (section == DNS_SECTION_ANSWER) {
+			dns_rdataset_t *tset = NULL;
+			if (dns_message_findtype(name, dns_rdatatype_cname, 0,
+						 &tset) == ISC_R_SUCCESS
+			    ||
+			    dns_message_findtype(name, dns_rdatatype_dname, 0,
+						 &tset) == ISC_R_SUCCESS
+			    )
+			{
+				seencname = ISC_TRUE;
+				break;
+			}
+		}
+				
 		result = dns_message_nextname(rcvmsg, section);
 	}
 
-	if (soaset == NULL) {
+	if (soaset == NULL && !seencname) {
 		pass++;
 		goto lookforsoa;
+	}
+
+	if (seencname) {
+		dns_name_t tname;
+		unsigned int nlabels;
+
+		result = dns_message_firstname(soaquery, DNS_SECTION_QUESTION);
+		INSIST(result == ISC_R_SUCCESS);
+		name = NULL;
+		dns_message_currentname(soaquery, DNS_SECTION_QUESTION, &name);
+		nlabels = dns_name_countlabels(name);
+		if (nlabels == 1)
+			fatal("could not find enclosing zone");
+		dns_name_init(&tname, NULL);
+		dns_name_getlabelsequence(name, 1, nlabels - 1, &tname);
+		dns_name_clone(&tname, name);
+		dns_request_destroy(&request);
+		dns_message_renderreset(soaquery);
+		if (userserver != NULL)
+			sendrequest(localaddr, userserver, soaquery, &request);
+		else
+			sendrequest(localaddr, &servers[ns_inuse], soaquery,
+				    &request);
+		goto out;
 	}
 
 	if (debugging) {
@@ -1426,9 +1468,12 @@ recvsoa(isc_task_t *task, isc_event_t *event) {
 
 	send_update(zonename, serveraddr, localaddr);
 
+	dns_message_destroy(&soaquery);
+	dns_request_destroy(&request);
+
+ out:
 	dns_rdata_freestruct(&soa);
 	dns_message_destroy(&rcvmsg);
-	dns_request_destroy(&request);
 	ddebug("Out of recvsoa");
 }
 
@@ -1596,24 +1641,27 @@ getinput(isc_task_t *task, isc_event_t *event) {
 
 int
 main(int argc, char **argv) {
-        isc_result_t result;
+	isc_result_t result;
 
 	input = stdin;
 
 	isc_app_start();
 
-        parse_args(argc, argv);
+	parse_args(argc, argv);
 
-        setup_system();
+	setup_system();
 
 	result = isc_app_onrun(mctx, global_task, getinput, NULL);
 	check_result(result, "isc_app_onrun");
 
 	(void)isc_app_run();
 
-        cleanup();
+	cleanup();
 
 	isc_app_finish();
 
-        return (0);
+	if (seenerror)
+		return (2);
+	else
+		return (0);
 }

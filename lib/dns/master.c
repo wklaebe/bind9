@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: master.c,v 1.85 2000/12/04 04:17:00 marka Exp $ */
+/* $Id: master.c,v 1.88.2.1 2000/12/28 18:46:46 gson Exp $ */
 
 #include <config.h>
 
@@ -612,6 +612,8 @@ generate(dns_loadctx_t *ctx, char *range, char *lhs, char *gtype, char *rhs) {
 		goto error_cleanup;
 	}
 
+	ISC_LIST_INIT(rdatalist.rdata);
+	ISC_LINK_INIT(&rdatalist, link);
 	for (i = start; i < stop; i += step) {
 		result = genname(lhs, i, lhsbuf, DNS_MASTER_BUFSZ);
 		if (result != ISC_R_SUCCESS)
@@ -648,7 +650,6 @@ generate(dns_loadctx_t *ctx, char *range, char *lhs, char *gtype, char *rhs) {
 		rdatalist.covers = 0;
 		rdatalist.rdclass = ctx->zclass;
 		rdatalist.ttl = ctx->ttl;
-		ISC_LIST_INIT(rdatalist.rdata);
 		ISC_LIST_PREPEND(head, &rdatalist, link);
 		ISC_LIST_APPEND(rdatalist.rdata, &rdata, link);
 		result = commit(callbacks, ctx->lex, &head, owner,
@@ -1329,9 +1330,9 @@ load(dns_loadctx_t **ctxp) {
 			this->ttl = ctx->ttl;
 			ISC_LIST_INIT(this->rdata);
 			if (ctx->glue != NULL)
-				ISC_LIST_PREPENDUNSAFE(glue_list, this, link);
+				ISC_LIST_INITANDPREPEND(glue_list, this, link);
 			else
-				ISC_LIST_PREPENDUNSAFE(current_list, this,
+				ISC_LIST_INITANDPREPEND(current_list, this,
 						       link);
 		} else if (this->ttl != ctx->ttl) {
 			(*callbacks->warn)(callbacks,
@@ -1608,8 +1609,10 @@ dns_master_loadfileinc(const char *master_file, dns_name_t *top,
 		       void *done_arg, isc_mem_t *mctx)
 {
 	dns_loadctx_t *ctx = NULL;
-	isc_result_t tresult;
 	isc_result_t result;
+	
+	REQUIRE(task != NULL);
+	REQUIRE(done != NULL);
 
 	result = loadctx_create(mctx, age_ttl, top, zclass, origin,
 				callbacks, task, done, done_arg, &ctx);
@@ -1620,15 +1623,9 @@ dns_master_loadfileinc(const char *master_file, dns_name_t *top,
 	if (result != ISC_R_SUCCESS)
 		goto cleanup;
 
-	result = load(&ctx);
-	if (result == DNS_R_CONTINUE) {
-		tresult = task_send(ctx);
-		if (tresult == ISC_R_SUCCESS)
-			return (result);
-		result = tresult;
-	}
-	if (ctx->done != NULL)
-		(ctx->done)(ctx->done_arg, result);
+	result = task_send(ctx);
+	if (result == ISC_R_SUCCESS)
+		return (DNS_R_CONTINUE);
 
  cleanup:
 	if (ctx != NULL)
@@ -1672,10 +1669,11 @@ dns_master_loadstreaminc(FILE *stream, dns_name_t *top, dns_name_t *origin,
 			 isc_mem_t *mctx)
 {
 	isc_result_t result;
-	isc_result_t tresult;
 	dns_loadctx_t *ctx = NULL;
 
 	REQUIRE(stream != NULL);
+	REQUIRE(task != NULL);
+	REQUIRE(done != NULL);
 
 	result = loadctx_create(mctx, age_ttl, top, zclass, origin,
 				callbacks, task, done, done_arg, &ctx);
@@ -1686,15 +1684,9 @@ dns_master_loadstreaminc(FILE *stream, dns_name_t *top, dns_name_t *origin,
 	if (result != ISC_R_SUCCESS)
 		goto cleanup;
 
-	result = load(&ctx);
-	if (result == DNS_R_CONTINUE) {
-		tresult = task_send(ctx);
-		if (tresult == ISC_R_SUCCESS)
-			return (result);
-		result = tresult;
-	}
-	if (ctx->done != NULL)
-		(ctx->done)(ctx->done_arg, result);
+	result = task_send(ctx);
+	if (result == ISC_R_SUCCESS)
+		return (DNS_R_CONTINUE);
 
  cleanup:
 	if (ctx != NULL)
@@ -1740,10 +1732,11 @@ dns_master_loadbufferinc(isc_buffer_t *buffer, dns_name_t *top,
 			 isc_mem_t *mctx)
 {
 	isc_result_t result;
-	isc_result_t tresult;
 	dns_loadctx_t *ctx = NULL;
 
 	REQUIRE(buffer != NULL);
+	REQUIRE(task != NULL);
+	REQUIRE(done != NULL);
 
 	result = loadctx_create(mctx, age_ttl, top, zclass, origin,
 				callbacks, task, done, done_arg, &ctx);
@@ -1754,15 +1747,9 @@ dns_master_loadbufferinc(isc_buffer_t *buffer, dns_name_t *top,
 	if (result != ISC_R_SUCCESS)
 		goto cleanup;
 
-	result = load(&ctx);
-	if (result == DNS_R_CONTINUE) {
-		tresult = task_send(ctx);
-		if (tresult == ISC_R_SUCCESS)
-			return (result);
-		result = tresult;
-	}
-	if (ctx->done != NULL)
-		(ctx->done)(ctx->done_arg, result);
+	result = task_send(ctx);
+	if (result == ISC_R_SUCCESS)
+		return (DNS_R_CONTINUE);
 
  cleanup:
 	if (ctx != NULL)

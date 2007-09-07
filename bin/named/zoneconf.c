@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: zoneconf.c,v 1.76 2000/12/01 23:49:50 gson Exp $ */
+/* $Id: zoneconf.c,v 1.78 2000/12/13 00:15:03 tale Exp $ */
 
 #include <config.h>
 
@@ -223,6 +223,13 @@ ns_zone_configure(dns_c_ctx_t *cctx, dns_c_view_t *cview,
 		dns_zone_setchecknames(zone, dns_c_severity_warn);
 #endif
 
+	if (czone->ztype == dns_c_zone_slave)
+		RETERR(configure_zone_acl(czone, cctx, cview, ac, zone,
+					  dns_c_zone_getallownotify,
+					  dns_c_view_getallownotify,
+					  dns_c_ctx_getallownotify,
+					  dns_zone_setnotifyacl,
+					  dns_zone_clearnotifyacl));
 	/*
 	 * XXXAG This probably does not make sense for stubs.
 	 */
@@ -275,7 +282,7 @@ ns_zone_configure(dns_c_ctx_t *cctx, dns_c_view_t *cview,
 			result = dns_c_ctx_getalsonotify(cctx, &iplist);
 		if (result == ISC_R_SUCCESS) {
 			result = dns_zone_setalsonotify(zone, iplist->ips,
-						        iplist->nextidx);
+							iplist->nextidx);
 			dns_c_iplist_detach(&iplist);
 			if (result != ISC_R_SUCCESS)
 				return (result);

@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: confview.h,v 1.46 2000/12/01 23:27:43 marka Exp $ */
+/* $Id: confview.h,v 1.48 2000/12/13 00:15:33 tale Exp $ */
 
 #ifndef DNS_CONFVIEW_H
 #define DNS_CONFVIEW_H 1
@@ -102,6 +102,7 @@ struct dns_c_view {
 	dns_c_iplist_t	       *forwarders;
 	dns_c_iplist_t	       *also_notify;
 
+	dns_c_ipmatchlist_t    *allownotify;
 	dns_c_ipmatchlist_t    *allowquery;
 	dns_c_ipmatchlist_t    *allowupdateforwarding;
 	dns_c_ipmatchlist_t    *transferacl;
@@ -149,7 +150,6 @@ struct dns_c_view {
 	isc_uint32_t	       *min_refresh_time;
 	isc_uint32_t	       *max_refresh_time;
 
-
 	dns_c_addata_t	       *additional_data;
 	dns_transfer_format_t  *transfer_format;
 
@@ -157,6 +157,8 @@ struct dns_c_view {
 	dns_peerlist_t	       *peerlist;
 
 	dns_c_tkeylist_t       *trusted_keys;
+
+	char		       *cache_file;
 
 #if 0
 	/*
@@ -231,8 +233,11 @@ isc_result_t dns_c_view_unsetforwarders(dns_c_view_t *view);
 isc_result_t dns_c_view_getforwarders(dns_c_view_t *view,
 				      dns_c_iplist_t **ipl);
 
-
-
+isc_result_t dns_c_view_getallownotify(dns_c_view_t *view,
+				       dns_c_ipmatchlist_t **retval);
+isc_result_t dns_c_view_setallownotify(dns_c_view_t *view,
+				       dns_c_ipmatchlist_t *newval);
+isc_result_t dns_c_view_unsetallownotify(dns_c_view_t *view);
 
 isc_result_t dns_c_view_getallowquery(dns_c_view_t *view,
 				      dns_c_ipmatchlist_t **retval);
@@ -586,6 +591,12 @@ isc_result_t dns_c_view_unsettrustedkeys(dns_c_view_t *view);
 isc_result_t dns_c_view_settrustedkeys(dns_c_view_t *view,
 				       dns_c_tkeylist_t *newval,
 				       isc_boolean_t copy);
+
+isc_result_t dns_c_view_getcachefile(dns_c_view_t *view,
+				     char **cachefile);
+isc_result_t dns_c_view_unsetcachefile(dns_c_view_t *view);
+isc_result_t dns_c_view_setcachefile(dns_c_view_t *view,
+				       const char *newval);
 
 
 #if 0

@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: view.h,v 1.56 2000/11/10 03:16:26 gson Exp $ */
+/* $Id: view.h,v 1.61 2000/12/20 23:31:11 bwelling Exp $ */
 
 #ifndef DNS_VIEW_H
 #define DNS_VIEW_H 1
@@ -58,6 +58,8 @@
  * Standards:
  *	None.
  */
+
+#include <stdio.h>
 
 #include <isc/lang.h>
 #include <isc/magic.h>
@@ -112,6 +114,7 @@ struct dns_view {
 	dns_ttl_t			maxcachettl;
 	dns_ttl_t			maxncachettl;
 	in_port_t			dstport;
+	char *				cachefile;
 
 	/*
 	 * Configurable data for server use only,
@@ -374,8 +377,8 @@ dns_view_freeze(dns_view_t *view);
 
 isc_result_t
 dns_view_find(dns_view_t *view, dns_name_t *name, dns_rdatatype_t type,
-	      isc_stdtime_t now, unsigned int options,
-	      isc_boolean_t use_hints, dns_name_t *foundname,
+	      isc_stdtime_t now, unsigned int options, isc_boolean_t use_hints,
+	      dns_db_t **dbp, dns_dbnode_t **nodep, dns_name_t *foundname,
 	      dns_rdataset_t *rdataset, dns_rdataset_t *sigrdataset);
 /*
  * Find an rdataset whose owner name is 'name', and whose type is
@@ -391,7 +394,9 @@ dns_view_find(dns_view_t *view, dns_name_t *name, dns_rdatatype_t type,
  *
  *	If 'use_hints' is ISC_TRUE, and the view has a hints database, then
  *	it will be searched last.  If the answer is found in the hints
- *	database, the result code will be DNS_R_HINT.
+ *	database, the result code will be DNS_R_HINT.  If the name is found
+ *	in the hints database but not the type, the result code will be
+ *	DNS_R_HINTNXRRSET.
  *
  *	'foundname' must meet the requirements of dns_db_find().
  *
@@ -405,9 +410,13 @@ dns_view_find(dns_view_t *view, dns_name_t *name, dns_rdatatype_t type,
  *	'name' is valid name.
  *
  *	'type' is a valid dns_rdatatype_t, and is not a meta query type
- *	(e.g. dns_rdatatype_any), or dns_rdatatype_sig.
+ *	except dns_rdatatype_any.
  *
- *	'foundname' is
+ *	dbp == NULL || *dbp == NULL
+ *
+ *	nodep == NULL || *nodep == NULL.  If nodep != NULL, dbp != NULL.
+ *
+ *	'foundname' is a valid name with a dedicated buffer or NULL.
  *
  *	'rdataset' is a valid, disassociated rdataset.
  *
@@ -417,6 +426,12 @@ dns_view_find(dns_view_t *view, dns_name_t *name, dns_rdatatype_t type,
  *
  *	In successful cases, 'rdataset', and possibly 'sigrdataset', are
  *	bound to the found data.
+ *
+ *	If dbp != NULL, it points to the database containing the data.
+ *
+ *	If nodep != NULL, it points to the database node containing the data.
+ *
+ *	If foundname != NULL, it contains the full name of the found data.
  *
  * Returns:
  *
@@ -447,7 +462,9 @@ dns_view_simplefind(dns_view_t *view, dns_name_t *name, dns_rdatatype_t type,
  *
  *	If 'use_hints' is ISC_TRUE, and the view has a hints database, then
  *	it will be searched last.  If the answer is found in the hints
- *	database, the result code will be DNS_R_HINT.
+ *	database, the result code will be DNS_R_HINT.  If the name is found
+ *	in the hints database but not the type, the result code will be
+ *	DNS_R_HINTNXRRSET.
  *
  *	If 'sigrdataset' is not NULL, and there is a SIG rdataset which
  *	covers 'type', then 'sigrdataset' will be bound to it.
@@ -624,6 +641,44 @@ void
 dns_view_dialup(dns_view_t *view);
 /*
  * Perform dialup-time maintenance on the zones of 'view'.
+ */
+
+isc_result_t
+dns_view_dumpcache(dns_view_t *view);
+/*
+ * Dump the view's cache to the the view's cache file.
+ *
+ * Requires:
+ * 	
+ *	'view' is valid.
+ *
+ * Returns:
+ * 	ISC_R_SUCCESS	The cache was successfully dumped.
+ * 	ISC_R_IGNORE	No cachefile was specified.
+ * 	others		An error occurred (see dns_master_dump)
+ */
+
+isc_result_t
+dns_view_dumpdbtostream(dns_view_t *view, FILE *fp);
+/*
+ * Dump the current state of the view 'view' to the stream 'fp'
+ * for purposes of analysis or debugging.
+ *
+ * Currently the dumped state includes the view's cache; in the future
+ * it may also include other state such as the address database.
+ * It will not not include authoritative data since it is voluminous and
+ * easily obtainable by other means.
+ *
+ * Requires:
+ * 	
+ *	'view' is valid.
+ *
+ *	'fp' refers to a file open for writing.
+ *
+ * Returns:
+ * 	ISC_R_SUCCESS	The cache was successfully dumped.
+ * 	ISC_R_IGNORE	No cachefile was specified.
+ * 	others		An error occurred (see dns_master_dump)
  */
 
 ISC_LANG_ENDDECLS

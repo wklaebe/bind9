@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rdataset.c,v 1.52 2000/11/10 03:16:19 gson Exp $ */
+/* $Id: rdataset.c,v 1.54 2000/12/14 22:10:37 marka Exp $ */
 
 #include <config.h>
 
@@ -278,7 +278,7 @@ dns_rdataset_towiresorted(dns_rdataset_t *rdataset,
 			  void *order_arg,
 			  unsigned int *countp)
 {
-	dns_rdata_t rdata;
+	dns_rdata_t rdata = DNS_RDATA_INIT;
 	isc_region_t r;
 	isc_result_t result;
 	unsigned int i, count;
@@ -411,7 +411,7 @@ dns_rdataset_towiresorted(dns_rdataset_t *rdataset,
 			if (shuffle)
 				rdata = *(sorted[i].rdata);
 			else {
-				dns_rdata_init(&rdata);
+				dns_rdata_reset(&rdata);
 				dns_rdataset_current(rdataset, &rdata);
 			}
 			result = dns_rdata_towire(&rdata, cctx, target);
@@ -466,7 +466,7 @@ isc_result_t
 dns_rdataset_additionaldata(dns_rdataset_t *rdataset,
 			    dns_additionaldatafunc_t add, void *arg)
 {
-	dns_rdata_t rdata;
+	dns_rdata_t rdata = DNS_RDATA_INIT;
 	isc_result_t result;
 
 	/*
@@ -482,11 +482,11 @@ dns_rdataset_additionaldata(dns_rdataset_t *rdataset,
 		return (result);
 
 	do {
-		dns_rdata_init(&rdata);
 		dns_rdataset_current(rdataset, &rdata);
 		result = dns_rdata_additionaldata(&rdata, add, arg);
 		if (result == ISC_R_SUCCESS)
 			result = dns_rdataset_next(rdataset);
+		dns_rdata_reset(&rdata);
 	} while (result == ISC_R_SUCCESS);
 
 	if (result != ISC_R_NOMORE)

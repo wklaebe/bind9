@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: lex.c,v 1.52 2000/11/20 00:41:50 bwelling Exp $ */
+/* $Id: lex.c,v 1.57 2000/12/09 03:20:05 marka Exp $ */
 
 #include <config.h>
 
@@ -27,6 +27,7 @@
 #include <isc/file.h>
 #include <isc/lex.h>
 #include <isc/mem.h>
+#include <isc/msgs.h>
 #include <isc/stdio.h>
 #include <isc/string.h>
 #include <isc/util.h>
@@ -37,9 +38,11 @@ typedef struct inputsource {
 	isc_boolean_t			need_close;
 	isc_boolean_t			at_eof;
 	isc_buffer_t *			pushback;
+	unsigned int			ignored;
 	void *				input;
 	char *				name;
 	unsigned long			line;
+	unsigned long			saved_line;
 	LINK(struct inputsource)	link;
 } inputsource;
 
@@ -211,8 +214,9 @@ new_source(isc_lex_t *lex, isc_boolean_t is_file, isc_boolean_t need_close,
 		isc_mem_put(lex->mctx, source, sizeof *source);
 		return (result);
 	}
+	source->ignored = 0;
 	source->line = 1;
-	ISC_LIST_PREPENDUNSAFE(lex->sources, source, link);
+	ISC_LIST_INITANDPREPEND(lex->sources, source, link);
 
 	return (ISC_R_SUCCESS);
 }
@@ -344,13 +348,14 @@ pushandgrow(isc_lex_t *lex, inputsource *source, int c) {
 		isc_buffer_usedregion(source->pushback, &used);
 		result = isc_buffer_copyregion(tbuf, &used);
 		INSIST(result == ISC_R_SUCCESS);
+		tbuf->current = source->pushback->current;
 		isc_buffer_free(&source->pushback);
 		source->pushback = tbuf;
 	}
 	isc_buffer_putuint8(source->pushback, (isc_uint8_t)c);
 	return (ISC_R_SUCCESS);
 }
-	
+
 isc_result_t
 isc_lex_gettoken(isc_lex_t *lex, unsigned int options, isc_token_t *tokenp) {
 	inputsource *source;
@@ -378,6 +383,7 @@ isc_lex_gettoken(isc_lex_t *lex, unsigned int options, isc_token_t *tokenp) {
 	REQUIRE(tokenp != NULL);
 
 	lex->saved_paren_count = lex->paren_count;
+	source->saved_line = source->line;
 
 	if (source == NULL) {
 		if ((options & ISC_LEXOPT_NOMORE) != 0) {
@@ -447,10 +453,16 @@ isc_lex_gettoken(isc_lex_t *lex, unsigned int options, isc_token_t *tokenp) {
 					return (source->result);
 			}
 		}
-		if (!source->at_eof)
+
+		if (!source->at_eof) {
+			if (state == lexstate_start)
+				/* Token has not started yet. */
+				source->ignored =
+				   isc_buffer_consumedlength(source->pushback);
 			c = isc_buffer_getuint8(source->pushback);
-		else
+		} else {
 			c = EOF;
+		}
 
 		if (c == '\n')
 			source->line++;
@@ -724,7 +736,10 @@ isc_lex_gettoken(isc_lex_t *lex, unsigned int options, isc_token_t *tokenp) {
 			break;
 		default:
 			FATAL_ERROR(__FILE__, __LINE__,
-				    "Unexpected state %d", state);
+				    isc_msgcat_get(isc_msgcat, ISC_MSGSET_LEX,
+						   ISC_MSG_UNEXPECTEDSTATE,
+						   "Unexpected state %d"),
+				    state);
 			/* Does not return. */
 		}
 
@@ -783,8 +798,29 @@ isc_lex_ungettoken(isc_lex_t *lex, isc_token_t *tokenp) {
 
 	isc_buffer_first(source->pushback);
 	lex->paren_count = lex->saved_paren_count;
+	source->line = source->saved_line;
 	source->at_eof = ISC_FALSE;
 }
+
+void
+isc_lex_getlasttokentext(isc_lex_t *lex, isc_token_t *tokenp, isc_region_t *r)
+{
+	inputsource *source;
+
+	REQUIRE(VALID_LEX(lex));
+	source = HEAD(lex->sources);
+	REQUIRE(source != NULL);
+	REQUIRE(tokenp != NULL);
+	REQUIRE(isc_buffer_consumedlength(source->pushback) != 0 ||
+		tokenp->type == isc_tokentype_eof);
+
+	UNUSED(tokenp);
+
+	INSIST(source->ignored <= isc_buffer_consumedlength(source->pushback));
+	r->base = (unsigned char *)isc_buffer_base(source->pushback) + source->ignored;
+	r->length = isc_buffer_consumedlength(source->pushback) - source->ignored;
+}
+
 
 char *
 isc_lex_getsourcename(isc_lex_t *lex) {

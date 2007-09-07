@@ -700,6 +700,63 @@ CLASS="command"
 >dig</B
 > instead.</P
 ></DD
+><DT
+><A
+NAME="named-checkconf"
+><B
+CLASS="command"
+>named-checkconf</B
+></A
+></DT
+><DD
+><P
+>Checks the syntax of <TT
+CLASS="filename"
+>named.conf</TT
+>.</P
+><P
+><B
+CLASS="command"
+>named-checkconf</B
+>  [<TT
+CLASS="replaceable"
+><I
+>filename</I
+></TT
+>]</P
+></DD
+><DT
+><A
+NAME="named-checkzone"
+><B
+CLASS="command"
+>named-checkzone</B
+></A
+></DT
+><DD
+><P
+>Performs syntax and consistency checks on a individual zone.</P
+><P
+><B
+CLASS="command"
+>named-checkzone</B
+>  [-dq] [-c <TT
+CLASS="replaceable"
+><I
+>class</I
+></TT
+>]  <TT
+CLASS="replaceable"
+><I
+>zone</I
+></TT
+>  [<TT
+CLASS="replaceable"
+><I
+>filename</I
+></TT
+>]</P
+></DD
 ></DL
 ></DIV
 ><DIV
@@ -930,6 +987,37 @@ ALIGN="LEFT"
 VALIGN="MIDDLE"
 ><P
 >Toggle query logging.</P
+></TD
+></TR
+><TR
+><TD
+WIDTH="288"
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+><P
+><TT
+CLASS="userinput"
+><B
+>dumpdb</B
+></TT
+></P
+></TD
+><TD
+WIDTH="288"
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+><P
+>Dump the current contents of the cache
+(or caches if there are multiple views) into the file named by the
+<B
+CLASS="command"
+>dump-file</B
+> option
+(by default, <TT
+CLASS="filename"
+>named_dump.db</TT
+>).
+</P
 ></TD
 ></TR
 ><TR
@@ -1191,7 +1279,7 @@ CLASS="sect2"
 ><H2
 CLASS="sect2"
 ><A
-NAME="AEN588"
+NAME="AEN620"
 >3.4.2. Signals</A
 ></H2
 ><P

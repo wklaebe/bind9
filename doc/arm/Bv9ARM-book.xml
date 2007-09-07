@@ -2,7 +2,7 @@
 <!DOCTYPE book PUBLIC "-//OASIS//DTD DocBook XML V4.0//EN"
                "http://www.oasis-open.org/docbook/xml/4.0/docbookx.dtd">
 
-<!-- File: $Id: Bv9ARM-book.xml,v 1.65 2000/12/02 00:34:39 gson Exp $ -->
+<!-- File: $Id: Bv9ARM-book.xml,v 1.72 2000/12/20 03:36:18 marka Exp $ -->
 
 <book>
 
@@ -619,6 +619,29 @@ behavior, we do not recommend the use of <command>nslookup</command>.
 Use <command>dig</command> instead.</para>
             </listitem>
           </varlistentry>
+	  <varlistentry id="named-checkconf" xreflabel="Named Configuration Checking application">
+            <term><command>named-checkconf</command></term>
+            <listitem>
+	      <para>Checks the syntax of <filename>named.conf</filename>.</para>
+              <cmdsynopsis label="Usage">
+                <command>named-checkconf</command>
+                <arg><replaceable>filename</replaceable></arg>
+              </cmdsynopsis>
+            </listitem>
+	  </varlistentry>
+	  <varlistentry id="named-checkzone" xreflabel="Zone Checking application">
+            <term><command>named-checkzone</command></term>
+            <listitem>
+	      <para>Performs syntax and consistency checks on a individual zone.</para>
+              <cmdsynopsis label="Usage">
+                <command>named-checkzone</command>
+                <arg>-dq</arg>
+                <arg>-c <replaceable>class</replaceable></arg>
+                <arg choice="plain"><replaceable>zone</replaceable></arg>
+                <arg><replaceable>filename</replaceable></arg>
+              </cmdsynopsis>
+            </listitem>
+	  </varlistentry>
         </variablelist>
       </sect3>
       <sect3 id="admin_tools">
@@ -674,6 +697,15 @@ of a server.</para>
 <row rowsep = "0">
 <entry colname = "1"><para><userinput>querylog</userinput></para></entry>
 <entry colname = "2"><para>Toggle query logging.</para></entry>
+</row>
+
+<row rowsep = "0">
+<entry colname = "1"><para><userinput>dumpdb</userinput></para></entry>
+<entry colname = "2"><para>Dump the current contents of the cache
+(or caches if there are multiple views) into the file named by the
+<command>dump-file</command> option
+(by default, <filename>named_dump.db</filename>).
+</para></entry>
 </row>
 
 <row rowsep = "0">
@@ -1800,7 +1832,9 @@ for access control, defining listen-on ports, or as a topology,
 and whether the element was negated.</para>
 <para>When used as an access control list, a non-negated match allows
 access and a negated match denies access. If there is no match,
-access is denied. The clauses <command>allow-query</command>, <command>allow-transfer</command>, <command>allow-update</command> and <command>blackhole</command> all
+access is denied. The clauses <command>allow-notify</command>,
+<command>allow-query</command>, <command>allow-transfer</command>,
+<command>allow-update</command> and <command>blackhole</command> all
 use address match lists  this. Similarly, the listen-on option will cause
 the server to not accept queries on any of the machine's addresses
 which do not match the list.</para>
@@ -2455,6 +2489,7 @@ lookups performed on behalf of clients by a caching name server.</para></entry>
     <optional> forward ( <replaceable>only</replaceable> | <replaceable>first</replaceable> ); </optional>
     <optional> forwarders { <optional> <replaceable>in_addr</replaceable> ; <optional> <replaceable>in_addr</replaceable> ; ... </optional> </optional> }; </optional>
     <optional> check-names ( <replaceable>master</replaceable> | <replaceable>slave</replaceable> | <replaceable> response</replaceable> )( <replaceable>warn</replaceable> | <replaceable>fail</replaceable> | <replaceable>ignore</replaceable> ); </optional>
+    <optional> allow-notify { <replaceable>address_match_list</replaceable> }; </optional>
     <optional> allow-query { <replaceable>address_match_list</replaceable> }; </optional>
     <optional> allow-transfer { <replaceable>address_match_list</replaceable> }; </optional>
     <optional> allow-recursion { <replaceable>address_match_list</replaceable> }; </optional>
@@ -2571,8 +2606,7 @@ most cases, the keyname should be the server's host name.</para></entry>
 the database to when instructed to do so with
 <command>rndc dumpdb</command>.
 If not specified, the default is <filename>named_dump.db</filename>.</para>
-<note><simpara>Not yet implemented in <acronym>BIND</acronym> 9.</simpara></note></entry>
-</row>
+</entry></row>
 <row rowsep = "0">
 <entry colname = "1"><para><command>memstatistics-file</command></para></entry>
 <entry colname = "2"><para>The pathname of the file the server writes memory
@@ -2880,6 +2914,16 @@ details on how to specify IP address lists.</para>
 <colspec colname = "2" colnum = "2" colsep = "0" colwidth = "3.125in"/>
 <tbody>
 <row rowsep = "0">
+<entry colname = "1"><para><command>allow-notify</command></para></entry>
+<entry colname = "2"><para>Specifies which hosts are allowed to
+notify slaves of a zone change in addition to the zone masters.
+<command>allow-notify</command> may also be specified in the
+<command>zone</command> statement, in which case it overrides the
+<command>options allow-notify</command> statement.  It is only meaningful
+for a slave zone.  If not specified, the default is to process notify messages
+only from a zone's master.</para></entry>
+</row>
+<row rowsep = "0">
 <entry colname = "1"><para><command>allow-query</command></para></entry>
 <entry colname = "2"><para>Specifies which hosts are allowed to
 ask ordinary questions. <command>allow-query</command> may also
@@ -3094,7 +3138,7 @@ except zone transfers are performed using IPv6.</para></entry>
 which local source address, and optionally UDP port, will be used to
 send NOTIFY messages.
 This address must appear in the slave server's <command>masters</command>
-zone clause.
+zone clause or in an <command>allow-notify</command> clause.
 This statement sets the <command>notify-source</command> for all zones,
 but can be overridden on a per-zone / per-view basis by including a
 <command>notify-source</command> statement within the <command>zone</command>
@@ -3646,6 +3690,7 @@ view "external" {
 Statement Grammar</title>
       <programlisting>zone <replaceable>zone_name</replaceable> <optional><replaceable>class</replaceable></optional> <optional>{ 
     type ( master | slave | hint | stub | forward ) ;
+    <optional> allow-notify { <replaceable>address_match_list</replaceable> } ; </optional>
     <optional> allow-query { <replaceable>address_match_list</replaceable> } ; </optional>
     <optional> allow-transfer { <replaceable>address_match_list</replaceable> } ; </optional>
     <optional> allow-update { <replaceable>address_match_list</replaceable> } ; </optional>
@@ -3660,7 +3705,7 @@ Statement Grammar</title>
     <optional> ixfr-base <replaceable>string</replaceable> ; </optional>
     <optional> ixfr-tmp-file <replaceable>string</replaceable> ; </optional>
     <optional> maintain-ixfr-base <replaceable>yes_or_no</replaceable> ; </optional>
-    <optional> masters <optional>port <replaceable>ip_port</replaceable></optional> { <replaceable>ip_addr</replaceable> ; <optional><replaceable>ip_addr</replaceable> <optional>port <replaceable>ip_port</replaceable></optional> ; <optional>...</optional></optional> } ; </optional>
+    <optional> masters <optional>port <replaceable>ip_port</replaceable></optional> { <replaceable>ip_addr</replaceable> <optional>port <replaceable>ip_port</replaceable></optional> <optional>key <replaceable>key</replaceable></optional>; <optional>...</optional> } ; </optional>
     <optional> max-ixfr-log-size <replaceable>number</replaceable> ; </optional>
     <optional> max-transfer-idle-in <replaceable>number</replaceable> ; </optional>
     <optional> max-transfer-idle-out <replaceable>number</replaceable> ; </optional>
@@ -3700,6 +3745,7 @@ of master servers that the slave contacts to update its copy of the zone.
 By default, transfers are made from port 53 on the servers; this can
 be changed for all servers by specifying a port number before the
 list of IP addresses, or on a per-server basis after the IP address.
+Authentication to the master can also be done with per-server TSIG keys.
 If a file is specified, then the
 replica will be written to this file whenever the zone is changed,
 and reloaded from this file on a server restart. Use of a file is
@@ -3759,9 +3805,12 @@ Classes other than IN have no built-in defaults hints.</para></entry>
 </tbody>
 </tgroup></informaltable></sect3>
 <sect3><title>Class</title>
-<para>The zone's name may optionally be followed by a class. If
-a class is not specified, class <literal>IN</literal> (for <varname>Internet</varname>),
-is assumed. This is correct for the vast majority of cases.</para>
+<para>In general <command>class</command> can now be omitted from
+a <command>zone's</command> definition.
+It is now inherited for the enclosing <command>view</command> or if
+there is no explicit <command>view</command>, from the default 
+<command>view</command> which is <literal>IN</literal>
+(for <varname>Internet</varname>).</para>
 <para>The <literal>hesiod</literal> class is
 named for an information service from MIT's Project Athena. It is
 used to share information about various systems databases, such
@@ -3778,6 +3827,11 @@ in the mid-1970s. Zone data for it can be specified with the <literal>CHAOS</lit
             <colspec colname = "1" colnum = "1" colsep = "0" colwidth = "1.653in"/>
             <colspec colname = "2" colnum = "2" colsep = "0" colwidth = "2.847in"/>
             <tbody>
+              <row rowsep = "0">
+                <entry colname = "1"><para><command>allow-notify</command></para></entry>
+                <entry colname = "2"><para>See the description of
+<command>allow-notify</command> in <xref linkend="access_control"/></para></entry>
+              </row>
               <row rowsep = "0">
                 <entry colname = "1"><para><command>allow-query</command></para></entry>
                 <entry colname = "2"><para>See the description of
@@ -4607,7 +4661,9 @@ and not part of the standard zone file format.</para>
 <chapter id="ch07"><title><acronym>BIND</acronym> 9 Security Considerations</title>
 <sect1 id="Access_Control_Lists"><title>Access Control Lists</title>
 <para>Access Control Lists (ACLs), are address match lists that
-you can set up and nickname for future use in <command>allow-query</command>, <command>allow-recursion</command>, <command>blackhole</command>, <command>allow-transfer</command>,
+you can set up and nickname for future use in <command>allow-notify</command>,
+<command>allow-query</command>, <command>allow-recursion</command>,
+<command>blackhole</command>, <command>allow-transfer</command>,
 etc.</para>
 <para>Using ACLs allows you to have finer control over who can access
 your nameserver, without cluttering up your config files with huge

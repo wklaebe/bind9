@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dighost.c,v 1.168 2000/12/02 05:13:37 gson Exp $ */
+/* $Id: dighost.c,v 1.174 2000/12/11 19:15:45 bwelling Exp $ */
 
 /*
  * Notice to programmers:  Do not use this code as an example of how to
@@ -132,14 +132,14 @@ isc_uint32_t rr_limit = INT_MAX;
  * Can I get rid of these using shutdown events?  XXX
  */
 #define LOCK_LOOKUP {\
-        debug("lock_lookup %s:%d", __FILE__, __LINE__);\
-        check_result(isc_mutex_lock((&lookup_lock)), "isc_mutex_lock");\
-        debug("success");\
+	debug("lock_lookup %s:%d", __FILE__, __LINE__);\
+	check_result(isc_mutex_lock((&lookup_lock)), "isc_mutex_lock");\
+	debug("success");\
 }
 #define UNLOCK_LOOKUP {\
-        debug("unlock_lookup %s:%d", __FILE__, __LINE__);\
-        check_result(isc_mutex_unlock((&lookup_lock)),\
-                     "isc_mutex_unlock");\
+	debug("unlock_lookup %s:%d", __FILE__, __LINE__);\
+	check_result(isc_mutex_unlock((&lookup_lock)),\
+		     "isc_mutex_unlock");\
 }
 
 static void
@@ -161,7 +161,7 @@ next_token(char **stringp, const char *delim) {
 			break;
 	} while (*res == '\0');
 	return (res);
-}                       
+}
 
 static int
 count_dots(char *string) {
@@ -196,13 +196,14 @@ hex_dump(isc_buffer_t *b) {
 
 
 isc_result_t
-get_reverse(char reverse[MXNAME], char *value, isc_boolean_t nibble) {
+get_reverse(char *reverse, char *value, isc_boolean_t nibble) {
 	int adrs[4];
 	char working[MXNAME];
 	int i, n;
 	isc_result_t result;
 
 	result = DNS_R_BADDOTTEDQUAD;
+	reverse[0] = 0;
 
 	debug("get_reverse(%s)", value);
 	if (strspn(value, "0123456789.") == strlen(value)) {
@@ -339,8 +340,10 @@ make_empty_lookup(void) {
 	looknew->pending = ISC_TRUE;
 	looknew->textname[0] = 0;
 	looknew->cmdline[0] = 0; /* Not copied in clone_lookup! */
-	looknew->rdtype = dns_rdatatype_a;
-	looknew->rdclass = dns_rdataclass_in;
+	looknew->rdtype = dns_rdatatype_none;
+	looknew->rdclass = dns_rdataclass_none;
+	looknew->rdtypeset = ISC_FALSE;
+	looknew->rdclassset = ISC_FALSE;
 	looknew->sendspace = NULL;
 	looknew->sendmsg = NULL;
 	looknew->name = NULL;
@@ -404,6 +407,8 @@ clone_lookup(dig_lookup_t *lookold, isc_boolean_t servers) {
 	looknew->textname[MXNAME-1]=0;
 	looknew->rdtype = lookold->rdtype;
 	looknew->rdclass = lookold->rdclass;
+	looknew->rdtypeset = lookold->rdtypeset;
+	looknew->rdclassset = lookold->rdclassset;
 	looknew->doing_xfr = lookold->doing_xfr;
 	looknew->ixfr_serial = lookold->ixfr_serial;
 	looknew->defname = lookold->defname;
@@ -416,7 +421,7 @@ clone_lookup(dig_lookup_t *lookold, isc_boolean_t servers) {
 	looknew->dnssec = lookold->dnssec;
 	looknew->udpsize = lookold->udpsize;
 	looknew->recurse = lookold->recurse;
-        looknew->aaonly = lookold->aaonly;
+	looknew->aaonly = lookold->aaonly;
 	looknew->adflag = lookold->adflag;
 	looknew->cdflag = lookold->cdflag;
 	looknew->ns_search_only = lookold->ns_search_only;
@@ -637,7 +642,7 @@ setup_system(void) {
 							ptr,
 							MXNAME);
 						search->origin[MXNAME-1]=0;
-						ISC_LIST_APPENDUNSAFE
+						ISC_LIST_INITANDAPPEND
 							(search_list,
 							 search,
 							 link);
@@ -661,7 +666,7 @@ setup_system(void) {
 							ptr,
 							MXNAME - 1);
 						search->origin[MXNAME-1]=0;
-						ISC_LIST_PREPENDUNSAFE
+						ISC_LIST_INITANDPREPEND
 							(search_list,
 							 search,
 							 link);
@@ -1005,7 +1010,7 @@ followup_lookup(dns_message_t *msg, dig_query_t *query,
 		if ((section == DNS_SECTION_ANSWER) &&
 		    (query->lookup->trace || query->lookup->ns_search_only))
 			followup_lookup(msg, query, DNS_SECTION_AUTHORITY);
-                return;
+		return;
 	}
 
 	debug("following up %s", query->lookup->textname);
@@ -1383,6 +1388,15 @@ setup_lookup(dig_lookup_t *lookup) {
 		 */
 		lookup->tcp_mode = ISC_TRUE;
 	}
+
+	/*
+	 * Change NONE lookups to something meaningful.
+	 */
+	if (!lookup->rdtypeset)
+		lookup->rdtype = dns_rdatatype_a;
+	if (!lookup->rdclassset)
+		lookup->rdclass = dns_rdataclass_in;
+
 	add_question(lookup->sendmsg, lookup->name, lookup->rdclass,
 		     lookup->rdtype);
 
@@ -2672,7 +2686,7 @@ destroy_libs(void) {
 	if (taskmgr != NULL) {
 		debug("freeing taskmgr");
 		isc_taskmgr_destroy(&taskmgr);
-        }
+	}
 	LOCK_LOOKUP;
 	REQUIRE(sockcount == 0);
 	REQUIRE(recvcount == 0);

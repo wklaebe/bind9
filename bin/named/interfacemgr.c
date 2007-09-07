@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: interfacemgr.c,v 1.51 2000/09/26 18:26:18 gson Exp $ */
+/* $Id: interfacemgr.c,v 1.54 2000/12/15 01:07:52 gson Exp $ */
 
 #include <config.h>
 
@@ -172,7 +172,7 @@ static isc_result_t
 ns_interface_create(ns_interfacemgr_t *mgr, isc_sockaddr_t *addr,
 		    const char *name, ns_interface_t **ifpret)
 {
-        ns_interface_t *ifp;
+	ns_interface_t *ifp;
 	isc_result_t result;
 
 	REQUIRE(NS_INTERFACEMGR_VALID(mgr));
@@ -252,9 +252,9 @@ ns_interface_listenudp(ns_interface_t *ifp) {
 				     4096, 1000, 32768, 8219, 8237,
 				     attrs, attrmask, &ifp->udpdispatch);
 	if (result != ISC_R_SUCCESS) {
-		UNEXPECTED_ERROR(__FILE__, __LINE__,
-				 "UDP dns_dispatch_create(): %s",
-				 isc_result_totext(result));
+		isc_log_write(IFMGR_COMMON_LOGARGS, ISC_LOG_ERROR,
+			      "could not listen on UDP socket: %s",
+			      isc_result_totext(result));
 		goto udp_dispatch_failure;
 	}
 
@@ -419,13 +419,13 @@ ns_interface_detach(ns_interface_t **targetp) {
  */
 static ns_interface_t *
 find_matching_interface(ns_interfacemgr_t *mgr, isc_sockaddr_t *addr) {
-        ns_interface_t *ifp;
-        for (ifp = ISC_LIST_HEAD(mgr->interfaces); ifp != NULL;
+	ns_interface_t *ifp;
+	for (ifp = ISC_LIST_HEAD(mgr->interfaces); ifp != NULL;
 	     ifp = ISC_LIST_NEXT(ifp, link)) {
 		if (isc_sockaddr_equal(&ifp->addr, addr))
 			break;
 	}
-        return (ifp);
+	return (ifp);
 }
 
 /*
@@ -433,8 +433,8 @@ find_matching_interface(ns_interfacemgr_t *mgr, isc_sockaddr_t *addr) {
  */
 static void
 purge_old_interfaces(ns_interfacemgr_t *mgr) {
-        ns_interface_t *ifp, *next;
-        for (ifp = ISC_LIST_HEAD(mgr->interfaces); ifp != NULL; ifp = next) {
+	ns_interface_t *ifp, *next;
+	for (ifp = ISC_LIST_HEAD(mgr->interfaces); ifp != NULL; ifp = next) {
 		INSIST(NS_INTERFACE_VALID(ifp));
 		next = ISC_LIST_NEXT(ifp, link);
 		if (ifp->generation != mgr->generation) {
@@ -548,7 +548,7 @@ do_ipv4(ns_interfacemgr_t *mgr) {
 			if (ifp != NULL) {
 				ifp->generation = mgr->generation;
 			} else {
-				char sabuf[256];
+				char sabuf[ISC_SOCKADDR_FORMATSIZE];
 				isc_sockaddr_format(&listen_sockaddr,
 						    sabuf, sizeof(sabuf));
 				isc_log_write(IFMGR_COMMON_LOGARGS,
@@ -681,11 +681,11 @@ ns_interfacemgr_scan(ns_interfacemgr_t *mgr, isc_boolean_t verbose) {
 			      verbose ? ISC_LOG_INFO : ISC_LOG_DEBUG(1),
 			      "no IPv4 interfaces found");
 
-        /*
-         * Now go through the interface list and delete anything that
-         * does not have the current generation number.  This is
-         * how we catch interfaces that go away or change their
-         * addresses.
+	/*
+	 * Now go through the interface list and delete anything that
+	 * does not have the current generation number.  This is
+	 * how we catch interfaces that go away or change their
+	 * addresses.
 	 */
 	purge_old_interfaces(mgr);
 

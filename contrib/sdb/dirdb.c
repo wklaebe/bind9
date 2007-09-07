@@ -15,7 +15,12 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dirdb.c,v 1.5 2000/11/20 19:49:59 bwelling Exp $ */
+/* $Id: dirdb.c,v 1.8 2000/12/10 07:53:11 gson Exp $ */
+
+/*
+ * A simple database driver that returns basic information about
+ * files and directories in the Unix file system as DNS data.
+ */
 
 #include <config.h>
 
@@ -34,9 +39,7 @@
 
 #include <named/globals.h>
 
-/*
- * A simple database driver that returns basic directory information.
- */
+#include "dirdb.h"
 
 static dns_sdbimplementation_t *dirdb = NULL;
 
@@ -176,7 +179,8 @@ static dns_sdbmethods_t dirdb_methods = {
 isc_result_t
 dirdb_init(void) {
 	unsigned int flags;
-	flags = DNS_SDBFLAG_RELATIVEOWNER | DNS_SDBFLAG_RELATIVERDATA;
+	flags = DNS_SDBFLAG_RELATIVEOWNER | DNS_SDBFLAG_RELATIVERDATA |
+		DNS_SDBFLAG_THREADSAFE;
 	return (dns_sdb_register("dir", &dirdb_methods, ns_g_mctx, flags,
 				 ns_g_mctx, &dirdb));
 }

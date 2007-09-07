@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: confctx.h,v 1.58 2000/11/25 02:43:52 marka Exp $ */
+/* $Id: confctx.h,v 1.60 2000/12/13 00:15:30 tale Exp $ */
 
 #ifndef DNS_CONFCTX_H
 #define DNS_CONFCTX_H 1
@@ -118,6 +118,7 @@ struct dns_c_options {
 	char		       *pid_filename;
 	char		       *stats_filename;
 	char		       *memstats_filename;
+	char		       *cache_filename;
 	char		       *named_xfer;
 	char		       *random_device;
 	char		       *random_seed_file;
@@ -156,7 +157,6 @@ struct dns_c_options {
 	isc_uint32_t	       *max_retry_time;
 	isc_uint32_t	       *min_refresh_time;
 	isc_uint32_t	       *max_refresh_time;
-
 
 	isc_boolean_t	       *expert_mode;
 	isc_boolean_t	       *fake_iquery;
@@ -202,6 +202,7 @@ struct dns_c_options {
 
 	dns_transfer_format_t  *transfer_format;
 
+	dns_c_ipmatchlist_t    *notifyacl;
 	dns_c_ipmatchlist_t    *queryacl;
 	dns_c_ipmatchlist_t    *transferacl;
 	dns_c_ipmatchlist_t    *recursionacl;
@@ -325,6 +326,11 @@ isc_result_t dns_c_ctx_setmemstatsfilename(dns_c_ctx_t *ctx,
 					   const char *newval);
 isc_result_t dns_c_ctx_getmemstatsfilename(dns_c_ctx_t *ctx, char **retval);
 isc_result_t dns_c_ctx_unsetmemstatsfilename(dns_c_ctx_t *ctx);
+
+
+isc_result_t dns_c_ctx_setcachefile(dns_c_ctx_t *ctx, const char *newval);
+isc_result_t dns_c_ctx_getcachefile(dns_c_ctx_t *ctx, char **retval);
+isc_result_t dns_c_ctx_unsetcachefile(dns_c_ctx_t *ctx);
 
 
 isc_result_t dns_c_ctx_setnamedxfer(dns_c_ctx_t *ctx, const char *newval);
@@ -506,7 +512,6 @@ isc_result_t dns_c_ctx_setmaxrefreshtime(dns_c_ctx_t *cfg,
 isc_result_t dns_c_ctx_getmaxrefreshtime(dns_c_ctx_t *cfg,
 					 isc_uint32_t *retval);
 isc_result_t dns_c_ctx_unsetmaxrefreshtime(dns_c_ctx_t *cfg);
-
 
 isc_result_t dns_c_ctx_setmaxncachettl(dns_c_ctx_t *cfg, isc_uint32_t newval);
 isc_result_t dns_c_ctx_getmaxncachettl(dns_c_ctx_t *cfg, isc_uint32_t *retval);
@@ -732,6 +737,11 @@ isc_result_t dns_c_ctx_gettransferformat(dns_c_ctx_t *cfg,
 					 dns_transfer_format_t *tformat);
 isc_result_t dns_c_ctx_unsettransferformat(dns_c_ctx_t *cfg);
 
+isc_result_t dns_c_ctx_setallownotify(dns_c_ctx_t *cfg,
+				      dns_c_ipmatchlist_t *iml);
+isc_result_t dns_c_ctx_getallownotify(dns_c_ctx_t *cfg,
+				      dns_c_ipmatchlist_t **list);
+isc_result_t dns_c_ctx_unsetallownotify(dns_c_ctx_t *cfg);
 
 isc_result_t dns_c_ctx_setallowquery(dns_c_ctx_t *cfg,
 				     dns_c_ipmatchlist_t *iml);

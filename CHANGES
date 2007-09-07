@@ -1,4 +1,173 @@
 
+	--- 9.1.0b2 released ---
+
+ 641.	[bug]		$GENERATE caused a uninitialized link to be used.
+			[RT #595]
+
+ 640.	[bug]		Memory leak in error path could cause
+			"mpctx->allocated == 0" failure. [RT #584]
+
+ 639.	[bug]		Reading entropy from the keyboard would sometimes fail.
+			[RT #591]
+
+ 638.	[port]		lib/isc/random.c needed to explicitly include
+			time.h explicitly to get a prototype for time() when
+			pthreads was not being used. [RT #592]
+
+ 637.	[port]		Use isc_u?int64_t instead of (unsigned) long long in
+			lib/isc/print.c.  Also allow lib/isc/print.c to
+			be compiled even if the platform does not need it.
+			[RT #592]
+
+ 636.	[port]		Shut up MSVC++ about a possible loss of precision
+			in the ISC__BUFFER_PUTUINT*() macros. [RT #592]
+
+ 635.	[bug]		Reloading a server with a configured blackhole list
+			would cause an assertion. [RT #590]
+
+ 634.	[bug]		A log file will completely stop being written when
+			it reaches the maximum size in all cases, not just
+			when versioning is also enabled. [RT #570]
+
+ 633.	[port]		Cope with rlim_t missing on BSD/OS systems. [RT #575]
+
+ 632.	[bug]		The index array of the journal file was 
+			corrupted as it was written to disk.
+
+ 631.	[port]		Build without thread support on systems without
+			pthreads.
+
+ 630.	[bug]		Locking failure in zone code. [RT #582]
+
+ 629.	[bug]		9.1.0b1 dereferenced a null pointer and crashed
+			when responding to a UDP IXFR request.
+
+ 628.	[bug]		If the root hints contained only AAAA addresses,
+			named would be unable to perform resolution.
+
+ 627.	[bug]		The EDNS0 blackhole detection code of changed 324
+			waited for three retransmissions to each server,
+			which takes much too long when a domain has many
+			name servers and all of them drop EDNS0 queries.
+			Now we retry without EDNS0 after three consecutive
+			timeouts, even if they are all from different
+			servers. [RT #143]
+
+ 626.	[bug]		The lightweight resolver daemon no longer crashes
+			when asked for a SIG rrset. [RT #558]
+
+ 625.	[func]		Zones now inherit their class from the enclosing view.
+
+ 624.	[bug]		The zone object could get timer events after it had
+			been destroyed, causing a server crash. [RT #571]
+
+ 623.	[func]		Added "named-checkconf" and "named-checkzone" program
+			for syntax checking named.conf files and zone files,
+			respectively.
+
+ 622.	[bug]		A canceled request could be destroyed before
+			dns_request_destroy() was called. [RT #562]
+
+ 621.	[port]		Disable IPv6 at runtime if IPv6 sockets are unusable.
+			This mostly affects Red Hat Linux 7.0, which has
+			conflicts between libc and the kernel.
+
+ 620.	[bug]		dns_master_load*inc() now require 'task' and 'load'
+			to be non-null.	 Also 'done' will not be called if
+			dns_master_load*inc() fails immediately. [RT #565]
+
+ 618.	[bug]		Queries to a signed zone could sometimes cause
+			an assertion failure.
+
+ 617.	[bug]		When using dynamic update to add a new RR to an
+			existing RRset with a different TTL, the journal
+			entries generated from the update did not include
+			explicit deletions and re-additions of the existing
+			RRs to update their TTL to the new value.
+
+ 616.	[func]		dnssec-signzone -t output now includes performance
+			statistics.
+
+ 615.	[bug]		dnssec-signzone did not like child keysets signed 
+			by multiple keys.
+
+ 614.	[bug]		Checks for uninitialized link fields were prone
+			to false positives, causing assertion failures.
+			The checks are now disabled by default and may
+			be re-enabled by defining ISC_LIST_CHECKINIT.
+
+ 613.	[bug]		"rndc reload zone" now reloads primary zones.
+			It previously only updated slave and stub zones,
+			if an SOA query indicated an out of date serial.
+
+ 612.	[cleanup]	Shutup a ridiculously noisy HP-UX compiler that
+			complains relentlessly about how its treatment
+			of 'const' has changed as well as how casting
+			sometimes tightens alignment constraints.
+
+ 611.	[func]		allow-notify can be used to permit processing of
+			notify messages from hosts other than a slave's
+			masters.
+
+ 610.	[func]		rndc dumpdb is now supported.
+
+ 609.	[bug]		getrrsetbyname() would crash lwresd if the server
+			found more SIGs than answers. [RT #554]
+
+ 608.	[func]		dnssec-signzone now adds a comment to the zone
+			with the time the file was signed.
+
+ 607.	[bug]		nsupdate would fail if it encountered a CNAME or
+			DNAME in a response to an SOA query. [RT #515]
+
+ 606.	[bug]		Compiling with --disable-threads failed due
+			to isc_thread_self() being incorrectly defined
+			as an integer rather than a function.
+
+ 605.	[func]		New function isc_lex_getlasttokentext().
+
+ 604.	[bug]		The named.conf parser could print incorrect line
+			numbers when long comments were present.
+
+ 603.	[bug]		Make dig handle multiple types or classes on the same
+			query more correctly.
+
+ 602.	[func]		Cope automatically with UnixWare's broken
+			IN6_IS_ADDR_* macros. [RT #539]
+
+ 601.	[func]		Return a non-zero exit code if an update fails
+			in nsupdate.
+
+ 600.	[bug]		Reverse lookups sometimes failed in dig, etc...
+
+ 599.	[func]		Added four new functions to the libisc log API to
+			support i18n messages.	isc_log_iwrite(),
+			isc_log_ivwrite(), isc_log_iwrite1() and
+			isc_log_ivwrite1() were added.
+
+ 598.	[bug]		An update-policy statement would cause the server
+			to assert while loading. [RT #536]
+
+ 597.	[func]		dnssec-signzone is now multithreaded.
+
+ 596.	[bug]		DNS_RDATASLAB_FORCE and DNS_RDATASLAB_EXACT are
+			not mutually exclusive.
+
+ 595.	[port]		On Linux 2.2, socket() returns EINVAL when it
+			should return EAFNOSUPPORT.  Work around this.
+			[RT #531]
+
+ 594.	[func]		sdb drivers are now assumed to not be thread-safe
+			unless the DNS_SDBFLAG_THREADSAFE flag is supplied.
+
+ 593.	[bug]		If a secure zone was missing all its NXTs and
+			a dynamic update was attempted, the server entered
+			an infinite loop.
+
+ 592.	[bug]		The sig-validity-interval option now specifies a
+			number of days, not seconds.  This matches the
+			documentation. [RT #529]
+
 	--- 9.1.0b1 released ---
 
  591.	[bug]		Work around non-reentrancy in openssl by disabling
@@ -189,7 +358,7 @@
  530.	[func]		New function dns_rdata_invalidate().
 
  529.	[bug]		521 contained a bug which caused zones to always
-			reload.  [RT #410]
+			reload.	 [RT #410]
 	
  528.	[func]		The ISC_LIST_XXXX macros now perform sanity checks
 			on their arguements.  ISC_LIST_XXXXUNSAFE can be use
@@ -614,6 +783,8 @@
 			warning and then later throwing an assertion.
 			[RT #252]
 
+ 401.	[func]		Added simple database API.
+
  400.	[bug]		SIG(0) signing and verifying was done incorrectly.
 			[RT #249]
 
@@ -808,6 +979,14 @@
  342.	[bug]		The wrong name was being passed to
 			dns_name_dup() when generating a TSIG
 			key using TKEY.
+
+ 341.	[func]		Support 'key' clause in named.conf zone masters
+			statement to allow authentication via TSIG keys:
+
+				masters {
+					10.0.0.1 port 5353 key "foo";
+					10.0.0.2 ;
+				};
 
  340.	[bug]		The top-level COPYRIGHT file was missing from
 			the distribution.

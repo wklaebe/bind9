@@ -1,0 +1,5 @@
+usr/bin/dig
+usr/bin/nslookup
+usr/bin/nsupdate
+usr/share/man/man1
+usr/share/man/man8/nsupdate.8

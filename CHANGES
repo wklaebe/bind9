@@ -1,4 +1,25 @@
 
+	--- 9.2.4rc8 released ---
+
+1709.	[port]		solaris: add SMF support from Sun.
+
+1708.	[cleanup]	Replaced dns_fullname_hash() with dns_name_fullhash()
+			for conformance to the name space convention.  Binary
+			backward compatibility to the old function name is
+			provided. [RT #12376]
+
+1707.	[contrib]	sdb/ldap updated to version 1.0-beta.
+
+1704.	[port]		lwres needed a snprintf() implementation for
+			platforms without snprintf(). [RT #12321]
+
+1701.	[doc]		A minimal named.conf man page.
+
+1700.	[func]		nslookup is no longer to be treated as deprecated.
+			Remove "deprecated" warning message.  Add man page.
+
+1698.	[doc]		Use reserved IPv6 documentation prefix.
+
 	--- 9.2.4rc7 released ---
 
 1694.	[bug]		Report if the builtin views of "_default" / "_bind"

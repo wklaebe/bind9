@@ -1,0 +1,91 @@
+/* config.h.in.  Generated automatically from configure.in by autoheader.  */
+/*
+ * Copyright (C) 1999  Internet Software Consortium.
+ * 
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ * 
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
+ * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
+ * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
+ * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+ * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
+ * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
+ * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
+ * SOFTWARE.
+ */
+
+/***
+ *** This file is not to be included by any public header files, because
+ *** it does not get installed.
+ ***/
+
+/* Define to empty if the keyword does not work.  */
+#undef const
+
+/* Define as __inline if that's what the C compiler calls it.  */
+#undef inline
+
+/* Define to `unsigned' if <sys/types.h> doesn't define.  */
+#undef size_t
+
+/* Define if you have the ANSI C header files.  */
+#undef STDC_HEADERS
+
+/* Define if you can safely include both <sys/time.h> and <time.h>.  */
+#undef TIME_WITH_SYS_TIME
+
+/* define on DEC OSF to enable 4.4BSD style sa_len support */
+#undef _SOCKADDR_LEN
+
+/* define if your system needs pthread_init() before using pthreads */
+#undef NEED_PTHREAD_INIT
+
+/* define if your system has sigwait() */
+#undef HAVE_SIGWAIT
+
+/* define on Solaris to get sigwait() to work using pthreads semantics */
+#undef _POSIX_PTHREAD_SEMANTICS
+
+/* define if LinuxThreads is in use */
+#undef HAVE_LINUXTHREADS
+
+/* define if catgets() is available */
+#undef HAVE_CATGETS
+
+/* define if you have the NET_RT_IFLIST sysctl variable. */
+#undef HAVE_IFLIST_SYSCTL
+
+/* define if chroot() is available */
+#undef HAVE_CHROOT
+
+/* Define if you have the <fcntl.h> header file.  */
+#undef HAVE_FCNTL_H
+
+/* Define if you have the <linux/capability.h> header file.  */
+#undef HAVE_LINUX_CAPABILITY_H
+
+/* Define if you have the <netinet6/in6.h> header file.  */
+#undef HAVE_NETINET6_IN6_H
+
+/* Define if you have the <sys/sockio.h> header file.  */
+#undef HAVE_SYS_SOCKIO_H
+
+/* Define if you have the <sys/time.h> header file.  */
+#undef HAVE_SYS_TIME_H
+
+/* Define if you have the <unistd.h> header file.  */
+#undef HAVE_UNISTD_H
+
+/* Define if you have the c_r library (-lc_r).  */
+#undef HAVE_LIBC_R
+
+/* Define if you have the nsl library (-lnsl).  */
+#undef HAVE_LIBNSL
+
+/* Define if you have the pthread library (-lpthread).  */
+#undef HAVE_LIBPTHREAD
+
+/* Define if you have the socket library (-lsocket).  */
+#undef HAVE_LIBSOCKET

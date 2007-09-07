@@ -1,0 +1,68 @@
+# Copyright (C) 1998, 1999, 2000  Internet Software Consortium.
+# 
+# Permission to use, copy, modify, and distribute this software for any
+# purpose with or without fee is hereby granted, provided that the above
+# copyright notice and this permission notice appear in all copies.
+# 
+# THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
+# ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
+# OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
+# CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+# DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
+# PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
+# ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
+# SOFTWARE.
+
+srcdir =	@srcdir@
+VPATH =		@srcdir@
+top_srcdir =	@top_srcdir@
+
+@BIND9_VERSION@
+
+@BIND9_INCLUDES@
+
+CINCLUDES =	-I${srcdir}/include -I${srcdir}/unix/include \
+		${DNS_INCLUDES} ${ISC_INCLUDES} ${OMAPI_INCLUDES}
+
+CDEFINES =	
+CWARNINGS =
+
+DEPLIBS =	../../lib/dns/libdns.@A@ \
+		../../lib/omapi/libomapi.@A@ \
+		../../lib/isc/libisc.@A@
+
+LIBS =		${DEPLIBS} \
+		@LIBS@
+
+SUBDIRS =	unix
+
+TARGETS =	named
+
+OBJS =		client.@O@ interfacemgr.@O@ listenlist.@O@ \
+		log.@O@ main.@O@ notify.@O@ omapi.@O@ \
+		query.@O@ server.@O@ update.@O@ xfrout.@O@
+
+UOBJS =		unix/os.@O@
+
+SRCS =		client.c interfacemgr.c listenlist.c \
+		log.c main.c notify.c omapi.c \
+		query.c server.c update.c xfrout.c
+
+@BIND9_MAKE_RULES@
+
+main.@O@: main.c
+	${CC} ${ALL_CFLAGS} -DVERSION=\"${VERSION}\" -c ${srcdir}/main.c
+
+named: ${OBJS} ${UOBJS} ${DEPLIBS}
+	${LIBTOOL} ${CC} -o $@ ${OBJS} ${UOBJS} ${LIBS}
+
+clean distclean::
+	rm -f ${TARGETS}
+
+installdirs:
+	if [ ! -d ${sbindir} ]; then \
+		mkdir ${sbindir}; \
+	fi
+
+install:: named installdirs
+	${LIBTOOL} ${INSTALL_PROGRAM} named ${sbindir}

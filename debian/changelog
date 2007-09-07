@@ -1,3 +1,11 @@
+bind9 (1:9.3.2-P1-2) unstable; urgency=low
+
+  * Fix init script output.  Closes: #354192
+    Thanks to Joey Hess for the patch.
+  * Default install should listen on ipv6 interfaces.  Closes: #382438
+
+ -- LaMont Jones <lamont@debian.org>  Sat,  9 Sep 2006 19:01:53 -0600
+
 bind9 (1:9.3.2-P1-1) unstable; urgency=high
 
   * New upstream, fixes CVE-2006-4095 and CVE-2006-4096.

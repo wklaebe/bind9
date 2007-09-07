@@ -16,7 +16,7 @@ DISTRO=$(lsb_release -is 2>/dev/null || echo Debian)
 
 case "$1" in
     start)
-	log_daemon_msg "Starting domain name service..."
+	log_daemon_msg "Starting domain name service..." "bind"
 
 	modprobe capability >/dev/null 2>&1 || true
 
@@ -35,23 +35,25 @@ case "$1" in
 	    if [ "X$RESOLVCONF" != "Xno" ] && [ -x /sbin/resolvconf ] ; then
 		echo "nameserver 127.0.0.1" | /sbin/resolvconf -a lo.named
 	    fi
+	    log_end_msg 0
+	else
+	    log_end_msg 1
 	fi
-	log_end_msg 0
     ;;
 
     stop)
-	log_daemon_msg "Stopping domain name service..."
+	log_daemon_msg "Stopping domain name service..." "bind"
 	if [ "X$RESOLVCONF" != "Xno" ] && [ -x /sbin/resolvconf ] ; then
 	    /sbin/resolvconf -d lo.named
 	fi
 	/usr/sbin/rndc stop
-	log_end_msg 0	
+	log_end_msg $?
     ;;
 
     reload|force-reload)
-	log_daemon_msg "Reloading domain name service..."
-	/usr/sbin/rndc reload
-	log_end_msg 0
+	log_daemon_msg "Reloading domain name service..." "bind"
+	/usr/sbin/rndc reload >/dev/null
+	log_end_msg $?
     ;;
 
     restart)

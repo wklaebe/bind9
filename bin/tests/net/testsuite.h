@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: testsuite.h,v 1.3.4.1 2001/01/09 22:34:26 bwelling Exp $ */
+/* $Id: testsuite.h,v 1.4 2001/01/09 21:42:09 bwelling Exp $ */
 
 #define SUITENAME "net"
 

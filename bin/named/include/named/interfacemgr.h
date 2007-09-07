@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: interfacemgr.h,v 1.21.4.1 2001/01/09 22:32:26 bwelling Exp $ */
+/* $Id: interfacemgr.h,v 1.22 2001/01/09 21:40:14 bwelling Exp $ */
 
 #ifndef NAMED_INTERFACEMGR_H
 #define NAMED_INTERFACEMGR_H 1

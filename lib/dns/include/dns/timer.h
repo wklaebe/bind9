@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: timer.h,v 1.1.4.1 2001/01/09 22:46:22 bwelling Exp $ */
+/* $Id: timer.h,v 1.2 2001/01/09 21:53:34 bwelling Exp $ */
 
 #ifndef DNS_TIMER_H
 #define DNS_TIMER_H 1

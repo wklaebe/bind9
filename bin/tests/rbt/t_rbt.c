@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: t_rbt.c,v 1.22.4.1 2001/01/09 22:34:28 bwelling Exp $ */
+/* $Id: t_rbt.c,v 1.23 2001/01/09 21:42:11 bwelling Exp $ */
 
 #include <config.h>
 

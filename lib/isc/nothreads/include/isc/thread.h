@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: thread.h,v 1.2.2.1 2001/01/09 22:50:54 bwelling Exp $ */
+/* $Id: thread.h,v 1.3 2001/01/09 21:57:57 bwelling Exp $ */
 
 #ifndef ISC_THREAD_H
 #define ISC_THREAD_H 1

@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: fsaccess.c,v 1.5.4.1 2001/01/09 22:51:48 bwelling Exp $ */
+/* $Id: fsaccess.c,v 1.6 2001/01/09 21:58:51 bwelling Exp $ */
 
 #include <windows.h>
 #include <winerror.h>

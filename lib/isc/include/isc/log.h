@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: log.h,v 1.35.2.1 2001/01/09 22:50:04 bwelling Exp $ */
+/* $Id: log.h,v 1.38 2001/03/05 12:34:02 tale Exp $ */
 
 #ifndef ISC_LOG_H
 #define ISC_LOG_H 1
@@ -138,6 +138,7 @@ extern isc_logmodule_t isc_modules[];
 #define ISC_LOGCATEGORY_GENERAL	(&isc_categories[1])
 
 #define ISC_LOGMODULE_SOCKET (&isc_modules[0])
+#define ISC_LOGMODULE_TIME (&isc_modules[1])
 
 ISC_LANG_BEGINDECLS
 
@@ -507,7 +508,7 @@ ISC_FORMAT_PRINTF(5, 6);
  * Write a message to the log channels.
  *
  * Notes:
- *	Log message containing natural language text should be logged with
+ *	Log messages containing natural language text should be logged with
  *	isc_log_iwrite() to allow for localization.
  *
  *	lctx can be NULL; this is allowed so that programs which use

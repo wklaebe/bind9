@@ -13,7 +13,7 @@
 # NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
 # WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: Makefile.in,v 1.2.4.1 2001/01/09 22:50:44 bwelling Exp $
+# $Id: Makefile.in,v 1.4 2001/01/09 21:57:47 bwelling Exp $
 
 srcdir =	@srcdir@
 VPATH =		@srcdir@
@@ -28,9 +28,9 @@ CINCLUDES =	-I${srcdir}/include \
 CDEFINES =
 CWARNINGS =
 
-OBJS =		condition.@O@ thread.@O@
+OBJS =		condition.@O@ mutex.@O@ thread.@O@
 
-SRCS =		condition.c thread.c
+SRCS =		condition.c mutex.c thread.c
 
 SUBDIRS =	include
 TARGETS =	${OBJS}

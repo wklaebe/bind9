@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rbtdb.h,v 1.12.4.1 2001/01/09 22:43:59 bwelling Exp $ */
+/* $Id: rbtdb.h,v 1.13 2001/01/09 21:51:16 bwelling Exp $ */
 
 #ifndef DNS_RBTDB_H
 #define DNS_RBTDB_H 1

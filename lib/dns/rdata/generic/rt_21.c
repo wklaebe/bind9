@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rt_21.c,v 1.32.4.1 2001/01/09 22:47:32 bwelling Exp $ */
+/* $Id: rt_21.c,v 1.36 2001/03/16 22:53:00 bwelling Exp $ */
 
 /* reviewed: Thu Mar 16 15:02:31 PST 2000 by brister */
 
@@ -34,12 +34,13 @@ fromtext_rt(ARGS_FROMTEXT) {
 
 	REQUIRE(type == 21);
 
+	UNUSED(type);
 	UNUSED(rdclass);
 
 	RETERR(isc_lex_getmastertoken(lexer, &token, isc_tokentype_number,
 				      ISC_FALSE));
 	if (token.value.as_ulong > 0xffff)
-		return (ISC_R_RANGE);
+		RETTOK(ISC_R_RANGE);
 	RETERR(uint16_tobuffer(token.value.as_ulong, target));
 
 	RETERR(isc_lex_getmastertoken(lexer, &token, isc_tokentype_string,
@@ -48,7 +49,8 @@ fromtext_rt(ARGS_FROMTEXT) {
 	dns_name_init(&name, NULL);
 	buffer_fromregion(&buffer, &token.value.as_region);
 	origin = (origin != NULL) ? origin : dns_rootname;
-	return (dns_name_fromtext(&name, &buffer, origin, downcase, target));
+	RETTOK(dns_name_fromtext(&name, &buffer, origin, downcase, target));
+	return (ISC_R_SUCCESS);
 }
 
 static inline isc_result_t
@@ -84,6 +86,8 @@ fromwire_rt(ARGS_FROMWIRE) {
 	isc_region_t tregion;
 
 	REQUIRE(type == 21);
+
+	UNUSED(type);
 	UNUSED(rdclass);
 
 	dns_decompress_setmethods(dctx, DNS_COMPRESS_NONE);
@@ -105,6 +109,7 @@ fromwire_rt(ARGS_FROMWIRE) {
 static inline isc_result_t
 towire_rt(ARGS_TOWIRE) {
 	dns_name_t name;
+	dns_offsets_t offsets;
 	isc_region_t region;
 	isc_region_t tr;
 
@@ -120,7 +125,7 @@ towire_rt(ARGS_TOWIRE) {
 	isc_region_consume(&region, 2);
 	isc_buffer_add(target, 2);
 
-	dns_name_init(&name, NULL);
+	dns_name_init(&name, offsets);
 	dns_name_fromregion(&name, &region);
 
 	return (dns_name_towire(&name, cctx, target));
@@ -169,6 +174,7 @@ fromstruct_rt(ARGS_FROMSTRUCT) {
 	REQUIRE(rt->common.rdtype == type);
 	REQUIRE(rt->common.rdclass == rdclass);
 
+	UNUSED(type);
 	UNUSED(rdclass);
 
 	RETERR(uint16_tobuffer(rt->preference, target));
@@ -219,12 +225,13 @@ freestruct_rt(ARGS_FREESTRUCT) {
 static inline isc_result_t
 additionaldata_rt(ARGS_ADDLDATA) {
 	dns_name_t name;
+	dns_offsets_t offsets;
 	isc_region_t region;
 	isc_result_t result;
 
 	REQUIRE(rdata->type == 21);
 
-	dns_name_init(&name, NULL);
+	dns_name_init(&name, offsets);
 	dns_rdata_toregion(rdata, &region);
 	isc_region_consume(&region, 2);
 	dns_name_fromregion(&name, &region);

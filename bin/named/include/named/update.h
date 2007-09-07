@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: update.h,v 1.7.4.1 2001/01/09 22:32:45 bwelling Exp $ */
+/* $Id: update.h,v 1.8 2001/01/09 21:40:33 bwelling Exp $ */
 
 #ifndef NAMED_UPDATE_H
 #define NAMED_UPDATE_H 1

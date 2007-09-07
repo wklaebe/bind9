@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: net.h,v 1.11.4.1 2001/01/09 22:52:01 bwelling Exp $ */
+/* $Id: net.h,v 1.12 2001/01/09 21:59:04 bwelling Exp $ */
 
 #ifndef ISC_NET_H
 #define ISC_NET_H 1

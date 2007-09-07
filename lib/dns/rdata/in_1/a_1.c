@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: a_1.c,v 1.41.4.1 2001/01/09 22:47:53 bwelling Exp $ */
+/* $Id: a_1.c,v 1.45 2001/03/16 22:53:11 bwelling Exp $ */
 
 /* Reviewed: Thu Mar 16 16:52:50 PST 2000 by bwelling */
 
@@ -37,6 +37,7 @@ fromtext_in_a(ARGS_FROMTEXT) {
 	REQUIRE(type == 1);
 	REQUIRE(rdclass == 1);
 
+	UNUSED(type);
 	UNUSED(origin);
 	UNUSED(downcase);
 	UNUSED(rdclass);
@@ -45,7 +46,7 @@ fromtext_in_a(ARGS_FROMTEXT) {
 				      ISC_FALSE));
 
 	if (inet_aton(token.value.as_pointer, &addr) != 1)
-		return (DNS_R_BADDOTTEDQUAD);
+		RETTOK(DNS_R_BADDOTTEDQUAD);
 	isc_buffer_availableregion(target, &region);
 	if (region.length < 4)
 		return (ISC_R_NOSPACE);
@@ -64,13 +65,8 @@ totext_in_a(ARGS_TOTEXT) {
 
 	UNUSED(tctx);
 
-	isc_buffer_availableregion(target, &region);
-	if (inet_ntop(AF_INET, rdata->data,
-			  (char *)region.base, region.length) == NULL)
-		return (ISC_R_NOSPACE);
-
-	isc_buffer_add(target, strlen((char *)region.base));
-	return (ISC_R_SUCCESS);
+	dns_rdata_toregion(rdata, &region);
+	return (inet_totext(AF_INET, &region, target));
 }
 
 static inline isc_result_t
@@ -81,6 +77,7 @@ fromwire_in_a(ARGS_FROMWIRE) {
 	REQUIRE(type == 1);
 	REQUIRE(rdclass == 1);
 
+	UNUSED(type);
 	UNUSED(dctx);
 	UNUSED(downcase);
 	UNUSED(rdclass);
@@ -144,6 +141,7 @@ fromstruct_in_a(ARGS_FROMSTRUCT) {
 	REQUIRE(a->common.rdtype == type);
 	REQUIRE(a->common.rdclass == rdclass);
 
+	UNUSED(type);
 	UNUSED(rdclass);
 
 	n = ntohl(a->in_addr.s_addr);

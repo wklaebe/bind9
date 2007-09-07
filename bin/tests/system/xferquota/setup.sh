@@ -15,7 +15,7 @@
 # NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
 # WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: setup.sh,v 1.10.4.1 2001/01/09 22:38:36 bwelling Exp $
+# $Id: setup.sh,v 1.11 2001/01/09 21:45:58 bwelling Exp $
 
 #
 # Set up test data for zone transfer quota tests.

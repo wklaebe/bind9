@@ -16,7 +16,7 @@
  */
 
 /*
- * $Id: dbtable.c,v 1.22.4.2 2001/01/12 01:04:59 gson Exp $
+ * $Id: dbtable.c,v 1.24 2001/01/12 00:31:50 marka Exp $
  */
 
 /*

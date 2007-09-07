@@ -18,7 +18,7 @@
 #ifndef GENERIC_LOC_29_H
 #define GENERIC_LOC_29_H 1
 
-/* $Id: loc_29.h,v 1.13.4.1 2001/01/09 22:46:58 bwelling Exp $ */
+/* $Id: loc_29.h,v 1.14 2001/01/09 21:54:09 bwelling Exp $ */
 
 /* RFC 1876 */
 

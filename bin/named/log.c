@@ -15,11 +15,13 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: log.c,v 1.27.2.2 2001/06/15 01:41:11 bwelling Exp $ */
+/* $Id: log.c,v 1.32 2001/05/28 05:16:55 marka Exp $ */
 
 #include <config.h>
 
 #include <isc/result.h>
+
+#include <isccfg/log.h>
 
 #include <named/log.h>
 
@@ -33,6 +35,7 @@ static isc_logcategory_t categories[] = {
 	{ "network",	 		0 },
 	{ "update",	 		0 },
 	{ "queries",	 		0 },
+	{ "unmatched",	 		0 },
 	{ NULL, 			0 }
 };
 
@@ -50,7 +53,7 @@ static isc_logmodule_t modules[] = {
 	{ "xfer-in",	 		0 },
 	{ "xfer-out",	 		0 },
 	{ "notify",	 		0 },
-	{ "omapi",	 		0 },
+	{ "control",	 		0 },
 	{ "lwresd",	 		0 },
 	{ NULL, 			0 }
 };
@@ -75,6 +78,7 @@ ns_log_init(isc_boolean_t safe) {
 	isc_log_setcontext(ns_g_lctx);
 	dns_log_init(ns_g_lctx);
 	dns_log_setcontext(ns_g_lctx);
+	cfg_log_init(ns_g_lctx);
 
 	if (safe)
 		result = ns_log_setsafechannels(lcfg);
@@ -144,15 +148,13 @@ ns_log_setsafechannels(isc_logconfig_t *lcfg) {
 					       NULL, 0);
 		if (result != ISC_R_SUCCESS)
 			goto cleanup;
-
-		/*
-		 * Setting the debug level to zero should get the output
-		 * discarded a bit faster.
-		 */
-		isc_log_setdebuglevel(ns_g_lctx, 0);
-	} else {
-		isc_log_setdebuglevel(ns_g_lctx, ns_g_debuglevel);
 	}
+
+	/*
+	 * Setting the debug level to zero should get the output
+	 * discarded a bit faster.
+	 */
+	isc_log_setdebuglevel(ns_g_lctx, 0);
 
 	result = ISC_R_SUCCESS;
 
@@ -177,6 +179,15 @@ ns_log_setdefaultcategory(isc_logconfig_t *lcfg) {
 	result = ISC_R_SUCCESS;
 
  cleanup:
+	return (result);
+}
+
+isc_result_t
+ns_log_setunmatchedcategory(isc_logconfig_t *lcfg) {
+	isc_result_t result;
+
+	result = isc_log_usechannel(lcfg, "null",
+				    NS_LOGCATEGORY_UNMATCHED, NULL);
 	return (result);
 }
 

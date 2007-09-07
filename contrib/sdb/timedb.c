@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: timedb.c,v 1.6.4.1 2001/01/09 22:39:09 bwelling Exp $ */
+/* $Id: timedb.c,v 1.7 2001/01/09 21:46:30 bwelling Exp $ */
 
 /*
  * A simple database driver that enables the server to return the

@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: stdtime.c,v 1.9.4.2 2001/02/14 23:01:07 gson Exp $ */
+/* $Id: stdtime.c,v 1.11 2001/02/13 13:24:09 marka Exp $ */
 
 #include <config.h>
 

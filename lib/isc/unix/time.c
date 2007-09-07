@@ -15,16 +15,18 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: time.c,v 1.29.4.1 2001/01/09 22:51:29 bwelling Exp $ */
+/* $Id: time.c,v 1.33 2001/02/24 10:22:20 marka Exp $ */
 
 #include <config.h>
 
 #include <errno.h>
 #include <limits.h>
+#include <syslog.h>
 #include <time.h>
 
 #include <sys/time.h>	/* Required for struct timeval on some platforms. */
 
+#include <isc/log.h>
 #include <isc/string.h>
 #include <isc/time.h>
 #include <isc/util.h>
@@ -40,12 +42,42 @@
  * need an initialized type.
  */
 
+#ifndef ISC_FIX_TV_USEC
+#define ISC_FIX_TV_USEC 1
+#endif
+
 /***
  *** Intervals
  ***/
 
 static isc_interval_t zero_interval = { 0, 0 };
 isc_interval_t *isc_interval_zero = &zero_interval;
+
+#if ISC_FIX_TV_USEC
+static inline void
+fix_tv_usec(struct timeval *tv) {
+	isc_boolean_t fixed = ISC_FALSE;
+
+	if (tv->tv_usec < 0) {
+		fixed = ISC_TRUE;
+		do {
+			tv->tv_sec -= 1;
+			tv->tv_usec += US_PER_S;
+		} while (tv->tv_usec < 0);
+	} else if (tv->tv_usec >= US_PER_S) {
+		fixed = ISC_TRUE;
+		do {
+			tv->tv_sec += 1;
+			tv->tv_usec -= US_PER_S;
+		} while (tv->tv_usec >=US_PER_S);
+	}
+	/*
+	 * Call syslog directly as was are called from the logging functions.
+	 */
+	if (fixed)
+		syslog(LOG_ERR, "gettimeofday returned bad tv_usec: corrected");
+}
+#endif
 
 void
 isc_interval_set(isc_interval_t *i,
@@ -130,6 +162,7 @@ isc_time_isepoch(isc_time_t *t) {
 	return (ISC_FALSE);
 }
 
+
 isc_result_t
 isc_time_now(isc_time_t *t) {
 	struct timeval tv;
@@ -152,8 +185,14 @@ isc_time_now(isc_time_t *t) {
 	 * happening are pretty much zero, but since the libisc library ensures
 	 * certain things to be true ...
 	 */
+#if ISC_FIX_TV_USEC
+	fix_tv_usec(&tv);
+	if (tv.tv_sec < 0)
+		return (ISC_R_UNEXPECTED);
+#else
 	if (tv.tv_sec < 0 || tv.tv_usec < 0 || tv.tv_usec >= US_PER_S)
 		return (ISC_R_UNEXPECTED);
+#endif
 
 	/*
 	 * Ensure the tv_sec value fits in t->seconds.
@@ -192,8 +231,14 @@ isc_time_nowplusinterval(isc_time_t *t, isc_interval_t *i) {
 	 * happening are pretty much zero, but since the libisc library ensures
 	 * certain things to be true ...
 	 */
+#if ISC_FIX_TV_USEC
+	fix_tv_usec(&tv);
+	if (tv.tv_sec < 0)
+		return (ISC_R_UNEXPECTED);
+#else
 	if (tv.tv_sec < 0 || tv.tv_usec < 0 || tv.tv_usec >= US_PER_S)
 		return (ISC_R_UNEXPECTED);
+#endif
 
 	/*
 	 * Ensure the resulting seconds value fits in the size of an

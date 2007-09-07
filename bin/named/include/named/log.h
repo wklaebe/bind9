@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: log.h,v 1.16.4.1 2001/01/09 22:32:28 bwelling Exp $ */
+/* $Id: log.h,v 1.19 2001/05/28 05:17:02 marka Exp $ */
 
 #ifndef NAMED_LOG_H
 #define NAMED_LOG_H 1
@@ -32,6 +32,7 @@
 #define NS_LOGCATEGORY_NETWORK		(&ns_g_categories[2])
 #define NS_LOGCATEGORY_UPDATE		(&ns_g_categories[3])
 #define NS_LOGCATEGORY_QUERIES		(&ns_g_categories[4])
+#define NS_LOGCATEGORY_UNMATCHED	(&ns_g_categories[5])
 
 /*
  * Backwards compatibility.
@@ -47,7 +48,7 @@
 #define NS_LOGMODULE_XFER_IN		(&ns_g_modules[6])
 #define NS_LOGMODULE_XFER_OUT		(&ns_g_modules[7])
 #define NS_LOGMODULE_NOTIFY		(&ns_g_modules[8])
-#define NS_LOGMODULE_OMAPI		(&ns_g_modules[9])
+#define NS_LOGMODULE_CONTROL		(&ns_g_modules[9])
 #define NS_LOGMODULE_LWRESD		(&ns_g_modules[10])
 
 isc_result_t
@@ -80,6 +81,12 @@ isc_result_t
 ns_log_setdefaultcategory(isc_logconfig_t *lcfg);
 /*
  * Set up "category default" to go to the right places.
+ */
+
+isc_result_t
+ns_log_setunmatchedcategory(isc_logconfig_t *lcfg);
+/*
+ * Set up "category unmatched" to go to the right places.
  */
 
 void

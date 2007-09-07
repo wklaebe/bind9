@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: zone_test.c,v 1.22.4.2 2001/01/24 00:05:23 gson Exp $ */
+/* $Id: zone_test.c,v 1.26 2001/01/22 22:29:36 gson Exp $ */
 
 #include <config.h>
 

@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: name_test.c,v 1.32.4.1 2001/01/09 22:33:34 bwelling Exp $ */
+/* $Id: name_test.c,v 1.33 2001/01/09 21:41:20 bwelling Exp $ */
 
 #include <config.h>
 

@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: null_10.c,v 1.30.4.2 2001/06/20 23:16:38 marka Exp $ */
+/* $Id: null_10.c,v 1.32 2001/03/16 22:52:55 bwelling Exp $ */
 
 /* Reviewed: Thu Mar 16 13:57:50 PST 2000 by explorer */
 
@@ -26,6 +26,8 @@
 
 static inline isc_result_t
 fromtext_null(ARGS_FROMTEXT) {
+	REQUIRE(type == 10);
+
 	UNUSED(rdclass);
 	UNUSED(type);
 	UNUSED(lexer);
@@ -33,18 +35,16 @@ fromtext_null(ARGS_FROMTEXT) {
 	UNUSED(downcase);
 	UNUSED(target);
 
-	REQUIRE(type == 10);
-
 	return (DNS_R_SYNTAX);
 }
 
 static inline isc_result_t
 totext_null(ARGS_TOTEXT) {
+	REQUIRE(rdata->type == 10);
+
 	UNUSED(rdata);
 	UNUSED(tctx);
 	UNUSED(target);
-
-	REQUIRE(rdata->type == 10);
 
 	return (DNS_R_SYNTAX);
 }
@@ -53,11 +53,12 @@ static inline isc_result_t
 fromwire_null(ARGS_FROMWIRE) {
 	isc_region_t sr;
 
+	REQUIRE(type == 10);
+
+	UNUSED(type);
 	UNUSED(rdclass);
 	UNUSED(dctx);
 	UNUSED(downcase);
-
-	REQUIRE(type == 10);
 
 	isc_buffer_activeregion(source, &sr);
 	isc_buffer_forward(source, sr.length);
@@ -66,9 +67,9 @@ fromwire_null(ARGS_FROMWIRE) {
 
 static inline isc_result_t
 towire_null(ARGS_TOWIRE) {
-	UNUSED(cctx);
-
 	REQUIRE(rdata->type == 10);
+
+	UNUSED(cctx);
 
 	return (mem_tobuffer(target, rdata->data, rdata->length));
 }
@@ -81,6 +82,8 @@ compare_null(ARGS_COMPARE) {
 	REQUIRE(rdata1->type == rdata1->type);
 	REQUIRE(rdata1->rdclass == rdata2->rdclass);
 	REQUIRE(rdata1->type == 10);
+	REQUIRE(rdata1->length != 0);
+	REQUIRE(rdata2->length != 0);
 
 	dns_rdata_toregion(rdata1, &r1);
 	dns_rdata_toregion(rdata2, &r2);
@@ -98,6 +101,7 @@ fromstruct_null(ARGS_FROMSTRUCT) {
 	REQUIRE((null->data != NULL && null->length != 0) ||
 		(null->data == NULL && null->length == 0));
 
+	UNUSED(type);
 	UNUSED(rdclass);
 
 	return (mem_tobuffer(target, null->data, null->length));

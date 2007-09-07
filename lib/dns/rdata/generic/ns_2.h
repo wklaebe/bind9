@@ -18,7 +18,7 @@
 #ifndef GENERIC_NS_2_H
 #define GENERIC_NS_2_H 1
 
-/* $Id: ns_2.h,v 1.21.4.1 2001/01/09 22:47:17 bwelling Exp $ */
+/* $Id: ns_2.h,v 1.22 2001/01/09 21:54:27 bwelling Exp $ */
 
 typedef struct dns_rdata_ns {
 	dns_rdatacommon_t	common;

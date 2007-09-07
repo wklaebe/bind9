@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: fixedname.h,v 1.11.4.1 2001/01/09 22:45:38 bwelling Exp $ */
+/* $Id: fixedname.h,v 1.12 2001/01/09 21:52:51 bwelling Exp $ */
 
 #ifndef DNS_FIXEDNAME_H
 #define DNS_FIXEDNAME_H 1

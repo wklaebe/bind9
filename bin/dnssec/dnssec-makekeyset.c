@@ -17,7 +17,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dnssec-makekeyset.c,v 1.45.4.2 2001/03/26 19:11:53 gson Exp $ */
+/* $Id: dnssec-makekeyset.c,v 1.52 2001/05/10 06:04:56 bwelling Exp $ */
 
 #include <config.h>
 
@@ -97,6 +97,32 @@ usage(void) {
 	fprintf(stderr, "Output:\n");
 	fprintf(stderr, "\tkeyset (keyset-<name>)\n");
 	exit(0);
+}
+
+static isc_boolean_t
+zonekey_on_list(dst_key_t *key) {
+	keynode_t *keynode;
+	for (keynode = ISC_LIST_HEAD(keylist);
+	     keynode != NULL;
+	     keynode = ISC_LIST_NEXT(keynode, link))
+	{
+		if (dst_key_compare(keynode->key, key))
+			return (ISC_TRUE);
+	}
+	return (ISC_FALSE);
+}
+
+static isc_boolean_t
+rdata_on_list(dns_rdata_t *rdata, dns_rdatalist_t *list) {
+	dns_rdata_t *trdata;
+	for (trdata = ISC_LIST_HEAD(list->rdata);
+	     trdata != NULL;
+	     trdata = ISC_LIST_NEXT(trdata, link))
+	{
+		if (dns_rdata_compare(trdata, rdata) == 0)
+			return (ISC_TRUE);
+	}
+	return (ISC_FALSE);
 }
 
 int
@@ -220,7 +246,6 @@ main(int argc, char *argv[]) {
 
 	for (i = 0; i < argc; i++) {
 		char namestr[DNS_NAME_FORMATSIZE];
-		dns_fixedname_t fname;
 		isc_buffer_t namebuf;
 
 		key = NULL;
@@ -232,14 +257,10 @@ main(int argc, char *argv[]) {
 			rdatalist.rdclass = dst_key_class(key);
 
 		isc_buffer_init(&namebuf, namestr, sizeof namestr);
-		dns_fixedname_init(&fname);
-		dns_name_downcase(dst_key_name(key),
-				  dns_fixedname_name(&fname),
-				  NULL);
-		result = dns_name_totext(dns_fixedname_name(&fname),
-					 ISC_FALSE,
-					 &namebuf);
-		check_result(result, "dns_name_totext");
+		result = dns_name_tofilenametext(dst_key_name(key),
+						 ISC_FALSE,
+						 &namebuf);
+		check_result(result, "dns_name_tofilenametext");
 		isc_buffer_putuint8(&namebuf, 0);
 		
 		if (savedname == NULL) {
@@ -272,27 +293,26 @@ main(int argc, char *argv[]) {
 		if (domain == NULL) {
 			dns_fixedname_init(&fdomain);
 			domain = dns_fixedname_name(&fdomain);
-			isc_buffer_init(&b, namestr, strlen(namestr));
-			isc_buffer_add(&b, strlen(namestr));
-			result = dns_name_fromtext(domain, &b, dns_rootname,
-						   ISC_FALSE, NULL);
-			if (result != ISC_R_SUCCESS)
-				fatal("%s is not a valid name: %s",
-				      namestr, isc_result_totext(result));
+			dns_name_copy(dst_key_name(key), domain, NULL);
 		}
 		if (dst_key_iszonekey(key)) {
 			dst_key_t *zonekey = NULL;
 			result = dst_key_fromnamedfile(argv[i],
+						       DST_TYPE_PUBLIC |
 						       DST_TYPE_PRIVATE,
 						       mctx, &zonekey);
 			if (result != ISC_R_SUCCESS)
 				fatal("failed to read private key %s: %s",
 				      argv[i], isc_result_totext(result));
-			keynode = isc_mem_get(mctx, sizeof (keynode_t));
-			if (keynode == NULL)
-				fatal("out of memory");
-			keynode->key = zonekey;
-			ISC_LIST_INITANDAPPEND(keylist, keynode, link);
+			if (!zonekey_on_list(zonekey)) {
+				keynode = isc_mem_get(mctx,
+						      sizeof (keynode_t));
+				if (keynode == NULL)
+					fatal("out of memory");
+				keynode->key = zonekey;
+				ISC_LIST_INITANDAPPEND(keylist, keynode, link);
+			} else
+				dst_key_free(&zonekey);
 		}
 		rdata = isc_mem_get(mctx, sizeof(dns_rdata_t));
 		if (rdata == NULL)
@@ -309,7 +329,12 @@ main(int argc, char *argv[]) {
 		isc_buffer_usedregion(&b, &r);
 		dns_rdata_fromregion(rdata, rdatalist.rdclass,
 				     dns_rdatatype_key, &r);
-		ISC_LIST_APPEND(rdatalist.rdata, rdata, link);
+		if (!rdata_on_list(rdata, &rdatalist))
+			ISC_LIST_APPEND(rdatalist.rdata, rdata, link);
+		else {
+			isc_mem_put(mctx, data, BUFSIZE);
+			isc_mem_put(mctx, rdata, sizeof *rdata);
+		}
 		dst_key_free(&key);
 	}
 
@@ -368,7 +393,7 @@ main(int argc, char *argv[]) {
 	}
 
 	db = NULL;
-	result = dns_db_create(mctx, "rbt", domain, dns_dbtype_zone,
+	result = dns_db_create(mctx, "rbt", dns_rootname, dns_dbtype_zone,
 			       rdataset.rdclass, 0, NULL, &db);
 	if (result != ISC_R_SUCCESS) {
 		char domainstr[DNS_NAME_FORMATSIZE];

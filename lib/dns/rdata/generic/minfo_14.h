@@ -18,7 +18,7 @@
 #ifndef GENERIC_MINFO_14_H
 #define GENERIC_MINFO_14_H 1
 
-/* $Id: minfo_14.h,v 1.21.4.1 2001/01/09 22:47:10 bwelling Exp $ */
+/* $Id: minfo_14.h,v 1.22 2001/01/09 21:54:21 bwelling Exp $ */
 
 typedef struct dns_rdata_minfo {
 	dns_rdatacommon_t	common;

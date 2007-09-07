@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: ncache.c,v 1.23.4.1 2001/01/09 22:43:52 bwelling Exp $ */
+/* $Id: ncache.c,v 1.24 2001/01/09 21:51:08 bwelling Exp $ */
 
 #include <config.h>
 

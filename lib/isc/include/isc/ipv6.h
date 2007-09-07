@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: ipv6.h,v 1.16.4.1 2001/01/09 22:49:56 bwelling Exp $ */
+/* $Id: ipv6.h,v 1.17 2001/01/09 21:57:02 bwelling Exp $ */
 
 #ifndef ISC_IPV6_H
 #define ISC_IPV6_H 1

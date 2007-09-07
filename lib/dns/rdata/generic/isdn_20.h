@@ -18,7 +18,7 @@
 #ifndef GENERIC_ISDN_20_H
 #define GENERIC_ISDN_20_H 1
 
-/* $Id: isdn_20.h,v 1.12.4.1 2001/01/09 22:46:53 bwelling Exp $ */
+/* $Id: isdn_20.h,v 1.13 2001/01/09 21:54:05 bwelling Exp $ */
 
 /* RFC 1183 */
 

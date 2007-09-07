@@ -13,7 +13,7 @@
 # NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
 # WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: clean.sh,v 1.1.4.1 2001/01/09 22:35:37 bwelling Exp $
+# $Id: clean.sh,v 1.2 2001/01/09 21:43:10 bwelling Exp $
 
 #
 # Clean up after forward tests.

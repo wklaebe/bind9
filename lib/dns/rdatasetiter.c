@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rdatasetiter.c,v 1.10.4.1 2001/01/09 22:44:08 bwelling Exp $ */
+/* $Id: rdatasetiter.c,v 1.11 2001/01/09 21:51:24 bwelling Exp $ */
 
 #include <config.h>
 

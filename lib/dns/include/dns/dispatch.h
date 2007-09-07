@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dispatch.h,v 1.37.4.1 2001/01/09 22:45:34 bwelling Exp $ */
+/* $Id: dispatch.h,v 1.45 2001/04/30 18:09:28 gson Exp $ */
 
 #ifndef DNS_DISPATCH_H
 #define DNS_DISPATCH_H 1
@@ -32,6 +32,7 @@
  * MP:
  *
  *     	All locking is performed internally to each dispatch.
+ * 	Restrictions apply to dns_dispatch_removeresponse().
  *
  * Reliability:
  *
@@ -61,7 +62,7 @@
 ISC_LANG_BEGINDECLS
 
 /*
- * This event is sent to a task when a response (or request) comes in.
+ * This event is sent to a task when a response comes in.
  * No part of this structure should ever be modified by the caller,
  * other than parts of the buffer.  The holy parts of the buffer are
  * the base and size of the buffer.  All other parts of the buffer may
@@ -105,8 +106,8 @@ struct dns_dispatchevent {
  * _IPV4, _IPV6
  *	The dispatcher uses an ipv4 or ipv6 socket.
  *
- * _ACCEPTREQUEST
- *	The dispatcher can be used to accept requests.
+ * _NOLISTEN
+ *	The dispatcher should not listen on the socket.
  *
  * _MAKEQUERY
  *	The dispatcher can be used to issue queries to other servers, and
@@ -117,7 +118,7 @@ struct dns_dispatchevent {
 #define DNS_DISPATCHATTR_UDP		0x00000004U
 #define DNS_DISPATCHATTR_IPV4		0x00000008U
 #define DNS_DISPATCHATTR_IPV6		0x00000010U
-#define DNS_DISPATCHATTR_ACCEPTREQUEST	0x00000020U
+#define DNS_DISPATCHATTR_NOLISTEN	0x00000020U
 #define DNS_DISPATCHATTR_MAKEQUERY	0x00000040U
 #define DNS_DISPATCHATTR_CONNECTED	0x00000080U
 
@@ -157,8 +158,8 @@ dns_dispatchmgr_destroy(dns_dispatchmgr_t **mgrp);
 void
 dns_dispatchmgr_setblackhole(dns_dispatchmgr_t *mgr, dns_acl_t *blackhole);
 /*
- * Sets the list of addresses that will be blackholed (ignored)
- * by all dispatchers created by the dispatchmgr.
+ * Sets the dispatcher's "blackhole list," a list of addresses that will
+ * be ignored by all dispatchers created by the dispatchmgr.
  *
  * Requires:
  * 	mgrp is a valid dispatchmgr
@@ -166,42 +167,16 @@ dns_dispatchmgr_setblackhole(dns_dispatchmgr_t *mgr, dns_acl_t *blackhole);
  */
 
 
-isc_result_t
-dns_dispatchmgr_getblackhole(dns_dispatchmgr_t *mgr, dns_acl_t **blackholep);
+dns_acl_t *
+dns_dispatchmgr_getblackhole(dns_dispatchmgr_t *mgr);
 /*
- * Gets the list of addresses that will be blackholed (ignored)
- * by all dispatchers created by the dispatchmgr.
+ * Gets a pointer to the dispatcher's current blackhole list,
+ * without incrementing its reference count.
  *
  * Requires:
  * 	mgr is a valid dispatchmgr
- * 	blackholep != NULL && *blackholep == NULL
- */
-
-isc_result_t
-dns_dispatchmgr_find(dns_dispatchmgr_t *mgr,
-		     isc_sockaddr_t *local, isc_sockaddr_t *remote,
-		     unsigned int attributes, unsigned int mask,
-		     dns_dispatch_t **dispp);
-/*
- * Search for a dispatcher that has the attributes specified by
- *	(attributes & mask)
- *
- * Requires:
- *	"mgr" be a valid dispatchmgr.
- *
- *	dispp != NULL && *dispp == NULL.
- *
- * Ensures:
- *	The dispatcher returned into *dispp is attached on behalf of the
- *	caller.  It is required that the caller detach from it when it is
- *	no longer needed.
- *
  * Returns:
- *	ISC_R_SUCCESS	-- found.
- *
- *	ISC_R_NOTFOUND	-- no dispatcher matching the requirements found.
- *
- *	anything else	-- failure.
+ *	A pointer to the current blackhole list, or NULL.
  */
 
 
@@ -363,62 +338,9 @@ dns_dispatch_removeresponse(dns_dispentry_t **resp,
  * Requires:
  *	"resp" != NULL and "*resp" contain a value previously allocated
  *	by dns_dispatch_addresponse();
- */
-
-
-isc_result_t
-dns_dispatch_addrequest(dns_dispatch_t *disp,
-			isc_task_t *task, isc_taskaction_t action, void *arg,
-			dns_dispentry_t **resp);
-/*
- * Arranges for the given task to get a callback for request packets.  When
- * the event is delivered, it must be returned using dns_dispatch_freeevent()
- * or through dns_dispatch_removerequest() for another to be delivered.
  *
- * Requires:
- *	disp is valid.
- *
- *	task, action, and arg is valid.
- *
- *	resp != NULL && *resp == NULL
- *
- * Returns:
- *	ISC_R_SUCCESS	-- success.
- *
- *	Anything else	-- failure.
- */
-
-
-void
-dns_dispatch_removerequest(dns_dispentry_t **resp,
-			   dns_dispatchevent_t **sockevent);
-/*
- * Stops the flow of requests for the provided id and destination.
- * If "sockevent" is non-NULL, the dispatch event and associated buffer is
- * also returned to the system.
- *
- * Requires:
- *	resp != NULL and *resp is valid.
- *
- *	If sockevent != NULL, *sockevent must is valid.
- */
-
-
-void
-dns_dispatch_freeevent(dns_dispatch_t *disp, dns_dispentry_t *resp,
-		       dns_dispatchevent_t **sockevent);
-/*
- * Return a dispatchevent and associated buffer to the dispatch.  This needs
- * to be called if more events are desired but a particular event is fully
- * processed, and the associated buffer is no longer needed.
- *
- * Requires:
- *	disp is valid.
- *
- *	resp is valid.
- *
- *	sockevent != NULL && *sockevent is valid.
- *	
+ *	May only be called from within the task given as the 'task' 
+ * 	argument to dns_dispatch_addresponse() when allocating '*resp'.
  */
 
 
@@ -434,6 +356,20 @@ dns_dispatch_getsocket(dns_dispatch_t *disp);
  *	The socket the dispatcher is using.
  */
 
+isc_result_t 
+dns_dispatch_getlocaladdress(dns_dispatch_t *disp, isc_sockaddr_t *addrp);
+/*
+ * Return the local address for this dispatch.
+ * This currently only works for dispatches using UDP sockets.
+ *
+ * Requires:
+ *	disp is valid.
+ *	addrp to be non null.
+ *
+ * Returns:
+ *	ISC_R_SUCCESS	
+ *	ISC_R_NOTIMPLEMENTED
+ */
 
 void
 dns_dispatch_cancel(dns_dispatch_t *disp);
@@ -460,6 +396,18 @@ dns_dispatch_changeattributes(dns_dispatch_t *disp,
  *
  *	attributes are reasonable for the dispatch.  That is, setting the UDP
  *	attribute on a TCP socket isn't reasonable.
+ */
+
+void
+dns_dispatch_importrecv(dns_dispatch_t *disp, isc_event_t *event);
+/*
+ * Inform the dispatcher of a socket receive.  This is used for sockets
+ * shared between dispatchers and clients.  If the dispatcher fails to copy
+ * or send the event, nothing happens.
+ *
+ * Requires:
+ * 	disp is valid, and the attribute DNS_DISPATCHATTR_NOLISTEN is set.
+ * 	event != NULL
  */
 
 ISC_LANG_ENDDECLS

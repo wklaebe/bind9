@@ -15,7 +15,7 @@
 # NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
 # WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: setup.sh,v 1.2.4.1 2001/01/09 22:37:57 bwelling Exp $
+# $Id: setup.sh,v 1.3 2001/01/09 21:45:20 bwelling Exp $
 
 cp ns1/example.orig ns1/example.db
 rm -f ns1/example.db.jnl ns2/example.bk ns2/example.bk.jnl

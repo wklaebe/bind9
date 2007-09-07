@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: errno2result.c,v 1.6.4.1 2001/01/09 22:51:11 bwelling Exp $ */
+/* $Id: errno2result.c,v 1.7 2001/01/09 21:58:15 bwelling Exp $ */
 
 #include <config.h>
 

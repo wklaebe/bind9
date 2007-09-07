@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: buffer.c,v 1.35.4.1 2001/01/09 22:48:48 bwelling Exp $ */
+/* $Id: buffer.c,v 1.36 2001/01/09 21:55:56 bwelling Exp $ */
 
 #include <config.h>
 

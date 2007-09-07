@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: quota.h,v 1.7.4.1 2001/01/09 22:50:18 bwelling Exp $ */
+/* $Id: quota.h,v 1.8 2001/01/09 21:57:22 bwelling Exp $ */
 
 #ifndef ISC_QUOTA_H
 #define ISC_QUOTA_H 1

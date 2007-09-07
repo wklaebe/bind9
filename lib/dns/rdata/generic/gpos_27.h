@@ -18,7 +18,7 @@
 #ifndef GENERIC_GPOS_27_H
 #define GENERIC_GPOS_27_H 1
 
-/* $Id: gpos_27.h,v 1.11.4.1 2001/01/09 22:46:49 bwelling Exp $ */
+/* $Id: gpos_27.h,v 1.12 2001/01/09 21:54:00 bwelling Exp $ */
 
 /* RFC 1712 */
 

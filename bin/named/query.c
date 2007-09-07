@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: query.c,v 1.163.2.5 2001/05/01 20:33:12 gson Exp $ */
+/* $Id: query.c,v 1.195 2001/05/19 00:08:21 gson Exp $ */
 
 #include <config.h>
 
@@ -24,6 +24,8 @@
 #include <isc/mem.h>
 #include <isc/util.h>
 
+#include <dns/adb.h>
+#include <dns/byaddr.h>
 #include <dns/db.h>
 #include <dns/events.h>
 #include <dns/message.h>
@@ -62,6 +64,10 @@
 				  NS_QUERYATTR_WANTRECURSION) != 0)
 #define WANTDNSSEC(c)		(((c)->query.attributes & \
 				  NS_QUERYATTR_WANTDNSSEC) != 0)
+#define NOAUTHORITY(c)		(((c)->query.attributes & \
+				  NS_QUERYATTR_NOAUTHORITY) != 0)
+#define NOADDITIONAL(c)		(((c)->query.attributes & \
+				  NS_QUERYATTR_NOADDITIONAL) != 0)
 
 #if 0
 #define CTRACE(m)       isc_log_write(ns_g_lctx, \
@@ -82,6 +88,18 @@
 #define DNS_GETDB_NOEXACT 0x01U
 #define DNS_GETDB_NOLOG 0x02U
 
+static unsigned char ip6int_ndata[] = "\003ip6\003int";
+static unsigned char ip6int_offsets[] = { 0, 4, 8 };
+
+static dns_name_t ip6int_name = {
+	DNS_NAME_MAGIC,
+	ip6int_ndata, 9, 3,
+	DNS_NAMEATTR_READONLY | DNS_NAMEATTR_ABSOLUTE,
+	ip6int_offsets, NULL,
+	{(void *)-1, (void *)-1},
+	{NULL, NULL}
+};
+
 static isc_result_t
 query_simplefind(void *arg, dns_name_t *name, dns_rdatatype_t type,
 		 isc_stdtime_t now,
@@ -92,15 +110,43 @@ query_adda6rrset(void *arg, dns_name_t *name, dns_rdataset_t *rdataset,
 		      dns_rdataset_t *sigrdataset);
 
 static void
-query_find(ns_client_t *client, dns_fetchevent_t *event);
+query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype);
+
+static void
+synth_fwd_start(ns_client_t *client);
+
+static void
+synth_fwd_startfind(ns_client_t *client);
+
+static void
+synth_fwd_respond(ns_client_t *client, dns_adbfind_t *find);
+
+static void
+synth_fwd_finddone(isc_task_t *task, isc_event_t *ev);
+
+static void
+synth_finish(ns_client_t *client, isc_result_t result);
+
+static void
+synth_rev_start(ns_client_t *client);
+
+static void
+synth_rev_byaddrdone_arpa(isc_task_t *task, isc_event_t *event);
+
+static void
+synth_rev_byaddrdone_int(isc_task_t *task, isc_event_t *event);
+
+static void
+synth_rev_respond(ns_client_t *client, dns_byaddrevent_t *bevent);
 
 /*
  * Increment query statistics counters.
  */
-static void
-count_query(dns_zone_t *zone, isc_boolean_t is_zone, dns_statscounter_t counter)
+static inline void
+count_query(dns_zone_t *zone, isc_boolean_t is_zone,
+	    dns_statscounter_t counter)
 {
-	REQUIRE(counter < dns_stats_ncounters());
+	REQUIRE(counter < DNS_STATS_NCOUNTERS);
 
 	ns_g_server->querystats[counter]++;
 
@@ -194,9 +240,9 @@ query_reset(ns_client_t *client, isc_boolean_t everything) {
 	client->query.attributes = (NS_QUERYATTR_RECURSIONOK |
 				    NS_QUERYATTR_CACHEOK);
 	client->query.restarts = 0;
+	client->query.timerset = ISC_FALSE;
 	client->query.origqname = NULL;
 	client->query.qname = NULL;
-	client->query.qrdataset = NULL;
 	client->query.dboptions = 0;
 	client->query.fetchoptions = 0;
 	client->query.gluedb = NULL;
@@ -423,6 +469,7 @@ ns_query_init(ns_client_t *client) {
 	ISC_LIST_INIT(client->query.activeversions);
 	ISC_LIST_INIT(client->query.freeversions);
 	client->query.restarts = 0;
+	client->query.timerset = ISC_FALSE;
 	client->query.qname = NULL;
 	client->query.fetch = NULL;
 	client->query.authdb = NULL;
@@ -575,7 +622,12 @@ query_getzonedb(ns_client_t *client, dns_name_t *name, unsigned int options,
 
 	if (check_acl) {
 		isc_boolean_t log = ISC_TF((options & DNS_GETDB_NOLOG) == 0);
-		result = ns_client_checkacl(client, "query", queryacl,
+		char msg[DNS_NAME_FORMATSIZE + DNS_RDATACLASS_FORMATSIZE
+			 + sizeof "query '/'"];
+		
+		ns_client_aclmsg("query", name, client->view->rdclass,
+				 msg, sizeof(msg));
+		result = ns_client_checkacl(client, msg, queryacl,
 					    ISC_TRUE,
 					    log ? ISC_LOG_INFO : ISC_LOG_DEBUG(3));
 
@@ -666,10 +718,12 @@ query_getcachedb(ns_client_t *client, dns_db_t **dbp, unsigned int options)
 
 	if (check_acl) {
 		isc_boolean_t log = ISC_TF((options & DNS_GETDB_NOLOG) == 0);
-		result = ns_client_checkacl(client, "query",
+		
+		result = ns_client_checkacl(client, "query (cache)",
 					    client->view->queryacl,
 					    ISC_TRUE,
-					    log ? ISC_LOG_INFO : ISC_LOG_DEBUG(3));
+					    log ? ISC_LOG_INFO :
+						  ISC_LOG_DEBUG(3));
 		if (result == ISC_R_SUCCESS) {
 			/*
 			 * We were allowed by the default
@@ -893,7 +947,7 @@ query_isduplicate(ns_client_t *client, dns_name_t *name,
 	}
 
 	/*
-	 * If the dns_name_t we're lookup up is already in the message,
+	 * If the dns_name_t we're looking up is already in the message,
 	 * we don't want to trigger the caller's name replacement logic.
 	 */
 	if (name == mname)
@@ -1355,7 +1409,7 @@ query_adda6rrset(void *arg, dns_name_t *name, dns_rdataset_t *rdataset,
 			goto cleanup;
 	}
 
-	if (dns_name_concatenate(name, NULL, fname, NULL) != ISC_R_SUCCESS)
+	if (dns_name_copy(name, fname, NULL) != ISC_R_SUCCESS)
 		goto cleanup;
 	dns_rdataset_clone(rdataset, crdataset);
 	if (sigrdataset != NULL && dns_rdataset_isassociated(sigrdataset))
@@ -1414,6 +1468,10 @@ query_addrdataset(ns_client_t *client, dns_name_t *fname,
 	CTRACE("query_addrdataset");
 
 	ISC_LIST_APPEND(fname->list, rdataset, link);
+
+	if (NOADDITIONAL(client))
+		return;
+
 	/*
 	 * Add additional data.
 	 *
@@ -1445,8 +1503,6 @@ query_addrdataset(ns_client_t *client, dns_name_t *fname,
 	}
 	CTRACE("query_addrdataset: done");
 }
-
-#define ANSWERED(rds)	(((rds)->attributes & DNS_RDATASETATTR_ANSWERED) != 0)
 
 static void
 query_addrrset(ns_client_t *client, dns_name_t **namep,
@@ -1703,8 +1759,8 @@ query_addns(ns_client_t *client, dns_db_t *db) {
 }
 
 static inline isc_result_t
-query_addcname(ns_client_t *client, dns_name_t *qname, dns_name_t *tname,
-	       dns_ttl_t ttl, dns_name_t **anamep)
+query_addcnamelike(ns_client_t *client, dns_name_t *qname, dns_name_t *tname,
+		   dns_ttl_t ttl, dns_name_t **anamep, dns_rdatatype_t type)
 {
 	dns_rdataset_t *rdataset;
 	dns_rdatalist_t *rdatalist;
@@ -1712,7 +1768,6 @@ query_addcname(ns_client_t *client, dns_name_t *qname, dns_name_t *tname,
 	isc_result_t result;
 	isc_region_t r;
 
-	CTRACE("query_addcname");
 	/*
 	 * We assume the name data referred to by qname and tname won't
 	 * go away.
@@ -1735,7 +1790,7 @@ query_addcname(ns_client_t *client, dns_name_t *qname, dns_name_t *tname,
 	dns_rdataset_init(rdataset);
 	dns_name_clone(qname, *anamep);
 
-	rdatalist->type = dns_rdatatype_cname;
+	rdatalist->type = type;
 	rdatalist->covers = 0;
 	rdatalist->rdclass = client->message->rdclass;
 	rdatalist->ttl = ttl;
@@ -1744,7 +1799,7 @@ query_addcname(ns_client_t *client, dns_name_t *qname, dns_name_t *tname,
 	rdata->data = r.base;
 	rdata->length = r.length;
 	rdata->rdclass = client->message->rdclass;
-	rdata->type = dns_rdatatype_cname;
+	rdata->type = type;
 
 	ISC_LIST_INIT(rdatalist->rdata);
 	ISC_LIST_APPEND(rdatalist->rdata, rdata, link);
@@ -1912,30 +1967,6 @@ query_addbestns(ns_client_t *client) {
 	}
 }
 
-static inline isc_result_t
-query_checktype(dns_rdatatype_t type) {
-
-	/*
-	 * XXXRTH  OPT still needs to be added.
-	 *	   Should get help with this from rdata.c
-	 */
-	switch (type) {
-	case dns_rdatatype_tkey:
-		return (DNS_R_NOTIMP);
-	case dns_rdatatype_tsig:
-		return (DNS_R_FORMERR);
-	case dns_rdatatype_ixfr:
-	case dns_rdatatype_axfr:
-	case dns_rdatatype_mailb:
-	case dns_rdatatype_maila:
-		return (DNS_R_REFUSED);
-	default:
-		break;
-	}
-
-	return (ISC_R_SUCCESS);
-}
-
 static void
 query_resume(isc_task_t *task, isc_event_t *event) {
 	dns_fetchevent_t *devent = (dns_fetchevent_t *)event;
@@ -1997,19 +2028,7 @@ query_resume(isc_task_t *task, isc_event_t *event) {
 		 */
 		ns_client_detach(&client);
 	} else {
-		RWLOCK(&ns_g_server->conflock, isc_rwlocktype_read);
-		dns_zonemgr_lockconf(ns_g_server->zonemgr,
-				     isc_rwlocktype_read);
-		dns_view_attach(client->view, &client->lockview);
-		RWLOCK(&client->lockview->conflock, isc_rwlocktype_read);
-
-		query_find(client, devent);
-
-		RWUNLOCK(&client->lockview->conflock, isc_rwlocktype_read);
-		dns_view_detach(&client->lockview);
-		dns_zonemgr_unlockconf(ns_g_server->zonemgr,
-				       isc_rwlocktype_read);
-		RWUNLOCK(&ns_g_server->conflock, isc_rwlocktype_read);
+		query_find(client, devent, 0);
 	}
 }
 
@@ -2060,6 +2079,8 @@ query_recurse(ns_client_t *client, dns_rdatatype_t qtype, dns_name_t *qdomain,
 	} else
 		sigrdataset = NULL;
 
+	if (client->query.timerset == ISC_FALSE)
+		ns_client_settimeout(client, 60);
 	result = dns_resolver_createfetch(client->view->resolver,
 					  client->query.qname,
 					  qtype, qdomain, nameservers,
@@ -2269,11 +2290,16 @@ setup_query_sortlist(ns_client_t *client) {
 	dns_message_setsortorder(client->message, order, order_arg);
 }
 
+/*
+ * Do the bulk of query processing for the current query of 'client'.
+ * If 'event' is non-NULL, we are returning from recursion and 'qtype'
+ * is ignored.  Otherwise, 'qtype' is the query type.
+ */
 static void
-query_find(ns_client_t *client, dns_fetchevent_t *event) {
+query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype) {
 	dns_db_t *db, *zdb;
 	dns_dbnode_t *node;
-	dns_rdatatype_t qtype, type;
+	dns_rdatatype_t type;
 	dns_name_t *fname, *zfname, *tname, *prefix;
 	dns_rdataset_t *rdataset, *trdataset;
 	dns_rdataset_t *sigrdataset, *zrdataset, *zsigrdataset;
@@ -2281,7 +2307,7 @@ query_find(ns_client_t *client, dns_fetchevent_t *event) {
 	dns_rdata_t rdata = DNS_RDATA_INIT;
 	dns_rdatasetiter_t *rdsiter;
 	isc_boolean_t want_restart, authoritative, is_zone;
-	unsigned int qcount, n, nlabels, nbits;
+	unsigned int n, nlabels, nbits;
 	dns_namereln_t namereln;
 	int order;
 	isc_buffer_t *dbuf;
@@ -2346,13 +2372,12 @@ query_find(ns_client_t *client, dns_fetchevent_t *event) {
 		}
 		fname = query_newname(client, dbuf, &b);
 		if (fname == NULL) {
-			count_query(zone, is_zone,
-					     dns_statscounter_failure);
+			count_query(zone, is_zone, dns_statscounter_failure);
 			QUERY_ERROR(DNS_R_SERVFAIL);
 			goto cleanup;
 		}
 		tname = dns_fixedname_name(&event->foundname);
-		result = dns_name_concatenate(tname, NULL, fname, NULL);
+		result = dns_name_copy(tname, fname, NULL);
 		if (result != ISC_R_SUCCESS) {
 			count_query(zone, is_zone, dns_statscounter_failure);
 			QUERY_ERROR(DNS_R_SERVFAIL);
@@ -2362,8 +2387,19 @@ query_find(ns_client_t *client, dns_fetchevent_t *event) {
 		result = event->result;
 
 		goto resume;
-	} else
-		client->query.qrdataset = NULL;
+	}
+	
+	/*
+	 * Not returning from recursion.
+	 */
+
+	/*
+	 * If it's a SIG query, we'll iterate the node.
+	 */
+	if (qtype == dns_rdatatype_sig)
+		type = dns_rdatatype_any;
+	else
+		type = qtype;
 
  restart:
 	CTRACE("query_find: restart");
@@ -2387,59 +2423,6 @@ query_find(ns_client_t *client, dns_fetchevent_t *event) {
 
 	if (is_zone)
 		authoritative = ISC_TRUE;
-
-	/*
-	 * Find the first unanswered type in the question section.
-	 */
-	qtype = 0;
-	qcount = 0;
-	client->query.qrdataset = NULL;
-	for (trdataset = ISC_LIST_HEAD(client->query.origqname->list);
-	     trdataset != NULL;
-	     trdataset = ISC_LIST_NEXT(trdataset, link)) {
-		if (!ANSWERED(trdataset)) {
-			if (client->query.qrdataset == NULL) {
-				client->query.qrdataset = trdataset;
-				qtype = trdataset->type;
-			}
-			qcount++;
-		}
-	}
-	/*
-	 * We had better have found something!
-	 */
-	INSIST(client->query.qrdataset != NULL && qcount > 0);
-
-	/*
-	 * If there's more than one question, we'll eventually retrieve the
-	 * node and iterate it, trying to find answers.  For now, we simply
-	 * refuse requests with more than one question.
-	 */
-	if (qcount == 1)
-		type = qtype;
-	else {
-		CTRACE("find_query: REFUSED: qcount != 1");
-		count_query(zone, is_zone, dns_statscounter_failure);
-		QUERY_ERROR(DNS_R_REFUSED);
-		goto cleanup;
-	}
-
-	/*
-	 * See if the type is OK.
-	 */
-	result = query_checktype(qtype);
-	if (result != ISC_R_SUCCESS) {
-		CTRACE("find_query: non supported query type");
-		count_query(zone, is_zone, dns_statscounter_failure);
-		QUERY_ERROR(result);
-		goto cleanup;
-	}
-
-	/*
-	 * If it's a SIG query, we'll iterate the node.
-	 */
-	if (qtype == dns_rdatatype_sig)
-		type = dns_rdatatype_any;
 
  db_find:
 	CTRACE("query_find: db_find");
@@ -2513,13 +2496,14 @@ query_find(ns_client_t *client, dns_fetchevent_t *event) {
 			 *
 			 * We need to set fname correctly.  We do this here
 			 * instead of in query_findparentkey() because
-			 * dns_name_concatenate() can fail (though it shouldn't
+			 * dns_name_copy() can fail (though it shouldn't
 			 * ever do so since we should have enough space).
 			 */
-			result = dns_name_concatenate(client->query.qname,
-						      NULL, fname, NULL);
+			result = dns_name_copy(client->query.qname,
+					       fname, NULL);
 			if (result != ISC_R_SUCCESS) {
-				count_query(zone, is_zone, dns_statscounter_failure);
+				count_query(zone, is_zone,
+					    dns_statscounter_failure);
 				QUERY_ERROR(DNS_R_SERVFAIL);
 				goto cleanup;
 			}
@@ -2537,7 +2521,7 @@ query_find(ns_client_t *client, dns_fetchevent_t *event) {
 	CTRACE("query_find: resume");
 	switch (result) {
 	case ISC_R_SUCCESS:
-			count_query(zone, is_zone, dns_statscounter_success);
+		count_query(zone, is_zone, dns_statscounter_success);
 		/*
 		 * This case is handled in the main line below.
 		 */
@@ -2556,21 +2540,47 @@ query_find(ns_client_t *client, dns_fetchevent_t *event) {
 		 * the hints DB.
 		 */
 		INSIST(!is_zone);
-		INSIST(client->view->hints != NULL);
 		if (db != NULL)
 			dns_db_detach(&db);
-		dns_db_attach(client->view->hints, &db);
-		result = dns_db_find(db, dns_rootname, NULL, dns_rdatatype_ns,
-				     0, client->now, &node, fname,
-				     rdataset, sigrdataset);
+
+		if (client->view->hints == NULL) {
+			/* We have no hints. */
+			result = ISC_R_FAILURE;
+		} else {
+			dns_db_attach(client->view->hints, &db);
+			result = dns_db_find(db, dns_rootname,
+					     NULL, dns_rdatatype_ns,
+					     0, client->now, &node, fname,
+					     rdataset, sigrdataset);
+		}
 		if (result != ISC_R_SUCCESS) {
 			/*
-			 * We can't even find the hints for the root
-			 * nameservers!
+			 * We don't have any root server hints, but
+			 * we may have working forwarders, so try to
+			 * recurse anyway.
 			 */
-			count_query(zone, is_zone, dns_statscounter_failure);
-			QUERY_ERROR(DNS_R_SERVFAIL);
-			goto cleanup;
+			if (RECURSIONOK(client)) {
+				count_query(zone, is_zone,
+					    dns_statscounter_recursion);
+				result = query_recurse(client, qtype,
+						       NULL, NULL);
+				if (result == ISC_R_SUCCESS)
+					client->query.attributes |=
+						NS_QUERYATTR_RECURSING;
+				else {
+					/* Unable to recurse. */
+					count_query(zone, is_zone,
+						    dns_statscounter_failure);
+					QUERY_ERROR(DNS_R_SERVFAIL);
+				}
+				goto cleanup;
+			} else {
+				/* Unable to give root server referral. */
+				count_query(zone, is_zone,
+					    dns_statscounter_failure);
+				QUERY_ERROR(DNS_R_SERVFAIL);
+				goto cleanup;
+			}
 		}
 		/*
 		 * XXXRTH  We should trigger root server priming here.
@@ -2599,6 +2609,14 @@ query_find(ns_client_t *client, dns_fetchevent_t *event) {
 				 * database by setting client->query.gluedb.
 				 */
 				client->query.gluedb = db;
+				/*
+				 * We must ensure NOADDITIONAL is off,
+				 * because the generation of
+				 * additional data is required in
+				 * delegations.
+				 */
+				client->query.attributes &=
+					~NS_QUERYATTR_NOADDITIONAL;
 				if (sigrdataset != NULL)
 					sigrdatasetp = &sigrdataset;
 				else
@@ -2679,7 +2697,7 @@ query_find(ns_client_t *client, dns_fetchevent_t *event) {
 						NS_QUERYATTR_RECURSING;
 				else {
 					count_query(zone, is_zone,
-						       dns_statscounter_failure);
+						    dns_statscounter_failure);
 					QUERY_ERROR(DNS_R_SERVFAIL);
 				}
 			} else {
@@ -2691,6 +2709,14 @@ query_find(ns_client_t *client, dns_fetchevent_t *event) {
 				client->query.gluedb = zdb;
 				client->query.attributes |=
 					NS_QUERYATTR_CACHEGLUEOK;
+				/*
+				 * We must ensure NOADDITIONAL is off,
+				 * because the generation of
+				 * additional data is required in
+				 * delegations.
+				 */
+				client->query.attributes &=
+					~NS_QUERYATTR_NOADDITIONAL;
 				if (sigrdataset != NULL)
 					sigrdatasetp = &sigrdataset;
 				else
@@ -2727,8 +2753,7 @@ query_find(ns_client_t *client, dns_fetchevent_t *event) {
 		 */
 		result = query_addsoa(client, db, ISC_FALSE);
 		if (result != ISC_R_SUCCESS) {
-			count_query(zone, is_zone,
-					     dns_statscounter_failure);
+			count_query(zone, is_zone, dns_statscounter_failure);
 			QUERY_ERROR(result);
 			goto cleanup;
 		}
@@ -2745,12 +2770,6 @@ query_find(ns_client_t *client, dns_fetchevent_t *event) {
 	case DNS_R_NXDOMAIN:
 		INSIST(is_zone);
 		count_query(zone, is_zone, dns_statscounter_nxdomain);
-		if (client->query.restarts > 0) {
-			/*
-			 * We hit a dead end following a CNAME or DNAME.
-			 */
-			goto cleanup;
-		}
 		if (dns_rdataset_isassociated(rdataset)) {
 			/*
 			 * If we've got a NXT record, we need to save the
@@ -2777,8 +2796,7 @@ query_find(ns_client_t *client, dns_fetchevent_t *event) {
 		else
 			result = query_addsoa(client, db, ISC_FALSE);
 		if (result != ISC_R_SUCCESS) {
-			count_query(zone, is_zone,
-					     dns_statscounter_failure);
+			count_query(zone, is_zone, dns_statscounter_failure);
 			QUERY_ERROR(result);
 			goto cleanup;
 		}
@@ -2858,8 +2876,10 @@ query_find(ns_client_t *client, dns_fetchevent_t *event) {
 		dns_rdataset_current(trdataset, &rdata);
 		result = dns_rdata_tostruct(&rdata, &cname, NULL);
 		dns_rdata_reset(&rdata);
-		if (result != ISC_R_SUCCESS)
+		if (result != ISC_R_SUCCESS) {
+			dns_message_puttempname(client->message, &tname);
 			goto cleanup;
+		}
 		dns_name_init(tname, NULL);
 		result = dns_name_dup(&cname.cname, client->mctx, tname);
 		if (result != ISC_R_SUCCESS) {
@@ -2973,8 +2993,9 @@ query_find(ns_client_t *client, dns_fetchevent_t *event) {
 		 * since the synthesized CNAME is NOT in the zone.
 		 */
 		dns_name_init(tname, NULL);
-		query_addcname(client, client->query.qname, fname,
-			       trdataset->ttl, &tname);
+		query_addcnamelike(client, client->query.qname, fname,
+				   trdataset->ttl, &tname,
+				   dns_rdatatype_cname);
 		if (tname != NULL)
 			dns_message_puttempname(client->message, &tname);
 		/*
@@ -3003,8 +3024,7 @@ query_find(ns_client_t *client, dns_fetchevent_t *event) {
 		rdsiter = NULL;
 		result = dns_db_allrdatasets(db, node, version, 0, &rdsiter);
 		if (result != ISC_R_SUCCESS) {
-			count_query(zone, is_zone,
-				    dns_statscounter_failure);
+			count_query(zone, is_zone, dns_statscounter_failure);
 			QUERY_ERROR(DNS_R_SERVFAIL);
 			goto cleanup;
 		}
@@ -3107,11 +3127,6 @@ query_find(ns_client_t *client, dns_fetchevent_t *event) {
 		 * because it's already in the answer.
 		 */
 		INSIST(rdataset == NULL);
-		/*
-		 * Remember that we've answered this question.
-		 */
-		client->query.qrdataset->attributes |=
-			DNS_RDATASETATTR_ANSWERED;
 	}
 
  addauth:
@@ -3120,9 +3135,11 @@ query_find(ns_client_t *client, dns_fetchevent_t *event) {
 	 * Add NS records to the authority section (if we haven't already
 	 * added them to the answer section).
 	 */
-	if (!want_restart) {
+	if (!want_restart && !NOAUTHORITY(client)
+	    ) {
 		if (is_zone) {
-			if (!(qtype == dns_rdatatype_ns &&
+			if (!((qtype == dns_rdatatype_ns ||
+			       qtype == dns_rdatatype_any) &&
 			      dns_name_equal(client->query.qname,
 					     dns_db_origin(db))))
 				query_addns(client, db);
@@ -3234,6 +3251,7 @@ ns_query_start(ns_client_t *client) {
 	dns_message_t *message = client->message;
 	dns_rdataset_t *rdataset;
 	ns_client_t *qclient;
+	dns_rdatatype_t qtype;
 
 	CTRACE("ns_query_start");
 
@@ -3249,6 +3267,10 @@ ns_query_start(ns_client_t *client) {
 	    (message->flags & DNS_MESSAGEFLAG_AD) != 0)
 		client->query.attributes |= NS_QUERYATTR_WANTDNSSEC;
 	
+	if (client->view->minimalresponses)
+		client->query.attributes |= (NS_QUERYATTR_NOAUTHORITY |
+					     NS_QUERYATTR_NOADDITIONAL);
+
 	if ((client->view->cachedb == NULL)
 	    || (!client->view->additionalfromcache)) {
 		/*
@@ -3308,8 +3330,9 @@ ns_query_start(ns_client_t *client) {
 	 */
 	rdataset = ISC_LIST_HEAD(client->query.qname->list);
 	INSIST(rdataset != NULL);
-	if (dns_rdatatype_ismeta(rdataset->type)) {
-		switch (rdataset->type) {
+	qtype = rdataset->type;
+	if (dns_rdatatype_ismeta(qtype)) {
+		switch (qtype) {
 		case dns_rdatatype_any:
 			break; /* Let query_find handle it. */
 		case dns_rdatatype_ixfr:
@@ -3340,7 +3363,9 @@ ns_query_start(ns_client_t *client) {
 	 * allow lookups to return pending data and instruct the resolver
 	 * to return data before validation has completed.
 	 */
-	if (message->flags & DNS_MESSAGEFLAG_CD) {
+	if (message->flags & DNS_MESSAGEFLAG_CD ||
+	    qtype == dns_rdatatype_sig)
+	{
 		client->query.dboptions |= DNS_DBFIND_PENDINGOK;
 		client->query.fetchoptions |= DNS_FETCHOPT_NOVALIDATE;
 	}
@@ -3367,8 +3392,442 @@ ns_query_start(ns_client_t *client) {
 	if (WANTDNSSEC(client))
 		message->flags |= DNS_MESSAGEFLAG_AD;
 
+	/*
+	 * Synthesize IPv6 responses if appropriate.
+	 */
+	if (RECURSIONOK(client) &&
+	    (qtype == dns_rdatatype_aaaa || qtype == dns_rdatatype_ptr) &&
+	    client->message->rdclass == dns_rdataclass_in &&
+	    ns_client_checkacl(client, "v6 synthesis",
+			       client->view->v6synthesisacl,
+			       ISC_FALSE, ISC_LOG_DEBUG(9)) == ISC_R_SUCCESS)
+	{
+		if (qtype == dns_rdatatype_aaaa) {
+			qclient = NULL;
+			ns_client_attach(client, &qclient);
+			synth_fwd_start(qclient);
+			return;
+		} else {
+			INSIST(qtype == dns_rdatatype_ptr);
+			 /* Must be 32 nibbles + "ip6" + "int" + root */
+			if (dns_name_countlabels(client->query.qname) == 32 + 3 &&
+			    dns_name_issubdomain(client->query.qname, &ip6int_name)) {
+				qclient = NULL;
+				ns_client_attach(client, &qclient);
+				synth_rev_start(qclient);
+				return;
+			}
+		}
+	}
+
 	qclient = NULL;
 	ns_client_attach(client, &qclient);
-	query_find(qclient, NULL);
+	query_find(qclient, NULL, qtype);
 }
 
+/*
+ * Generate a synthetic IPv6 forward mapping response for the current
+ * query of 'client'.
+ */
+static void
+synth_fwd_start(ns_client_t *client) {
+	ns_client_log(client, NS_LOGCATEGORY_CLIENT, NS_LOGMODULE_QUERY,
+		      ISC_LOG_DEBUG(5), "generating synthetic AAAA response");
+
+	synth_fwd_startfind(client);
+}
+
+/*
+ * Start an ADB find to get addresses, or more addresses, for 
+ * a synthetic IPv6 forward mapping response.
+ */
+static void
+synth_fwd_startfind(ns_client_t *client) {
+	dns_adbfind_t *find = NULL;
+	isc_result_t result;
+	dns_fixedname_t target_fixed;
+	dns_name_t *target;
+
+	dns_fixedname_init(&target_fixed);
+	target = dns_fixedname_name(&target_fixed);
+
+ find_again:
+	result = dns_adb_createfind(client->view->adb, client->task,
+			    synth_fwd_finddone, client, client->query.qname,
+			    dns_rootname, 
+			    DNS_ADBFIND_WANTEVENT | DNS_ADBFIND_RETURNLAME |
+			    DNS_ADBFIND_INET6, client->now,
+			    target, 0, &find);
+
+	ns_client_log(client, NS_LOGCATEGORY_CLIENT, NS_LOGMODULE_QUERY,
+		      ISC_LOG_DEBUG(5), "find returned %s",
+		      isc_result_totext(result));
+
+	if (result == DNS_R_ALIAS) {
+		dns_name_t *ptarget = NULL;
+		dns_name_t *tname = NULL;
+		isc_buffer_t *dbuf;
+		isc_buffer_t b;
+
+		/*
+		 * Make a persistent copy of the 'target' name data in 'ptarget';
+		 * it will become the new query name.
+		 */
+		dbuf = query_getnamebuf(client);
+		if (dbuf == NULL)
+			goto fail;
+		ptarget = query_newname(client, dbuf, &b);
+		if (ptarget == NULL)
+			goto fail;
+		dns_name_copy(target, ptarget, NULL);
+		
+		dns_adb_destroyfind(&find);
+
+		/*
+		 * Get another temporary name 'tname' for insertion into the
+		 * response message.
+		 */
+		result = dns_message_gettempname(client->message, &tname);
+		if (result != ISC_R_SUCCESS)
+			goto fail;
+		dns_name_init(tname, NULL);
+		result = query_addcnamelike(client, client->query.qname,
+					    ptarget, 0 /* XXX ttl */, &tname,
+					    dns_rdatatype_cname);
+		if (tname != NULL)
+			dns_message_puttempname(client->message, &tname);
+		if (result != ISC_R_SUCCESS)
+			goto fail;
+
+		query_maybeputqname(client);
+		client->query.qname = ptarget;
+		query_keepname(client, ptarget, dbuf);
+		ptarget = NULL;
+		if (client->query.restarts < MAX_RESTARTS) {
+			client->query.restarts++;
+			goto find_again;
+		} else {
+			/*
+			 * Probably a CNAME loop.  Reply with partial
+			 * CNAME chain.
+			 */
+			result = ISC_R_SUCCESS;
+			goto done;
+		}
+	} else if (result != ISC_R_SUCCESS) {
+		if (find != NULL)
+			dns_adb_destroyfind(&find);
+		goto fail;
+	}
+
+	if ((find->options & DNS_ADBFIND_WANTEVENT) != 0) {
+		ns_client_log(client, NS_LOGCATEGORY_CLIENT, NS_LOGMODULE_QUERY,
+			      ISC_LOG_DEBUG(5), "find will send event");
+	} else {
+		synth_fwd_respond(client, find);
+		dns_adb_destroyfind(&find);
+	}
+	return;
+
+ fail:
+	result = DNS_R_SERVFAIL;
+ done:
+	synth_finish(client, result);
+}
+
+/*
+ * Handle an ADB finddone event generated as part of synthetic IPv6
+ * forward mapping processing.
+ */
+static void
+synth_fwd_finddone(isc_task_t *task, isc_event_t *ev) {
+	ns_client_t *client = ev->ev_arg;
+	dns_adbfind_t *find = ev->ev_sender;
+	isc_eventtype_t evtype = ev->ev_type;
+
+	UNUSED(task);
+
+	ns_client_log(client, NS_LOGCATEGORY_CLIENT, NS_LOGMODULE_QUERY,
+		      ISC_LOG_DEBUG(5), "got find event");
+
+	if (evtype == DNS_EVENT_ADBNOMOREADDRESSES)
+		synth_fwd_respond(client, find);
+	else if (evtype == DNS_EVENT_ADBMOREADDRESSES)
+		synth_fwd_startfind(client);
+	else
+		synth_finish(client, DNS_R_SERVFAIL);
+
+	isc_event_free(&ev);
+	dns_adb_destroyfind(&find);
+	
+}
+
+/*
+ * Generate a synthetic IPv6 forward mapping response based on
+ * a completed ADB lookup.
+ */
+static void
+synth_fwd_respond(ns_client_t *client, dns_adbfind_t *find) {
+	dns_adbaddrinfo_t *ai;
+	dns_name_t *tname = NULL;
+	dns_rdataset_t *rdataset = NULL;
+	dns_rdatalist_t *rdatalist = NULL;
+	isc_result_t result;
+
+	result = dns_message_gettempname(client->message, &tname);
+	if (result != ISC_R_SUCCESS)
+		goto cleanup;
+	dns_name_init(tname, NULL);
+		
+	result = dns_message_gettemprdatalist(client->message, &rdatalist);
+	if (result != ISC_R_SUCCESS)
+		goto cleanup;
+	
+	result = dns_message_gettemprdataset(client->message, &rdataset);
+	if (result != ISC_R_SUCCESS)
+		goto cleanup;
+	dns_rdataset_init(rdataset);
+
+	ISC_LIST_INIT(rdatalist->rdata);
+
+	rdatalist->type = dns_rdatatype_aaaa;
+	rdatalist->covers = 0;
+	rdatalist->rdclass = client->message->rdclass;
+	rdatalist->ttl = 0;
+
+	dns_name_clone(client->query.qname, tname);
+	
+	for (ai = ISC_LIST_HEAD(find->list);
+	     ai != NULL;
+	     ai = ISC_LIST_NEXT(ai, publink)) {
+		dns_rdata_t *rdata = NULL;
+		
+		struct sockaddr_in6 *sin6 = &ai->sockaddr.type.sin6;
+		/*
+		 * Could it be useful to return IPv4 addresses as A records?
+		 */
+		if (sin6->sin6_family != AF_INET6)
+			continue;
+
+		result = dns_message_gettemprdata(client->message, &rdata);
+		if (result != ISC_R_SUCCESS)
+			goto cleanup;
+
+		rdata->data = (unsigned char *) &sin6->sin6_addr;
+		rdata->length = 16;
+		rdata->rdclass = client->message->rdclass;
+		rdata->type = dns_rdatatype_aaaa;
+		ISC_LIST_APPEND(rdatalist->rdata, rdata, link);
+	}
+
+	dns_rdatalist_tordataset(rdatalist, rdataset);
+
+	query_addrrset(client, &tname, &rdataset, NULL, NULL,
+		       DNS_SECTION_ANSWER);
+
+ cleanup:
+	if (tname != NULL)
+		dns_message_puttempname(client->message, &tname);
+
+	if (rdataset != NULL) {
+		if (dns_rdataset_isassociated(rdataset))
+			dns_rdataset_disassociate(rdataset);
+		dns_message_puttemprdataset(client->message, &rdataset);
+	}
+
+	synth_finish(client, result);
+}
+
+/*
+ * Finish synthetic IPv6 forward mapping processing.
+ */
+static void
+synth_finish(ns_client_t *client, isc_result_t result) {
+	if (result == ISC_R_SUCCESS)
+		ns_client_send(client);
+	else
+		ns_client_error(client, result);
+	ns_client_detach(&client);	
+}
+
+static signed char ascii2hex[256] = {
+	-1, -1, -1, -1, -1, -1, -1, -1,	-1, -1, -1, -1, -1, -1, -1, -1,
+	-1, -1, -1, -1, -1, -1, -1, -1,	-1, -1, -1, -1, -1, -1, -1, -1,
+        -1, -1, -1, -1, -1, -1, -1, -1,	-1, -1, -1, -1, -1, -1, -1, -1,
+	 0,  1,  2,  3,  4,  5,  6,  7,  8,  9, -1, -1, -1, -1, -1, -1,
+	-1, 10, 11, 12, 13, 14, 15, -1,	-1, -1, -1, -1, -1, -1, -1, -1,
+	-1, -1, -1, -1, -1, -1, -1, -1,	-1, -1, -1, -1, -1, -1, -1, -1,
+	-1, 10, 11, 12, 13, 14, 15, -1,	-1, -1, -1, -1, -1, -1, -1, -1,
+	-1, -1, -1, -1, -1, -1, -1, -1,	-1, -1, -1, -1, -1, -1, -1, -1,
+	-1, -1, -1, -1, -1, -1, -1, -1,	-1, -1, -1, -1, -1, -1, -1, -1,
+	-1, -1, -1, -1, -1, -1, -1, -1,	-1, -1, -1, -1, -1, -1, -1, -1,
+	-1, -1, -1, -1, -1, -1, -1, -1,	-1, -1, -1, -1, -1, -1, -1, -1,
+	-1, -1, -1, -1, -1, -1, -1, -1,	-1, -1, -1, -1, -1, -1, -1, -1,
+	-1, -1, -1, -1, -1, -1, -1, -1,	-1, -1, -1, -1, -1, -1, -1, -1,
+	-1, -1, -1, -1, -1, -1, -1, -1,	-1, -1, -1, -1, -1, -1, -1, -1,
+	-1, -1, -1, -1, -1, -1, -1, -1,	-1, -1, -1, -1, -1, -1, -1, -1,
+	-1, -1, -1, -1, -1, -1, -1, -1,	-1, -1, -1, -1, -1, -1, -1, -1
+};
+
+/*
+ * Convert label 'i' of 'name' into its hexadecimal value, storing it
+ * in '*hexp'.  If the label is not a valid hex nibble, return ISC_R_FAILURE.
+ */
+static isc_result_t
+label2hex(dns_name_t *name, int i, int *hexp) {
+	isc_region_t label;
+	int hexval;
+	dns_name_getlabel(name, i, &label);
+	if (label.length != 2 || label.base[0] != '\001')
+		return (ISC_R_FAILURE);
+	hexval = ascii2hex[label.base[1]];
+	if (hexval == -1)
+		return (ISC_R_FAILURE);
+	*hexp = hexval;
+	return (ISC_R_SUCCESS);
+}
+
+/*
+ * Convert the ip6.int name 'name' into the corresponding IPv6 address
+ * in 'na'. 
+ */
+static isc_result_t
+nibbles2netaddr(dns_name_t *name, isc_netaddr_t *na) {
+	isc_result_t result;
+	struct in6_addr ina6;
+	unsigned char *addrdata = (unsigned char *) &ina6;
+	int i;
+
+	for (i = 0; i < 16; i++) {
+		int hex0, hex1;
+		result = label2hex(name, 2 * i, &hex0);
+		if (result != ISC_R_SUCCESS)
+			return (result);
+		result = label2hex(name, 2 * i + 1, &hex1);
+		if (result != ISC_R_SUCCESS)
+			return (result);
+		addrdata[15-i] = (hex1 << 4) | hex0;
+	}
+	isc_netaddr_fromin6(na, &ina6);
+	return (ISC_R_SUCCESS);
+}
+
+/*
+ * Generate a synthetic IPv6 reverse mapping response for the current
+ * query of 'client'.
+ */
+static void
+synth_rev_start(ns_client_t *client) {
+	isc_result_t result;
+	dns_byaddr_t *byaddr_dummy = NULL;
+	
+	ns_client_log(client, NS_LOGCATEGORY_CLIENT, NS_LOGMODULE_QUERY,
+		      ISC_LOG_DEBUG(5), "generating synthetic PTR response");
+
+	result = nibbles2netaddr(client->query.qname, &client->query.synth.na);
+	if (result != ISC_R_SUCCESS) {
+		result = DNS_R_NXDOMAIN;
+		goto cleanup;
+	}
+
+	/* Try IP6.ARPA first. */
+	result = dns_byaddr_create(client->mctx,
+				   &client->query.synth.na,
+				   client->view,
+				   0, client->task,
+				   synth_rev_byaddrdone_arpa,
+				   client, &byaddr_dummy);
+	if (result == ISC_R_SUCCESS)
+		return; /* Wait for completion event. */
+ cleanup:
+	synth_finish(client, result);
+}
+
+static void
+synth_rev_byaddrdone_arpa(isc_task_t *task, isc_event_t *event) {
+	isc_result_t result;
+	dns_byaddrevent_t *bevent = (dns_byaddrevent_t *)event;
+	ns_client_t *client = event->ev_arg;
+	dns_byaddr_t *byaddr = event->ev_sender;
+	dns_byaddr_t *byaddr_dummy = NULL;	
+
+	UNUSED(task);
+
+	if (bevent->result == ISC_R_SUCCESS) {
+		synth_rev_respond(client, bevent);
+	} else {
+		/* Try IP6.INT next. */
+		result = dns_byaddr_create(client->mctx,
+					   &client->query.synth.na,
+					   client->view,
+					   DNS_BYADDROPT_IPV6NIBBLE,
+					   client->task,
+					   synth_rev_byaddrdone_int,
+					   client, &byaddr_dummy);
+		if (result != ISC_R_SUCCESS)
+			synth_finish(client, result);
+	}
+	dns_byaddr_destroy(&byaddr);
+	isc_event_free(&event);
+}
+
+static void
+synth_rev_byaddrdone_int(isc_task_t *task, isc_event_t *event) {
+	dns_byaddrevent_t *bevent = (dns_byaddrevent_t *)event;
+	ns_client_t *client = event->ev_arg;
+	dns_byaddr_t *byaddr = event->ev_sender;
+	
+	UNUSED(task);
+
+	if (bevent->result == ISC_R_SUCCESS) {
+		synth_rev_respond(client, bevent);
+	} else if (bevent->result == DNS_R_NCACHENXDOMAIN ||
+		   bevent->result == DNS_R_NCACHENXRRSET ||
+		   bevent->result == DNS_R_NXDOMAIN ||
+		   bevent->result == DNS_R_NXRRSET) {
+		/*
+		 * We could give a NOERROR/NODATA response instead
+		 * in some cases, but since there may be any combination
+		 * of NXDOMAIN and NXRRSET results from the IP6.INT
+		 * and IP6.ARPA lookups, it could still be wrong with
+		 * respect to one or the other.
+		 */
+		synth_finish(client, DNS_R_NXDOMAIN);
+	} else {
+		synth_finish(client, bevent->result);
+	}
+	isc_event_free(&event);
+	dns_byaddr_destroy(&byaddr);	
+}
+
+static void
+synth_rev_respond(ns_client_t *client, dns_byaddrevent_t *bevent) {
+	isc_result_t result = ISC_R_SUCCESS;
+	dns_name_t *name;
+
+	for (name = ISC_LIST_HEAD(bevent->names);
+	     name != NULL;
+	     name = ISC_LIST_NEXT(name, link))
+	{
+		dns_name_t *tname = NULL;
+		
+		/*
+		 * Get a temporary name 'tname' for insertion into the
+		 * response message.
+		 */
+		result = dns_message_gettempname(client->message, &tname);
+		if (result != ISC_R_SUCCESS)
+			goto fail;
+		dns_name_init(tname, NULL);
+
+		result = query_addcnamelike(client, client->query.qname,
+					    name, 0 /* XXX ttl */,
+					    &tname, dns_rdatatype_ptr);
+		if (tname != NULL)
+			dns_message_puttempname(client->message, &tname);
+		if (result != ISC_R_SUCCESS)
+			goto fail;
+	}
+ fail:
+	synth_finish(client, result);		
+}

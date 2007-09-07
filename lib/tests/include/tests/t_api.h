@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: t_api.h,v 1.12.4.1 2001/01/09 22:53:23 bwelling Exp $ */
+/* $Id: t_api.h,v 1.13 2001/01/09 22:00:40 bwelling Exp $ */
 
 #ifndef TESTS_T_API_H
 #define TESTS_T_API_H 1

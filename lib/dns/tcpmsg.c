@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: tcpmsg.c,v 1.22.4.1 2001/01/09 22:44:19 bwelling Exp $ */
+/* $Id: tcpmsg.c,v 1.23 2001/01/09 21:51:35 bwelling Exp $ */
 
 #include <config.h>
 

@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: byaddr.h,v 1.11.4.1 2001/01/09 22:45:04 bwelling Exp $ */
+/* $Id: byaddr.h,v 1.12 2001/01/09 21:52:18 bwelling Exp $ */
 
 #ifndef DNS_BYADDR_H
 #define DNS_BYADDR_H 1

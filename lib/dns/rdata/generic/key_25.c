@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: key_25.c,v 1.35.4.1 2001/01/09 22:46:54 bwelling Exp $ */
+/* $Id: key_25.c,v 1.39 2001/03/28 02:57:26 bwelling Exp $ */
 
 /*
  * Reviewed: Wed Mar 15 16:47:10 PST 2000 by halley.
@@ -39,6 +39,7 @@ fromtext_key(ARGS_FROMTEXT) {
 
 	REQUIRE(type == 25);
 
+	UNUSED(type);
 	UNUSED(rdclass);
 	UNUSED(origin);
 	UNUSED(downcase);
@@ -46,19 +47,19 @@ fromtext_key(ARGS_FROMTEXT) {
 	/* flags */
 	RETERR(isc_lex_getmastertoken(lexer, &token, isc_tokentype_string,
 				      ISC_FALSE));
-	RETERR(dns_keyflags_fromtext(&flags, &token.value.as_textregion));
+	RETTOK(dns_keyflags_fromtext(&flags, &token.value.as_textregion));
 	RETERR(uint16_tobuffer(flags, target));
 
 	/* protocol */
 	RETERR(isc_lex_getmastertoken(lexer, &token, isc_tokentype_string,
 				      ISC_FALSE));
-	RETERR(dns_secproto_fromtext(&proto, &token.value.as_textregion));
+	RETTOK(dns_secproto_fromtext(&proto, &token.value.as_textregion));
 	RETERR(mem_tobuffer(target, &proto, 1));
 
 	/* algorithm */
 	RETERR(isc_lex_getmastertoken(lexer, &token, isc_tokentype_string,
 				      ISC_FALSE));
-	RETERR(dns_secalg_fromtext(&alg, &token.value.as_textregion));
+	RETTOK(dns_secalg_fromtext(&alg, &token.value.as_textregion));
 	RETERR(mem_tobuffer(target, &alg, 1));
 
 	/* No Key? */
@@ -109,8 +110,14 @@ totext_key(ARGS_TOTEXT) {
 	RETERR(str_totext(tctx->linebreak, target));
 	RETERR(isc_base64_totext(&sr, tctx->width - 2,
 				 tctx->linebreak, target));
+
+	if ((tctx->flags & DNS_STYLEFLAG_COMMENT) != 0)
+		RETERR(str_totext(tctx->linebreak, target));
+	else if ((tctx->flags & DNS_STYLEFLAG_MULTILINE) != 0)
+		RETERR(str_totext(" ", target));
+
 	if ((tctx->flags & DNS_STYLEFLAG_MULTILINE) != 0)
-		RETERR(str_totext(" )", target));
+		RETERR(str_totext(")", target));
 
 	if ((tctx->flags & DNS_STYLEFLAG_COMMENT) != 0) {
 		isc_region_t tmpr;
@@ -127,11 +134,12 @@ static inline isc_result_t
 fromwire_key(ARGS_FROMWIRE) {
 	isc_region_t sr;
 
+	REQUIRE(type == 25);
+
+	UNUSED(type);
 	UNUSED(rdclass);
 	UNUSED(dctx);
 	UNUSED(downcase);
-
-	REQUIRE(type == 25);
 
 	isc_buffer_activeregion(source, &sr);
 	if (sr.length < 4)
@@ -179,6 +187,7 @@ fromstruct_key(ARGS_FROMSTRUCT) {
 	REQUIRE(key->common.rdtype == type);
 	REQUIRE(key->common.rdclass == rdclass);
 
+	UNUSED(type);
 	UNUSED(rdclass);
 
 	/* Flags */

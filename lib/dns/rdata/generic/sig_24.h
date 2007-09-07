@@ -18,7 +18,7 @@
 #ifndef GENERIC_SIG_24_H
 #define GENERIC_SIG_24_H 1
 
-/* $Id: sig_24.h,v 1.20.4.1 2001/01/09 22:47:35 bwelling Exp $ */
+/* $Id: sig_24.h,v 1.21 2001/01/09 21:54:45 bwelling Exp $ */
 
 /* RFC 2535 */
 

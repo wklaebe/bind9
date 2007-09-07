@@ -18,7 +18,7 @@
 #ifndef GENERIC_AFSDB_18_H
 #define GENERIC_AFSDB_18_H 1
 
-/* $Id: afsdb_18.h,v 1.14.4.1 2001/01/09 22:46:40 bwelling Exp $ */
+/* $Id: afsdb_18.h,v 1.15 2001/01/09 21:53:51 bwelling Exp $ */
 
 /* RFC 1183 */
 

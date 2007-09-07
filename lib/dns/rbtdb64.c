@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rbtdb64.c,v 1.5.4.1 2001/01/09 22:44:01 bwelling Exp $ */
+/* $Id: rbtdb64.c,v 1.6 2001/01/09 21:51:17 bwelling Exp $ */
 
 #define DNS_RBTDB_VERSION64 1
 #include "rbtdb.c"

@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: mb_7.c,v 1.36.4.1 2001/01/09 22:46:59 bwelling Exp $ */
+/* $Id: mb_7.c,v 1.40 2001/03/16 22:52:44 bwelling Exp $ */
 
 /* Reviewed: Wed Mar 15 17:31:26 PST 2000 by bwelling */
 
@@ -30,9 +30,10 @@ fromtext_mb(ARGS_FROMTEXT) {
 	dns_name_t name;
 	isc_buffer_t buffer;
 
-	UNUSED(rdclass);
-
 	REQUIRE(type == 7);
+
+	UNUSED(type);
+	UNUSED(rdclass);
 
 	RETERR(isc_lex_getmastertoken(lexer, &token, isc_tokentype_string,
 				      ISC_FALSE));
@@ -40,7 +41,8 @@ fromtext_mb(ARGS_FROMTEXT) {
 	dns_name_init(&name, NULL);
 	buffer_fromregion(&buffer, &token.value.as_region);
 	origin = (origin != NULL) ? origin : dns_rootname;
-	return (dns_name_fromtext(&name, &buffer, origin, downcase, target));
+	RETTOK(dns_name_fromtext(&name, &buffer, origin, downcase, target));
+	return (ISC_R_SUCCESS);
 }
 
 static inline isc_result_t
@@ -68,9 +70,10 @@ static inline isc_result_t
 fromwire_mb(ARGS_FROMWIRE) {
         dns_name_t name;
 
-	UNUSED(rdclass);
-
 	REQUIRE(type == 7);
+
+	UNUSED(type);
+	UNUSED(rdclass);
 
 	dns_decompress_setmethods(dctx, DNS_COMPRESS_GLOBAL14);
 
@@ -81,6 +84,7 @@ fromwire_mb(ARGS_FROMWIRE) {
 static inline isc_result_t
 towire_mb(ARGS_TOWIRE) {
 	dns_name_t name;
+	dns_offsets_t offsets;
 	isc_region_t region;
 
 	REQUIRE(rdata->type == 7);
@@ -88,7 +92,7 @@ towire_mb(ARGS_TOWIRE) {
 
 	dns_compress_setmethods(cctx, DNS_COMPRESS_GLOBAL14);
 
-	dns_name_init(&name, NULL);
+	dns_name_init(&name, offsets);
 	dns_rdata_toregion(rdata, &region);
 	dns_name_fromregion(&name, &region);
 
@@ -130,6 +134,7 @@ fromstruct_mb(ARGS_FROMSTRUCT) {
 	REQUIRE(mb->common.rdtype == type);
 	REQUIRE(mb->common.rdclass == rdclass);
 
+	UNUSED(type);
 	UNUSED(rdclass);
 
 	dns_name_toregion(&mb->mb, &region);
@@ -175,11 +180,12 @@ freestruct_mb(ARGS_FREESTRUCT) {
 static inline isc_result_t
 additionaldata_mb(ARGS_ADDLDATA) {
 	dns_name_t name;
+	dns_offsets_t offsets;
 	isc_region_t region;
 
 	REQUIRE(rdata->type == 7);
 
-	dns_name_init(&name, NULL);
+	dns_name_init(&name, offsets);
 	dns_rdata_toregion(rdata, &region);
 	dns_name_fromregion(&name, &region);
 

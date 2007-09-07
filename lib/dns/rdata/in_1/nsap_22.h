@@ -18,7 +18,7 @@
 #ifndef IN_1_NSAP_22_H
 #define IN_1_NSAP_22_H 1
 
-/* $Id: nsap_22.h,v 1.12.4.1 2001/01/09 22:48:06 bwelling Exp $ */
+/* $Id: nsap_22.h,v 1.13 2001/01/09 21:55:15 bwelling Exp $ */
 
 /* RFC 1706 */
 

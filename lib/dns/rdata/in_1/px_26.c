@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: px_26.c,v 1.29.4.1 2001/01/09 22:48:07 bwelling Exp $ */
+/* $Id: px_26.c,v 1.33 2001/03/16 22:53:17 bwelling Exp $ */
 
 /* Reviewed: Mon Mar 20 10:44:27 PST 2000 */
 
@@ -35,6 +35,7 @@ fromtext_in_px(ARGS_FROMTEXT) {
 	REQUIRE(type == 26);
 	REQUIRE(rdclass == 1);
 
+	UNUSED(type);
 	UNUSED(rdclass);
 
 	/*
@@ -43,7 +44,7 @@ fromtext_in_px(ARGS_FROMTEXT) {
 	RETERR(isc_lex_getmastertoken(lexer, &token, isc_tokentype_number,
 				      ISC_FALSE));
 	if (token.value.as_ulong > 0xffff)
-		return (ISC_R_RANGE);
+		RETTOK(ISC_R_RANGE);
 	RETERR(uint16_tobuffer(token.value.as_ulong, target));
 
 	/*
@@ -54,7 +55,7 @@ fromtext_in_px(ARGS_FROMTEXT) {
 	dns_name_init(&name, NULL);
 	buffer_fromregion(&buffer, &token.value.as_region);
 	origin = (origin != NULL) ? origin : dns_rootname;
-	RETERR(dns_name_fromtext(&name, &buffer, origin, downcase, target));
+	RETTOK(dns_name_fromtext(&name, &buffer, origin, downcase, target));
 
 	/*
 	 * MAPX400.
@@ -64,7 +65,8 @@ fromtext_in_px(ARGS_FROMTEXT) {
 	dns_name_init(&name, NULL);
 	buffer_fromregion(&buffer, &token.value.as_region);
 	origin = (origin != NULL) ? origin : dns_rootname;
-	return (dns_name_fromtext(&name, &buffer, origin, downcase, target));
+	RETTOK(dns_name_fromtext(&name, &buffer, origin, downcase, target));
+	return (ISC_R_SUCCESS);
 }
 
 static inline isc_result_t
@@ -118,6 +120,7 @@ fromwire_in_px(ARGS_FROMWIRE) {
 	REQUIRE(type == 26);
 	REQUIRE(rdclass == 1);
 
+	UNUSED(type);
 	UNUSED(rdclass);
 
 	dns_decompress_setmethods(dctx, DNS_COMPRESS_NONE);
@@ -147,6 +150,7 @@ fromwire_in_px(ARGS_FROMWIRE) {
 static inline isc_result_t
 towire_in_px(ARGS_TOWIRE) {
 	dns_name_t name;
+	dns_offsets_t offsets;
 	isc_region_t region;
 
 	REQUIRE(rdata->type == 26);
@@ -164,7 +168,7 @@ towire_in_px(ARGS_TOWIRE) {
 	/*
 	 * MAP822.
 	 */
-	dns_name_init(&name, NULL);
+	dns_name_init(&name, offsets);
 	dns_name_fromregion(&name, &region);
 	RETERR(dns_name_towire(&name, cctx, target));
 	isc_region_consume(&region, name_length(&name));
@@ -172,7 +176,7 @@ towire_in_px(ARGS_TOWIRE) {
 	/*
 	 * MAPX400.
 	 */
-	dns_name_init(&name, NULL);
+	dns_name_init(&name, offsets);
 	dns_name_fromregion(&name, &region);
 	return (dns_name_towire(&name, cctx, target));
 }
@@ -232,6 +236,7 @@ fromstruct_in_px(ARGS_FROMSTRUCT) {
 	REQUIRE(px->common.rdtype == type);
 	REQUIRE(px->common.rdclass == rdclass);
 
+	UNUSED(type);
 	UNUSED(rdclass);
 
 	RETERR(uint16_tobuffer(px->preference, target));

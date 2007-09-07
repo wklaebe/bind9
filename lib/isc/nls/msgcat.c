@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: msgcat.c,v 1.8.4.1 2001/01/09 22:50:43 bwelling Exp $ */
+/* $Id: msgcat.c,v 1.9 2001/01/09 21:57:46 bwelling Exp $ */
 
 /*
  * Principal Author: Bob Halley

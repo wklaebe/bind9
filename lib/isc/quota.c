@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: quota.c,v 1.10.4.1 2001/01/09 22:49:13 bwelling Exp $ */
+/* $Id: quota.c,v 1.11 2001/01/09 21:56:21 bwelling Exp $ */
 
 #include <config.h>
 

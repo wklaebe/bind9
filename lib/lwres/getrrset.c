@@ -15,18 +15,11 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: getrrset.c,v 1.5.2.2 2001/01/23 01:56:48 gson Exp $ */
+/* $Id: getrrset.c,v 1.9 2001/03/06 23:02:01 bwelling Exp $ */
 
 #include <config.h>
 
 #include <sys/types.h>
-#include <sys/socket.h>
-#include <sys/un.h>
-
-#include <netinet/in.h>
-
-#include <arpa/nameser.h>
-#include <arpa/inet.h>
 
 #include <string.h>
 #include <errno.h>
@@ -109,8 +102,10 @@ lwres_getrrsetbyname(const char *hostname, unsigned int rdclass,
 	UNUSED(flags);
 	lwflags = 0;
 
-	lwresult = lwres_getrdatabyname(lwrctx, hostname, rdclass, rdtype,
-				      lwflags, &response);
+	lwresult = lwres_getrdatabyname(lwrctx, hostname,
+					(lwres_uint16_t)rdclass, 
+					(lwres_uint16_t)rdtype,
+					lwflags, &response);
 	if (lwresult != LWRES_R_SUCCESS) {
 		result = lwresult_to_result(lwresult);
 		goto fail;

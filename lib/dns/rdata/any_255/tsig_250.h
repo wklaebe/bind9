@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: tsig_250.h,v 1.19.4.1 2001/01/09 22:46:37 bwelling Exp $ */
+/* $Id: tsig_250.h,v 1.20 2001/01/09 21:53:49 bwelling Exp $ */
 
 /* RFC 2845 */
 

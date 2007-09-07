@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: time.c,v 1.19.4.1 2001/01/09 22:51:52 bwelling Exp $ */
+/* $Id: time.c,v 1.20 2001/01/09 21:58:56 bwelling Exp $ */
 
 #include <config.h>
 

@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: result.c,v 1.84.2.4 2001/06/08 19:38:59 bwelling Exp $ */
+/* $Id: result.c,v 1.89 2001/05/10 17:51:48 gson Exp $ */
 
 #include <config.h>
 
@@ -80,8 +80,8 @@ static const char *text[DNS_R_NRESULTS] = {
 	"key is unauthorized to sign data",    /* 43 DNS_R_KEYUNAUTHORIZED   */
 	"invalid time",			       /* 44 DNS_R_INVALIDTIME	     */
 
-	"expected a TSIG or SIG(0)",	       /* 45 DNS_R_EXPECTEDTSIG	     */
-	"did not expect a TSIG or SIG(0)",     /* 46 DNS_R_UNEXPECTEDTSIG    */
+	"expected a TSIG",		       /* 45 DNS_R_EXPECTEDTSIG	     */
+	"did not expect a TSIG",	       /* 46 DNS_R_UNEXPECTEDTSIG    */
 	"TKEY is unacceptable",		       /* 47 DNS_R_INVALIDTKEY	     */
 	"hint",				       /* 48 DNS_R_HINT		     */
 	"drop",				       /* 49 DNS_R_DROP		     */
@@ -100,7 +100,7 @@ static const char *text[DNS_R_NRESULTS] = {
 
 	"no valid NXT",			       /* 60 DNS_R_NOVALIDNXT	     */
 	"not insecure",			       /* 61 DNS_R_NOTINSECURE	     */
-	"<unused 62> ",			       /* 62 unused		     */
+	"unknown service",		       /* 62 DNS_R_UNKNOWNSERVICE    */
 	"recoverable error occurred",	       /* 63 DNS_R_RECOVERABLE       */
 	"unknown opt attribute record",	       /* 64 DNS_R_UNKNOWNOPT	     */
 
@@ -114,9 +114,9 @@ static const char *text[DNS_R_NRESULTS] = {
 	"CNAME and other data",		       /* 71 DNS_R_CNAMEANDOTHER     */
 	"multiple RRs of singleton type",      /* 72 DNS_R_SINGLETON	     */
 	"hint nxrrset",			       /* 73 DNS_R_HINTNXRRSET	     */
-	"no master file configured",	       /* 74 DNS_R_NOMASTERFILE      */
-	
-	"unknown protocol",		       /* 75 DNS_R_UNKNOWNPROTO      */
+	"no master file configured",	       /* 74 DNS_R_NOMASTERFILE	     */
+
+	"unknown protocol",		       /* 75 DNS_R_UNKNOWNPROTO	     */
 	"clocks are unsynchronized",	       /* 76 DNS_R_CLOCKSKEW	     */
 	"IXFR failed"			       /* 77 DNS_R_BADIXFR	     */
 };

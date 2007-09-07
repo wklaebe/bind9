@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: interfaceiter.c,v 1.20.4.1 2001/01/09 22:51:18 bwelling Exp $ */
+/* $Id: interfaceiter.c,v 1.21 2001/01/09 21:58:21 bwelling Exp $ */
 
 #include <config.h>
 

@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: notify.h,v 1.8.4.1 2001/01/09 22:32:36 bwelling Exp $ */
+/* $Id: notify.h,v 1.9 2001/01/09 21:40:24 bwelling Exp $ */
 
 #ifndef NAMED_NOTIFY_H
 #define NAMED_NOTIFY_H 1

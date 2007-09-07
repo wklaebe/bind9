@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: inter_test.c,v 1.7.4.1 2001/01/09 22:33:22 bwelling Exp $ */
+/* $Id: inter_test.c,v 1.8 2001/01/09 21:41:09 bwelling Exp $ */
 
 #include <config.h>
 

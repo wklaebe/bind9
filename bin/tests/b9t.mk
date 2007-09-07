@@ -13,7 +13,7 @@
 # NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
 # WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: b9t.mk,v 1.9.4.1 2001/01/09 22:33:04 bwelling Exp $
+# $Id: b9t.mk,v 1.10 2001/01/09 21:40:53 bwelling Exp $
 
 #
 # makefile to configure, build and test bind9

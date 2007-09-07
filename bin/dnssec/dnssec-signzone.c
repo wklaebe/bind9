@@ -17,7 +17,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dnssec-signzone.c,v 1.126.2.4 2001/04/09 20:50:37 gson Exp $ */
+/* $Id: dnssec-signzone.c,v 1.138 2001/05/10 06:04:58 bwelling Exp $ */
 
 #include <config.h>
 
@@ -28,6 +28,7 @@
 #include <isc/commandline.h>
 #include <isc/entropy.h>
 #include <isc/event.h>
+#include <isc/file.h>
 #include <isc/mem.h>
 #include <isc/mutex.h>
 #include <isc/os.h>
@@ -42,7 +43,6 @@
 #include <dns/diff.h>
 #include <dns/dnssec.h>
 #include <dns/fixedname.h>
-#include <dns/journal.h>
 #include <dns/keyvalues.h>
 #include <dns/log.h>
 #include <dns/master.h>
@@ -99,6 +99,7 @@ static isc_mem_t *mctx = NULL;
 static isc_entropy_t *ectx = NULL;
 static dns_ttl_t zonettl;
 static FILE *fp;
+static char *tempfile = NULL;
 static const dns_master_style_t *masterstyle = &dns_master_style_explicitttl;
 static unsigned int nsigned = 0, nretained = 0, ndropped = 0;
 static unsigned int nverified = 0, nverifyfailed = 0;
@@ -116,6 +117,7 @@ static unsigned int ntasks = 0;
 static isc_boolean_t shuttingdown = ISC_FALSE, finished = ISC_FALSE;
 static unsigned int assigned = 0, completed = 0;
 static isc_boolean_t nokeys = ISC_FALSE;
+static isc_boolean_t removefile = ISC_FALSE;
 
 #define INCSTAT(counter)		\
 	if (printstats) {		\
@@ -221,7 +223,8 @@ keythatsigned(dns_rdata_sig_t *sig) {
 		return (NULL);
 
 	result = dst_key_fromfile(&sig->signer, sig->keyid, sig->algorithm,
-				  DST_TYPE_PRIVATE, NULL, mctx, &privkey);
+				  DST_TYPE_PUBLIC | DST_TYPE_PRIVATE,
+				  NULL, mctx, &privkey);
 	if (result == ISC_R_SUCCESS) {
 		dst_key_free(&pubkey);
 		key = newkeystruct(privkey, ISC_FALSE);
@@ -505,7 +508,6 @@ static void
 opendb(const char *prefix, dns_name_t *name, dns_rdataclass_t rdclass,
        dns_db_t **dbp)
 {
-	dns_fixedname_t fname;
 	char filename[256];
 	isc_buffer_t b;
 	isc_result_t result;
@@ -517,10 +519,8 @@ opendb(const char *prefix, dns_name_t *name, dns_rdataclass_t rdclass,
 			isc_buffer_putstr(&b, "/");
 	}
 	isc_buffer_putstr(&b, prefix);
-	dns_fixedname_init(&fname);
-	(void)dns_name_downcase(name, dns_fixedname_name(&fname), NULL);
-	result = dns_name_totext(dns_fixedname_name(&fname), ISC_FALSE, &b);
-	check_result(result, "dns_name_totext()");
+	result = dns_name_tofilenametext(name, ISC_FALSE, &b);
+	check_result(result, "dns_name_tofilenametext()");
 	if (isc_buffer_availablelength(&b) == 0) {
 		char namestr[DNS_NAME_FORMATSIZE];
 		dns_name_format(name, namestr, sizeof namestr);
@@ -528,7 +528,7 @@ opendb(const char *prefix, dns_name_t *name, dns_rdataclass_t rdclass,
 	}
 	isc_buffer_putuint8(&b, 0);
 
-	result = dns_db_create(mctx, "rbt", name, dns_dbtype_zone,
+	result = dns_db_create(mctx, "rbt", dns_rootname, dns_dbtype_zone,
 			       rdclass, 0, NULL, dbp);
 	check_result(result, "dns_db_create()");
 
@@ -1338,7 +1338,7 @@ loadzone(char *file, char *origin, dns_rdataclass_t rdclass, dns_db_t **db) {
 	check_result(result, "dns_db_create()");
 
 	result = dns_db_load(*db, file);
-	if (result != ISC_R_SUCCESS)
+	if (result != ISC_R_SUCCESS && result != DNS_R_SEENINCLUDE)
 		fatal("failed loading zone from '%s': %s",
 		      file, isc_result_totext(result));
 }
@@ -1489,6 +1489,12 @@ usage(void) {
 	exit(0);
 }
 
+static void
+removetempfile(void) {
+	if (removefile)
+		isc_file_remove(tempfile);
+}
+
 int
 main(int argc, char *argv[]) {
 	int i, ch;
@@ -1503,11 +1509,10 @@ main(int argc, char *argv[]) {
 	isc_boolean_t pseudorandom = ISC_FALSE;
 	unsigned int eflags;
 	isc_boolean_t free_output = ISC_FALSE;
+	int tempfilelen;
 	dns_rdataclass_t rdclass;
 	isc_textregion_t r;
 	isc_task_t **tasks = NULL;
-
-
 
 	check_result(isc_app_start(), "isc_app_start");
 
@@ -1674,6 +1679,7 @@ main(int argc, char *argv[]) {
 			dst_key_t *newkey = NULL;
 
 			result = dst_key_fromnamedfile(argv[i],
+						       DST_TYPE_PUBLIC |
 						       DST_TYPE_PRIVATE,
 						       mctx, &newkey);
 			if (result != ISC_R_SUCCESS)
@@ -1716,11 +1722,22 @@ main(int argc, char *argv[]) {
 	result = dns_db_newversion(gdb, &gversion);
 	check_result(result, "dns_db_newversion()");
 
+	tempfilelen = strlen(output) + 20;
+	tempfile = isc_mem_get(mctx, tempfilelen);
+	if (tempfile == NULL)
+		fatal("out of memory");
+
+	result = isc_file_mktemplate(output, tempfile, tempfilelen);
+	check_result(result, "isc_file_mktemplate");
+
 	fp = NULL;
-	result = isc_stdio_open(output, "w", &fp);
+	result = isc_file_openunique(tempfile, &fp);
 	if (result != ISC_R_SUCCESS)
-		fatal("failed to open output file %s: %s", output,
+		fatal("failed to open temporary output file: %s",
 		      isc_result_totext(result));
+	removefile = ISC_TRUE;
+	setfatalcallback(&removetempfile);
+
 	print_time(fp);
 	print_version(fp);
 
@@ -1766,6 +1783,12 @@ main(int argc, char *argv[]) {
 
 	result = isc_stdio_close(fp);
 	check_result(result, "isc_stdio_close");
+	removefile = ISC_FALSE;
+
+	result = isc_file_rename(tempfile, output);
+	if (result != ISC_R_SUCCESS)
+		fatal("failed to rename temp file to %s: %s\n",
+		      output, isc_result_totext(result));
 
 	DESTROYLOCK(&namelock);
 	if (printstats)
@@ -1783,6 +1806,8 @@ main(int argc, char *argv[]) {
 		dst_key_free(&key->key);
 		isc_mem_put(mctx, key, sizeof(signer_key_t));
 	}
+
+	isc_mem_put(mctx, tempfile, tempfilelen);
 
 	if (free_output)
 		isc_mem_free(mctx, output);

@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: check-tool.h,v 1.1.2.1 2001/01/09 22:31:15 bwelling Exp $ */
+/* $Id: check-tool.h,v 1.2 2001/01/09 21:39:09 bwelling Exp $ */
 
 #ifndef CHECK_TOOL_H
 #define CHECK_TOOL_H

@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: a6_38.c,v 1.39.4.1 2001/01/09 22:47:51 bwelling Exp $ */
+/* $Id: a6_38.c,v 1.44 2001/03/16 22:53:10 bwelling Exp $ */
 
 /* draft-ietf-ipngwg-dns-lookups-03.txt */
 
@@ -39,6 +39,7 @@ fromtext_in_a6(ARGS_FROMTEXT) {
 	REQUIRE(type == 38);
 	REQUIRE(rdclass == 1);
 
+	UNUSED(type);
 	UNUSED(rdclass);
 
 	/*
@@ -47,7 +48,7 @@ fromtext_in_a6(ARGS_FROMTEXT) {
 	RETERR(isc_lex_getmastertoken(lexer, &token, isc_tokentype_number,
 				      ISC_FALSE));
 	if (token.value.as_ulong > 128)
-		return (ISC_R_RANGE);
+		RETTOK(ISC_R_RANGE);
 
 	prefixlen = (unsigned char)token.value.as_ulong;
 	RETERR(mem_tobuffer(target, &prefixlen, 1));
@@ -67,7 +68,7 @@ fromtext_in_a6(ARGS_FROMTEXT) {
 					      isc_tokentype_string,
 					      ISC_FALSE));
 		if (inet_pton(AF_INET6, token.value.as_pointer, addr) != 1)
-			return (DNS_R_BADAAAA);
+			RETTOK(DNS_R_BADAAAA);
 		mask = 0xff >> (prefixlen % 8);
 		addr[octets] &= mask;
 		RETERR(mem_tobuffer(target, &addr[octets], 16 - octets));
@@ -81,13 +82,13 @@ fromtext_in_a6(ARGS_FROMTEXT) {
 	dns_name_init(&name, NULL);
 	buffer_fromregion(&buffer, &token.value.as_region);
 	origin = (origin != NULL) ? origin : dns_rootname;
-	return (dns_name_fromtext(&name, &buffer, origin, downcase, target));
+	RETTOK(dns_name_fromtext(&name, &buffer, origin, downcase, target));
+	return (ISC_R_SUCCESS);
 }
 
 static inline isc_result_t
 totext_in_a6(ARGS_TOTEXT) {
-	isc_region_t tr;
-	isc_region_t sr;
+	isc_region_t sr, ar;
 	unsigned char addr[16];
 	unsigned char prefixlen;
 	unsigned char octets;
@@ -115,12 +116,9 @@ totext_in_a6(ARGS_TOTEXT) {
 		memcpy(&addr[octets], sr.base, 16 - octets);
 		mask = 0xff >> (prefixlen % 8);
 		addr[octets] &= mask;
-		isc_buffer_availableregion(target, &tr);
-		if (inet_ntop(AF_INET6, addr,
-			      (char *)tr.base, tr.length) == NULL)
-			return (ISC_R_NOSPACE);
-
-		isc_buffer_add(target, strlen((char *)tr.base));
+		ar.base = addr;
+		ar.length = sizeof(addr);
+		RETERR(inet_totext(AF_INET6, &ar, target));
 		isc_region_consume(&sr, 16 - octets);
 	}
 
@@ -146,6 +144,7 @@ fromwire_in_a6(ARGS_FROMWIRE) {
 	REQUIRE(type == 38);
 	REQUIRE(rdclass == 1);
 
+	UNUSED(type);
 	UNUSED(rdclass);
 
 	dns_decompress_setmethods(dctx, DNS_COMPRESS_NONE);
@@ -187,6 +186,7 @@ static inline isc_result_t
 towire_in_a6(ARGS_TOWIRE) {
 	isc_region_t sr;
 	dns_name_t name;
+	dns_offsets_t offsets;
 	unsigned char prefixlen;
 	unsigned char octets;
 
@@ -206,7 +206,7 @@ towire_in_a6(ARGS_TOWIRE) {
 	if (prefixlen == 0)
 		return (ISC_R_SUCCESS);
 
-	dns_name_init(&name, NULL);
+	dns_name_init(&name, offsets);
 	dns_name_fromregion(&name, &sr);
 	return (dns_name_towire(&name, cctx, target));
 }
@@ -280,6 +280,7 @@ fromstruct_in_a6(ARGS_FROMSTRUCT) {
 	REQUIRE(a6->common.rdtype == type);
 	REQUIRE(a6->common.rdclass == rdclass);
 
+	UNUSED(type);
 	UNUSED(rdclass);
 
 	if (a6->prefixlen > 128)

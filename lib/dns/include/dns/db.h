@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: db.h,v 1.63.4.1 2001/01/09 22:45:29 bwelling Exp $ */
+/* $Id: db.h,v 1.66 2001/05/15 05:35:27 halley Exp $ */
 
 #ifndef DNS_DB_H
 #define DNS_DB_H 1
@@ -713,7 +713,8 @@ dns_db_find(dns_db_t *db, dns_name_t *name, dns_dbversion_t *version,
  *						to return inappropriate glue
  *						to a client.  This result can
  *						only occur if 'db' is a zone
- *						database.
+ *						database and DNS_DBFIND_GLUEOK
+ *						is set.
  *
  *		DNS_R_DNAME			The data requested is beneath
  *						a DNAME.  node, foundname,

@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: errno2result.h,v 1.6.4.1 2001/01/09 22:51:12 bwelling Exp $ */
+/* $Id: errno2result.h,v 1.7 2001/01/09 21:58:16 bwelling Exp $ */
 
 #ifndef UNIX_ERRNO2RESULT_H
 #define UNIX_ERRNO2RESULT_H 1

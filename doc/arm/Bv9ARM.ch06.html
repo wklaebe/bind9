@@ -4,9 +4,10 @@
 >BIND 9 Configuration Reference</TITLE
 ><META
 NAME="GENERATOR"
-CONTENT="Modular DocBook HTML Stylesheet Version 1.61
+CONTENT="Modular DocBook HTML Stylesheet Version 1.64
 "><LINK
 REL="HOME"
+TITLE="BIND 9 Administrator Reference Manual"
 HREF="Bv9ARM.html"><LINK
 REL="PREVIOUS"
 TITLE="The BIND 9 Lightweight Resolver"
@@ -32,7 +33,7 @@ CELLSPACING="0"
 ><TH
 COLSPAN="3"
 ALIGN="center"
-></TH
+>BIND 9 Administrator Reference Manual</TH
 ></TR
 ><TR
 ><TD
@@ -90,7 +91,7 @@ HREF="Bv9ARM.ch06.html#Configuration_File_Grammar"
 ></DT
 ><DT
 >6.3. <A
-HREF="Bv9ARM.ch06.html#AEN3441"
+HREF="Bv9ARM.ch06.html#AEN3451"
 >Zone File</A
 ></DT
 ></DL
@@ -144,7 +145,7 @@ file documentation:</P
 ><DIV
 CLASS="informaltable"
 ><A
-NAME="AEN1059"
+NAME="AEN1090"
 ></A
 ><P
 ></P
@@ -231,9 +232,9 @@ ALIGN="LEFT"
 VALIGN="MIDDLE"
 ><P
 >A quoted string which will be used as
-a DNS name, for example "<SPAN
-CLASS="systemitem"
->my.test.domain</SPAN
+a DNS name, for example "<TT
+CLASS="literal"
+>my.test.domain</TT
 >".</P
 ></TD
 ></TR
@@ -739,7 +740,7 @@ CLASS="sect3"
 ><H3
 CLASS="sect3"
 ><A
-NAME="AEN1222"
+NAME="AEN1253"
 >6.1.1.1. Syntax</A
 ></H3
 ><PRE
@@ -770,7 +771,7 @@ CLASS="sect3"
 ><H3
 CLASS="sect3"
 ><A
-NAME="AEN1230"
+NAME="AEN1261"
 >6.1.1.2. Definition and Usage</A
 ></H3
 ><P
@@ -881,7 +882,7 @@ CLASS="sect2"
 ><H2
 CLASS="sect2"
 ><A
-NAME="AEN1259"
+NAME="AEN1290"
 >6.1.2. Comment Syntax</A
 ></H2
 ><P
@@ -900,7 +901,7 @@ CLASS="sect3"
 ><H3
 CLASS="sect3"
 ><A
-NAME="AEN1264"
+NAME="AEN1295"
 >6.1.2.1. Syntax</A
 ></H3
 ><P
@@ -932,7 +933,7 @@ CLASS="sect3"
 ><H3
 CLASS="sect3"
 ><A
-NAME="AEN1273"
+NAME="AEN1304"
 >6.1.2.2. Definition and Usage</A
 ></H3
 ><P
@@ -1042,7 +1043,7 @@ CLASS="acronym"
 ><DIV
 CLASS="informaltable"
 ><A
-NAME="AEN1297"
+NAME="AEN1328"
 ></A
 ><P
 ></P
@@ -1270,7 +1271,7 @@ CLASS="sect2"
 ><H2
 CLASS="sect2"
 ><A
-NAME="AEN1366"
+NAME="AEN1397"
 >6.2.1. <B
 CLASS="command"
 >acl</B
@@ -1317,7 +1318,7 @@ CLASS="command"
 ><DIV
 CLASS="informaltable"
 ><A
-NAME="AEN1379"
+NAME="AEN1410"
 ></A
 ><P
 ></P
@@ -1415,7 +1416,7 @@ CLASS="sect2"
 ><H2
 CLASS="sect2"
 ><A
-NAME="AEN1408"
+NAME="AEN1439"
 >6.2.3. <B
 CLASS="command"
 >controls</B
@@ -1454,7 +1455,7 @@ CLASS="sect2"
 ><H2
 CLASS="sect2"
 ><A
-NAME="AEN1417"
+NAME="controls_statement_definition_and_usage"
 >6.2.4. <B
 CLASS="command"
 >controls</B
@@ -1539,6 +1540,117 @@ HREF="Bv9ARM.ch03.html#admin_tools"
       must be signed by one of its specified keys to
       be honored.</P
 ><P
+>The <B
+CLASS="command"
+>keys</B
+> clause is not strictly required.
+      If it is not present, then a random key will be generated automatically
+      and placed in a file named <TT
+CLASS="filename"
+>named.key</TT
+>, which is
+      usually in <TT
+CLASS="filename"
+>/var/run</TT
+> but will be wherever
+      <TT
+CLASS="varname"
+>localstatedir</TT
+> was specified as when
+      <SPAN
+CLASS="acronym"
+>BIND</SPAN
+> was built.  <TT
+CLASS="filename"
+>named.key</TT
+>
+      contains a complete <TT
+CLASS="filename"
+>rndc.conf</TT
+>-compatible
+      configuration and is used by <B
+CLASS="command"
+>rndc</B
+> when it
+      cannot find its primary configuration file.</P
+><P
+>Similarly, <TT
+CLASS="filename"
+>named.key</TT
+> is generated when
+      no <B
+CLASS="command"
+>controls</B
+> statement is present at all.  In
+      that situation it will configure a control channel to run on
+      127.0.0.1.</P
+><P
+>There are two ways to disable the creation of
+      <TT
+CLASS="filename"
+>named.key</TT
+>.  One is to ensure that all of your
+      <B
+CLASS="command"
+>inet</B
+> control channels have a <B
+CLASS="command"
+>keys</B
+>
+      clause.  The other is to have a <B
+CLASS="command"
+>controls</B
+> statement
+      with no <B
+CLASS="command"
+>inet</B
+> phrases it all.  The latter will
+      prevent the creation of any control channel.</P
+><P
+>The <TT
+CLASS="filename"
+>named.key</TT
+> feature was created to
+      ease the transition of systems from <SPAN
+CLASS="acronym"
+>BIND</SPAN
+> 8,
+      which did not have digital signatures on its command channel messages
+      and thus did not have a <B
+CLASS="command"
+>keys</B
+> clause.  Since
+      it is only intended to allow the backward-compatible usage of
+      <SPAN
+CLASS="acronym"
+>BIND</SPAN
+> 8 configuration files, this feature does not
+      have a high degree of configurability.  You cannot easily change
+      the key name or the size of the secret, so you should make a
+      <TT
+CLASS="filename"
+>rndc.conf</TT
+> with your own key if you wish to change
+      those things.  The <TT
+CLASS="filename"
+>named.key</TT
+> file also has its
+      permissions set such that only the owner of the file (the user that
+      <B
+CLASS="command"
+>named</B
+> is running as) can access it.  If you
+      desire greater flexibility in allowing other users to access
+      <B
+CLASS="command"
+>rndc</B
+> commands then you need to create an
+      <TT
+CLASS="filename"
+>rndc.conf</TT
+> and make it group readable by a group
+      that contains the users who should have access.</P
+><P
 >The UNIX control channel type of <SPAN
 CLASS="acronym"
 >BIND</SPAN
@@ -1559,7 +1671,7 @@ CLASS="sect2"
 ><H2
 CLASS="sect2"
 ><A
-NAME="AEN1443"
+NAME="AEN1502"
 >6.2.5. <B
 CLASS="command"
 >include</B
@@ -1579,7 +1691,7 @@ CLASS="sect2"
 ><H2
 CLASS="sect2"
 ><A
-NAME="AEN1448"
+NAME="AEN1507"
 >6.2.6. <B
 CLASS="command"
 >include</B
@@ -1609,7 +1721,7 @@ CLASS="sect2"
 ><H2
 CLASS="sect2"
 ><A
-NAME="AEN1455"
+NAME="AEN1514"
 >6.2.7. <B
 CLASS="command"
 >key</B
@@ -1643,7 +1755,7 @@ CLASS="sect2"
 ><H2
 CLASS="sect2"
 ><A
-NAME="AEN1462"
+NAME="AEN1521"
 >6.2.8. <B
 CLASS="command"
 >key</B
@@ -1697,7 +1809,7 @@ CLASS="sect2"
 ><H2
 CLASS="sect2"
 ><A
-NAME="AEN1474"
+NAME="AEN1533"
 >6.2.9. <B
 CLASS="command"
 >logging</B
@@ -1857,12 +1969,11 @@ CLASS="sect2"
 ><H2
 CLASS="sect2"
 ><A
-NAME="AEN1514"
+NAME="AEN1573"
 >6.2.10. <B
 CLASS="command"
 >logging</B
-> Statement Definition and
-Usage</A
+> Statement Definition and Usage</A
 ></H2
 ><P
 >The <B
@@ -1891,10 +2002,8 @@ CLASS="command"
 the logging configuration will be:</P
 ><PRE
 CLASS="programlisting"
-><B
-CLASS="command"
->logging</B
-> {
+>logging {
+     category "unmatched" { "null"; };
      category "default" { "default_syslog"; "default_debug"; };
 };
 </PRE
@@ -1923,7 +2032,7 @@ CLASS="sect3"
 ><H3
 CLASS="sect3"
 ><A
-NAME="AEN1531"
+NAME="AEN1589"
 >6.2.10.1. The <B
 CLASS="command"
 >channel</B
@@ -1966,43 +2075,31 @@ to a disk file.  It can include limitations
 both on how large the file is allowed to become, and how many versions
 of the file will be saved each time the file is opened.</P
 ><P
->The <B
-CLASS="command"
->size</B
-> option for files is simply a hard
-ceiling on log growth. If the file ever exceeds the size, then <B
-CLASS="command"
->named</B
-> will
-not write anything more to it until the file is reopened; exceeding
-the size does not automatically trigger a reopen. The default behavior
-is not to limit the size of the file.</P
-><P
 >If you use the <B
 CLASS="command"
->version</B
-> log file option,
-then <B
+>versions</B
+> log file option, then
+<B
 CLASS="command"
 >named</B
-> will retain that many backup versions
-of the file by renaming them when opening. For example, if you choose
-to keep 3 old versions of the file <TT
+> will retain that many backup versions of the file by
+renaming them when opening.  For example, if you choose to keep 3 old versions
+of the file <TT
 CLASS="filename"
 >lamers.log</TT
-> then
-just before it is opened <TT
+> then just before it is opened
+<TT
 CLASS="filename"
 >lamers.log.1</TT
-> is renamed
-to <TT
+> is renamed to
+<TT
 CLASS="filename"
 >lamers.log.2</TT
 >, <TT
 CLASS="filename"
 >lamers.log.0</TT
-> is
-renamed to <TT
+> is renamed
+to <TT
 CLASS="filename"
 >lamers.log.1</TT
 >, and <TT
@@ -2012,20 +2109,50 @@ CLASS="filename"
 renamed to <TT
 CLASS="filename"
 >lamers.log.0</TT
->. No rolled versions
-are kept by default; any existing log file is simply appended. The <B
+>.
+You can say <B
 CLASS="command"
->unlimited</B
-> keyword
-is synonymous with <B
+>versions unlimited;</B
+> to not limit
+the number of versions.
+If a <B
 CLASS="command"
->99</B
-> in current <SPAN
-CLASS="acronym"
->BIND</SPAN
-> releases.</P
+>size</B
+> option is associated with the log file,
+then renaming is only done when the file being opened exceeds the
+indicated size.  No backup versions are kept by default; any existing
+log file is simply appended.</P
 ><P
->Example usage of the size and versions options:</P
+>The <B
+CLASS="command"
+>size</B
+> option for files is used to limit log
+growth. If the file ever exceeds the size, then <B
+CLASS="command"
+>named</B
+> will
+stop writing to the file unless it has a <B
+CLASS="command"
+>versions</B
+> option
+associated with it.  If backup versions are kept, the files are rolled as
+described above and a new one begun.  If there is no
+<B
+CLASS="command"
+>versions</B
+> option, no more data will be written to the log
+until some out-of-band mechanism removes or truncates the log to less than the
+maximum size.  The default behavior is not to limit the size of the
+file.</P
+><P
+>Example usage of the <B
+CLASS="command"
+>size</B
+> and
+<B
+CLASS="command"
+>versions</B
+> options:</P
 ><PRE
 CLASS="programlisting"
 >channel "an_example_channel" {
@@ -2142,18 +2269,8 @@ CLASS="option"
 or by running <B
 CLASS="command"
 >rndc trace</B
->. <DIV
-CLASS="note"
-><BLOCKQUOTE
-CLASS="note"
-><P
-><B
->Note: </B
->the latter
-method is not yet implemented</P
-></BLOCKQUOTE
-></DIV
-> The global debug level
+>.
+The global debug level
 can be set to zero, and debugging mode turned off, by running <B
 CLASS="command"
 >ndc
@@ -2230,29 +2347,32 @@ HREF="Bv9ARM.ch06.html#the_category_phrase"
 ><PRE
 CLASS="programlisting"
 >channel "default_syslog" {
-    syslog daemon;			// end to syslog's daemon
-					// facility
-    severity info;			// only send priority info
-					// and higher
+    syslog daemon;                      // end to syslog's daemon
+                                        // facility
+    severity info;                      // only send priority info
+                                        // and higher
 };
+
 channel "default_debug" {
-    file "named.run";			// write to named.run in
-					// the working directory
-					// Note: stderr is used instead
-					// of "named.run"
-					// if the server is started
-					// with the '-f' option.
-    severity dynamic;			// log at the server's
-					// current debug level
+    file "named.run";                   // write to named.run in
+                                        // the working directory
+                                        // Note: stderr is used instead
+                                        // of "named.run"
+                                        // if the server is started
+                                        // with the '-f' option.
+    severity dynamic;                   // log at the server's
+                                        // current debug level
 };
-channel "default_stderr" {		// writes to stderr
+
+channel "default_stderr" {              // writes to stderr
     stderr;
-    severity info;			// only send priority info
-					// and higher
+    severity info;                      // only send priority info
+                                        // and higher
 };
+
 channel "null" {
-   null;				// toss anything sent to
-					// this channel
+   null;                                // toss anything sent to
+                                        // this channel
 };
 </PRE
 ><P
@@ -2354,7 +2474,7 @@ CLASS="acronym"
 ><DIV
 CLASS="informaltable"
 ><A
-NAME="AEN1634"
+NAME="AEN1693"
 ></A
 ><P
 ></P
@@ -2566,6 +2686,38 @@ VALIGN="MIDDLE"
 ><P
 ><B
 CLASS="command"
+>unmatched</B
+></P
+></TD
+><TD
+WIDTH="322"
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+><P
+>Messages that named was unable to determine the
+class of or for which there was no matching <B
+CLASS="command"
+>view</B
+>.
+A one line summary is also logged to the <B
+CLASS="command"
+>client</B
+> category.
+This category is best sent to a file or stderr, by default it is sent to
+the <B
+CLASS="command"
+>null</B
+> channel.</P
+></TD
+></TR
+><TR
+><TD
+WIDTH="110"
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+><P
+><B
+CLASS="command"
 >network</B
 ></P
 ></TD
@@ -2690,7 +2842,7 @@ CLASS="sect2"
 ><H2
 CLASS="sect2"
 ><A
-NAME="AEN1735"
+NAME="AEN1803"
 >6.2.11. <B
 CLASS="command"
 >lwres</B
@@ -2701,7 +2853,7 @@ CLASS="command"
 CLASS="command"
 >lwres</B
 >
-      statement in the <TT
+statement in the <TT
 CLASS="filename"
 >named.conf</TT
 > file:</P
@@ -2765,7 +2917,7 @@ CLASS="optional"
 > <TT
 CLASS="replaceable"
 ><I
->ip_addr</I
+>domain_name</I
 ></TT
 > ; ... </SPAN
 >] }; </SPAN
@@ -2787,7 +2939,7 @@ CLASS="sect2"
 ><H2
 CLASS="sect2"
 ><A
-NAME="AEN1759"
+NAME="AEN1827"
 >6.2.12. <B
 CLASS="command"
 >lwres</B
@@ -2798,69 +2950,70 @@ CLASS="command"
 CLASS="command"
 >lwres</B
 > statement configures the name
-      server to also act as a lightweight resolver server, see
-      <A
+server to also act as a lightweight resolver server, see
+<A
 HREF="Bv9ARM.ch05.html#lwresd"
 >Section 5.2</A
 >.  There may be be multiple
-      <B
+<B
 CLASS="command"
 >lwres</B
 > statements configuring
-      lightweight resolver servers with different properties.</P
+lightweight resolver servers with different properties.</P
 ><P
 >The <B
 CLASS="command"
 >listen-on</B
 > statement specifies a list of
-      addresses (and ports) that this instance of a lightweight resolver daemon
-      should accept requests on.  If this statement is omitted, requests
-      will be accepted on 127.0.0.1, port 53.</P
+addresses (and ports) that this instance of a lightweight resolver daemon
+should accept requests on.  If no port is specified, port 921 is used.
+If this statement is omitted, requests will be accepted on 127.0.0.1,
+port 921.</P
 ><P
 >The <B
 CLASS="command"
 >view</B
 > statement binds this instance of a
-      lightweight resolver daemon to a view in the DNS namespace, so that the
-      response will be constructed in the same manner as a normal DNS query
-      matching this view.  If this statement is omitted, the default view is
-      used, and if there is no default view, an error is triggered.</P
+lightweight resolver daemon to a view in the DNS namespace, so that the
+response will be constructed in the same manner as a normal DNS query
+matching this view.  If this statement is omitted, the default view is
+used, and if there is no default view, an error is triggered.</P
 ><P
 >The <B
 CLASS="command"
 >search</B
 > statement is equivalent to the
-      <B
+<B
 CLASS="command"
 >search</B
 > statement in
-      <TT
+<TT
 CLASS="filename"
 >/etc/resolv.conf</TT
 >.  It provides a list of domains
-      which are appended to relative names in queries.</P
+which are appended to relative names in queries.</P
 ><P
 >The <B
 CLASS="command"
 >ndots</B
 > statement is equivalent to the
-      <B
+<B
 CLASS="command"
 >ndots</B
 > statement in
-      <TT
+<TT
 CLASS="filename"
 >/etc/resolv.conf</TT
 >.  It indicates the minimum
-      number of dots in a relative domain name that should result in an
-      exact match lookup before search path elements are appended.</P
+number of dots in a relative domain name that should result in an
+exact match lookup before search path elements are appended.</P
 ></DIV
 ><DIV
 CLASS="sect2"
 ><H2
 CLASS="sect2"
 ><A
-NAME="AEN1778"
+NAME="AEN1846"
 >6.2.13. <B
 CLASS="command"
 >options</B
@@ -2871,16 +3024,13 @@ CLASS="command"
 CLASS="command"
 >options</B
 >
-      statement in the <TT
+statement in the <TT
 CLASS="filename"
 >named.conf</TT
 > file:</P
 ><PRE
 CLASS="programlisting"
-><B
-CLASS="command"
->options</B
-> {
+>options {
     [<SPAN
 CLASS="optional"
 > version <TT
@@ -3041,6 +3191,15 @@ CLASS="replaceable"
 >]
     [<SPAN
 CLASS="optional"
+> minimal-responses <TT
+CLASS="replaceable"
+><I
+>yes_or_no</I
+></TT
+>; </SPAN
+>]
+    [<SPAN
+CLASS="optional"
 > multiple-cnames <TT
 CLASS="replaceable"
 ><I
@@ -3114,22 +3273,35 @@ CLASS="replaceable"
 >]
     [<SPAN
 CLASS="optional"
-> forwarders { [<SPAN
+> forwarders { <TT
+CLASS="replaceable"
+><I
+>ip_addr</I
+></TT
+> [<SPAN
+CLASS="optional"
+>port <TT
+CLASS="replaceable"
+><I
+>ip_port</I
+></TT
+></SPAN
+>] ; [<SPAN
 CLASS="optional"
 > <TT
 CLASS="replaceable"
 ><I
->in_addr</I
+>ip_addr</I
 ></TT
-> ; [<SPAN
+> [<SPAN
 CLASS="optional"
-> <TT
+>port <TT
 CLASS="replaceable"
 ><I
->in_addr</I
+>ip_port</I
 ></TT
-> ; ... </SPAN
->] </SPAN
+></SPAN
+>] ; ... </SPAN
 >] }; </SPAN
 >]
     [<SPAN
@@ -3196,6 +3368,15 @@ CLASS="replaceable"
     [<SPAN
 CLASS="optional"
 > allow-recursion { <TT
+CLASS="replaceable"
+><I
+>address_match_list</I
+></TT
+> }; </SPAN
+>]
+    [<SPAN
+CLASS="optional"
+> allow-v6-synthesis { <TT
 CLASS="replaceable"
 ><I
 >address_match_list</I
@@ -3323,6 +3504,15 @@ CLASS="replaceable"
     [<SPAN
 CLASS="optional"
 > recursive-clients <TT
+CLASS="replaceable"
+><I
+>number</I
+></TT
+>; </SPAN
+>]
+    [<SPAN
+CLASS="optional"
+> serial-query-rate <TT
 CLASS="replaceable"
 ><I
 >number</I
@@ -3570,33 +3760,25 @@ CLASS="replaceable"
 >]
     [<SPAN
 CLASS="optional"
-> topology [<SPAN
-CLASS="optional"
->{ <TT
+> topology { <TT
 CLASS="replaceable"
 ><I
 >address_match_list</I
 ></TT
 > }</SPAN
->]; </SPAN
->]
+>];
     [<SPAN
 CLASS="optional"
-> sortlist [<SPAN
-CLASS="optional"
->{ <TT
+> sortlist { <TT
 CLASS="replaceable"
 ><I
 >address_match_list</I
 ></TT
 > }</SPAN
->]; </SPAN
->]
+>];
     [<SPAN
 CLASS="optional"
-> rrset-order [<SPAN
-CLASS="optional"
->{ <TT
+> rrset-order { <TT
 CLASS="replaceable"
 ><I
 >order_spec</I
@@ -3610,8 +3792,7 @@ CLASS="replaceable"
 ></TT
 > ; ... </SPAN
 >] </SPAN
->] }</SPAN
->];
+>] };
     [<SPAN
 CLASS="optional"
 > lame-ttl <TT
@@ -3738,6 +3919,24 @@ CLASS="replaceable"
 ></TT
 > ; </SPAN
 >]
+    [<SPAN
+CLASS="optional"
+> random-device <TT
+CLASS="replaceable"
+><I
+>path_name</I
+></TT
+> ; </SPAN
+>]
+    [<SPAN
+CLASS="optional"
+> max-cache-size <TT
+CLASS="replaceable"
+><I
+>size_spec</I
+></TT
+> ; </SPAN
+>]
 };
 </PRE
 ></DIV
@@ -3746,12 +3945,11 @@ CLASS="sect2"
 ><H2
 CLASS="sect2"
 ><A
-NAME="AEN1981"
+NAME="AEN2058"
 >6.2.14. <B
 CLASS="command"
 >options</B
-> Statement Definition and
-Usage</A
+> Statement Definition and Usage</A
 ></H2
 ><P
 >The <B
@@ -3761,67 +3959,44 @@ CLASS="command"
 to be used by <SPAN
 CLASS="acronym"
 >BIND</SPAN
->. This statement may appear only once in a configuration
-file. If more than one occurrence is found, the first occurrence
-determines the actual options used, and a warning will be generated.
-If there is no <B
+>. This statement may appear only
+once in a configuration file. If more than one occurrence is found,
+the first occurrence determines the actual options used, and a warning
+will be generated.  If there is no <B
 CLASS="command"
 >options</B
-> statement, an options
-block with each option set to its default will be used.<DIV
-CLASS="informaltable"
-><A
-NAME="AEN1988"
-></A
+>
+statement, an options block with each option set to its default will
+be used.</P
 ><P
 ></P
-><TABLE
-CELLPADDING="3"
-BORDER="1"
-CLASS="CALSTABLE"
-><TBODY
-><TR
-><TD
-WIDTH="153"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
-><P
+><DIV
+CLASS="variablelist"
+><DL
+><DT
 ><B
 CLASS="command"
 >version</B
-></P
-></TD
-><TD
-WIDTH="303"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
+></DT
+><DD
 ><P
 >The version the server should report
 via a query of name <TT
 CLASS="filename"
 >version.bind</TT
-> in class <B
+> in
+class <B
 CLASS="command"
->chaos</B
+>CHAOS</B
 >.
 The default is the real version number of this server.</P
-></TD
-></TR
-><TR
-><TD
-WIDTH="153"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
-><P
+></DD
+><DT
 ><B
 CLASS="command"
 >directory</B
-></P
-></TD
-><TD
-WIDTH="303"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
+></DT
+><DD
 ><P
 >The working directory of the server.
 Any non-absolute pathnames in the configuration file will be taken
@@ -3836,36 +4011,27 @@ CLASS="filename"
 >.</TT
 >', the directory from which the server
 was started. The directory specified should be an absolute path.</P
-></TD
-></TR
-><TR
-><TD
-WIDTH="153"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
-><P
+></DD
+><DT
 ><B
 CLASS="command"
 >named-xfer</B
-></P
-></TD
-><TD
-WIDTH="303"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
+></DT
+><DD
 ><P
->&#13;<I
+><I
 CLASS="emphasis"
 >This option is obsolete.</I
 >
 It was used in <SPAN
 CLASS="acronym"
 >BIND</SPAN
-> 8 to specify the pathname to the <B
+> 8 to
+specify the pathname to the <B
 CLASS="command"
 >named-xfer</B
 > program.
- In <SPAN
+In <SPAN
 CLASS="acronym"
 >BIND</SPAN
 > 9, no separate <B
@@ -3873,24 +4039,13 @@ CLASS="command"
 >named-xfer</B
 > program is
 needed; its functionality is built into the name server.</P
->
-</TD
-></TR
-><TR
-><TD
-WIDTH="153"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
-><P
+></DD
+><DT
 ><B
 CLASS="command"
 >tkey-domain</B
-></P
-></TD
-><TD
-WIDTH="303"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
+></DT
+><DD
 ><P
 >The domain appended to the names of all
 shared keys generated with <B
@@ -3905,7 +4060,8 @@ the desired name for the key. If present, the name of the shared
 key will be "<TT
 CLASS="varname"
 >client specified part</TT
->" + "<TT
+>" + 
+"<TT
 CLASS="varname"
 >tkey-domain</TT
 >".
@@ -3922,23 +4078,13 @@ CLASS="command"
 >domainname</B
 > should be the server's domain
 name.</P
-></TD
-></TR
-><TR
-><TD
-WIDTH="153"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
-><P
+></DD
+><DT
 ><B
 CLASS="command"
 >tkey-dhkey</B
-></P
-></TD
-><TD
-WIDTH="303"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
+></DT
+><DD
 ><P
 >The Diffie-Hellman key used by the server
 to generate shared keys with clients using the Diffie-Hellman mode
@@ -3948,23 +4094,13 @@ CLASS="command"
 >. The server must be able to load the
 public and private keys from files in the working directory. In
 most cases, the keyname should be the server's host name.</P
-></TD
-></TR
-><TR
-><TD
-WIDTH="153"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
-><P
+></DD
+><DT
 ><B
 CLASS="command"
 >dump-file</B
-></P
-></TD
-><TD
-WIDTH="303"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
+></DT
+><DD
 ><P
 >The pathname of the file the server dumps
 the database to when instructed to do so with
@@ -3976,32 +4112,21 @@ If not specified, the default is <TT
 CLASS="filename"
 >named_dump.db</TT
 >.</P
->
-</TD
-></TR
-><TR
-><TD
-WIDTH="153"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
-><P
+></DD
+><DT
 ><B
 CLASS="command"
 >memstatistics-file</B
-></P
-></TD
-><TD
-WIDTH="303"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
+></DT
+><DD
 ><P
 >The pathname of the file the server writes memory
-usage statistics to on exit. If not specified, the default is <TT
+usage statistics to on exit. If not specified,
+the default is <TT
 CLASS="filename"
 >named.memstats</TT
 >.</P
->
-<DIV
+><DIV
 CLASS="note"
 ><BLOCKQUOTE
 CLASS="note"
@@ -4014,23 +4139,13 @@ CLASS="acronym"
 > 9.</P
 ></BLOCKQUOTE
 ></DIV
-></TD
-></TR
-><TR
-><TD
-WIDTH="153"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
-><P
+></DD
+><DT
 ><B
 CLASS="command"
 >pid-file</B
-></P
-></TD
-><TD
-WIDTH="303"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
+></DT
+><DD
 ><P
 >The pathname of the file the server writes
 its process ID in. If not specified, the default is operating system
@@ -4044,23 +4159,13 @@ CLASS="filename"
 >.
 The pid-file is used by programs that want to send signals to the running
 nameserver.</P
-></TD
-></TR
-><TR
-><TD
-WIDTH="153"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
-><P
+></DD
+><DT
 ><B
 CLASS="command"
 >statistics-file</B
-></P
-></TD
-><TD
-WIDTH="303"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
+></DT
+><DD
 ><P
 >The pathname of the file the server appends statistics
 to when instructed to do so using <B
@@ -4074,27 +4179,18 @@ CLASS="filename"
 server's current directory.  The format of the file is described
 in <A
 HREF="Bv9ARM.ch06.html#statsfile"
->Section 6.2.14.13</A
+>Section 6.2.14.15</A
 ></P
-></TD
-></TR
-><TR
-><TD
-WIDTH="153"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
-><P
+></DD
+><DT
 ><B
 CLASS="command"
 >port</B
-></P
-></TD
-><TD
-WIDTH="303"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
+></DT
+><DD
 ><P
->&#13;The UDP/TCP port number the server uses for receiving and sending DNS protocol traffic.
+>&#13;The UDP/TCP port number the server uses for 
+receiving and sending DNS protocol traffic.
 The default is 53.  This option is mainly intended for server testing;
 a server using a port other than 53 will not be able to communicate with
 the global DNS.
@@ -4106,15 +4202,33 @@ the beginning of the options block, before
 any other options that take port numbers or IP addresses,
 to ensure that the port value takes effect for all addresses
 used by the server.</P
->
-</TD
-></TR
-></TBODY
-></TABLE
+></DD
+><DT
+><B
+CLASS="command"
+>random-device</B
+></DT
+><DD
 ><P
-></P
+>&#13;The source of entropy to be used by the server.  Entropy is primarily needed
+for DNSSEC operations, such as TKEY transactions and dynamic update of signed
+zones.  This options specifies the device (or file) from which to read
+entropy.  If this is a file, operations requiring entropy will fail when the
+file has been exhausted.  If not specified, the default value is
+<TT
+CLASS="filename"
+>/dev/random</TT
+>
+(or equivalent) when present, and none otherwise.  The
+<B
+CLASS="command"
+>random-device</B
+> option takes effect during
+the initial configuration load at server startup time and
+is ignored on subsequent reloads.</P
+></DD
+></DL
 ></DIV
-> </P
 ><DIV
 CLASS="sect3"
 ><H3
@@ -4123,33 +4237,17 @@ CLASS="sect3"
 NAME="boolean_options"
 >6.2.14.1. Boolean Options</A
 ></H3
-><DIV
-CLASS="informaltable"
-><A
-NAME="AEN2084"
-></A
 ><P
 ></P
-><TABLE
-CELLPADDING="3"
-BORDER="1"
-CLASS="CALSTABLE"
-><TBODY
-><TR
-><TD
-WIDTH="145"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
-><P
+><DIV
+CLASS="variablelist"
+><DL
+><DT
 ><B
 CLASS="command"
 >auth-nxdomain</B
-></P
-></TD
-><TD
-WIDTH="287"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
+></DT
+><DD
 ><P
 >If <TT
 CLASS="userinput"
@@ -4177,23 +4275,13 @@ CLASS="userinput"
 >yes</B
 ></TT
 >.</P
-></TD
-></TR
-><TR
-><TD
-WIDTH="145"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
-><P
+></DD
+><DT
 ><B
 CLASS="command"
 >deallocate-on-exit</B
-></P
-></TD
-><TD
-WIDTH="287"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
+></DT
+><DD
 ><P
 >This option was used in <SPAN
 CLASS="acronym"
@@ -4204,23 +4292,13 @@ CLASS="acronym"
 >BIND</SPAN
 > 9 ignores the option and always performs
 the checks.</P
-></TD
-></TR
-><TR
-><TD
-WIDTH="145"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
-><P
+></DD
+><DT
 ><B
 CLASS="command"
 >dialup</B
-></P
-></TD
-><TD
-WIDTH="287"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
+></DT
+><DD
 ><P
 >If <TT
 CLASS="userinput"
@@ -4243,8 +4321,7 @@ CLASS="userinput"
 >no</B
 ></TT
 >.</P
->
-<P
+><P
 >The <B
 CLASS="command"
 >dialup</B
@@ -4263,9 +4340,8 @@ CLASS="command"
 >
 option.</P
 ><P
->If
-the zone is a master zone then the server will send out a NOTIFY request
-to all the slaves. This will trigger the zone serial number check
+>If the zone is a master zone then the server will send out a NOTIFY 
+request to all the slaves. This will trigger the zone serial number check
 in the slave (providing it supports NOTIFY) allowing the slave to
 verify the zone while the connection is active.</P
 ><P
@@ -4309,50 +4385,31 @@ CLASS="userinput"
 ></TT
 > which just disables normal refresh
 processing.</P
->
-</TD
-></TR
-><TR
-><TD
-WIDTH="145"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
-><P
+></DD
+><DT
 ><B
 CLASS="command"
 >fake-iquery</B
-></P
-></TD
-><TD
-WIDTH="287"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
+></DT
+><DD
 ><P
 >In <SPAN
 CLASS="acronym"
 >BIND</SPAN
-> 8, this option was used to enable simulating
-the obsolete DNS query type IQUERY. <SPAN
+> 8, this option was used to
+enable simulating the obsolete DNS query type
+IQUERY. <SPAN
 CLASS="acronym"
 >BIND</SPAN
-> 9 never does IQUERY simulation.</P
-></TD
-></TR
-><TR
-><TD
-WIDTH="145"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
-><P
+> 9 never does IQUERY simulation.
+</P
+></DD
+><DT
 ><B
 CLASS="command"
 >fetch-glue</B
-></P
-></TD
-><TD
-WIDTH="287"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
+></DT
+><DD
 ><P
 >This option is obsolete.
 In BIND 8, <TT
@@ -4365,24 +4422,13 @@ caused the server to attempt to fetch glue resource records it
 didn't have when constructing the additional
 data section of a response.  This is now considered a bad idea
 and BIND 9 never does it.</P
->
-</TD
-></TR
-><TR
-><TD
-WIDTH="145"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
-><P
+></DD
+><DT
 ><B
 CLASS="command"
 >has-old-clients</B
-></P
-></TD
-><TD
-WIDTH="287"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
+></DT
+><DD
 ><P
 >This option was incorrectly implemented
 in <SPAN
@@ -4411,7 +4457,8 @@ CLASS="userinput"
 ><B
 >yes</B
 ></TT
-> and <B
+>
+and <B
 CLASS="command"
 >rfc2308-type1</B
 > <TT
@@ -4419,45 +4466,27 @@ CLASS="userinput"
 ><B
 >no</B
 ></TT
-> instead.</P
-></TD
-></TR
-><TR
-><TD
-WIDTH="145"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
-><P
+> instead.
+</P
+></DD
+><DT
 ><B
 CLASS="command"
 >host-statistics</B
-></P
-></TD
-><TD
-WIDTH="287"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
+></DT
+><DD
 ><P
 >In BIND 8, this enables keeping of
 statistics for every host that the nameserver interacts with.
-Not implemented in BIND 9.</P
-></TD
-></TR
-><TR
-><TD
-WIDTH="145"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
-><P
+Not implemented in BIND 9.
+</P
+></DD
+><DT
 ><B
 CLASS="command"
 >maintain-ixfr-base</B
-></P
-></TD
-><TD
-WIDTH="287"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
+></DT
+><DD
 ><P
 ><I
 CLASS="emphasis"
@@ -4480,24 +4509,39 @@ CLASS="userinput"
 ><B
 >no</B
 ></TT
->.</P
-></TD
-></TR
-><TR
-><TD
-WIDTH="145"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
+>.
+</P
+></DD
+><DT
+><B
+CLASS="command"
+>minimal-responses</B
+></DT
+><DD
 ><P
+>If <TT
+CLASS="userinput"
+><B
+>yes</B
+></TT
+>, then when generating
+responses the server will only add records to the authority and
+additional data sections when they are required (e.g. delegations,
+negative responses).  This may improve the performance of the server.
+The default is <TT
+CLASS="userinput"
+><B
+>no</B
+></TT
+>.
+</P
+></DD
+><DT
 ><B
 CLASS="command"
 >multiple-cnames</B
-></P
-></TD
-><TD
-WIDTH="287"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
+></DT
+><DD
 ><P
 >This option was used in <SPAN
 CLASS="acronym"
@@ -4508,24 +4552,15 @@ DNS standards.  <SPAN
 CLASS="acronym"
 >BIND</SPAN
 > 9.1 always strictly
-enforces the CNAME rules both in master files and dynamic updates.</P
-></TD
-></TR
-><TR
-><TD
-WIDTH="145"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
-><P
+enforces the CNAME rules both in master files and dynamic updates.
+</P
+></DD
+><DT
 ><B
 CLASS="command"
 >notify</B
-></P
-></TD
-><TD
-WIDTH="287"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
+></DT
+><DD
 ><P
 >If <TT
 CLASS="userinput"
@@ -4567,7 +4602,8 @@ CLASS="userinput"
 >&#13;The <B
 CLASS="command"
 >notify</B
-> option may also be specified in the <B
+> option may also be
+specified in the <B
 CLASS="command"
 >zone</B
 > statement,
@@ -4576,27 +4612,14 @@ CLASS="command"
 >options notify</B
 > statement.
 It would only be necessary to turn off this option if it caused slaves
-to crash<TT
-CLASS="varname"
->.</TT
-></P
-></TD
-></TR
-><TR
-><TD
-WIDTH="145"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
-><P
+to crash.</P
+></DD
+><DT
 ><B
 CLASS="command"
 >recursion</B
-></P
-></TD
-><TD
-WIDTH="287"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
+></DT
+><DD
 ><P
 >If <TT
 CLASS="userinput"
@@ -4624,24 +4647,15 @@ operation, such as NOTIFY address lookups.
 See also <B
 CLASS="command"
 >fetch-glue</B
-> above.</P
-></TD
-></TR
-><TR
-><TD
-WIDTH="145"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
-><P
+> above.
+</P
+></DD
+><DT
 ><B
 CLASS="command"
 >rfc2308-type1</B
-></P
-></TD
-><TD
-WIDTH="287"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
+></DT
+><DD
 ><P
 >Setting this to <TT
 CLASS="userinput"
@@ -4656,8 +4670,7 @@ CLASS="userinput"
 >no</B
 ></TT
 >.</P
->
-<DIV
+><DIV
 CLASS="note"
 ><BLOCKQUOTE
 CLASS="note"
@@ -4670,49 +4683,30 @@ CLASS="acronym"
 > 9.</P
 ></BLOCKQUOTE
 ></DIV
-></TD
-></TR
-><TR
-><TD
-WIDTH="145"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
-><P
+></DD
+><DT
 ><B
 CLASS="command"
 >use-id-pool</B
-></P
-></TD
-><TD
-WIDTH="287"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
+></DT
+><DD
 ><P
 ><I
 CLASS="emphasis"
 >This option is obsolete</I
 >.
- <SPAN
+<SPAN
 CLASS="acronym"
 >BIND</SPAN
-> 9 always allocates query IDs from a pool.</P
-></TD
-></TR
-><TR
-><TD
-WIDTH="145"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
-><P
+> 9 always allocates query IDs from a pool.
+</P
+></DD
+><DT
 ><B
 CLASS="command"
 >zone-statistics</B
-></P
-></TD
-><TD
-WIDTH="287"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
+></DT
+><DD
 ><P
 >If <TT
 CLASS="userinput"
@@ -4730,27 +4724,17 @@ CLASS="command"
 >statistics-file</B
 >.  See also <A
 HREF="Bv9ARM.ch06.html#statsfile"
->Section 6.2.14.13</A
->.</P
-></TD
-></TR
-><TR
-><TD
-WIDTH="145"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
-><P
+>Section 6.2.14.15</A
+>.
+</P
+></DD
+><DT
 ><B
 CLASS="command"
 >use-ixfr</B
-></P
-></TD
-><TD
-WIDTH="287"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
+></DT
+><DD
 ><P
-></P
 ><I
 CLASS="emphasis"
 >This option is obsolete</I
@@ -4767,23 +4751,15 @@ HREF="Bv9ARM.ch06.html#server_statement_definition_and_usage"
 <A
 HREF="Bv9ARM.ch04.html#incremental_zone_transfers"
 >Section 4.2</A
->.</TD
-></TR
-><TR
-><TD
-WIDTH="145"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
-><P
+>.
+</P
+></DD
+><DT
 ><B
 CLASS="command"
 >treat-cr-as-space</B
-></P
-></TD
-><TD
-WIDTH="287"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
+></DT
+><DD
 ><P
 >This option was used in <SPAN
 CLASS="acronym"
@@ -4807,89 +4783,22 @@ CLASS="command"
 >\r\n</B
 >" newlines are always accepted,
 and the option is ignored.</P
-></TD
-></TR
-><TR
-><TD
-WIDTH="145"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
->&#13;<P
-><B
-CLASS="command"
->min-refresh-time</B
-></P
->
-<P
-><B
-CLASS="command"
->max-refresh-time</B
-></P
->
-<P
-><B
-CLASS="command"
->min-retry-time</B
-></P
->
-<P
-><B
-CLASS="command"
->max-retry-time</B
-></P
->
-</TD
-><TD
-WIDTH="287"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
-><P
->&#13;These options control the server's behavior on refreshing a zone
-(querying for SOA changes) or retrying failed transfers.
-Usually the SOA values for the zone are used, but these values
-are set by the master, giving slave server administrators little
-control over their contents.
-</P
-><P
->&#13;These options allow the administrator to set a minimum and maximum
-refresh and retry time either per-zone, per-view, or per-server.
-These options are valid for master, slave and stub zones, and clamp the SOA
-refresh and retry times to the specified values.
-</P
->
-</TD
-></TR
-><TR
-><TD
-WIDTH="145"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
->&#13;<P
+></DD
+><DT
 ><B
 CLASS="command"
 >additional-from-auth</B
-></P
->
-<P
-><B
+>, <B
 CLASS="command"
 >additional-from-cache</B
-></P
->
-</TD
-><TD
-WIDTH="287"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
->&#13;
-<P
->&#13;These options control the behavior of an authoritative server when
-answering queries which have additional data, or when following CNAME
-and DNAME chains.
+></DT
+><DD
+><P
+>&#13;These options control the server's behavior when answering queries
+which have additional data, or when following CNAME and DNAME
+chains to provide additional data.
 </P
->
-
-<P
+><P
 >&#13;When both of these options are set to <TT
 CLASS="userinput"
 ><B
@@ -4897,20 +4806,18 @@ CLASS="userinput"
 ></TT
 > 
 (the default) and a
-query is being answered from authoritative data (a zone
+query is being answered from authoratitive data (a zone
 configured into the server), the additional data section of the
-reply will be filled in using data from other authoritative zones
+reply will be filled in using data from other authoratitive zones
 and from the cache.  In some situations this is undesirable, such
-as when there is concern over the correctness of the cache, or
+as when there is concern over the correctness of the cache, or in
 in servers where slave zones may be added and modified by
 untrusted third parties.  Also, avoiding
 the search for this additional data will speed up server operations
 at the possible expense of additional queries to resolve what would
 otherwise be provided in the additional section.
 </P
->
-
-<P
+><P
 >&#13;For example, if a query asks for an MX record for host <TT
 CLASS="literal"
 >foo.example.com</TT
@@ -4923,68 +4830,10 @@ records (A, A6, and AAAA) for <TT
 CLASS="literal"
 >mail.example.net</TT
 > will be provided as well,
-if known.  Setting these options to <B
-CLASS="command"
->no</B
-> disables this behavior.
+if known.  These options disable this behavior.
 </P
->
-
-<P
->&#13;These options are intended for use in authoritative-only 
-servers, or in authoritative-only views.
-In other words, they should only be set to
-<B
-CLASS="command"
->no</B
-> if the option <B
-CLASS="command"
->recursion no;</B
->
-has also been specified.  Setting them to <B
-CLASS="command"
->no</B
-> in a
-recursive server will have unexpected side effects such as causing
-recursion to not function.
-</P
->
-
-<P
->&#13;Specifying <B
-CLASS="command"
->additional-from-cache no</B
-> actually
-disables the use of the cache not only for additional data lookups
-but also when looking up the answer.  This is usually the desired
-behavior in an authoritative-only server where the correctness of
-the cached data is an issue.
-</P
->
-
-<P
->&#13;When a name server is non-recursively queried for a name that is not
-below the apex of any served zone, it normally answers with an
-"upwards referral" to the root servers or the servers of some other
-known parent of the query name.  Since the data in an upwards referral
-comes from the cache, the server will not be able to provide upwards
-referrals when <B
-CLASS="command"
->additional-from-cache no</B
->
-has been specified.  Instead, it will respond to such queries
-with REFUSED.  This should not cause any problems since
-upwards referrals are not required for the resolution process.
-</P
->
-
-
-</TD
-></TR
-></TBODY
-></TABLE
-><P
-></P
+></DD
+></DL
 ></DIV
 ></DIV
 ><DIV
@@ -4992,7 +4841,7 @@ CLASS="sect3"
 ><H3
 CLASS="sect3"
 ><A
-NAME="AEN2299"
+NAME="AEN2332"
 >6.2.14.2. Forwarding</A
 ></H3
 ><P
@@ -5004,33 +4853,16 @@ names anyway. Forwarding occurs only on those queries for which
 the server is not authoritative and does not have the answer in
 its cache.</P
 ><P
-><DIV
-CLASS="informaltable"
-><A
-NAME="AEN2303"
-></A
-><P
 ></P
-><TABLE
-CELLPADDING="3"
-BORDER="1"
-CLASS="CALSTABLE"
-><TBODY
-><TR
-><TD
-WIDTH="93"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
-><P
+><DIV
+CLASS="variablelist"
+><DL
+><DT
 ><B
 CLASS="command"
 >forward</B
-></P
-></TD
-><TD
-WIDTH="339"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
+></DT
+><DD
 ><P
 >This option is only meaningful if the
 forwarders list is not empty. A value of <TT
@@ -5043,35 +4875,22 @@ the answer itself. If <TT
 CLASS="varname"
 >only</TT
 > is specified, the
-server will only query the forwarders.</P
-></TD
-></TR
-><TR
-><TD
-WIDTH="93"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
-><P
+server will only query the forwarders.
+</P
+></DD
+><DT
 ><B
 CLASS="command"
 >forwarders</B
-></P
-></TD
-><TD
-WIDTH="339"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
+></DT
+><DD
 ><P
 >Specifies the IP addresses to be used
-for forwarding. The default is the empty list (no forwarding).</P
-></TD
-></TR
-></TBODY
-></TABLE
-><P
-></P
+for forwarding. The default is the empty list (no forwarding).
+</P
+></DD
+></DL
 ></DIV
-></P
 ><P
 >Forwarding can also be configured on a per-domain basis, allowing
 for the global forwarding options to be overridden in a variety
@@ -5101,33 +4920,16 @@ HREF="Bv9ARM.ch06.html#address_match_lists"
 > for
 details on how to specify IP address lists.</P
 ><P
-><DIV
-CLASS="informaltable"
-><A
-NAME="AEN2330"
-></A
-><P
 ></P
-><TABLE
-CELLPADDING="3"
-BORDER="1"
-CLASS="CALSTABLE"
-><TBODY
-><TR
-><TD
-WIDTH="132"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
-><P
+><DIV
+CLASS="variablelist"
+><DL
+><DT
 ><B
 CLASS="command"
 >allow-notify</B
-></P
-></TD
-><TD
-WIDTH="300"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
+></DT
+><DD
 ><P
 >Specifies which hosts are allowed to
 notify slaves of a zone change in addition to the zone masters.
@@ -5145,23 +4947,13 @@ CLASS="command"
 > statement.  It is only meaningful
 for a slave zone.  If not specified, the default is to process notify messages
 only from a zone's master.</P
-></TD
-></TR
-><TR
-><TD
-WIDTH="132"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
-><P
+></DD
+><DT
 ><B
 CLASS="command"
 >allow-query</B
-></P
-></TD
-><TD
-WIDTH="300"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
+></DT
+><DD
 ><P
 >Specifies which hosts are allowed to
 ask ordinary questions. <B
@@ -5177,23 +4969,13 @@ CLASS="command"
 >options allow-query</B
 > statement. If
 not specified, the default is to allow queries from all hosts.</P
-></TD
-></TR
-><TR
-><TD
-WIDTH="132"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
-><P
+></DD
+><DT
 ><B
 CLASS="command"
 >allow-recursion</B
-></P
-></TD
-><TD
-WIDTH="300"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
+></DT
+><DD
 ><P
 >Specifies which hosts are allowed to
 make recursive queries through this server. If not specified, the
@@ -5201,23 +4983,28 @@ default is to allow recursive queries from all hosts.
 Note that disallowing recursive queries for a host does not prevent the
 host from retrieving data that is already in the server's cache.
 </P
-></TD
-></TR
-><TR
-><TD
-WIDTH="132"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
+></DD
+><DT
+><B
+CLASS="command"
+>allow-v6-synthesis</B
+></DT
+><DD
 ><P
+>Specifies which hosts are to receive
+synthetic responses to IPv6 queries as described in
+<A
+HREF="Bv9ARM.ch06.html#synthesis"
+>Section 6.2.14.13</A
+>.
+</P
+></DD
+><DT
 ><B
 CLASS="command"
 >allow-transfer</B
-></P
-></TD
-><TD
-WIDTH="300"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
+></DT
+><DD
 ><P
 >Specifies which hosts are allowed to
 receive zone transfers from the server. <B
@@ -5233,23 +5020,13 @@ CLASS="command"
 >options allow-transfer</B
 > statement.
 If not specified, the default is to allow transfers from all hosts.</P
-></TD
-></TR
-><TR
-><TD
-WIDTH="132"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
-><P
+></DD
+><DT
 ><B
 CLASS="command"
 >blackhole</B
-></P
-></TD
-><TD
-WIDTH="300"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
+></DT
+><DD
 ><P
 >Specifies a list of addresses that the
 server will not accept queries from or use to resolve a query. Queries
@@ -5259,21 +5036,16 @@ CLASS="userinput"
 >none</B
 ></TT
 >.</P
-></TD
-></TR
-></TBODY
-></TABLE
-><P
-></P
+></DD
+></DL
 ></DIV
-></P
 ></DIV
 ><DIV
 CLASS="sect3"
 ><H3
 CLASS="sect3"
 ><A
-NAME="AEN2375"
+NAME="AEN2397"
 >6.2.14.4. Interfaces</A
 ></H3
 ><P
@@ -5304,38 +5076,38 @@ listen-on port 1234 { !1.2.3.4; 1.2/16; };
 </PRE
 ><P
 >will enable the nameserver on port 53 for the IP address
-        5.6.7.8, and on port 1234 of an address on the machine in net
-        1.2 that is not 1.2.3.4.</P
+5.6.7.8, and on port 1234 of an address on the machine in net
+1.2 that is not 1.2.3.4.</P
 ><P
 >If no <B
 CLASS="command"
 >listen-on</B
 > is specified, the
-        server will listen on port 53 on all interfaces.</P
+server will listen on port 53 on all interfaces.</P
 ><P
 >The <B
 CLASS="command"
 >listen-on-v6</B
 > option is used to
-        specify the ports on which the server will listen for incoming
-        queries sent using IPv6.</P
+specify the ports on which the server will listen for incoming
+queries sent using IPv6.</P
 ><P
 >The server does not bind a separate socket to each IPv6
-        interface address as it does for IPv4. Instead, it always
-        listens on the IPv6 wildcard address. Therefore, the only
-        values allowed for the <TT
+interface address as it does for IPv4. Instead, it always
+listens on the IPv6 wildcard address. Therefore, the only
+values allowed for the <TT
 CLASS="varname"
 >address_match_list</TT
 >
-        argument to the <B
+argument to the <B
 CLASS="command"
 >listen-on-v6</B
 > statement are
-        <PRE
+<PRE
 CLASS="programlisting"
 >{ any; }</PRE
 > and
-        <PRE
+<PRE
 CLASS="programlisting"
 >{ none;}</PRE
 ></P
@@ -5344,7 +5116,7 @@ CLASS="programlisting"
 CLASS="command"
 >listen-on-v6</B
 > options can be
-        used to listen on multiple ports:</P
+used to listen on multiple ports:</P
 ><PRE
 CLASS="programlisting"
 >listen-on-v6 port 53 { any; };
@@ -5368,7 +5140,7 @@ CLASS="sect3"
 ><H3
 CLASS="sect3"
 ><A
-NAME="AEN2401"
+NAME="AEN2423"
 >6.2.14.5. Query Address</A
 ></H3
 ><P
@@ -5437,33 +5209,17 @@ CLASS="acronym"
 > has mechanisms in place to facilitate zone transfers
 and set limits on the amount of load that transfers place on the
 system. The following options apply to zone transfers.</P
-><DIV
-CLASS="informaltable"
-><A
-NAME="AEN2419"
-></A
 ><P
 ></P
-><TABLE
-CELLPADDING="3"
-BORDER="1"
-CLASS="CALSTABLE"
-><TBODY
-><TR
-><TD
-WIDTH="168"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
-><P
+><DIV
+CLASS="variablelist"
+><DL
+><DT
 ><B
 CLASS="command"
 >also-notify</B
-></P
-></TD
-><TD
-WIDTH="264"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
+></DT
+><DD
 ><P
 >Defines a global list of IP addresses of name servers
 that are also sent NOTIFY messages whenever a fresh copy of the
@@ -5493,216 +5249,142 @@ CLASS="command"
 > list will
 not be sent NOTIFY messages for that zone. The default is the empty
 list (no global notification list).</P
-></TD
-></TR
-><TR
-><TD
-WIDTH="168"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
-><P
+></DD
+><DT
 ><B
 CLASS="command"
 >max-transfer-time-in</B
-></P
-></TD
-><TD
-WIDTH="264"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
+></DT
+><DD
 ><P
 >Inbound zone transfers running longer than
 this many minutes will be terminated. The default is 120 minutes
 (2 hours).</P
-></TD
-></TR
-><TR
-><TD
-WIDTH="168"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
-><P
+></DD
+><DT
 ><B
 CLASS="command"
 >max-transfer-idle-in</B
-></P
-></TD
-><TD
-WIDTH="264"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
+></DT
+><DD
 ><P
 >Inbound zone transfers making no progress
 in this many minutes will be terminated. The default is 60 minutes
 (1 hour).</P
-></TD
-></TR
-><TR
-><TD
-WIDTH="168"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
-><P
+></DD
+><DT
 ><B
 CLASS="command"
 >max-transfer-time-out</B
-></P
-></TD
-><TD
-WIDTH="264"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
+></DT
+><DD
 ><P
 >Outbound zone transfers running longer than
 this many minutes will be terminated. The default is 120 minutes
 (2 hours).</P
-></TD
-></TR
-><TR
-><TD
-WIDTH="168"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
-><P
+></DD
+><DT
 ><B
 CLASS="command"
 >max-transfer-idle-out</B
-></P
-></TD
-><TD
-WIDTH="264"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
+></DT
+><DD
 ><P
 >Outbound zone transfers making no progress
 in this many minutes will be terminated.  The default is 60 minutes (1
 hour).</P
-></TD
-></TR
-><TR
-><TD
-WIDTH="168"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
-><P
+></DD
+><DT
 ><B
 CLASS="command"
->serial-queries</B
-></P
-></TD
-><TD
-WIDTH="264"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
+>serial-query-rate</B
+></DT
+><DD
 ><P
->Slave servers will periodically query master
-servers to find out if zone serial numbers have changed. Each such
-query uses a minute amount of the slave server's network bandwidth,
-but more importantly each query uses a small amount of memory in
-the slave server while waiting for the master server to respond.
-In BIND 8, the <B
+>Slave servers will periodically query master servers
+to find out if zone serial numbers have changed. Each such query uses
+a minute amount of the slave server's network bandwidth.  To limit the
+amount of bandwith used, BIND 9 limits the rate at which queries are
+sent.  The value of the <B
 CLASS="command"
->serial-queries</B
-> option set the maximum number
-of concurrent serial-number queries allowed to be outstanding at
-any given time.  BIND 9 does not limit the number of outstanding
-serial queries and ignores the The <B
-CLASS="command"
->serial-queries</B
-> option;
-instead, it limits the rate at which the queries are sent.
-The maximum rate is currently fixed at 20 queries
-per second but may become configurable in a future release.  
+>serial-query-rate</B
+> option,
+an integer, is the maximum number of queries sent per second.
+The default is 20.
 </P
->
-</TD
-></TR
-><TR
-><TD
-WIDTH="168"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
+></DD
+><DT
+><B
+CLASS="command"
+>serial-queries</B
+></DT
+><DD
 ><P
+>In BIND 8, the <B
+CLASS="command"
+>serial-queries</B
+> option
+set the maximum number of concurrent serial number queries
+allowed to be outstanding at any given time.
+BIND 9 does not limit the number of outstanding
+serial queries and ignores the <B
+CLASS="command"
+>serial-queries</B
+> option.
+Instead, it limits the rate at which the queries are sent
+as defined using the <B
+CLASS="command"
+>serial-query-rate</B
+> option.
+</P
+></DD
+><DT
 ><B
 CLASS="command"
 >transfer-format</B
-></P
-></TD
-><TD
-WIDTH="264"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
->&#13;
-<P
->&#13;Zone transfers can be sent using two different formats,
-<B
+></DT
+><DD
+><P
+>The server supports two zone transfer methods. <B
 CLASS="command"
 >one-answer</B
-> and <B
+> uses
+one DNS message per resource record transferred. <B
 CLASS="command"
 >many-answers</B
->.
-The <B
-CLASS="command"
->transfer-format</B
-> option is used
-on the master server to determine which format it sends.
-<B
-CLASS="command"
->one-answer</B
-> uses one DNS message per
-resource record transferred.
-<B
+> packs
+as many resource records as possible into a message. <B
 CLASS="command"
 >many-answers</B
-> packs as many resource records as
-possible into a message. <B
-CLASS="command"
->many-answers</B
-> is more
-efficient, but is only supported by relatively new slave servers,
-such as <SPAN
+> is
+more efficient, but is only known to be understood by <SPAN
 CLASS="acronym"
 >BIND</SPAN
 > 9, <SPAN
 CLASS="acronym"
 >BIND</SPAN
-> 8.x and patched
-versions of <SPAN
+>
+8.x and patched versions of <SPAN
 CLASS="acronym"
 >BIND</SPAN
-> 4.9.5. The default is
-<B
+> 4.9.5. The default is <B
 CLASS="command"
 >many-answers</B
 >. <B
 CLASS="command"
 >transfer-format</B
->
-may be overridden on a per-server basis by using the
-<B
+> may
+be overridden on a per-server basis by using the <B
 CLASS="command"
 >server</B
-> statement.
-</P
->
-</TD
-></TR
-><TR
-><TD
-WIDTH="168"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
-><P
+> statement.</P
+></DD
+><DT
 ><B
 CLASS="command"
 >transfers-in</B
-></P
-></TD
-><TD
-WIDTH="264"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
+></DT
+><DD
 ><P
 >The maximum number of inbound zone transfers
 that can be running concurrently. The default value is <TT
@@ -5714,23 +5396,13 @@ CLASS="command"
 >transfers-in</B
 > may speed up the convergence
 of slave zones, but it also may increase the load on the local system.</P
-></TD
-></TR
-><TR
-><TD
-WIDTH="168"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
-><P
+></DD
+><DT
 ><B
 CLASS="command"
 >transfers-out</B
-></P
-></TD
-><TD
-WIDTH="264"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
+></DT
+><DD
 ><P
 >The maximum number of outbound zone transfers
 that can be running concurrently. Zone transfer requests in excess
@@ -5738,23 +5410,13 @@ of the limit will be refused. The default value is <TT
 CLASS="literal"
 >10</TT
 >.</P
-></TD
-></TR
-><TR
-><TD
-WIDTH="168"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
-><P
+></DD
+><DT
 ><B
 CLASS="command"
 >transfers-per-ns</B
-></P
-></TD
-><TD
-WIDTH="264"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
+></DT
+><DD
 ><P
 >The maximum number of inbound zone transfers
 that can be concurrently transferring from a given remote nameserver.
@@ -5778,23 +5440,13 @@ of the <B
 CLASS="command"
 >server</B
 > statement.</P
-></TD
-></TR
-><TR
-><TD
-WIDTH="168"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
-><P
+></DD
+><DT
 ><B
 CLASS="command"
 >transfer-source</B
-></P
-></TD
-><TD
-WIDTH="264"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
+></DT
+><DD
 ><P
 ><B
 CLASS="command"
@@ -5828,46 +5480,26 @@ CLASS="command"
 >zone</B
 > block
 in the configuration file.</P
-></TD
-></TR
-><TR
-><TD
-WIDTH="168"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
-><P
+></DD
+><DT
 ><B
 CLASS="command"
 >transfer-source-v6</B
-></P
-></TD
-><TD
-WIDTH="264"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
+></DT
+><DD
 ><P
 >The same as <B
 CLASS="command"
 >transfer-source</B
 >,
 except zone transfers are performed using IPv6.</P
-></TD
-></TR
-><TR
-><TD
-WIDTH="168"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
-><P
+></DD
+><DT
 ><B
 CLASS="command"
 >notify-source</B
-></P
-></TD
-><TD
-WIDTH="264"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
+></DT
+><DD
 ><P
 ><B
 CLASS="command"
@@ -5899,35 +5531,21 @@ or <B
 CLASS="command"
 >view</B
 > block in the configuration file.</P
-></TD
-></TR
-><TR
-><TD
-WIDTH="168"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
-><P
+></DD
+><DT
 ><B
 CLASS="command"
 >notify-source-v6</B
-></P
-></TD
-><TD
-WIDTH="264"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
+></DT
+><DD
 ><P
 >Like <B
 CLASS="command"
 >notify-source</B
 >,
 but applies to notify messages sent to IPv6 addresses.</P
-></TD
-></TR
-></TBODY
-></TABLE
-><P
-></P
+></DD
+></DL
 ></DIV
 ></DIV
 ><DIV
@@ -5935,116 +5553,97 @@ CLASS="sect3"
 ><H3
 CLASS="sect3"
 ><A
-NAME="AEN2551"
->6.2.14.7. Resource Limits</A
+NAME="AEN2559"
+>6.2.14.7. Operating System Resource Limits</A
 ></H3
 ><P
->The server's usage of many system resources can be
-        limited.  Some operating systems don't support some of the
-        limits. On such systems, a warning will be issued if the
-        unsupported limit is used. Some operating systems don't
-        support limiting resources.</P
-><P
->Scaled values are
-        allowed when specifying resource limits.  For example,
-        <B
+>The server's usage of many system resources can be limited.
+Scaled values are allowed when specifying resource limits.  For
+example, <B
 CLASS="command"
 >1G</B
 > can be used instead of
-        <B
+<B
 CLASS="command"
 >1073741824</B
 > to specify a limit of one
-        gigabyte. <B
+gigabyte. <B
 CLASS="command"
 >unlimited</B
-> requests unlimited use,
-        or the maximum available amount. <B
+> requests unlimited use, or the
+maximum available amount. <B
 CLASS="command"
 >default</B
->
-        uses the limit that was in force when the server was
-        started. See the description of <B
+> uses the limit
+that was in force when the server was started. See the description of
+<B
 CLASS="command"
 >size_spec</B
->
-        in <A
+> in <A
 HREF="Bv9ARM.ch06.html#configuration_file_elements"
 >Section 6.1</A
 >.</P
-><DIV
-CLASS="informaltable"
-><A
-NAME="AEN2561"
-></A
+><P
+>The following options set operating system resource limits for
+the name server process.  Some operating systems don't support some or
+any of the limits. On such systems, a warning will be issued if the
+unsupported limit is used.</P
 ><P
 ></P
-><TABLE
-CELLPADDING="3"
-BORDER="1"
-CLASS="CALSTABLE"
-><TBODY
-><TR
-><TD
-WIDTH="144"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
-><P
+><DIV
+CLASS="variablelist"
+><DL
+><DT
 ><B
 CLASS="command"
 >coresize</B
-></P
-></TD
-><TD
-WIDTH="288"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
+></DT
+><DD
 ><P
 >The maximum size of a core dump. The default
 is <TT
 CLASS="literal"
 >default</TT
 >.</P
-></TD
-></TR
-><TR
-><TD
-WIDTH="144"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
-><P
+></DD
+><DT
 ><B
 CLASS="command"
 >datasize</B
-></P
-></TD
-><TD
-WIDTH="288"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
+></DT
+><DD
 ><P
 >The maximum amount of data memory the server
 may use. The default is <TT
 CLASS="literal"
 >default</TT
->.</P
-></TD
-></TR
-><TR
-><TD
-WIDTH="144"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
-><P
+>.
+This is a hard limit on server memory usage.
+If the server attempts to allocate memory in excess of this
+limit, the allocation will fail, which may in turn leave
+the server unable to perform DNS service.  Therefore,
+this option is rarely useful as a way of limiting the
+amount of memory used by the server, but it can be used
+to raise an operating system data size limit that is
+too small by default.  If you wish to limit the amount
+of memory used by the server, use the
+<B
+CLASS="command"
+>max-cache-size</B
+> and 
+<B
+CLASS="command"
+>recursive-clients</B
+>
+options instead.
+</P
+></DD
+><DT
 ><B
 CLASS="command"
 >files</B
-></P
-></TD
-><TD
-WIDTH="288"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
+></DT
+><DD
 ><P
 >The maximum number of files the server
 may have open concurrently. The default is <TT
@@ -6052,102 +5651,21 @@ CLASS="literal"
 >unlimited</TT
 >.
 </P
-></TD
-></TR
-><TR
-><TD
-WIDTH="144"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
-><P
-><B
-CLASS="command"
->max-ixfr-log-size</B
-></P
-></TD
-><TD
-WIDTH="288"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
-><P
->This option is obsolete; it is accepted
-and ignored for BIND 8 compatibility.</P
-></TD
-></TR
-><TR
-><TD
-WIDTH="144"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
-><P
-><B
-CLASS="command"
->recursive-clients</B
-></P
-></TD
-><TD
-WIDTH="288"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
-><P
->The maximum number of simultaneous recursive
-lookups the server will perform on behalf of clients.  The default
-is <TT
-CLASS="literal"
->1000</TT
->.</P
-></TD
-></TR
-><TR
-><TD
-WIDTH="144"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
-><P
+></DD
+><DT
 ><B
 CLASS="command"
 >stacksize</B
-></P
-></TD
-><TD
-WIDTH="288"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
+></DT
+><DD
 ><P
 >The maximum amount of stack memory the server
 may use. The default is <TT
 CLASS="literal"
 >default</TT
 >.</P
-></TD
-></TR
-><TR
-><TD
-WIDTH="144"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
-><P
-><B
-CLASS="command"
->tcp-clients</B
-></P
-></TD
-><TD
-WIDTH="288"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
-><P
->The maximum number of simultaneous client TCP
-connections that the server will accept. The default is <TT
-CLASS="literal"
->100</TT
->.</P
-></TD
-></TR
-></TBODY
-></TABLE
-><P
-></P
+></DD
+></DL
 ></DIV
 ></DIV
 ><DIV
@@ -6155,36 +5673,104 @@ CLASS="sect3"
 ><H3
 CLASS="sect3"
 ><A
-NAME="AEN2614"
->6.2.14.8. Periodic Task Intervals</A
+NAME="AEN2596"
+>6.2.14.8. Server  Resource Limits</A
 ></H3
-><DIV
-CLASS="informaltable"
-><A
-NAME="AEN2616"
-></A
+><P
+>The following options set limits on the server's
+resource consumption that are enforced internally by the
+server rather than the operating system.</P
 ><P
 ></P
-><TABLE
-CELLPADDING="3"
-BORDER="1"
-CLASS="CALSTABLE"
-><TBODY
-><TR
-><TD
-WIDTH="156"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
+><DIV
+CLASS="variablelist"
+><DL
+><DT
+><B
+CLASS="command"
+>max-ixfr-log-size</B
+></DT
+><DD
 ><P
+>This option is obsolete; it is accepted
+and ignored for BIND 8 compatibility.</P
+></DD
+><DT
+><B
+CLASS="command"
+>recursive-clients</B
+></DT
+><DD
+><P
+>The maximum number of simultaneous recursive lookups
+the server will perform on behalf of clients.  The default is
+<TT
+CLASS="literal"
+>1000</TT
+>.  Because each recursing clients uses a fair
+bit of memory, on the order of 20 kilobytes, the value of the
+<B
+CLASS="command"
+>recursive-clients</B
+> option may have to be decreased
+on hosts with limited memory.
+</P
+></DD
+><DT
+><B
+CLASS="command"
+>tcp-clients</B
+></DT
+><DD
+><P
+>The maximum number of simultaneous client TCP
+connections that the server will accept.
+The default is <TT
+CLASS="literal"
+>100</TT
+>.</P
+></DD
+><DT
+><B
+CLASS="command"
+>max-cache-size</B
+></DT
+><DD
+><P
+>The maximum amount of memory to use for the
+server's cache, in bytes.  When the amount of data in the cache
+reaches this limit, the server will cause records to expire
+prematurely so that the limit is not exceeded.  In a server with
+multiple views, the limit applies separately to the cache of each
+view.  The default is <TT
+CLASS="literal"
+>unlimited</TT
+>, meaning that 
+records are purged from the cache only when their TTLs expire.
+</P
+></DD
+></DL
+></DIV
+></DIV
+><DIV
+CLASS="sect3"
+><H3
+CLASS="sect3"
+><A
+NAME="AEN2624"
+>6.2.14.9. Periodic Task Intervals</A
+></H3
+><P
+></P
+><DIV
+CLASS="variablelist"
+><DL
+><DT
 ><B
 CLASS="command"
 >cleaning-interval</B
-></P
-></TD
-><TD
-WIDTH="276"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
+></DT
+><DD
 ><P
 >The server will remove expired resource records
 from the cache every <B
@@ -6193,23 +5779,13 @@ CLASS="command"
 > minutes.
 The default is 60 minutes.
 If set to 0, no  periodic cleaning will occur.</P
-></TD
-></TR
-><TR
-><TD
-WIDTH="156"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
-><P
+></DD
+><DT
 ><B
 CLASS="command"
 >heartbeat-interval</B
-></P
-></TD
-><TD
-WIDTH="276"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
+></DT
+><DD
 ><P
 >The server will perform zone maintenance tasks
 for all zones marked as <B
@@ -6218,23 +5794,13 @@ CLASS="command"
 > whenever this
 interval expires. The default is 60 minutes. Reasonable values are up
 to 1 day (1440 minutes). If set to 0, no zone maintenance for these zones will occur.</P
-></TD
-></TR
-><TR
-><TD
-WIDTH="156"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
-><P
+></DD
+><DT
 ><B
 CLASS="command"
 >interface-interval</B
-></P
-></TD
-><TD
-WIDTH="276"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
+></DT
+><DD
 ><P
 >The server will scan the network interface list
 every <B
@@ -6249,23 +5815,13 @@ CLASS="command"
 >listen-on</B
 > configuration). Listeners on interfaces
 that have gone away will be cleaned up.</P
-></TD
-></TR
-><TR
-><TD
-WIDTH="156"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
-><P
+></DD
+><DT
 ><B
 CLASS="command"
 >statistics-interval</B
-></P
-></TD
-><TD
-WIDTH="276"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
+></DT
+><DD
 ><P
 >Nameserver statistics will be logged
 every <B
@@ -6286,12 +5842,8 @@ CLASS="acronym"
 >9.</P
 ></BLOCKQUOTE
 ></DIV
-></TD
-></TR
-></TBODY
-></TABLE
-><P
-></P
+></DD
+></DL
 ></DIV
 ></DIV
 ><DIV
@@ -6300,7 +5852,7 @@ CLASS="sect3"
 CLASS="sect3"
 ><A
 NAME="topology"
->6.2.14.9. Topology</A
+>6.2.14.10. Topology</A
 ></H3
 ><P
 >All other things being equal, when the server chooses a nameserver
@@ -6350,10 +5902,11 @@ CLASS="note"
 CLASS="command"
 >topology</B
 > option
-is not yet implemented in <SPAN
+is not implemented in <SPAN
 CLASS="acronym"
 >BIND</SPAN
-> 9.</P
+> 9.
+</P
 ></BLOCKQUOTE
 ></DIV
 ></DIV
@@ -6363,7 +5916,7 @@ CLASS="sect3"
 CLASS="sect3"
 ><A
 NAME="the_sortlist_statement"
->6.2.14.10. The <B
+>6.2.14.11. The <B
 CLASS="command"
 >sortlist</B
 > Statement</A
@@ -6379,7 +5932,7 @@ CLASS="command"
 >
 statement in <A
 HREF="Bv9ARM.ch06.html#rrset_ordering"
->Section 6.2.14.11</A
+>Section 6.2.14.12</A
 >).
 The client resolver code should rearrange the RRs as appropriate,
 that is, using any addresses on the local net in preference to other addresses.
@@ -6402,8 +5955,9 @@ CLASS="command"
 > statement
 does (<A
 HREF="Bv9ARM.ch06.html#topology"
->Section 6.2.14.9</A
->). Each top level statement in the <B
+>Section 6.2.14.10</A
+>).
+Each top level statement in the <B
 CLASS="command"
 >sortlist</B
 > must
@@ -6450,20 +6004,20 @@ their directly connected networks.</P
 ><PRE
 CLASS="programlisting"
 >sortlist {
-    { localhost;				   // IF   the local host
-        { localnets;				   // THEN first fit on the
-            192.168.1/24;			   //   following nets
+    { localhost;                                   // IF   the local host
+        { localnets;                               // THEN first fit on the
+            192.168.1/24;                          //   following nets
             { 192.168.2/24; 192.168.3/24; }; }; };
-    { 192.168.1/24;				   // IF   on class C 192.168.1
-        { 192.168.1/24;				   // THEN use .1, or .2 or .3
+    { 192.168.1/24;                                // IF   on class C 192.168.1
+        { 192.168.1/24;                            // THEN use .1, or .2 or .3
             { 192.168.2/24; 192.168.3/24; }; }; };
-    { 192.168.2/24;				   // IF   on class C 192.168.2
-        { 192.168.2/24;				   // THEN use .2, or .1 or .3
+    { 192.168.2/24;                                // IF   on class C 192.168.2
+        { 192.168.2/24;                            // THEN use .2, or .1 or .3
             { 192.168.1/24; 192.168.3/24; }; }; };
-    { 192.168.3/24;				   // IF   on class C 192.168.3
-        { 192.168.3/24;				   // THEN use .3, or .1 or .2
+    { 192.168.3/24;                                // IF   on class C 192.168.3
+        { 192.168.3/24;                            // THEN use .3, or .1 or .2
             { 192.168.1/24; 192.168.2/24; }; }; };
-    { { 192.168.4/24; 192.168.5/24; };		   // if .4 or .5, prefer that net
+    { { 192.168.4/24; 192.168.5/24; };             // if .4 or .5, prefer that net
     };
 };</PRE
 ><P
@@ -6491,7 +6045,7 @@ CLASS="sect3"
 CLASS="sect3"
 ><A
 NAME="rrset_ordering"
->6.2.14.11. RRset Ordering</A
+>6.2.14.12. RRset Ordering</A
 ></H3
 ><P
 >When multiple records are returned in an answer it may be
@@ -6507,7 +6061,7 @@ CLASS="command"
 > statement,
 <A
 HREF="Bv9ARM.ch06.html#the_sortlist_statement"
->Section 6.2.14.10</A
+>Section 6.2.14.11</A
 >.
 </P
 ><P
@@ -6570,7 +6124,7 @@ CLASS="command"
 ><DIV
 CLASS="informaltable"
 ><A
-NAME="AEN2710"
+NAME="AEN2712"
 ></A
 ><P
 ></P
@@ -6654,9 +6208,9 @@ CLASS="programlisting"
 </PRE
 ><P
 >will cause any responses for type A records in class IN that
-have "<SPAN
-CLASS="systemitem"
->host.example.com</SPAN
+have "<TT
+CLASS="literal"
+>host.example.com</TT
 >" as a suffix, to always be returned
 in random order. All other records are returned in cyclic order.</P
 ><P
@@ -6665,18 +6219,6 @@ CLASS="command"
 >rrset-order</B
 > statements appear,
 they are not combined &#8212; the last one applies.</P
-><P
->If no <B
-CLASS="command"
->rrset-order</B
-> statement is specified,
-then a default one of:
-<PRE
-CLASS="programlisting"
->rrset-order { class ANY type ANY name "*" order cyclic ; };
-</PRE
->
-is used.</P
 ><DIV
 CLASS="note"
 ><BLOCKQUOTE
@@ -6705,36 +6247,91 @@ CLASS="sect3"
 ><H3
 CLASS="sect3"
 ><A
-NAME="tuning"
->6.2.14.12. Tuning</A
+NAME="synthesis"
+>6.2.14.13. Synthetic IPv6 responses</A
 ></H3
+><P
+>Many existing stub resolvers support IPv6 DNS lookups as defined in
+RFC1886, using AAAA records for forward lookups and "nibble labels" in
+the <TT
+CLASS="literal"
+>ip6.int</TT
+> domain for reverse lookups, but do not support
+RFC2874-style lookups (using A6 records and binary labels in the
+<TT
+CLASS="literal"
+>ip6.arpa</TT
+> domain).</P
+><P
+>For those who wish to continue to use such stub resolvers rather than
+switching to the BIND 9 lightweight resolver, BIND 9 provides a way
+to automatically convert RFC1886-style lookups into
+RFC2874-style lookups and return the results as "synthetic" AAAA and
+PTR records.</P
+><P
+>This feature is disabled by default and can be enabled on a per-client
+basis by adding a
+<B
+CLASS="command"
+>allow-v6-synthesis { <TT
+CLASS="replaceable"
+><I
+>address_match_list</I
+></TT
+> };</B
+>
+clause to the <B
+CLASS="command"
+>options</B
+> or <B
+CLASS="command"
+>view</B
+> statement.
+ When it is enabled, recursive
+AAAA queries cause the server to first try an A6 lookup and if that
+fails, an AAAA lookups.  No matter which one succeeds, the results are
+returned as a set of synthetic AAAA records.  Similarly, recursive PTR
+queries in <TT
+CLASS="literal"
+>ip6.int</TT
+> will cause a
+lookup in <TT
+CLASS="literal"
+>ip6.arpa</TT
+> using binary
+labels, and if that fails, another lookup in <TT
+CLASS="literal"
+>ip6.int</TT
+>.
+The results are returned as a synthetic PTR record in
+<TT
+CLASS="literal"
+>ip6.int</TT
+>.</P
+><P
+>The synthetic records have a TTL of zero.  DNSSEC validation of
+synthetic responses is not currently supported; therefore responses
+containing synthetic RRs will not have the AD flag set.</P
+></DIV
 ><DIV
-CLASS="informaltable"
+CLASS="sect3"
+><H3
+CLASS="sect3"
 ><A
-NAME="AEN2748"
-></A
+NAME="tuning"
+>6.2.14.14. Tuning</A
+></H3
 ><P
 ></P
-><TABLE
-CELLPADDING="3"
-BORDER="1"
-CLASS="CALSTABLE"
-><TBODY
-><TR
-><TD
-WIDTH="120"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
-><P
+><DIV
+CLASS="variablelist"
+><DL
+><DT
 ><B
 CLASS="command"
 >lame-ttl</B
-></P
-></TD
-><TD
-WIDTH="312"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
+></DT
+><DD
 ><P
 >Sets the number of seconds to cache a
 lame server indication. 0 disables caching. (This is
@@ -6750,24 +6347,13 @@ CLASS="literal"
 CLASS="literal"
 >1800</TT
 > (30 minutes).</P
->
-</TD
-></TR
-><TR
-><TD
-WIDTH="120"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
-><P
+></DD
+><DT
 ><B
 CLASS="command"
 >max-ncache-ttl</B
-></P
-></TD
-><TD
-WIDTH="312"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
+></DT
+><DD
 ><P
 >To reduce network traffic and increase performance
 the server stores negative answers. <B
@@ -6788,23 +6374,13 @@ CLASS="command"
 >max-ncache-ttl</B
 > cannot exceed 7 days and will
 be silently truncated to 7 days if set to a greater value.</P
-></TD
-></TR
-><TR
-><TD
-WIDTH="120"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
-><P
+></DD
+><DT
 ><B
 CLASS="command"
 >max-cache-ttl</B
-></P
-></TD
-><TD
-WIDTH="312"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
+></DT
+><DD
 ><P
 ><B
 CLASS="command"
@@ -6812,23 +6388,13 @@ CLASS="command"
 > sets
 the maximum time for which the server will cache ordinary (positive)
 answers. The default is one week (7 days).</P
-></TD
-></TR
-><TR
-><TD
-WIDTH="120"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
-><P
+></DD
+><DT
 ><B
 CLASS="command"
 >min-roots</B
-></P
-></TD
-><TD
-WIDTH="312"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
+></DT
+><DD
 ><P
 >The minimum number of root servers that
 is required for a request for the root servers to be accepted. Default
@@ -6838,8 +6404,7 @@ CLASS="userinput"
 >2</B
 ></TT
 >.</P
->
-<DIV
+><DIV
 CLASS="note"
 ><BLOCKQUOTE
 CLASS="note"
@@ -6849,28 +6414,16 @@ CLASS="note"
 >Not yet implemented in <SPAN
 CLASS="acronym"
 >BIND</SPAN
->
-9.</P
+>9.</P
 ></BLOCKQUOTE
 ></DIV
->
-</TD
-></TR
-><TR
-><TD
-WIDTH="120"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
-><P
+></DD
+><DT
 ><B
 CLASS="command"
 >sig-validity-interval</B
-></P
-></TD
-><TD
-WIDTH="312"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
+></DT
+><DD
 ><P
 >Specifies the number of days into the
 future when DNSSEC signatures automatically generated as a result
@@ -6884,12 +6437,37 @@ CLASS="literal"
 > days. The signature
 inception time is unconditionally set to one hour before the current time
 to allow for a limited amount of clock skew.</P
-></TD
-></TR
-></TBODY
-></TABLE
+></DD
+><DT
+><B
+CLASS="command"
+>min-refresh-time</B
+>, <B
+CLASS="command"
+>max-refresh-time</B
+>, <B
+CLASS="command"
+>min-retry-time</B
+>, <B
+CLASS="command"
+>max-retry-time</B
+></DT
+><DD
 ><P
-></P
+>&#13;These options control the server's behavior on refreshing a zone
+(querying for SOA changes) or retrying failed transfers.
+Usually the SOA values for the zone are used, but these values
+are set by the master, giving slave server administrators little
+control over their contents.
+</P
+><P
+>&#13;These options allow the administrator to set a minimum and maximum
+refresh and retry time either per-zone, per-view, or per-server.
+These options are valid for master, slave and stub zones, 
+and clamp the SOA refresh and retry times to the specified values.
+</P
+></DD
+></DL
 ></DIV
 ></DIV
 ><DIV
@@ -6898,7 +6476,7 @@ CLASS="sect3"
 CLASS="sect3"
 ><A
 NAME="statsfile"
->6.2.14.13. The Statistics File</A
+>6.2.14.15. The Statistics File</A
 ></H3
 ><P
 >The statistics file generated by <SPAN
@@ -6933,7 +6511,7 @@ number is identical to the number in the beginning line.</P
 ><DIV
 CLASS="informaltable"
 ><A
-NAME="AEN2806"
+NAME="AEN2824"
 ></A
 ><P
 ></P
@@ -7080,8 +6658,7 @@ NAME="server_statement_grammar"
 >6.2.15. <B
 CLASS="command"
 >server</B
->
-Statement Grammar</A
+> Statement Grammar</A
 ></H2
 ><PRE
 CLASS="programlisting"
@@ -7112,6 +6689,15 @@ CLASS="replaceable"
     [<SPAN
 CLASS="optional"
 > request-ixfr <TT
+CLASS="replaceable"
+><I
+>yes_or_no</I
+></TT
+> ; </SPAN
+>]
+    [<SPAN
+CLASS="optional"
+> edns <TT
 CLASS="replaceable"
 ><I
 >yes_or_no</I
@@ -7222,16 +6808,28 @@ which servers support IXFR and which ones do not; the global default
 of <B
 CLASS="command"
 >yes</B
-> should always work. The purpose of the <B
+> should always work.
+The purpose of the <B
 CLASS="command"
 >provide-ixfr</B
-> and <B
+> and
+<B
 CLASS="command"
 >request-ixfr</B
 > clauses is
 to make it possible to disable the use of IXFR even when both master
 and slave claim to support it, for example if one of the servers
 is buggy and crashes or corrupts data when IXFR is used.</P
+><P
+>The <B
+CLASS="command"
+>edns</B
+> clause determines whether the local server
+will attempt to use EDNS when communicating with the remote server.  The
+default is <B
+CLASS="command"
+>yes</B
+>.</P
 ><P
 >The server supports two zone transfer methods. The first, <B
 CLASS="command"
@@ -7322,7 +6920,7 @@ CLASS="sect2"
 ><H2
 CLASS="sect2"
 ><A
-NAME="AEN2909"
+NAME="AEN2932"
 >6.2.17. <B
 CLASS="command"
 >trusted-keys</B
@@ -7397,7 +6995,7 @@ CLASS="sect2"
 ><H2
 CLASS="sect2"
 ><A
-NAME="AEN2925"
+NAME="AEN2948"
 >6.2.18. <B
 CLASS="command"
 >trusted-keys</B
@@ -7432,7 +7030,7 @@ CLASS="sect2"
 ><H2
 CLASS="sect2"
 ><A
-NAME="AEN2933"
+NAME="AEN2956"
 >6.2.19. <B
 CLASS="command"
 >view</B
@@ -7495,7 +7093,7 @@ CLASS="sect2"
 ><H2
 CLASS="sect2"
 ><A
-NAME="AEN2947"
+NAME="AEN2970"
 >6.2.20. <B
 CLASS="command"
 >view</B
@@ -7795,26 +7393,36 @@ CLASS="constant"
 >]
     [<SPAN
 CLASS="optional"
-> forwarders { [<SPAN
+> forwarders { <TT
+CLASS="replaceable"
+><I
+>ip_addr</I
+></TT
+> [<SPAN
+CLASS="optional"
+>port <TT
+CLASS="replaceable"
+><I
+>ip_port</I
+></TT
+></SPAN
+>] ; [<SPAN
 CLASS="optional"
 > <TT
 CLASS="replaceable"
 ><I
 >ip_addr</I
 ></TT
-> ; [<SPAN
+> [<SPAN
 CLASS="optional"
-> <TT
+>port <TT
 CLASS="replaceable"
 ><I
->ip_addr</I
+>ip_port</I
 ></TT
-> ; [<SPAN
-CLASS="optional"
->...</SPAN
->]</SPAN
->]</SPAN
->] } ; </SPAN
+></SPAN
+>] ; ... </SPAN
+>] }; </SPAN
 >]
     [<SPAN
 CLASS="optional"
@@ -8069,6 +7677,43 @@ CLASS="replaceable"
 ></TT
 > ; </SPAN
 >]
+    [<SPAN
+CLASS="optional"
+> min-refresh-time <TT
+CLASS="replaceable"
+><I
+>number</I
+></TT
+> ; </SPAN
+>]
+    [<SPAN
+CLASS="optional"
+> max-refresh-time <TT
+CLASS="replaceable"
+><I
+>number</I
+></TT
+> ; </SPAN
+>]
+    [<SPAN
+CLASS="optional"
+> min-retry-time <TT
+CLASS="replaceable"
+><I
+>number</I
+></TT
+> ; </SPAN
+>]
+    [<SPAN
+CLASS="optional"
+> max-retry-time <TT
+CLASS="replaceable"
+><I
+>number</I
+></TT
+> ; </SPAN
+>]
+
 }</SPAN
 >];
 </PRE
@@ -8078,7 +7723,7 @@ CLASS="sect2"
 ><H2
 CLASS="sect2"
 ><A
-NAME="AEN3084"
+NAME="AEN3117"
 >6.2.22. <B
 CLASS="command"
 >zone</B
@@ -8089,13 +7734,13 @@ CLASS="sect3"
 ><H3
 CLASS="sect3"
 ><A
-NAME="AEN3087"
+NAME="AEN3120"
 >6.2.22.1. Zone Types</A
 ></H3
 ><DIV
 CLASS="informaltable"
 ><A
-NAME="AEN3089"
+NAME="AEN3122"
 ></A
 ><P
 ></P
@@ -8158,9 +7803,9 @@ recommended, since it often speeds server start-up and eliminates
 a needless waste of bandwidth. Note that for large numbers (in the
 tens or hundreds of thousands) of zones per server, it is best to
 use a two level naming scheme for zone file names. For example,
-a slave server for the zone <SPAN
-CLASS="systemitem"
->example.com</SPAN
+a slave server for the zone <TT
+CLASS="literal"
+>example.com</TT
 > might place
 the zone contents into a file called
 <TT
@@ -8333,37 +7978,19 @@ CLASS="sect3"
 ><H3
 CLASS="sect3"
 ><A
-NAME="AEN3144"
+NAME="AEN3177"
 >6.2.22.2. Class</A
 ></H3
 ><P
->In general <B
-CLASS="command"
->class</B
-> can now be omitted from
-a <B
-CLASS="command"
->zone's</B
-> definition.
-It is now inherited for the enclosing <B
-CLASS="command"
->view</B
-> or if
-there is no explicit <B
-CLASS="command"
->view</B
->, from the default 
-<B
-CLASS="command"
->view</B
-> which is <TT
+>The zone's name may optionally be followed by a class. If
+a class is not specified, class <TT
 CLASS="literal"
 >IN</TT
->
-(for <TT
+> (for <TT
 CLASS="varname"
 >Internet</TT
->).</P
+>),
+is assumed. This is correct for the vast majority of cases.</P
 ><P
 >The <TT
 CLASS="literal"
@@ -8389,36 +8016,20 @@ CLASS="sect3"
 ><H3
 CLASS="sect3"
 ><A
-NAME="AEN3159"
+NAME="AEN3187"
 >6.2.22.3. Zone Options</A
 ></H3
+><P
+></P
 ><DIV
-CLASS="informaltable"
-><A
-NAME="AEN3161"
-></A
-><P
-></P
-><TABLE
-CELLPADDING="3"
-BORDER="1"
-CLASS="CALSTABLE"
-><TBODY
-><TR
-><TD
-WIDTH="159"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
-><P
+CLASS="variablelist"
+><DL
+><DT
 ><B
 CLASS="command"
 >allow-notify</B
-></P
-></TD
-><TD
-WIDTH="273"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
+></DT
+><DD
 ><P
 >See the description of
 <B
@@ -8428,23 +8039,13 @@ CLASS="command"
 HREF="Bv9ARM.ch06.html#access_control"
 >Section 6.2.14.3</A
 ></P
-></TD
-></TR
-><TR
-><TD
-WIDTH="159"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
-><P
+></DD
+><DT
 ><B
 CLASS="command"
 >allow-query</B
-></P
-></TD
-><TD
-WIDTH="273"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
+></DT
+><DD
 ><P
 >See the description of
 <B
@@ -8454,92 +8055,53 @@ CLASS="command"
 HREF="Bv9ARM.ch06.html#access_control"
 >Section 6.2.14.3</A
 ></P
-></TD
-></TR
-><TR
-><TD
-WIDTH="159"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
-><P
+></DD
+><DT
 ><B
 CLASS="command"
 >allow-transfer</B
-></P
-></TD
-><TD
-WIDTH="273"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
+></DT
+><DD
 ><P
 >See the description of <B
 CLASS="command"
 >allow-transfer</B
-> in <A
+>
+in <A
 HREF="Bv9ARM.ch06.html#access_control"
 >Section 6.2.14.3</A
 >.</P
-></TD
-></TR
-><TR
-><TD
-WIDTH="159"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
-><P
+></DD
+><DT
 ><B
 CLASS="command"
 >allow-update</B
-></P
-></TD
-><TD
-WIDTH="273"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
+></DT
+><DD
 ><P
 >Specifies which hosts are allowed to
 submit Dynamic DNS updates for master zones. The default is to deny
 updates from all hosts.</P
-></TD
-></TR
-><TR
-><TD
-WIDTH="159"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
-><P
+></DD
+><DT
 ><B
 CLASS="command"
 >update-policy</B
-></P
-></TD
-><TD
-WIDTH="273"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
+></DT
+><DD
 ><P
 >Specifies a "Simple Secure Update" policy. See
 <A
 HREF="Bv9ARM.ch06.html#dynamic_update_policies"
 >Section 6.2.22.4</A
 >.</P
-></TD
-></TR
-><TR
-><TD
-WIDTH="159"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
-><P
+></DD
+><DT
 ><B
 CLASS="command"
 >allow-update-forwarding</B
-></P
-></TD
-><TD
-WIDTH="273"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
+></DT
+><DD
 ><P
 >Specifies which hosts are allowed to
 submit Dynamic DNS updates to slave zones to be forwarded to the
@@ -8550,7 +8112,8 @@ CLASS="userinput"
 ></TT
 >, which 
 means that no update forwarding will be performed.  To enable
-update forwarding, specify  <TT
+update forwarding, specify
+<TT
 CLASS="userinput"
 ><B
 >allow-update-forwarding { any; };</B
@@ -8570,9 +8133,7 @@ CLASS="userinput"
 > is usually counterproductive, since
 the responsibility for update access control should rest with the 
 master server, not the slaves.</P
->
-
-<P
+><P
 >Note that enabling the update forwarding feature on a slave server
 may expose master servers relying on insecure IP address based
 access control to attacks; see <A
@@ -8580,24 +8141,13 @@ HREF="Bv9ARM.ch07.html#dynamic_update_security"
 >Section 7.3</A
 >
 for more details.</P
->
-</TD
-></TR
-><TR
-><TD
-WIDTH="159"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
-><P
+></DD
+><DT
 ><B
 CLASS="command"
 >also-notify</B
-></P
-></TD
-><TD
-WIDTH="273"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
+></DT
+><DD
 ><P
 >Only meaningful if <B
 CLASS="command"
@@ -8624,23 +8174,13 @@ CLASS="command"
 >also-notify</B
 > is not meaningful for stub zones.
 The default is the empty list.</P
-></TD
-></TR
-><TR
-><TD
-WIDTH="159"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
-><P
+></DD
+><DT
 ><B
 CLASS="command"
 >check-names</B
-></P
-></TD
-><TD
-WIDTH="273"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
+></DT
+><DD
 ><P
 >&#13;This option was used in BIND 8 to restrict the character set of
 domain names in master files and/or DNS responses received from the
@@ -8650,24 +8190,13 @@ CLASS="command"
 >check-names</B
 > option.
 </P
->
-</TD
-></TR
-><TR
-><TD
-WIDTH="159"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
-><P
+></DD
+><DT
 ><B
 CLASS="command"
 >database</B
-></P
-></TD
-><TD
-WIDTH="273"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
+></DT
+><DD
 ><P
 >Specify the type of database to be used for storing the
 zone data.  The string following the <B
@@ -8678,8 +8207,7 @@ is interpreted as a list of whitespace-delimited words.  The first word
 identifies the database type, and any subsequent words are passed
 as arguments to the database to be interpreted in a way specific
 to the database type.</P
->
-<P
+><P
 >The default is <TT
 CLASS="userinput"
 ><B
@@ -8687,29 +8215,17 @@ CLASS="userinput"
 ></TT
 >, BIND 9's native in-memory
 red-black-tree database.  This database does not take arguments.</P
->
-<P
+><P
 >Other values are possible if additional database drivers
 have been linked into the server.  Some sample drivers are included
 with the distribution but none are linked in by default.</P
->
-</TD
-></TR
-><TR
-><TD
-WIDTH="159"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
-><P
+></DD
+><DT
 ><B
 CLASS="command"
 >dialup</B
-></P
-></TD
-><TD
-WIDTH="273"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
+></DT
+><DD
 ><P
 >See the description of
 <B
@@ -8719,23 +8235,13 @@ CLASS="command"
 HREF="Bv9ARM.ch06.html#boolean_options"
 >Section 6.2.14.1</A
 >.</P
-></TD
-></TR
-><TR
-><TD
-WIDTH="159"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
-><P
+></DD
+><DT
 ><B
 CLASS="command"
 >forward</B
-></P
-></TD
-><TD
-WIDTH="273"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
+></DT
+><DD
 ><P
 >Only meaningful if the zone has a forwarders
 list. The <B
@@ -8747,24 +8253,13 @@ CLASS="command"
 >first</B
 > would
 allow a normal lookup to be tried.</P
->
-</TD
-></TR
-><TR
-><TD
-WIDTH="159"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
-><P
+></DD
+><DT
 ><B
 CLASS="command"
 >forwarders</B
-></P
-></TD
-><TD
-WIDTH="273"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
+></DT
+><DD
 ><P
 >Used to override the list of global forwarders.
 If it is not specified in a zone of type <B
@@ -8772,24 +8267,13 @@ CLASS="command"
 >forward</B
 >,
 no forwarding is done for the zone; the global options are not used.</P
->
-</TD
-></TR
-><TR
-><TD
-WIDTH="159"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
-><P
+></DD
+><DT
 ><B
 CLASS="command"
 >ixfr-base</B
-></P
-></TD
-><TD
-WIDTH="273"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
+></DT
+><DD
 ><P
 >Was used in <SPAN
 CLASS="acronym"
@@ -8800,30 +8284,20 @@ of the transaction log (journal) file for dynamic update and IXFR.
 CLASS="acronym"
 >BIND</SPAN
 > 9 ignores the option and constructs the name of the journal
-file by appending ".<TT
+file by appending "<TT
 CLASS="filename"
->jnl</TT
+>.jnl</TT
 >" to the name of the
 zone file.</P
-></TD
-></TR
-><TR
-><TD
-WIDTH="159"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
-><P
+></DD
+><DT
 ><B
 CLASS="command"
 >ixfr-tmp-file</B
-></P
-></TD
-><TD
-WIDTH="273"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
+></DT
+><DD
 ><P
->Was an undocumented optino in <SPAN
+>Was an undocumented option in <SPAN
 CLASS="acronym"
 >BIND</SPAN
 > 8.
@@ -8831,23 +8305,13 @@ Ignored in <SPAN
 CLASS="acronym"
 >BIND</SPAN
 > 9.</P
-></TD
-></TR
-><TR
-><TD
-WIDTH="159"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
-><P
+></DD
+><DT
 ><B
 CLASS="command"
 >max-transfer-time-in</B
-></P
-></TD
-><TD
-WIDTH="273"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
+></DT
+><DD
 ><P
 >See the description of
 <B
@@ -8857,23 +8321,13 @@ CLASS="command"
 HREF="Bv9ARM.ch06.html#zone_transfers"
 >Section 6.2.14.6</A
 >.</P
-></TD
-></TR
-><TR
-><TD
-WIDTH="159"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
-><P
+></DD
+><DT
 ><B
 CLASS="command"
 >max-transfer-idle-in</B
-></P
-></TD
-><TD
-WIDTH="273"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
+></DT
+><DD
 ><P
 >See the description of
 <B
@@ -8883,23 +8337,13 @@ CLASS="command"
 HREF="Bv9ARM.ch06.html#zone_transfers"
 >Section 6.2.14.6</A
 >.</P
-></TD
-></TR
-><TR
-><TD
-WIDTH="159"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
-><P
+></DD
+><DT
 ><B
 CLASS="command"
 >max-transfer-time-out</B
-></P
-></TD
-><TD
-WIDTH="273"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
+></DT
+><DD
 ><P
 >See the description of
 <B
@@ -8909,23 +8353,13 @@ CLASS="command"
 HREF="Bv9ARM.ch06.html#zone_transfers"
 >Section 6.2.14.6</A
 >.</P
-></TD
-></TR
-><TR
-><TD
-WIDTH="159"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
-><P
+></DD
+><DT
 ><B
 CLASS="command"
 >max-transfer-idle-out</B
-></P
-></TD
-><TD
-WIDTH="273"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
+></DT
+><DD
 ><P
 >See the description of
 <B
@@ -8935,23 +8369,13 @@ CLASS="command"
 HREF="Bv9ARM.ch06.html#zone_transfers"
 >Section 6.2.14.6</A
 >.</P
-></TD
-></TR
-><TR
-><TD
-WIDTH="159"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
-><P
+></DD
+><DT
 ><B
 CLASS="command"
 >notify</B
-></P
-></TD
-><TD
-WIDTH="273"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
+></DT
+><DD
 ><P
 >See the description of
 <B
@@ -8961,23 +8385,13 @@ CLASS="command"
 HREF="Bv9ARM.ch06.html#boolean_options"
 >Section 6.2.14.1</A
 >.</P
-></TD
-></TR
-><TR
-><TD
-WIDTH="159"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
-><P
+></DD
+><DT
 ><B
 CLASS="command"
 >pubkey</B
-></P
-></TD
-><TD
-WIDTH="273"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
+></DT
+><DD
 ><P
 >In <SPAN
 CLASS="acronym"
@@ -8989,23 +8403,13 @@ CLASS="acronym"
 >BIND</SPAN
 > 9 does not verify signatures
 on loading and ignores the option.</P
-></TD
-></TR
-><TR
-><TD
-WIDTH="159"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
-><P
+></DD
+><DT
 ><B
 CLASS="command"
 >zone-statistics</B
-></P
-></TD
-><TD
-WIDTH="273"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
+></DT
+><DD
 ><P
 >If <TT
 CLASS="userinput"
@@ -9018,23 +8422,13 @@ information for this zone, which can be dumped to the
 CLASS="command"
 >statistics-file</B
 > defined in the server options.</P
-></TD
-></TR
-><TR
-><TD
-WIDTH="159"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
-><P
+></DD
+><DT
 ><B
 CLASS="command"
 >sig-validity-interval</B
-></P
-></TD
-><TD
-WIDTH="273"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
+></DT
+><DD
 ><P
 >See the description of
 <B
@@ -9042,25 +8436,15 @@ CLASS="command"
 >sig-validity-interval</B
 > in <A
 HREF="Bv9ARM.ch06.html#tuning"
->Section 6.2.14.12</A
+>Section 6.2.14.14</A
 >.</P
-></TD
-></TR
-><TR
-><TD
-WIDTH="159"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
-><P
+></DD
+><DT
 ><B
 CLASS="command"
 >transfer-source</B
-></P
-></TD
-><TD
-WIDTH="273"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
+></DT
+><DD
 ><P
 >See the description of
 <B
@@ -9071,23 +8455,13 @@ HREF="Bv9ARM.ch06.html#zone_transfers"
 >Section 6.2.14.6</A
 >
 </P
-></TD
-></TR
-><TR
-><TD
-WIDTH="159"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
-><P
+></DD
+><DT
 ><B
 CLASS="command"
 >transfer-source-v6</B
-></P
-></TD
-><TD
-WIDTH="273"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
+></DT
+><DD
 ><P
 >See the description of
 <B
@@ -9098,23 +8472,13 @@ HREF="Bv9ARM.ch06.html#zone_transfers"
 >Section 6.2.14.6</A
 >
 </P
-></TD
-></TR
-><TR
-><TD
-WIDTH="159"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
-><P
+></DD
+><DT
 ><B
 CLASS="command"
 >notify-source</B
-></P
-></TD
-><TD
-WIDTH="273"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
+></DT
+><DD
 ><P
 >See the description of
 <B
@@ -9125,23 +8489,13 @@ HREF="Bv9ARM.ch06.html#zone_transfers"
 >Section 6.2.14.6</A
 >
 </P
-></TD
-></TR
-><TR
-><TD
-WIDTH="159"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
-><P
+></DD
+><DT
 ><B
 CLASS="command"
 >notify-source-v6</B
-></P
-></TD
-><TD
-WIDTH="273"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
+></DT
+><DD
 ><P
 >See the description of
 <B
@@ -9152,12 +8506,30 @@ HREF="Bv9ARM.ch06.html#zone_transfers"
 >Section 6.2.14.6</A
 >.
 </P
-></TD
-></TR
-></TBODY
-></TABLE
+></DD
+><DT
+><B
+CLASS="command"
+>min-refresh-time</B
+>, <B
+CLASS="command"
+>max-refresh-time</B
+>, <B
+CLASS="command"
+>min-retry-time</B
+>, <B
+CLASS="command"
+>max-retry-time</B
+></DT
+><DD
 ><P
-></P
+>&#13;See the description in <A
+HREF="Bv9ARM.ch06.html#tuning"
+>Section 6.2.14.14</A
+>.
+</P
+></DD
+></DL
 ></DIV
 ></DIV
 ><DIV
@@ -9173,14 +8545,15 @@ NAME="dynamic_update_policies"
 CLASS="acronym"
 >BIND</SPAN
 > 9 supports two alternative methods of granting clients
-the right to perform dynamic updates to a zone, configured by the <B
+the right to perform dynamic updates to a zone, 
+configured by the <B
 CLASS="command"
 >allow-update</B
-> and <B
+> and
+<B
 CLASS="command"
 >update-policy</B
-> option,
-respectively.</P
+> option, respectively.</P
 ><P
 >The <B
 CLASS="command"
@@ -9284,7 +8657,7 @@ CLASS="varname"
 ><DIV
 CLASS="informaltable"
 ><A
-NAME="AEN3411"
+NAME="AEN3421"
 ></A
 ><P
 ></P
@@ -9391,7 +8764,7 @@ CLASS="sect1"
 ><H1
 CLASS="sect1"
 ><A
-NAME="AEN3441"
+NAME="AEN3451"
 >6.3. Zone File</A
 ></H1
 ><DIV
@@ -9412,7 +8785,7 @@ CLASS="sect3"
 ><H3
 CLASS="sect3"
 ><A
-NAME="AEN3446"
+NAME="AEN3456"
 >6.3.1.1. Resource Records</A
 ></H3
 ><P
@@ -9425,17 +8798,17 @@ NAME="AEN3446"
         permitted for optimization purposes, for example, to specify
         that a particular nearby server be tried first. See <A
 HREF="Bv9ARM.ch06.html#the_sortlist_statement"
->Section 6.2.14.10</A
+>Section 6.2.14.11</A
 > and <A
 HREF="Bv9ARM.ch06.html#rrset_ordering"
->Section 6.2.14.11</A
+>Section 6.2.14.12</A
 >.</P
 ><P
 >The components of a Resource Record are:</P
 ><DIV
 CLASS="informaltable"
 ><A
-NAME="AEN3452"
+NAME="AEN3462"
 ></A
 ><P
 ></P
@@ -9546,7 +8919,7 @@ or historical (h) and no longer in general use):</P
 ><DIV
 CLASS="informaltable"
 ><A
-NAME="AEN3484"
+NAME="AEN3494"
 ></A
 ><P
 ></P
@@ -9923,7 +9296,7 @@ are currently valid in the DNS:</P
 ><DIV
 CLASS="informaltable"
 ><A
-NAME="AEN3596"
+NAME="AEN3606"
 ></A
 ><P
 ></P
@@ -9975,7 +9348,7 @@ data that describes the resource:</P
 ><DIV
 CLASS="informaltable"
 ><A
-NAME="AEN3612"
+NAME="AEN3622"
 ></A
 ><P
 ></P
@@ -10152,7 +9525,7 @@ CLASS="sect3"
 ><H3
 CLASS="sect3"
 ><A
-NAME="AEN3660"
+NAME="AEN3670"
 >6.3.1.2. Textual expression of RRs</A
 ></H3
 ><P
@@ -10182,7 +9555,7 @@ knowledge of the typical representation for the data.</P
 ><DIV
 CLASS="informaltable"
 ><A
-NAME="AEN3667"
+NAME="AEN3677"
 ></A
 ><P
 ></P
@@ -10391,7 +9764,7 @@ domain names.</P
 ><DIV
 CLASS="informaltable"
 ><A
-NAME="AEN3733"
+NAME="AEN3743"
 ></A
 ><P
 ></P
@@ -10470,9 +9843,9 @@ CLASS="literal"
 ></P
 ></DIV
 ><P
->This example shows two addresses for <SPAN
-CLASS="systemitem"
->XX.LCS.MIT.EDU</SPAN
+>This example shows two addresses for <TT
+CLASS="literal"
+>XX.LCS.MIT.EDU</TT
 >,
 each of a different class.</P
 ></DIV
@@ -10482,7 +9855,7 @@ CLASS="sect2"
 ><H2
 CLASS="sect2"
 ><A
-NAME="AEN3761"
+NAME="AEN3771"
 >6.3.2. Discussion of MX Records</A
 ></H2
 ><P
@@ -10515,7 +9888,7 @@ pointed to by the CNAME.</P
 ><DIV
 CLASS="informaltable"
 ><A
-NAME="AEN3767"
+NAME="AEN3777"
 ></A
 ><P
 ></P
@@ -10780,16 +10153,17 @@ VALIGN="MIDDLE"
 ><P
 >For example:</P
 ><P
->Mail delivery will be attempted to <SPAN
-CLASS="systemitem"
->mail.example.com</SPAN
-> and <SPAN
-CLASS="systemitem"
->mail2.example.com</SPAN
+>Mail delivery will be attempted to <TT
+CLASS="literal"
+>mail.example.com</TT
+> and
+<TT
+CLASS="literal"
+>mail2.example.com</TT
 > (in
-any order), and if neither of those succeed, delivery to <SPAN
-CLASS="systemitem"
->mail.backup.org</SPAN
+any order), and if neither of those succeed, delivery to <TT
+CLASS="literal"
+>mail.backup.org</TT
 > will
 be attempted.</P
 ></DIV
@@ -10810,7 +10184,7 @@ used in a zone file.</P
 ><DIV
 CLASS="informaltable"
 ><A
-NAME="AEN3859"
+NAME="AEN3869"
 ></A
 ><P
 ></P
@@ -10893,7 +10267,7 @@ CLASS="sect2"
 ><H2
 CLASS="sect2"
 ><A
-NAME="AEN3882"
+NAME="AEN3892"
 >6.3.4. Inverse Mapping in IPv4</A
 ></H2
 ><P
@@ -10917,7 +10291,7 @@ CLASS="optional"
 ><DIV
 CLASS="informaltable"
 ><A
-NAME="AEN3887"
+NAME="AEN3897"
 ></A
 ><P
 ></P
@@ -10997,7 +10371,7 @@ CLASS="sect2"
 ><H2
 CLASS="sect2"
 ><A
-NAME="AEN3909"
+NAME="AEN3919"
 >6.3.5. Other Zone File Directives</A
 ></H2
 ><P
@@ -11022,7 +10396,7 @@ CLASS="sect3"
 ><H3
 CLASS="sect3"
 ><A
-NAME="AEN3916"
+NAME="AEN3926"
 >6.3.5.1. The <B
 CLASS="command"
 >$ORIGIN</B
@@ -11092,7 +10466,7 @@ CLASS="sect3"
 ><H3
 CLASS="sect3"
 ><A
-NAME="AEN3936"
+NAME="AEN3946"
 >6.3.5.2. The <B
 CLASS="command"
 >$INCLUDE</B
@@ -11174,7 +10548,7 @@ CLASS="sect3"
 ><H3
 CLASS="sect3"
 ><A
-NAME="AEN3956"
+NAME="AEN3966"
 >6.3.5.3. The <B
 CLASS="command"
 >$TTL</B
@@ -11214,7 +10588,7 @@ CLASS="sect2"
 ><H2
 CLASS="sect2"
 ><A
-NAME="AEN3967"
+NAME="AEN3977"
 >6.3.6. <SPAN
 CLASS="acronym"
 >BIND</SPAN
@@ -11235,7 +10609,7 @@ CLASS="replaceable"
 > <TT
 CLASS="replaceable"
 ><I
->hs</I
+>lhs</I
 ></TT
 > <TT
 CLASS="replaceable"
@@ -11293,7 +10667,7 @@ CLASS="literal"
 ><DIV
 CLASS="informaltable"
 ><A
-NAME="AEN3987"
+NAME="AEN3997"
 ></A
 ><P
 ></P
@@ -11437,7 +10811,7 @@ ALIGN="LEFT"
 VALIGN="MIDDLE"
 ><P
 >At present the only supported types are
-PTR, CNAME and NS.</P
+PTR, CNAME, DNAME, A, AAAA and NS.</P
 ></TD
 ></TR
 ><TR

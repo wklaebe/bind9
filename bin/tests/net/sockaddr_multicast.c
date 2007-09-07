@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: sockaddr_multicast.c,v 1.4.4.1 2001/01/09 22:34:25 bwelling Exp $ */
+/* $Id: sockaddr_multicast.c,v 1.5 2001/01/09 21:42:08 bwelling Exp $ */
 
 #include <config.h>
 

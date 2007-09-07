@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: random.h,v 1.10.4.1 2001/01/09 22:50:19 bwelling Exp $ */
+/* $Id: random.h,v 1.11 2001/01/09 21:57:23 bwelling Exp $ */
 
 #ifndef ISC_RANDOM_H
 #define ISC_RANDOM_H 1

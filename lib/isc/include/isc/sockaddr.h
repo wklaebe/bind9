@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: sockaddr.h,v 1.34.4.1 2001/01/09 22:50:30 bwelling Exp $ */
+/* $Id: sockaddr.h,v 1.35 2001/01/09 21:57:33 bwelling Exp $ */
 
 #ifndef ISC_SOCKADDR_H
 #define ISC_SOCKADDR_H 1

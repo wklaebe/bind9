@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: md5.c,v 1.8.4.1 2001/01/09 22:49:06 bwelling Exp $ */
+/* $Id: md5.c,v 1.9 2001/01/09 21:56:14 bwelling Exp $ */
 
 /*
  * This code implements the MD5 message-digest algorithm.

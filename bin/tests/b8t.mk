@@ -13,7 +13,7 @@
 # NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
 # WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: b8t.mk,v 1.7.4.1 2001/01/09 22:33:02 bwelling Exp $
+# $Id: b8t.mk,v 1.8 2001/01/09 21:40:50 bwelling Exp $
 
 #
 # bind 8 multi-host make

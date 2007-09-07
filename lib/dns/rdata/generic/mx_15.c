@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: mx_15.c,v 1.43.4.1 2001/01/09 22:47:13 bwelling Exp $ */
+/* $Id: mx_15.c,v 1.47 2001/03/16 22:52:52 bwelling Exp $ */
 
 /* reviewed: Wed Mar 15 18:05:46 PST 2000 by brister */
 
@@ -32,12 +32,13 @@ fromtext_mx(ARGS_FROMTEXT) {
 
 	REQUIRE(type == 15);
 
+	UNUSED(type);
 	UNUSED(rdclass);
 
 	RETERR(isc_lex_getmastertoken(lexer, &token, isc_tokentype_number,
 				      ISC_FALSE));
 	if (token.value.as_ulong > 0xffff)
-		return (ISC_R_RANGE);
+		RETTOK(ISC_R_RANGE);
 	RETERR(uint16_tobuffer(token.value.as_ulong, target));
 
 	RETERR(isc_lex_getmastertoken(lexer, &token, isc_tokentype_string,
@@ -45,7 +46,8 @@ fromtext_mx(ARGS_FROMTEXT) {
 	dns_name_init(&name, NULL);
 	buffer_fromregion(&buffer, &token.value.as_region);
 	origin = (origin != NULL) ? origin : dns_rootname;
-	return (dns_name_fromtext(&name, &buffer, origin, downcase, target));
+	RETTOK(dns_name_fromtext(&name, &buffer, origin, downcase, target));
+	return (ISC_R_SUCCESS);
 }
 
 static inline isc_result_t
@@ -83,6 +85,7 @@ fromwire_mx(ARGS_FROMWIRE) {
 
 	REQUIRE(type == 15);
 
+	UNUSED(type);
 	UNUSED(rdclass);
 
 	dns_decompress_setmethods(dctx, DNS_COMPRESS_GLOBAL14);
@@ -100,6 +103,7 @@ fromwire_mx(ARGS_FROMWIRE) {
 static inline isc_result_t
 towire_mx(ARGS_TOWIRE) {
 	dns_name_t name;
+	dns_offsets_t offsets;
 	isc_region_t region;
 
 	REQUIRE(rdata->type == 15);
@@ -111,7 +115,7 @@ towire_mx(ARGS_TOWIRE) {
 	RETERR(mem_tobuffer(target, region.base, 2));
 	isc_region_consume(&region, 2);
 
-	dns_name_init(&name, NULL);
+	dns_name_init(&name, offsets);
 	dns_name_fromregion(&name, &region);
 
 	return (dns_name_towire(&name, cctx, target));
@@ -160,6 +164,7 @@ fromstruct_mx(ARGS_FROMSTRUCT) {
 	REQUIRE(mx->common.rdtype == type);
 	REQUIRE(mx->common.rdclass == rdclass);
 
+	UNUSED(type);
 	UNUSED(rdclass);
 
 	RETERR(uint16_tobuffer(mx->pref, target));
@@ -209,11 +214,12 @@ freestruct_mx(ARGS_FREESTRUCT) {
 static inline isc_result_t
 additionaldata_mx(ARGS_ADDLDATA) {
 	dns_name_t name;
+	dns_offsets_t offsets;
 	isc_region_t region;
 
 	REQUIRE(rdata->type == 15);
 
-	dns_name_init(&name, NULL);
+	dns_name_init(&name, offsets);
 	dns_rdata_toregion(rdata, &region);
 	isc_region_consume(&region, 2);
 	dns_name_fromregion(&name, &region);

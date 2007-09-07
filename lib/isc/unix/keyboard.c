@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: keyboard.c,v 1.8.4.1 2001/01/09 22:51:20 bwelling Exp $ */
+/* $Id: keyboard.c,v 1.9 2001/01/09 21:58:24 bwelling Exp $ */
 
 #include <config.h>
 

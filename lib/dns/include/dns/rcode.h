@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rcode.h,v 1.11.4.1 2001/01/09 22:46:00 bwelling Exp $ */
+/* $Id: rcode.h,v 1.12 2001/01/09 21:53:12 bwelling Exp $ */
 
 #ifndef DNS_RCODE_H
 #define DNS_RCODE_H 1

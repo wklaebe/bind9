@@ -16,16 +16,16 @@
  */
 
 /*
- * $Id: tsig.c,v 1.98.4.7 2001/06/15 16:52:42 gson Exp $
- * Principal Author: Brian Wellington
+ * $Id: tsig.c,v 1.108 2001/05/06 02:23:06 mayer Exp $
  */
 
 #include <config.h>
-#include <stdlib.h>		/* Required for abs(). */
+#include <stdlib.h>
 
 #include <isc/buffer.h>
 #include <isc/mem.h>
 #include <isc/print.h>
+#include <isc/refcount.h>
 #include <isc/string.h>		/* Required for HP/UX (and others?) */
 #include <isc/util.h>
 
@@ -53,58 +53,48 @@
 
 #define BADTIMELEN 6
 
-/* Copied from name.c */
-struct dns_constname {
-	dns_name_t name;
-	unsigned char const_ndata[30];
-	unsigned char const_offsets[5];
+static unsigned char hmacmd5_ndata[] = "\010hmac-md5\007sig-alg\003reg\003int";
+static unsigned char hmacmd5_offsets[] = { 0, 9, 17, 21, 25 };
+
+static dns_name_t hmacmd5 = {
+	DNS_NAME_MAGIC,
+	hmacmd5_ndata, 26, 5,
+	DNS_NAMEATTR_READONLY | DNS_NAMEATTR_ABSOLUTE,
+	hmacmd5_offsets, NULL,
+	{(void *)-1, (void *)-1},
+	{NULL, NULL}
 };
 
-static struct dns_constname hmacmd5 = {
-	{
-		DNS_NAME_MAGIC,
-		hmacmd5.const_ndata, 26, 5,
-		DNS_NAMEATTR_READONLY | DNS_NAMEATTR_ABSOLUTE,
-		hmacmd5.const_offsets, NULL,
-		{(void *)-1, (void *)-1},
-		{NULL, NULL}
-	},
-	{ "\010hmac-md5\007sig-alg\003reg\003int" },	/* const_ndata */
-	{ 0, 9, 17, 21, 25 }				/* const_offsets */
+dns_name_t *dns_tsig_hmacmd5_name = &hmacmd5;
+
+static unsigned char gsstsig_ndata[] = "\010gss-tsig";
+static unsigned char gsstsig_offsets[] = { 0, 9 };
+
+static dns_name_t gsstsig = {
+	DNS_NAME_MAGIC,
+	gsstsig_ndata, 10, 2,
+	DNS_NAMEATTR_READONLY | DNS_NAMEATTR_ABSOLUTE,
+	gsstsig_offsets, NULL,
+	{(void *)-1, (void *)-1},
+	{NULL, NULL}
 };
 
-dns_name_t *dns_tsig_hmacmd5_name = &hmacmd5.name;
-
-static struct dns_constname gsstsig = {
-	{
-		DNS_NAME_MAGIC,
-		gsstsig.const_ndata, 10, 2,
-		DNS_NAMEATTR_READONLY | DNS_NAMEATTR_ABSOLUTE,
-		gsstsig.const_offsets, NULL,
-		{(void *)-1, (void *)-1},
-		{NULL, NULL}
-	},
-	{ "\010gss-tsig" },				/* const_ndata */
-	{ 0, 9 }					/* const_offsets */
-};
-
-dns_name_t *dns_tsig_gssapi_name = &gsstsig.name;
+dns_name_t *dns_tsig_gssapi_name = &gsstsig;
 
 /* It's nice of Microsoft to conform to their own standard. */
-static struct dns_constname gsstsigms = {
-	{
-		DNS_NAME_MAGIC,
-		gsstsigms.const_ndata, 19, 4,
-		DNS_NAMEATTR_READONLY | DNS_NAMEATTR_ABSOLUTE,
-		gsstsigms.const_offsets, NULL,
-		{(void *)-1, (void *)-1},
-		{NULL, NULL}
-	},
-	{ "\003gss\011microsoft\003com" },		/* const_ndata */
-	{ 0, 4, 14, 18 }				/* const_offsets */
+static unsigned char gsstsigms_ndata[] = "\003gss\011microsoft\003com";
+static unsigned char gsstsigms_offsets[] = { 0, 4, 14, 18 };
+
+static dns_name_t gsstsigms = {
+	DNS_NAME_MAGIC,
+	gsstsigms_ndata, 19, 4,
+	DNS_NAMEATTR_READONLY | DNS_NAMEATTR_ABSOLUTE,
+	gsstsigms_offsets, NULL,
+	{(void *)-1, (void *)-1},
+	{NULL, NULL}
 };
 
-dns_name_t *dns_tsig_gssapims_name = &gsstsigms.name;
+dns_name_t *dns_tsig_gssapims_name = &gsstsigms;
 
 static isc_result_t
 tsig_verify_tcp(isc_buffer_t *source, dns_message_t *msg);
@@ -137,6 +127,7 @@ dns_tsigkey_createfromkey(dns_name_t *name, dns_name_t *algorithm,
 {
 	dns_tsigkey_t *tkey;
 	isc_result_t ret;
+	unsigned int refs = 0;
 
 	REQUIRE(key == NULL || *key == NULL);
 	REQUIRE(name != NULL);
@@ -193,7 +184,6 @@ dns_tsigkey_createfromkey(dns_name_t *name, dns_name_t *algorithm,
 
 	tkey->key = dstkey;
 	tkey->ring = ring;
-	tkey->refs = 0;
 
 	if (ring != NULL) {
 		RWLOCK(&ring->lock, isc_rwlocktype_write);
@@ -202,23 +192,17 @@ dns_tsigkey_createfromkey(dns_name_t *name, dns_name_t *algorithm,
 			RWUNLOCK(&ring->lock, isc_rwlocktype_write);
 			goto cleanup_algorithm;
 		}
-		tkey->refs++;
+		refs++;
 		RWUNLOCK(&ring->lock, isc_rwlocktype_write);
 	}
 
 	if (key != NULL)
-		tkey->refs++;
+		refs++;
+	isc_refcount_init(&tkey->refs, refs);
 	tkey->generated = generated;
 	tkey->inception = inception;
 	tkey->expire = expire;
 	tkey->mctx = mctx;
-	ret = isc_mutex_init(&tkey->lock);
-	if (ret != ISC_R_SUCCESS) {
-		UNEXPECTED_ERROR(__FILE__, __LINE__,
-				 "isc_mutex_init() failed: %s",
-				 isc_result_totext(ret));
-		return (ISC_R_UNEXPECTED);
-	}
 
 	tkey->magic = TSIG_MAGIC;
 
@@ -292,9 +276,7 @@ dns_tsigkey_attach(dns_tsigkey_t *source, dns_tsigkey_t **targetp) {
 	REQUIRE(VALID_TSIG_KEY(source));
 	REQUIRE(targetp != NULL && *targetp == NULL);
 
-	LOCK(&source->lock);
-	source->refs++;
-	UNLOCK(&source->lock);
+	isc_refcount_increment(&source->refs, NULL);
 	*targetp = source;
 }
 
@@ -314,27 +296,25 @@ tsigkey_free(dns_tsigkey_t *key) {
 		dns_name_free(key->creator, key->mctx);
 		isc_mem_put(key->mctx, key->creator, sizeof(dns_name_t));
 	}
-	DESTROYLOCK(&key->lock);
+	isc_refcount_destroy(&key->refs);
 	isc_mem_put(key->mctx, key, sizeof(dns_tsigkey_t));
 }
 
 void
 dns_tsigkey_detach(dns_tsigkey_t **keyp) {
 	dns_tsigkey_t *key;
-	isc_boolean_t should_free = ISC_FALSE;
+	unsigned int refs;
 
 	REQUIRE(keyp != NULL);
 	REQUIRE(VALID_TSIG_KEY(*keyp));
-	key = *keyp;
-	*keyp = NULL;
 
-	LOCK(&key->lock);
-	key->refs--;
-	if (key->refs == 0)
-		should_free = ISC_TRUE;
-	UNLOCK(&key->lock);
-	if (should_free)
+	key = *keyp;
+	isc_refcount_decrement(&key->refs, &refs);
+
+	if (refs == 0)
 		tsigkey_free(key);
+
+	*keyp = NULL;
 }
 
 void
@@ -399,7 +379,7 @@ dns_tsig_sign(dns_message_t *msg) {
 	dns_name_clone(key->algorithm, &tsig.algorithm);
 
 	isc_stdtime_get(&now);
-	tsig.timesigned = now;
+	tsig.timesigned = now + msg->timeadjust;
 	tsig.fudge = DNS_TSIG_FUDGE;
 
 	tsig.originalid = msg->id;
@@ -739,14 +719,13 @@ dns_tsig_verify(isc_buffer_t *source, dns_message_t *msg,
 	/*
 	 * Is the time ok?
 	 */
-	if (abs(now - tsig.timesigned) > tsig.fudge) {
+	if (now + msg->timeadjust > tsig.timesigned + tsig.fudge) {
 		msg->tsigstatus = dns_tsigerror_badtime;
-		if (now > tsig.timesigned + tsig.fudge)
-			tsig_log(msg->tsigkey, 2,
-				 "signature has expired");
-		else
-			tsig_log(msg->tsigkey, 2,
-				 "signature is in the future");
+		tsig_log(msg->tsigkey, 2, "signature has expired");
+		return (DNS_R_CLOCKSKEW);
+	} else if (now + msg->timeadjust < tsig.timesigned - tsig.fudge) {
+		msg->tsigstatus = dns_tsigerror_badtime;
+		tsig_log(msg->tsigkey, 2, "signature is in the future");
 		return (DNS_R_CLOCKSKEW);
 	}
 
@@ -785,7 +764,7 @@ dns_tsig_verify(isc_buffer_t *source, dns_message_t *msg,
 		 * Decrement the additional field counter.
 		 */
 		memcpy(&addcount, &header[DNS_MESSAGE_HEADERLEN - 2], 2);
-		addcount = htons(ntohs(addcount) - 1);
+		addcount = htons((isc_uint16_t)(ntohs(addcount) - 1));
 		memcpy(&header[DNS_MESSAGE_HEADERLEN - 2], &addcount, 2);
 
 		/*
@@ -966,15 +945,19 @@ tsig_verify_tcp(isc_buffer_t *source, dns_message_t *msg) {
 		 * Is the time ok?
 		 */
 		isc_stdtime_get(&now);
-		if (abs(now - tsig.timesigned) > tsig.fudge) {
+
+		if (now + msg->timeadjust > tsig.timesigned + tsig.fudge) {
 			msg->tsigstatus = dns_tsigerror_badtime;
+			tsig_log(msg->tsigkey, 2, "signature has expired");
 			ret = DNS_R_CLOCKSKEW;
-			if (now > tsig.timesigned + tsig.fudge)
-				tsig_log(msg->tsigkey, 2,
-					 "signature has expired");
-			else
-				tsig_log(msg->tsigkey, 2,
-					 "signature is in the future");
+			goto cleanup_querystruct;
+		} else if (now + msg->timeadjust <
+			   tsig.timesigned - tsig.fudge)
+		{
+			msg->tsigstatus = dns_tsigerror_badtime;
+			tsig_log(msg->tsigkey, 2,
+				 "signature is in the future");
+			ret = DNS_R_CLOCKSKEW;
 			goto cleanup_querystruct;
 		}
 	}
@@ -1020,7 +1003,7 @@ tsig_verify_tcp(isc_buffer_t *source, dns_message_t *msg) {
 	 */
 	if (has_tsig) {
 		memcpy(&addcount, &header[DNS_MESSAGE_HEADERLEN - 2], 2);
-		addcount = htons(ntohs(addcount) - 1);
+		addcount = htons((isc_uint16_t)(ntohs(addcount) - 1));
 		memcpy(&header[DNS_MESSAGE_HEADERLEN - 2], &addcount, 2);
 	}
 
@@ -1140,17 +1123,14 @@ dns_tsigkey_find(dns_tsigkey_t **tsigkey, dns_name_t *name,
 		 * The key has expired.
 		 */
 		RWUNLOCK(&ring->lock, isc_rwlocktype_read);
-		LOCK(&key->lock);
-		UNLOCK(&key->lock);
+		isc_refcount_decrement(&key->refs, NULL);
 		RWLOCK(&ring->lock, isc_rwlocktype_write);
 		(void) dns_rbt_deletename(ring->keys, name, ISC_FALSE);
 		RWUNLOCK(&ring->lock, isc_rwlocktype_write);
 		return (ISC_R_NOTFOUND);
 	}
 
-	LOCK(&key->lock);
-	key->refs++;
-	UNLOCK(&key->lock);
+	isc_refcount_increment(&key->refs, NULL);
 	RWUNLOCK(&ring->lock, isc_rwlocktype_read);
 	*tsigkey = key;
 	return (ISC_R_SUCCESS);

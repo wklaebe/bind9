@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: lwpacket.h,v 1.16.4.1 2001/01/09 22:52:43 bwelling Exp $ */
+/* $Id: lwpacket.h,v 1.17 2001/01/09 21:59:46 bwelling Exp $ */
 
 #ifndef LWRES_LWPACKET_H
 #define LWRES_LWPACKET_H 1

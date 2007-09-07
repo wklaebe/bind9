@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: client.h,v 1.48.4.1 2001/01/09 22:32:23 bwelling Exp $ */
+/* $Id: client.h,v 1.57 2001/03/19 20:52:21 gson Exp $ */
 
 #ifndef NAMED_CLIENT_H
 #define NAMED_CLIENT_H 1
@@ -86,26 +86,27 @@ struct ns_client {
 	ns_clientmgr_t *	manager;
 	int			state;
 	int			newstate;
-	isc_boolean_t		disconnect;
 	int			naccepts;
 	int			nreads;
 	int			nsends;
+	int			nrecvs;
 	int			references;
 	unsigned int		attributes;
 	isc_task_t *		task;
 	dns_view_t *		view;
-	dns_view_t *		lockview;
 	dns_dispatch_t *	dispatch;
-	dns_dispentry_t *	dispentry;
-	dns_dispatchevent_t *	dispevent;
+	isc_socket_t *		udpsocket;
 	isc_socket_t *		tcplistener;
 	isc_socket_t *		tcpsocket;
 	unsigned char *		tcpbuf;
 	dns_tcpmsg_t		tcpmsg;
 	isc_boolean_t		tcpmsg_valid;
 	isc_timer_t *		timer;
+	isc_boolean_t 		timerset;
 	dns_message_t *		message;
-	unsigned char *		sendbuf;
+	isc_socketevent_t *	sendevent;
+	isc_socketevent_t *	recvevent;
+	unsigned char *		recvbuf;
 	dns_rdataset_t *	opt;
 	isc_uint16_t		udpsize;
 	isc_uint16_t		extflags;
@@ -125,6 +126,17 @@ struct ns_client {
 	isc_boolean_t		peeraddr_valid;
 	struct in6_pktinfo	pktinfo;
 	isc_event_t		ctlevent;
+	/*
+	 * Information about recent FORMERR response(s), for
+	 * FORMERR loop avoidance.  This is separate for each
+	 * client object rather than global only to avoid
+	 * the need for locking.
+	 */
+	struct {
+		isc_sockaddr_t		addr;
+		isc_stdtime_t		time;
+		dns_messageid_t		id;
+	} formerrcache;
 	ISC_LINK(ns_client_t)	link;
 	/*
 	 * The list 'link' is part of, or NULL if not on any list.
@@ -205,6 +217,12 @@ ns_client_replace(ns_client_t *client);
  * leaving the dispatch/socket without service.
  */
 
+void
+ns_client_settimeout(ns_client_t *client, unsigned int seconds);
+/*
+ * Set a timer in the client to go off in the specified amount of time.
+ */
+
 isc_result_t
 ns_clientmgr_create(isc_mem_t *mctx, isc_taskmgr_t *taskmgr,
 		    isc_timermgr_t *timermgr, ns_clientmgr_t **managerp);
@@ -270,5 +288,9 @@ void
 ns_client_log(ns_client_t *client, isc_logcategory_t *category,
 	      isc_logmodule_t *module, int level,
 	      const char *fmt, ...);
+
+void
+ns_client_aclmsg(const char *msg, dns_name_t *name, dns_rdataclass_t rdclass,
+                 char *buf, size_t len);
 
 #endif /* NAMED_CLIENT_H */

@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: lang.h,v 1.5.4.1 2001/01/09 22:52:40 bwelling Exp $ */
+/* $Id: lang.h,v 1.6 2001/01/09 21:59:42 bwelling Exp $ */
 
 #ifndef LWRES_LANG_H
 #define LWRES_LANG_H 1

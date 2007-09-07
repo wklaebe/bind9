@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: tcpmsg.h,v 1.14.4.1 2001/01/09 22:46:19 bwelling Exp $ */
+/* $Id: tcpmsg.h,v 1.15 2001/01/09 21:53:31 bwelling Exp $ */
 
 #ifndef DNS_TCPMSG_H
 #define DNS_TCPMSG_H 1

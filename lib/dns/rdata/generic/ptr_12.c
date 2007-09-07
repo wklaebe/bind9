@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: ptr_12.c,v 1.34.4.1 2001/01/09 22:47:27 bwelling Exp $ */
+/* $Id: ptr_12.c,v 1.38 2001/03/16 22:52:58 bwelling Exp $ */
 
 /* Reviewed: Thu Mar 16 14:05:12 PST 2000 by explorer */
 
@@ -30,9 +30,10 @@ fromtext_ptr(ARGS_FROMTEXT) {
 	dns_name_t name;
 	isc_buffer_t buffer;
 
-	UNUSED(rdclass);
-
 	REQUIRE(type == 12);
+
+	UNUSED(type);
+	UNUSED(rdclass);
 
 	RETERR(isc_lex_getmastertoken(lexer, &token, isc_tokentype_string,
 				      ISC_FALSE));
@@ -40,7 +41,8 @@ fromtext_ptr(ARGS_FROMTEXT) {
 	dns_name_init(&name, NULL);
 	buffer_fromregion(&buffer, &token.value.as_region);
 	origin = (origin != NULL) ? origin : dns_rootname;
-	return (dns_name_fromtext(&name, &buffer, origin, downcase, target));
+	RETTOK(dns_name_fromtext(&name, &buffer, origin, downcase, target));
+	return (ISC_R_SUCCESS);
 }
 
 static inline isc_result_t
@@ -68,9 +70,10 @@ static inline isc_result_t
 fromwire_ptr(ARGS_FROMWIRE) {
         dns_name_t name;
 
-	UNUSED(rdclass);
-
 	REQUIRE(type == 12);
+
+	UNUSED(type);
+	UNUSED(rdclass);
 
 	dns_decompress_setmethods(dctx, DNS_COMPRESS_GLOBAL14);
 
@@ -81,6 +84,7 @@ fromwire_ptr(ARGS_FROMWIRE) {
 static inline isc_result_t
 towire_ptr(ARGS_TOWIRE) {
 	dns_name_t name;
+	dns_offsets_t offsets;
 	isc_region_t region;
 
 	REQUIRE(rdata->type == 12);
@@ -88,7 +92,7 @@ towire_ptr(ARGS_TOWIRE) {
 
 	dns_compress_setmethods(cctx, DNS_COMPRESS_GLOBAL14);
 
-	dns_name_init(&name, NULL);
+	dns_name_init(&name, offsets);
 	dns_rdata_toregion(rdata, &region);
 	dns_name_fromregion(&name, &region);
 
@@ -130,6 +134,7 @@ fromstruct_ptr(ARGS_FROMSTRUCT) {
 	REQUIRE(ptr->common.rdtype == type);
 	REQUIRE(ptr->common.rdclass == rdclass);
 
+	UNUSED(type);
 	UNUSED(rdclass);
 
 	dns_name_toregion(&ptr->ptr, &region);

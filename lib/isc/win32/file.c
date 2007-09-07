@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: file.c,v 1.5.4.1 2001/01/09 22:51:47 bwelling Exp $ */
+/* $Id: file.c,v 1.6 2001/01/09 21:58:50 bwelling Exp $ */
 
 #include <string.h>
 

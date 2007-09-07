@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: msgs.h,v 1.2.2.2 2001/04/27 21:59:33 gson Exp $ */
+/* $Id: msgs.h,v 1.5 2001/04/26 23:45:55 gson Exp $ */
 
 #ifndef ISC_MSGS_H
 #define ISC_MSGS_H 1
@@ -111,9 +111,6 @@
 
 #define ISC_MSG_UNKNOWNADDR    1001 /* "<unknown address, family %u>" */
 
-#define ISC_MSG_USELD	       1101 /* "use %ld instead of %D" */
-#define ISC_MSG_USELO	       1102 /* "use %lo instead of %O" */
-#define ISC_MSG_USELU	       1103 /* "use %lu instead of %U" */
 #define ISC_MSG_NOLONGDBL      1104 /* "long doubles are not supported" */
 
 #define ISC_MSG_PRINTLOCK      1201 /* "rwlock %p thread %lu ..." */

@@ -15,6 +15,18 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: condition.c,v 1.1.4.1 2001/01/09 22:50:46 bwelling Exp $ */
+/* $Id: condition.c,v 1.4 2001/04/13 02:26:30 tale Exp $ */
 
-/* This file intentionally left blank. */
+/*
+ * This file intentionally left blank.
+ */
+
+/*
+ * Well, not completely.  The stupid hack below shuts up compilers
+ * from complaining about an empty file.
+ */
+static void
+isc_condition_nothreads(void) {
+	isc_condition_nothreads();
+}
+

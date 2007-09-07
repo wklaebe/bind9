@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: cname_5.h,v 1.22.4.1 2001/01/09 22:46:44 bwelling Exp $ */
+/* $Id: cname_5.h,v 1.23 2001/01/09 21:53:56 bwelling Exp $ */
 
 #ifndef GENERIC_CNAME_5_H
 #define GENERIC_CNAME_5_H 1

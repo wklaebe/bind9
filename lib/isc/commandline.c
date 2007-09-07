@@ -48,7 +48,7 @@
  * SUCH DAMAGE.
  */
 
-/* $Id: commandline.c,v 1.11.4.2 2001/03/01 22:40:44 bwelling Exp $ */
+/* $Id: commandline.c,v 1.13 2001/03/01 22:40:09 bwelling Exp $ */
 
 /*
  * This file was adapted from the NetBSD project's source tree, RCS ID:

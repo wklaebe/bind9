@@ -13,10 +13,10 @@ can on all other supported platforms.  setuid() cannot be called before
 creating threads, since the server does not start listening on reserved ports
 until after threads have started.
 
-  In the 2.3.99-pre3 and newer kernels, the ability to preserve capabilities
-across a setuid() call is present.  This allows BIND 9 to call setuid() early,
-while retaining the ability to bind reserved ports.  This is a Linux-specific
-hack.
+  In the 2.2.18 or 2.3.99-pre3 and newer kernels, the ability to preserve
+capabilities across a setuid() call is present.  This allows BIND 9 to call
+setuid() early, while retaining the ability to bind reserved ports.  This is
+a Linux-specific hack.
 
   On a 2.2 kernel, BIND 9 does drop many root privileges, so it should be less
 of a security risk than a root process that has not dropped privileges.
@@ -27,10 +27,11 @@ of a security risk than a root process that has not dropped privileges.
 version to be built, which will allow -u to be used.
 
 
-Q: Why does named log the error message "no TTL specified" and refuse
-to load my zone file?
+Q: Why does named log the warning message "no TTL specified - using SOA
+MINTTL instead"?
 
-A: Your zone file must either have a line like
+A: Your zone file is illegal according to RFC1035.  It must either
+have a line like
 
    $TTL 86400
 
@@ -38,9 +39,6 @@ at the beginning, or the first record in it must have a TTL field,
 like the "84600" in this example:
 
    example.com. 86400 IN SOA ns hostmaster ( 1 3600 1800 1814400 3600 )
-
-BIND 8 incorrectly accepted files that had neither.
-
 
 Q: Why do I see 5 (or more) copies of named on Linux?
 
@@ -67,7 +65,8 @@ A: This is often caused by TXT records with missing close quotes.  Check that
 all TXT records containing quoted strings have both open and close quotes.
 
 
-Q: How do I produce a usable core file on Linux?
+Q: How do I produce a usable core file from a multithreaded named
+on Linux?
 
 A: Apply the kernel patch found in bind9/linux/coredump-patch and rebuild
 the kernel.  This patch causes multithreaded programs to dump the correct
@@ -114,18 +113,6 @@ Q: I installed BIND 9 and restarted named, but it's still BIND 8.  Why?
 
 A: BIND 9 is installed under /usr/local by default.  BIND 8 is often
 installed under /usr.  Check that the correct named is running.
-
-
-Q: I'm trying to install on AIX and compilation is failing with
-errors like
-
-  "confparser.c", line 8244.1: 1506-343 (S) Redeclaration of
-  token_to_keyword differs from previous declaration on line 348 of
-  "confparser.c".
-
-A: You probably have a buggy version of GNU bison installed on your
-system.  Remove bison it from your path, remove the config.cache file,
-and rerun configure so that it picks up the AIX yacc instead.
 
 
 Q: I'm trying to use TSIG to authenticate dynamic updates or zone

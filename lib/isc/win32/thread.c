@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: thread.c,v 1.13.4.1 2001/01/09 22:51:51 bwelling Exp $ */
+/* $Id: thread.c,v 1.14 2001/01/09 21:58:55 bwelling Exp $ */
 
 #include <config.h>
 

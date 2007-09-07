@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rdatastructsuf.h,v 1.6.4.1 2001/01/09 22:46:34 bwelling Exp $ */
+/* $Id: rdatastructsuf.h,v 1.7 2001/01/09 21:53:46 bwelling Exp $ */
 
 ISC_LANG_ENDDECLS
 

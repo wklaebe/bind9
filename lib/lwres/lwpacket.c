@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: lwpacket.c,v 1.12.4.1 2001/01/09 22:52:26 bwelling Exp $ */
+/* $Id: lwpacket.c,v 1.13 2001/01/09 21:59:29 bwelling Exp $ */
 
 #include <config.h>
 

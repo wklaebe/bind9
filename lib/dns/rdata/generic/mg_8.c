@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: mg_8.c,v 1.34.4.1 2001/01/09 22:47:06 bwelling Exp $ */
+/* $Id: mg_8.c,v 1.38 2001/03/16 22:52:47 bwelling Exp $ */
 
 /* reviewed: Wed Mar 15 17:49:21 PST 2000 by brister */
 
@@ -32,6 +32,7 @@ fromtext_mg(ARGS_FROMTEXT) {
 
 	REQUIRE(type == 8);
 
+	UNUSED(type);
 	UNUSED(rdclass);
 
 	RETERR(isc_lex_getmastertoken(lexer, &token, isc_tokentype_string,
@@ -40,7 +41,8 @@ fromtext_mg(ARGS_FROMTEXT) {
 	dns_name_init(&name, NULL);
 	buffer_fromregion(&buffer, &token.value.as_region);
 	origin = (origin != NULL) ? origin : dns_rootname;
-	return (dns_name_fromtext(&name, &buffer, origin, downcase, target));
+	RETTOK(dns_name_fromtext(&name, &buffer, origin, downcase, target));
+	return (ISC_R_SUCCESS);
 }
 
 static inline isc_result_t
@@ -70,6 +72,7 @@ fromwire_mg(ARGS_FROMWIRE) {
 
 	REQUIRE(type == 8);
 
+	UNUSED(type);
 	UNUSED(rdclass);
 
 	dns_decompress_setmethods(dctx, DNS_COMPRESS_GLOBAL14);
@@ -81,6 +84,7 @@ fromwire_mg(ARGS_FROMWIRE) {
 static inline isc_result_t
 towire_mg(ARGS_TOWIRE) {
 	dns_name_t name;
+	dns_offsets_t offsets;
 	isc_region_t region;
 
 	REQUIRE(rdata->type == 8);
@@ -88,7 +92,7 @@ towire_mg(ARGS_TOWIRE) {
 
 	dns_compress_setmethods(cctx, DNS_COMPRESS_GLOBAL14);
 
-	dns_name_init(&name, NULL);
+	dns_name_init(&name, offsets);
 	dns_rdata_toregion(rdata, &region);
 	dns_name_fromregion(&name, &region);
 
@@ -130,6 +134,7 @@ fromstruct_mg(ARGS_FROMSTRUCT) {
 	REQUIRE(mg->common.rdtype == type);
 	REQUIRE(mg->common.rdclass == rdclass);
 
+	UNUSED(type);
 	UNUSED(rdclass);
 
 	dns_name_toregion(&mg->mg, &region);

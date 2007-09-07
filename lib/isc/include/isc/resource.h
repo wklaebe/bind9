@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: resource.h,v 1.3.4.1 2001/01/09 22:50:23 bwelling Exp $ */
+/* $Id: resource.h,v 1.4 2001/01/09 21:57:26 bwelling Exp $ */
 
 #ifndef ISC_RESOURCE_H
 #define ISC_RESOURCE_H 1

@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: secalg.h,v 1.11.4.1 2001/01/09 22:46:15 bwelling Exp $ */
+/* $Id: secalg.h,v 1.12 2001/01/09 21:53:27 bwelling Exp $ */
 
 #ifndef DNS_SECALG_H
 #define DNS_SECALG_H 1

@@ -15,69 +15,113 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: named-checkconf.c,v 1.2.2.1 2001/01/09 22:31:16 bwelling Exp $ */
+/* $Id: named-checkconf.c,v 1.8 2001/05/18 23:50:04 gson Exp $ */
 
 #include <config.h>
 
 #include <errno.h>
 #include <stdlib.h>
+#include <stdio.h>
 
+#include <isc/commandline.h>
+#include <isc/dir.h>
+#include <isc/log.h>
 #include <isc/mem.h>
+#include <isc/result.h>
 #include <isc/string.h>
 #include <isc/util.h>
 
-#include <dns/log.h>
-#include <dns/namedconf.h>
+#include <isccfg/cfg.h>
+#include <isccfg/check.h>
 
 #include "check-tool.h"
 
-static isc_result_t
-zonecbk(dns_c_ctx_t *ctx, dns_c_zone_t *zone, dns_c_view_t *view, void *uap) {
+isc_log_t *log = NULL;
 
-	UNUSED(ctx);
-	UNUSED(uap);
-	UNUSED(zone);
-	UNUSED(view);
-
-	return (ISC_R_SUCCESS);
+static void
+usage(void) {
+        fprintf(stderr, "usage: named-checkconf [-t directory] [named.conf]\n");
+        exit(1);
 }
 
 static isc_result_t
-optscbk(dns_c_ctx_t *ctx, void *uap) {
-	UNUSED(ctx);
-	UNUSED(uap);
+directory_callback(const char *clausename, cfg_obj_t *obj, void *arg) {
+	isc_result_t result;
+	char *directory;
+
+	REQUIRE(strcasecmp("directory", clausename) == 0);
+
+	UNUSED(arg);
+	UNUSED(clausename);
+
+	/*
+	 * Change directory.
+	 */
+	directory = cfg_obj_asstring(obj);
+	result = isc_dir_chdir(directory);
+	if (result != ISC_R_SUCCESS) {
+		cfg_obj_log(obj, log, ISC_LOG_ERROR,
+			    "change directory to '%s' failed: %s",
+			    directory, isc_result_totext(result));
+		return (result);
+	}
 
 	return (ISC_R_SUCCESS);
 }
 
 int
 main(int argc, char **argv) {
-	dns_c_ctx_t *configctx = NULL;
+	int c;
+	cfg_parser_t *parser = NULL;
+	cfg_obj_t *config = NULL;
 	const char *conffile = NULL;
 	isc_mem_t *mctx = NULL;
-	dns_c_cbks_t callbacks;
-	isc_log_t *log = NULL;
+	isc_result_t result;
 
-	callbacks.zonecbk = zonecbk;
-	callbacks.optscbk = optscbk;
-	callbacks.zonecbkuap = NULL;
-	callbacks.optscbkuap = NULL;
+	while ((c = isc_commandline_parse(argc, argv, "t:")) != EOF) {
+		switch (c) {
+		case 't':
+			result = isc_dir_chroot(isc_commandline_argument);
+			if (result != ISC_R_SUCCESS) {
+				fprintf(stderr, "isc_dir_chroot: %s\n",
+					isc_result_totext(result));
+				exit(1);
+			}
+			result = isc_dir_chdir("/");
+			if (result != ISC_R_SUCCESS) {
+				fprintf(stderr, "isc_dir_chdir: %s\n",
+					isc_result_totext(result));
+				exit(1);
+			}
+			break;
 
-	if (argc > 1)
-		conffile = argv[1];
+		default:
+			usage();
+		}
+	}
+
+	if (argv[isc_commandline_index] != NULL)
+		conffile = argv[isc_commandline_index];
 	if (conffile == NULL || conffile[0] == '\0')
-		conffile = "/etc/named.conf";
+		conffile = NS_SYSCONFDIR "/named.conf";
 
 	RUNTIME_CHECK(isc_mem_create(0, 0, &mctx) == ISC_R_SUCCESS);
 
 	RUNTIME_CHECK(setup_logging(mctx, &log) == ISC_R_SUCCESS);
 
-	if (dns_c_parse_namedconf(conffile, mctx, &configctx, &callbacks) !=
-	    ISC_R_SUCCESS) {
-		exit(1);
-	}
+	RUNTIME_CHECK(cfg_parser_create(mctx, log, &parser) == ISC_R_SUCCESS);
 
-	dns_c_ctx_delete(&configctx);
+	cfg_parser_setcallback(parser, directory_callback, NULL);
+
+	if (cfg_parse_file(parser, conffile, &cfg_type_namedconf, &config) !=
+	    ISC_R_SUCCESS)
+		exit(1);
+
+	RUNTIME_CHECK(cfg_check_namedconf(config, log, mctx) == ISC_R_SUCCESS);
+
+	cfg_obj_destroy(parser, &config);
+
+	cfg_parser_destroy(&parser);
 
 	isc_log_destroy(&log);
 

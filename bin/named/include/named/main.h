@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: main.h,v 1.6.4.1 2001/01/09 22:32:35 bwelling Exp $ */
+/* $Id: main.h,v 1.7 2001/01/09 21:40:23 bwelling Exp $ */
 
 #ifndef NAMED_MAIN_H
 #define NAMED_MAIN_H 1

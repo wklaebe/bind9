@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: condition.h,v 1.18.4.1 2001/01/09 22:51:01 bwelling Exp $ */
+/* $Id: condition.h,v 1.21 2001/01/09 21:58:05 bwelling Exp $ */
 
 #ifndef ISC_CONDITION_H
 #define ISC_CONDITION_H 1
@@ -31,9 +31,15 @@ typedef pthread_cond_t isc_condition_t;
 	((pthread_cond_init((cp), NULL) == 0) ? \
 	 ISC_R_SUCCESS : ISC_R_UNEXPECTED)
 
+#if ISC_MUTEX_PROFILE
+#define isc_condition_wait(cp, mp) \
+	((pthread_cond_wait((cp), &((mp)->mutex)) == 0) ? \
+	 ISC_R_SUCCESS : ISC_R_UNEXPECTED)
+#else
 #define isc_condition_wait(cp, mp) \
 	((pthread_cond_wait((cp), (mp)) == 0) ? \
 	 ISC_R_SUCCESS : ISC_R_UNEXPECTED)
+#endif
 
 #define isc_condition_signal(cp) \
 	((pthread_cond_signal((cp)) == 0) ? \

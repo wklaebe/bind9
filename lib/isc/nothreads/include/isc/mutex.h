@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: mutex.h,v 1.1.4.1 2001/01/09 22:50:52 bwelling Exp $ */
+/* $Id: mutex.h,v 1.3 2001/01/09 21:57:55 bwelling Exp $ */
 
 #ifndef ISC_MUTEX_H
 #define ISC_MUTEX_H 1
@@ -34,5 +34,6 @@ typedef int isc_mutex_t;
 	(*(mp) == 0 ? ((*(mp))++, ISC_R_SUCCESS) : ISC_R_LOCKBUSY)
 #define isc_mutex_destroy(mp) \
 	(*(mp) == 0 ? (*(mp) = -1, ISC_R_SUCCESS) : ISC_R_UNEXPECTED)
+#define isc_mutex_stats(fp)
 
 #endif /* ISC_MUTEX_H */

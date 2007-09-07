@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: lex.h,v 1.24.4.1 2001/01/09 22:49:59 bwelling Exp $ */
+/* $Id: lex.h,v 1.25 2001/01/09 21:57:04 bwelling Exp $ */
 
 #ifndef ISC_LEX_H
 #define ISC_LEX_H 1

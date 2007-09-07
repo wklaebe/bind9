@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: socket.h,v 1.50.4.1 2001/01/09 22:50:31 bwelling Exp $ */
+/* $Id: socket.h,v 1.54 2001/03/06 01:23:02 bwelling Exp $ */
 
 #ifndef ISC_SOCKET_H
 #define ISC_SOCKET_H 1
@@ -135,8 +135,6 @@ struct isc_socket_connev {
 #define ISC_SOCKEVENT_SENDDONE	(ISC_EVENTCLASS_SOCKET + 2)
 #define ISC_SOCKEVENT_NEWCONN	(ISC_EVENTCLASS_SOCKET + 3)
 #define ISC_SOCKEVENT_CONNECT	(ISC_EVENTCLASS_SOCKET + 4)
-#define ISC_SOCKEVENT_RECVMARK	(ISC_EVENTCLASS_SOCKET + 5)
-#define ISC_SOCKEVENT_SENDMARK	(ISC_EVENTCLASS_SOCKET + 6)
 
 /*
  * Internal events.
@@ -164,6 +162,12 @@ typedef enum {
 #define ISC_SOCKCANCEL_ACCEPT	0x00000004	/* cancel accept */
 #define ISC_SOCKCANCEL_CONNECT	0x00000008	/* cancel connect */
 #define ISC_SOCKCANCEL_ALL	0x0000000f	/* cancel everything */
+
+/*
+ * Flags for isc_socket_send() and isc_socket_recv() calls.
+ */
+#define ISC_SOCKFLAG_IMMEDIATE	0x00000001	/* send event only if needed */
+#define ISC_SOCKFLAG_NORETRY	0x00000002	/* drop failed UDP sends */
 
 /***
  *** Socket and Socket Manager Functions
@@ -443,6 +447,12 @@ isc_result_t
 isc_socket_recvv(isc_socket_t *sock, isc_bufferlist_t *buflist,
 		 unsigned int minimum,
 		 isc_task_t *task, isc_taskaction_t action, const void *arg);
+
+isc_result_t
+isc_socket_recv2(isc_socket_t *sock, isc_region_t *region,
+		 unsigned int minimum, isc_task_t *task,
+		 isc_socketevent_t *event, unsigned int flags);
+
 /*
  * Receive from 'socket', storing the results in region.
  *
@@ -471,6 +481,18 @@ isc_socket_recvv(isc_socket_t *sock, isc_bufferlist_t *buflist,
  *	all buffers will be returned in the done event's 'bufferlist'
  *	member.  On error return, '*buflist' will be unchanged.
  *
+ *	For isc_socket_recv2():
+ *	'event' is not NULL, and the non-socket specific fields are
+ *	expected to be initialized.
+ *
+ *	For isc_socket_recv2():
+ *	The only defined value for 'flags' is ISC_SOCKFLAG_IMMEDIATE.  If
+ *	set and the operation completes, the return value will be
+ *	ISC_R_SUCCESS and the event will be filled in and not sent.  If the
+ *	operation does not complete, the return value will be
+ *	ISC_R_INPROGRESS and the event will be sent when the operation
+ *	completes.
+ *
  * Requires:
  *
  *	'socket' is a valid, bound socket.
@@ -483,11 +505,16 @@ isc_socket_recvv(isc_socket_t *sock, isc_bufferlist_t *buflist,
  *
  *	'task' is a valid task
  *
+ *	For isc_socket_recv() and isc_socket_recvv():
  *	action != NULL and is a valid action
+ *
+ *	For isc_socket_recv2():
+ *	event != NULL
  *
  * Returns:
  *
  *	ISC_R_SUCCESS
+ *	ISC_R_INPROGRESS
  *	ISC_R_NOMEMORY
  *	ISC_R_UNEXPECTED
  *
@@ -512,6 +539,12 @@ isc_result_t
 isc_socket_sendtov(isc_socket_t *sock, isc_bufferlist_t *buflist,
 		   isc_task_t *task, isc_taskaction_t action, const void *arg,
 		   isc_sockaddr_t *address, struct in6_pktinfo *pktinfo);
+isc_result_t
+isc_socket_sendto2(isc_socket_t *sock, isc_region_t *region,
+		   isc_task_t *task,
+		   isc_sockaddr_t *address, struct in6_pktinfo *pktinfo,
+		   isc_socketevent_t *event, unsigned int flags);
+
 /*
  * Send the contents of 'region' to the socket's peer.
  *
@@ -532,6 +565,26 @@ isc_socket_sendtov(isc_socket_t *sock, isc_bufferlist_t *buflist,
  *	all buffers will be returned in the done event's 'bufferlist'
  *	member.  On error return, '*buflist' will be unchanged.
  *
+ *	For isc_socket_sendto2():
+ *	'event' is not NULL, and the non-socket specific fields are
+ *	expected to be initialized.
+ *
+ *	For isc_socket_sendto2():
+ *	The only defined values for 'flags' are ISC_SOCKFLAG_IMMEDIATE
+ *	and ISC_SOCKFLAG_NORETRY.
+ *
+ *	If ISC_SOCKFLAG_IMMEDIATE is set and the operation completes, the
+ *	return value will be ISC_R_SUCCESS and the event will be filled
+ *	in and not sent.  If the operation does not complete, the return
+ *	value will be ISC_R_INPROGRESS and the event will be sent when
+ *	the operation completes.
+ *
+ *	ISC_SOCKFLAG_NORETRY can only be set for UDP sockets.  If set
+ *	and the send operation fails due to a transient error, the send
+ *	will not be retried and the error will be indicated in the event.
+ *	Using this option along with ISC_SOCKFLAG_IMMEDIATE allows the caller
+ *	to specify a region that is allocated on the stack.
+ *
  * Requires:
  *
  *	'socket' is a valid, bound socket.
@@ -544,11 +597,17 @@ isc_socket_sendtov(isc_socket_t *sock, isc_bufferlist_t *buflist,
  *
  *	'task' is a valid task
  *
+ *	For isc_socket_sendv(), isc_socket_sendtov(), isc_socket_send(), and
+ *	isc_socket_sendto():
  *	action == NULL or is a valid action
+ *
+ *	For isc_socket_sendto2():
+ *	event != NULL
  *
  * Returns:
  *
  *	ISC_R_SUCCESS
+ *	ISC_R_INPROGRESS
  *	ISC_R_NOMEMORY
  *	ISC_R_UNEXPECTED
  *
@@ -557,41 +616,6 @@ isc_socket_sendtov(isc_socket_t *sock, isc_bufferlist_t *buflist,
  *	ISC_R_SUCCESS
  *	ISC_R_UNEXPECTED
  *	XXX needs other net-type errors
- */
-
-isc_result_t
-isc_socket_recvmark(isc_socket_t *sock, isc_task_t *task,
-		    isc_taskaction_t action, const void *arg);
-isc_result_t
-isc_socket_sendmark(isc_socket_t *sock, isc_task_t *task,
-		    isc_taskaction_t action, const void *arg);
-/*
- * Insert a recv/send marker for the socket.
- *
- * This marker is processed when all I/O requests in the proper queue
- * have been processed.
- *
- * Requires:
- *
- *	'socket' is a valid, bound socket.
- *
- *	'task' is a valid task, 'action' is a valid action.
- *
- * Notes:
- *
- *	If the queue is empty, the event will be posted immediately to the
- * 	task.
- *
- *	On return, the event's 'result' member will sometimes contain useful
- *	information.  If the mark was processed after a fatal error, it will
- *	contain the same error that the last isc_socket_recv(), _send(),
- *	or sendto() returned, depending on the mark type.
- *
- * Returns:
- *
- *	ISC_R_SUCCESS
- *	ISC_R_NOMEMORY
- *	ISC_R_UNEXPECTED
  */
 
 isc_result_t

@@ -15,7 +15,7 @@
 # NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
 # WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: nanny.pl,v 1.7.4.1 2001/01/09 22:39:00 bwelling Exp $
+# $Id: nanny.pl,v 1.8 2001/01/09 21:46:21 bwelling Exp $
 
 # A simple nanny to make sure named stays running.
 

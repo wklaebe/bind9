@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: commandline.h,v 1.6.4.1 2001/01/09 22:49:41 bwelling Exp $ */
+/* $Id: commandline.h,v 1.7 2001/01/09 21:56:49 bwelling Exp $ */
 
 #ifndef ISC_COMMANDLINE_H
 #define ISC_COMMANDLINE_H 1

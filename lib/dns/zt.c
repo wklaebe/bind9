@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: zt.c,v 1.27.2.1 2001/01/09 22:44:33 bwelling Exp $ */
+/* $Id: zt.c,v 1.32 2001/05/14 19:06:43 bwelling Exp $ */
 
 #include <config.h>
 
@@ -47,6 +47,9 @@ auto_detach(void *, void *);
 
 static isc_result_t
 load(dns_zone_t *zone, void *uap);
+
+static isc_result_t
+loadnew(dns_zone_t *zone, void *uap);
 
 isc_result_t
 dns_zt_create(isc_mem_t *mctx, dns_rdataclass_t rdclass, dns_zt_t **ztp) {
@@ -220,6 +223,9 @@ dns_zt_detach(dns_zt_t **ztp) {
 isc_result_t
 dns_zt_load(dns_zt_t *zt, isc_boolean_t stop) {
 	isc_result_t result;
+
+	REQUIRE(VALID_ZT(zt));
+
 	RWLOCK(&zt->rwlock, isc_rwlocktype_read);
 	result = dns_zt_apply(zt, stop, load, NULL);
 	RWUNLOCK(&zt->rwlock, isc_rwlocktype_read);
@@ -230,6 +236,24 @@ static isc_result_t
 load(dns_zone_t *zone, void *uap) {
 	UNUSED(uap);
 	return (dns_zone_load(zone));
+}
+
+isc_result_t
+dns_zt_loadnew(dns_zt_t *zt, isc_boolean_t stop) {
+	isc_result_t result;
+
+	REQUIRE(VALID_ZT(zt));
+
+	RWLOCK(&zt->rwlock, isc_rwlocktype_read);
+	result = dns_zt_apply(zt, stop, loadnew, NULL);
+	RWUNLOCK(&zt->rwlock, isc_rwlocktype_read);
+	return (result);
+}
+
+static isc_result_t
+loadnew(dns_zone_t *zone, void *uap) {
+	UNUSED(uap);
+	return (dns_zone_loadnew(zone));
 }
 
 isc_result_t

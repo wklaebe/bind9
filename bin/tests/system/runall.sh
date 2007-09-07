@@ -15,7 +15,7 @@
 # NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
 # WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: runall.sh,v 1.3.4.1 2001/01/09 22:34:39 bwelling Exp $
+# $Id: runall.sh,v 1.4 2001/01/09 21:42:22 bwelling Exp $
 
 #
 # Run all the system tests.

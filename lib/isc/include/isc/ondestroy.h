@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: ondestroy.h,v 1.6.4.1 2001/01/09 22:50:14 bwelling Exp $ */
+/* $Id: ondestroy.h,v 1.7 2001/01/09 21:57:18 bwelling Exp $ */
 
 #ifndef ISC_ONDESTROY_H
 #define ISC_ONDESTROY_H 1

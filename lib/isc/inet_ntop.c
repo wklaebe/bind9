@@ -17,7 +17,7 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static char rcsid[] =
-	"$Id: inet_ntop.c,v 1.9.4.2 2001/01/25 20:13:37 gson Exp $";
+	"$Id: inet_ntop.c,v 1.12 2001/01/25 20:10:01 gson Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <config.h>

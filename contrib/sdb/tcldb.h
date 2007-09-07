@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: tcldb.h,v 1.3.4.1 2001/01/09 22:39:08 bwelling Exp $ */
+/* $Id: tcldb.h,v 1.4 2001/01/09 21:46:29 bwelling Exp $ */
 
 #include <isc/types.h>
 

@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: wks_11.c,v 1.38.4.1 2001/01/09 22:48:12 bwelling Exp $ */
+/* $Id: wks_11.c,v 1.42 2001/03/16 22:53:20 bwelling Exp $ */
 
 /* Reviewed: Fri Mar 17 15:01:49 PST 2000 by explorer */
 
@@ -50,6 +50,7 @@ fromtext_in_wks(ARGS_FROMTEXT) {
 	REQUIRE(type == 11);
 	REQUIRE(rdclass == 1);
 
+	UNUSED(type);
 	UNUSED(origin);
 	UNUSED(downcase);
 	UNUSED(rdclass);
@@ -62,7 +63,7 @@ fromtext_in_wks(ARGS_FROMTEXT) {
 
 	isc_buffer_availableregion(target, &region);
 	if (inet_aton(token.value.as_pointer, &addr) != 1)
-		return (DNS_R_BADDOTTEDQUAD);
+		RETTOK(DNS_R_BADDOTTEDQUAD);
 	if (region.length < 4)
 		return (ISC_R_NOSPACE);
 	memcpy(region.base, &addr, 4);
@@ -80,9 +81,9 @@ fromtext_in_wks(ARGS_FROMTEXT) {
 	else if ((pe = getprotobyname(token.value.as_pointer)) != NULL)
 		proto = pe->p_proto;
 	else
-		return (ISC_R_UNEXPECTED);
+		RETTOK(DNS_R_UNKNOWNPROTO);
 	if (proto < 0 || proto > 0xff)
-		return (ISC_R_RANGE);
+		RETTOK(ISC_R_RANGE);
 
 	if (proto == IPPROTO_TCP)
 		ps = "tcp";
@@ -117,9 +118,9 @@ fromtext_in_wks(ARGS_FROMTEXT) {
 			  != NULL)
 			port = ntohs(se->s_port);
 		else
-			return (ISC_R_UNEXPECTED);
+			RETTOK(DNS_R_UNKNOWNSERVICE);
 		if (port < 0 || port > 0xffff)
-			return (ISC_R_RANGE);
+			RETTOK(ISC_R_RANGE);
 		if (port > maxport)
 			maxport = port;
 		bm[port / 8] |= (0x80 >> (port % 8));
@@ -137,7 +138,6 @@ fromtext_in_wks(ARGS_FROMTEXT) {
 static inline isc_result_t
 totext_in_wks(ARGS_TOTEXT) {
 	isc_region_t sr;
-	isc_region_t tr;
 	unsigned short proto;
 	char buf[sizeof "65535"];
 	unsigned int i, j;
@@ -146,13 +146,10 @@ totext_in_wks(ARGS_TOTEXT) {
 
 	REQUIRE(rdata->type == 11);
 	REQUIRE(rdata->rdclass == 1);
-	REQUIRE(rdata->length != 0);
+	REQUIRE(rdata->length >= 5);
 
 	dns_rdata_toregion(rdata, &sr);
-	isc_buffer_availableregion(target, &tr);
-	if (inet_ntop(AF_INET, sr.base, (char *)tr.base, tr.length) == NULL)
-		return (ISC_R_NOSPACE);
-	isc_buffer_add(target, strlen((char *)tr.base));
+	RETERR(inet_totext(AF_INET, &sr, target));
 	isc_region_consume(&sr, 4);
 
 	proto = uint8_fromregion(&sr);
@@ -182,6 +179,7 @@ fromwire_in_wks(ARGS_FROMWIRE) {
 	REQUIRE(type == 11);
 	REQUIRE(rdclass == 1);
 
+	UNUSED(type);
 	UNUSED(dctx);
 	UNUSED(downcase);
 	UNUSED(rdclass);
@@ -245,6 +243,7 @@ fromstruct_in_wks(ARGS_FROMSTRUCT) {
 	REQUIRE(wks->common.rdtype == type);
 	REQUIRE(wks->common.rdclass == rdclass);
 
+	UNUSED(type);
 	UNUSED(rdclass);
 
 	a = ntohl(wks->in_addr.s_addr);

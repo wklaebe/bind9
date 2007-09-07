@@ -13,7 +13,7 @@
 # NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
 # WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: Makefile.in,v 1.13.2.1 2001/01/09 22:31:28 bwelling Exp $
+# $Id: Makefile.in,v 1.18.2.1 2001/06/01 00:46:25 bwelling Exp $
 
 srcdir =	@srcdir@
 VPATH =		@srcdir@
@@ -50,28 +50,48 @@ SRCS =		dnssec-keygen.c dnssec-makekeyset.c \
 		dnssec-signkey.c dnssec-signzone.c \
 		dnssectool.c
 
+MANPAGES =	dnssec-keygen.8 \
+		dnssec-makekeyset.8 \
+		dnssec-signkey.8 \
+		dnssec-signzone.8
+
+HTMLPAGES =	dnssec-keygen.html \
+		dnssec-makekeyset.html \
+		dnssec-signkey.html \
+		dnssec-signzone.html
+
+MANOBJS =	${MANPAGES} ${HTMLPAGES}
+
 @BIND9_MAKE_RULES@
 
 dnssec-keygen: dnssec-keygen.@O@ ${OBJS} ${DEPLIBS}
-	${LIBTOOL} ${CC} ${CFLAGS} -o $@ dnssec-keygen.@O@ ${OBJS} ${LIBS}
+	${LIBTOOL} ${PURIFY} ${CC} ${CFLAGS} -o $@ dnssec-keygen.@O@ ${OBJS} ${LIBS}
 
 dnssec-makekeyset: dnssec-makekeyset.@O@ ${OBJS} ${DEPLIBS}
-	${LIBTOOL} ${CC} ${CFLAGS} -o $@ dnssec-makekeyset.@O@ ${OBJS} ${LIBS}
+	${LIBTOOL} ${PURIFY} ${CC} ${CFLAGS} -o $@ dnssec-makekeyset.@O@ ${OBJS} ${LIBS}
 
 dnssec-signkey: dnssec-signkey.@O@ ${OBJS} ${DEPLIBS}
-	${LIBTOOL} ${CC} ${CFLAGS} -o $@ dnssec-signkey.@O@ ${OBJS} ${LIBS}
+	${LIBTOOL} ${PURIFY} ${CC} ${CFLAGS} -o $@ dnssec-signkey.@O@ ${OBJS} ${LIBS}
 
 dnssec-signzone.@O@: dnssec-signzone.c
-	${LIBTOOL} ${CC} ${ALL_CFLAGS} -DVERSION=\"${VERSION}\" -c $<
+	${LIBTOOL} ${PURIFY} ${CC} ${ALL_CFLAGS} -DVERSION=\"${VERSION}\" -c $<
 
 dnssec-signzone: dnssec-signzone.@O@ ${OBJS} ${DEPLIBS}
-	${LIBTOOL} ${CC} ${CFLAGS} -o $@ dnssec-signzone.@O@ ${OBJS} ${LIBS}
+	${LIBTOOL} ${PURIFY} ${CC} ${CFLAGS} -o $@ dnssec-signzone.@O@ ${OBJS} ${LIBS}
+
+doc man:: ${MANOBJS}
+
+docclean manclean maintainer-clean::
+	rm -f ${MANOBJS}
+
+installdirs:
+	$(SHELL) ${top_srcdir}/mkinstalldirs ${DESTDIR}${sbindir}
+	$(SHELL) ${top_srcdir}/mkinstalldirs ${DESTDIR}${mandir}/man8
+
+install:: ${TARGETS} installdirs
+	for t in ${TARGETS}; do ${LIBTOOL} ${INSTALL_PROGRAM} $$t ${DESTDIR}${sbindir}; done
+	for m in ${MANPAGES}; do ${INSTALL_DATA} ${srcdir}/$$m ${DESTDIR}${mandir}/man8; done
 
 clean distclean::
 	rm -f ${TARGETS}
 
-installdirs:
-	$(SHELL) ${top_srcdir}/mkinstalldirs ${DESTDIR}${sbindir}
-
-install:: ${TARGETS} installdirs
-	for t in ${TARGETS}; do ${LIBTOOL} ${INSTALL_PROGRAM} $$t ${DESTDIR}${sbindir}; done

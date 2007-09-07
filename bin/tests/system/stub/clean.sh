@@ -15,7 +15,7 @@
 # NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
 # WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: clean.sh,v 1.5.4.1 2001/01/09 22:37:31 bwelling Exp $
+# $Id: clean.sh,v 1.6 2001/01/09 21:44:54 bwelling Exp $
 
 #
 # Clean up after stub tests.

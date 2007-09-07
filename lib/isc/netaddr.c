@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: netaddr.c,v 1.13.4.1 2001/01/09 22:49:10 bwelling Exp $ */
+/* $Id: netaddr.c,v 1.18 2001/04/14 00:20:07 tale Exp $ */
 
 #include <config.h>
 
@@ -232,6 +232,20 @@ isc_netaddr_fromsockaddr(isc_netaddr_t *t, const isc_sockaddr_t *s) {
         }
 }
 
+void
+isc_netaddr_any(isc_netaddr_t *netaddr) {
+	memset(netaddr, 0, sizeof *netaddr);
+	netaddr->family = AF_INET;
+	netaddr->type.in.s_addr = INADDR_ANY;
+}
+
+void
+isc_netaddr_any6(isc_netaddr_t *netaddr) {
+	memset(netaddr, 0, sizeof *netaddr);
+	netaddr->family = AF_INET6;
+	netaddr->type.in6 = in6addr_any;
+}
+
 isc_boolean_t
 isc_netaddr_ismulticast(isc_netaddr_t *na) {
 	switch (na->family) {
@@ -242,4 +256,19 @@ isc_netaddr_ismulticast(isc_netaddr_t *na) {
 	default:
 		return (ISC_FALSE);  /* XXXMLG ? */
 	}
+}
+
+void
+isc_netaddr_fromv4mapped(isc_netaddr_t *t, const isc_netaddr_t *s) {
+	isc_netaddr_t *src;
+
+	DE_CONST(s, src);	/* Must come before IN6_IS_ADDR_V4MAPPED. */
+
+	REQUIRE(s->family == AF_INET6);
+	REQUIRE(IN6_IS_ADDR_V4MAPPED(&src->type.in6));
+
+	memset(t, 0, sizeof(*t));
+	t->family = AF_INET;
+	memcpy(&t->type.in, (char *)&src->type.in6 + 12, 4);
+	return;
 }

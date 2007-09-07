@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: masterdump.c,v 1.38.2.3 2001/03/07 23:33:18 bwelling Exp $ */
+/* $Id: masterdump.c,v 1.50 2001/04/26 21:17:55 gson Exp $ */
 
 #include <config.h>
 
@@ -100,6 +100,12 @@ struct dns_master_style {
    For this to take effect, DNS_STYLEFLAG_REL_OWNER must also be set. */
 #define DNS_STYLEFLAG_REL_DATA		0x00200000U
 
+/* Print the trust level of each rdataset. */
+#define DNS_STYLEFLAG_TRUST		0x00400000U
+
+/* Print negative caching entries. */
+#define DNS_STYLEFLAG_NCACHE		0x00800000U
+
 
 /*
  * The maximum length of the newline+indentation that is output
@@ -123,12 +129,6 @@ typedef struct dns_totext_ctx {
 	isc_boolean_t 		current_ttl_valid;
 } dns_totext_ctx_t;
 
-/*
- * The default master file style.
- *
- * Because the TTL is always omitted, and the class is almost always
- * omitted, neither is allocated any columns.
- */
 const dns_master_style_t
 dns_master_style_default = {
 	DNS_STYLEFLAG_OMIT_OWNER |
@@ -142,11 +142,6 @@ dns_master_style_default = {
 	24, 24, 24, 32, 80, 8
 };
 
-/*
- * A master file style that prints TTL values on each record line,
- * never using $TTL statements.  The TTL has a tab stop of its
- * own, but the class and type share one.
- */
 const dns_master_style_t
 dns_master_style_explicitttl = {
 	DNS_STYLEFLAG_OMIT_OWNER |
@@ -158,11 +153,28 @@ dns_master_style_explicitttl = {
 	24, 32, 32, 40, 80, 8
 };
 
+const dns_master_style_t
+dns_master_style_cache = {
+	DNS_STYLEFLAG_OMIT_OWNER |
+	DNS_STYLEFLAG_OMIT_CLASS |
+	DNS_STYLEFLAG_MULTILINE |
+	DNS_STYLEFLAG_TRUST |
+	DNS_STYLEFLAG_NCACHE,
+	24, 32, 32, 40, 80, 8
+};
+
+const dns_master_style_t
+dns_master_style_simple = {
+	0,
+	24, 32, 32, 40, 80, 8
+};
+
+
 /*
  * A style suitable for dns_rdataset_totext().
  */
-dns_master_style_t
-dns_masterfile_style_debug = {
+const dns_master_style_t
+dns_master_style_debug = {
 	DNS_STYLEFLAG_REL_OWNER,
 	24, 32, 40, 48, 80, 8
 };
@@ -309,6 +321,22 @@ totext_ctx_init(const dns_master_style_t *style, dns_totext_ctx_t *ctx) {
 	} while (0)
 
 
+static isc_result_t
+str_totext(const char *source, isc_buffer_t *target) {
+	unsigned int l;
+	isc_region_t region;
+
+	isc_buffer_availableregion(target, &region);
+	l = strlen(source);
+
+	if (l > region.length)
+		return (ISC_R_NOSPACE);
+
+	memcpy(region.base, source, l);
+	isc_buffer_add(target, l);
+	return (ISC_R_SUCCESS);
+}
+
 /*
  * Convert 'rdataset' to master file text format according to 'ctx',
  * storing the result in 'target'.  If 'owner_name' is NULL, it
@@ -328,6 +356,7 @@ rdataset_totext(dns_rdataset_t *rdataset,
 	isc_boolean_t first = ISC_TRUE;
 	isc_uint32_t current_ttl;
 	isc_boolean_t current_ttl_valid;
+	int type;
 
 	REQUIRE(DNS_RDATASET_VALID(rdataset));
 
@@ -404,11 +433,20 @@ rdataset_totext(dns_rdataset_t *rdataset,
 		/*
 		 * Type.
 		 */
+
+		if (rdataset->type == 0) {
+			type = rdataset->covers;
+		} else {
+			type = rdataset->type;
+		}
+
 		{
 			unsigned int type_start;
 			INDENT_TO(type_column);
 			type_start = target->used;
-			result = dns_rdatatype_totext(rdataset->type, target);
+			if (rdataset->type == 0)
+				RETERR(str_totext("\\-", target));
+			result = dns_rdatatype_totext(type, target);
 			if (result != ISC_R_SUCCESS)
 				return (result);
 			column += (target->used - type_start);
@@ -417,11 +455,13 @@ rdataset_totext(dns_rdataset_t *rdataset,
 		/*
 		 * Rdata.
 		 */
-		{
+		INDENT_TO(rdata_column);
+		if (rdataset->type == 0) {
+			RETERR(str_totext(";-$\n", target));
+		} else {
 			dns_rdata_t rdata = DNS_RDATA_INIT;
 			isc_region_t r;
 
-			INDENT_TO(rdata_column);
 			dns_rdataset_current(rdataset, &rdata);
 
 			RETERR(dns_rdata_tofmttext(&rdata,
@@ -522,21 +562,16 @@ question_totext(dns_rdataset_t *rdataset,
 	return (ISC_R_SUCCESS);
 }
 
-/*
- * Provide a backwards compatible interface for printing a
- * single rdataset or question section.  This is now used
- * only by wire_test.c.
- */
 isc_result_t
 dns_rdataset_totext(dns_rdataset_t *rdataset,
 		    dns_name_t *owner_name,
 		    isc_boolean_t omit_final_dot,
-		    isc_boolean_t no_rdata_or_ttl,
+		    isc_boolean_t question,
 		    isc_buffer_t *target)
 {
 	dns_totext_ctx_t ctx;
 	isc_result_t result;
-	result = totext_ctx_init(&dns_masterfile_style_debug, &ctx);
+	result = totext_ctx_init(&dns_master_style_debug, &ctx);
 	if (result != ISC_R_SUCCESS) {
 		UNEXPECTED_ERROR(__FILE__, __LINE__,
 				 "could not set master file style");
@@ -552,12 +587,50 @@ dns_rdataset_totext(dns_rdataset_t *rdataset,
 	if (dns_name_countlabels(owner_name) == 0)
 		owner_name = NULL;
 
-	if (no_rdata_or_ttl)
+	if (question)
 		return (question_totext(rdataset, owner_name, &ctx,
 					omit_final_dot, target));
 	else
 		return (rdataset_totext(rdataset, owner_name, &ctx,
 					omit_final_dot, target));
+}
+
+isc_result_t
+dns_master_rdatasettotext(dns_name_t *owner_name,
+			  dns_rdataset_t *rdataset,
+			  const dns_master_style_t *style,
+			  isc_buffer_t *target)
+{
+	dns_totext_ctx_t ctx;
+	isc_result_t result;
+	result = totext_ctx_init(style, &ctx);
+	if (result != ISC_R_SUCCESS) {
+		UNEXPECTED_ERROR(__FILE__, __LINE__,
+				 "could not set master file style");
+		return (ISC_R_UNEXPECTED);
+	}
+
+	return (rdataset_totext(rdataset, owner_name, &ctx,
+				ISC_FALSE, target));
+}
+
+isc_result_t
+dns_master_questiontotext(dns_name_t *owner_name,
+			  dns_rdataset_t *rdataset,
+			  const dns_master_style_t *style,
+			  isc_buffer_t *target)
+{
+	dns_totext_ctx_t ctx;
+	isc_result_t result;
+	result = totext_ctx_init(style, &ctx);
+	if (result != ISC_R_SUCCESS) {
+		UNEXPECTED_ERROR(__FILE__, __LINE__,
+				 "could not set master file style");
+		return (ISC_R_UNEXPECTED);
+	}
+
+	return (question_totext(rdataset, owner_name, &ctx,
+				ISC_FALSE, target));
 }
 
 /*
@@ -694,6 +767,18 @@ dump_order_compare(const void *a, const void *b) {
 
 #define MAXSORT 64
 
+const char *trustnames[] = {
+	"none",
+	"pending",
+	"additional",
+	"glue",
+	"answer",
+	"authauthority",
+	"authanswer",
+	"secure",
+	"local" /* aka ultimate */
+};
+
 static isc_result_t
 dump_rdatasets(isc_mem_t *mctx, dns_name_t *name, dns_rdatasetiter_t *rdsiter,
 	       dns_totext_ctx_t *ctx,
@@ -721,22 +806,26 @@ dump_rdatasets(isc_mem_t *mctx, dns_name_t *name, dns_rdatasetiter_t *rdsiter,
 	qsort(sorted, n, sizeof(sorted[0]), dump_order_compare);
 
 	for (i = 0; i < n; i++) {
-		/*
-		 * XXX  We only dump the rdataset if it isn't a
-		 * negative caching entry.  Maybe our dumping routines
-		 * will learn how to usefully dump such an entry later
-		 * on.
-		 */
-		if (sorted[i]->type != 0) {
+		dns_rdataset_t *rds = sorted[i];
+		if (ctx->style.flags & DNS_STYLEFLAG_TRUST) {
+			unsigned int trust = rds->trust;
+			INSIST(trust < (sizeof(trustnames) / sizeof(trustnames[0])));
+			fprintf(f, "; %s\n", trustnames[trust]);
+		}
+		if (rds->type == 0 &&
+ 
+		    (ctx->style.flags & DNS_STYLEFLAG_NCACHE) == 0) {
+			/* Omit negative cache entries */
+		} else {
 			isc_result_t result =
-				dump_rdataset(mctx, name, sorted[i], ctx,
+				dump_rdataset(mctx, name, rds, ctx,
 					       buffer, f);
 			if (result != ISC_R_SUCCESS)
 				dumpresult = result;
 			if ((ctx->style.flags & DNS_STYLEFLAG_OMIT_OWNER) != 0)
 				name = NULL;
 		}
-		dns_rdataset_disassociate(sorted[i]);
+		dns_rdataset_disassociate(rds);
 	}
 
 	if (dumpresult != ISC_R_SUCCESS)

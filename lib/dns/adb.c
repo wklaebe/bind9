@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: adb.c,v 1.162.2.8 2001/06/11 04:24:47 gson Exp $ */
+/* $Id: adb.c,v 1.178 2001/05/29 22:44:12 bwelling Exp $ */
 
 /*
  * Implementation notes
@@ -76,8 +76,6 @@
  * The number of buckets needs to be a prime (for good hashing).
  *
  * XXXRTH  How many buckets do we need?
- *
- * This value must be coordinated with CLEAN_SECONDS (below).
  */
 #define NBUCKETS	       1009	/* how many buckets for names/addrs */
 
@@ -91,19 +89,12 @@
 #define ADB_CACHE_MAXIMUM	86400	/* seconds (86400 = 24 hours) */
 
 /*
- * Clean CLEAN_BUCKETS buckets every CLEAN_SECONDS.
+ * Wake up every CLEAN_SECONDS and clean CLEAN_BUCKETS buckets, so that all
+ * buckets are cleaned in CLEAN_PERIOD seconds.
  */
-#define CLEAN_PERIOD		3600 /* one pass through every N seconds */
-#define CLEAN_BUCKETS		((NBUCKETS / CLEAN_PERIOD) + 0.5)
-#if CLEAN_BUCKET < 1
-#undef CLEAN_BUCKETS
-#define CLEAN_BUCKETS 1
-#endif
-#define CLEAN_SECONDS		(CLEAN_PERIOD * CLEAN_BUCKETS / NBUCKETS)
-#if CLEAN_SECONDS < 1
-#undef CLEAN_SECONDS
-#define CLEAN_SECONDS		1
-#endif
+#define CLEAN_PERIOD		3600
+#define CLEAN_SECONDS		30
+#define CLEAN_BUCKETS		((NBUCKETS * CLEAN_SECONDS) / CLEAN_PERIOD)
 
 #define FREE_ITEMS		64	/* free count for memory pools */
 #define FILL_COUNT		16	/* fill count for memory pools */
@@ -163,7 +154,7 @@ struct dns_adb {
 	 */
 	dns_adbentrylist_t		entries[NBUCKETS];
 	isc_mutex_t			entrylocks[NBUCKETS];
-	isc_boolean_t			entry_sd[NBUCKETS];
+	isc_boolean_t			entry_sd[NBUCKETS]; /* shutting down */
 	unsigned int			entry_refcnt[NBUCKETS];
 
 	isc_event_t			cevent;
@@ -249,7 +240,8 @@ struct dns_adbzoneinfo {
 
 /*
  * An address entry.  It holds quite a bit of information about addresses,
- * including edns state, rtt, and of course the address of the host.
+ * including edns state (in "flags"), rtt, and of course the address of
+ * the host.
  */
 struct dns_adbentry {
 	unsigned int			magic;
@@ -258,12 +250,17 @@ struct dns_adbentry {
 	unsigned int			refcnt;
 
 	unsigned int			flags;
-	int				edns_level;	/* must be int! */
-	int				goodness;	/* bad < 0 <= good */
 	unsigned int			srtt;
 	isc_sockaddr_t			sockaddr;
+	
 	isc_stdtime_t			expires;
-	isc_stdtime_t			avoid_bitstring;
+	/*
+	 * A nonzero 'expires' field indicates that the entry should
+	 * persist until that time.  This allows entries found
+	 * using dns_adb_findaddrinfo() to persist for a limited time
+	 * even though they are not necessarily associated with a
+	 * name.
+	 */
 
 	ISC_LIST(dns_adbzoneinfo_t)	zoneinfo;
 	ISC_LINK(dns_adbentry_t)	plink;
@@ -298,7 +295,7 @@ static void dump_adb(dns_adb_t *, FILE *, isc_boolean_t debug);
 static void print_dns_name(FILE *, dns_name_t *);
 static void print_namehook_list(FILE *, const char *legend,
 				dns_adbnamehooklist_t *list,
-				isc_stdtime_t now, isc_boolean_t debug);
+				isc_boolean_t debug);
 static void print_find_list(FILE *, dns_adbname_t *);
 static void print_fetch_list(FILE *, dns_adbname_t *);
 static inline void dec_adb_irefcnt(dns_adb_t *);
@@ -441,6 +438,16 @@ static isc_result_t dbfind_a6(dns_adbname_t *, isc_stdtime_t);
 #define FIND_ERR_UNEXPECTED		5
 #define FIND_ERR_NOTFOUND		6
 #define FIND_ERR_MAX			7
+
+static const char *errnames[] = {
+	"success",
+	"canceled",
+	"failure",
+	"nxdomain",
+	"nxrrset",
+	"unexpected",
+	"not_found"
+};
 
 #define NEWERR(old, new)	(ISC_MIN((old), (new)))
 
@@ -1416,12 +1423,9 @@ new_adbentry(dns_adb_t *adb) {
 	e->lock_bucket = DNS_ADB_INVALIDBUCKET;
 	e->refcnt = 0;
 	e->flags = 0;
-	e->edns_level = -1;
-	e->goodness = 0;
 	isc_random_get(&r);
 	e->srtt = (r & 0x1f) + 1;
 	e->expires = 0;
-	e->avoid_bitstring = 0;
 	ISC_LIST_INIT(e->zoneinfo);
 	ISC_LINK_INIT(e, plink);
 
@@ -1717,10 +1721,8 @@ new_adbaddrinfo(dns_adb_t *adb, dns_adbentry_t *entry, in_port_t port) {
 	ai->magic = DNS_ADBADDRINFO_MAGIC;
 	ai->sockaddr = entry->sockaddr;
 	isc_sockaddr_setport(&ai->sockaddr, port);
-	ai->goodness = entry->goodness;
 	ai->srtt = entry->srtt;
 	ai->flags = entry->flags;
-	ai->avoid_bitstring = entry->avoid_bitstring;
 	ai->entry = entry;
 	ISC_LINK_INIT(ai, publink);
 
@@ -1876,13 +1878,6 @@ copy_namehook_lists(dns_adb_t *adb, dns_adbfind_t *find, dns_name_t *zone,
 			bucket = entry->lock_bucket;
 			LOCK(&adb->entrylocks[bucket]);
 
-			/*
-			 * Check for avoid bitstring timeout.
-			 */
-			if (entry->avoid_bitstring > 0
-			    && entry->avoid_bitstring < now)
-				entry->avoid_bitstring = 0;
-
 			if (!FIND_RETURNLAME(find)
 			    && entry_is_bad_for_zone(adb, entry, zone, now)) {
 				find->options |= DNS_ADBFIND_LAMEPRUNED;
@@ -1912,13 +1907,6 @@ copy_namehook_lists(dns_adb_t *adb, dns_adbfind_t *find, dns_name_t *zone,
 			entry = namehook->entry;
 			bucket = entry->lock_bucket;
 			LOCK(&adb->entrylocks[bucket]);
-
-			/*
-			 * Check for avoid bitstring timeout.
-			 */
-			if (entry->avoid_bitstring > 0
-			    && entry->avoid_bitstring < now)
-				entry->avoid_bitstring = 0;
 
 			if (entry_is_bad_for_zone(adb, entry, zone, now))
 				goto nextv6;
@@ -2058,30 +2046,14 @@ cleanup_names(dns_adb_t *adb, int bucket, isc_stdtime_t now) {
 static void
 cleanup_entries(dns_adb_t *adb, int bucket, isc_stdtime_t now) {
 	dns_adbentry_t *entry, *next_entry;
-	int freq;
 
 	DP(CLEAN_LEVEL, "cleaning entry bucket %d", bucket);
-
-	freq = NBUCKETS / CLEAN_SECONDS;
-	REQUIRE(freq > 0);
 
 	LOCK(&adb->entrylocks[bucket]);
 	entry = ISC_LIST_HEAD(adb->entries[bucket]);
 	while (entry != NULL) {
 		next_entry = ISC_LIST_NEXT(entry, plink);
 		check_expire_entry(adb, &entry, now);
-		if (entry != NULL && entry->goodness != 0) {
-			if (entry->goodness > 0
-			    && entry->goodness < freq)
-				entry->goodness = 0;
-			else if (entry->goodness < 0
-				 && entry->goodness > -freq)
-				entry->goodness = 0;
-			else if (entry->goodness > 0)
-				entry->goodness -= freq;
-			else if (entry->goodness < 0)
-				entry->goodness += freq;
-		}
 		entry = next_entry;
 	}
 	UNLOCK(&adb->entrylocks[bucket]);
@@ -2749,8 +2721,7 @@ dns_adb_createfind(dns_adb_t *adb, isc_task_t *task, isc_taskaction_t action,
 	find->partial_result |= (adbname->partial_result & wanted_addresses);
 	if (alias) {
 		if (target != NULL) {
-			result = dns_name_concatenate(&adbname->target, NULL,
-						      target, NULL);
+			result = dns_name_copy(&adbname->target, target, NULL);
 			if (result != ISC_R_SUCCESS)
 				goto out;
 		}
@@ -2911,7 +2882,7 @@ dns_adb_dump(dns_adb_t *adb, FILE *f) {
 	 */
 
 	LOCK(&adb->lock);
-	dump_adb(adb, f, ISC_TRUE);
+	dump_adb(adb, f, ISC_FALSE);
 	UNLOCK(&adb->lock);
 }
 
@@ -2969,11 +2940,14 @@ dump_adb(dns_adb_t *adb, FILE *f, isc_boolean_t debug) {
 			dump_ttl(f, "v6", name->expire_v6, now);
 			dump_ttl(f, "target", name->expire_target, now);
 
-			fprintf(f, " [err4 %u] [err6 %u]\n",
-				name->fetch_err, name->fetch6_err);
+			fprintf(f, " [v4 %s] [v6 %s]",
+				errnames[name->fetch_err],
+				errnames[name->fetch6_err]);
 
-			print_namehook_list(f, "v4", &name->v4, now, debug);
-			print_namehook_list(f, "v6", &name->v6, now, debug);
+			fprintf(f, "\n");
+
+			print_namehook_list(f, "v4", &name->v4, debug);
+			print_namehook_list(f, "v6", &name->v6, debug);
 
 			if (debug)
 				print_fetch_list(f, name);
@@ -2986,14 +2960,14 @@ dump_adb(dns_adb_t *adb, FILE *f, isc_boolean_t debug) {
 	/*
 	 * Unlock everything
 	 */
-	for (i = 0 ; i < NBUCKETS ; i++)
+	for (i = 0; i < NBUCKETS; i++)
 		UNLOCK(&adb->entrylocks[i]);
-	for (i = 0 ; i < NBUCKETS ; i++)
+	for (i = 0; i < NBUCKETS; i++)
 		UNLOCK(&adb->namelocks[i]);
 }
 
 static void
-dump_entry(FILE *f, dns_adbentry_t *entry, isc_stdtime_t now, isc_boolean_t debug)
+dump_entry(FILE *f, dns_adbentry_t *entry, isc_boolean_t debug)
 {
 	char addrbuf[ISC_NETADDR_FORMATSIZE];
 	isc_netaddr_t netaddr;
@@ -3002,15 +2976,10 @@ dump_entry(FILE *f, dns_adbentry_t *entry, isc_stdtime_t now, isc_boolean_t debu
 	isc_netaddr_format(&netaddr, addrbuf, sizeof addrbuf);
 
 	if (debug)
-		fprintf(f, ";\t%p: refcnt %u flags %08x goodness %d\n",
-			entry, entry->refcnt, entry->flags,
-			entry->goodness);
+		fprintf(f, ";\t%p: refcnt %u flags %08x \n",
+			entry, entry->refcnt, entry->flags);
 			
 	fprintf(f, ";\t%s [srtt %u]", addrbuf, entry->srtt);
-
-	if (entry->avoid_bitstring != 0)
-		fprintf(f, " [avoid_bitstring %d]",
-			entry->avoid_bitstring - now);
 	fprintf(f, "\n");
 }
 
@@ -3056,10 +3025,9 @@ dns_adb_dumpfind(dns_adbfind_t *find, FILE *f) {
 		if (tmpp == NULL)
 			tmpp = "BadAddress";
 
-		fprintf(f, "\t\tentry %p, flags %08x goodness %d"
-			" srtt %u addr %s avoid_bitstring %u\n",
-			ai->entry, ai->flags, ai->goodness, ai->srtt, tmpp,
-			ai->avoid_bitstring);
+		fprintf(f, "\t\tentry %p, flags %08x"
+			" srtt %u addr %s\n",
+			ai->entry, ai->flags, ai->srtt, tmpp);
 
 		ai = ISC_LIST_NEXT(ai, publink);
 	}
@@ -3079,7 +3047,7 @@ print_dns_name(FILE *f, dns_name_t *name) {
 
 static void
 print_namehook_list(FILE *f, const char *legend, dns_adbnamehooklist_t *list,
-		    isc_stdtime_t now, isc_boolean_t debug)
+		    isc_boolean_t debug)
 {
 	dns_adbnamehook_t *nh;
 
@@ -3089,7 +3057,7 @@ print_namehook_list(FILE *f, const char *legend, dns_adbnamehooklist_t *list,
 	{
 		if (debug)
 			fprintf(f, ";\tHook(%s) %p\n", legend, nh);
-		dump_entry(f, nh->entry, now, debug);
+		dump_entry(f, nh->entry, debug);
 	}
 }
 
@@ -3739,7 +3707,7 @@ fetch_callback_a6(isc_task_t *task, isc_event_t *ev) {
 static isc_result_t
 fetch_name_v4(dns_adbname_t *adbname, isc_boolean_t start_at_root) {
 	isc_result_t result;
-	dns_adbfetch_t *fetch = NULL;
+	dns_adbfetch_t *fetch;
 	dns_adb_t *adb;
 	dns_name_t *name;
 	dns_rdataset_t rdataset;
@@ -3931,42 +3899,6 @@ dns_adb_marklame(dns_adb_t *adb, dns_adbaddrinfo_t *addr, dns_name_t *zone,
 }
 
 void
-dns_adb_adjustgoodness(dns_adb_t *adb, dns_adbaddrinfo_t *addr,
-		       int goodness_adjustment)
-{
-	int bucket;
-	int old_goodness, new_goodness;
-
-	REQUIRE(DNS_ADB_VALID(adb));
-	REQUIRE(DNS_ADBADDRINFO_VALID(addr));
-
-	if (goodness_adjustment == 0)
-		return;
-
-	bucket = addr->entry->lock_bucket;
-	LOCK(&adb->entrylocks[bucket]);
-
-	old_goodness = addr->entry->goodness;
-
-	if (goodness_adjustment > 0) {
-		if (old_goodness > INT_MAX - goodness_adjustment)
-			new_goodness = INT_MAX;
-		else
-			new_goodness = old_goodness + goodness_adjustment;
-	} else {
-		if (old_goodness < INT_MIN - goodness_adjustment)
-			new_goodness = INT_MIN;
-		else
-			new_goodness = old_goodness + goodness_adjustment;
-	}
-
-	addr->entry->goodness = new_goodness;
-	addr->goodness = new_goodness;
-
-	UNLOCK(&adb->entrylocks[bucket]);
-}
-
-void
 dns_adb_adjustsrtt(dns_adb_t *adb, dns_adbaddrinfo_t *addr,
 		   unsigned int rtt, unsigned int factor)
 {
@@ -4011,24 +3943,6 @@ dns_adb_changeflags(dns_adb_t *adb, dns_adbaddrinfo_t *addr,
 	UNLOCK(&adb->entrylocks[bucket]);
 }
 
-void
-dns_adb_setavoidbitstring(dns_adb_t *adb, dns_adbaddrinfo_t *addr,
-			  isc_stdtime_t when)
-{
-	int bucket;
-
-	REQUIRE(DNS_ADB_VALID(adb));
-	REQUIRE(DNS_ADBADDRINFO_VALID(addr));
-
-	bucket = addr->entry->lock_bucket;
-	LOCK(&adb->entrylocks[bucket]);
-
-	addr->entry->avoid_bitstring = when;
-	addr->avoid_bitstring = when;
-
-	UNLOCK(&adb->entrylocks[bucket]);
-}
-
 isc_result_t
 dns_adb_findaddrinfo(dns_adb_t *adb, isc_sockaddr_t *sa,
 		     dns_adbaddrinfo_t **addrp, isc_stdtime_t now)
@@ -4042,8 +3956,7 @@ dns_adb_findaddrinfo(dns_adb_t *adb, isc_sockaddr_t *sa,
 	REQUIRE(DNS_ADB_VALID(adb));
 	REQUIRE(addrp != NULL && *addrp == NULL);
 
-	if (now == 0)
-		isc_stdtime_get(&now);
+	UNUSED(now);
 
 	result = ISC_R_SUCCESS;
 	bucket = DNS_ADB_INVALIDBUCKET;
@@ -4066,12 +3979,6 @@ dns_adb_findaddrinfo(dns_adb_t *adb, isc_sockaddr_t *sa,
 		DP(50, "findaddrinfo: new entry %p", entry);
 	} else
 		DP(50, "findaddrinfo: found entry %p", entry);
-
-	/*
-	 * Check for avoid bitstring timeout.
-	 */
-	if (entry->avoid_bitstring > 0 && entry->avoid_bitstring < now)
-		entry->avoid_bitstring = 0;
 
 	port = isc_sockaddr_getport(sa);
 	addr = new_adbaddrinfo(adb, entry, port);
@@ -4124,4 +4031,27 @@ dns_adb_freeaddrinfo(dns_adb_t *adb, dns_adbaddrinfo_t **addrp) {
 		check_exit(adb);
 		UNLOCK(&adb->lock);
 	}
+}
+
+void
+dns_adb_flush(dns_adb_t *adb) {
+	unsigned int i;
+
+	INSIST(DNS_ADB_VALID(adb));
+
+	LOCK(&adb->lock);
+
+	for (i = 0 ; i < NBUCKETS ; i++) {
+		/*
+		 * Call our cleanup routines.
+		 */
+		cleanup_names(adb, i, INT_MAX);
+		cleanup_entries(adb, i, INT_MAX);
+	}
+
+#ifdef DUMP_ADB_AFTER_CLEANING
+	dump_adb(adb, stdout, ISC_TRUE);
+#endif
+
+	UNLOCK(&adb->lock);
 }

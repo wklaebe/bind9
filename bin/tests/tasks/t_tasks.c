@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: t_tasks.c,v 1.19.4.3 2001/01/12 20:39:08 bwelling Exp $ */
+/* $Id: t_tasks.c,v 1.28 2001/04/25 01:23:13 gson Exp $ */
 
 #include <config.h>
 
@@ -31,6 +31,19 @@
 #include <isc/util.h>
 
 #include <tests/t_api.h>
+
+#ifdef ISC_PLATFORM_USETHREADS
+isc_boolean_t threaded = ISC_TRUE;
+#else
+isc_boolean_t threaded = ISC_FALSE;
+#endif
+
+static void
+require_threads(void) {
+	t_info("This test requires threads\n");
+	t_result(T_UNTESTED);
+	return;
+}
 
 static void
 t1_callback(isc_task_t *task, isc_event_t *event) {
@@ -467,11 +480,6 @@ t_tasks2(void) {
 	unsigned int		workers;
 	isc_result_t		isc_result;
 
-#if ! ISC_PLATFORM_USETHREADS
-	t_info("This test requires threads\n");
-	return (T_UNTESTED);
-#endif
-	
 	T2_manager = NULL;
 	T2_done = 0;
 	T2_nprobs = 0;
@@ -560,11 +568,12 @@ static const char *a2 = "The task subsystem can create ISC_TASKS_MIN tasks";
 
 static void
 t2(void) {
-	int	result;
-
 	t_assert("tasks", 2, T_REQUIRED, a2);
-	result = t_tasks2();
-	t_result(result);
+
+	if (threaded)
+		t_result(t_tasks2());
+	else
+		require_threads();
 }
 
 #define	T3_NEVENTS	256
@@ -658,11 +667,6 @@ t_tasks3(void) {
 	isc_result_t	isc_result;
 	void		*sender;
 	isc_eventtype_t	event_type;
-
-#if ! ISC_PLATFORM_USETHREADS
-	t_info("This test requires threads\n");
-	return (T_UNTESTED);
-#endif
 
 	T3_flag = 0;
 	T3_nevents = 0;
@@ -823,11 +827,12 @@ static const char *a3 =	"When isc_task_shutdown() is called, any shutdown "
 			"LIFO order.";
 static void
 t3(void) {
-	int	result;
-
 	t_assert("tasks", 3, T_REQUIRED, a3);
-	result = t_tasks3();
-	t_result(result);
+
+	if (threaded)
+		t_result(t_tasks3());
+	else
+		require_threads();
 }
 
 static isc_mutex_t	T4_mx;
@@ -885,11 +890,6 @@ t_tasks4(void) {
 	isc_eventtype_t	event_type;
 	isc_event_t	*event;
 
-#if ! ISC_PLATFORM_USETHREADS
-	t_info("This test requires threads\n");
-	return (T_UNTESTED);
-#endif
-	
 	T4_nprobs = 0;
 	T4_nfails = 0;
 	T4_flag = 0;
@@ -1019,19 +1019,21 @@ static const char *a4 =
 
 static void
 t4(void) {
-	int	result;
-
 	t_assert("tasks", 4, T_REQUIRED, a4);
-	result = t_tasks4();
-	t_result(result);
+
+	if (threaded)
+		t_result(t_tasks4());
+	else
+		require_threads();
 }
 
 static int		T7_nprobs;
-static int		T7_nfails;
 static int		T7_eflag;
 static int		T7_sdflag;
 static isc_mutex_t	T7_mx;
 static isc_condition_t	T7_cv;
+
+static int		T7_nfails;
 
 static void
 t7_event1(isc_task_t *task, isc_event_t *event) {
@@ -1089,11 +1091,6 @@ t_tasks7(void) {
 	isc_time_t	now;
 	isc_interval_t	interval;
 
-#if ! ISC_PLATFORM_USETHREADS
-	t_info("This test requires threads\n");
-	return (T_UNTESTED);
-#endif
-	
 	T7_nprobs = 0;
 	T7_nfails = 0;
 	T7_sdflag = 0;
@@ -1245,11 +1242,12 @@ static const char *a7 =	"A call to isc_task_create() creates a task that can "
 
 static void
 t7(void) {
-	int	result;
-
 	t_assert("tasks", 7, T_REQUIRED, a7);
-	result = t_tasks7();
-	t_result(result);
+
+	if (threaded)
+		t_result(t_tasks7());
+	else
+		require_threads();
 }
 
 #define	T10_SENDERCNT	3
@@ -1658,11 +1656,6 @@ static int
 t_tasks10(void) {
 	int	result;
 
-#if ! ISC_PLATFORM_USETHREADS
-	t_info("This test requires threads\n");
-	return (T_UNTESTED);
-#endif
-	
 	T10_nprobs = 0;
 	T10_nfails = 0;
 
@@ -1717,11 +1710,12 @@ static const char *a10 =
 
 static void
 t10(void) {
-	int	result;
-
 	t_assert("tasks", 10, T_REQUIRED, a10);
-	result = t_tasks10();
-	t_result(result);
+
+	if (threaded)
+		t_result(t_tasks10());
+	else
+		require_threads();
 }
 
 static int		T11_nprobs;
@@ -1819,11 +1813,6 @@ t_tasks11(int purgable) {
 	isc_time_t	now;
 	isc_interval_t	interval;
 	int		result;
-
-#if ! ISC_PLATFORM_USETHREADS
-	t_info("This test requires threads\n");
-	return (T_UNTESTED);
-#endif
 
 	T11_startflag = 0;
 	T11_shutdownflag = 0;
@@ -1998,10 +1987,12 @@ static const char *a11 =
 
 static void
 t11(void) {
-	int	result;
 	t_assert("tasks", 11, T_REQUIRED, a11);
-	result = t_tasks11(1);
-	t_result(result);
+	
+	if (threaded)
+		t_result(t_tasks11(1));
+	else
+		require_threads();
 }
 
 static const char *a12 =
@@ -2017,10 +2008,12 @@ t_tasks12(void) {
 
 static void
 t12(void) {
-	int	result;
 	t_assert("tasks", 12, T_REQUIRED, a12);
-	result = t_tasks12();
-	t_result(result);
+
+	if (threaded)
+		t_result(t_tasks12());
+	else
+		require_threads();
 }
 
 static int	T13_nfails;
@@ -2038,11 +2031,6 @@ static int
 t_tasks13(void) {
 	int	result;
 
-#if ! ISC_PLATFORM_USETHREADS
-	t_info("This test requires threads\n");
-	return (T_UNTESTED);
-#endif
-	
 	T13_nfails = 0;
 	T13_nprobs = 0;
 
@@ -2129,10 +2117,141 @@ t_tasks13(void) {
 
 static void
 t13(void) {
+	t_assert("tasks", 13, T_REQUIRED, a13);
+
+	if (threaded)
+		t_result(t_tasks13());
+	else
+		require_threads();
+}
+
+#define T14_NTASKS 10
+#define T14_EXCLTASK 6
+
+int t14_error = 0;
+int t14_done = 0;
+
+int spin(int n);
+
+int t14_active[T14_NTASKS];
+
+static void
+t14_callback(isc_task_t *task, isc_event_t *event) {
+	int taskno = (int) event->ev_arg;
+
+	t_info("task enter %d\n", taskno);	
+	if (taskno == T14_EXCLTASK) {
+		int	i;
+		isc_task_beginexclusive(task);
+		t_info("task %d got exclusive access\n", taskno);			
+		for (i = 0; i < T14_NTASKS; i++) {
+   		        t_info("task %d state %d\n", i , t14_active[i]);
+			if (t14_active[i])
+				t14_error++;
+		}
+		isc_task_endexclusive(task);
+		t14_done = 1;
+	} else {
+		t14_active[taskno]++;
+		(void) spin(10000000);
+		t14_active[taskno]--;
+	}
+	t_info("task exit %d\n", taskno);
+	if (t14_done) {
+		isc_event_free(&event);
+	} else {
+		isc_task_send(task, &event);
+	}
+}
+
+int spin(int n) {
+	int i;
+	int r = 0;
+	for (i = 0; i < n; i++) {
+		r += i;
+		if (r > 1000000)
+			r = 0;
+	}
+	return (r);
+}
+
+static int
+t_tasks14(void) {
+	char			*p;
+	isc_mem_t		*mctx;
+	isc_taskmgr_t		*manager;
+	isc_task_t		*tasks[T14_NTASKS];
+	unsigned int		workers;
+	isc_result_t		isc_result;
+	int 			i;
+
+	manager = NULL;
+	mctx = NULL;
+
+	for (i = 0; i < T14_NTASKS; i++)
+		tasks[i] = NULL;
+
+	workers = 4;
+	p = t_getenv("ISC_TASK_WORKERS");
+	if (p != NULL)
+		workers = atoi(p);
+	if (workers < 1) {
+		t_info("Bad config value for ISC_TASK_WORKERS, %d\n", workers);
+		return(T_UNRESOLVED);
+	}
+
+	isc_result = isc_mem_create(0, 0, &mctx);
+	if (isc_result != ISC_R_SUCCESS) {
+		t_info("isc_mem_create failed %d\n", isc_result);
+		return(T_UNRESOLVED);
+	}
+
+	isc_result = isc_taskmgr_create(mctx, workers, 0, &manager);
+	if (isc_result != ISC_R_SUCCESS) {
+		t_info("isc_taskmgr_create failed %d\n", isc_result);
+		return(T_FAIL);
+	}
+
+	for (i = 0; i < T14_NTASKS; i++) {
+		isc_event_t *event;
+
+		isc_result = isc_task_create(manager, 0, &tasks[i]);
+		if (isc_result != ISC_R_SUCCESS) {
+			t_info("isc_task_create failed %d\n", isc_result);
+			return(T_FAIL);
+		}
+
+		event = isc_event_allocate(mctx, NULL, 1, t14_callback,
+					   (void *)i, sizeof *event);
+		if (event == NULL) {
+			t_info("isc_event_allocate failed\n");
+			return(T_UNRESOLVED);
+		}
+		isc_task_send(tasks[i], &event);
+	}
+
+	for (i = 0; i < T14_NTASKS; i++) {
+		isc_task_detach(&tasks[i]);
+	}
+
+	isc_taskmgr_destroy(&manager);
+
+	if (t14_error) {
+		t_info("mutual access occurred\n");
+		return(T_FAIL);
+	}
+
+	isc_mem_destroy(&mctx);
+	return(T_PASS);
+}
+
+static void
+t14(void) {
 	int	result;
 
-	t_assert("tasks", 13, T_REQUIRED, a13);
-	result = t_tasks13();
+	t_assert("tasks", 14, T_REQUIRED, 
+                 "isc_task_beginexclusive() gets exclusive access");
+	result = t_tasks14();
 	t_result(result);
 }
 
@@ -2146,5 +2265,6 @@ testspec_t	T_testlist[] = {
 	{	t11,	"isc_task_purgeevent"	},
 	{	t12,	"isc_task_purgeevent"	},
 	{	t13,	"isc_task_purgerange"	},
+	{	t14,	"isc_task_beginexclusive" },
 	{	NULL,	NULL			}
 };

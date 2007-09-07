@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rndc.c,v 1.37.2.4 2001/03/29 18:23:18 gson Exp $ */
+/* $Id: rndc.c,v 1.62 2001/05/31 10:42:49 tale Exp $ */
 
 /*
  * Principal Author: DCL
@@ -24,41 +24,62 @@
 #include <config.h>
 
 #include <stdlib.h>
+#include <netdb.h>
 
-#include <isc/base64.h>
+#include <isc/app.h>
 #include <isc/buffer.h>
 #include <isc/commandline.h>
-#include <isc/entropy.h>
+#include <isc/file.h>
+#include <isc/log.h>
 #include <isc/mem.h>
 #include <isc/socket.h>
+#include <isc/stdtime.h>
 #include <isc/string.h>
 #include <isc/task.h>
+#include <isc/thread.h>
 #include <isc/util.h>
 
-#include <dns/confndc.h>
-#include <dns/result.h>
+#include <isccfg/cfg.h>
 
-#include <dst/dst.h>
+#include <isccc/alist.h>
+#include <isccc/base64.h>
+#include <isccc/cc.h>
+#include <isccc/ccmsg.h>
+#include <isccc/result.h>
+#include <isccc/sexpr.h>
+#include <isccc/types.h>
+#include <isccc/util.h>
 
-#include <omapi/result.h>
+#define NS_CONTROL_PORT		953
 
-#include <named/omapi.h>
+#ifdef HAVE_ADDRINFO
+#ifdef HAVE_GETADDRINFO
+#ifdef HAVE_GAISTRERROR
+#define USE_GETADDRINFO
+#endif
+#endif
+#endif
 
-static const char *progname;
-static const char *conffile = RNDC_SYSCONFDIR "/rndc.conf";
+#ifndef USE_GETADDRINFO
+extern int h_errno;
+#endif
+
+static const char *admin_conffile = RNDC_SYSCONFDIR "/rndc.conf";
+static const char *auto_conffile = NS_LOCALSTATEDIR "/run/named.key";
 static const char *version = VERSION;
-
+static const char *servername = NULL;
+static unsigned int remoteport = NS_CONTROL_PORT;
+static isc_socketmgr_t *socketmgr = NULL;
+static unsigned char databuf[2048];
+static unsigned char progname[256];
+static isccc_ccmsg_t ccmsg;
+static isccc_region_t secret;
 static isc_boolean_t verbose;
+static isc_boolean_t failed = ISC_FALSE;
 static isc_mem_t *mctx;
-
-typedef struct ndc_object {
-	OMAPI_OBJECT_PREAMBLE;
-} ndc_object_t;
-
-#define REGION_FMT(x) (int)(x)->length, (x)->base
-
-static ndc_object_t ndc_g_ndc;
-static omapi_objecttype_t *ndc_type;
+static int sends, recvs, connects;
+static char *command;
+static char *args;
 
 static void
 notify(const char *fmt, ...) {
@@ -72,192 +93,10 @@ notify(const char *fmt, ...) {
 	}
 }
 
-/*
- * Send a control command to the server.  'command' is the command
- * name, and 'args' is a space-delimited sequence of words, the
- * first being the command name itself.
- */
-static isc_result_t
-send_command(omapi_object_t *manager, char *command, char *args) {
-	omapi_object_t *message = NULL;
-	isc_result_t result;
-
-	REQUIRE(manager != NULL && command != NULL);
-
-	/*
-	 * Create a new message object to store the information that will
-	 * be sent to the server.
-	 */
-	result = omapi_message_create(&message);
-	if (result != ISC_R_SUCCESS)
-		return (result);
-
-	/*
-	 * Specify the OPEN operation, with the UPDATE option if requested.
-	 */
-	result = omapi_object_setinteger(message, "op", OMAPI_OP_OPEN);
-
-	if (result == ISC_R_SUCCESS)
-		result = omapi_object_setboolean(message, "update", ISC_TRUE);
-
-	/*
-	 * Tell the server the type of the object being opened; it needs
-	 * to know this so that it can apply the proper object methods
-	 * for lookup/setvalue.
-	 */
-	if (result == ISC_R_SUCCESS)
-		result = omapi_object_setstring(message, "type",
-						NS_OMAPI_CONTROL);
-
-	/*
-	 * Associate the ndc object with the message, so that it will have its
-	 * values stuffed in the message.  Without it, the OPEN operation will
-	 * fail because there is no name/value pair to use as a key for looking
-	 * up the desired object at the server; this is true even though the
-	 * particular object being accessed on the server does not need a key
-	 * to be found.
-	 *
-	 * This object will also have its signal handler called with a
-	 * "status" signal that sends the result of the operation on the
-	 * server.
-	 */
-	if (result == ISC_R_SUCCESS)
-		result = omapi_object_setobject(message, "object",
-						(omapi_object_t *)&ndc_g_ndc);
-
-	/*
-	 * Create a generic object to be the outer object for ndc_g_ndc, to
-	 * handle the job of storing the command and stuffing it into the
-	 * message.
-	 *
-	 * XXXDCL provide API so client does not need to refer to the
-	 * outer member -- does not even need to know about how the whole
-	 * outer/inner thing works.
-	 */
-	if (result == ISC_R_SUCCESS)
-		result = omapi_object_create(&ndc_g_ndc.outer, NULL, 0);
-
-	/*
-	 * Set the command being sent.
-	 */
-	result = omapi_object_setstring((omapi_object_t *)&ndc_g_ndc,
-					command, args);
-
-	if (result == ISC_R_SUCCESS) {
-		/*
-		 * Add the new message to the list of known messages.  When the
-		 * server's response comes back, the client will verify that
-		 * the response was for a message it really sent.
-		 */
-		omapi_message_register(message);
-
-		/*
-		 * Deliver the message to the server and await its
-		 * response.
-		 */
-		result = omapi_message_send(message, manager);
-	}
-
-	/*
-	 * Free the generic object and the message.
-	 */
-	if (ndc_g_ndc.outer != NULL)
-		omapi_object_dereference(&ndc_g_ndc.outer);
-
-	omapi_message_unregister(message);
-	omapi_object_dereference(&message);
-
-	return (result);
-}
-
-/*
- * The signal handler gets the "status" signals when the server's response
- * is processed.  It also gets the "updated" signal after all the values
- * from the server have been incorporated via ndc_setvalue.
- */
-static isc_result_t
-ndc_signalhandler(omapi_object_t *handle, const char *name, va_list ap) {
-	ndc_object_t *ndc;
-	omapi_value_t *tv;
-	isc_region_t region;
-	isc_result_t result;
-
-	REQUIRE(handle->type == ndc_type);
-
-	ndc = (ndc_object_t *)handle;
-	notify("ndc_signalhandler: %s", name);
-
-	if (strcmp(name, "status") == 0) {
-		/*
-		 * "status" is signalled with the result of the message's
-		 * operation.
-		 */
-		ndc->waitresult = va_arg(ap, isc_result_t);
-
-		if (ndc->waitresult != ISC_R_SUCCESS) {
-			fprintf(stderr, "%s: operation failed: %s",
-				progname, isc_result_totext(ndc->waitresult));
-
-			tv = va_arg(ap, omapi_value_t *);
-			if (tv != NULL) {
-				omapi_value_getregion(tv, &region);
-				fprintf(stderr, " (%.*s)",
-					(int)region.length, region.base);
-			}
-			fprintf(stderr, "\n");
-		}
-
-		/*
-		 * Even if the waitresult was not ISC_R_SUCCESS, the processing
-		 * by the function still was.
-		 */
-		result = ISC_R_SUCCESS;
-
-	} else if (strcmp(name, "updated") == 0) {
-		/*
-		 * Nothing to do, really.
-		 */
-		result = ISC_R_SUCCESS;
-
-        } else {
-		/*
-		 * Pass any unknown signal any internal object.
-		 * (This normally does not happen; there is no
-		 * inner object, nor anything else being signalled.)
-		 */
-		fprintf(stderr, "%s: ndc_signalhandler: unknown signal: %s",
-			progname, name);
-		result = omapi_object_passsignal(handle, name, ap);
-	}
-
-	return (result);
-}
-
-static isc_result_t
-ndc_setvalue(omapi_object_t *handle, omapi_string_t *name,
-	     omapi_data_t *value)
-{
-	isc_region_t region;
-/*
-	isc_result_t result;
-	char *message;
-*/
-
-	INSIST(handle == (omapi_object_t *)&ndc_g_ndc);
-
-	UNUSED(value);
-	UNUSED(handle);
-
-	omapi_string_totext(name, &region);
-	notify("ndc_setvalue: %.*s\n", REGION_FMT(&region));
-
-	return (ISC_R_SUCCESS);
-}
-
 static void
-usage(void) {
+usage(int status) {
 	fprintf(stderr, "\
-Usage: %s [-c config] [-s server] [-p port] [-y key] command\n\
+Usage: %s [-c config] [-s server] [-p port] [-y key] [-V] command\n\
 \n\
 command is one of the following:\n\
 \n\
@@ -266,72 +105,313 @@ command is one of the following:\n\
 		Reload a single zone.\n\
   refresh zone [class [view]]\n\
 		Schedule immediate maintenance for a zone.\n\
+  reconfig	Reload configuration file and new zones only.\n\
   stats		Write server statistics to the statistics file.\n\
   querylog	Toggle query logging.\n\
   dumpdb	Dump cache(s) to the dump file (named_dump.db).\n\
   stop		Save pending updates to master files and stop the server.\n\
   halt		Stop the server without saving pending updates.\n\
-  *status	Display ps(1) status of named.\n\
-  *trace	Increment debugging level by one.\n\
-  *notrace	Set debugging level to 0.\n\
+  trace		Increment debugging level by one.\n\
+  trace level	Change the debugging level.\n\
+  notrace	Set debugging level to 0.\n\
+  flush 	Flushes all of the server's caches.\n\
+  flush [view]	Flushes the server's cache for a view.\n\
+  status	Display status of the server.\n\
   *restart	Restart the server.\n\
 \n\
 * == not yet implemented\n\
 Version: %s\n",
 		progname, version);
+
+	exit(status);
 }
+
+static void            
+fatal(const char *format, ...) {
+	va_list args;
+
+	fprintf(stderr, "%s: ", progname);
+	va_start(args, format);
+	vfprintf(stderr, format, args);
+	va_end(args);
+	fprintf(stderr, "\n");
+	exit(1);
+}               
+
 
 #undef DO
 #define DO(name, function) \
 	do { \
 		result = function; \
-		if (result != ISC_R_SUCCESS) { \
-			fprintf(stderr, "%s: %s: %s\n", progname, \
-				name, isc_result_totext(result)); \
-			exit(1); \
-		} else \
+		if (result != ISC_R_SUCCESS) \
+			fatal("%s: %s", name, isc_result_totext(result)); \
+		else \
 			notify(name); \
 	} while (0)
+
+
+static void
+get_address(const char *host, in_port_t port, isc_sockaddr_t *sockaddr) {
+	struct in_addr in4;
+	struct in6_addr in6;
+	isc_boolean_t have_ipv6;
+#ifdef USE_GETADDRINFO
+	struct addrinfo *res = NULL, hints;
+	int result;
+#else
+	struct hostent *he;
+#endif
+
+	have_ipv6 = ISC_TF(isc_net_probeipv6() == ISC_R_SUCCESS);
+
+	/*
+	 * Assume we have v4 if we don't have v6, since setup_libs
+	 * fatal()'s out if we don't have either.
+	 */
+	if (have_ipv6 && inet_pton(AF_INET6, host, &in6) == 1)
+		isc_sockaddr_fromin6(sockaddr, &in6, port);
+	else if (inet_pton(AF_INET, host, &in4) == 1)
+		isc_sockaddr_fromin(sockaddr, &in4, port);
+	else {
+#ifdef USE_GETADDRINFO
+		memset(&hints, 0, sizeof(hints));
+		if (!have_ipv6)
+			hints.ai_family = PF_INET;
+		else if (isc_net_probeipv4() != ISC_R_SUCCESS)
+			hints.ai_family = PF_INET6;
+		else
+			hints.ai_family = PF_UNSPEC;
+		isc_app_block();
+		result = getaddrinfo(host, NULL, &hints, &res);
+		isc_app_unblock();
+		if (result != 0)
+			fatal("Couldn't find server '%s': %s",
+			      host, gai_strerror(result));
+		memcpy(&sockaddr->type.sa, res->ai_addr, res->ai_addrlen);
+		sockaddr->length = res->ai_addrlen;
+		isc_sockaddr_setport(sockaddr, port);
+		freeaddrinfo(res);
+#else
+		isc_app_block();
+		he = gethostbyname(host);
+		isc_app_unblock();
+		if (he == NULL)
+			fatal("Couldn't find server '%s' (h_errno=%d)",
+			      host, h_errno);
+		INSIST(he->h_addrtype == AF_INET);
+		isc_sockaddr_fromin(sockaddr,
+				    (struct in_addr *)(he->h_addr_list[0]),
+				    port);
+#endif
+	}
+}
+
+static void
+rndc_senddone(isc_task_t *task, isc_event_t *event) {
+	isc_socketevent_t *sevent = (isc_socketevent_t *)event;
+
+	UNUSED(task);
+
+	sends--;
+	if (sevent->result != ISC_R_SUCCESS)
+		fatal("send failed: %s", isc_result_totext(sevent->result));
+	isc_event_free(&event);
+}
+
+static void
+rndc_recvdone(isc_task_t *task, isc_event_t *event) {
+	isc_socket_t *sock = ccmsg.sock;
+	isccc_sexpr_t *response = NULL;
+	isccc_sexpr_t *data;
+	isccc_region_t source;
+	char *errormsg = NULL;
+	char *textmsg = NULL;
+	isc_result_t result;
+
+	recvs--;
+
+	if (ccmsg.result == ISC_R_EOF)
+		fatal("connection to remote host closed\n",
+		      "This may indicate that the remote server is using "
+		      "an older version of the\n"
+		      "command protocol, this host is not authorized "
+		      "to connect, or the key is invalid.");
+
+	if (ccmsg.result != ISC_R_SUCCESS)
+		fatal("recv failed: %s", isc_result_totext(ccmsg.result));
+
+	source.rstart = isc_buffer_base(&ccmsg.buffer);
+	source.rend = isc_buffer_used(&ccmsg.buffer);
+
+	DO("parse message", isccc_cc_fromwire(&source, &response, &secret));
+
+	data = isccc_alist_lookup(response, "_data");
+	if (data == NULL)
+		fatal("no data section in response");
+	result = isccc_cc_lookupstring(data, "err", &errormsg);
+	if (result == ISC_R_SUCCESS) {
+		failed = ISC_TRUE;
+		fprintf(stderr, "%s: '%s' failed: %s\n",
+			progname, command, errormsg);
+	}
+	else if (result != ISC_R_NOTFOUND)
+		fprintf(stderr, "%s: parsing response failed: %s\n",
+			progname, isc_result_totext(result));
+
+	result = isccc_cc_lookupstring(data, "text", &textmsg);
+	if (result == ISC_R_SUCCESS)
+		printf("%s\n", textmsg);
+	else if (result != ISC_R_NOTFOUND)
+		fprintf(stderr, "%s: parsing response failed: %s\n",
+			progname, isc_result_totext(result));
+
+	isc_event_free(&event);
+	isccc_sexpr_free(&response);
+	isc_socket_detach(&sock);
+	isc_task_shutdown(task);
+	isc_app_shutdown();
+}
+
+static void
+rndc_connected(isc_task_t *task, isc_event_t *event) {
+	isc_socketevent_t *sevent = (isc_socketevent_t *)event;
+	isc_socket_t *sock = event->ev_sender;
+	isccc_sexpr_t *request = NULL;
+	isccc_sexpr_t *data;
+	isccc_time_t now;
+	isccc_region_t message;
+	isc_region_t r;
+	isc_uint32_t len;
+	isc_buffer_t b;
+	isc_result_t result;
+
+	connects--;
+
+	if (sevent->result != ISC_R_SUCCESS)
+		fatal("connect failed: %s", isc_result_totext(sevent->result));
+
+	isc_stdtime_get(&now);
+	srandom(now + isc_thread_self());
+	DO("create message", isccc_cc_createmessage(1, NULL, NULL, random(),
+						    now, now + 60, &request));
+	data = isccc_alist_lookup(request, "_data");
+	if (data == NULL)
+		fatal("_data section missing");
+	if (isccc_cc_definestring(data, "type", args) == NULL)
+		fatal("out of memory");
+	message.rstart = databuf + 4;
+	message.rend = databuf + sizeof(databuf);
+	DO("render message", isccc_cc_towire(request, &message, &secret));
+	len = sizeof(databuf) - REGION_SIZE(message);
+	isc_buffer_init(&b, databuf, 4);
+	isc_buffer_putuint32(&b, len - 4);
+	r.length = len;
+	r.base = databuf;
+
+	isccc_ccmsg_init(mctx, sock, &ccmsg);
+	isccc_ccmsg_setmaxsize(&ccmsg, 1024);
+
+	DO("schedule recv", isccc_ccmsg_readmessage(&ccmsg, task,
+						    rndc_recvdone, NULL));
+	recvs++;
+	DO("send message", isc_socket_send(sock, &r, task, rndc_senddone,
+					   NULL));
+	sends++;
+	isc_event_free(&event);
+	
+}
+
+static void
+rndc_start(isc_task_t *task, isc_event_t *event) {
+	isc_sockaddr_t addr;
+	isc_socket_t *sock = NULL;
+	isc_result_t result;
+	char socktext[ISC_SOCKADDR_FORMATSIZE];
+
+	isc_event_free(&event);
+
+	get_address(servername, remoteport, &addr);
+
+	isc_sockaddr_format(&addr, socktext, sizeof(socktext));
+
+	notify("using server %s (%s)", servername, socktext);
+
+	DO("create socket", isc_socket_create(socketmgr,
+					      isc_sockaddr_pf(&addr),
+					      isc_sockettype_tcp, &sock));
+	DO("connect", isc_socket_connect(sock, &addr, task, rndc_connected,
+					 NULL));
+	connects++;
+}
+
+static void
+parse_config(isc_mem_t *mctx, isc_log_t *log, cfg_parser_t **pctxp,
+	     cfg_obj_t **config)
+{
+	isc_result_t result;
+	const char *conffile = admin_conffile;
+
+	if (! isc_file_test(conffile, ISC_FILE_EXISTS)) {
+		conffile = auto_conffile;
+
+		if (! isc_file_test(conffile, ISC_FILE_EXISTS))
+			fatal("neither %s nor %s was found",
+			      admin_conffile, auto_conffile);
+	}
+
+	DO("create parser", cfg_parser_create(mctx, log, pctxp));
+
+	/*
+	 * The parser will output its own errors, so DO() is not used.
+	 */
+	result = cfg_parse_file(*pctxp, conffile, &cfg_type_rndcconf, config);
+
+	if (result != ISC_R_SUCCESS)
+		exit(1);
+}
 
 int
 main(int argc, char **argv) {
 	isc_boolean_t show_final_mem = ISC_FALSE;
-	isc_entropy_t *entropy = NULL;
 	isc_result_t result = ISC_R_SUCCESS;
-	isc_socketmgr_t *socketmgr = NULL;
 	isc_taskmgr_t *taskmgr = NULL;
-	omapi_object_t *omapimgr = NULL;
-	dns_c_ndcctx_t *config = NULL;
-	dns_c_ndcopts_t *configopts = NULL;
-	dns_c_ndcserver_t *server = NULL;
-	dns_c_kdeflist_t *keys = NULL;
-	dns_c_kdef_t *key = NULL;
+	isc_task_t *task = NULL;
+	isc_log_t *log = NULL;
+	isc_logconfig_t *logconfig = NULL;
+	isc_logdestination_t logdest;
+	cfg_parser_t *pctx = NULL;
+	cfg_obj_t *config = NULL;
+	cfg_obj_t *options = NULL;
+	cfg_obj_t *servers = NULL;
+	cfg_obj_t *server = NULL;
+	cfg_obj_t *defkey = NULL;
+	cfg_obj_t *keys = NULL;
+	cfg_obj_t *key = NULL;
+	cfg_obj_t *defport = NULL;
+	cfg_obj_t *secretobj = NULL;
+	cfg_obj_t *algorithmobj = NULL;
+	cfg_listelt_t *elt;
 	const char *keyname = NULL;
-	char secret[1024];
-	isc_buffer_t secretbuf;
-	char *command, *args, *p;
+	const char *secretstr;
+	const char *algorithm;
+	isc_boolean_t portset = ISC_FALSE;
+	char secretarray[1024];
+	char *p;
 	size_t argslen;
-	const char *servername = NULL;
-	const char *host = NULL;
-	unsigned int port = NS_OMAPI_PORT;
-	unsigned int algorithm;
 	int ch;
 	int i;
 
-	progname = strrchr(*argv, '/');
-	if (progname != NULL)
-		progname++;
-	else
-		progname = *argv;
+	isc_app_start();
 
-	omapi_result_register();
-	dns_result_register();
+	result = isc_file_progname(*argv, progname, sizeof(progname));
+	if (result != ISC_R_SUCCESS)
+		memcpy(progname, "rndc", 5);
 
 	while ((ch = isc_commandline_parse(argc, argv, "c:Mmp:s:Vy:"))
 	       != -1) {
 		switch (ch) {
 		case 'c':
-			conffile = isc_commandline_argument;
+			admin_conffile = isc_commandline_argument;
 			break;
 
 		case 'M':
@@ -343,12 +423,11 @@ main(int argc, char **argv) {
 			break;
 
 		case 'p':
-			port = atoi(isc_commandline_argument);
-			if (port > 65535) {
-				fprintf(stderr, "%s: port out of range\n",
-					progname);
-				exit(1);
-			}
+			remoteport = atoi(isc_commandline_argument);
+			if (remoteport > 65535)
+				fatal("port '%s' out of range",
+				      isc_commandline_argument);
+			portset = ISC_TRUE;
 			break;
 
 		case 's':
@@ -361,13 +440,11 @@ main(int argc, char **argv) {
 			keyname = isc_commandline_argument;
 			break;
 		case '?':
-			usage();
-			exit(1);
+			usage(0);
 			break;
 		default:
-			fprintf(stderr, "%s: unexpected error parsing "
-				"command arguments: got %c\n", progname, ch);
-			exit(1);
+			fatal("unexpected error parsing command arguments: "
+			      "got %c\n", ch);
 			break;
 		}
 	}
@@ -375,33 +452,55 @@ main(int argc, char **argv) {
 	argc -= isc_commandline_index;
 	argv += isc_commandline_index;
 
-	if (argc < 1) {
-		usage();
-		exit(1);
-	}
+	if (argc < 1)
+		usage(1);
 
 	DO("create memory context", isc_mem_create(0, 0, &mctx));
 	DO("create socket manager", isc_socketmgr_create(mctx, &socketmgr));
 	DO("create task manager", isc_taskmgr_create(mctx, 1, 0, &taskmgr));
+	DO("create task", isc_task_create(taskmgr, 0, &task));
 
-	DO("create entropy pool", isc_entropy_create(mctx, &entropy));
-	/* XXXDCL probably should use ISC_ENTROPY_GOOD.  talk with graff. */
-	DO("initialize digital signatures",
-	   dst_lib_init(mctx, entropy, 0));
+	DO("create logging context", isc_log_create(mctx, &log, &logconfig));
+	isc_log_setcontext(log);
+	DO("setting log tag", isc_log_settag(logconfig, progname));
+	logdest.file.stream = stderr;
+	logdest.file.name = NULL;
+	logdest.file.versions = ISC_LOG_ROLLNEVER;
+	logdest.file.maximum_size = 0;
+	DO("creating log channel",
+	   isc_log_createchannel(logconfig, "stderr",
+		   		 ISC_LOG_TOFILEDESC, ISC_LOG_INFO, &logdest,
+				 ISC_LOG_PRINTTAG|ISC_LOG_PRINTLEVEL));
+	DO("enabling log channel", isc_log_usechannel(logconfig, "stderr",
+						      NULL, NULL));
 
-	DO(conffile, dns_c_ndcparseconf(conffile, mctx, &config));
+	parse_config(mctx, log, &pctx, &config);
 
-	(void)dns_c_ndcctx_getoptions(config, &configopts);
+	(void)cfg_map_get(config, "options", &options);
 
-	if (servername == NULL && configopts != NULL)
-		(void)dns_c_ndcopts_getdefserver(configopts, &servername);
+	if (servername == NULL && options != NULL) {
+		cfg_obj_t *defserverobj = NULL;
+		(void)cfg_map_get(options, "default-server", &defserverobj);
+		if (defserverobj != NULL)
+			servername = cfg_obj_asstring(defserverobj);
+	}
 
-	if (servername != NULL)
-		result = dns_c_ndcctx_getserver(config, servername, &server);
-	else {
-		fprintf(stderr, "%s: no server specified and no default\n",
-			progname);
-		exit(1);
+	if (servername == NULL)
+		fatal("no server specified and no default");
+
+	cfg_map_get(config, "server", &servers);
+	if (servers != NULL) {
+		for (elt = cfg_list_first(servers);
+		     elt != NULL; 
+		     elt = cfg_list_next(elt))
+		{
+			const char *name;
+			server = cfg_listelt_value(elt);
+			name = cfg_obj_asstring(cfg_map_getname(server));
+			if (strcasecmp(name, servername) == 0)
+				break;
+			server = NULL;
+		}
 	}
 
 	/*
@@ -409,82 +508,68 @@ main(int argc, char **argv) {
 	 */
 	if (keyname != NULL)
 		;		/* Was set on command line, do nothing. */
-	else if (server != NULL)
-		DO("get key for server", dns_c_ndcserver_getkey(server,
-								&keyname));
-	else if (configopts != NULL)
-		DO("get default key",
-		   dns_c_ndcopts_getdefkey(configopts, &keyname));
-	else {
-		fprintf(stderr, "%s: no key for server and no default\n",
-			progname);
-		exit(1);
-	}
+	else if (server != NULL) {
+		DO("get key for server", cfg_map_get(server, "key", &defkey));
+		keyname = cfg_obj_asstring(defkey);
+	} else if (options != NULL) {
+		DO("get default key", cfg_map_get(options, "default-key",
+						  &defkey));
+		keyname = cfg_obj_asstring(defkey);
+	} else
+		fatal("no key for server and no default");
 
 	/*
 	 * Get the key's definition.
 	 */
-	DO("get config key list", dns_c_ndcctx_getkeys(config, &keys));
-	DO("get key definition", dns_c_kdeflist_find(keys, keyname, &key));
-
-	/* XXX need methods for structure access? */
-	INSIST(key->secret != NULL);
-	INSIST(key->algorithm != NULL);
-
-	if (strcasecmp(key->algorithm, "hmac-md5") == 0)
-		algorithm = OMAPI_AUTH_HMACMD5;
-	else {
-		fprintf(stderr, "%s: unsupported algorithm: %s\n",
-			progname, key->algorithm);
-		exit(1);
+	DO("get config key list", cfg_map_get(config, "key", &keys));
+	for (elt = cfg_list_first(keys);
+	     elt != NULL; 
+	     elt = cfg_list_next(elt))
+	{
+		key = cfg_listelt_value(elt);
+		if (strcasecmp(cfg_obj_asstring(cfg_map_getname(key)),
+			       keyname) == 0)
+			break;
 	}
+	if (elt == NULL)
+		fatal("no key definition for name %s", keyname);
 
-	isc_buffer_init(&secretbuf, secret, sizeof(secret));
-	DO("decode base64 secret",
-	   isc_base64_decodestring(mctx, key->secret, &secretbuf));
+	(void)cfg_map_get(key, "secret", &secretobj);
+	(void)cfg_map_get(key, "algorithm", &algorithmobj);
+	if (secretobj == NULL || algorithmobj == NULL)
+		fatal("key must have algorithm and secret");
 
-	if (server != NULL)
-		(void)dns_c_ndcserver_gethost(server, &host);
+	secretstr = cfg_obj_asstring(secretobj);
+	algorithm = cfg_obj_asstring(algorithmobj);
 
-	if (host == NULL)
-		host = servername;
+	if (strcasecmp(algorithm, "hmac-md5") != 0)
+		fatal("unsupported algorithm: %s", algorithm);
 
-	DO("initialize omapi",  omapi_lib_init(mctx, taskmgr, socketmgr));
-
-	DO("register omapi object",
-	   omapi_object_register(&ndc_type, "ndc",
-				 ndc_setvalue,		/* setvalue */
-				 NULL,			/* getvalue */
-				 NULL,			/* destroy */
-				 ndc_signalhandler,
-				 NULL,			/* stuffvalues */
-				 NULL,			/* lookup */
-				 NULL,			/* create */
-				 NULL));		/* remove */
+	secret.rstart = (unsigned char *)secretarray;
+	secret.rend = (unsigned char *)secretarray + sizeof(secretarray);
+	DO("decode base64 secret", isccc_base64_decode(secretstr, &secret));
+	secret.rend = secret.rstart;
+	secret.rstart = (unsigned char *)secretarray;
 
 	/*
-	 * Initialize the static ndc_g_ndc variable (normally this is done
-	 * by omapi_object_create on a dynamic variable).
+	 * Find the port to connect to.
 	 */
-	ndc_g_ndc.refcnt = 1;
-	ndc_g_ndc.type = ndc_type;
+	if (portset)
+		;		/* Was set on command line, do nothing. */
+	else {
+		if (server != NULL)
+			(void)cfg_map_get(server, "port", &defport);
+		if (defport == NULL && options != NULL)
+			cfg_map_get(options, "default-port", &defport);
+	}
+	if (defport != NULL) {
+		remoteport = cfg_obj_asuint32(defport);
+		if (remoteport > 65535)
+			fatal("port %d out of range", remoteport);
+	} else if (!portset)
+		remoteport = NS_CONTROL_PORT;
 
-	DO("register local authenticator",
-	   omapi_auth_register(keyname, algorithm, isc_buffer_base(&secretbuf),
-			       isc_buffer_usedlength(&secretbuf)));
-
-	DO("create protocol manager", omapi_object_create(&omapimgr, NULL, 0));
-
-	DO("connect", omapi_protocol_connect(omapimgr, host, (in_port_t)port,
-					     NULL));
-
-	DO("send remote authenticator",
-	   omapi_auth_use(omapimgr, keyname, algorithm));
-
-	/*
-	 * Preload the waitresult as successful.
-	 */
-	ndc_g_ndc.waitresult = ISC_R_SUCCESS;
+	isccc_result_register();
 
 	command = *argv;
 
@@ -515,64 +600,35 @@ main(int argc, char **argv) {
 
 	notify(command);
 
-	if (strcmp(command, "notrace") == 0 ||
-	    strcmp(command, "restart") == 0 ||
-	    strcmp(command, "status") == 0 ||
-	    strcmp(command, "trace") == 0) {
-		result = ISC_R_NOTIMPLEMENTED;
-	} else {
-		result = send_command(omapimgr, command, args);
-	}
+	if (strcmp(command, "restart") == 0)
+		fatal("'%s' is not implemented", command);
 
-	if (result == ISC_R_NOTIMPLEMENTED)
-		fprintf(stderr, "%s: '%s' is not yet implemented\n",
-			progname, command);
-	else if (result != ISC_R_SUCCESS)
-		fprintf(stderr, "%s: protocol failure: %s\n",
-			progname, isc_result_totext(result));
-	else if (ndc_g_ndc.waitresult != ISC_R_SUCCESS)
-		fprintf(stderr, "%s: %s command failure: %s\n",
-			progname, command,
-			isc_result_totext(ndc_g_ndc.waitresult));
-	else
-		printf("%s: %s command successful\n",
-		       progname, command);
+	DO("post event", isc_app_onrun(mctx, task, rndc_start, NULL));
+
+	isc_app_run();
+
+	if (connects > 0 || sends > 0 || recvs > 0)
+		isc_socket_cancel(ccmsg.sock, task, ISC_SOCKCANCEL_ALL);
+
+	isc_task_detach(&task);
+	isc_taskmgr_destroy(&taskmgr);
+	isc_socketmgr_destroy(&socketmgr);
+	isc_log_destroy(&log);
+	isc_log_setcontext(NULL);
+
+	cfg_obj_destroy(pctx, &config);
+	cfg_parser_destroy(&pctx);
 
 	isc_mem_put(mctx, args, argslen);
+	isccc_ccmsg_invalidate(&ccmsg);
 
-	/*
-	 * Close the connection and wait to be disconnected.  The connection
-	 * is only still open if the protocol object is still attached
-	 * to the omapimgr.
-	 */
-	if (omapimgr != NULL) {
-		omapi_protocol_disconnect(omapimgr, OMAPI_CLEAN_DISCONNECT);
+	if (show_final_mem)
+		isc_mem_stats(mctx, stderr);
 
-		/*
-		 * Free the protocol manager.
-		 */
-		omapi_object_dereference(&omapimgr);
-	}
+	isc_mem_destroy(&mctx);
 
-	dns_c_ndcctx_destroy(&config);
-
-	omapi_lib_destroy();
-
-	dst_lib_destroy();
-	isc_entropy_detach(&entropy);
-
-	isc_socketmgr_destroy(&socketmgr);
-	isc_taskmgr_destroy(&taskmgr);
-
-	if (mctx != NULL) {
-		if (show_final_mem)
-			isc_mem_stats(mctx, stderr);
-
-		isc_mem_destroy(&mctx);
-	}
-
-	if (result != ISC_R_SUCCESS || ndc_g_ndc.waitresult != ISC_R_SUCCESS)
-		exit(1);
+	if (failed)
+		return (1);
 
 	return (0);
 }

@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: gen-unix.h,v 1.11.4.1 2001/01/09 22:43:37 bwelling Exp $ */
+/* $Id: gen-unix.h,v 1.12 2001/01/09 21:50:51 bwelling Exp $ */
 
 /*
  * This file is responsible for defining two operations that are not

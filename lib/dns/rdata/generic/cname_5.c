@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: cname_5.c,v 1.38.4.1 2001/01/09 22:46:43 bwelling Exp $ */
+/* $Id: cname_5.c,v 1.42 2001/03/16 22:52:36 bwelling Exp $ */
 
 /* reviewed: Wed Mar 15 16:48:45 PST 2000 by brister */
 
@@ -33,6 +33,7 @@ fromtext_cname(ARGS_FROMTEXT) {
 
 	REQUIRE(type == 5);
 
+	UNUSED(type);
 	UNUSED(rdclass);
 
 	RETERR(isc_lex_getmastertoken(lexer, &token, isc_tokentype_string,
@@ -41,7 +42,8 @@ fromtext_cname(ARGS_FROMTEXT) {
 	dns_name_init(&name, NULL);
 	buffer_fromregion(&buffer, &token.value.as_region);
 	origin = (origin != NULL) ? origin : dns_rootname;
-	return (dns_name_fromtext(&name, &buffer, origin, downcase, target));
+	RETTOK(dns_name_fromtext(&name, &buffer, origin, downcase, target));
+	return (ISC_R_SUCCESS);
 }
 
 static inline isc_result_t
@@ -71,6 +73,7 @@ fromwire_cname(ARGS_FROMWIRE) {
 
 	REQUIRE(type == 5);
 
+	UNUSED(type);
 	UNUSED(rdclass);
 
 	dns_decompress_setmethods(dctx, DNS_COMPRESS_GLOBAL14);
@@ -82,6 +85,7 @@ fromwire_cname(ARGS_FROMWIRE) {
 static inline isc_result_t
 towire_cname(ARGS_TOWIRE) {
 	dns_name_t name;
+	dns_offsets_t offsets;
 	isc_region_t region;
 
 	REQUIRE(rdata->type == 5);
@@ -89,7 +93,7 @@ towire_cname(ARGS_TOWIRE) {
 
 	dns_compress_setmethods(cctx, DNS_COMPRESS_GLOBAL14);
 
-	dns_name_init(&name, NULL);
+	dns_name_init(&name, offsets);
 	dns_rdata_toregion(rdata, &region);
 	dns_name_fromregion(&name, &region);
 
@@ -131,6 +135,7 @@ fromstruct_cname(ARGS_FROMSTRUCT) {
 	REQUIRE(cname->common.rdtype == type);
 	REQUIRE(cname->common.rdclass == rdclass);
 
+	UNUSED(type);
 	UNUSED(rdclass);
 
 	dns_name_toregion(&cname->cname, &region);

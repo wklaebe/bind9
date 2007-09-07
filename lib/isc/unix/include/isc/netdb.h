@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: netdb.h,v 1.5.4.1 2001/01/09 22:51:38 bwelling Exp $ */
+/* $Id: netdb.h,v 1.6 2001/01/09 21:58:42 bwelling Exp $ */
 
 #ifndef ISC_NETDB_H
 #define ISC_NETDB_H 1

@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: lwsearch.c,v 1.6.2.1 2001/01/09 22:32:06 bwelling Exp $ */
+/* $Id: lwsearch.c,v 1.7 2001/01/09 21:39:55 bwelling Exp $ */
 
 #include <config.h>
 

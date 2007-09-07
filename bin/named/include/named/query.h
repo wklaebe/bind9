@@ -15,13 +15,14 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: query.h,v 1.23.4.1 2001/01/09 22:32:38 bwelling Exp $ */
+/* $Id: query.h,v 1.28 2001/03/14 19:33:00 halley Exp $ */
 
 #ifndef NAMED_QUERY_H
 #define NAMED_QUERY_H 1
 
 #include <isc/types.h>
 #include <isc/buffer.h>
+#include <isc/netaddr.h>
 
 #include <dns/types.h>
 #include <dns/a6.h>
@@ -38,9 +39,9 @@ typedef struct ns_dbversion {
 struct ns_query {
 	unsigned int			attributes;
 	unsigned int			restarts;
+	isc_boolean_t			timerset;
 	dns_name_t *			qname;
 	dns_name_t *			origqname;
-	dns_rdataset_t *		qrdataset;
 	unsigned int			dboptions;
 	unsigned int			fetchoptions;
 	dns_db_t *			gluedb;
@@ -50,6 +51,12 @@ struct ns_query {
 	isc_bufferlist_t		namebufs;
 	ISC_LIST(ns_dbversion_t)	activeversions;
 	ISC_LIST(ns_dbversion_t)	freeversions;
+	/*
+	 * Additional state used during IPv6 response synthesis only.
+	 */
+	struct {
+		isc_netaddr_t na;
+	} synth;
 };
 
 #define NS_QUERYATTR_RECURSIONOK	0x0001
@@ -62,6 +69,8 @@ struct ns_query {
 #define NS_QUERYATTR_QUERYOK		0x0080
 #define NS_QUERYATTR_WANTRECURSION	0x0100
 #define NS_QUERYATTR_WANTDNSSEC		0x0200
+#define NS_QUERYATTR_NOAUTHORITY	0x0400
+#define NS_QUERYATTR_NOADDITIONAL	0x0800
 
 isc_result_t
 ns_query_init(ns_client_t *client);

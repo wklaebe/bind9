@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: master.h,v 1.26.2.1 2001/01/09 22:45:48 bwelling Exp $ */
+/* $Id: master.h,v 1.31 2001/02/01 21:29:35 marka Exp $ */
 
 #ifndef DNS_MASTER_H
 #define DNS_MASTER_H 1
@@ -30,6 +30,13 @@
 
 #include <dns/types.h>
 
+/*
+ * Flags to be passed in the 'options' argument in the functions below.
+ */
+#define	DNS_MASTER_AGETTL 	0x00000001	/* Age the ttl based on $DATE. */
+#define DNS_MASTER_MANYERRORS 	0x00000002	/* Continue processing on errors. */
+#define DNS_MASTER_NOINCLUDE 	0x00000004	/* Disallow $INCLUDE directives. */
+
 ISC_LANG_BEGINDECLS
 
 /***
@@ -41,7 +48,7 @@ dns_master_loadfile(const char *master_file,
 		    dns_name_t *top,
 		    dns_name_t *origin,
 		    dns_rdataclass_t zclass,
-		    isc_boolean_t age_ttl,
+		    unsigned int options,
 		    dns_rdatacallbacks_t *callbacks,
 		    isc_mem_t *mctx);
 
@@ -50,7 +57,7 @@ dns_master_loadstream(FILE *stream,
 		      dns_name_t *top,
 		      dns_name_t *origin,
 		      dns_rdataclass_t zclass,
-		      isc_boolean_t age_ttl,
+		      unsigned int options,
 		      dns_rdatacallbacks_t *callbacks,
 		      isc_mem_t *mctx);
 
@@ -59,7 +66,7 @@ dns_master_loadbuffer(isc_buffer_t *buffer,
 		      dns_name_t *top,
 		      dns_name_t *origin,
 		      dns_rdataclass_t zclass,
-		      isc_boolean_t age_ttl,
+		      unsigned int options,
 		      dns_rdatacallbacks_t *callbacks,
 		      isc_mem_t *mctx);
 
@@ -68,42 +75,33 @@ dns_master_loadfileinc(const char *master_file,
 		       dns_name_t *top,
 		       dns_name_t *origin,
 		       dns_rdataclass_t zclass,
-		       isc_boolean_t age_ttl,
+		       unsigned int options,
 		       dns_rdatacallbacks_t *callbacks,
 		       isc_task_t *task,
 		       dns_loaddonefunc_t done, void *done_arg,
-		       isc_mem_t *mctx);
+		       dns_loadctx_t **ctxp, isc_mem_t *mctx);
 
 isc_result_t
 dns_master_loadstreaminc(FILE *stream,
 			 dns_name_t *top,
 			 dns_name_t *origin,
 			 dns_rdataclass_t zclass,
-			 isc_boolean_t age_ttl,
+			 unsigned int options,
 			 dns_rdatacallbacks_t *callbacks,
 			 isc_task_t *task,
 			 dns_loaddonefunc_t done, void *done_arg,
-			 isc_mem_t *mctx);
+			 dns_loadctx_t **ctxp, isc_mem_t *mctx);
 
 isc_result_t
 dns_master_loadbufferinc(isc_buffer_t *buffer,
 			 dns_name_t *top,
 			 dns_name_t *origin,
 			 dns_rdataclass_t zclass,
-			 isc_boolean_t age_ttl,
+			 unsigned int options,
 			 dns_rdatacallbacks_t *callbacks,
 			 isc_task_t *task,
 			 dns_loaddonefunc_t done, void *done_arg,
-			 isc_mem_t *mctx);
-
-isc_result_t
-dns_master_loadfilequota(const char *master_file, dns_name_t *top,
-                         dns_name_t *origin, dns_rdataclass_t zclass,
-                         isc_boolean_t age_ttl, dns_rdatacallbacks_t *callbacks,
-                         isc_task_t *task, dns_loaddonefunc_t done,
-                         void *done_arg, dns_loadmgr_t *lmgr,
-                         dns_loadctx_t **ctxp, isc_mem_t *mctx);
-
+			 dns_loadctx_t **ctxp, isc_mem_t *mctx);
 
 /*
  * Loads a RFC 1305 master file from a file, stream, or buffer into rdatasets
@@ -112,7 +110,7 @@ dns_master_loadfilequota(const char *master_file, dns_name_t *top,
  * completes.  dns_load_master will abort if callbacks->commit returns
  * any value other than ISC_R_SUCCESS.
  *
- * If 'age_ttl' is ISC_TRUE and the master file contains one or more
+ * If 'DNS_MASTER_AGETTL' is set and the master file contains one or more
  * $DATE directives, the TTLs of the data will be aged accordingly.
  *
  * 'callbacks->commit' is assumed to call 'callbacks->error' or
@@ -179,72 +177,6 @@ dns_loadctx_cancel(dns_loadctx_t *ctx);
  *
  * Requires:
  *	'ctx' to be valid
- */
-
-isc_result_t
-dns_loadmgr_create(isc_mem_t *mctx, dns_loadmgr_t **mgrp);
-/*
- * Create a new load manager.
- *
- * Requires:
- *	'mgrp != NULL && *mgrp == NULL'
- *
- * Returns:
- *	ISC_R_SUCCESS upon successfully creating a load manager.
- *	ISC_R_MEMORY
- *	ISC_R_UNEXPECTED
- */
-
-void
-dns_loadmgr_cancel(dns_loadmgr_t *mgr);
-/*
- * Cancel all queue loads.  Loads that are already in progress are not
- * canceled.
- *
- * Requires:
- *	'mgr'	to be valid.
- */
-
-void
-dns_loadmgr_attach(dns_loadmgr_t *source, dns_loadmgr_t **target);
-/*
- * Attach to the load manager.
- *
- * Requires:
- *	'source' to be valid.
- *	'target != NULL && *target == NULL'
- */
-
-void
-dns_loadmgr_detach(dns_loadmgr_t **mgrp);
-/*
- * Detach from the load manager.
- *
- * Requires:
- *	'*mgrp'	to be valid.
- *
- * Ensures:
- *	'*mgr == NULL'
- */
-
-void 
-dns_loadmgr_setlimit(dns_loadmgr_t *mgr, isc_uint32_t limit);
-/*
- * Set the number of simultaneous loads permitted by the load manager.
- * 0 is unlimited.
- *
- * Requires:
- *	'mgr'	to be valid.
- */
-
-isc_uint32_t
-dns_loadmgr_getlimit(dns_loadmgr_t *mgr);
-/*
- * Return the number of simultaneous loads permitted by the load manager.
- * 0 is unlimited.
- *
- * Requires:
- *	'mgr'	to be valid.
  */
 
 ISC_LANG_ENDDECLS

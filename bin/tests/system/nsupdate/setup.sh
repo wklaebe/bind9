@@ -15,7 +15,7 @@
 # NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
 # WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: setup.sh,v 1.5.2.1 2001/01/09 22:36:37 bwelling Exp $
+# $Id: setup.sh,v 1.6 2001/01/09 21:44:04 bwelling Exp $
 
 #
 # jnl and database files MUST be removed before we start

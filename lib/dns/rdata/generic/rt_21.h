@@ -18,7 +18,7 @@
 #ifndef GENERIC_RT_21_H
 #define GENERIC_RT_21_H 1
 
-/* $Id: rt_21.h,v 1.15.4.1 2001/01/09 22:47:33 bwelling Exp $ */
+/* $Id: rt_21.h,v 1.16 2001/01/09 21:54:43 bwelling Exp $ */
 
 /* RFC 1183 */
 

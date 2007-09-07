@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dir.h,v 1.11.4.1 2001/01/09 22:51:34 bwelling Exp $ */
+/* $Id: dir.h,v 1.13 2001/01/29 03:17:45 marka Exp $ */
 
 /* Principal Authors: DCL */
 
@@ -72,6 +72,9 @@ isc_dir_close(isc_dir_t *dir);
 
 isc_result_t
 isc_dir_chdir(const char *dirname);
+
+isc_result_t
+isc_dir_chroot(const char *dirname);
 
 isc_result_t
 isc_dir_createunique(char *templet);

@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: compress_test.c,v 1.22.4.2 2001/01/09 22:33:08 bwelling Exp $ */
+/* $Id: compress_test.c,v 1.24 2001/01/09 21:40:56 bwelling Exp $ */
 
 #include <config.h>
 

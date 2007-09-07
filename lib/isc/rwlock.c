@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rwlock.c,v 1.26.4.2 2001/06/28 00:42:53 gson Exp $ */
+/* $Id: rwlock.c,v 1.33 2001/04/17 14:36:45 tale Exp $ */
 
 #include <config.h>
 
@@ -27,7 +27,7 @@
 #include <isc/rwlock.h>
 #include <isc/util.h>
 
-#define RWLOCK_MAGIC		0x52574C6BU	/* RWLk. */
+#define RWLOCK_MAGIC		ISC_MAGIC('R', 'W', 'L', 'k')
 #define VALID_RWLOCK(rwl)	ISC_MAGIC_VALID(rwl, RWLOCK_MAGIC)
 
 #ifdef ISC_PLATFORM_USETHREADS
@@ -125,10 +125,11 @@ isc_rwlock_init(isc_rwlock_t *rwl, unsigned int read_quota,
 	return (ISC_R_SUCCESS);
 }
 
-isc_result_t
-isc_rwlock_lock(isc_rwlock_t *rwl, isc_rwlocktype_t type) {
+static isc_result_t
+doit(isc_rwlock_t *rwl, isc_rwlocktype_t type, isc_boolean_t nonblock) {
 	isc_boolean_t skip = ISC_FALSE;
 	isc_boolean_t done = ISC_FALSE;
+	isc_result_t result = ISC_R_SUCCESS;
 
 	REQUIRE(VALID_RWLOCK(rwl));
 
@@ -153,6 +154,9 @@ isc_rwlock_lock(isc_rwlock_t *rwl, isc_rwlocktype_t type) {
 				rwl->active++;
 				rwl->granted++;
 				done = ISC_TRUE;
+			} else if (nonblock) {
+				result = ISC_R_LOCKBUSY;
+				done = ISC_TRUE;
 			} else {
 				skip = ISC_FALSE;
 				rwl->readers_waiting++;
@@ -168,6 +172,9 @@ isc_rwlock_lock(isc_rwlock_t *rwl, isc_rwlocktype_t type) {
 				rwl->type = isc_rwlocktype_write;
 				rwl->active = 1;
 				rwl->granted++;
+				done = ISC_TRUE;
+			} else if (nonblock) {
+				result = ISC_R_LOCKBUSY;
 				done = ISC_TRUE;
 			} else {
 				skip = ISC_FALSE;
@@ -185,7 +192,17 @@ isc_rwlock_lock(isc_rwlock_t *rwl, isc_rwlocktype_t type) {
 
 	UNLOCK(&rwl->lock);
 
-	return (ISC_R_SUCCESS);
+	return (result);
+}
+
+isc_result_t
+isc_rwlock_lock(isc_rwlock_t *rwl, isc_rwlocktype_t type) {
+	return (doit(rwl, type, ISC_FALSE));
+}
+
+isc_result_t
+isc_rwlock_trylock(isc_rwlock_t *rwl, isc_rwlocktype_t type) {
+	return (doit(rwl, type, ISC_TRUE));
 }
 
 isc_result_t
@@ -294,6 +311,11 @@ isc_rwlock_lock(isc_rwlock_t *rwl, isc_rwlocktype_t type) {
 		rwl->active = 1;
 	}
         return (ISC_R_SUCCESS);
+}
+
+isc_result_t
+isc_rwlock_trylock(isc_rwlock_t *rwl, isc_rwlocktype_t type) {
+	return (isc_rwlock_lock(rwl, type));
 }
 
 isc_result_t

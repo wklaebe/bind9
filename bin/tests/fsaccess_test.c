@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: fsaccess_test.c,v 1.7.4.1 2001/01/09 22:33:15 bwelling Exp $ */
+/* $Id: fsaccess_test.c,v 1.8 2001/01/09 21:41:03 bwelling Exp $ */
 
 #include <config.h>
 

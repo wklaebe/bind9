@@ -15,7 +15,7 @@
 # NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
 # WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: tests.sh,v 1.16.4.1 2001/01/09 22:36:38 bwelling Exp $
+# $Id: tests.sh,v 1.22 2001/03/08 18:44:59 gson Exp $
 
 SYSTEMTESTTOP=..
 . $SYSTEMTESTTOP/conf.sh
@@ -81,9 +81,16 @@ echo "I:SIGKILL and restart server ns1"
 cd ns1
 kill -KILL `cat named.pid`
 rm named.pid
-sleep 2
-$NAMED -c named.conf -d 99 -g >> named.run 2>&1 &
 cd ..
+sleep 10
+if 
+	$PERL $SYSTEMTESTTOP/start.pl --noclean . ns1
+then
+	echo "I:restarted server ns1"	
+else
+	echo "I:could not restart server ns1"
+	exit 1
+fi
 sleep 10
 
 echo "I:fetching ns1 after hard restart"
@@ -133,6 +140,22 @@ then
 fi
 
 echo "I:end RT #482 regression test"
+
+echo "I:testing that rndc stop updates the master file"
+$NSUPDATE <<END > /dev/null || status=1
+server 10.53.0.1 5300
+update add updated4.example.nil. 600 A 10.10.10.3
+send
+END
+$PERL $SYSTEMTESTTOP/stop.pl --use-rndc . ns1
+# Removing the journal file and restarting the server means
+# that the data served by the new server process are exactly
+# those dumped to the master file by "rndc stop".
+rm -f ns1/*jnl
+$PERL $SYSTEMTESTTOP/start.pl --noclean . ns1
+$DIG +tcp +noadd +nosea +nostat +noquest +nocomm +nocmd updated4.example.nil.\
+	@10.53.0.1 a -p 5300 > dig.out.ns1 || status=1
+$PERL ../digcomp.pl knowngood.ns1.afterstop dig.out.ns1 || status=1
 
 echo "I:exit status: $status"
 exit $status

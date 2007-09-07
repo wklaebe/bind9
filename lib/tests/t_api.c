@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: t_api.c,v 1.45.2.2 2001/01/09 22:53:19 bwelling Exp $ */
+/* $Id: t_api.c,v 1.47 2001/01/09 22:00:36 bwelling Exp $ */
 
 #include <config.h>
 

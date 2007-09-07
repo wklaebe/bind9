@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: os.c,v 1.36.2.3 2001/06/06 22:16:03 gson Exp $ */
+/* $Id: os.c,v 1.44 2001/05/25 07:42:15 marka Exp $ */
 
 #include <config.h>
 #include <stdarg.h>
@@ -33,6 +33,7 @@
 #include <syslog.h>
 #include <unistd.h>
 
+#include <isc/file.h>
 #include <isc/print.h>
 #include <isc/result.h>
 #include <isc/string.h>
@@ -43,17 +44,17 @@
 static char *pidfile = NULL;
 
 /*
- * If there's no <linux/capability.h>, we don't care about <linux/prctl.h>
+ * If there's no <linux/capability.h>, we don't care about <sys/prctl.h>
  */
 #ifndef HAVE_LINUX_CAPABILITY_H
-#undef HAVE_LINUX_PRCTL_H
+#undef HAVE_SYS_PRCTL_H
 #endif
 
 /*
  * Linux defines:
  * 	(T) HAVE_LINUXTHREADS
  * 	(C) HAVE_LINUX_CAPABILITY_H
- * 	(P) HAVE_LINUX_PRCTL_H
+ * 	(P) HAVE_SYS_PRCTL_H
  * The possible cases are:
  * 	none:	setuid() normally
  * 	T:	no setuid()
@@ -109,11 +110,11 @@ static isc_boolean_t non_root_caps = ISC_FALSE;
 #include <sys/syscall.h>	/* Required for syscall(). */
 #include <linux/capability.h>	/* Required for _LINUX_CAPABILITY_VERSION. */
 
-#ifdef HAVE_LINUX_PRCTL_H
+#ifdef HAVE_SYS_PRCTL_H
 #include <sys/prctl.h>		/* Required for prctl(). */
 
 /*
- * If the value of PR_SET_KEEPCAPS is not in <linux/prctl.h>, define it
+ * If the value of PR_SET_KEEPCAPS is not in <sys/prctl.h>, define it
  * here.  This allows setuid() to work on systems running a new enough
  * kernel but with /usr/include/linux pointing to "standard" kernel
  * headers.
@@ -122,7 +123,7 @@ static isc_boolean_t non_root_caps = ISC_FALSE;
 #define PR_SET_KEEPCAPS 8
 #endif
 
-#endif /* HAVE_LINUX_PRCTL_H */
+#endif /* HAVE_SYS_PRCTL_H */
 
 #ifndef SYS_capset
 #define SYS_capset __NR_capset
@@ -169,7 +170,7 @@ linux_initialprivs(void) {
 	 */
 	caps |= (1 << CAP_SYS_CHROOT);
 
-#if defined(HAVE_LINUX_PRCTL_H) || !defined(HAVE_LINUXTHREADS)
+#if defined(HAVE_SYS_PRCTL_H) || !defined(HAVE_LINUXTHREADS)
 	/*
 	 * We can setuid() only if either the kernel supports keeping
 	 * capabilities after setuid() (which we don't know until we've
@@ -229,7 +230,7 @@ linux_minprivs(void) {
 	linux_setcaps(caps);
 }
 
-#ifdef HAVE_LINUX_PRCTL_H
+#ifdef HAVE_SYS_PRCTL_H
 static void
 linux_keepcaps(void) {
 	/*
@@ -261,7 +262,7 @@ setup_syslog(const char *progname) {
 	options |= LOG_NDELAY;
 #endif
 
-	openlog(progname, options, LOG_DAEMON);
+	openlog(isc_file_basename(progname), options, LOG_DAEMON);
 }
 
 void
@@ -378,7 +379,7 @@ ns_os_changeuser(void) {
 #endif
 		ns_main_earlyfatal(
 		   "-u not supported on Linux kernels older than "
-		   "2.3.99-pre3 when using threads");
+		   "2.3.99-pre3 or 2.2.18 when using threads");
 #endif
 
 	if (setgid(runas_pw->pw_gid) < 0)
@@ -394,7 +395,7 @@ ns_os_changeuser(void) {
 
 void
 ns_os_minprivs(void) {
-#ifdef HAVE_LINUX_PRCTL_H
+#ifdef HAVE_SYS_PRCTL_H
 	linux_keepcaps();
 #endif
 
@@ -415,8 +416,10 @@ safe_open(const char *filename, isc_boolean_t append) {
         if (stat(filename, &sb) == -1) {
                 if (errno != ENOENT)
 			return (-1);
-        } else if ((sb.st_mode & S_IFREG) == 0)
+        } else if ((sb.st_mode & S_IFREG) == 0) {
+		errno = EOPNOTSUPP;
 		return (-1);
+	}
 
 	if (append)
 		fd = open(filename, O_WRONLY|O_CREAT|O_APPEND,

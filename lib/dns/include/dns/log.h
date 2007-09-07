@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: log.h,v 1.26.4.2 2001/01/11 20:06:59 bwelling Exp $ */
+/* $Id: log.h,v 1.28 2001/01/11 19:38:11 gson Exp $ */
 
 /* Principal Authors: DCL */
 

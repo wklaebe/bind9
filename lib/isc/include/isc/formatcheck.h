@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: formatcheck.h,v 1.5.4.1 2001/01/09 22:49:49 bwelling Exp $ */
+/* $Id: formatcheck.h,v 1.6 2001/01/09 21:56:55 bwelling Exp $ */
 
 #ifndef ISC_FORMATCHECK_H
 #define ISC_FORMATCHECK_H 1

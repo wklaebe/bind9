@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rename.h,v 1.11.4.1 2001/01/09 22:48:15 bwelling Exp $ */
+/* $Id: rename.h,v 1.12 2001/01/09 21:55:24 bwelling Exp $ */
 
 #ifndef SEC_RENAME_H
 #define SEC_RENAME_H 1

@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rdatastructpre.h,v 1.12.4.1 2001/01/09 22:46:33 bwelling Exp $ */
+/* $Id: rdatastructpre.h,v 1.13 2001/01/09 21:53:45 bwelling Exp $ */
 
 #ifndef DNS_RDATASTRUCT_H
 #define DNS_RDATASTRUCT_H 1

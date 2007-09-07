@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dirdb.h,v 1.1.4.1 2001/01/09 22:39:02 bwelling Exp $ */
+/* $Id: dirdb.h,v 1.2 2001/01/09 21:46:23 bwelling Exp $ */
 
 #include <isc/types.h>
 

@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: interfacemgr.c,v 1.54.2.1 2001/01/09 22:31:52 bwelling Exp $ */
+/* $Id: interfacemgr.c,v 1.57 2001/02/27 04:20:44 bwelling Exp $ */
 
 #include <config.h>
 
@@ -244,6 +244,7 @@ ns_interface_listenudp(ns_interface_t *ifp) {
 		attrs |= DNS_DISPATCHATTR_IPV4;
 	else
 		attrs |= DNS_DISPATCHATTR_IPV6;
+	attrs |= DNS_DISPATCHATTR_NOLISTEN;
 	attrmask = 0;
 	attrmask |= DNS_DISPATCHATTR_UDP | DNS_DISPATCHATTR_TCP;
 	attrmask |= DNS_DISPATCHATTR_IPV4 | DNS_DISPATCHATTR_IPV6;
@@ -269,6 +270,8 @@ ns_interface_listenudp(ns_interface_t *ifp) {
 	return (ISC_R_SUCCESS);
 
  addtodispatch_failure:
+	dns_dispatch_changeattributes(ifp->udpdispatch, 0,
+				      DNS_DISPATCHATTR_NOLISTEN);
 	dns_dispatch_detach(&ifp->udpdispatch);
  udp_dispatch_failure:
 	return (result);
@@ -373,8 +376,11 @@ ns_interface_destroy(ns_interface_t *ifp) {
 
 	ns_interface_shutdown(ifp);
 
-	if (ifp->udpdispatch != NULL)
+	if (ifp->udpdispatch != NULL) {
+		dns_dispatch_changeattributes(ifp->udpdispatch, 0,
+					      DNS_DISPATCHATTR_NOLISTEN);
 		dns_dispatch_detach(&ifp->udpdispatch);
+	}
 	if (ifp->tcpsocket != NULL)
 		isc_socket_detach(&ifp->tcpsocket);
 
@@ -668,12 +674,15 @@ ns_interfacemgr_scan(ns_interfacemgr_t *mgr, isc_boolean_t verbose) {
 
 	mgr->generation++;	/* Increment the generation count. */
 
-	if (isc_net_probeipv6() == ISC_R_SUCCESS) {
+	if (isc_net_probeipv6() == ISC_R_SUCCESS)
 		do_ipv6(mgr);
-	} else
+#ifdef WANT_IPV6
+	else
 		isc_log_write(IFMGR_COMMON_LOGARGS,
 			      verbose ? ISC_LOG_INFO : ISC_LOG_DEBUG(1),
 			      "no IPv6 interfaces found");
+#endif
+
 	if (isc_net_probeipv4() == ISC_R_SUCCESS)
 		do_ipv4(mgr);
 	else

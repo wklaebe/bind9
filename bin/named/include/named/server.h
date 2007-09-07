@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: server.h,v 1.48.2.1 2001/01/09 22:32:39 bwelling Exp $ */
+/* $Id: server.h,v 1.57 2001/05/31 01:21:09 bwelling Exp $ */
 
 #ifndef NAMED_SERVER_H
 #define NAMED_SERVER_H 1
@@ -41,16 +41,17 @@ struct ns_server {
 
 	isc_task_t *		task;
 
-	/* Common rwlock for the server's configurable data. */
-	isc_rwlock_t		conflock;
-
 	/* Configurable data. */
 	isc_quota_t		xfroutquota;
 	isc_quota_t		tcpquota;
 	isc_quota_t		recursionquota;
 	dns_acl_t		*blackholeacl;
 
-	/* Not really configurable, but covered by conflock. */
+        /*
+	 * Current ACL environment.  This defines the
+	 * current values of the localhost and localnets
+	 * ACLs.
+	 */
 	dns_aclenv_t		aclenv;
 
 	/* Server data structures. */
@@ -60,8 +61,11 @@ struct ns_server {
 	ns_interfacemgr_t *	interfacemgr;
 	dns_db_t *		in_roothints;
 	dns_tkeyctx_t *		tkeyctx;
+
 	isc_timer_t *		interface_timer;
 	isc_timer_t *		heartbeat_timer;
+	isc_uint32_t		interface_interval;
+	isc_uint32_t		heartbeat_interval;
 
 	isc_mutex_t		reload_event_lock;
 	isc_event_t *		reload_event;
@@ -73,6 +77,8 @@ struct ns_server {
 	isc_uint64_t *		querystats;	/* Query statistics counters */
 
 	char *			dumpfile;	/* Dump file name */
+
+	ns_controls_t *		controls;	/* Control channels */
 };
 
 #define NS_SERVER_MAGIC			0x53564552	/* SVER */
@@ -115,6 +121,12 @@ ns_server_reloadcommand(ns_server_t *server, char *args);
  */
 
 isc_result_t
+ns_server_reconfigcommand(ns_server_t *server, char *args);
+/*
+ * Act on a "reconfig" command from the command channel.
+ */
+
+isc_result_t
 ns_server_refreshcommand(ns_server_t *server, char *args);
 /*
  * Act on a "refresh" command from the command channel.
@@ -137,5 +149,23 @@ ns_server_dumpstats(ns_server_t *server);
  */
 isc_result_t
 ns_server_dumpdb(ns_server_t *server);
+
+/*
+ * Change or increment the server debug level.
+ */
+isc_result_t
+ns_server_setdebuglevel(ns_server_t *server, char *args);
+
+/*
+ * Flush the server's cache(s)
+ */
+isc_result_t
+ns_server_flushcache(ns_server_t *server, char *args);
+
+/*
+ * Report the server's status.
+ */
+isc_result_t
+ns_server_status(ns_server_t *server, isc_buffer_t *text);
 
 #endif /* NAMED_SERVER_H */

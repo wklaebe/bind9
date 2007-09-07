@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: lwres_grbn.c,v 1.2.4.1 2001/01/09 22:52:29 bwelling Exp $ */
+/* $Id: lwres_grbn.c,v 1.3 2001/01/09 21:59:32 bwelling Exp $ */
 
 #include <config.h>
 

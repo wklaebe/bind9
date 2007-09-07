@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: callbacks.h,v 1.14.4.1 2001/01/09 22:45:07 bwelling Exp $ */
+/* $Id: callbacks.h,v 1.15 2001/01/09 21:52:21 bwelling Exp $ */
 
 #ifndef DNS_CALLBACKS_H
 #define DNS_CALLBACKS_H 1

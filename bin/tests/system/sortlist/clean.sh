@@ -15,7 +15,7 @@
 # NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
 # WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: clean.sh,v 1.2.4.1 2001/01/09 22:37:13 bwelling Exp $
+# $Id: clean.sh,v 1.3 2001/01/09 21:44:37 bwelling Exp $
 
 rm -f *.dig *.good
 

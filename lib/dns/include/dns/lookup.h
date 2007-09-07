@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: lookup.h,v 1.4.2.1 2001/01/09 22:45:47 bwelling Exp $ */
+/* $Id: lookup.h,v 1.5 2001/01/09 21:53:00 bwelling Exp $ */
 
 #ifndef DNS_LOOKUP_H
 #define DNS_LOOKUP_H 1

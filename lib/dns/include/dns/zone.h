@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: zone.h,v 1.95.2.1 2001/01/09 22:46:31 bwelling Exp $ */
+/* $Id: zone.h,v 1.105 2001/05/14 19:06:45 bwelling Exp $ */
 
 #ifndef DNS_ZONE_H
 #define DNS_ZONE_H 1
@@ -26,6 +26,7 @@
 
 #include <stdio.h>
 
+#include <isc/formatcheck.h>
 #include <isc/lang.h>
 #include <isc/rwlock.h>
 
@@ -44,6 +45,7 @@ typedef enum {
 #define DNS_ZONEOPT_PARENTS	0x00000002U	/* perform parent checks */
 #define DNS_ZONEOPT_CHILDREN	0x00000004U	/* perform child checks */
 #define DNS_ZONEOPT_NOTIFY	0x00000008U	/* perform NOTIFY */
+#define DNS_ZONEOPT_MANYERRORS	0x00000010U	/* return many errors on load */
 
 #ifndef DNS_ZONE_MINREFRESH
 #define DNS_ZONE_MINREFRESH		    300	/* 5 minutes */
@@ -64,6 +66,11 @@ typedef enum {
 #define DNS_ZONE_DEFAULTRETRY		     60	/* 1 minute, subject to
 						   exponential backoff */
 #endif
+
+#define DNS_ZONESTATE_XFERRUNNING	1
+#define DNS_ZONESTATE_XFERDEFERRED	2
+#define DNS_ZONESTATE_SOAQUERY		3
+#define DNS_ZONESTATE_ANY		4
 
 ISC_LANG_BEGINDECLS
 
@@ -197,10 +204,17 @@ dns_zone_getfile(dns_zone_t *zone);
 
 isc_result_t
 dns_zone_load(dns_zone_t *zone);
+
+isc_result_t
+dns_zone_loadnew(dns_zone_t *zone);
 /*
  *	Cause the database to be loaded from its backing store.
  *	Confirm that the mimimum requirements for the zone type are
  *	met, otherwise DNS_R_BADZONE is return.
+ *
+ *	dns_zone_loadnew() only loads zones that are not yet loaded.
+ *	dns_zone_load() also loads zones that are already loaded and
+ *	and whose master file has changed since the last load.
  *
  * Require:
  *	'zone' to be a valid zone.
@@ -432,16 +446,6 @@ dns_zone_setoption(dns_zone_t *zone, unsigned int option, isc_boolean_t value);
 /*
  *	Set given options on ('value' == ISC_TRUE) or off ('value' ==
  *	ISC_FALSE).
- *
- * Require:
- *	'zone' to be a valid zone.
- */
-
-void
-dns_zone_clearoption(dns_zone_t *zone, unsigned int option);
-/*
- *	Clear the given options from the zone and allow system wide value
- *	to be used.
  *
  * Require:
  *	'zone' to be a valid zone.
@@ -1167,26 +1171,6 @@ dns_zonemgr_releasezone(dns_zonemgr_t *zmgr, dns_zone_t *zone);
  */
 
 void
-dns_zonemgr_lockconf(dns_zonemgr_t *zmgr, isc_rwlocktype_t type);
-/*
- *	Lock the zone manager lock.
- *	'type' specifies if this is a read or write lock.
- *
- * Requires:
- *	'zmgr' to be a valid zone manager.
- */
-
-void
-dns_zonemgr_unlockconf(dns_zonemgr_t *zmgr, isc_rwlocktype_t type);
-/*
- *	Unlock the zone manager lock. 'type' must be the same as the
- *	preceeding call to dns_zonemgr_lockconf() for this 'zmgr'.
- *
- * Requires:
- *	'zmgr' to be a valid zone manager.
- */
-
-void
 dns_zonemgr_settransfersin(dns_zonemgr_t *zmgr, int value);
 /*
  *	Set the maximum number of simultanious transfers in allowed by
@@ -1245,6 +1229,34 @@ dns_zonemgr_getiolimit(dns_zonemgr_t *zmgr);
  */
 
 void
+dns_zonemgr_setserialqueryrate(dns_zonemgr_t *zmgr, unsigned int value);
+/*
+ *	Set the number of SOA queries sent per second.
+ *
+ * Requires:
+ *	'zmgr' to be a valid zone manager
+ */
+
+unsigned int
+dns_zonemgr_getserialqueryrate(dns_zonemgr_t *zmgr);
+/*
+ *	Return the number of SOA queries sent per second.
+ *
+ * Requires:
+ *	'zmgr' to be a valid zone manager.
+ */
+
+unsigned int
+dns_zonemgr_getcount(dns_zonemgr_t *zmgr, int state);
+/*
+ *	Returns the number of zones in the specified state.
+ *
+ * Requires:
+ *	'zmgr' to be a valid zone manager.
+ *	'state' to be a valid DNS_ZONESTATE_ constant.
+ */
+
+void
 dns_zone_forcereload(dns_zone_t *zone);
 /*
  *      Force a reload of specified zone.
@@ -1297,6 +1309,14 @@ dns_zone_setdialup(dns_zone_t *zone, dns_dialuptype_t dialup);
  * Requires:
  * 	'zone' to be valid initialised zone.
  *	'dialup' to be a valid dialup type.
+ */
+
+void
+dns_zone_log(dns_zone_t *zone, int level, const char *msg, ...)
+	ISC_FORMAT_PRINTF(3, 4);
+/*
+ * Log the message 'msg...' at 'level', including text that identifies
+ * the message as applying to 'zone'.
  */
 
 ISC_LANG_ENDDECLS

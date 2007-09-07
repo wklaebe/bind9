@@ -18,7 +18,7 @@
 #ifndef GENERIC_UNSPEC_103_H
 #define GENERIC_UNSPEC_103_H 1
 
-/* $Id: unspec_103.h,v 1.11.4.1 2001/01/09 22:47:45 bwelling Exp $ */
+/* $Id: unspec_103.h,v 1.12 2001/01/09 21:54:54 bwelling Exp $ */
 
 typedef struct dns_rdata_unspec_t {
 	dns_rdatacommon_t	common;

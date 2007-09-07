@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: types.h,v 1.31.4.1 2001/01/09 22:50:39 bwelling Exp $ */
+/* $Id: types.h,v 1.32 2001/01/09 21:57:42 bwelling Exp $ */
 
 #ifndef ISC_TYPES_H
 #define ISC_TYPES_H 1

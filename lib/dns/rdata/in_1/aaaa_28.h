@@ -18,7 +18,7 @@
 #ifndef IN_1_AAAA_28_H
 #define IN_1_AAAA_28_H 1
 
-/* $Id: aaaa_28.h,v 1.15.4.1 2001/01/09 22:47:57 bwelling Exp $ */
+/* $Id: aaaa_28.h,v 1.16 2001/01/09 21:55:06 bwelling Exp $ */
 
 /* RFC 1886 */
 

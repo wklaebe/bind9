@@ -18,7 +18,7 @@
 #ifndef GENERIC_KEY_25_H
 #define GENERIC_KEY_25_H 1
 
-/* $Id: key_25.h,v 1.13.4.1 2001/01/09 22:46:56 bwelling Exp $ */
+/* $Id: key_25.h,v 1.14 2001/01/09 21:54:07 bwelling Exp $ */
 
 /* RFC 2535 */
 

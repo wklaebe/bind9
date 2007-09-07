@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: buffer.h,v 1.37.2.2 2001/02/07 02:32:16 gson Exp $ */
+/* $Id: buffer.h,v 1.39 2001/02/07 01:36:12 bwelling Exp $ */
 
 #ifndef ISC_BUFFER_H
 #define ISC_BUFFER_H 1

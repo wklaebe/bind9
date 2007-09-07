@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: byaddr_test.c,v 1.21.4.1 2001/01/09 22:33:06 bwelling Exp $ */
+/* $Id: byaddr_test.c,v 1.22 2001/01/09 21:40:54 bwelling Exp $ */
 
 /*
  * Principal Author: Bob Halley

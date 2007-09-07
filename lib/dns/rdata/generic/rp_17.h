@@ -18,7 +18,7 @@
 #ifndef GENERIC_RP_17_H
 #define GENERIC_RP_17_H 1
 
-/* $Id: rp_17.h,v 1.15.4.1 2001/01/09 22:47:31 bwelling Exp $ */
+/* $Id: rp_17.h,v 1.16 2001/01/09 21:54:41 bwelling Exp $ */
 
 /* RFC 1183 */
 

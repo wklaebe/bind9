@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: event.h,v 1.23.4.1 2001/01/09 22:49:45 bwelling Exp $ */
+/* $Id: event.h,v 1.24 2001/01/09 21:56:52 bwelling Exp $ */
 
 #ifndef ISC_EVENT_H
 #define ISC_EVENT_H 1

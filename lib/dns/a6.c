@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: a6.c,v 1.18.4.1 2001/01/09 22:43:20 bwelling Exp $ */
+/* $Id: a6.c,v 1.19 2001/01/09 21:50:35 bwelling Exp $ */
 
 #include <config.h>
 

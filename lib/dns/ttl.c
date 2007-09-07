@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: ttl.c,v 1.20.4.1 2001/01/09 22:44:25 bwelling Exp $ */
+/* $Id: ttl.c,v 1.21 2001/01/09 21:51:41 bwelling Exp $ */
 
 #include <config.h>
 

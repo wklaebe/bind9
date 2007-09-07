@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: app.h,v 1.9.4.1 2001/01/09 22:51:33 bwelling Exp $ */
+/* $Id: app.h,v 1.10 2001/01/09 21:58:36 bwelling Exp $ */
 
 #ifndef ISC_APP_H
 #define ISC_APP_H 1

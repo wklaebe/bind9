@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: lwres_noop.c,v 1.13.4.1 2001/01/09 22:52:31 bwelling Exp $ */
+/* $Id: lwres_noop.c,v 1.14 2001/01/09 21:59:33 bwelling Exp $ */
 
 #include <config.h>
 

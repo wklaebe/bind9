@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: random.c,v 1.14.2.1 2001/01/09 22:49:14 bwelling Exp $ */
+/* $Id: random.c,v 1.15 2001/01/09 21:56:22 bwelling Exp $ */
 
 #include <config.h>
 

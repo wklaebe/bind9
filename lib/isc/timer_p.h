@@ -15,9 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: timer_p.h,v 1.2.4.1 2001/01/09 22:49:29 bwelling Exp $ */
-
-/* ISC_PLATFORM_USETHREADS_DELETE */
+/* $Id: timer_p.h,v 1.4 2001/01/09 21:56:37 bwelling Exp $ */
 
 #ifndef ISC_TIMER_P_H
 #define ISC_TIMER_P_H

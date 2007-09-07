@@ -16,7 +16,7 @@
  */
 
 /*
- * $Id: dnssec.c,v 1.56.2.7 2001/06/14 13:56:40 gson Exp $
+ * $Id: dnssec.c,v 1.67 2001/05/29 22:54:07 bwelling Exp $
  */
 
 
@@ -502,7 +502,7 @@ dns_dnssec_findzonekeys(dns_db_t *db, dns_dbversion_t *ver,
 		result = dst_key_fromfile(dst_key_name(pubkey),
 					  dst_key_id(pubkey),
 					  dst_key_alg(pubkey),
-					  DST_TYPE_PRIVATE,
+					  DST_TYPE_PUBLIC|DST_TYPE_PRIVATE,
 					  NULL,
 					  mctx, &keys[count]);
 		if (result == DST_R_INVALIDPRIVATEKEY)
@@ -557,7 +557,7 @@ dns_dnssec_signmessage(dns_message_t *msg, dst_key_t *key) {
 	REQUIRE(key != NULL);
 
 	if (is_response(msg))
-		REQUIRE(msg->query != NULL);
+		REQUIRE(msg->query.base != NULL);
 
 	mctx = msg->mctx;
 
@@ -603,7 +603,7 @@ dns_dnssec_signmessage(dns_message_t *msg, dst_key_t *key) {
 	 * If this is a response, digest the query.
 	 */
 	if (is_response(msg))
-		RETERR(dst_context_adddata(ctx, msg->query));
+		RETERR(dst_context_adddata(ctx, &msg->query));
 
 	/*
 	 * Digest the header.
@@ -689,14 +689,12 @@ dns_dnssec_verifymessage(isc_buffer_t *source, dns_message_t *msg,
 	REQUIRE(msg != NULL);
 	REQUIRE(key != NULL);
 
+	if (is_response(msg))
+		REQUIRE(msg->query.base != NULL);
+
 	mctx = msg->mctx;
 
 	msg->verify_attempted = 1;
-
-	if (is_response(msg)) {
-		if (msg->query == NULL)
-			return (DNS_R_UNEXPECTEDTSIG);
-	}
 
 	isc_buffer_usedregion(source, &source_r);
 
@@ -742,7 +740,7 @@ dns_dnssec_verifymessage(isc_buffer_t *source, dns_message_t *msg,
 	 * If this is a response, digest the query.
 	 */
 	if (is_response(msg))
-		RETERR(dst_context_adddata(ctx, msg->query));
+		RETERR(dst_context_adddata(ctx, &msg->query));
 
 	/*
 	 * Extract the header.
@@ -753,7 +751,7 @@ dns_dnssec_verifymessage(isc_buffer_t *source, dns_message_t *msg,
 	 * Decrement the additional field counter.
 	 */
 	memcpy(&addcount, &header[DNS_MESSAGE_HEADERLEN - 2], 2);
-	addcount = htons(ntohs(addcount) - 1);
+	addcount = htons((isc_uint16_t)(ntohs(addcount) - 1));
 	memcpy(&header[DNS_MESSAGE_HEADERLEN - 2], &addcount, 2);
 
 	/*
@@ -792,27 +790,4 @@ failure:
 		dst_context_destroy(&ctx);
 
 	return (result);
-}
-
-isc_boolean_t
-dns_dnssec_iszonekey(dns_rdata_t *keyrdata) {
-	isc_result_t result;
-	dns_rdata_key_t key;
-	isc_boolean_t iszonekey = ISC_TRUE;
-
-	REQUIRE(keyrdata != NULL);
-
-	result = dns_rdata_tostruct(keyrdata, &key, NULL);
-	if (result != ISC_R_SUCCESS)
-		return (ISC_FALSE);
-
-	if ((key.flags & DNS_KEYTYPE_NOAUTH) != 0)
-		iszonekey = ISC_FALSE;
-	if ((key.flags & DNS_KEYFLAG_OWNERMASK) != DNS_KEYOWNER_ZONE)
-		iszonekey = ISC_FALSE;
-	if (key.protocol != DNS_KEYPROTO_DNSSEC &&
-	    key.protocol != DNS_KEYPROTO_ANY)
-		iszonekey = ISC_FALSE;    
-
-	return (iszonekey);
 }

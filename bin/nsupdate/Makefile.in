@@ -13,7 +13,7 @@
 # NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
 # WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: Makefile.in,v 1.8.4.1 2001/01/09 22:32:52 bwelling Exp $
+# $Id: Makefile.in,v 1.14.2.1 2001/06/01 00:46:28 bwelling Exp $
 
 srcdir =	@srcdir@
 VPATH =		@srcdir@
@@ -23,7 +23,7 @@ top_srcdir =	@top_srcdir@
 
 @BIND9_INCLUDES@
 
-CINCLUDES =	-I${srcdir}/include ${LWRES_INCLUDES} ${DNS_INCLUDES} ${ISC_INCLUDES}
+CINCLUDES =	${LWRES_INCLUDES} ${DNS_INCLUDES} ${ISC_INCLUDES}
 
 CDEFINES =
 CWARNINGS =
@@ -50,16 +50,29 @@ UOBJS =
 
 SRCS =		nsupdate.c
 
+MANPAGES =	nsupdate.8
+
+HTMLPAGES =	nsupdate.html
+
+MANOBJS =	${MANPAGES} ${HTMLPAGES}
+
 @BIND9_MAKE_RULES@
 
 nsupdate: nsupdate.@O@ ${UOBJS} ${DEPLIBS}
-	${LIBTOOL} ${CC} ${CFLAGS} -o $@ nsupdate.@O@ ${UOBJS} ${LIBS}
+	${LIBTOOL} ${PURIFY} ${CC} ${CFLAGS} -o $@ nsupdate.@O@ ${UOBJS} ${LIBS}
+
+doc man:: ${MANOBJS}
+
+docclean manclean maintainer-clean::
+	rm -f ${MANOBJS}
 
 clean distclean::
 	rm -f ${TARGETS}
 
 installdirs:
 	$(SHELL) ${top_srcdir}/mkinstalldirs ${DESTDIR}${bindir}
+	$(SHELL) ${top_srcdir}/mkinstalldirs ${DESTDIR}${mandir}/man8
 
-install:: nsupdate
+install:: nsupdate installdirs
 	${LIBTOOL} ${INSTALL_PROGRAM} nsupdate ${DESTDIR}${bindir}
+	${INSTALL_DATA} ${srcdir}/nsupdate.8 ${DESTDIR}${mandir}/man8

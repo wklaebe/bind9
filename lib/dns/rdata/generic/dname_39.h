@@ -18,9 +18,9 @@
 #ifndef GENERIC_DNAME_39_H
 #define GENERIC_DNAME_39_H 1
 
-/* $Id: dname_39.h,v 1.14.4.1 2001/01/09 22:46:46 bwelling Exp $ */
+/* $Id: dname_39.h,v 1.16 2001/04/27 21:02:01 gson Exp $ */
 
-/* draft-ietf-dnsind-dname-02.txt */
+/* RFC2672 */
 
 typedef struct dns_rdata_dname {
 	dns_rdatacommon_t	common;

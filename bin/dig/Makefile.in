@@ -13,7 +13,7 @@
 # NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
 # WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: Makefile.in,v 1.17.4.1 2001/01/09 22:31:19 bwelling Exp $
+# $Id: Makefile.in,v 1.21.2.1 2001/06/01 00:46:23 bwelling Exp $
 
 srcdir =	@srcdir@
 VPATH =		@srcdir@
@@ -48,24 +48,28 @@ UOBJS =
 
 SRCS =		dig.c dighost.c host.c nslookup.c
 
+MANPAGES =	dig.1 host.1
+
 @BIND9_MAKE_RULES@
 
 dig: dig.@O@ dighost.@O@ ${UOBJS} ${DEPLIBS}
-	${LIBTOOL} ${CC} ${CFLAGS} -o $@ dig.@O@ dighost.@O@ ${UOBJS} ${LIBS}
+	${LIBTOOL} ${PURIFY} ${CC} ${CFLAGS} -o $@ dig.@O@ dighost.@O@ ${UOBJS} ${LIBS}
 
 host: host.@O@ dighost.@O@ ${UOBJS} ${DEPLIBS}
-	${LIBTOOL} ${CC} ${CFLAGS} -o $@ host.@O@ dighost.@O@ ${UOBJS} ${LIBS}
+	${LIBTOOL} ${PURIFY} ${CC} ${CFLAGS} -o $@ host.@O@ dighost.@O@ ${UOBJS} ${LIBS}
 
 nslookup: nslookup.@O@ dighost.@O@ ${UOBJS} ${DEPLIBS}
-	${LIBTOOL} ${CC} ${CFLAGS} -o $@ nslookup.@O@ dighost.@O@ ${UOBJS} ${LIBS}
+	${LIBTOOL} ${PURIFY} ${CC} ${CFLAGS} -o $@ nslookup.@O@ dighost.@O@ ${UOBJS} ${LIBS}
 
 clean distclean::
 	rm -f ${TARGETS}
 
 installdirs:
 	$(SHELL) ${top_srcdir}/mkinstalldirs ${DESTDIR}${bindir}
+	$(SHELL) ${top_srcdir}/mkinstalldirs ${DESTDIR}${mandir}/man1
 
 install:: dig host nslookup installdirs
 	${LIBTOOL} ${INSTALL_PROGRAM} dig ${DESTDIR}${bindir}
 	${LIBTOOL} ${INSTALL_PROGRAM} host ${DESTDIR}${bindir}
 	${LIBTOOL} ${INSTALL_PROGRAM} nslookup ${DESTDIR}${bindir}
+	for m in ${MANPAGES}; do ${INSTALL_DATA} ${srcdir}/$$m ${DESTDIR}${mandir}/man1; done

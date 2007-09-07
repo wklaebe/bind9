@@ -18,7 +18,7 @@
 #ifndef IN_1_WKS_11_H
 #define IN_1_WKS_11_H 1
 
-/* $Id: wks_11.h,v 1.18.4.1 2001/01/09 22:48:13 bwelling Exp $ */
+/* $Id: wks_11.h,v 1.19 2001/01/09 21:55:22 bwelling Exp $ */
 
 typedef	struct dns_rdata_in_wks {
 	dns_rdatacommon_t	common;

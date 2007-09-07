@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: gssapi.h,v 1.2.4.1 2001/01/09 22:48:36 bwelling Exp $ */
+/* $Id: gssapi.h,v 1.3 2001/01/09 21:55:44 bwelling Exp $ */
 
 #ifndef DST_GSSAPI_H
 #define DST_GSSAPI_H 1

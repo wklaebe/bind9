@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: error.c,v 1.14.4.1 2001/01/09 22:48:51 bwelling Exp $ */
+/* $Id: error.c,v 1.15 2001/01/09 21:56:00 bwelling Exp $ */
 
 #include <config.h>
 

@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: genrandom.c,v 1.7.2.1 2001/01/09 22:33:16 bwelling Exp $ */
+/* $Id: genrandom.c,v 1.8 2001/01/09 21:41:04 bwelling Exp $ */
 
 #include <config.h>
 

@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rdatatype.h,v 1.16.4.1 2001/01/09 22:46:08 bwelling Exp $ */
+/* $Id: rdatatype.h,v 1.17 2001/01/09 21:53:20 bwelling Exp $ */
 
 #ifndef DNS_RDATATYPE_H
 #define DNS_RDATATYPE_H 1

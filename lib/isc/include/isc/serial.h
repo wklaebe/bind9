@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: serial.h,v 1.8.4.1 2001/01/09 22:50:28 bwelling Exp $ */
+/* $Id: serial.h,v 1.9 2001/01/09 21:57:31 bwelling Exp $ */
 
 #ifndef ISC_SERIAL_H
 #define ISC_SERIAL_H 1

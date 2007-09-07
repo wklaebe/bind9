@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: entropy.h,v 1.21.4.1 2001/01/09 22:49:43 bwelling Exp $ */
+/* $Id: entropy.h,v 1.22 2001/01/09 21:56:50 bwelling Exp $ */
 
 #ifndef ISC_ENTROPY_H
 #define ISC_ENTROPY_H 1

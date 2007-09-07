@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: lwbuffer.c,v 1.9.4.1 2001/01/09 22:52:20 bwelling Exp $ */
+/* $Id: lwbuffer.c,v 1.10 2001/01/09 21:59:23 bwelling Exp $ */
 
 #include <config.h>
 

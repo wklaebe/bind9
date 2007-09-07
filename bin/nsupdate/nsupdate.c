@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: nsupdate.c,v 1.75.2.7 2001/05/08 17:54:37 gson Exp $ */
+/* $Id: nsupdate.c,v 1.94 2001/05/05 01:19:45 bwelling Exp $ */
 
 #include <config.h>
 
@@ -48,6 +48,7 @@
 #include <dns/dispatch.h>
 #include <dns/events.h>
 #include <dns/fixedname.h>
+#include <dns/masterdump.h>
 #include <dns/message.h>
 #include <dns/name.h>
 #include <dns/rdata.h>
@@ -127,6 +128,8 @@ static isc_boolean_t shuttingdown = ISC_FALSE;
 static FILE *input;
 static isc_boolean_t interactive = ISC_TRUE;
 static isc_boolean_t seenerror = ISC_FALSE;
+static const dns_master_style_t *style = &dns_master_style_debug;
+static int requests = 0;
 
 typedef struct nsu_requestinfo {
 	dns_message_t *msg;
@@ -295,7 +298,7 @@ setup_key(void) {
 			fatal("out of memory");
 
 		isc_buffer_init(&secretbuf, secret, secretlen);
-		result = isc_base64_decodestring(mctx, secretstr, &secretbuf);
+		result = isc_base64_decodestring(secretstr, &secretbuf);
 		if (result != ISC_R_SUCCESS) {
 			fprintf(stderr, "Couldn't create key from %s: %s\n",
 				keystr, isc_result_totext(result));
@@ -355,14 +358,8 @@ setup_key(void) {
 }
 
 static void
-shutdown_program(isc_task_t *task, isc_event_t *event) {
-	REQUIRE(task == global_task);
-	UNUSED(task);
-
-	ddebug("shutdown_program()");
-	isc_event_free(&event);
+doshutdown(void) {
 	isc_task_detach(&global_task);
-	shuttingdown = ISC_TRUE;
 
 	if (userserver != NULL)
 		isc_mem_put(mctx, userserver, sizeof(isc_sockaddr_t));
@@ -394,8 +391,7 @@ shutdown_program(isc_task_t *task, isc_event_t *event) {
 
 	isc_mem_put(mctx, servers, ns_total * sizeof(isc_sockaddr_t));
 
-	ddebug("Shutting down request manager");
-	dns_requestmgr_shutdown(requestmgr);
+	ddebug("Destroying request manager");
 	dns_requestmgr_detach(&requestmgr);
 
 	ddebug("Freeing the dispatchers");
@@ -407,6 +403,29 @@ shutdown_program(isc_task_t *task, isc_event_t *event) {
 	ddebug("Shutting down dispatch manager");
 	dns_dispatchmgr_destroy(&dispatchmgr);
 
+}
+
+static void
+maybeshutdown(void) {
+	ddebug("Shutting down request manager");
+	dns_requestmgr_shutdown(requestmgr);
+
+	if (requests != 0)
+		return;
+
+	doshutdown();
+}
+
+static void
+shutdown_program(isc_task_t *task, isc_event_t *event) {
+	REQUIRE(task == global_task);
+	UNUSED(task);
+
+	ddebug("shutdown_program()");
+	isc_event_free(&event);
+
+	shuttingdown = ISC_TRUE;
+	maybeshutdown();
 }
 
 static void
@@ -546,20 +565,35 @@ get_address(char *host, in_port_t port, isc_sockaddr_t *sockaddr) {
 	struct in_addr in4;
 	struct in6_addr in6;
 #ifdef USE_GETADDRINFO
-	struct addrinfo *res = NULL;
+	struct addrinfo *res = NULL, hints;
 	int result;
 #else
 	struct hostent *he;
 #endif
 
 	ddebug("get_address()");
+
+	/*
+	 * Assume we have v4 if we don't have v6, since setup_libs
+	 * fatal()'s out if we don't have either.
+	 */
 	if (have_ipv6 && inet_pton(AF_INET6, host, &in6) == 1)
 		isc_sockaddr_fromin6(sockaddr, &in6, port);
 	else if (inet_pton(AF_INET, host, &in4) == 1)
 		isc_sockaddr_fromin(sockaddr, &in4, port);
 	else {
 #ifdef USE_GETADDRINFO
-		result = getaddrinfo(host, NULL, NULL, &res);
+		memset(&hints, 0, sizeof(hints));
+		if (!have_ipv6)
+			hints.ai_family = PF_INET;
+		else if (!have_ipv4)
+			hints.ai_family = PF_INET6;
+		else
+			hints.ai_family = PF_UNSPEC;
+		debug ("before getaddrinfo()");
+		isc_app_block();
+		result = getaddrinfo(host, NULL, &hints, &res);
+		isc_app_unblock();
 		if (result != 0) {
 			fatal("Couldn't find server '%s': %s",
 			      host, gai_strerror(result));
@@ -569,10 +603,13 @@ get_address(char *host, in_port_t port, isc_sockaddr_t *sockaddr) {
 		isc_sockaddr_setport(sockaddr, port);
 		freeaddrinfo(res);
 #else
+		debug ("before gethostbyname()");
+		isc_app_block();
 		he = gethostbyname(host);
+		isc_app_unblock();
 		if (he == NULL)
-		     fatal("Couldn't look up your server host %s.  errno=%d",
-			      host, h_errno);
+		     fatal("Couldn't find server '%s' (h_errno=%d)",
+			   host, h_errno);
 		INSIST(he->h_addrtype == AF_INET);
 		isc_sockaddr_fromin(sockaddr,
 				    (struct in_addr *)(he->h_addr_list[0]),
@@ -633,7 +670,7 @@ parse_args(int argc, char **argv) {
 			result = isc_stdio_open(argv[isc_commandline_index],
 						"r", &input);
 			if (result != ISC_R_SUCCESS) {
-				fprintf(stderr, "isc_stdio_open(%s): %s\n",
+				fprintf(stderr, "could not open '%s': %s\n",
 					argv[isc_commandline_index],
 					isc_result_totext(result));
 				exit(1);
@@ -655,7 +692,7 @@ parse_name(char **cmdlinep, dns_message_t *msg, dns_name_t **namep) {
 
 	word = nsu_strsep(cmdlinep, " \t\r\n");
 	if (*word == 0) {
-		fprintf(stderr, "failed to read owner name\n");
+		fprintf(stderr, "could not read owner name\n");
 		return (STATUS_SYNTAX);
 	}
 
@@ -727,10 +764,12 @@ parse_rdata(char **cmdlinep, dns_rdataclass_t rdataclass,
 			bufsz *= 2;
 			isc_lex_destroy(&lex);
 		} while (result == ISC_R_NOSPACE);
-		check_result(result, "dns_rdata_fromtext");
 		dns_message_takebuffer(msg, &buf);
-		if (result != ISC_R_SUCCESS)
-			return (STATUS_MORE);
+		if (result != ISC_R_SUCCESS) {
+			fprintf(stderr, "invalid rdata format: %s\n",
+				isc_result_totext(result));
+			return (STATUS_SYNTAX);
+		}
 	} else {
 		rdata->flags = DNS_RDATA_UPDATE;
 	}
@@ -766,9 +805,8 @@ make_prereq(char *cmdline, isc_boolean_t ispositive, isc_boolean_t isrrset) {
 	if (isrrset) {
 		word = nsu_strsep(&cmdline, " \t\r\n");
 		if (*word == 0) {
-			fprintf(stderr, "failed to read class or type\n");
-			dns_message_puttempname(updatemsg, &name);
-			return (STATUS_SYNTAX);
+			fprintf(stderr, "could not read class or type\n");
+			goto failure;
 		}
 		region.base = word;
 		region.length = strlen(word);
@@ -779,18 +817,23 @@ make_prereq(char *cmdline, isc_boolean_t ispositive, isc_boolean_t isrrset) {
 			 */
 			word = nsu_strsep(&cmdline, " \t\r\n");
 			if (*word == 0) {
-				fprintf(stderr, "failed to read type\n");
-				dns_message_puttempname(updatemsg, &name);
-				return (STATUS_SYNTAX);
+				fprintf(stderr, "could not read type\n");
+				goto failure;
 			}
 			region.base = word;
 			region.length = strlen(word);
 			result = dns_rdatatype_fromtext(&rdatatype, &region);
-			check_result(result, "dns_rdatatype_fromtext");
+			if (result != ISC_R_SUCCESS) {
+				fprintf(stderr, "invalid type: %s\n", word);
+				goto failure;
+			}
 		} else {
 			rdataclass = dns_rdataclass_in;
 			result = dns_rdatatype_fromtext(&rdatatype, &region);
-			check_result(result, "dns_rdatatype_fromtext");
+			if (result != ISC_R_SUCCESS) {
+				fprintf(stderr, "invalid type: %s\n", word);
+				goto failure;
+			}
 		}
 	} else
 		rdatatype = dns_rdatatype_any;
@@ -805,7 +848,7 @@ make_prereq(char *cmdline, isc_boolean_t ispositive, isc_boolean_t isrrset) {
 		retval = parse_rdata(&cmdline, rdataclass, rdatatype,
 				     updatemsg, rdata);
 		if (retval != STATUS_MORE)
-			return (retval);
+			goto failure;
 	} else
 		rdata->flags = DNS_RDATA_UPDATE;
 
@@ -834,6 +877,11 @@ make_prereq(char *cmdline, isc_boolean_t ispositive, isc_boolean_t isrrset) {
 	ISC_LIST_APPEND(name->list, rdataset, link);
 	dns_message_addname(updatemsg, name, DNS_SECTION_PREREQUISITE);
 	return (STATUS_MORE);
+
+ failure:
+	if (name != NULL)
+		dns_message_puttempname(updatemsg, &name);
+	return (STATUS_SYNTAX);
 }
 
 static isc_uint16_t
@@ -844,7 +892,7 @@ evaluate_prereq(char *cmdline) {
 	ddebug("evaluate_prereq()");
 	word = nsu_strsep(&cmdline, " \t\r\n");
 	if (*word == 0) {
-		fprintf(stderr, "failed to read operation code\n");
+		fprintf(stderr, "could not read operation code\n");
 		return (STATUS_SYNTAX);
 	}
 	if (strcasecmp(word, "nxdomain") == 0) {
@@ -873,7 +921,7 @@ evaluate_server(char *cmdline) {
 
 	word = nsu_strsep(&cmdline, " \t\r\n");
 	if (*word == 0) {
-		fprintf(stderr, "failed to read server name\n");
+		fprintf(stderr, "could not read server name\n");
 		return (STATUS_SYNTAX);
 	}
 	server = word;
@@ -909,10 +957,12 @@ static isc_uint16_t
 evaluate_local(char *cmdline) {
 	char *word, *local;
 	long port;
+	struct in_addr in4;
+	struct in6_addr in6;
 
 	word = nsu_strsep(&cmdline, " \t\r\n");
 	if (*word == 0) {
-		fprintf(stderr, "failed to read server name\n");
+		fprintf(stderr, "could not read server name\n");
 		return (STATUS_SYNTAX);
 	}
 	local = word;
@@ -939,7 +989,14 @@ evaluate_local(char *cmdline) {
 			fatal("out of memory");
 	}
 
-	get_address(local, (in_port_t)port, localaddr);
+	if (have_ipv6 && inet_pton(AF_INET6, local, &in6) == 1)
+		isc_sockaddr_fromin6(localaddr, &in6, (in_port_t)port);
+	else if (have_ipv4 && inet_pton(AF_INET, local, &in4) == 1)
+		isc_sockaddr_fromin(localaddr, &in4, (in_port_t)port);
+	else {
+		fprintf(stderr, "invalid address %s", local);
+		return (STATUS_SYNTAX);
+	}
 
 	return (STATUS_MORE);
 }
@@ -952,7 +1009,7 @@ evaluate_zone(char *cmdline) {
 
 	word = nsu_strsep(&cmdline, " \t\r\n");
 	if (*word == 0) {
-		fprintf(stderr, "failed to read zone name\n");
+		fprintf(stderr, "could not read zone name\n");
 		return (STATUS_SYNTAX);
 	}
 
@@ -963,7 +1020,7 @@ evaluate_zone(char *cmdline) {
 	result = dns_name_fromtext(userzone, &b, dns_rootname, ISC_FALSE,
 				   NULL);
 	if (result != ISC_R_SUCCESS) {
-		fprintf(stderr, "failed to parse zone name\n");
+		fprintf(stderr, "could not parse zone name\n");
 		return (STATUS_SYNTAX);
 	}
 
@@ -1004,35 +1061,52 @@ update_addordelete(char *cmdline, isc_boolean_t isdelete) {
 
 	/*
 	 * If this is an add, read the TTL and verify that it's in range.
+	 * If it's a delete, ignore a TTL if present (for compatibility).
 	 */
-	if (!isdelete) {
-		word = nsu_strsep(&cmdline, " \t\r\n");
-		if (*word == 0) {
-			fprintf(stderr, "failed to read owner ttl\n");
+	word = nsu_strsep(&cmdline, " \t\r\n");
+	if (*word == 0) {
+		if (!isdelete) {
+			fprintf(stderr, "could not read owner ttl\n");
 			goto failure;
 		}
-		ttl = strtol(word, &endp, 0);
-		if (*endp != '\0') {
+		else {
+			ttl = 0;
+			rdataclass = dns_rdataclass_any;
+			rdatatype = dns_rdatatype_any;
+			rdata->flags = DNS_RDATA_UPDATE;
+			goto doneparsing;
+		}
+	}
+	ttl = strtol(word, &endp, 0);
+	if (*endp != '\0') {
+		if (isdelete) {
+			ttl = 0;
+			goto parseclass;
+		} else {
 			fprintf(stderr, "ttl '%s' is not numeric\n", word);
 			goto failure;
-		} else if (ttl < 0 || ttl > TTL_MAX || errno == ERANGE) {
-			/*
-			 * The errno test is needed to catch when strtol()
-			 * overflows on a platform where sizeof(int) ==
-			 * sizeof(long), because ttl will be set to LONG_MAX,
-			 * which will be equal to TTL_MAX.
-			 */
-			fprintf(stderr, "ttl '%s' is out of range "
-				"(0 to %d)\n", word, TTL_MAX);
-			goto failure;
 		}
-	} else
+	}
+
+	if (isdelete)
 		ttl = 0;
+	else if (ttl < 0 || ttl > TTL_MAX || errno == ERANGE) {
+		/*
+		 * The errno test is needed to catch when strtol()
+		 * overflows on a platform where sizeof(int) ==
+		 * sizeof(long), because ttl will be set to LONG_MAX,
+		 * which will be equal to TTL_MAX.
+		 */
+		fprintf(stderr, "ttl '%s' is out of range (0 to %d)\n",
+			word, TTL_MAX);
+		goto failure;
+	}
 
 	/*
 	 * Read the class or type.
 	 */
 	word = nsu_strsep(&cmdline, " \t\r\n");
+ parseclass:
 	if (*word == 0) {
 		if (isdelete) {
 			rdataclass = dns_rdataclass_any;
@@ -1040,7 +1114,7 @@ update_addordelete(char *cmdline, isc_boolean_t isdelete) {
 			rdata->flags = DNS_RDATA_UPDATE;
 			goto doneparsing;
 		} else {
-			fprintf(stderr, "failed to read class or type\n");
+			fprintf(stderr, "could not read class or type\n");
 			goto failure;
 		}
 	}
@@ -1059,18 +1133,26 @@ update_addordelete(char *cmdline, isc_boolean_t isdelete) {
 				rdata->flags = DNS_RDATA_UPDATE;
 				goto doneparsing;
 			} else {
-				fprintf(stderr, "failed to read type\n");
+				fprintf(stderr, "could not read type\n");
 				goto failure;
 			}
 		}
 		region.base = word;
 		region.length = strlen(word);
 		result = dns_rdatatype_fromtext(&rdatatype, &region);
-		check_result(result, "dns_rdatatype_fromtext");
+		if (result != ISC_R_SUCCESS) {
+			fprintf(stderr, "'%s' is not a valid type: %s\n",
+				word, isc_result_totext(result));
+			goto failure;
+		}
 	} else {
 		rdataclass = dns_rdataclass_in;
 		result = dns_rdatatype_fromtext(&rdatatype, &region);
-		check_result(result, "dns_rdatatype_fromtext");
+		if (result != ISC_R_SUCCESS) {
+			fprintf(stderr, "'%s' is not a valid class or type: "
+				"%s\n", word, isc_result_totext(result));
+			goto failure;
+		}
 	}
 
 	retval = parse_rdata(&cmdline, rdataclass, rdatatype, updatemsg,
@@ -1085,7 +1167,7 @@ update_addordelete(char *cmdline, isc_boolean_t isdelete) {
 			rdataclass = dns_rdataclass_none;
 	} else {
 		if ((rdata->flags & DNS_RDATA_UPDATE) != 0) {
-			fprintf(stderr, "failed to read rdata\n");
+			fprintf(stderr, "could not read rdata\n");
 			goto failure;
 		}
 	}
@@ -1126,7 +1208,7 @@ evaluate_update(char *cmdline) {
 	ddebug("evaluate_update()");
 	word = nsu_strsep(&cmdline, " \t\r\n");
 	if (*word == 0) {
-		fprintf(stderr, "failed to read operation code\n");
+		fprintf(stderr, "could not read operation code\n");
 		return (STATUS_SYNTAX);
 	}
 	if (strcasecmp(word, "delete") == 0)
@@ -1158,11 +1240,11 @@ show_message(dns_message_t *msg) {
 			isc_buffer_free(&buf);
 		result = isc_buffer_allocate(mctx, &buf, bufsz);
 		check_result(result, "isc_buffer_allocate");
-		result = dns_message_totext(msg, 0, buf);
+		result = dns_message_totext(msg, style, 0, buf);
 		bufsz *= 2;
 	} while (result == ISC_R_NOSPACE);
 	if (result != ISC_R_SUCCESS) {
-		fprintf(stderr, "Failed to convert message to text format.\n");
+		fprintf(stderr, "Could not convert message to text format.\n");
 		isc_buffer_free(&buf);
 		return;
 	}
@@ -1182,7 +1264,9 @@ get_next_command(void) {
 	ddebug("get_next_command()");
 	if (interactive)
 		fprintf(stdout, "> ");
+	isc_app_block();
 	cmdline = fgets(cmdlinebuf, MAXCMD, input);
+	isc_app_unblock();
 	if (cmdline == NULL)
 		return (STATUS_QUIT);
 	word = nsu_strsep(&cmdline, " \t\r\n");
@@ -1246,6 +1330,8 @@ update_completed(isc_task_t *task, isc_event_t *event) {
 
 	ddebug("update_completed()");
 
+	requests--;
+
 	REQUIRE(event->ev_type == DNS_EVENT_REQUESTDONE);
 	reqev = (dns_requestevent_t *)event;
 	request = reqev->request;
@@ -1253,6 +1339,7 @@ update_completed(isc_task_t *task, isc_event_t *event) {
 	if (shuttingdown) {
 		dns_request_destroy(&request);
 		isc_event_free(&event);
+		maybeshutdown();
 		return;
 	}
 
@@ -1285,7 +1372,7 @@ update_completed(isc_task_t *task, isc_event_t *event) {
 				isc_buffer_free(&buf);
 			result = isc_buffer_allocate(mctx, &buf, bufsz);
 			check_result(result, "isc_buffer_allocate");
-			result = dns_message_totext(rcvmsg, 0, buf);
+			result = dns_message_totext(rcvmsg, style, 0, buf);
 			bufsz *= 2;
 		} while (result == ISC_R_NOSPACE);
 		check_result(result, "dns_message_totext");
@@ -1332,6 +1419,7 @@ send_update(dns_name_t *zonename, isc_sockaddr_t *master,
 				       FIND_TIMEOUT, global_task,
 				       update_completed, NULL, &request);
 	check_result(result, "dns_request_createvia");
+	requests++;
 }
 
 static void
@@ -1357,6 +1445,9 @@ recvsoa(isc_task_t *task, isc_event_t *event) {
 	UNUSED(task);
 
 	ddebug("recvsoa()");
+
+	requests--;
+	
 	REQUIRE(event->ev_type == DNS_EVENT_REQUESTDONE);
 	reqev = (dns_requestevent_t *)event;
 	request = reqev->request;
@@ -1370,6 +1461,7 @@ recvsoa(isc_task_t *task, isc_event_t *event) {
 		dns_message_destroy(&soaquery);
 		isc_mem_put(mctx, reqinfo, sizeof(nsu_requestinfo_t));
 		isc_event_free(&event);
+		maybeshutdown();
 		return;
 	}
 
@@ -1417,7 +1509,7 @@ recvsoa(isc_task_t *task, isc_event_t *event) {
 			}
 			result = isc_buffer_allocate(mctx, &buf, bufsz);
 			check_result(result, "isc_buffer_allocate");
-			result = dns_message_totext(rcvmsg, 0, buf);
+			result = dns_message_totext(rcvmsg, style, 0, buf);
 		} while (result == ISC_R_NOSPACE);
 		check_result(result, "dns_message_totext");
 		fprintf(stderr, "Reply from SOA query:\n%.*s\n",
@@ -1567,6 +1659,7 @@ sendrequest(isc_sockaddr_t *srcaddr, isc_sockaddr_t *destaddr,
 				       0, NULL, FIND_TIMEOUT, global_task,
 				       recvsoa, reqinfo, request);
 	check_result(result, "dns_request_createvia");
+	requests++;
 }
 
 static void
@@ -1651,20 +1744,16 @@ getinput(isc_task_t *task, isc_event_t *event) {
 
 	UNUSED(task);
 
-	if (shuttingdown)
+	if (shuttingdown) {
+		maybeshutdown();
 		return;
+	}
 
 	if (global_event == NULL)
 		global_event = event;
 
-	if (shuttingdown) {
-		isc_app_shutdown();
-		return;
-	}
 	reset_system();
-	isc_app_block();
 	more = user_interaction();
-	isc_app_unblock();
 	if (!more) {
 		isc_app_shutdown();
 		return;

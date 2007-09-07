@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: nxtify.c,v 1.18.4.1 2001/01/09 22:33:39 bwelling Exp $ */
+/* $Id: nxtify.c,v 1.19 2001/01/09 21:41:26 bwelling Exp $ */
 
 #include <config.h>
 

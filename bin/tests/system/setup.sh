@@ -15,7 +15,7 @@
 # NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
 # WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: setup.sh,v 1.7.4.1 2001/01/09 22:34:40 bwelling Exp $
+# $Id: setup.sh,v 1.8 2001/01/09 21:42:23 bwelling Exp $
 
 #
 # Run a system test.

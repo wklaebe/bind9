@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: nsap-ptr_23.c,v 1.27.4.1 2001/01/09 22:48:02 bwelling Exp $ */
+/* $Id: nsap-ptr_23.c,v 1.31 2001/03/16 22:53:15 bwelling Exp $ */
 
 /* Reviewed: Fri Mar 17 10:16:02 PST 2000 by gson */
 
@@ -35,6 +35,7 @@ fromtext_in_nsap_ptr(ARGS_FROMTEXT) {
 	REQUIRE(type == 23);
 	REQUIRE(rdclass == 1);
 
+	UNUSED(type);
 	UNUSED(rdclass);
 
 	RETERR(isc_lex_getmastertoken(lexer, &token, isc_tokentype_string,
@@ -43,7 +44,8 @@ fromtext_in_nsap_ptr(ARGS_FROMTEXT) {
 	dns_name_init(&name, NULL);
 	buffer_fromregion(&buffer, &token.value.as_region);
 	origin = (origin != NULL) ? origin : dns_rootname;
-	return (dns_name_fromtext(&name, &buffer, origin, downcase, target));
+	RETTOK(dns_name_fromtext(&name, &buffer, origin, downcase, target));
+	return (ISC_R_SUCCESS);
 }
 
 static inline isc_result_t
@@ -75,6 +77,7 @@ fromwire_in_nsap_ptr(ARGS_FROMWIRE) {
 	REQUIRE(type == 23);
 	REQUIRE(rdclass == 1);
 
+	UNUSED(type);
 	UNUSED(rdclass);
 
 	dns_decompress_setmethods(dctx, DNS_COMPRESS_NONE);
@@ -86,6 +89,7 @@ fromwire_in_nsap_ptr(ARGS_FROMWIRE) {
 static inline isc_result_t
 towire_in_nsap_ptr(ARGS_TOWIRE) {
 	dns_name_t name;
+	dns_offsets_t offsets;
 	isc_region_t region;
 
 	REQUIRE(rdata->type == 23);
@@ -93,7 +97,7 @@ towire_in_nsap_ptr(ARGS_TOWIRE) {
 	REQUIRE(rdata->length != 0);
 
 	dns_compress_setmethods(cctx, DNS_COMPRESS_NONE);
-	dns_name_init(&name, NULL);
+	dns_name_init(&name, offsets);
 	dns_rdata_toregion(rdata, &region);
 	dns_name_fromregion(&name, &region);
 
@@ -137,6 +141,7 @@ fromstruct_in_nsap_ptr(ARGS_FROMSTRUCT) {
 	REQUIRE(nsap_ptr->common.rdtype == type);
 	REQUIRE(nsap_ptr->common.rdclass == rdclass);
 
+	UNUSED(type);
 	UNUSED(rdclass);
 
 	dns_name_toregion(&nsap_ptr->owner, &region);

@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: sockaddr.c,v 1.47.4.1 2001/01/09 22:49:21 bwelling Exp $ */
+/* $Id: sockaddr.c,v 1.48 2001/01/09 21:56:29 bwelling Exp $ */
 
 #include <config.h>
 

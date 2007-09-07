@@ -18,7 +18,7 @@
 #ifndef GENERIC_MF_4_H
 #define GENERIC_MF_4_H 1
 
-/* $Id: mf_4.h,v 1.20.4.1 2001/01/09 22:47:05 bwelling Exp $ */
+/* $Id: mf_4.h,v 1.21 2001/01/09 21:54:16 bwelling Exp $ */
 
 typedef struct dns_rdata_mf {
 	dns_rdatacommon_t	common;

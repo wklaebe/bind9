@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: printmsg.h,v 1.8.4.1 2001/01/09 22:33:43 bwelling Exp $ */
+/* $Id: printmsg.h,v 1.9 2001/01/09 21:41:30 bwelling Exp $ */
 
 #ifndef TEST_PRINTMSG_H
 #define TEST_PRINTMSG_H

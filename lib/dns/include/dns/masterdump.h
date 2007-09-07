@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: masterdump.h,v 1.13.4.1 2001/01/09 22:45:49 bwelling Exp $ */
+/* $Id: masterdump.h,v 1.21 2001/03/28 00:58:15 gson Exp $ */
 
 #ifndef DNS_MASTERDUMP_H
 #define DNS_MASTERDUMP_H 1
@@ -50,11 +50,39 @@ ISC_LANG_BEGINDECLS
  ***/
 
 /*
- * The default masterfile style.
+ * The default master file style.
+ *
+ * This uses $TTL directives to avoid the need to dedicate a
+ * tab stop for the TTL.  The class is only printed for the first
+ * rrset in the file and shares a tab stop with the RR type.
  */
 extern const dns_master_style_t dns_master_style_default;
+
+/*
+ * A master file style that prints explicit TTL values on each 
+ * record line, never using $TTL statements.  The TTL has a tab 
+ * stop of its own, but the class and type share one.
+ */
 extern const dns_master_style_t dns_master_style_explicitttl;
 
+/*
+ * A master style format designed for cache files.  It prints explicit TTL
+ * values on each record line and never uses $ORIGIN or relative names.
+ */
+extern const dns_master_style_t dns_master_style_cache;
+
+/*
+ * A master style that prints name, ttl, class, type, and value on 
+ * every line.  Similar to explicitttl above, but more verbose.  
+ * Intended for generating master files which can be easily parsed 
+ * by perl scripts and similar applications.
+ */
+extern const dns_master_style_t dns_master_style_simple;
+
+/*
+ * The style used for debugging, "dig" output, etc.
+ */
+extern const dns_master_style_t dns_master_style_debug;
 
 /***
  ***	Functions
@@ -95,6 +123,45 @@ dns_master_dump(isc_mem_t *mctx, dns_db_t *db,
  * 	Any database or rrset iterator error.
  *	Any dns_rdata_totext() error code.
  */
+
+isc_result_t
+dns_master_rdatasettotext(dns_name_t *owner_name,
+			  dns_rdataset_t *rdataset,
+			  const dns_master_style_t *style,
+			  isc_buffer_t *target);
+/*
+ * Convert 'rdataset' to text format, storing the result in 'target'.
+ *
+ * Notes:
+ *	The rdata cursor position will be changed.
+ *
+ * Requires:
+ *	'rdataset' is a valid non-question rdataset.
+ *
+ *	'rdataset' is not empty.
+ */
+
+isc_result_t
+dns_master_questiontotext(dns_name_t *owner_name,
+			  dns_rdataset_t *rdataset,
+			  const dns_master_style_t *style,
+			  isc_buffer_t *target);
+/*
+ * Print a text representation of 'rdataset', a pseudo-rdataset
+ * representing a questino.
+ *
+ * Requires:
+ *	'rdataset' is a valid question rdataset.
+ *
+ *	'rdataset' is not empty.
+ */
+
+isc_result_t
+dns_rdataset_towire(dns_rdataset_t *rdataset,
+		    dns_name_t *owner_name,
+		    dns_compress_t *cctx,
+		    isc_buffer_t *target,
+		    unsigned int *countp);
 
 isc_result_t
 dns_master_dumpnodetostream(isc_mem_t *mctx, dns_db_t *db,

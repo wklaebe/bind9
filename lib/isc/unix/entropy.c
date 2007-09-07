@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: entropy.c,v 1.54.2.4 2001/06/14 13:37:47 gson Exp $ */
+/* $Id: entropy.c,v 1.58 2001/04/04 20:57:35 bwelling Exp $ */
 
 #include <config.h>
 

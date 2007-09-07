@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: opt_41.c,v 1.19.4.2 2001/01/16 17:45:27 gson Exp $ */
+/* $Id: opt_41.c,v 1.23 2001/03/16 22:52:57 bwelling Exp $ */
 
 /* Reviewed: Thu Mar 16 14:06:44 PST 2000 by gson */
 
@@ -29,13 +29,14 @@
 			       DNS_RDATATYPEATTR_NOTQUESTION)
 
 static inline isc_result_t
-			       fromtext_opt(ARGS_FROMTEXT) {
+fromtext_opt(ARGS_FROMTEXT) {
 	/*
 	 * OPT records do not have a text format.
 	 */
 
 	REQUIRE(type == 41);
 
+	UNUSED(type);
 	UNUSED(rdclass);
 	UNUSED(lexer);
 	UNUSED(origin);
@@ -96,6 +97,7 @@ fromwire_opt(ARGS_FROMWIRE) {
 
 	REQUIRE(type == 41);
 
+	UNUSED(type);
 	UNUSED(rdclass);
 	UNUSED(dctx);
 	UNUSED(downcase);
@@ -167,6 +169,7 @@ fromstruct_opt(ARGS_FROMSTRUCT) {
 	REQUIRE((opt->options != NULL && opt->length != 0) ||
 		(opt->options == NULL && opt->length == 0));
 
+	UNUSED(type);
 	UNUSED(rdclass);
 
 	region.base = opt->options;

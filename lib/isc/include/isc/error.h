@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: error.h,v 1.12.4.1 2001/01/09 22:49:44 bwelling Exp $ */
+/* $Id: error.h,v 1.13 2001/01/09 21:56:51 bwelling Exp $ */
 
 #ifndef ISC_ERROR_H
 #define ISC_ERROR_H 1

@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: nsap_22.c,v 1.28.4.1 2001/01/09 22:48:05 bwelling Exp $ */
+/* $Id: nsap_22.c,v 1.31 2001/03/16 22:53:16 bwelling Exp $ */
 
 /* Reviewed: Fri Mar 17 10:41:07 PST 2000 by gson */
 
@@ -37,6 +37,7 @@ fromtext_in_nsap(ARGS_FROMTEXT) {
 	REQUIRE(type == 22);
 	REQUIRE(rdclass == 1);
 
+	UNUSED(type);
 	UNUSED(origin);
 	UNUSED(downcase);
 	UNUSED(rdclass);
@@ -46,9 +47,9 @@ fromtext_in_nsap(ARGS_FROMTEXT) {
 				      ISC_FALSE));
 	sr = &token.value.as_textregion;
 	if (sr->length < 2)
-		return (ISC_R_UNEXPECTEDEND);
+		RETTOK(ISC_R_UNEXPECTEDEND);
 	if (sr->base[0] != '0' || (sr->base[1] != 'x' && sr->base[1] != 'X'))
-		return (DNS_R_SYNTAX);
+		RETTOK(DNS_R_SYNTAX);
 	isc_textregion_consume(sr, 2);
 	digits = 0;
 	n = 0;
@@ -58,7 +59,7 @@ fromtext_in_nsap(ARGS_FROMTEXT) {
 			continue;
 		}
 		if ((n = hexvalue(sr->base[0])) == -1)
-			return (DNS_R_SYNTAX);
+			RETTOK(DNS_R_SYNTAX);
 		c <<= 4;
 		c += n;
 		if (++digits == 2) {
@@ -67,9 +68,8 @@ fromtext_in_nsap(ARGS_FROMTEXT) {
 		}
 		isc_textregion_consume(sr, 1);
 	}
-	if (digits) {
-		return (ISC_R_UNEXPECTEDEND);
-	}
+	if (digits)
+		RETTOK(ISC_R_UNEXPECTEDEND);
 	return (ISC_R_SUCCESS);
 }
 
@@ -101,6 +101,7 @@ fromwire_in_nsap(ARGS_FROMWIRE) {
 	REQUIRE(type == 22);
 	REQUIRE(rdclass == 1);
 
+	UNUSED(type);
 	UNUSED(dctx);
 	UNUSED(downcase);
 	UNUSED(rdclass);
@@ -154,6 +155,7 @@ fromstruct_in_nsap(ARGS_FROMSTRUCT) {
 	REQUIRE((nsap->nsap == NULL && nsap->nsap_len == 0) ||
 		(nsap->nsap != NULL && nsap->nsap_len != 0));
 
+	UNUSED(type);
 	UNUSED(rdclass);
 
 	return (mem_tobuffer(target, nsap->nsap, nsap->nsap_len));

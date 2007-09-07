@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: request.h,v 1.16.4.1 2001/01/09 22:46:09 bwelling Exp $ */
+/* $Id: request.h,v 1.17 2001/01/09 21:53:21 bwelling Exp $ */
 
 #ifndef DNS_REQUEST_H
 #define DNS_REQUEST_H 1

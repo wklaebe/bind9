@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: acl.h,v 1.16.4.2 2001/02/09 01:01:55 bwelling Exp $ */
+/* $Id: acl.h,v 1.19 2001/03/26 21:33:02 bwelling Exp $ */
 
 #ifndef DNS_ACL_H
 #define DNS_ACL_H 1
@@ -84,6 +84,7 @@ struct dns_acl {
 struct dns_aclenv {
 	dns_acl_t *localhost;
 	dns_acl_t *localnets;
+	isc_boolean_t match_mapped;
 };
 
 #define DNS_ACL_MAGIC		0x4461636c	/* Dacl */

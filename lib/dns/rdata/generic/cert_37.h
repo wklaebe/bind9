@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: cert_37.h,v 1.14.4.1 2001/01/09 22:46:42 bwelling Exp $ */
+/* $Id: cert_37.h,v 1.15 2001/01/09 21:53:53 bwelling Exp $ */
 
 /* RFC 2538 */
 #ifndef GENERIC_CERT_37_H

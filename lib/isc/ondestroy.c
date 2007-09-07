@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: ondestroy.c,v 1.9.4.1 2001/01/09 22:49:11 bwelling Exp $ */
+/* $Id: ondestroy.c,v 1.10 2001/01/09 21:56:19 bwelling Exp $ */
 
 #include <config.h>
 

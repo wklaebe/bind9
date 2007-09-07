@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: validator.h,v 1.17.2.1 2001/01/09 22:46:27 bwelling Exp $ */
+/* $Id: validator.h,v 1.18 2001/01/09 21:53:39 bwelling Exp $ */
 
 #ifndef DNS_VALIDATOR_H
 #define DNS_VALIDATOR_H 1

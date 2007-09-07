@@ -18,7 +18,7 @@
 #ifndef GENERIC_NXT_30_H
 #define GENERIC_NXT_30_H 1
 
-/* $Id: nxt_30.h,v 1.17.4.1 2001/01/09 22:47:21 bwelling Exp $ */
+/* $Id: nxt_30.h,v 1.18 2001/01/09 21:54:32 bwelling Exp $ */
 
 /* RFC 2065 */
 

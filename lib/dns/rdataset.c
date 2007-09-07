@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rdataset.c,v 1.54.2.1 2001/01/09 22:44:06 bwelling Exp $ */
+/* $Id: rdataset.c,v 1.55 2001/01/09 21:51:23 bwelling Exp $ */
 
 #include <config.h>
 

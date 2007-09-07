@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: secproto.h,v 1.8.4.1 2001/01/09 22:46:16 bwelling Exp $ */
+/* $Id: secproto.h,v 1.9 2001/01/09 21:53:28 bwelling Exp $ */
 
 #ifndef DNS_SECPROTO_H
 #define DNS_SECPROTO_H 1

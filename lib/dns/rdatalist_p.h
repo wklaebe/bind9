@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rdatalist_p.h,v 1.2.4.1 2001/01/09 22:44:05 bwelling Exp $ */
+/* $Id: rdatalist_p.h,v 1.3 2001/01/09 21:51:22 bwelling Exp $ */
 
 #ifndef DNS_RDATALIST_P_H
 #define DNS_RDATALIST_P_H

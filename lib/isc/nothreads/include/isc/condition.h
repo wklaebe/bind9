@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: condition.h,v 1.2.4.1 2001/01/09 22:50:51 bwelling Exp $ */
+/* $Id: condition.h,v 1.3 2001/01/09 21:57:54 bwelling Exp $ */
 
 /*
  * This provides a limited subset of the isc_condition_t

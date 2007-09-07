@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dir.h,v 1.7.4.1 2001/01/09 22:51:57 bwelling Exp $ */
+/* $Id: dir.h,v 1.8 2001/01/09 21:59:00 bwelling Exp $ */
 
 /* Principal Authors: DCL */
 

@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: lex_test.c,v 1.17.4.1 2001/01/09 22:33:25 bwelling Exp $ */
+/* $Id: lex_test.c,v 1.18 2001/01/09 21:41:13 bwelling Exp $ */
 
 #include <config.h>
 

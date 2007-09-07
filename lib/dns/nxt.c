@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: nxt.c,v 1.25.4.1 2001/01/09 22:43:53 bwelling Exp $ */
+/* $Id: nxt.c,v 1.26 2001/01/09 21:51:09 bwelling Exp $ */
 
 #include <config.h>
 

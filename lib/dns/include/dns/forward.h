@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: forward.h,v 1.1.4.1 2001/01/09 22:45:39 bwelling Exp $ */
+/* $Id: forward.h,v 1.2 2001/01/09 21:52:52 bwelling Exp $ */
 
 #ifndef DNS_FORWARD_H
 #define DNS_FORWARD_H 1

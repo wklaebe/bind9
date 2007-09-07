@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: shutdown_test.c,v 1.17.4.1 2001/01/09 22:33:52 bwelling Exp $ */
+/* $Id: shutdown_test.c,v 1.18 2001/01/09 21:41:38 bwelling Exp $ */
 
 #include <config.h>
 

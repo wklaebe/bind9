@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: sock_test.c,v 1.46.4.1 2001/01/09 22:33:55 bwelling Exp $ */
+/* $Id: sock_test.c,v 1.47 2001/01/09 21:41:41 bwelling Exp $ */
 
 #include <config.h>
 

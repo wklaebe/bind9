@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: lang.h,v 1.5.4.1 2001/01/09 22:49:57 bwelling Exp $ */
+/* $Id: lang.h,v 1.6 2001/01/09 21:57:03 bwelling Exp $ */
 
 #ifndef ISC_LANG_H
 #define ISC_LANG_H 1

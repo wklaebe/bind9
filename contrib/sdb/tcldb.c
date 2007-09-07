@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: tcldb.c,v 1.6.4.1 2001/01/09 22:39:07 bwelling Exp $ */
+/* $Id: tcldb.c,v 1.7 2001/01/09 21:46:28 bwelling Exp $ */
 
 /*
  * A simple database driver that calls a Tcl procedure to define

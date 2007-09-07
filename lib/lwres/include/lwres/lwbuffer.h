@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: lwbuffer.h,v 1.14.4.1 2001/01/09 22:52:42 bwelling Exp $ */
+/* $Id: lwbuffer.h,v 1.15 2001/01/09 21:59:45 bwelling Exp $ */
 
 #ifndef LWRES_LWBUFFER_H
 #define LWRES_LWBUFFER_H 1

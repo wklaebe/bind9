@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: timer.c,v 1.1.4.1 2001/01/09 22:44:21 bwelling Exp $ */
+/* $Id: timer.c,v 1.2 2001/01/09 21:51:37 bwelling Exp $ */
 
 #include <config.h>
 

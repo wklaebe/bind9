@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: condition.c,v 1.14.4.1 2001/01/09 22:51:45 bwelling Exp $ */
+/* $Id: condition.c,v 1.15 2001/01/09 21:58:48 bwelling Exp $ */
 
 #include <config.h>
 

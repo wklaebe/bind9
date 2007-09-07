@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: once.c,v 1.5.4.1 2001/01/09 22:51:49 bwelling Exp $ */
+/* $Id: once.c,v 1.6 2001/01/09 21:58:52 bwelling Exp $ */
 
 /* Principal Authors: DCL */
 

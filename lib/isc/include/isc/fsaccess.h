@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: fsaccess.h,v 1.6.4.1 2001/01/09 22:49:50 bwelling Exp $ */
+/* $Id: fsaccess.h,v 1.7 2001/01/09 21:56:56 bwelling Exp $ */
 
 #ifndef ISC_FSACCESS_H
 #define ISC_FSACCESS_H 1

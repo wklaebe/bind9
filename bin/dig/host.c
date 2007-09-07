@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: host.c,v 1.60.4.2 2001/03/14 18:08:50 bwelling Exp $ */
+/* $Id: host.c,v 1.66 2001/03/14 18:08:17 bwelling Exp $ */
 
 #include <config.h>
 #include <stdlib.h>
@@ -45,13 +45,12 @@ extern ISC_LIST(dig_lookup_t) lookup_list;
 extern ISC_LIST(dig_server_t) server_list;
 extern ISC_LIST(dig_searchlist_t) search_list;
 
+extern isc_boolean_t usesearch;
 extern isc_boolean_t debugging;
 extern unsigned int timeout;
 extern isc_mem_t *mctx;
 extern int ndots;
 extern int tries;
-extern isc_boolean_t usesearch;
-extern int lookup_counter;
 extern char *progname;
 extern isc_task_t *global_task;
 
@@ -230,17 +229,20 @@ dighost_shutdown(void) {
 }
 
 void
-received(int bytes, int frmsize, char *frm, dig_query_t *query) {
+received(int bytes, isc_sockaddr_t *from, dig_query_t *query)
+{
 	isc_time_t now;
 	isc_result_t result;
 	int diff;
 
 	if (!short_form) {
+		char fromtext[ISC_SOCKADDR_FORMATSIZE];
+		isc_sockaddr_format(from, fromtext, sizeof(fromtext));
 		result = isc_time_now(&now);
 		check_result(result, "isc_time_now");
 		diff = isc_time_microdiff(&now, &query->time_sent);
-		printf("Received %u bytes from %.*s in %d ms\n",
-		       bytes, frmsize, frm, diff/1000);
+		printf("Received %u bytes from %s in %d ms\n",
+		       bytes, fromtext, diff/1000);
 	}
 }
 
@@ -249,7 +251,7 @@ trying(int frmsize, char *frm, dig_lookup_t *lookup) {
 	UNUSED(lookup);
 
 	if (!short_form)
-		printf ("Trying \"%.*s\"\n", frmsize, frm);
+		printf("Trying \"%.*s\"\n", frmsize, frm);
 }
 
 static void
@@ -270,12 +272,16 @@ say_message(dns_name_t *name, const char *msg, dns_rdata_t *rdata,
 	result = dns_rdata_totext(rdata, NULL, b2);
 	check_result(result, "dns_rdata_totext");
 	isc_buffer_usedregion(b2, &r2);
-	printf ( "%.*s %s %.*s", (int)r.length, (char *)r.base,
-		 msg, (int)r2.length, (char *)r2.base);
-	if (query->lookup->identify) {
-		printf (" on server %s", query->servname);
+	if (query->lookup->identify_previous_line) {
+		printf("Nameserver %s:\n\t",
+			query->servname);
 	}
-	printf ("\n");
+	printf("%.*s %s %.*s", (int)r.length, (char *)r.base,
+	       msg, (int)r2.length, (char *)r2.base);
+	if (query->lookup->identify) {
+		printf(" on server %s", query->servname);
+	}
+	printf("\n");
 	isc_buffer_free(&b);
 	isc_buffer_free(&b2);
 }
@@ -346,7 +352,7 @@ printsection(dns_message_t *msg, dns_section_t sectionid,
 				while (loopresult == ISC_R_SUCCESS) {
 					dns_rdataset_current(rdataset, &rdata);
 					if (rdata.type <= 103)
-						rtt=rtypetext[rdata.type];
+						rtt = rtypetext[rdata.type];
 					else if (rdata.type == 249)
 						rtt = "key";
 					else if (rdata.type == 250)
@@ -415,6 +421,14 @@ printmessage(dig_query_t *query, dns_message_t *msg, isc_boolean_t headers) {
 	isc_region_t r;
 
 	UNUSED(headers);
+
+	/*
+	 * Special case. If we're doing an ns_search_only query, but we're
+	 * still following pointers, haven't gotten to the real NS records
+	 * yet, don't print anything.
+	 */
+	if (query->lookup->ns_search_only && !query->lookup->ns_search_only_leafnode)
+		return (ISC_R_SUCCESS);
 
 	if (listed_server) {
 		printf("Using domain server:\n");
@@ -576,8 +590,8 @@ parse_args(isc_boolean_t is_batchfile, int argc, char **argv) {
 						   (isc_textregion_t *)&tr);
 
 			if (result != ISC_R_SUCCESS)
-				fprintf (stderr,"Warning: invalid type: %s\n",
-					 isc_commandline_argument);
+				fprintf(stderr,"Warning: invalid type: %s\n",
+					isc_commandline_argument);
 			else {
 				lookup->rdtype = rdtype;
 				lookup->rdtypeset = ISC_TRUE;
@@ -590,8 +604,8 @@ parse_args(isc_boolean_t is_batchfile, int argc, char **argv) {
 						   (isc_textregion_t *)&tr);
 
 			if (result != ISC_R_SUCCESS)
-				fprintf (stderr,"Warning: invalid class: %s\n",
-					 isc_commandline_argument);
+				fprintf(stderr,"Warning: invalid class: %s\n",
+					isc_commandline_argument);
 			else {
 				lookup->rdclass = rdclass;
 				lookup->rdclassset = ISC_TRUE;
@@ -633,6 +647,7 @@ parse_args(isc_boolean_t is_batchfile, int argc, char **argv) {
 			lookup->rdclassset = ISC_TRUE;
 			lookup->ns_search_only = ISC_TRUE;
 			lookup->trace_root = ISC_TRUE;
+			lookup->identify_previous_line = ISC_TRUE;
 			break;
 		case 'N':
 			debug("setting NDOTS to %s",

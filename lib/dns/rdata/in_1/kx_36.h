@@ -18,7 +18,7 @@
 #ifndef IN_1_KX_36_H
 #define IN_1_KX_36_H 1
 
-/* $Id: kx_36.h,v 1.14.4.1 2001/01/09 22:47:59 bwelling Exp $ */
+/* $Id: kx_36.h,v 1.15 2001/01/09 21:55:08 bwelling Exp $ */
 
 /* RFC 2230 */
 

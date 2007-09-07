@@ -15,7 +15,7 @@
 # NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
 # WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: tests.sh,v 1.6.4.1 2001/01/09 22:37:58 bwelling Exp $ 
+# $Id: tests.sh,v 1.7 2001/01/09 21:45:21 bwelling Exp $ 
 
 # ns1 = stealth master
 # ns2 = slave with update forwarding disabled; not currently used

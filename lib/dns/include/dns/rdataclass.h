@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rdataclass.h,v 1.16.4.1 2001/01/09 22:46:02 bwelling Exp $ */
+/* $Id: rdataclass.h,v 1.17 2001/01/09 21:53:15 bwelling Exp $ */
 
 #ifndef DNS_RDATACLASS_H
 #define DNS_RDATACLASS_H 1

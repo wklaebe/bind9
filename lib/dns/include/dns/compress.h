@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: compress.h,v 1.20.2.2 2001/01/09 22:45:09 bwelling Exp $ */
+/* $Id: compress.h,v 1.29 2001/02/12 18:07:52 bwelling Exp $ */
 
 #ifndef DNS_COMPRESS_H
 #define DNS_COMPRESS_H 1
@@ -44,6 +44,7 @@ struct dns_compressnode {
 	isc_region_t		r;
 	isc_uint16_t		offset;
 	isc_uint16_t		count;
+	isc_uint8_t		labels;
 	dns_compressnode_t	*next;
 };
 
@@ -136,8 +137,7 @@ dns_compress_getedns(dns_compress_t *cctx);
 
 isc_boolean_t
 dns_compress_findglobal(dns_compress_t *cctx, dns_name_t *name,
-			dns_name_t *prefix, dns_name_t *suffix,
-			isc_uint16_t *offset);
+			dns_name_t *prefix, isc_uint16_t *offset);
 /*
  *	Finds longest possible match of 'name' in the global compression table.
  *
@@ -145,12 +145,10 @@ dns_compress_findglobal(dns_compress_t *cctx, dns_name_t *name,
  *		'cctx' to be initialized.
  *		'name' to be a absolute name.
  *		'prefix' to be initialized.
- *		'suffix' to be initialized.
- *		'offset' to point it a isc_uint16_t.
+ *		'offset' to point to an isc_uint16_t.
  *
  *	Ensures:
- *		'prefix', 'suffix' and 'offset' are valid if ISC_TRUE is
- *		returned.
+ *		'prefix' and 'offset' are valid if ISC_TRUE is 	returned.
  *
  *	Returns:
  *		ISC_TRUE / ISC_FALSE
@@ -160,13 +158,17 @@ void
 dns_compress_add(dns_compress_t *cctx, dns_name_t *name, dns_name_t *prefix,
 		 isc_uint16_t offset);
 /*
- *	Add compression pointers for name to the compression table,
+ *	Add compression pointers for 'name' to the compression table,
  *	not replacing existing pointers.
  *
  *	Requires:
  *		'cctx' initialized
+ *
  *		'name' must be initialized and absolute, and must remain
  *		valid until the message compression is complete.
+ *
+ *		'prefix' must be a prefix returned by
+ *		dns_compress_findglobal(), or the same as 'name'.
  */
 
 void

@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: offset.h,v 1.9.4.1 2001/01/09 22:51:40 bwelling Exp $ */
+/* $Id: offset.h,v 1.10 2001/01/09 21:58:43 bwelling Exp $ */
 
 #ifndef ISC_OFFSET_H
 #define ISC_OFFSET_H 1

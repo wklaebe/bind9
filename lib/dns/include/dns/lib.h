@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: lib.h,v 1.5.4.1 2001/01/09 22:45:45 bwelling Exp $ */
+/* $Id: lib.h,v 1.6 2001/01/09 21:52:58 bwelling Exp $ */
 
 #ifndef DNS_LIB_H
 #define DNS_LIB_H 1

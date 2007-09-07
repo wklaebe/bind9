@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: ratelimiter.h,v 1.12.4.1 2001/01/09 22:50:20 bwelling Exp $ */
+/* $Id: ratelimiter.h,v 1.13 2001/01/09 21:57:24 bwelling Exp $ */
 
 #ifndef ISC_RATELIMITER_H
 #define ISC_RATELIMITER_H 1

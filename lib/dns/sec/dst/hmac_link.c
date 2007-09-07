@@ -19,7 +19,7 @@
 
 /*
  * Principal Author: Brian Wellington
- * $Id: hmac_link.c,v 1.45.4.3 2001/05/10 21:14:17 gson Exp $
+ * $Id: hmac_link.c,v 1.53 2001/05/31 18:34:50 tale Exp $
  */
 
 #include <config.h>
@@ -124,13 +124,11 @@ hmacmd5_compare(const dst_key_t *key1, const dst_key_t *key2) {
 }
 
 static isc_result_t
-hmacmd5_generate(dst_key_t *key, int unused) {
+hmacmd5_generate(dst_key_t *key, int pseudorandom_ok) {
 	isc_buffer_t b;
 	isc_result_t ret;
 	int bytes;
 	unsigned char data[HMAC_LEN];
-
-	UNUSED(unused);
 
 	bytes = (key->key_size + 7) / 8;
 	if (bytes > 64) {
@@ -139,7 +137,8 @@ hmacmd5_generate(dst_key_t *key, int unused) {
 	}
 
 	memset(data, 0, HMAC_LEN);
-	ret = dst__entropy_getdata(data, bytes, ISC_FALSE);
+	ret = dst__entropy_getdata(data, bytes, ISC_TF(pseudorandom_ok != 0));
+
 	if (ret != ISC_R_SUCCESS)
 		return (ret);
 
@@ -242,14 +241,14 @@ hmacmd5_tofile(const dst_key_t *key, const char *directory) {
 }
 
 static isc_result_t
-hmacmd5_fromfile(dst_key_t *key, const isc_uint16_t id, const char *filename) {
+hmacmd5_fromfile(dst_key_t *key, const char *filename) {
 	dst_private_t priv;
 	isc_result_t ret;
 	isc_buffer_t b;
 	isc_mem_t *mctx = key->mctx;
 
 	/* read private key file */
-	ret = dst__privstruct_parsefile(key, id, filename, mctx, &priv);
+	ret = dst__privstruct_parsefile(key, filename, mctx, &priv);
 	if (ret != ISC_R_SUCCESS)
 		return (ret);
 

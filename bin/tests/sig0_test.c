@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: sig0_test.c,v 1.4.4.1 2001/01/09 22:33:54 bwelling Exp $ */
+/* $Id: sig0_test.c,v 1.9 2001/03/28 02:43:44 bwelling Exp $ */
 
 #include <config.h>
 
@@ -42,6 +42,7 @@
 #include <dns/events.h>
 #include <dns/fixedname.h>
 #include <dns/keyvalues.h>
+#include <dns/masterdump.h>
 #include <dns/message.h>
 #include <dns/name.h>
 #include <dns/rdataset.h>
@@ -73,6 +74,7 @@ isc_socket_t *s;
 isc_sockaddr_t address;
 char output[10 * 1024];
 isc_buffer_t outbuf;
+static const dns_master_style_t *style = &dns_master_style_debug;
 
 static void
 senddone(isc_task_t *task, isc_event_t *event) {
@@ -89,33 +91,33 @@ senddone(isc_task_t *task, isc_event_t *event) {
 
 static void
 recvdone(isc_task_t *task, isc_event_t *event) {
-        isc_socketevent_t *sevent = (isc_socketevent_t *)event;
-        isc_buffer_t source;
-        isc_result_t result;
+	isc_socketevent_t *sevent = (isc_socketevent_t *)event;
+	isc_buffer_t source;
+	isc_result_t result;
 	dns_message_t *response;
 
-        REQUIRE(sevent != NULL);
-        REQUIRE(sevent->ev_type == ISC_SOCKEVENT_RECVDONE);
-        REQUIRE(task == task1);
+	REQUIRE(sevent != NULL);
+	REQUIRE(sevent->ev_type == ISC_SOCKEVENT_RECVDONE);
+	REQUIRE(task == task1);
 
-        printf("recvdone\n");
-        if (sevent->result != ISC_R_SUCCESS) {
-                printf("failed\n");
-                exit(-1);
-        }
+	printf("recvdone\n");
+	if (sevent->result != ISC_R_SUCCESS) {
+		printf("failed\n");
+		exit(-1);
+	}
 
-        isc_buffer_init(&source, sevent->region.base, sevent->region.length);
-        isc_buffer_add(&source, sevent->n);
+	isc_buffer_init(&source, sevent->region.base, sevent->region.length);
+	isc_buffer_add(&source, sevent->n);
 
-        response = NULL;
-        result = dns_message_create(mctx, DNS_MESSAGE_INTENTPARSE, &response);
-        CHECK("dns_message_create", result);
-        result = dns_message_parse(response, &source, 0);
-        CHECK("dns_message_parse", result);
+	response = NULL;
+	result = dns_message_create(mctx, DNS_MESSAGE_INTENTPARSE, &response);
+	CHECK("dns_message_create", result);
+	result = dns_message_parse(response, &source, 0);
+	CHECK("dns_message_parse", result);
 
 	isc_buffer_init(&outbuf, output, sizeof(output));
-	result = dns_message_totext(response, 0, &outbuf);
-        CHECK("dns_message_totext", result);
+	result = dns_message_totext(response, style, 0, &outbuf);
+	CHECK("dns_message_totext", result);
 	printf("%.*s\n", (int)isc_buffer_usedlength(&outbuf),
 	       (char *)isc_buffer_base(&outbuf));
 
@@ -136,6 +138,7 @@ buildquery(void) {
 	isc_buffer_t namesrc, namedst;
 	unsigned char namedata[256];
 	isc_sockaddr_t sa;
+	dns_compress_t cctx;
 
 	query = NULL;
 	result = dns_message_create(mctx, DNS_MESSAGE_INTENTRENDER, &query);
@@ -162,7 +165,9 @@ buildquery(void) {
 
 	isc_buffer_init(&qbuffer, qdata, sizeof(qdata));
 
-	result = dns_message_renderbegin(query, &qbuffer);
+	result = dns_compress_init(&cctx, -1, mctx);
+	CHECK("dns_compress_init", result);
+	result = dns_message_renderbegin(query, &cctx, &qbuffer);
 	CHECK("dns_message_renderbegin", result);
 	result = dns_message_rendersection(query, DNS_SECTION_QUESTION, 0);
 	CHECK("dns_message_rendersection(question)", result);
@@ -174,10 +179,11 @@ buildquery(void) {
 	CHECK("dns_message_rendersection(add)", result);
 	result = dns_message_renderend(query);
 	CHECK("dns_message_renderend", result);
+	dns_compress_invalidate(&cctx);
 
 	isc_buffer_init(&outbuf, output, sizeof(output));
-	result = dns_message_totext(query, 0, &outbuf);
-        CHECK("dns_message_totext", result);
+	result = dns_message_totext(query, style, 0, &outbuf);
+	CHECK("dns_message_totext", result);
 	printf("%.*s\n", (int)isc_buffer_usedlength(&outbuf),
 	       (char *)isc_buffer_base(&outbuf));
 
@@ -248,7 +254,7 @@ main(int argc, char *argv[]) {
 
 	s = NULL;
 	RUNTIME_CHECK(isc_socket_create(socketmgr, PF_INET,
-				        isc_sockettype_udp, &s) ==
+					isc_sockettype_udp, &s) ==
 		      ISC_R_SUCCESS);
 
 	inaddr.s_addr = htonl(INADDR_LOOPBACK);

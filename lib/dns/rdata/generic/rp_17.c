@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rp_17.c,v 1.30.4.1 2001/01/09 22:47:30 bwelling Exp $ */
+/* $Id: rp_17.c,v 1.34 2001/03/16 22:52:59 bwelling Exp $ */
 
 /* RFC 1183 */
 
@@ -31,9 +31,10 @@ fromtext_rp(ARGS_FROMTEXT) {
 	isc_buffer_t buffer;
 	int i;
 
-	UNUSED(rdclass);
-
 	REQUIRE(type == 17);
+
+	UNUSED(type);
+	UNUSED(rdclass);
 
 	origin = (origin != NULL) ? origin : dns_rootname;
 
@@ -43,7 +44,7 @@ fromtext_rp(ARGS_FROMTEXT) {
 					      ISC_FALSE));
 		dns_name_init(&name, NULL);
 		buffer_fromregion(&buffer, &token.value.as_region);
-		RETERR(dns_name_fromtext(&name, &buffer, origin,
+		RETTOK(dns_name_fromtext(&name, &buffer, origin,
 					 downcase, target));
 	}
 	return (ISC_R_SUCCESS);
@@ -86,9 +87,10 @@ fromwire_rp(ARGS_FROMWIRE) {
         dns_name_t rmail;
         dns_name_t email;
 
-	UNUSED(rdclass);
-
 	REQUIRE(type == 17);
+
+	UNUSED(type);
+	UNUSED(rdclass);
 
 	dns_decompress_setmethods(dctx, DNS_COMPRESS_NONE);
 
@@ -104,13 +106,15 @@ towire_rp(ARGS_TOWIRE) {
 	isc_region_t region;
 	dns_name_t rmail;
 	dns_name_t email;
+	dns_offsets_t roffsets;
+	dns_offsets_t eoffsets;
 
 	REQUIRE(rdata->type == 17);
 	REQUIRE(rdata->length != 0);
 
 	dns_compress_setmethods(cctx, DNS_COMPRESS_NONE);
-	dns_name_init(&rmail, NULL);
-	dns_name_init(&email, NULL);
+	dns_name_init(&rmail, roffsets);
+	dns_name_init(&email, eoffsets);
 
 	dns_rdata_toregion(rdata, &region);
 
@@ -174,6 +178,7 @@ fromstruct_rp(ARGS_FROMSTRUCT) {
 	REQUIRE(rp->common.rdtype == type);
 	REQUIRE(rp->common.rdclass == rdclass);
 
+	UNUSED(type);
 	UNUSED(rdclass);
 
 	dns_name_toregion(&rp->mail, &region);

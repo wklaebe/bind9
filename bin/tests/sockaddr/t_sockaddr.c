@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: t_sockaddr.c,v 1.10.4.1 2001/01/09 22:34:31 bwelling Exp $ */
+/* $Id: t_sockaddr.c,v 1.11 2001/01/09 21:42:14 bwelling Exp $ */
 
 #include <config.h>
 

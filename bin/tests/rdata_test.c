@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rdata_test.c,v 1.34.2.1 2001/01/09 22:33:47 bwelling Exp $ */
+/* $Id: rdata_test.c,v 1.35 2001/01/09 21:41:34 bwelling Exp $ */
 
 #include <config.h>
 

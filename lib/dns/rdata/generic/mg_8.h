@@ -18,7 +18,7 @@
 #ifndef GENERIC_MG_8_H
 #define GENERIC_MG_8_H 1
 
-/* $Id: mg_8.h,v 1.20.4.1 2001/01/09 22:47:07 bwelling Exp $ */
+/* $Id: mg_8.h,v 1.21 2001/01/09 21:54:18 bwelling Exp $ */
 
 typedef struct dns_rdata_mg {
 	dns_rdatacommon_t	common;

@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: timer.h,v 1.27.4.1 2001/01/09 22:50:38 bwelling Exp $ */
+/* $Id: timer.h,v 1.28 2001/01/09 21:57:41 bwelling Exp $ */
 
 #ifndef ISC_TIMER_H
 #define ISC_TIMER_H 1

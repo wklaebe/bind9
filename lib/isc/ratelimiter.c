@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: ratelimiter.c,v 1.17.4.1 2001/01/09 22:49:15 bwelling Exp $ */
+/* $Id: ratelimiter.c,v 1.18 2001/01/09 21:56:23 bwelling Exp $ */
 
 #include <config.h>
 

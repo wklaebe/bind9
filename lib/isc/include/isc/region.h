@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: region.h,v 1.15.4.1 2001/01/09 22:50:21 bwelling Exp $ */
+/* $Id: region.h,v 1.16 2001/01/09 21:57:25 bwelling Exp $ */
 
 #ifndef ISC_REGION_H
 #define ISC_REGION_H 1

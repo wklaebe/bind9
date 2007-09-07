@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: byaddr.c,v 1.27.4.1 2001/01/09 22:43:24 bwelling Exp $ */
+/* $Id: byaddr.c,v 1.28 2001/01/09 21:50:39 bwelling Exp $ */
 
 #include <config.h>
 

@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: main.c,v 1.97.2.1 2001/01/09 22:32:07 bwelling Exp $ */
+/* $Id: main.c,v 1.112 2001/05/31 10:37:08 tale Exp $ */
 
 #include <config.h>
 
@@ -26,15 +26,21 @@
 #include <isc/app.h>
 #include <isc/commandline.h>
 #include <isc/entropy.h>
+#include <isc/file.h>
 #include <isc/os.h>
+#include <isc/platform.h>
 #include <isc/resource.h>
 #include <isc/task.h>
 #include <isc/timer.h>
 #include <isc/util.h>
 
+#include <isccc/result.h>
+
 #include <dns/dispatch.h>
-#include <dst/result.h>
+#include <dns/result.h>
 #include <dns/view.h>
+
+#include <dst/result.h>
 
 /*
  * Defining NS_MAIN provides storage declarations (rather than extern)
@@ -42,10 +48,10 @@
  */
 #define NS_MAIN 1
 
+#include <named/control.h>
 #include <named/globals.h>	/* Explicit, though named/log.h includes it. */
 #include <named/interfacemgr.h>
 #include <named/log.h>
-#include <named/omapi.h>
 #include <named/os.h>
 #include <named/server.h>
 #include <named/lwresd.h>
@@ -57,7 +63,7 @@
 /* #include "xxdb.h" */
 
 static isc_boolean_t	want_stats = ISC_FALSE;
-static const char *	program_name = "named";
+static char		program_name[256] = "named";
 static char    		saved_command_line[512];
 
 void
@@ -259,20 +265,8 @@ static void
 parse_command_line(int argc, char *argv[]) {
 	int ch;
 	int port;
-	char *s;
 
 	save_command_line(argc, argv);
-
-	/*
-	 * See if we should run as lwresd.
-	 */
-	s = strrchr(argv[0], '/');
-	if (s == NULL)
-		s = argv[0];
-	else
-		s++;
-	if (strcmp(s, "lwresd") == 0)
-		ns_g_lwresdonly = ISC_TRUE;
 
 	isc_commandline_errprint = ISC_FALSE;
 	while ((ch = isc_commandline_parse(argc, argv,
@@ -368,8 +362,12 @@ static isc_result_t
 create_managers(void) {
 	isc_result_t result;
 
+#ifdef ISC_PLATFORM_USETHREADS
 	if (ns_g_cpus == 0)
 		ns_g_cpus = isc_os_ncpus();
+#else
+	ns_g_cpus = 1;
+#endif
 	isc_log_write(ns_g_lctx, NS_LOGCATEGORY_GENERAL, NS_LOGMODULE_SERVER,
 		      ISC_LOG_INFO, "using %u CPU%s",
 		      ns_g_cpus, ns_g_cpus == 1 ? "" : "s");
@@ -405,27 +403,16 @@ create_managers(void) {
 		return (ISC_R_UNEXPECTED);
 	}
 
-#ifdef PATH_RANDOMDEV
-	(void)isc_entropy_createfilesource(ns_g_entropy, PATH_RANDOMDEV);
-#endif
-
 	return (ISC_R_SUCCESS);
 }
 
 static void
 destroy_managers(void) {
-	if (!ns_g_lwresdonly)
-		/*
-		 * The omapi listeners need to be stopped here so that
-		 * isc_taskmgr_destroy() won't block on the omapi task.
-		 */
-		ns_omapi_shutdown(ISC_TRUE);
-
 	ns_lwresd_shutdown();
 
 	isc_entropy_detach(&ns_g_entropy);
 	/*
-	 * isc_taskmgr_destroy() will  block until all tasks have exited,
+	 * isc_taskmgr_destroy() will block until all tasks have exited,
 	 */
 	isc_taskmgr_destroy(&ns_g_taskmgr);
 	isc_timermgr_destroy(&ns_g_timermgr);
@@ -497,13 +484,6 @@ setup(void) {
 	/* xxdb_init(); */
 
 	ns_server_create(ns_g_mctx, &ns_g_server);
-
-	if (!ns_g_lwresdonly) {
-		result = ns_omapi_init();
-		if (result != ISC_R_SUCCESS)
-			ns_main_earlyfatal("ns_omapi_init() failed: %s",
-					   isc_result_totext(result));
-	}
 }
 
 static void
@@ -517,6 +497,8 @@ cleanup(void) {
 	 */
 	/* xxdb_clear(); */
 
+	(void)isc_file_remove(ns_g_autorndckeyfile);
+
 	isc_log_write(ns_g_lctx, NS_LOGCATEGORY_GENERAL, NS_LOGMODULE_MAIN,
 		      ISC_LOG_NOTICE, "exiting");
 	ns_log_shutdown();
@@ -526,7 +508,13 @@ int
 main(int argc, char *argv[]) {
 	isc_result_t result;
 
-	program_name = argv[0];
+	result = isc_file_progname(*argv, program_name, sizeof(program_name));
+	if (result != ISC_R_SUCCESS)
+		ns_main_earlyfatal("program name too long");
+
+	if (strcmp(program_name, "lwresd") == 0)
+		ns_g_lwresdonly = ISC_TRUE;
+
 	isc_assertion_setcallback(assertion_failed);
 	isc_error_setfatal(library_fatal_error);
 	isc_error_setunexpected(library_unexpected_error);
@@ -545,6 +533,7 @@ main(int argc, char *argv[]) {
 
 	dns_result_register();
 	dst_result_register();
+	isccc_result_register();
 
 	parse_command_line(argc, argv);
 
@@ -572,8 +561,10 @@ main(int argc, char *argv[]) {
 
 	cleanup();
 
-	if (want_stats)
+	if (want_stats) {
 		isc_mem_stats(ns_g_mctx, stdout);
+		isc_mutex_stats(stdout);
+	}
 	isc_mem_destroy(&ns_g_mctx);
 
 	isc_app_finish();

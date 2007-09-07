@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rootns.h,v 1.7.4.1 2001/01/09 22:46:12 bwelling Exp $ */
+/* $Id: rootns.h,v 1.8 2001/01/09 21:53:25 bwelling Exp $ */
 
 #ifndef DNS_ROOTNS_H
 #define DNS_ROOTNS_H 1

@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: time.h,v 1.8.4.1 2001/01/09 22:46:20 bwelling Exp $ */
+/* $Id: time.h,v 1.9 2001/01/09 21:53:32 bwelling Exp $ */
 
 #ifndef DNS_TIME_H
 #define DNS_TIME_H 1

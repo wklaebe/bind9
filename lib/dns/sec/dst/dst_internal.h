@@ -17,7 +17,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dst_internal.h,v 1.30.4.2 2001/05/10 21:14:14 gson Exp $ */
+/* $Id: dst_internal.h,v 1.36 2001/05/10 19:07:11 bwelling Exp $ */
 
 #ifndef DST_DST_INTERNAL_H
 #define DST_DST_INTERNAL_H 1
@@ -32,6 +32,12 @@
 #include <dst/dst.h>
 
 ISC_LANG_BEGINDECLS
+
+#define KEY_MAGIC       0x4453544BU     /* DSTK */
+#define CTX_MAGIC       0x44535443U     /* DSTC */
+
+#define VALID_KEY(x) ISC_MAGIC_VALID(x, KEY_MAGIC)
+#define VALID_CTX(x) ISC_MAGIC_VALID(x, CTX_MAGIC)
 
 /***
  *** Types
@@ -88,8 +94,7 @@ struct dst_func {
 	isc_result_t (*todns)(const dst_key_t *key, isc_buffer_t *data);
 	isc_result_t (*fromdns)(dst_key_t *key, isc_buffer_t *data);
 	isc_result_t (*tofile)(const dst_key_t *key, const char *directory);
-	isc_result_t (*fromfile)(dst_key_t *key, const isc_uint16_t id,
-				 const char *filename);
+	isc_result_t (*fromfile)(dst_key_t *key, const char *filename);
 };
 
 /*
@@ -126,6 +131,13 @@ void * dst__mem_realloc(void *ptr, size_t size);
  */
 isc_result_t dst__entropy_getdata(void *buf, unsigned int len,
 				  isc_boolean_t pseudo);
+
+/*
+ * Generic helper functions.
+ */
+isc_result_t
+dst__file_addsuffix(char *filename, unsigned int len,
+		    const char *ofilename, const char *suffix);
 
 ISC_LANG_ENDDECLS
 

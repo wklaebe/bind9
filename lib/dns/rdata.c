@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rdata.c,v 1.137.2.1 2001/01/09 22:44:03 bwelling Exp $ */
+/* $Id: rdata.c,v 1.143 2001/03/06 22:10:33 marka Exp $ */
 
 #include <config.h>
 #include <ctype.h>
@@ -43,10 +43,19 @@
 #include <dns/time.h>
 #include <dns/ttl.h>
 
-#define RETERR(x) do { \
-	isc_result_t _r = (x); \
-	if (_r != ISC_R_SUCCESS) \
-		return (_r); \
+#define RETERR(x) \
+	do { \
+		isc_result_t _r = (x); \
+		if (_r != ISC_R_SUCCESS) \
+			return (_r); \
+	} while (0)
+#define RETTOK(x) \
+	do { \
+		isc_result_t _r = (x); \
+		if (_r != ISC_R_SUCCESS) { \
+			isc_lex_ungettoken(lexer, &token); \
+			return (_r); \
+		} \
 	} while (0)
 
 #define ARGS_FROMTEXT	int rdclass, dns_rdatatype_t type, \
@@ -106,6 +115,9 @@ name_length(dns_name_t *name);
 
 static isc_result_t
 str_totext(const char *source, isc_buffer_t *target);
+
+static isc_result_t
+inet_totext(int af, isc_region_t *src, isc_buffer_t *target);
 
 static isc_boolean_t
 buffer_empty(isc_buffer_t *source);
@@ -626,7 +638,7 @@ dns_rdata_fromtext(dns_rdata_t *rdata, dns_rdataclass_t rdclass,
 	char *name;
 	unsigned long line;
 	void (*callback)(dns_rdatacallbacks_t *, const char *, ...);
-	isc_result_t iresult;
+	isc_result_t tresult;
 
 	REQUIRE(origin == NULL || dns_name_isabsolute(origin) == ISC_TRUE);
 	if (rdata != NULL) {
@@ -636,10 +648,24 @@ dns_rdata_fromtext(dns_rdata_t *rdata, dns_rdataclass_t rdclass,
 
 	st = *target;
 
+	if (callbacks == NULL)
+		callback = NULL;
+	else
+		callback = callbacks->error;
+
+	if (callback == NULL)
+		callback = default_fromtext_callback;
+
 	result = isc_lex_getmastertoken(lexer, &token, isc_tokentype_qstring,
 					ISC_FALSE);
-	if (result != ISC_R_SUCCESS)
+	if (result != ISC_R_SUCCESS) {
+		name = isc_lex_getsourcename(lexer);
+		line = isc_lex_getsourceline(lexer);
+		fromtext_error(callback, callbacks, name, line,
+			       &token, result);
 		return (result);
+	}
+
 	if (strcmp((char *)token.value.as_pointer, "\\#") == 0)
 		result = unknown_fromtext(rdclass, type, lexer, mctx, target);
 	else {
@@ -648,13 +674,6 @@ dns_rdata_fromtext(dns_rdata_t *rdata, dns_rdataclass_t rdclass,
 		FROMTEXTSWITCH
 	}
 
-	if (callbacks == NULL)
-		callback = NULL;
-	else
-		callback = callbacks->error;
-
-	if (callback == NULL)
-		callback = default_fromtext_callback;
 	/*
 	 * Consume to end of line / file.
 	 * If not at end of line initially set error code.
@@ -663,24 +682,10 @@ dns_rdata_fromtext(dns_rdata_t *rdata, dns_rdataclass_t rdclass,
 	do {
 		name = isc_lex_getsourcename(lexer);
 		line = isc_lex_getsourceline(lexer);
-		iresult = isc_lex_gettoken(lexer, options, &token);
-		if (iresult != ISC_R_SUCCESS) {
-			if (result == ISC_R_SUCCESS) {
-				switch (iresult) {
-				case ISC_R_NOMEMORY:
-					result = ISC_R_NOMEMORY;
-					break;
-				case ISC_R_NOSPACE:
-					result = ISC_R_NOSPACE;
-					break;
-				default:
-					UNEXPECTED_ERROR(__FILE__, __LINE__,
-					    "isc_lex_gettoken() failed: %s",
-					    isc_result_totext(iresult));
-					result = ISC_R_UNEXPECTED;
-					break;
-				}
-			}
+		tresult = isc_lex_gettoken(lexer, options, &token);
+		if (tresult != ISC_R_SUCCESS) {
+			if (result == ISC_R_SUCCESS)
+				result = tresult;
 			if (callback != NULL)
 				fromtext_error(callback, callbacks, name,
 					       line, NULL, result);
@@ -1317,7 +1322,7 @@ txt_totext(isc_region_t *source, isc_buffer_t *target) {
 	*tp++ = '"';
 	tl--;
 	while (n--) {
-		if (*sp < 0x20 || *sp > 0x7f) {
+		if (*sp < 0x20 || *sp >= 0x7f) {
 			if (tl < 4)
 				return (ISC_R_NOSPACE);
 			sprintf(tp, "\\%03u", *sp++);
@@ -1473,6 +1478,19 @@ str_totext(const char *source, isc_buffer_t *target) {
 
 	memcpy(region.base, source, l);
 	isc_buffer_add(target, l);
+	return (ISC_R_SUCCESS);
+}
+
+static isc_result_t
+inet_totext(int af, isc_region_t *src, isc_buffer_t *target) {
+	char tmpbuf[64];
+
+	/* Note - inet_ntop doesn't do size checking on its input. */
+	if (inet_ntop(af, src->base, tmpbuf, sizeof(tmpbuf)) == NULL)
+		return (ISC_R_NOSPACE);
+	if (strlen(tmpbuf) > isc_buffer_availablelength(target))
+		return (ISC_R_NOSPACE);
+	isc_buffer_putstr(target, tmpbuf);
 	return (ISC_R_SUCCESS);
 }
 

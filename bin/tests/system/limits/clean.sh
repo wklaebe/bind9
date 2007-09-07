@@ -15,10 +15,10 @@
 # NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
 # WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: clean.sh,v 1.5.4.1 2001/01/09 22:35:57 bwelling Exp $
+# $Id: clean.sh,v 1.7 2001/03/04 21:17:42 bwelling Exp $
 
 #
 # Clean up after limits tests.
 #
-rm -f dig.out.ns1
+rm -f dig.out.*
 

@@ -18,7 +18,7 @@
 #ifndef HS_4_A_1_H
 #define HS_4_A_1_H 1
 
-/* $Id: a_1.h,v 1.6.4.1 2001/01/09 22:47:50 bwelling Exp $ */
+/* $Id: a_1.h,v 1.7 2001/01/09 21:54:59 bwelling Exp $ */
 
 typedef struct dns_rdata_hs_a {
 	dns_rdatacommon_t	common;

@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: listenlist.h,v 1.9.4.1 2001/01/09 22:32:27 bwelling Exp $ */
+/* $Id: listenlist.h,v 1.10 2001/01/09 21:40:16 bwelling Exp $ */
 
 #ifndef NAMED_LISTENLIST_H
 #define NAMED_LISTENLIST_H 1

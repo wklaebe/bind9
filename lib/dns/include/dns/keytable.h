@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: keytable.h,v 1.9.4.1 2001/01/09 22:45:42 bwelling Exp $ */
+/* $Id: keytable.h,v 1.10 2001/01/09 21:52:55 bwelling Exp $ */
 
 #ifndef DNS_KEYTABLE_H
 #define DNS_KEYTABLE_H 1

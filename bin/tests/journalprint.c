@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: journalprint.c,v 1.2.4.1 2001/01/09 22:33:23 bwelling Exp $ */
+/* $Id: journalprint.c,v 1.3 2001/01/09 21:41:10 bwelling Exp $ */
 
 #include <isc/mem.h>
 #include <isc/util.h>

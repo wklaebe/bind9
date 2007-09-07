@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: peer.h,v 1.12.4.1 2001/01/09 22:45:57 bwelling Exp $ */
+/* $Id: peer.h,v 1.15 2001/04/30 18:09:29 gson Exp $ */
 
 #ifndef DNS_PEER_H
 #define DNS_PEER_H 1
@@ -70,6 +70,7 @@ struct dns_peer {
 	isc_boolean_t		support_ixfr;
 	isc_boolean_t		provide_ixfr;
 	isc_boolean_t		request_ixfr;
+	isc_boolean_t		support_edns;
 	dns_name_t	       *key;
 
 	isc_uint32_t		bitflags;
@@ -126,12 +127,6 @@ isc_result_t
 dns_peer_getbogus(dns_peer_t *peer, isc_boolean_t *retval);
 
 isc_result_t
-dns_peer_setsupportixfr(dns_peer_t *peer, isc_boolean_t newval);
-
-isc_result_t
-dns_peer_getsupportixfr(dns_peer_t *peer, isc_boolean_t *retval);
-
-isc_result_t
 dns_peer_setrequestixfr(dns_peer_t *peer, isc_boolean_t newval);
 
 isc_result_t
@@ -142,6 +137,12 @@ dns_peer_setprovideixfr(dns_peer_t *peer, isc_boolean_t newval);
 
 isc_result_t
 dns_peer_getprovideixfr(dns_peer_t *peer, isc_boolean_t *retval);
+
+isc_result_t
+dns_peer_setsupportedns(dns_peer_t *peer, isc_boolean_t newval);
+
+isc_result_t
+dns_peer_getsupportedns(dns_peer_t *peer, isc_boolean_t *retval);
 
 isc_result_t
 dns_peer_settransfers(dns_peer_t *peer, isc_int32_t newval);

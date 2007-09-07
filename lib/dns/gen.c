@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: gen.c,v 1.59.2.1 2001/01/09 22:43:39 bwelling Exp $ */
+/* $Id: gen.c,v 1.60 2001/01/09 21:50:54 bwelling Exp $ */
 
 #include <config.h>
 

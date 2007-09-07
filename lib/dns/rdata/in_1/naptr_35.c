@@ -15,11 +15,11 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: naptr_35.c,v 1.36.4.1 2001/01/09 22:48:00 bwelling Exp $ */
+/* $Id: naptr_35.c,v 1.41 2001/03/16 22:53:14 bwelling Exp $ */
 
 /* Reviewed: Thu Mar 16 16:52:50 PST 2000 by bwelling */
 
-/* RFC 2168 */
+/* RFC 2915 */
 
 #ifndef RDATA_IN_1_NAPTR_35_C
 #define RDATA_IN_1_NAPTR_35_C
@@ -35,6 +35,7 @@ fromtext_in_naptr(ARGS_FROMTEXT) {
 	REQUIRE(type == 35);
 	REQUIRE(rdclass == 1);
 
+	UNUSED(type);
 	UNUSED(rdclass);
 
 	/*
@@ -43,7 +44,7 @@ fromtext_in_naptr(ARGS_FROMTEXT) {
 	RETERR(isc_lex_getmastertoken(lexer, &token, isc_tokentype_number,
 				      ISC_FALSE));
 	if (token.value.as_ulong > 0xffff)
-		return (ISC_R_RANGE);
+		RETTOK(ISC_R_RANGE);
 	RETERR(uint16_tobuffer(token.value.as_ulong, target));
 
 	/*
@@ -52,7 +53,7 @@ fromtext_in_naptr(ARGS_FROMTEXT) {
 	RETERR(isc_lex_getmastertoken(lexer, &token, isc_tokentype_number,
 				      ISC_FALSE));
 	if (token.value.as_ulong > 0xffff)
-		return (ISC_R_RANGE);
+		RETTOK(ISC_R_RANGE);
 	RETERR(uint16_tobuffer(token.value.as_ulong, target));
 
 	/*
@@ -60,21 +61,21 @@ fromtext_in_naptr(ARGS_FROMTEXT) {
 	 */
 	RETERR(isc_lex_getmastertoken(lexer, &token, isc_tokentype_qstring,
 				      ISC_FALSE));
-	RETERR(txt_fromtext(&token.value.as_textregion, target));
+	RETTOK(txt_fromtext(&token.value.as_textregion, target));
 
 	/*
 	 * Service.
 	 */
 	RETERR(isc_lex_getmastertoken(lexer, &token, isc_tokentype_qstring,
 				      ISC_FALSE));
-	RETERR(txt_fromtext(&token.value.as_textregion, target));
+	RETTOK(txt_fromtext(&token.value.as_textregion, target));
 
 	/*
 	 * Regexp.
 	 */
 	RETERR(isc_lex_getmastertoken(lexer, &token, isc_tokentype_qstring,
 				      ISC_FALSE));
-	RETERR(txt_fromtext(&token.value.as_textregion, target));
+	RETTOK(txt_fromtext(&token.value.as_textregion, target));
 
 	/*
 	 * Replacement.
@@ -84,7 +85,8 @@ fromtext_in_naptr(ARGS_FROMTEXT) {
 	dns_name_init(&name, NULL);
 	buffer_fromregion(&buffer, &token.value.as_region);
 	origin = (origin != NULL) ? origin : dns_rootname;
-	return (dns_name_fromtext(&name, &buffer, origin, downcase, target));
+	RETTOK(dns_name_fromtext(&name, &buffer, origin, downcase, target));
+	return (ISC_R_SUCCESS);
 }
 
 static inline isc_result_t
@@ -157,6 +159,7 @@ fromwire_in_naptr(ARGS_FROMWIRE) {
 	REQUIRE(type == 35);
 	REQUIRE(rdclass == 1);
 
+	UNUSED(type);
 	UNUSED(rdclass);
 
 	dns_decompress_setmethods(dctx, DNS_COMPRESS_NONE);
@@ -196,6 +199,7 @@ fromwire_in_naptr(ARGS_FROMWIRE) {
 static inline isc_result_t
 towire_in_naptr(ARGS_TOWIRE) {
 	dns_name_t name;
+	dns_offsets_t offsets;
 	isc_region_t sr;
 
 	REQUIRE(rdata->type == 35);
@@ -231,7 +235,7 @@ towire_in_naptr(ARGS_TOWIRE) {
 	/*
 	 * Replacement.
 	 */
-	dns_name_init(&name, NULL);
+	dns_name_init(&name, offsets);
 	dns_name_fromregion(&name, &sr);
 	return (dns_name_towire(&name, cctx, target));
 }
@@ -322,6 +326,7 @@ fromstruct_in_naptr(ARGS_FROMSTRUCT) {
 	REQUIRE((naptr->regexp == NULL && naptr->regexp_len == 0) ||
 		(naptr->regexp != NULL && naptr->regexp_len != 0));
 
+	UNUSED(type);
 	UNUSED(rdclass);
 
 	RETERR(uint16_tobuffer(naptr->order, target));
@@ -438,6 +443,7 @@ freestruct_in_naptr(ARGS_FREESTRUCT) {
 static inline isc_result_t
 additionaldata_in_naptr(ARGS_ADDLDATA) {
 	dns_name_t name;
+	dns_offsets_t offsets;
 	isc_region_t sr;
 	dns_rdatatype_t atype;
 	unsigned int i, flagslen;
@@ -483,7 +489,7 @@ additionaldata_in_naptr(ARGS_ADDLDATA) {
 	/*
 	 * Replacement.
 	 */
-	dns_name_init(&name, NULL);
+	dns_name_init(&name, offsets);
 	dns_name_fromregion(&name, &sr);
 
 	if (atype != 0)

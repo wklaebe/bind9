@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: afsdb_18.c,v 1.34.4.1 2001/01/09 22:46:38 bwelling Exp $ */
+/* $Id: afsdb_18.c,v 1.38 2001/03/16 22:52:33 bwelling Exp $ */
 
 /* Reviewed: Wed Mar 15 14:59:00 PST 2000 by explorer */
 
@@ -32,9 +32,10 @@ fromtext_afsdb(ARGS_FROMTEXT) {
 	isc_buffer_t buffer;
 	dns_name_t name;
 
-	UNUSED(rdclass);
-
 	REQUIRE(type == 18);
+
+	UNUSED(type);
+	UNUSED(rdclass);
 
 	/*
 	 * Subtype.
@@ -42,7 +43,7 @@ fromtext_afsdb(ARGS_FROMTEXT) {
 	RETERR(isc_lex_getmastertoken(lexer, &token, isc_tokentype_number,
 				      ISC_FALSE));
 	if (token.value.as_ulong > 0xffff)
-		return (ISC_R_RANGE);
+		RETTOK(ISC_R_RANGE);
 	RETERR(uint16_tobuffer(token.value.as_ulong, target));
 
 	/*
@@ -53,7 +54,8 @@ fromtext_afsdb(ARGS_FROMTEXT) {
 	dns_name_init(&name, NULL);
 	buffer_fromregion(&buffer, &token.value.as_region);
 	origin = (origin != NULL) ? origin : dns_rootname;
-	return (dns_name_fromtext(&name, &buffer, origin, downcase, target));
+	RETTOK(dns_name_fromtext(&name, &buffer, origin, downcase, target));
+	return (ISC_R_SUCCESS);
 }
 
 static inline isc_result_t
@@ -87,9 +89,10 @@ fromwire_afsdb(ARGS_FROMWIRE) {
 	isc_region_t sr;
 	isc_region_t tr;
 
-	UNUSED(rdclass);
-
 	REQUIRE(type == 18);
+
+	UNUSED(type);
+	UNUSED(rdclass);
 
 	dns_decompress_setmethods(dctx, DNS_COMPRESS_NONE);
 
@@ -112,6 +115,7 @@ towire_afsdb(ARGS_TOWIRE) {
 	isc_region_t tr;
 	isc_region_t sr;
 	dns_name_t name;
+	dns_offsets_t offsets;
 
 	REQUIRE(rdata->type == 18);
 	REQUIRE(rdata->length != 0);
@@ -125,7 +129,7 @@ towire_afsdb(ARGS_TOWIRE) {
 	isc_region_consume(&sr, 2);
 	isc_buffer_add(target, 2);
 
-	dns_name_init(&name, NULL);
+	dns_name_init(&name, offsets);
 	dns_name_fromregion(&name, &sr);
 
 	return (dns_name_towire(&name, cctx, target));
@@ -174,6 +178,7 @@ fromstruct_afsdb(ARGS_FROMSTRUCT) {
 	REQUIRE(afsdb->common.rdclass == rdclass);
 	REQUIRE(afsdb->common.rdtype == type);
 
+	UNUSED(type);
 	UNUSED(rdclass);
 
 	RETERR(uint16_tobuffer(afsdb->subtype, target));
@@ -227,11 +232,12 @@ freestruct_afsdb(ARGS_FREESTRUCT) {
 static inline isc_result_t
 additionaldata_afsdb(ARGS_ADDLDATA) {
 	dns_name_t name;
+	dns_offsets_t offsets;
 	isc_region_t region;
 
 	REQUIRE(rdata->type == 18);
 
-	dns_name_init(&name, NULL);
+	dns_name_init(&name, offsets);
 	dns_rdata_toregion(rdata, &region);
 	isc_region_consume(&region, 2);
 	dns_name_fromregion(&name, &region);

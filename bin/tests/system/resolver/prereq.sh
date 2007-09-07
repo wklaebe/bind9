@@ -15,7 +15,7 @@
 # NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
 # WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: prereq.sh,v 1.3.4.1 2001/01/09 22:37:05 bwelling Exp $
+# $Id: prereq.sh,v 1.4 2001/01/09 21:44:29 bwelling Exp $
 
 if $PERL -e 'use Net::DNS;' 2>/dev/null
 then

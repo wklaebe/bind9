@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: adb.h,v 1.60.4.2 2001/02/28 21:20:32 bwelling Exp $ */
+/* $Id: adb.h,v 1.65 2001/04/11 20:37:48 bwelling Exp $ */
 
 #ifndef DNS_ADB_H
 #define DNS_ADB_H 1
@@ -144,8 +144,8 @@ struct dns_adbfind {
  *	if one will actually be generated.
  *
  * _AVOIDFETCHES:
- * 	If set, fetches will not be generated unless no addresses are
- * 	available in any of the address families requested.
+ *	If set, fetches will not be generated unless no addresses are
+ *	available in any of the address families requested.
  *
  * _STARTATROOT:
  *	Fetches will start at the root nameservers, instead of the closest
@@ -184,10 +184,8 @@ struct dns_adbaddrinfo {
 	unsigned int			magic;		/* private */
 
 	isc_sockaddr_t			sockaddr;	/* [rw] */
-	int				goodness;	/* [rw] */
 	unsigned int			srtt;		/* [rw] microseconds */
 	unsigned int			flags;		/* [rw] */
-	isc_stdtime_t			avoid_bitstring; /* [rw] 0 == don't */
 	dns_adbentry_t		       *entry;		/* private */
 	ISC_LINK(dns_adbaddrinfo_t)	publink;
 };
@@ -480,26 +478,6 @@ dns_adb_marklame(dns_adb_t *adb, dns_adbaddrinfo_t *addr, dns_name_t *zone,
  *	ISC_R_NOMEMORY		-- could not mark address as lame.
  */
 
-void
-dns_adb_adjustgoodness(dns_adb_t *adb, dns_adbaddrinfo_t *addr,
-		       int goodness_adjustment);
-/*
- * Increase or decrease the address's goodness value.
- *
- * Note:
- *
- *	Goodness values are silently clamped to INT_MAX and INT_MIN.
- *
- *	The goodness in addr will be updated to reflect the new global
- *	goodness value.  This may include changes made by others.
- *
- * Requires:
- *
- *	adb be valid.
- *
- *	addr be valid.
- */
-
 /*
  * A reasonable default for RTT adjustments
  */
@@ -548,18 +526,6 @@ dns_adb_changeflags(dns_adb_t *adb, dns_adbaddrinfo_t *addr,
  *
  *	addr be valid.
  */
-void
-dns_adb_setavoidbitstring(dns_adb_t *adb, dns_adbaddrinfo_t *addr,
-			  isc_stdtime_t when);
-/*
- * Set the avoid_bitstring timer to "when".  A "when" of 0 disables it.
- *
- * Requires:
- *
- *	adb be valid.
- *
- *	addr be valid.
- */
 
 isc_result_t
 dns_adb_findaddrinfo(dns_adb_t *adb, isc_sockaddr_t *sa,
@@ -591,6 +557,15 @@ dns_adb_freeaddrinfo(dns_adb_t *adb, dns_adbaddrinfo_t **addrp);
  *	adb is valid.
  *
  *	*addrp is a valid dns_adbaddrinfo_t *.
+ */
+
+void
+dns_adb_flush(dns_adb_t *adb);
+/*
+ * Flushes all cached data from the adb.
+ *
+ * Requires:
+ * 	adb is valid.
  */
 
 ISC_LANG_ENDDECLS

@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: acl.c,v 1.17.4.2 2001/02/09 01:01:54 bwelling Exp $ */
+/* $Id: acl.c,v 1.23 2001/05/31 10:43:37 tale Exp $ */
 
 #include <config.h>
 
@@ -140,7 +140,7 @@ dns_acl_match(isc_netaddr_t *reqaddr,
 
 		if (dns_aclelement_match(reqaddr, reqsigner,
 					 e, env, matchelt)) {
-			*match = e->negative ? -(i+1) : (i+1);
+			*match = e->negative ? -((int)i+1) : ((int)i+1);
 			return (ISC_R_SUCCESS);
 		}
 	}
@@ -157,12 +157,24 @@ dns_aclelement_match(isc_netaddr_t *reqaddr,
 		     dns_aclelement_t **matchelt)
 {
 	dns_acl_t *inner = NULL;
+	isc_netaddr_t *addr;
+	isc_netaddr_t v4addr;
 	int indirectmatch;
 	isc_result_t result;
 
 	switch (e->type) {
 	case dns_aclelementtype_ipprefix:
-		if (isc_netaddr_eqprefix(reqaddr,
+		if (env == NULL ||
+		    env->match_mapped == ISC_FALSE ||
+		    reqaddr->family != AF_INET6 ||
+		    !IN6_IS_ADDR_V4MAPPED(&reqaddr->type.in6))
+			addr = reqaddr;
+		else {
+			isc_netaddr_fromv4mapped(&v4addr, reqaddr);
+			addr = &v4addr;
+		}
+
+		if (isc_netaddr_eqprefix(addr,
 					 &e->u.ip_prefix.address, 
 					 e->u.ip_prefix.prefixlen))
 			goto matched;
@@ -316,10 +328,6 @@ dns_acl_equal(dns_acl_t *a, dns_acl_t *b) {
 	return (ISC_TRUE);
 }
 
-#ifndef INADDR_LOOPBACK
-#define INADDR_LOOPBACK (unsigned long)0x7F000001UL
-#endif
-
 static isc_boolean_t
 is_loopback(dns_aclipprefix_t *p) {
 	switch (p->address.family) {
@@ -389,6 +397,7 @@ dns_aclenv_init(isc_mem_t *mctx, dns_aclenv_t *env) {
 	result = dns_acl_create(mctx, 0, &env->localnets);
 	if (result != ISC_R_SUCCESS)
 		goto cleanup_localhost;
+	env->match_mapped = ISC_FALSE;
 	return (ISC_R_SUCCESS);
 
  cleanup_localhost:
@@ -403,6 +412,7 @@ dns_aclenv_copy(dns_aclenv_t *t, dns_aclenv_t *s) {
 	dns_acl_attach(s->localhost, &t->localhost);
 	dns_acl_detach(&t->localnets);
 	dns_acl_attach(s->localnets, &t->localnets);
+	t->match_mapped = s->match_mapped;
 }
 
 void

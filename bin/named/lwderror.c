@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: lwderror.c,v 1.6.4.1 2001/01/09 22:31:58 bwelling Exp $ */
+/* $Id: lwderror.c,v 1.7 2001/01/09 21:39:49 bwelling Exp $ */
 
 #include <config.h>
 

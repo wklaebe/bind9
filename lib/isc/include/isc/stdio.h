@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: stdio.h,v 1.5.4.1 2001/01/09 22:50:32 bwelling Exp $ */
+/* $Id: stdio.h,v 1.6 2001/01/09 21:57:35 bwelling Exp $ */
 
 #ifndef ISC_STDIO_H
 #define ISC_STDIO_H 1

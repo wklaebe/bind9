@@ -13,7 +13,7 @@
 # NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
 # WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: Makefile.in,v 1.63.4.1 2001/01/09 22:31:48 bwelling Exp $
+# $Id: Makefile.in,v 1.73.2.1 2001/06/01 00:46:26 bwelling Exp $
 
 srcdir =	@srcdir@
 VPATH =		@srcdir@
@@ -32,34 +32,38 @@ DBDRIVER_INCLUDES =
 DBDRIVER_LIBS =
 
 CINCLUDES =	-I${srcdir}/include -I${srcdir}/unix/include \
-		${LWRES_INCLUDES} ${DNS_INCLUDES} ${ISC_INCLUDES} \
-		${OMAPI_INCLUDES} ${DBDRIVER_INCLUDES}
+		${LWRES_INCLUDES} ${DNS_INCLUDES} \
+		${ISCCFG_INCLUDES} ${ISCCC_INCLUDES} ${ISC_INCLUDES} \
+		${DBDRIVER_INCLUDES}
 
 CDEFINES =
 CWARNINGS =
 
-OMAPILIBS =	../../lib/omapi/libomapi.@A@
 DNSLIBS =	../../lib/dns/libdns.@A@ @DNS_OPENSSL_LIBS@ @DNS_GSSAPI_LIBS@
+ISCCFGLIBS =	../../lib/isccfg/libisccfg.@A@
+ISCCCLIBS =	../../lib/isccc/libisccc.@A@
 ISCLIBS =	../../lib/isc/libisc.@A@
 LWRESLIBS =	../../lib/lwres/liblwres.@A@
 
-OMAPIDEPLIBS =	../../lib/omapi/libomapi.@A@
 DNSDEPLIBS =	../../lib/dns/libdns.@A@
+ISCCFGDEPLIBS =	../../lib/isccfg/libisccfg.@A@
+ISCCCDEPLIBS =	../../lib/isccc/libisccc.@A@
 ISCDEPLIBS =	../../lib/isc/libisc.@A@
 LWRESDEPLIBS =	../../lib/lwres/liblwres.@A@
 
-DEPLIBS =	${LWRESDEPLIBS} ${OMAPIDEPLIBS} ${DNSDEPLIBS} ${ISCDEPLIBS}
+DEPLIBS =	${LWRESDEPLIBS} ${DNSDEPLIBS} \
+		${ISCCFGDEPLIBS} ${ISCCCDEPLIBS} ${ISCDEPLIBS}
 
-LIBS =		${LWRESLIBS} ${OMAPILIBS} ${DNSLIBS} ${ISCLIBS} \
-		${DBDRIVER_LIBS} @LIBS@
+LIBS =		${LWRESLIBS} ${DNSLIBS} \
+		${ISCCFGLIBS} ${ISCCCLIBS} ${ISCLIBS} ${DBDRIVER_LIBS} @LIBS@
 
 SUBDIRS =	unix
 
 TARGETS =	named lwresd
 
-OBJS =		aclconf.@O@ client.@O@ interfacemgr.@O@ listenlist.@O@ \
-		log.@O@ logconf.@O@ main.@O@ notify.@O@ omapi.@O@ \
-		omapiconf.@O@ query.@O@ server.@O@ sortlist.@O@ \
+OBJS =		aclconf.@O@ client.@O@ config.@O@ control.@O@ controlconf.@O@ interfacemgr.@O@ \
+		listenlist.@O@ log.@O@ logconf.@O@ main.@O@ notify.@O@ \
+		query.@O@ server.@O@ sortlist.@O@ \
 		tkeyconf.@O@ tsigconf.@O@ update.@O@ xfrout.@O@ \
 		zoneconf.@O@ \
 		lwaddr.@O@ lwresd.@O@ lwdclient.@O@ lwderror.@O@ lwdgabn.@O@ \
@@ -68,14 +72,20 @@ OBJS =		aclconf.@O@ client.@O@ interfacemgr.@O@ listenlist.@O@ \
 
 UOBJS =		unix/os.@O@
 
-SRCS =		aclconf.c client.c interfacemgr.c listenlist.c \
-		log.c logconf.c main.c notify.c omapi.c \
-		omapiconf.c query.c server.c sortlist.c \
+SRCS =		aclconf.c client.c config.c control.c controlconf.c interfacemgr.c \
+		listenlist.c log.c logconf.c main.c notify.c \
+		query.c server.c sortlist.c \
 		tkeyconf.c tsigconf.c update.c xfrout.c \
 		zoneconf.c \
 		lwaddr.c lwresd.c lwdclient.c lwderror.c lwdgabn.c \
 		lwdgnba.c lwdgrbn.c lwdnoop.c lwsearch.c \
 		$(DBDRIVER_SRCS)
+
+MANPAGES =	named.8 lwresd.8
+
+HTMLPAGES =	named.html lwresd.html
+
+MANOBJS =	${MANPAGES} ${HTMLPAGES}
 
 @BIND9_MAKE_RULES@
 
@@ -84,19 +94,31 @@ main.@O@: main.c
 		-DNS_LOCALSTATEDIR=\"${localstatedir}\" \
 		-DNS_SYSCONFDIR=\"${sysconfdir}\" -c ${srcdir}/main.c
 
+config.@O@: config.c
+	${LIBTOOL} ${CC} ${ALL_CFLAGS} -DVERSION=\"${VERSION}\" \
+		-DNS_LOCALSTATEDIR=\"${localstatedir}\" \
+		-c ${srcdir}/config.c
+
 named: ${OBJS} ${UOBJS} ${DEPLIBS}
-	${LIBTOOL} ${CC} ${CFLAGS} -o $@ ${OBJS} ${UOBJS} ${LIBS}
+	${LIBTOOL} ${PURIFY} ${CC} ${CFLAGS} -o $@ ${OBJS} ${UOBJS} ${LIBS}
 
 lwresd: named
 	rm -f lwresd
 	@LN@ named lwresd
 
-clean distclean::
+doc man:: ${MANOBJS}
+
+docclean manclean maintainer-clean::
+	rm -f ${MANOBJS}
+
+clean distclean maintainer-clean::
 	rm -f ${TARGETS}
 
 installdirs:
 	$(SHELL) ${top_srcdir}/mkinstalldirs ${DESTDIR}${sbindir}
+	$(SHELL) ${top_srcdir}/mkinstalldirs ${DESTDIR}${mandir}/man8
 
 install:: named lwresd installdirs
 	${LIBTOOL} ${INSTALL_PROGRAM} named ${DESTDIR}${sbindir}
 	(cd ${DESTDIR}${sbindir}; rm -f lwresd; @LN@ named lwresd)
+	for m in ${MANPAGES}; do ${INSTALL_DATA} ${srcdir}/$$m ${DESTDIR}${mandir}/man8; done

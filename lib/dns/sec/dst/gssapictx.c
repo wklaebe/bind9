@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: gssapictx.c,v 1.2.4.1 2001/01/09 22:48:26 bwelling Exp $ */
+/* $Id: gssapictx.c,v 1.3 2001/01/09 21:55:35 bwelling Exp $ */
 
 #include <config.h>
 

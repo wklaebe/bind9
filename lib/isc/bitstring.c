@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: bitstring.c,v 1.10.4.1 2001/01/09 22:48:46 bwelling Exp $ */
+/* $Id: bitstring.c,v 1.11 2001/01/09 21:55:55 bwelling Exp $ */
 
 #include <config.h>
 

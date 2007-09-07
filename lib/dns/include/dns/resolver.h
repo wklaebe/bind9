@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: resolver.h,v 1.33.4.1 2001/01/09 22:46:10 bwelling Exp $ */
+/* $Id: resolver.h,v 1.34 2001/01/09 21:53:22 bwelling Exp $ */
 
 #ifndef DNS_RESOLVER_H
 #define DNS_RESOLVER_H 1

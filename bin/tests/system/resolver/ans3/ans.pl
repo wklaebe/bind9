@@ -15,7 +15,7 @@
 # NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
 # WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: ans.pl,v 1.4.4.1 2001/01/09 22:37:09 bwelling Exp $
+# $Id: ans.pl,v 1.5 2001/01/09 21:44:33 bwelling Exp $
 
 #
 # Ad hoc name server

@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: gxba_test.c,v 1.6.4.1 2001/01/09 22:33:17 bwelling Exp $ */
+/* $Id: gxba_test.c,v 1.7 2001/01/09 21:41:05 bwelling Exp $ */
 
 #include <config.h>
 

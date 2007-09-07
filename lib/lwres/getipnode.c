@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: getipnode.c,v 1.26.4.2 2001/01/10 21:50:09 gson Exp $ */
+/* $Id: getipnode.c,v 1.28 2001/01/09 21:59:19 bwelling Exp $ */
 
 #include <config.h>
 

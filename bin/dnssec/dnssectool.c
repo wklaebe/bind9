@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dnssectool.c,v 1.26.2.2 2001/06/08 23:27:29 bwelling Exp $ */
+/* $Id: dnssectool.c,v 1.28 2001/03/31 02:12:24 bwelling Exp $ */
 
 #include <config.h>
 
@@ -45,6 +45,7 @@ extern const char *program;
 static isc_entropysource_t *source = NULL;
 static isc_keyboard_t kbd;
 static isc_boolean_t wantkeyboard = ISC_FALSE;
+static fatalcallback_t *fatalcallback = NULL;
 
 void
 fatal(const char *format, ...) {
@@ -55,7 +56,14 @@ fatal(const char *format, ...) {
 	vfprintf(stderr, format, args);
 	va_end(args);
 	fprintf(stderr, "\n");
+	if (fatalcallback != NULL)
+		(*fatalcallback)();
 	exit(1);
+}
+
+void
+setfatalcallback(fatalcallback_t *callback) {
+	fatalcallback = callback;
 }
 
 void
@@ -267,26 +275,23 @@ setup_entropy(isc_mem_t *mctx, const char *randomfile, isc_entropy_t **ectx) {
 	result = isc_entropy_create(mctx, ectx);
 	if (result != ISC_R_SUCCESS)
 		fatal("could not create entropy object");
-
-#ifdef PATH_RANDOMDEV
-	if (randomfile == NULL) {
-		result = isc_entropy_createfilesource(*ectx, PATH_RANDOMDEV);
-		if (result == ISC_R_SUCCESS)
-			return;
-	}
-#endif
-
-	if (randomfile != NULL && strcasecmp(randomfile, "keyboard") == 0) {
-		wantkeyboard = ISC_TRUE;
-		randomfile = NULL;
-	}
-		
-	if (randomfile != NULL) {
+	if (randomfile != NULL && strcasecmp(randomfile, "keyboard") != 0) {
 		result = isc_entropy_createfilesource(*ectx, randomfile);
 		if (result != ISC_R_SUCCESS)
 			fatal("could not open randomdev %s: %s", randomfile,
 			      isc_result_totext(result));
-	} else {
+	}
+	else {
+#ifdef PATH_RANDOMDEV
+		if (randomfile == NULL) {
+			result = isc_entropy_createfilesource(*ectx,
+							      PATH_RANDOMDEV);
+			if (result == ISC_R_SUCCESS)
+				return;
+		}
+		else
+#endif
+			wantkeyboard = ISC_TRUE;
 		result = isc_entropy_createcallbacksource(*ectx, kbdstart,
 							  kbdget, kbdstop,
 							  &kbd, &source);

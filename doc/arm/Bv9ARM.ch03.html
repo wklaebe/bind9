@@ -4,9 +4,10 @@
 >Nameserver Configuration</TITLE
 ><META
 NAME="GENERATOR"
-CONTENT="Modular DocBook HTML Stylesheet Version 1.61
+CONTENT="Modular DocBook HTML Stylesheet Version 1.64
 "><LINK
 REL="HOME"
+TITLE="BIND 9 Administrator Reference Manual"
 HREF="Bv9ARM.html"><LINK
 REL="PREVIOUS"
 TITLE="BIND Resource Requirements"
@@ -32,7 +33,7 @@ CELLSPACING="0"
 ><TH
 COLSPAN="3"
 ALIGN="center"
-></TH
+>BIND 9 Administrator Reference Manual</TH
 ></TR
 ><TR
 ><TD
@@ -82,7 +83,7 @@ HREF="Bv9ARM.ch03.html#sample_configuration"
 ></DT
 ><DT
 >3.2. <A
-HREF="Bv9ARM.ch03.html#AEN287"
+HREF="Bv9ARM.ch03.html#AEN281"
 >Load Balancing</A
 ></DT
 ><DT
@@ -92,7 +93,7 @@ HREF="Bv9ARM.ch03.html#notify"
 ></DT
 ><DT
 >3.4. <A
-HREF="Bv9ARM.ch03.html#AEN375"
+HREF="Bv9ARM.ch03.html#AEN369"
 >Nameserver Operations</A
 ></DT
 ></DL
@@ -114,7 +115,7 @@ CLASS="sect2"
 ><H2
 CLASS="sect2"
 ><A
-NAME="AEN277"
+NAME="AEN271"
 >3.1.1. A Caching-only Nameserver</A
 ></H2
 ><P
@@ -126,8 +127,8 @@ CLASS="programlisting"
 >&#13;// Two corporate subnets we wish to allow queries from.
 acl "corpnets" { 192.168.4.0/24; 192.168.7.0/24; };
 options {
-     directory "/etc/namedb";		// Working directory
-     pid-file "named.pid";		// Put pid file in working dir
+     directory "/etc/namedb";           // Working directory
+     pid-file "named.pid";              // Put pid file in working dir
      allow-query { "corpnets"; };
 };
 // Root server hints
@@ -145,7 +146,7 @@ CLASS="sect2"
 ><H2
 CLASS="sect2"
 ><A
-NAME="AEN281"
+NAME="AEN275"
 >3.1.2. An Authoritative-only Nameserver</A
 ></H2
 ><P
@@ -161,10 +162,10 @@ CLASS="filename"
 ><PRE
 CLASS="programlisting"
 >&#13;options {
-     directory "/etc/namedb";		// Working directory
-     pid-file "named.pid";		// Put pid file in working dir
-     allow-query { any; };		// This is the default
-     recursion no;			// Do not provide recursive service
+     directory "/etc/namedb";           // Working directory
+     pid-file "named.pid";              // Put pid file in working dir
+     allow-query { any; };              // This is the default
+     recursion no;                      // Do not provide recursive service
 };
 // Root server hints
 zone "." { type hint; file "root.hint"; };
@@ -200,7 +201,7 @@ CLASS="sect1"
 ><H1
 CLASS="sect1"
 ><A
-NAME="AEN287"
+NAME="AEN281"
 >3.2. Load Balancing</A
 ></H1
 ><P
@@ -217,7 +218,7 @@ of the time:</P
 ><DIV
 CLASS="informaltable"
 ><A
-NAME="AEN292"
+NAME="AEN286"
 ></A
 ><P
 ></P
@@ -479,7 +480,8 @@ CLASS="acronym"
     of the zone option <B
 CLASS="command"
 >also-notify</B
->, see <A
+>, see
+    <A
 HREF="Bv9ARM.ch06.html#zone_transfers"
 >Section 6.2.14.6</A
 >. For more information about
@@ -496,7 +498,7 @@ CLASS="sect1"
 ><H1
 CLASS="sect1"
 ><A
-NAME="AEN375"
+NAME="AEN369"
 >3.4. Nameserver Operations</A
 ></H1
 ><DIV
@@ -504,7 +506,7 @@ CLASS="sect2"
 ><H2
 CLASS="sect2"
 ><A
-NAME="AEN377"
+NAME="AEN371"
 >3.4.1. Tools for Use With the Nameserver Daemon</A
 ></H2
 ><P
@@ -517,7 +519,7 @@ CLASS="sect3"
 ><H3
 CLASS="sect3"
 ><A
-NAME="AEN380"
+NAME="diagnostic_tools"
 >3.4.1.1. Diagnostic Tools</A
 ></H3
 ><P
@@ -709,63 +711,6 @@ CLASS="command"
 >dig</B
 > instead.</P
 ></DD
-><DT
-><A
-NAME="named-checkconf"
-><B
-CLASS="command"
->named-checkconf</B
-></A
-></DT
-><DD
-><P
->Checks the syntax of <TT
-CLASS="filename"
->named.conf</TT
->.</P
-><P
-><B
-CLASS="command"
->named-checkconf</B
->  [<TT
-CLASS="replaceable"
-><I
->filename</I
-></TT
->]</P
-></DD
-><DT
-><A
-NAME="named-checkzone"
-><B
-CLASS="command"
->named-checkzone</B
-></A
-></DT
-><DD
-><P
->Performs syntax and consistency checks on a individual zone.</P
-><P
-><B
-CLASS="command"
->named-checkzone</B
->  [-dq] [-c <TT
-CLASS="replaceable"
-><I
->class</I
-></TT
->]  <TT
-CLASS="replaceable"
-><I
->zone</I
-></TT
->  [<TT
-CLASS="replaceable"
-><I
->filename</I
-></TT
->]</P
-></DD
 ></DL
 ></DIV
 ></DIV
@@ -785,6 +730,76 @@ of a server.</P
 ><DIV
 CLASS="variablelist"
 ><DL
+><DT
+><A
+NAME="named-checkconf"
+><B
+CLASS="command"
+>named-checkconf</B
+></A
+></DT
+><DD
+><P
+>The <B
+CLASS="command"
+>named-checkconf</B
+> program
+              checks the syntax of a <TT
+CLASS="filename"
+>named.conf</TT
+> file.</P
+><P
+><B
+CLASS="command"
+>named-checkconf</B
+>  [-t <TT
+CLASS="replaceable"
+><I
+>directory</I
+></TT
+>] [<TT
+CLASS="replaceable"
+><I
+>filename</I
+></TT
+>]</P
+></DD
+><DT
+><A
+NAME="named-checkzone"
+><B
+CLASS="command"
+>named-checkzone</B
+></A
+></DT
+><DD
+><P
+>The <B
+CLASS="command"
+>named-checkzone</B
+> program checks a master file for
+              syntax and consistency.</P
+><P
+><B
+CLASS="command"
+>check-zone</B
+>  [-dq] [-c <TT
+CLASS="replaceable"
+><I
+>class</I
+></TT
+>]  <TT
+CLASS="replaceable"
+><I
+>zone</I
+></TT
+>  [<TT
+CLASS="replaceable"
+><I
+>filename</I
+></TT
+>]</P
+></DD
 ><DT
 ><A
 NAME="rndc"
@@ -846,45 +861,23 @@ CLASS="replaceable"
 CLASS="command"
 >command</B
 > is one of the following:</P
-><DIV
-CLASS="informaltable"
-><A
-NAME="AEN507"
-></A
 ><P
 ></P
-><TABLE
-CELLPADDING="3"
-BORDER="1"
-CLASS="CALSTABLE"
-><TBODY
-><TR
-><TD
-WIDTH="288"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
-><P
+><DIV
+CLASS="variablelist"
+><DL
+><DT
 ><TT
 CLASS="userinput"
 ><B
 >reload</B
 ></TT
-></P
-></TD
-><TD
-WIDTH="288"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
+></DT
+><DD
 ><P
 >Reload configuration file and zones.</P
-></TD
-></TR
-><TR
-><TD
-WIDTH="288"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
-><P
+></DD
+><DT
 ><TT
 CLASS="userinput"
 ><B
@@ -893,14 +886,16 @@ CLASS="replaceable"
 ><I
 >zone</I
 ></TT
-> [<SPAN
+>
+       [<SPAN
 CLASS="optional"
 ><TT
 CLASS="replaceable"
 ><I
 >class</I
 ></TT
-> [<SPAN
+>
+           [<SPAN
 CLASS="optional"
 ><TT
 CLASS="replaceable"
@@ -911,22 +906,12 @@ CLASS="replaceable"
 >]</SPAN
 >]</B
 ></TT
-></P
-></TD
-><TD
-WIDTH="288"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
+></DT
+><DD
 ><P
 >Reload the given zone.</P
-></TD
-></TR
-><TR
-><TD
-WIDTH="288"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
-><P
+></DD
+><DT
 ><TT
 CLASS="userinput"
 ><B
@@ -935,14 +920,16 @@ CLASS="replaceable"
 ><I
 >zone</I
 ></TT
-> [<SPAN
+>
+       [<SPAN
 CLASS="optional"
 ><TT
 CLASS="replaceable"
 ><I
 >class</I
 ></TT
-> [<SPAN
+>
+           [<SPAN
 CLASS="optional"
 ><TT
 CLASS="replaceable"
@@ -953,154 +940,174 @@ CLASS="replaceable"
 >]</SPAN
 >]</B
 ></TT
-></P
-></TD
-><TD
-WIDTH="288"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
+></DT
+><DD
 ><P
 >Schedule zone maintenance for the given zone.</P
-></TD
-></TR
-><TR
-><TD
-WIDTH="288"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
+></DD
+><DT
+><TT
+CLASS="userinput"
+><B
+>reconfig</B
+></TT
+></DT
+><DD
 ><P
+>Reload the configuration file and load new zones,
+   but do not reload existing zone files even if they have changed.
+   This is faster than a full <B
+CLASS="command"
+>reload</B
+> when there
+   is a large number of zones because it avoids the need to examine the
+   modification times of the zones files.
+   </P
+></DD
+><DT
 ><TT
 CLASS="userinput"
 ><B
 >stats</B
 ></TT
-></P
-></TD
-><TD
-WIDTH="288"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
+></DT
+><DD
 ><P
 >Write server statistics to the statistics file.</P
-></TD
-></TR
-><TR
-><TD
-WIDTH="288"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
-><P
+></DD
+><DT
 ><TT
 CLASS="userinput"
 ><B
 >querylog</B
 ></TT
-></P
-></TD
-><TD
-WIDTH="288"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
+></DT
+><DD
 ><P
 >Toggle query logging.</P
-></TD
-></TR
-><TR
-><TD
-WIDTH="288"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
-><P
+></DD
+><DT
 ><TT
 CLASS="userinput"
 ><B
 >dumpdb</B
 ></TT
-></P
-></TD
-><TD
-WIDTH="288"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
+></DT
+><DD
 ><P
->Dump the current contents of the cache
-(or caches if there are multiple views) into the file named by the
-<B
-CLASS="command"
->dump-file</B
-> option
-(by default, <TT
-CLASS="filename"
->named_dump.db</TT
->).
-</P
-></TD
-></TR
-><TR
-><TD
-WIDTH="288"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
-><P
+>Dump the server's caches to the dump file. </P
+></DD
+><DT
 ><TT
 CLASS="userinput"
 ><B
 >stop</B
 ></TT
-></P
-></TD
-><TD
-WIDTH="288"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
+></DT
+><DD
 ><P
->Stop the server, making sure any recent changes
-made through dynamic update or IXFR are first saved to the master files
-of the updated zones.</P
-></TD
-></TR
-><TR
-><TD
-WIDTH="288"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
-><P
+>Stop the server,
+   making sure any recent changes
+   made through dynamic update or IXFR are first saved to the master files
+   of the updated zones.</P
+></DD
+><DT
 ><TT
 CLASS="userinput"
 ><B
 >halt</B
 ></TT
-></P
-></TD
-><TD
-WIDTH="288"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
+></DT
+><DD
 ><P
 >Stop the server immediately.  Recent changes
-made through dynamic update or IXFR are not saved to the master files,
-but will be rolled forward from the journal files when the server
-is restarted.</P
-></TD
-></TR
-></TBODY
-></TABLE
+   made through dynamic update or IXFR are not saved to the master files,
+   but will be rolled forward from the journal files when the server
+   is restarted.</P
+></DD
+><DT
+><TT
+CLASS="userinput"
+><B
+>trace</B
+></TT
+></DT
+><DD
 ><P
-></P
+>Increment the servers debugging level by one. </P
+></DD
+><DT
+><TT
+CLASS="userinput"
+><B
+>trace <TT
+CLASS="replaceable"
+><I
+>level</I
+></TT
+></B
+></TT
+></DT
+><DD
+><P
+>Sets the server's debugging level to an explicit
+   value.</P
+></DD
+><DT
+><TT
+CLASS="userinput"
+><B
+>notrace</B
+></TT
+></DT
+><DD
+><P
+>Sets the server's debugging level to 0.</P
+></DD
+><DT
+><TT
+CLASS="userinput"
+><B
+>flush</B
+></TT
+></DT
+><DD
+><P
+>Flushes the server's cache.</P
+></DD
+><DT
+><TT
+CLASS="userinput"
+><B
+>status</B
+></TT
+></DT
+><DD
+><P
+>Display status of the server.</P
+></DD
+></DL
 ></DIV
 ><P
 >In <SPAN
 CLASS="acronym"
 >BIND</SPAN
-> 9.1, <B
+> 9.2, <B
 CLASS="command"
 >rndc</B
-> does not
-yet support all the commands of the BIND 8 <B
+>
+              supports all the commands of the BIND 8 <B
 CLASS="command"
 >ndc</B
 >
-utility.  Additonal commands will be added in future releases.</P
+              utility except <B
+CLASS="command"
+>ndc start</B
+>, which was also
+              not supported in <B
+CLASS="command"
+>ndc</B
+>'s channel mode.</P
 ><P
 >A configuration file is required, since all
               communication with the server is authenticated with
@@ -1119,23 +1126,55 @@ CLASS="filename"
 CLASS="option"
 >-c</TT
 >
-              option.</P
+              option.  If the configuration file is not found,
+              <B
+CLASS="command"
+>rndc</B
+> will also look in
+              <TT
+CLASS="filename"
+>/var/run/named.key</TT
+> (or wherever
+              <TT
+CLASS="varname"
+>localstatedir</TT
+> was defined when
+              the <SPAN
+CLASS="acronym"
+>BIND</SPAN
+> build was configured).
+              The <TT
+CLASS="filename"
+>named.key</TT
+> file is generated by
+              <B
+CLASS="command"
+>named</B
+> as described in
+              <A
+HREF="Bv9ARM.ch06.html#controls_statement_definition_and_usage"
+>Section 6.2.4</A
+>.</P
 ><P
 >The format of the configuration file is similar to
               that of <TT
 CLASS="filename"
 >named.conf</TT
 >, but limited to
-              only three statements, the <B
+              only four statements, the <B
 CLASS="command"
 >options</B
 >,
               <B
 CLASS="command"
 >key</B
-> and <B
+>, <B
 CLASS="command"
 >server</B
+> and
+              <B
+CLASS="command"
+>include</B
 >
               statements.  These statements are what associate the
               secret keys to the servers with which they are meant to
@@ -1278,7 +1317,7 @@ following controls statements:</P
 ><PRE
 CLASS="programlisting"
 >&#13;controls {
-		inet 127.0.0.1 allow { localhost; } keys { rndc_key; };
+                inet 127.0.0.1 allow { localhost; } keys { rndc_key; };
 };
 </PRE
 ><P
@@ -1297,7 +1336,7 @@ CLASS="sect2"
 ><H2
 CLASS="sect2"
 ><A
-NAME="AEN622"
+NAME="AEN648"
 >3.4.2. Signals</A
 ></H2
 ><P
@@ -1310,7 +1349,7 @@ CLASS="command"
 ><DIV
 CLASS="informaltable"
 ><A
-NAME="AEN626"
+NAME="AEN652"
 ></A
 ><P
 ></P

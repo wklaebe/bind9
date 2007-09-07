@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: list.h,v 1.17.2.1 2001/01/09 22:50:03 bwelling Exp $ */
+/* $Id: list.h,v 1.18 2001/01/09 21:57:08 bwelling Exp $ */
 
 #ifndef ISC_LIST_H
 #define ISC_LIST_H 1

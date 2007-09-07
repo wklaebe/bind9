@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: resource.c,v 1.6.2.3 2001/06/09 00:58:11 gson Exp $ */
+/* $Id: resource.c,v 1.10 2001/01/23 06:00:11 marka Exp $ */
 
 #include <config.h>
 

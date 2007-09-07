@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: nxt.h,v 1.11.4.1 2001/01/09 22:45:55 bwelling Exp $ */
+/* $Id: nxt.h,v 1.12 2001/01/09 21:53:08 bwelling Exp $ */
 
 #ifndef DNS_NXT_H
 #define DNS_NXT_H 1

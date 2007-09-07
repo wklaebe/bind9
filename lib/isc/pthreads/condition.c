@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: condition.c,v 1.25.4.2 2001/03/14 18:06:02 bwelling Exp $ */
+/* $Id: condition.c,v 1.30 2001/01/23 02:27:19 bwelling Exp $ */
 
 #include <config.h>
 
@@ -36,7 +36,7 @@ isc_condition_waituntil(isc_condition_t *c, isc_mutex_t *m, isc_time_t *t) {
 	REQUIRE(c != NULL && m != NULL && t != NULL);
 
 	/*
-	 * POSIX defines a timepsec's tv_sec as time_t.
+	 * POSIX defines a timespec's tv_sec as time_t.
 	 */
 	result = isc_time_secondsastimet(t, &ts.tv_sec);
 	if (result != ISC_R_SUCCESS)
@@ -49,7 +49,11 @@ isc_condition_waituntil(isc_condition_t *c, isc_mutex_t *m, isc_time_t *t) {
 	ts.tv_nsec = (long)isc_time_nanoseconds(t);
 
 	do {
+#if ISC_MUTEX_PROFILE
+		presult = pthread_cond_timedwait(c, &m->mutex, &ts);
+#else
 		presult = pthread_cond_timedwait(c, m, &ts);
+#endif
 		if (presult == 0)
 			return (ISC_R_SUCCESS);
 		if (presult == ETIMEDOUT)

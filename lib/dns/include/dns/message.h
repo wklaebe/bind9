@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: message.h,v 1.83.4.1 2001/01/09 22:45:50 bwelling Exp $ */
+/* $Id: message.h,v 1.97 2001/03/28 02:42:56 bwelling Exp $ */
 
 #ifndef DNS_MESSAGE_H
 #define DNS_MESSAGE_H 1
@@ -28,6 +28,7 @@
 #include <isc/magic.h>
 
 #include <dns/compress.h>
+#include <dns/masterdump.h>
 #include <dns/types.h>
 
 #include <dst/dst.h>
@@ -59,11 +60,12 @@
  *
  * The same applies to rdatasets.
  *
- * On the other hand, rdatalists and rdatas allocated using
+ * On the other hand, offsets, rdatalists and rdatas allocated using
  * dns_message_gettemp*() will always be freed automatically
  * when the message is reset or destroyed; calling dns_message_puttemp*()
- * on these is optional and serves only to enable the item to be reused
- * multiple times during the lifetime of the message.
+ * on rdatalists and rdatas is optional and serves only to enable the item
+ * to be reused multiple times during the lifetime of the message; offsets
+ * cannot be reused.
  *
  * Buffers allocated using isc_buffer_allocate() can be automatically freed
  * as well by giving the buffer to the message using dns_message_takebuffer().
@@ -126,7 +128,6 @@ typedef int dns_pseudosection_t;
 typedef int dns_messagetextflag_t;
 #define DNS_MESSAGETEXTFLAG_NOCOMMENTS	0x0001
 #define DNS_MESSAGETEXTFLAG_NOHEADERS	0x0002
-#define DNS_MESSAGETEXTFLAG_OMITDOT	0x0004
 
 /*
  * Dynamic update names for these sections.
@@ -149,6 +150,8 @@ typedef int dns_messagetextflag_t;
 #define DNS_MESSAGEPARSE_BESTEFFORT	0x0002	/* return a message if a
 						   recoverable parse error
 						   occurs */
+#define DNS_MESSAGEPARSE_CLONEBUFFER	0x0004	/* save a copy of the
+						   source buffer */
 
 /*
  * Control behavior of rendering
@@ -163,7 +166,7 @@ struct dns_message {
 
 	dns_messageid_t			id;
 	unsigned int			flags;
-	unsigned int			rcode;
+	dns_rcode_t			rcode;
 	unsigned int			opcode;
 	dns_rdataclass_t		rdclass;
 
@@ -179,19 +182,20 @@ struct dns_message {
 
 	int				state;
 	unsigned int			from_to_wire : 2;
-	unsigned int			need_cctx_cleanup : 1;
 	unsigned int			header_ok : 1;
 	unsigned int			question_ok : 1;
 	unsigned int			tcp_continuation : 1;
 	unsigned int			verified_sig : 1;
 	unsigned int			verify_attempted : 1;
+	unsigned int			free_query : 1;
+	unsigned int			free_saved : 1;
 
 	unsigned int			opt_reserved;
 	unsigned int			sig_reserved;
 	unsigned int			reserved; /* reserved space (render) */
 
 	isc_buffer_t		       *buffer;
-	dns_compress_t			cctx;
+	dns_compress_t		       *cctx;
 
 	isc_mem_t		       *mctx;
 	isc_mempool_t		       *namepool;
@@ -202,6 +206,7 @@ struct dns_message {
 
 	ISC_LIST(dns_msgblock_t)	rdatas;
 	ISC_LIST(dns_msgblock_t)	rdatalists;
+	ISC_LIST(dns_msgblock_t)	offsets;
 
 	ISC_LIST(dns_rdata_t)		freerdata;
 	ISC_LIST(dns_rdatalist_t)	freerdatalist;
@@ -213,13 +218,13 @@ struct dns_message {
 	dns_tsigkey_t		       *tsigkey;
 	dst_context_t		       *tsigctx;
 	int				sigstart;
+	int				timeadjust;
 
 	dns_name_t		       *sig0name;
 	dst_key_t		       *sig0key;
 	dns_rcode_t			sig0status;
-	isc_region_t		       *query;
-	isc_region_t		       *saved;
-	isc_buffer_t		       *rawmessge;
+	isc_region_t			query;
+	isc_region_t			saved;
 
 	dns_rdatasetorderfunc_t		order;
 	void *				order_arg;
@@ -292,12 +297,14 @@ dns_message_destroy(dns_message_t **msgp);
 
 isc_result_t
 dns_message_sectiontotext(dns_message_t *msg, dns_section_t section,
+			  const dns_master_style_t *style,
 			  dns_messagetextflag_t flags,
 			  isc_buffer_t *target);
 
 isc_result_t
 dns_message_pseudosectiontotext(dns_message_t *msg,
 				dns_pseudosection_t section,
+				const dns_master_style_t *style,
 				dns_messagetextflag_t flags,
 				isc_buffer_t *target);
 /*
@@ -311,6 +318,8 @@ dns_message_pseudosectiontotext(dns_message_t *msg,
  *
  *	'msg' is a valid message.
  *
+ *	'style' is a valid master dump style.
+ *
  *	'target' is a valid buffer.
  *
  *	'section' is a valid section label.
@@ -318,8 +327,6 @@ dns_message_pseudosectiontotext(dns_message_t *msg,
  * Ensures:
  *
  *	If the result is success:
- *
- *		Any bitstring labels are in canonical form.
  *
  *		The used space in 'target' is updated.
  *
@@ -333,8 +340,8 @@ dns_message_pseudosectiontotext(dns_message_t *msg,
 */
 
 isc_result_t
-dns_message_totext(dns_message_t *msg, dns_messagetextflag_t flags,
-		   isc_buffer_t *target);
+dns_message_totext(dns_message_t *msg, const dns_master_style_t *style,
+		   dns_messagetextflag_t flags, isc_buffer_t *target);
 /*
  * Convert all sections of message 'msg' to a cleartext representation
  *
@@ -350,13 +357,13 @@ dns_message_totext(dns_message_t *msg, dns_messagetextflag_t flags,
  *
  *	'msg' is a valid message.
  *
+ *	'style' is a valid master dump style.
+ *
  *	'target' is a valid buffer.
  *
  * Ensures:
  *
  *	If the result is success:
- *
- *		Any bitstring labels are in canonical form.
  *
  *		The used space in 'target' is updated.
  *
@@ -382,7 +389,7 @@ dns_message_parse(dns_message_t *msg, isc_buffer_t *source,
  * If DNS_MESSAGEPARSE_PRESERVEORDER is set, or if the opcode of the message
  * is UPDATE, a separate dns_name_t object will be created for each RR in the
  * message.  Each such dns_name_t will have a single rdataset containing the
- * single RR, * and the order of the RRs in the message is preserved.
+ * single RR, and the order of the RRs in the message is preserved.
  * Otherwise, only one dns_name_t object will be created for each unique
  * owner name in the section, and each such dns_name_t will have a list
  * of rdatasets.  To access the names and their data, use
@@ -411,15 +418,18 @@ dns_message_parse(dns_message_t *msg, isc_buffer_t *source,
  *	ISC_R_NOMEMORY		-- no memory
  *	DNS_R_RECOVERABLE	-- the message parsed properly, but contained
  *				   errors.
- *	DNS_R_???		-- bad signature (XXXMLG need more of these)
  *	Many other errors possible XXXMLG
  */
 
 isc_result_t
-dns_message_renderbegin(dns_message_t *msg, isc_buffer_t *buffer);
+dns_message_renderbegin(dns_message_t *msg, dns_compress_t *cctx,
+			isc_buffer_t *buffer);
 /*
  * Begin rendering on a message.  Only one call can be made to this function
  * per message.
+ *
+ * The compression context is "owned" by the message library until
+ * dns_message_renderend() is called.  It must be invalidated by the caller.
  *
  * The buffer is "owned" by the message library until dns_message_renderend()
  * is called.
@@ -427,6 +437,8 @@ dns_message_renderbegin(dns_message_t *msg, isc_buffer_t *buffer);
  * Requires:
  *
  *	'msg' be valid.
+ *
+ *	'cctx' be valid.
  *
  *	'buffer' is a valid buffer.
  *
@@ -437,7 +449,6 @@ dns_message_renderbegin(dns_message_t *msg, isc_buffer_t *buffer);
  * Returns:
  *	ISC_R_SUCCESS		-- all is well
  *	ISC_R_NOSPACE		-- output buffer is too small
- *	Anything that dns_compress_init() can return.
  */
 
 isc_result_t
@@ -658,6 +669,9 @@ dns_message_findname(dns_message_t *msg, dns_section_t section,
  *
  *	'type' be a valid type.
  *
+ *	If 'type' is dns_rdatatype_sig, 'covers' must be a valid type.
+ *	Otherwise it should be 0.
+ *
  * Returns:
  *	ISC_R_SUCCESS		-- all is well.
  *	DNS_R_NXDOMAIN		-- name does not exist in that section.
@@ -676,6 +690,9 @@ dns_message_findtype(dns_name_t *name, dns_rdatatype_t type,
  *	if '**rdataset' is non-NULL, *rdataset needs to be NULL.
  *
  *	'type' be a valid type, and NOT dns_rdatatype_any.
+ *
+ *	If 'type' is dns_rdatatype_sig, 'covers' must be a valid type.
+ *	Otherwise it should be 0.
  *
  * Returns:
  *	ISC_R_SUCCESS		-- all is well.
@@ -735,6 +752,23 @@ dns_message_gettempname(dns_message_t *msg, dns_name_t **item);
  * one of the message's sections before the message is destroyed.
  *
  * It is the caller's responsibility to initialize this name.
+ *
+ * Requires:
+ *	msg be a valid message
+ *
+ *	item != NULL && *item == NULL
+ *
+ * Returns:
+ *	ISC_R_SUCCESS		-- All is well.
+ *	ISC_R_NOMEMORY		-- No item can be allocated.
+ */
+
+isc_result_t
+dns_message_gettempoffsets(dns_message_t *msg, dns_offsets_t **item);
+/*
+ * Return an offsets array that can be used for any temporary purpose,
+ * such as attaching to a temporary name.  The offsets will be freed
+ * when the message is destroyed or reset.
  *
  * Requires:
  *	msg be a valid message
@@ -942,8 +976,11 @@ dns_message_setopt(dns_message_t *msg, dns_rdataset_t *opt);
  *
  * Ensures:
  *
- *	The OPT record will be rendered when dns_message_renderend() is
- *	called.
+ *	The OPT record has either been freed or ownership of it has
+ *	been transferred to the message.
+ *
+ *	If ISC_R_SUCCESS was returned, the OPT record will be rendered 
+ *	when dns_message_renderend() is called.
  *
  * Returns:
  *
@@ -1143,8 +1180,8 @@ dns_message_signer(dns_message_t *msg, dns_name_t *signer);
  *	DNS_R_SIGINVALID	- the message was signed by a SIG(0), but
  *				  the signature failed to verify
  *
- *	DNS_R_SIGNOTVERIFIEDYET	- the message was signed by a SIG(0), but
- *				  the signature has not been verified yet
+ *	DNS_R_SIGNOTVERIFIEDYET	- the message was signed by a TSIG or SIG(0),
+ *				  but the signature has not been verified yet
  */
 
 isc_result_t
@@ -1192,7 +1229,27 @@ dns_message_setsortorder(dns_message_t *msg, dns_rdatasetorderfunc_t order,
  * 'order_arg' are NULL, a default order is used.
  *
  * Requires:
+ *	msg be a valid message.
  *	order_arg is NULL if and only if order is NULL.
+ */
+
+void 
+dns_message_settimeadjust(dns_message_t *msg, int timeadjust);
+/*
+ * Adjust the time used to sign/verify a message by timeadjust.
+ * Currently only TSIG.
+ *
+ * Requires:
+ *	msg be a valid message.
+ */
+
+int 
+dns_message_gettimeadjust(dns_message_t *msg);
+/*
+ * Return the current time adjustment.
+ *
+ * Requires:
+ *	msg be a valid message.
  */
 
 ISC_LANG_ENDDECLS

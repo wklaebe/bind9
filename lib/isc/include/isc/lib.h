@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: lib.h,v 1.5.4.1 2001/01/09 22:50:01 bwelling Exp $ */
+/* $Id: lib.h,v 1.6 2001/01/09 21:57:06 bwelling Exp $ */
 
 #ifndef ISC_LIB_H
 #define ISC_LIB_H 1

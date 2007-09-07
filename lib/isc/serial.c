@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: serial.c,v 1.6.4.1 2001/01/09 22:49:19 bwelling Exp $ */
+/* $Id: serial.c,v 1.7 2001/01/09 21:56:27 bwelling Exp $ */
 #include <config.h>
 
 #include <isc/serial.h>

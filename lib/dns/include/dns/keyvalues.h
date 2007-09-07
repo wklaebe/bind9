@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: keyvalues.h,v 1.10.4.1 2001/01/09 22:45:43 bwelling Exp $ */
+/* $Id: keyvalues.h,v 1.11 2001/01/09 21:52:57 bwelling Exp $ */
 
 #ifndef DNS_KEYVALUES_H
 #define DNS_KEYVALUES_H 1

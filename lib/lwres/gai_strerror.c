@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: gai_strerror.c,v 1.12.4.2 2001/05/29 22:40:16 bwelling Exp $ */
+/* $Id: gai_strerror.c,v 1.14 2001/05/29 22:40:10 bwelling Exp $ */
 
 #include <lwres/netdb.h>
 

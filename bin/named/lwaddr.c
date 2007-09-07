@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: lwaddr.c,v 1.2.2.1 2001/01/09 22:31:56 bwelling Exp $ */
+/* $Id: lwaddr.c,v 1.3 2001/01/09 21:39:46 bwelling Exp $ */
 
 #include <config.h>
 

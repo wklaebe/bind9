@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: pgsqldb.h,v 1.1.4.1 2001/01/09 22:39:06 bwelling Exp $ */
+/* $Id: pgsqldb.h,v 1.2 2001/01/09 21:46:27 bwelling Exp $ */
 
 #include <isc/types.h>
 

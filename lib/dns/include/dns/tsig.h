@@ -15,13 +15,13 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: tsig.h,v 1.36.4.2 2001/05/18 21:28:43 gson Exp $ */
+/* $Id: tsig.h,v 1.39 2001/03/07 20:53:32 bwelling Exp $ */
 
 #ifndef DNS_TSIG_H
 #define DNS_TSIG_H 1
 
 #include <isc/lang.h>
-#include <isc/mutex.h>
+#include <isc/refcount.h>
 #include <isc/rwlock.h>
 #include <isc/stdtime.h>
 
@@ -63,10 +63,7 @@ struct dns_tsigkey {
 	isc_stdtime_t		inception;	/* start of validity period */
 	isc_stdtime_t		expire;		/* end of validity period */
 	dns_tsig_keyring_t	*ring;		/* the enclosing keyring */
-	isc_mutex_t		lock;
-	/* Locked */
-	isc_uint32_t		refs;		/* reference counter */
-	/* Unlocked */
+	isc_refcount_t		refs;		/* reference counter */
 };
 
 #define dns_tsigkey_identity(tsigkey) \

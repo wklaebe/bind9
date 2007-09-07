@@ -15,7 +15,7 @@
 # NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
 # WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: clean.sh,v 1.8.4.1 2001/01/09 22:38:22 bwelling Exp $
+# $Id: clean.sh,v 1.9 2001/01/09 21:45:44 bwelling Exp $
 
 #
 # Clean up after zone transfer tests.

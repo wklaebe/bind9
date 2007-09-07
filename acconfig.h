@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: acconfig.h,v 1.31.2.2 2001/02/07 19:26:16 gson Exp $ */
+/* $Id: acconfig.h,v 1.33 2001/01/18 22:21:22 bwelling Exp $ */
 
 /***
  *** This file is not to be included by any public header files, because

@@ -18,7 +18,7 @@
 #ifndef ISC_SHA1_H
 #define ISC_SHA1_H 1
 
-/* $Id: sha1.h,v 1.7.4.1 2001/01/09 22:50:29 bwelling Exp $ */
+/* $Id: sha1.h,v 1.8 2001/01/09 21:57:32 bwelling Exp $ */
 
 /*	$NetBSD: sha1.h,v 1.2 1998/05/29 22:55:44 thorpej Exp $	*/
 

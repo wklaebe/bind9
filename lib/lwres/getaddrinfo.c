@@ -19,7 +19,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: getaddrinfo.c,v 1.34.4.2 2001/01/10 21:50:08 gson Exp $ */
+/* $Id: getaddrinfo.c,v 1.38 2001/02/08 00:31:21 bwelling Exp $ */
 
 #include <config.h>
 
@@ -281,7 +281,7 @@ lwres_getaddrinfo(const char *hostname, const char *servname,
 #endif
 
                if (lwres_net_pton(AF_INET, hostname, (struct in_addr *)abuf)
-		   != 0)
+		   == 1)
 	       {
 			if (family == AF_INET6) {
 				/*
@@ -299,7 +299,7 @@ lwres_getaddrinfo(const char *hostname, const char *servname,
 			goto common;
 #ifdef LWRES_HAVE_SIN6_SCOPE_ID
 		} else if (ntmp[0] != '\0' &&
-			   lwres_net_pton(AF_INET6, ntmp, abuf) != 0)
+			   lwres_net_pton(AF_INET6, ntmp, abuf) == 1)
 		{
 			if (family && family != AF_INET6)
 				return (EAI_NONAME);
@@ -308,7 +308,7 @@ lwres_getaddrinfo(const char *hostname, const char *servname,
 			family = AF_INET6;
 			goto common;
 #endif
-		} else if (lwres_net_pton(AF_INET6, hostname, abuf) != 0) {
+		} else if (lwres_net_pton(AF_INET6, hostname, abuf) == 1) {
 			if (family != 0 && family != AF_INET6)
 				return (EAI_NONAME);
 		inet6_addr:
@@ -462,7 +462,7 @@ add_ipv4(const char *hostname, int flags, struct addrinfo **aip,
 	int result = 0;
 
 	lwres = lwres_context_create(&lwrctx, NULL, NULL, NULL, 0);
-	if (lwres != 0)
+	if (lwres != LWRES_R_SUCCESS)
 		ERR(EAI_FAIL);
 	(void) lwres_conf_parse(lwrctx, lwres_resolv_conf);
 	if (hostname == NULL && (flags & AI_PASSIVE) == 0) {
@@ -476,8 +476,15 @@ add_ipv4(const char *hostname, int flags, struct addrinfo **aip,
 		ai->ai_socktype = socktype;
 		SIN(ai->ai_addr)->sin_port = port;
 		memcpy(&SIN(ai->ai_addr)->sin_addr, v4_loop, 4);
-	} else if (lwres_getaddrsbyname(lwrctx, hostname,
-					LWRES_ADDRTYPE_V4, &by) == 0) {
+	} else {
+		lwres = lwres_getaddrsbyname(lwrctx, hostname,
+					     LWRES_ADDRTYPE_V4, &by);
+		if (lwres != LWRES_R_SUCCESS) {
+			if (lwres == LWRES_R_NOTFOUND)
+				goto cleanup;
+			else
+				ERR(EAI_FAIL);
+		}
 		addr = LWRES_LIST_HEAD(by->addrs);
 		while (addr != NULL) {
 			ai = ai_clone(*aip, AF_INET);
@@ -522,7 +529,7 @@ add_ipv6(const char *hostname, int flags, struct addrinfo **aip,
 	int result = 0;
 
 	lwres = lwres_context_create(&lwrctx, NULL, NULL, NULL, 0);
-	if (lwres != 0)
+	if (lwres != LWRES_R_SUCCESS)
 		ERR(EAI_FAIL);
 	(void) lwres_conf_parse(lwrctx, lwres_resolv_conf);
 
@@ -537,8 +544,15 @@ add_ipv6(const char *hostname, int flags, struct addrinfo **aip,
 		ai->ai_socktype = socktype;
 		SIN6(ai->ai_addr)->sin6_port = port;
 		memcpy(&SIN6(ai->ai_addr)->sin6_addr, v6_loop, 16);
-	} else if (lwres_getaddrsbyname(lwrctx, hostname,
-					LWRES_ADDRTYPE_V6, &by) == 0) {
+	} else {
+		lwres = lwres_getaddrsbyname(lwrctx, hostname,
+					     LWRES_ADDRTYPE_V6, &by);
+		if (lwres != LWRES_R_SUCCESS) {
+			if (lwres == LWRES_R_NOTFOUND)
+				goto cleanup;
+			else
+				ERR(EAI_FAIL);
+		}
 		addr = LWRES_LIST_HEAD(by->addrs);
 		while (addr != NULL) {
 			ai = ai_clone(*aip, AF_INET6);

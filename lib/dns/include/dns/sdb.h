@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: sdb.h,v 1.11.4.1 2001/01/09 22:46:13 bwelling Exp $ */
+/* $Id: sdb.h,v 1.12 2001/01/09 21:53:26 bwelling Exp $ */
 
 #ifndef DNS_SDB_H
 #define DNS_SDB_H 1

@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: bitstring.h,v 1.6.4.1 2001/01/09 22:49:37 bwelling Exp $ */
+/* $Id: bitstring.h,v 1.7 2001/01/09 21:56:44 bwelling Exp $ */
 
 #ifndef ISC_BITSTRING_H
 #define ISC_BITSTRING_H 1

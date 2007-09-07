@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: gpos_27.c,v 1.27.4.1 2001/01/09 22:46:48 bwelling Exp $ */
+/* $Id: gpos_27.c,v 1.30 2001/03/16 22:52:38 bwelling Exp $ */
 
 /* reviewed: Wed Mar 15 16:48:45 PST 2000 by brister */
 
@@ -33,6 +33,7 @@ fromtext_gpos(ARGS_FROMTEXT) {
 
 	REQUIRE(type == 27);
 
+	UNUSED(type);
 	UNUSED(rdclass);
 	UNUSED(origin);
 	UNUSED(downcase);
@@ -41,7 +42,7 @@ fromtext_gpos(ARGS_FROMTEXT) {
 		RETERR(isc_lex_getmastertoken(lexer, &token,
 					      isc_tokentype_qstring,
 					      ISC_FALSE));
-		RETERR(txt_fromtext(&token.value.as_textregion, target));
+		RETTOK(txt_fromtext(&token.value.as_textregion, target));
 	}
 	return (ISC_R_SUCCESS);
 }
@@ -73,6 +74,7 @@ fromwire_gpos(ARGS_FROMWIRE) {
 
 	REQUIRE(type == 27);
 
+	UNUSED(type);
 	UNUSED(dctx);
 	UNUSED(rdclass);
 	UNUSED(downcase);
@@ -118,6 +120,7 @@ fromstruct_gpos(ARGS_FROMSTRUCT) {
 	REQUIRE(gpos->common.rdtype == type);
 	REQUIRE(gpos->common.rdclass == rdclass);
 
+	UNUSED(type);
 	UNUSED(rdclass);
 
 	RETERR(uint8_tobuffer(gpos->long_len, target));

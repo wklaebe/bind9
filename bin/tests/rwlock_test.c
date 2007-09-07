@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rwlock_test.c,v 1.18.4.2 2001/05/02 17:46:07 gson Exp $ */
+/* $Id: rwlock_test.c,v 1.20 2001/05/02 17:35:52 gson Exp $ */
 
 #include <config.h>
 

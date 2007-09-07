@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: adb_test.c,v 1.60.2.1 2001/01/09 22:33:00 bwelling Exp $ */
+/* $Id: adb_test.c,v 1.61 2001/01/09 21:40:48 bwelling Exp $ */
 
 #include <config.h>
 

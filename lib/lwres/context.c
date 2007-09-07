@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: context.c,v 1.32.4.1 2001/01/09 22:52:10 bwelling Exp $ */
+/* $Id: context.c,v 1.34 2001/01/23 03:07:18 marka Exp $ */
 
 #include <config.h>
 
@@ -33,6 +33,11 @@
 
 #include <lwres/lwres.h>
 #include <lwres/net.h>
+#include <lwres/platform.h>
+
+#ifdef LWRES_PLATFORM_NEEDSYSSELECTH
+#include <sys/select.h>
+#endif
 
 #include "context_p.h"
 #include "assert_p.h"

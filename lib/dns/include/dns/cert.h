@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: cert.h,v 1.11.4.1 2001/01/09 22:45:08 bwelling Exp $ */
+/* $Id: cert.h,v 1.12 2001/01/09 21:52:22 bwelling Exp $ */
 
 #ifndef DNS_CERT_H
 #define DNS_CERT_H 1

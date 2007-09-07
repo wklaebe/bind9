@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: bit.h,v 1.6.4.1 2001/01/09 22:45:03 bwelling Exp $ */
+/* $Id: bit.h,v 1.7 2001/01/09 21:52:17 bwelling Exp $ */
 
 #ifndef DNS_BIT_H
 #define DNS_BIT_H 1

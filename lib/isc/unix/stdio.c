@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: stdio.c,v 1.4.4.1 2001/01/09 22:51:27 bwelling Exp $ */
+/* $Id: stdio.c,v 1.5 2001/01/09 21:58:30 bwelling Exp $ */
 
 #include <config.h>
 

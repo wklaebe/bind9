@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: entropy_test.c,v 1.15.4.1 2001/01/09 22:33:14 bwelling Exp $ */
+/* $Id: entropy_test.c,v 1.16 2001/01/09 21:41:01 bwelling Exp $ */
 
 #include <config.h>
 

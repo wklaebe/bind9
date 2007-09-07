@@ -18,7 +18,7 @@
 #ifndef GENERIC_X25_19_H
 #define GENERIC_X25_19_H 1
 
-/* $Id: x25_19.h,v 1.12.4.1 2001/01/09 22:47:47 bwelling Exp $ */
+/* $Id: x25_19.h,v 1.13 2001/01/09 21:54:57 bwelling Exp $ */
 
 /* RFC 1183 */
 

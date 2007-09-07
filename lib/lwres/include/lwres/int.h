@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: int.h,v 1.6.4.1 2001/01/09 22:52:38 bwelling Exp $ */
+/* $Id: int.h,v 1.7 2001/01/09 21:59:40 bwelling Exp $ */
 
 #ifndef LWRES_INT_H
 #define LWRES_INT_H 1

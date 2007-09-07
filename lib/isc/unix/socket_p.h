@@ -15,15 +15,13 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: socket_p.h,v 1.2.4.2 2001/06/14 13:37:46 gson Exp $ */
-
-/* ISC_PLATFORM_USETHREADS_DELETE */
+/* $Id: socket_p.h,v 1.5 2001/01/23 03:07:16 marka Exp $ */
 
 #ifndef ISC_SOCKET_P_H
 #define ISC_SOCKET_P_H
 
 #ifdef ISC_PLATFORM_NEEDSYSSELECTH
-#include <sys/select.h>
+#include <sys/socket.h>
 #endif
 
 void

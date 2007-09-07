@@ -17,7 +17,7 @@
 
 /*
  * Principal Author: Brian Wellington
- * $Id: dst_result.c,v 1.15.4.1 2001/01/09 22:48:24 bwelling Exp $
+ * $Id: dst_result.c,v 1.16 2001/01/09 21:55:32 bwelling Exp $
  */
 
 #include <config.h>

@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: heap.c,v 1.26.4.1 2001/01/09 22:48:54 bwelling Exp $ */
+/* $Id: heap.c,v 1.27 2001/01/09 21:56:03 bwelling Exp $ */
 
 /*
  * Heap implementation of priority queues adapted from the following:

@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: result.c,v 1.52.2.1 2001/01/09 22:49:16 bwelling Exp $ */
+/* $Id: result.c,v 1.55 2001/02/12 20:03:15 bwelling Exp $ */
 
 #include <config.h>
 
@@ -89,7 +89,9 @@ static const char *text[ISC_R_NRESULTS] = {
 	"address family not supported",		/* 48 */
 	"bad hex encoding",			/* 49 */
 	"too many open files",			/* 50 */
-	"not blocking"				/* 51 */
+	"not blocking",				/* 51 */
+	"unbalanced quotes",			/* 52 */
+	"operation in progress"			/* 53 */
 };
 
 #define ISC_RESULT_RESULTSET			2

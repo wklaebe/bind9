@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: heap.h,v 1.15.4.1 2001/01/09 22:49:51 bwelling Exp $ */
+/* $Id: heap.h,v 1.16 2001/01/09 21:56:57 bwelling Exp $ */
 
 #ifndef ISC_HEAP_H
 #define ISC_HEAP_H 1

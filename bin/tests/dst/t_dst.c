@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: t_dst.c,v 1.42.4.2 2001/04/10 01:10:20 gson Exp $ */
+/* $Id: t_dst.c,v 1.44 2001/04/04 02:02:51 bwelling Exp $ */
 
 #include <config.h>
 

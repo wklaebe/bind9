@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: netaddr_multicast.c,v 1.7.4.1 2001/01/09 22:34:23 bwelling Exp $ */
+/* $Id: netaddr_multicast.c,v 1.8 2001/01/09 21:42:07 bwelling Exp $ */
 
 #include <config.h>
 

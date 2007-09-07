@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dbtable.h,v 1.15.4.1 2001/01/09 22:45:32 bwelling Exp $ */
+/* $Id: dbtable.h,v 1.16 2001/01/09 21:52:45 bwelling Exp $ */
 
 #ifndef DNS_DBTABLE_H
 #define DNS_DBTABLE_H 1

@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: net.h,v 1.24.4.5 2001/06/26 21:55:52 tale Exp $ */
+/* $Id: net.h,v 1.28 2001/05/31 10:54:51 tale Exp $ */
 
 #ifndef ISC_NET_H
 #define ISC_NET_H 1
@@ -44,8 +44,8 @@
  *
  * It declares inet_aton(), inet_ntop(), and inet_pton().
  *
- * It ensures that INADDR_ANY, IN6ADDR_ANY_INIT, in6addr_any, and
- * in6addr_loopback are available.
+ * It ensures that INADDR_LOOPBACK, INADDR_ANY, IN6ADDR_ANY_INIT,
+ * in6addr_any, and in6addr_loopback are available.
  *
  * It ensures that IN_MULTICAST() is available to check for multicast
  * addresses.
@@ -95,29 +95,6 @@
 #define in6_addr in_addr6	/* Required for pre RFC2133 implementations. */
 #endif
 
-/*
- * Required for some pre RFC2133 implementations.
- * IN6ADDR_ANY_INIT and IN6ADDR_LOOPBACK_INIT were added in
- * draft-ietf-ipngwg-bsd-api-04.txt or draft-ietf-ipngwg-bsd-api-05.txt.  
- * If 's6_addr' is defined then assume that there is a union and three
- * levels otherwise assume two levels required.
- */
-#ifndef IN6ADDR_ANY_INIT
-#ifdef s6_addr
-#define IN6ADDR_ANY_INIT { { { 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 } } }
-#else
-#define IN6ADDR_ANY_INIT { { 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 } }
-#endif
-#endif
-
-#ifndef IN6ADDR_LOOPBACK_INIT
-#ifdef s6_addr
-#define IN6ADDR_LOOPBACK_INIT { { { 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1 } } }
-#else
-#define IN6ADDR_LOOPBACK_INIT { { 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1 } }
-#endif
-#endif
-
 #ifndef AF_INET6
 #define AF_INET6 99
 #endif
@@ -126,8 +103,8 @@
 #define PF_INET6 AF_INET6
 #endif
 
-#ifndef ISC_PLATFORM_HAVEIPV6
-#include <isc/ipv6.h>		/* Contractual promise. */
+#ifndef INADDR_LOOPBACK
+#define INADDR_LOOPBACK 0x7f000001UL
 #endif
 
 #ifndef ISC_PLATFORM_HAVEIN6PKTINFO

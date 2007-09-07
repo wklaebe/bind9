@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: sdb.c,v 1.23.2.4 2001/05/02 19:27:39 gson Exp $ */
+/* $Id: sdb.c,v 1.32 2001/05/29 18:34:24 bwelling Exp $ */
 
 #include <config.h>
 
@@ -52,6 +52,7 @@ struct dns_sdbimplementation {
 	void				*driverdata;
 	unsigned int			flags;
 	isc_mem_t			*mctx;
+	isc_mutex_t			driverlock;
 	dns_dbimplementation_t		*dbimp;
 };
 
@@ -62,7 +63,6 @@ struct dns_sdb {
 	dns_sdbimplementation_t		*implementation;
 	void				*dbdata;
 	isc_mutex_t			lock;
-	isc_mutex_t			driverlock;
 	/* Locked */
 	unsigned int			references;
 
@@ -119,14 +119,14 @@ typedef struct sdb_rdatasetiter {
 	do {								\
 		unsigned int flags = sdb->implementation->flags;	\
 		if ((flags & DNS_SDBFLAG_THREADSAFE) == 0)		\
-			LOCK(&sdb->driverlock);				\
+			LOCK(&sdb->implementation->driverlock);		\
 	} while (0)
 
 #define MAYBE_UNLOCK(sdb)						\
 	do {								\
 		unsigned int flags = sdb->implementation->flags;	\
 		if ((flags & DNS_SDBFLAG_THREADSAFE) == 0)		\
-			UNLOCK(&sdb->driverlock);			\
+			UNLOCK(&sdb->implementation->driverlock);	\
 	} while (0)
 
 static int dummy;
@@ -220,16 +220,28 @@ dns_sdb_register(const char *drivername, const dns_sdbmethods_t *methods,
 	imp->flags = flags;
 	imp->mctx = NULL;
 	isc_mem_attach(mctx, &imp->mctx);
+	result = isc_mutex_init(&imp->driverlock);
+	if (result != ISC_R_SUCCESS) {
+		UNEXPECTED_ERROR(__FILE__, __LINE__,
+				 "isc_mutex_init() failed: %s",
+				 isc_result_totext(result));
+		goto cleanup_mctx;
+	}
+
 	imp->dbimp = NULL;
 	result = dns_db_register(drivername, dns_sdb_create, imp, mctx,
 				 &imp->dbimp);
-	if (result != ISC_R_SUCCESS) {
-		dns_sdb_unregister(&imp);
-		return (result);
-	}
+	if (result != ISC_R_SUCCESS)
+		goto cleanup_mutex;
 	*sdbimp = imp;
 
 	return (ISC_R_SUCCESS);
+
+ cleanup_mutex:
+	DESTROYLOCK(&imp->driverlock);
+ cleanup_mctx:
+	isc_mem_put(mctx, imp, sizeof(dns_sdbimplementation_t));
+	return (result);
 }
 
 void
@@ -241,6 +253,7 @@ dns_sdb_unregister(dns_sdbimplementation_t **sdbimp) {
 
 	imp = *sdbimp;
 	dns_db_unregister(&imp->dbimp);
+	DESTROYLOCK(&imp->driverlock);
 
 	mctx = imp->mctx;
 	isc_mem_put(mctx, imp, sizeof(dns_sdbimplementation_t));
@@ -476,13 +489,15 @@ destroy(dns_sdb_t *sdb) {
 
 	mctx = sdb->common.mctx;
 
-	if (imp->methods->destroy != NULL)
+	if (imp->methods->destroy != NULL) {
+		MAYBE_LOCK(sdb);
 		imp->methods->destroy(sdb->zone, imp->driverdata,
 				      &sdb->dbdata);
+		MAYBE_UNLOCK(sdb);
+	}
 
 	isc_mem_free(mctx, sdb->zone);
 	DESTROYLOCK(&sdb->lock);
-	DESTROYLOCK(&sdb->driverlock);
 
 	sdb->common.magic = 0;
 	sdb->common.impmagic = 0;
@@ -733,7 +748,6 @@ find(dns_db_t *db, dns_name_t *name, dns_dbversion_t *version,
 	REQUIRE(version == NULL || version == (void *) &dummy);
 
 	UNUSED(options);
-	UNUSED(sigrdataset);
 	UNUSED(sdb);
 
 	if (!dns_name_issubdomain(name, &db->origin))
@@ -777,8 +791,7 @@ find(dns_db_t *db, dns_name_t *name, dns_dbversion_t *version,
 					      dns_rdatatype_dname,
 					      0, now, rdataset, sigrdataset);
 			if (result == ISC_R_SUCCESS) {
-				if (type != dns_rdatatype_dname)
-					result = DNS_R_DNAME;
+				result = DNS_R_DNAME;
 				break;
 			}
 		}
@@ -792,7 +805,14 @@ find(dns_db_t *db, dns_name_t *name, dns_dbversion_t *version,
 					      dns_rdatatype_ns,
 					      0, now, rdataset, sigrdataset);
 			if (result == ISC_R_SUCCESS) {
-				if (type != dns_rdatatype_ns)
+				if (i == nlabels && type == dns_rdatatype_any)
+				{
+					result = DNS_R_ZONECUT;
+					dns_rdataset_disassociate(rdataset);
+					if (sigrdataset != NULL)
+						dns_rdataset_disassociate
+								(sigrdataset);
+				} else
 					result = DNS_R_DELEGATION;
 				break;
 			}
@@ -847,7 +867,7 @@ find(dns_db_t *db, dns_name_t *name, dns_dbversion_t *version,
 	if (foundname != NULL) {
 		isc_result_t xresult;
 
-		xresult = dns_name_concatenate(xname, NULL, foundname, NULL);
+		xresult = dns_name_copy(xname, foundname, NULL);
 		if (xresult != ISC_R_SUCCESS) {
 			destroynode(node);
 			if (dns_rdataset_isassociated(rdataset))
@@ -1190,19 +1210,9 @@ dns_sdb_create(isc_mem_t *mctx, dns_name_t *origin, dns_dbtype_t type,
 		goto cleanup_mctx;
 	}
 
-	result = isc_mutex_init(&sdb->driverlock);
-	if (result != ISC_R_SUCCESS) {
-		UNEXPECTED_ERROR(__FILE__, __LINE__,
-				 "isc_mutex_init() failed: %s",
-				 isc_result_totext(result));
-		result = ISC_R_UNEXPECTED;
-		goto cleanup_lock;
-	}
-
-
 	result = dns_name_dupwithoffsets(origin, mctx, &sdb->common.origin);
 	if (result != ISC_R_SUCCESS)
-		goto cleanup_driverlock;
+		goto cleanup_lock;
 
 	isc_buffer_init(&b, zonestr, sizeof(zonestr));
 	result = dns_name_totext(origin, ISC_TRUE, &b);
@@ -1218,8 +1228,10 @@ dns_sdb_create(isc_mem_t *mctx, dns_name_t *origin, dns_dbtype_t type,
 
 	sdb->dbdata = NULL;
 	if (imp->methods->create != NULL) {
+		MAYBE_LOCK(sdb);
 		result = imp->methods->create(sdb->zone, argc, argv,
 					      imp->driverdata, &sdb->dbdata);
+		MAYBE_UNLOCK(sdb);
 		if (result != ISC_R_SUCCESS)
 			goto cleanup_zonestr;
 	}
@@ -1237,8 +1249,6 @@ dns_sdb_create(isc_mem_t *mctx, dns_name_t *origin, dns_dbtype_t type,
 	isc_mem_free(mctx, sdb->zone);
  cleanup_origin:
 	dns_name_free(&sdb->common.origin, mctx);
- cleanup_driverlock:
-	isc_mutex_destroy(&sdb->driverlock);
  cleanup_lock:
 	isc_mutex_destroy(&sdb->lock);
  cleanup_mctx:
@@ -1388,8 +1398,7 @@ dbiterator_current(dns_dbiterator_t *iterator, dns_dbnode_t **nodep,
 
 	attachnode(iterator->db, sdbiter->current, nodep);
 	if (name != NULL)
-		return (dns_name_concatenate(sdbiter->current->name, NULL,
-					     name, NULL));
+		return (dns_name_copy(sdbiter->current->name, name, NULL));
 	return (ISC_R_SUCCESS);
 }
 
@@ -1402,7 +1411,7 @@ dbiterator_pause(dns_dbiterator_t *iterator) {
 static isc_result_t
 dbiterator_origin(dns_dbiterator_t *iterator, dns_name_t *name) {
 	UNUSED(iterator);
-	return (dns_name_concatenate(dns_rootname, NULL, name, NULL));
+	return (dns_name_copy(dns_rootname, name, NULL));
 }
 
 /*

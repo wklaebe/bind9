@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: hmacmd5.c,v 1.4.4.1 2001/01/09 22:48:57 bwelling Exp $ */
+/* $Id: hmacmd5.c,v 1.5 2001/01/09 21:56:05 bwelling Exp $ */
 
 /*
  * This code implements the HMAC-MD5 keyed hash algorithm

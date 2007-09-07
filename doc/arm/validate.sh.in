@@ -15,7 +15,7 @@
 # NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
 # WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: validate.sh.in,v 1.1.4.1 2001/01/09 22:39:16 bwelling Exp $
+# $Id: validate.sh.in,v 1.2 2001/01/09 21:46:37 bwelling Exp $
 
 nsgmls -sv @SGMLDIR@/docbook/dsssl/modular/dtds/decls/xml.dcl \
        Bv9ARM-book.xml

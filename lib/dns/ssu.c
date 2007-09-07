@@ -16,7 +16,7 @@
  */
 
 /*
- * $Id: ssu.c,v 1.19.4.1 2001/01/09 22:44:17 bwelling Exp $
+ * $Id: ssu.c,v 1.20 2001/01/09 21:51:33 bwelling Exp $
  * Principal Author: Brian Wellington
  */
 

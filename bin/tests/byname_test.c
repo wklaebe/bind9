@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: byname_test.c,v 1.24.4.1 2001/01/09 22:33:07 bwelling Exp $ */
+/* $Id: byname_test.c,v 1.25 2001/01/09 21:40:55 bwelling Exp $ */
 
 /*
  * Principal Author: Bob Halley

@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: kx_36.c,v 1.32.4.1 2001/01/09 22:47:58 bwelling Exp $ */
+/* $Id: kx_36.c,v 1.36 2001/03/16 22:53:13 bwelling Exp $ */
 
 /* Reviewed: Thu Mar 16 17:24:54 PST 2000 by explorer */
 
@@ -35,12 +35,13 @@ fromtext_in_kx(ARGS_FROMTEXT) {
 	REQUIRE(type == 36);
 	REQUIRE(rdclass == 1);
 
+	UNUSED(type);
 	UNUSED(rdclass);
 
 	RETERR(isc_lex_getmastertoken(lexer, &token, isc_tokentype_number,
 				      ISC_FALSE));
 	if (token.value.as_ulong > 0xffff)
-		return (ISC_R_RANGE);
+		RETTOK(ISC_R_RANGE);
 	RETERR(uint16_tobuffer(token.value.as_ulong, target));
 
 	RETERR(isc_lex_getmastertoken(lexer, &token, isc_tokentype_string,
@@ -48,7 +49,8 @@ fromtext_in_kx(ARGS_FROMTEXT) {
 	dns_name_init(&name, NULL);
 	buffer_fromregion(&buffer, &token.value.as_region);
 	origin = (origin != NULL) ? origin : dns_rootname;
-	return (dns_name_fromtext(&name, &buffer, origin, downcase, target));
+	RETTOK(dns_name_fromtext(&name, &buffer, origin, downcase, target));
+	return (ISC_R_SUCCESS);
 }
 
 static inline isc_result_t
@@ -88,6 +90,7 @@ fromwire_in_kx(ARGS_FROMWIRE) {
 	REQUIRE(type == 36);
 	REQUIRE(rdclass == 1);
 
+	UNUSED(type);
 	UNUSED(rdclass);
 
 	dns_decompress_setmethods(dctx, DNS_COMPRESS_NONE);
@@ -105,6 +108,7 @@ fromwire_in_kx(ARGS_FROMWIRE) {
 static inline isc_result_t
 towire_in_kx(ARGS_TOWIRE) {
 	dns_name_t name;
+	dns_offsets_t offsets;
 	isc_region_t region;
 
 	REQUIRE(rdata->type == 36);
@@ -116,7 +120,7 @@ towire_in_kx(ARGS_TOWIRE) {
 	RETERR(mem_tobuffer(target, region.base, 2));
 	isc_region_consume(&region, 2);
 
-	dns_name_init(&name, NULL);
+	dns_name_init(&name, offsets);
 	dns_name_fromregion(&name, &region);
 
 	return (dns_name_towire(&name, cctx, target));
@@ -167,6 +171,7 @@ fromstruct_in_kx(ARGS_FROMSTRUCT) {
 	REQUIRE(kx->common.rdtype == type);
 	REQUIRE(kx->common.rdclass == rdclass);
 
+	UNUSED(type);
 	UNUSED(rdclass);
 
 	RETERR(uint16_tobuffer(kx->preference, target));
@@ -220,12 +225,13 @@ freestruct_in_kx(ARGS_FREESTRUCT) {
 static inline isc_result_t
 additionaldata_in_kx(ARGS_ADDLDATA) {
 	dns_name_t name;
+	dns_offsets_t offsets;
 	isc_region_t region;
 
 	REQUIRE(rdata->type == 36);
 	REQUIRE(rdata->rdclass == 1);
 
-	dns_name_init(&name, NULL);
+	dns_name_init(&name, offsets);
 	dns_rdata_toregion(rdata, &region);
 	isc_region_consume(&region, 2);
 	dns_name_fromregion(&name, &region);

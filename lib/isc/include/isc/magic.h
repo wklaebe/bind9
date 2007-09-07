@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: magic.h,v 1.10.4.1 2001/01/09 22:50:05 bwelling Exp $ */
+/* $Id: magic.h,v 1.11 2001/01/09 21:57:10 bwelling Exp $ */
 
 #ifndef ISC_MAGIC_H
 #define ISC_MAGIC_H 1

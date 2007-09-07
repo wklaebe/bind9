@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: types.h,v 1.99.4.1 2001/01/09 22:46:26 bwelling Exp $ */
+/* $Id: types.h,v 1.102 2001/04/26 21:17:56 gson Exp $ */
 
 #ifndef DNS_TYPES_H
 #define DNS_TYPES_H 1
@@ -227,7 +227,7 @@ enum {
 };
 
 /*
- * Trust levels.
+ * Trust levels.  Must be kept in sync with trustnames[] in masterdump.c.
  */
 enum {
 	dns_trust_none = 0,
@@ -246,9 +246,7 @@ enum {
 #define dns_trust_authanswer		((dns_trust_t)dns_trust_authanswer)
 	dns_trust_secure = 7,
 #define dns_trust_secure		((dns_trust_t)dns_trust_secure)
-	dns_trust_authsecure = 8,
-#define dns_trust_authsecure		((dns_trust_t)dns_trust_authsecure)
-	dns_trust_ultimate = 9
+	dns_trust_ultimate = 8
 #define dns_trust_ultimate		((dns_trust_t)dns_trust_ultimate)
 };
 

@@ -15,23 +15,58 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: os.c,v 1.5.4.1 2001/01/09 22:51:22 bwelling Exp $ */
+/* $Id: os.c,v 1.10 2001/02/17 01:23:43 gson Exp $ */
 
 #include <config.h>
 
+#include <isc/os.h>
+
+
+#ifdef HAVE_SYSCONF
+
 #include <unistd.h>
 
-#include <isc/os.h>
+static inline long
+sysconf_ncpus(void) {
+#if defined(_SC_NPROCESSORS_ONLN)
+	return sysconf((_SC_NPROCESSORS_ONLN));
+#elif defined(_SC_NPROC_ONLN)
+	return sysconf((_SC_NPROC_ONLN));
+#else
+	return (0);
+#endif
+}
+#endif /* HAVE_SYSCONF */
+
+
+#ifdef __hpux
+
+#include <sys/pstat.h>
+
+static inline int
+hpux_ncpus(void) {
+	struct pst_dynamic psd;
+	if (pstat_getdynamic(&psd, sizeof(psd), 1, 0) != -1)
+		return (psd.psd_proc_cnt);
+	else
+		return (0);
+}
+
+#endif /* __hpux */
+
 
 unsigned int
 isc_os_ncpus(void) {
-	long ncpus = 1;
+	long ncpus = 0;
 
-#if defined(HAVE_SYSCONF) && defined(_SC_NPROCESSORS_ONLN)
-	ncpus = sysconf(_SC_NPROCESSORS_ONLN);
+#ifdef __hpux
+	ncpus = hpux_ncpus();
+#elif defined(HAVE_SYSCONF)
+	ncpus = sysconf_ncpus();
+#endif
+
 	if (ncpus <= 0)
 		ncpus = 1;
-#endif
 
 	return ((unsigned int)ncpus);
 }

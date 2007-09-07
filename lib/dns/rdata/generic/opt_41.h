@@ -18,7 +18,7 @@
 #ifndef GENERIC_OPT_41_H
 #define GENERIC_OPT_41_H 1
 
-/* $Id: opt_41.h,v 1.12.4.1 2001/01/09 22:47:24 bwelling Exp $ */
+/* $Id: opt_41.h,v 1.13 2001/01/09 21:54:34 bwelling Exp $ */
 
 /* RFC 2671 */
 

@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: stdtime.h,v 1.7.4.1 2001/01/09 22:51:41 bwelling Exp $ */
+/* $Id: stdtime.h,v 1.8 2001/01/09 21:58:44 bwelling Exp $ */
 
 #ifndef ISC_STDTIME_H
 #define ISC_STDTIME_H 1

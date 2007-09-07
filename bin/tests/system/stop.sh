@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Copyright (C) 2000, 2001  Internet Software Consortium.
+# Copyright (C) 2001  Internet Software Consortium.
 #
 # Permission to use, copy, modify, and distribute this software for any
 # purpose with or without fee is hereby granted, provided that the above
@@ -15,89 +15,8 @@
 # NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
 # WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: stop.sh,v 1.16.4.1 2001/01/09 22:34:42 bwelling Exp $
+# $Id: stop.sh,v 1.21 2001/05/10 16:28:57 gson Exp $
 
-#
-# Stop name servers.
-#
+. ./conf.sh
+$PERL ./stop.pl "$@"
 
-test $# -gt 0 || { echo "usage: $0 test-directory" >&2; exit 1; }
-
-status=0
-
-cd $1
-
-for d in ns*
-do
-     pidfile="$d/named.pid"
-     if [ -f $pidfile ]; then
-        kill -TERM `cat $pidfile` > /dev/null 2>&1
-	if [ $? != 0 ]; then
-		echo "I:$d died before a SIGTERM was sent"
-		status=`expr $status + 1`
-		rm -f $pidfile
-	fi
-     fi
-done
-
-for d in lwresd*
-do
-     pidfile="$d/lwresd.pid"
-     if [ -f $pidfile ]; then
-        kill -TERM `cat $pidfile` > /dev/null 2>&1
-	if [ $? != 0 ]; then
-		echo "I:$d died before a SIGTERM was sent"
-		status=`expr $status + 1`
-		rm -f $pidfile
-	fi
-     fi
-done
-
-for d in ans*
-do
-     pidfile="$d/ans.pid"
-     if [ -f $pidfile ]; then
-        kill -TERM `cat $pidfile` > /dev/null 2>&1
-	if [ $? != 0 ]; then
-		echo "I:$d died before a SIGTERM was sent"
-		status=`expr $status + 1`
-		rm -f $pidfile
-	fi
-     fi
-done
-
-sleep 5
-
-for d in ns*
-do
-     pidfile="$d/named.pid"
-     if [ -f $pidfile ]; then
-	echo "I:$d didn't die when sent a SIGTERM"
-	status=`expr $status + 1`
-        kill -KILL `cat $pidfile` > /dev/null 2>&1
-	if [ $? != 0 ]; then
-		echo "I:$d died before a SIGKILL was sent"
-		status=`expr $status + 1`
-		rm -f $pidfile
-	fi
-        rm -f $pidfile
-     fi
-done
-
-for d in lwresd*
-do
-     pidfile="$d/lwresd.pid"
-     if [ -f $pidfile ]; then
-	echo "I:$d didn't die when sent a SIGTERM"
-	status=`expr $status + 1`
-        kill -KILL `cat $pidfile` > /dev/null 2>&1
-	if [ $? != 0 ]; then
-		echo "I:$d died before a SIGKILL was sent"
-		status=`expr $status + 1`
-		rm -f $pidfile
-	fi
-        rm -f $pidfile
-     fi
-done
-
-exit $status

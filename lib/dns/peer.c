@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: peer.c,v 1.10.4.1 2001/01/09 22:43:55 bwelling Exp $ */
+/* $Id: peer.c,v 1.14 2001/03/06 23:54:33 bwelling Exp $ */
 
 #include <config.h>
 
@@ -24,6 +24,7 @@
 #include <isc/util.h>
 
 #include <dns/bit.h>
+#include <dns/fixedname.h>
 #include <dns/name.h>
 #include <dns/peer.h>
 
@@ -35,6 +36,7 @@
 #define TRANSFERS_BIT			2
 #define PROVIDE_IXFR_BIT		3
 #define REQUEST_IXFR_BIT		4
+#define SUPPORT_EDNS_BIT		5
 
 static isc_result_t
 dns_peerlist_delete(dns_peerlist_t **list);
@@ -358,6 +360,32 @@ dns_peer_getrequestixfr(dns_peer_t *peer, isc_boolean_t *retval) {
 }
 
 isc_result_t
+dns_peer_setsupportedns(dns_peer_t *peer, isc_boolean_t newval) {
+	isc_boolean_t existed;
+
+	REQUIRE(DNS_PEER_VALID(peer));
+
+	existed = DNS_BIT_CHECK(SUPPORT_EDNS_BIT, &peer->bitflags);
+
+	peer->support_edns = newval;
+	DNS_BIT_SET(SUPPORT_EDNS_BIT, &peer->bitflags);
+
+	return (existed ? ISC_R_EXISTS : ISC_R_SUCCESS);
+}
+
+isc_result_t
+dns_peer_getsupportedns(dns_peer_t *peer, isc_boolean_t *retval) {
+	REQUIRE(DNS_PEER_VALID(peer));
+	REQUIRE(retval != NULL);
+
+	if (DNS_BIT_CHECK(SUPPORT_EDNS_BIT, &peer->bitflags)) {
+		*retval = peer->support_edns;
+		return (ISC_R_SUCCESS);
+	} else
+		return (ISC_R_NOTFOUND);
+}
+
+isc_result_t
 dns_peer_settransfers(dns_peer_t *peer, isc_int32_t newval) {
 	isc_boolean_t existed;
 
@@ -438,4 +466,37 @@ dns_peer_setkey(dns_peer_t *peer, dns_name_t **keyval) {
 	*keyval = NULL;
 
 	return (exists ? ISC_R_EXISTS : ISC_R_SUCCESS);
+}
+
+isc_result_t
+dns_peer_setkeybycharp(dns_peer_t *peer, const char *keyval) {
+	isc_buffer_t b;
+	dns_fixedname_t fname;
+	dns_name_t *name;
+	isc_result_t result;
+
+	dns_fixedname_init(&fname);
+	isc_buffer_init(&b, keyval, strlen(keyval));
+	isc_buffer_add(&b, strlen(keyval));
+	result = dns_name_fromtext(dns_fixedname_name(&fname), &b,
+				   dns_rootname, ISC_FALSE, NULL);
+	if (result != ISC_R_SUCCESS)
+		return (result);
+
+	name = isc_mem_get(peer->mem, sizeof(dns_name_t));
+	if (name == NULL)
+		return (ISC_R_NOMEMORY);
+
+	dns_name_init(name, NULL);
+	result = dns_name_dup(dns_fixedname_name(&fname), peer->mem, name);
+	if (result != ISC_R_SUCCESS) {
+		isc_mem_put(peer->mem, name, sizeof(dns_name_t));
+		return (result);
+	}
+
+	result = dns_peer_setkey(peer, &name);
+	if (result != ISC_R_SUCCESS)
+		isc_mem_put(peer->mem, name, sizeof(dns_name_t));
+
+	return (result);
 }

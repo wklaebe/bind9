@@ -1,7 +1,7 @@
 Copyright (C) 2000, 2001  Internet Software Consortium.
 See COPYRIGHT in the source root or http://isc.org/copyright.html for terms.
 
-$Id: options,v 1.54.2.7 2001/04/26 18:19:38 gson Exp $
+$Id: options,v 1.68 2001/05/09 16:33:48 gson Exp $
 
 This is a summary of the implementation status of the various named.conf
 options in BIND 9.
@@ -82,9 +82,10 @@ options {
   [ max-transfer-idle-out number; ]			    Yes*
   [ max-cache-ttl number; ]				    Yes*
   [ max-ncache-ttl number; ]				    Yes
-  [ max-cache-size size_spec; ]				    No*
+  [ max-cache-size size_spec; ]				    Yes*
   [ min-roots number; ]					    Obsolete
   [ serial-queries number; ]				    Obsolete
+  [ serial-query-rate number; ]				    Yes*
   [ transfer-format ( one-answer | many-answers ); ]	    Yes%
   [ transfers-in  number; ]				    Yes
   [ transfers-out number; ]				    Yes
@@ -120,6 +121,9 @@ options {
   [ sig-validity-interval number; ]			    Yes*
   [ additional-from-auth yes_or_no; ]			    Yes*
   [ additional-from-cache yes_or_no; ]			    Yes*
+  [ random-device path_name; ]				    Yes*
+  [ minimal-responses yes_or_no; ]			    Yes*
+  [ match-mapped-addresses yes_or_no; ]			    Yes*
 };
 
 acl							    Yes@
@@ -140,6 +144,7 @@ server ip_addr {
   [ request-ixfr yes_or_no; ]				    Yes*
   [ provide-ixfr yes_or_no; ]				    Yes*
   [ support-ixfr yes_or_no; ]				    Obsolete
+  [ edns yes_or_no; ]					    Yes*
   [ transfers number; ]					    Yes
   [ transfer-format ( one-answer | many-answers ); ]	    Yes%
   [ keys { key_id [key_id ... ] }; ]			    Yes
@@ -220,8 +225,6 @@ zone "domain_name" [ ( in | hs | hesiod | chaos ) ] {
   [ dialup yes_or_no | passive | refresh; ]		    Yes%
   [ max-transfer-time-in number; ]			    Yes
   [ max-transfer-idle-in number; ]			    Yes*
-  [ max-transfer-time-out number; ]			    Yes*
-  [ max-transfer-idle-out number; ]			    Yes*
   [ pubkey number number number string; ]		    No
   [ min-refresh-time number ; ]				    Yes*
   [ max-refresh-time number ; ]				    Yes*
@@ -264,7 +267,7 @@ view "view_name" [ ( in | hs | hesiod | chaos ) ] {	    Yes*
   [ max-transfer-idle-out number; ]			    Yes*
   [ max-cache-ttl number; ]				    Yes*
   [ max-ncache-ttl number; ]				    Yes
-  [ max-cache-size size_spec; ]				    No*
+  [ max-cache-size size_spec; ]				    Yes*
   [ min-roots number; ]					    Obsolete
   [ transfer-format ( one-answer | many-answers ); ]	    Yes%
   [ transfer-source ...; ]				    Yes
@@ -285,4 +288,5 @@ view "view_name" [ ( in | hs | hesiod | chaos ) ] {	    Yes*
   [ max-refresh-time number ; ]				    Yes*
   [ min-retry-time number ; ]				    Yes*
   [ max-retry-time number ; ]				    Yes*
+  [ minimal-responses yes_or_no; ]			    Yes*
 };

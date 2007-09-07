@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: interfaceiter.h,v 1.9.4.1 2001/01/09 22:49:55 bwelling Exp $ */
+/* $Id: interfaceiter.h,v 1.10 2001/01/09 21:57:01 bwelling Exp $ */
 
 #ifndef ISC_INTERFACEITER_H
 #define ISC_INTERFACEITER_H 1

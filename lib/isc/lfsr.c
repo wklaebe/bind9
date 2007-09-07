@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: lfsr.c,v 1.10.4.1 2001/01/09 22:49:03 bwelling Exp $ */
+/* $Id: lfsr.c,v 1.11 2001/01/09 21:56:11 bwelling Exp $ */
 
 #include <config.h>
 

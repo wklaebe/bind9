@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: string.h,v 1.8.4.1 2001/01/09 22:50:33 bwelling Exp $ */
+/* $Id: string.h,v 1.9 2001/01/09 21:57:37 bwelling Exp $ */
 
 #ifndef ISC_STRING_H
 #define ISC_STRING_H 1

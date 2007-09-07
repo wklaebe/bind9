@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: xfrout.h,v 1.6.4.1 2001/01/09 22:32:46 bwelling Exp $ */
+/* $Id: xfrout.h,v 1.7 2001/01/09 21:40:34 bwelling Exp $ */
 
 #ifndef NAMED_XFROUT_H
 #define NAMED_XFROUT_H 1

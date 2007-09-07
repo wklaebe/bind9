@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: symtab.h,v 1.15.2.1 2001/01/09 22:50:35 bwelling Exp $ */
+/* $Id: symtab.h,v 1.16 2001/01/09 21:57:38 bwelling Exp $ */
 
 #ifndef ISC_SYMTAB_H
 #define ISC_SYMTAB_H 1

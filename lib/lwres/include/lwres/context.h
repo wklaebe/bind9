@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: context.h,v 1.13.4.1 2001/01/09 22:52:37 bwelling Exp $ */
+/* $Id: context.h,v 1.14 2001/01/09 21:59:39 bwelling Exp $ */
 
 #ifndef LWRES_CONTEXT_H
 #define LWRES_CONTEXT_H 1

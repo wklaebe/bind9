@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: result.h,v 1.18.4.1 2001/01/09 22:48:38 bwelling Exp $ */
+/* $Id: result.h,v 1.19 2001/01/09 21:55:46 bwelling Exp $ */
 
 #ifndef DST_RESULT_H
 #define DST_RESULT_H 1

@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: mutex.h,v 1.12.4.1 2001/01/09 22:51:59 bwelling Exp $ */
+/* $Id: mutex.h,v 1.13 2001/01/09 21:59:03 bwelling Exp $ */
 
 #ifndef ISC_MUTEX_H
 #define ISC_MUTEX_H 1

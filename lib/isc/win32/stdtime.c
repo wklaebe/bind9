@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: stdtime.c,v 1.6.4.1 2001/01/09 22:51:50 bwelling Exp $ */
+/* $Id: stdtime.c,v 1.7 2001/01/09 21:58:53 bwelling Exp $ */
 
 #include <time.h>
 

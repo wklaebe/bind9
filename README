@@ -45,60 +45,57 @@ BIND 9
 
 
 
-BIND 9.1.3
+BIND 9.2
 
-	BIND 9.1.3 is a maintenance release, containing fixes for
-	a number of bugs in 9.1.2 but no new features.
+	BIND 9.2.0a1 is the first alpha release of BIND 9.2.0.
+	It includes a number of new features over 9.1, including:
 
-	Features introduced in 9.1.0 included:
+	  - The size of the cache can now be limited using the
+            "max-cache-size" option.
 
-	  - Many BIND 8 features previously unimplemented in BIND 9,
-	    including domain-specific forwarding, the $GENERATE
-	    master file directive, and the "blackhole", "dialup", 
-	    and "sortlist" options
+	  - The server can now automatically convert RFC1886-style
+	    recursive lookup requests into RFC2874-style lookups, 
+	    when enabled using the new option "allow-v6-synthesis".
+            This allows stub resolvers that support AAAA records
+            but not A6 record chains or binary labels to perform
+            lookups in domains that make use of these IPv6 DNS
+            features.
 
-	  - Forwarding of dynamic update requests; this is enabled 
-	    by the "allow-update-forwarding" option
+	  - Performance has been improved.
 
-	  - A new, simplified database interface and a number of
-	    sample drivers based on it; see doc/misc/sdb for details
+	  - The man pages now use the more portable "man" macros
+	    rather than the "mandoc" macros, and are installed
+            by "make install".
 
-	  - Support for building single-threaded servers for 
-	    environments that do not supply POSIX threads
+          - The named.conf parser has been completely rewritten.
+            It now supports "include" directives in more
+            places such as inside "view" statememnts, and it no
+            longer has any reserved words.
 
-	  - New configuration options: "min-refresh-time",
-	    "max-refresh-time", "min-retry-time", "max-retry-time",
-	    "additional-from-auth", "additional-from-cache",
-	    "notify explicit"
+          - The "rndc status" command is now implemented.
 
-	  - Faster lookups, particularly in large zones.
+	  - rndc can now be configured automatically.
 
-	BIND 9.1 also includes experimental implementations of a
-	number of DNS protocols extensions still under development
-	in the IETF.  These include transparent processing of
-	unknown RR types and use of the EDNS "DNSSEC OK" bit to
-	explicitly enable DNSSEC processing in responses.
+	  - A BIND 8 compatible stub resolver library is now included
+	    in lib/bind.  It is not built by default, and may not build
+	    on all supported platforms yet.
 
-	Cryptographic operations are now based on the OpenSSL
-	library instead of DNSsafe.
+	This distribution already includes a new lightweight stub
+	resolver library and associated resolver daemon that fully
+	support forward and reverse lookups of both IPv4 and IPv6
+	addresses.  This library is still considered experimental and
+	is not a complete replacement for the BIND 8 resolver library.
+	Applications that use the BIND 8 res_* functions to perform
+	DNS lookups or dynamic updates still need to be linked against
+	the BIND 8 libraries.  For DNS lookups, they can also use the
+	new "getrrsetbyname()" API.
 
-	BIND 9.1 is primarily a name server software distribution.
-	In addition to the name server, it also includes a new
-	lightweight stub resolver library and associated resolver
-	daemon that fully support forward and reverse lookups of both
-	IPv4 and IPv6 addresses.  This library is still considered
-	experimental and is not a complete replacement for the BIND 8
-	resolver library.  Applications that use the BIND 8 res_*
-	functions to perform DNS lookups or dynamic updates still need
-	to be linked against the BIND 8 libraries.  For DNS lookups,
-	they can also use the new "getrrsetbyname()" API.
-
-	BIND 9.1 is capable of acting as an authoritative server
+	BIND 9.2 is capable of acting as an authoritative server
 	for DNSSEC secured zones.  This functionality is believed to
 	be stable and complete except for lacking support for wildcard
 	records in secure zones.
 
-	When acting as a caching server, BIND 9.1 can be configured
+	When acting as a caching server, BIND 9.2 can be configured
 	to perform DNSSEC secure resolution on behalf of its clients.
 	This part of the DNSSEC implementation is still considered
 	experimental.  For detailed information about the state of the
@@ -114,11 +111,6 @@ BIND 9.1.3
 		IPv6, you must specify "listen-on-v6 { any; };"
 		in the named.conf options statement.
 
-		There are known problems with thread signal handling 
-		under Solaris 2.6 and BSD/OS.  We recommend disabling
-		threads with "configure --disable-threads" on these
-		platforms.
-
 		FreeBSD prior to 4.2 (and 4.2 if running as non-root)
 		and OpenBSD prior to 2.8 log messages like
 		"fcntl(8, F_SETFL, 4): Inappropriate ioctl for device".
@@ -130,10 +122,9 @@ BIND 9.1.3
 	A bug in the Windows 2000 DNS server can cause zone transfers
 	from a BIND 9 server to a W2K server to fail.  For details,
 	see the "Zone Transfers" section in doc/misc/migration.
- 
+
 	For a detailed list of user-visible changes from
 	previous releases, see the CHANGES file.
-
 
 Building
 
@@ -148,15 +139,14 @@ Building
 		FreeBSD 3.4-STABLE, 3.5, 4.0, 4.1
 		HP-UX 11
 		IRIX64 6.5
-		NetBSD 1.5 (with unproven-pthreads-0.17)
+		NetBSD 1.5
 		Red Hat Linux 6.0, 6.1, 6.2, 7.0
 		Solaris 2.6, 7, 8
 
 	Additionally, we have unverified reports of success building
 	previous versions of BIND 9 from users of the following systems:
 
-		Slackware Linux 7.0 with 2.4.0-test6 kernel and glibc 2.1.3
-		Slackware Linux 7.0.1 with glibc 2.1.3
+		Slackware Linux 7.x
 		OpenBSD 2.6, 2.8, -current
 		UnixWare 7.1.1
 		HP-UX 10.20
@@ -191,8 +181,12 @@ Building
 	To build shared libraries, specify "--with-libtool" on the
 	configure command line.
 
-	To build without multithreading, specify "--disable-threads"
-	on the configure command line.
+	On some platforms, BIND 9 can be built with multithreading
+	support, allowing it to take advantage of multiple CPUs.
+	You can specify whether to build a multithreaded BIND 9 
+	by specifying "--enable-threads" or "--disable-threads"
+	on the configure command line.  The default is operating
+	system dependent.
 
 	If your operating system has integrated support for IPv6, it
 	will be used automatically.  If you have installed KAME IPv6
@@ -227,11 +221,6 @@ Building
 	on your system, and some require Perl; see bin/tests/system/README
 	for details.
 
-	Linux systems do not provide useful core dumps for multithreaded 
-	programs unless the kernel patch in contrib/linux/coredump-patch
-	has been applied.  We recommend all Linux users to install this
-	patch so that any server crashes can be properly diagnosed.
-
 Documentation
 
 	The BIND 9 Administrator Reference Manual is included with the
@@ -239,12 +228,9 @@ Documentation
 	doc/arm directory.
 
 	Some of the programs in the BIND 9 distribution have man pages
-	under the doc/man directory.  In particular, the command line
-	options of "named" are documented in doc/man/bind/named.8.
+	in their directories.  In particular, the command line
+	options of "named" are documented in /bin/named/named.8.
 	There is now also a set of man pages for the lwres library.
-
-	The man pages are currently not installed automatically by
-	"make install".
 
 	If you are upgrading from BIND 8, please read the migration
 	notes in doc/misc/migration.  If you are upgrading from

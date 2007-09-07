@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: zone.c,v 1.333.2.23.2.47 2004/07/29 00:17:10 marka Exp $ */
+/* $Id: zone.c,v 1.333.2.23.2.50 2004/08/28 05:53:37 marka Exp $ */
 
 #include <config.h>
 
@@ -2349,8 +2349,10 @@ dump_done(void *arg, isc_result_t result) {
 
 		tresult = dns_db_getsoaserial(db, version, &serial);
 		if (tresult == ISC_R_SUCCESS) {
-			tresult = dns_journal_compact(zone->mctx, zone->journal,
-						     serial, zone->journalsize);
+			tresult = dns_journal_compact(zone->mctx,
+						      zone->journal,
+						      serial,
+						      zone->journalsize);
 			switch (tresult) {
 			case ISC_R_SUCCESS:
 			case ISC_R_NOSPACE:
@@ -4256,14 +4258,17 @@ zone_shutdown(isc_task_t *task, isc_event_t *event) {
 	if (zone->readio != NULL)
 		zonemgr_cancelio(zone->readio);
 
-	if (zone->writeio != NULL)
-		zonemgr_cancelio(zone->writeio);
-
 	if (zone->lctx != NULL)
 		dns_loadctx_cancel(zone->lctx);
 
-	if (zone->dctx != NULL)
-		dns_dumpctx_cancel(zone->dctx);
+	if (!DNS_ZONE_FLAG(zone, DNS_ZONEFLG_FLUSH) ||
+	    !DNS_ZONE_FLAG(zone, DNS_ZONEFLG_DUMPING)) {
+		if (zone->writeio != NULL)
+			zonemgr_cancelio(zone->writeio);
+
+		if (zone->dctx != NULL) 
+			dns_dumpctx_cancel(zone->dctx);
+	}
 
 	notify_cancel(zone);
 
@@ -5171,9 +5176,8 @@ notify_done(isc_task_t *task, isc_event_t *event) {
 	 * the soa if we see a formerr and had sent a SOA.
 	 */
 	isc_event_free(&event);
-	if ((result == ISC_R_TIMEDOUT ||
-	     (message != NULL && message->rcode == dns_rcode_formerr &&
-	      (notify->flags & DNS_NOTIFY_NOSOA) == 0))) {
+	if (message != NULL && message->rcode == dns_rcode_formerr &&
+	    (notify->flags & DNS_NOTIFY_NOSOA) == 0) {
 		notify->flags |= DNS_NOTIFY_NOSOA;
 		dns_request_destroy(&notify->request);
 		result = notify_send_queue(notify);

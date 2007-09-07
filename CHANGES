@@ -1,4 +1,42 @@
 
+	--- 9.3.0rc4 released ---
+
+1709.	[port]		solaris: add SMF support.
+
+1708.	[cleanup]	Replaced dns_fullname_hash() with dns_name_fullhash()
+			for conformance to the name space convention.  Binary
+			backward compatibility to the old function name is
+			provided. [RT #12376]
+
+1707.	[contrib]	sdb/ldap updated to version 1.0-beta.
+
+1706.	[bug]		'rndc stop' failed to cause zones to be flushed
+			sometimes. [RT #12328]
+
+1704.	[port]		lwres needed a snprintf() implementation for
+			platforms without snprintf().  Add missing
+			"#include <isc/print.h>". [RT #12321]
+
+1703.	[bug]		named would loop sending NOTIFY messages when it
+			failed to receive a response. [RT #12322]
+
+1702.	[bug]		also-notify should not be applied to builtin zones.
+			[RT #12323]
+
+1701.	[doc]		A minimal named.conf man page.
+
+1700.	[func]		nslookup is no longer to be treated as deprecated.
+			Remove "deprecated" warning message.  Add man page.
+
+1699.	[bug]		dnssec-signzone can generate "not exact" errors
+			when resigning. [RT #12281]
+
+1698.	[doc]		Use reserved IPv6 documentation prefix.
+
+1697.	[bug]		xxx-source{,-v6} was not effective when it
+			specified one of listening addresses and a
+			different port than the listening port. [RT #12257]
+
 	--- 9.3.0rc3 released ---
 
 1696.	[bug]		dnssec-signzone failed to clean out nodes that
@@ -2102,7 +2140,6 @@
 			files. [RT #1783]
 
 	--- 9.2.0rc4 released ---
-
 
 1013.	[bug]		It was possible to cancel a query twice when marking
 			a server as bogus or by having a blackhole acl.

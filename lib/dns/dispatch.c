@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dispatch.c,v 1.101.2.6.2.8 2004/07/21 00:49:28 marka Exp $ */
+/* $Id: dispatch.c,v 1.101.2.6.2.10 2004/09/01 04:27:41 marka Exp $ */
 
 #include <config.h>
 
@@ -155,7 +155,7 @@ static isc_boolean_t destroy_disp_ok(dns_dispatch_t *);
 static void destroy_disp(isc_task_t *task, isc_event_t *event);
 static void udp_recv(isc_task_t *, isc_event_t *);
 static void tcp_recv(isc_task_t *, isc_event_t *);
-static inline void startrecv(dns_dispatch_t *);
+static void startrecv(dns_dispatch_t *);
 static dns_messageid_t dns_randomid(dns_qid_t *);
 static isc_uint32_t dns_hash(dns_qid_t *, isc_sockaddr_t *, dns_messageid_t);
 static void free_buffer(dns_dispatch_t *disp, void *buf, unsigned int len);
@@ -1296,7 +1296,7 @@ local_addr_match(dns_dispatch_t *disp, isc_sockaddr_t *addr) {
 	if (result != ISC_R_SUCCESS)
 		return (ISC_FALSE);
 
-	return (isc_sockaddr_equal(&disp->local, &sockaddr));
+	return (isc_sockaddr_equal(&sockaddr, addr));
 }
 
 /*

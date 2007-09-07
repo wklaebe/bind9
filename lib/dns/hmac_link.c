@@ -18,7 +18,7 @@
 
 /*
  * Principal Author: Brian Wellington
- * $Id: hmac_link.c,v 1.53.2.1.8.5 2004/03/08 09:04:46 marka Exp $
+ * $Id: hmac_link.c,v 1.1.4.1 2004/12/09 04:07:17 marka Exp $
  */
 
 #include <config.h>

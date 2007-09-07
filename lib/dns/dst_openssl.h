@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
- * Copyright (C) 1999-2001  Internet Software Consortium.
+ * Copyright (C) 2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -15,51 +15,19 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/*
- * Principal Author: Brian Wellington
- * $Id: dst_lib.c,v 1.8.12.3 2004/03/08 09:04:45 marka Exp $
- */
+/* $Id: dst_openssl.h,v 1.1.2.1 2004/12/09 04:07:17 marka Exp $ */
 
-#include <config.h>
+#ifndef DST_OPENSSL_H
+#define DST_OPENSSL_H 1
 
-#include <stddef.h>
+#include <isc/lang.h>
+#include <isc/result.h>
 
-#include <isc/once.h>
-#include <isc/msgcat.h>
-#include <isc/util.h>
+ISC_LANG_BEGINDECLS
 
-#include <dst/lib.h>
+isc_result_t
+dst__openssl_toresult(isc_result_t fallback);
 
-/***
- *** Globals
- ***/
+ISC_LANG_ENDDECLS
 
-LIBDNS_EXTERNAL_DATA isc_msgcat_t *		dst_msgcat = NULL;
-
-
-/***
- *** Private
- ***/
-
-static isc_once_t		msgcat_once = ISC_ONCE_INIT;
-
-
-/***
- *** Functions
- ***/
-
-static void
-open_msgcat(void) {
-	isc_msgcat_open("libdst.cat", &dst_msgcat);
-}
-
-void
-dst_lib_initmsgcat(void) {
-
-	/*
-	 * Initialize the DST library's message catalog, dst_msgcat, if it
-	 * has not already been initialized.
-	 */
-
-	RUNTIME_CHECK(isc_once_do(&msgcat_once, open_msgcat) == ISC_R_SUCCESS);
-}
+#endif /* DST_OPENSSL_H */

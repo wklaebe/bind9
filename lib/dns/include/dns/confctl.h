@@ -15,7 +15,7 @@
  * SOFTWARE.
  */
 
-/* $Id: confctl.h,v 1.15 2000/06/22 21:55:19 tale Exp $ */
+/* $Id: confctl.h,v 1.15.2.2 2000/07/12 16:37:12 gson Exp $ */
 
 #ifndef DNS_CONFCTL_H
 #define DNS_CONFCTL_H 1
@@ -61,6 +61,7 @@
 #include <isc/magic.h>
 
 #include <dns/confip.h>
+#include <dns/confkeys.h>
 
 #define DNS_C_CONFCTL_MAGIC	0x4363746cU
 #define DNS_C_CONFCTLLIST_MAGIC	0x4354424cU
@@ -85,7 +86,6 @@ struct dns_c_ctrl {
 	union {
 		struct {
 			isc_sockaddr_t addr;
-			in_port_t port;
 			dns_c_ipmatchlist_t *matchlist;
 		} inet_v; /* when control_type == dns_c_inet_control  */
 		struct {
@@ -95,6 +95,7 @@ struct dns_c_ctrl {
 			gid_t group;
 		} unix_v; /* when control_type == dns_c_unix_control  */
 	} u;
+	dns_c_kidlist_t *keyidlist;
 	
 	ISC_LINK(dns_c_ctrl_t) next;
 };
@@ -116,7 +117,8 @@ ISC_LANG_BEGINDECLS
 isc_result_t
 dns_c_ctrlinet_new(isc_mem_t *mem, dns_c_ctrl_t **control,
 		   isc_sockaddr_t addr, in_port_t port,
-		   dns_c_ipmatchlist_t *iml, isc_boolean_t copy);
+		   dns_c_ipmatchlist_t *iml, dns_c_kidlist_t *keylist,
+		   isc_boolean_t copy);
 /*
  * Creates a new INET control object. If COPY is true then a deep copy is
  * made of IML, otherwise the value of IML is stored directly in the new
@@ -159,6 +161,16 @@ dns_c_ctrl_delete(dns_c_ctrl_t **control);
  *	ISC_R_SUCCESS
  */
 
+
+isc_result_t
+dns_c_ctrl_validate(dns_c_ctrl_t *ctrl);
+/*
+ * Validates one control statement enty.
+ * The KEYS must be used. UNIX types are ignored (so we issue a warning for
+ * that.
+ */
+
+
 void
 dns_c_ctrl_print(FILE *fp, int indent, dns_c_ctrl_t *ctl);
 /*
@@ -186,6 +198,12 @@ dns_c_ctrllist_new(isc_mem_t *mem, dns_c_ctrllist_t **newlist);
  */
 
 isc_result_t
+dns_c_ctrllist_validate(dns_c_ctrllist_t *cl);
+/*
+ * Validates the subclauses of the control statement.
+ */
+
+isc_result_t
 dns_c_ctrllist_delete(dns_c_ctrllist_t **list);
 /*
  * Deletes the control list. The value of *list may be NULL. Sets *list to
@@ -209,6 +227,11 @@ dns_c_ctrllist_print(FILE *fp, int indent, dns_c_ctrllist_t *cl);
  *	fp be a pointer to a valid stdio stream.
  *
  */
+
+
+dns_c_ctrl_t *dns_c_ctrllist_head (dns_c_ctrllist_t *list);
+dns_c_ctrl_t *dns_c_ctrl_next(dns_c_ctrl_t *ctrl);
+
 
 ISC_LANG_ENDDECLS
 

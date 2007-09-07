@@ -15,7 +15,7 @@
 # ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
 # SOFTWARE.
 
-# $Id: start.sh,v 1.21.2.1 2000/06/26 21:21:18 gson Exp $
+# $Id: start.sh,v 1.21.2.4 2000/07/10 23:04:45 bwelling Exp $
 
 #
 # Start name servers for running system tests.
@@ -28,16 +28,26 @@ test $# -gt 0 || { echo "usage: $0 test-directory" >&2; exit 1; }
 
 test -d "$1" || { echo No test directory: "$1";  exit 1; }
 
-if $PERL ./testsock.pl -p 5300
-then
-    :
-else
-    echo "$0: could not bind to server addresses, server still running?"
-    echo "I:server sockets not available"
-    echo "R:FAIL"
-    sh ./stop.sh $1
-    exit 1
-fi 
+portup=0
+testloop=0
+while [ $portup = 0 ]
+do
+    if $PERL ./testsock.pl -p 5300
+    then
+	portup=1
+    else
+	echo "I:Couldn't bind to socket (yet)"
+	sleep 2
+	testloop=`expr $testloop + 1`
+	if [ $testloop = 5 ]; then
+	    echo "$0: could not bind to server addresses, still running?"
+	    echo "I:server sockets not available"
+	    echo "R:FAIL"
+	    sh ./stop.sh $1
+	    exit 1
+	fi
+    fi 
+done
 
 cd $1
 
@@ -46,7 +56,13 @@ do
     (
         cd $d
 	rm -f *.jnl *.bk *.st named.run
-	$NAMED -c named.conf -d 99 -g >named.run 2>&1 &
+	if test -f namedopts
+	then
+	    opts=`cat namedopts`
+	else
+	    opts=""
+	fi
+	$NAMED $opts -c named.conf -d 99 -g >named.run 2>&1 &
 	x=1
 	while test ! -f named.pid
 	do
@@ -88,7 +104,7 @@ do
 	do
 	    x=`expr $x + 1`
 	    if [ $x = 5 ]; then
-		echo "I: Couldn't start lwresd $d"
+		echo "I:Couldn't start lwresd $d"
 		exit 1
 	    fi
 	    sleep 1
@@ -118,7 +134,7 @@ do
 		if [ $try = 30 ]; then
 			cd ..
 			sh ./stop.sh $1
-			echo "I: no response from $d"
+			echo "I:no response from $d"
 			echo "R:FAIL"
 			exit 1
 		fi

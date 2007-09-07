@@ -15,21 +15,13 @@
 # ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
 # SOFTWARE.
 
-# $Id: clean.sh,v 1.7 2000/06/22 21:51:23 tale Exp $
+# $Id: setup.sh,v 1.1 2000/07/06 00:54:02 mws Exp $
 
 #
-# Clean up after system tests.
+# jnl and database files MUST be removed before we start
 #
 
-SYSTEMTESTTOP=.
-. $SYSTEMTESTTOP/conf.sh
+rm -f ns1/*.jnl ns1/example.db ns2/*.jnl ns2/example.bk
+cp ns1/example.orig ns1/example.db
 
-find . -type f \( \
-    -name 'K*' -o -name '*~' -o -name '*.core' -o -name '*.log' \
-    -o -name '*.pid' -o -name '*.keyset' \
-\) -print | xargs rm -f
 
-for d in $SUBDIRS
-do
-   test ! -f $d/clean.sh || ( cd $d && sh clean.sh )
-done

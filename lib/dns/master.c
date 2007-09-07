@@ -15,7 +15,7 @@
  * SOFTWARE.
  */
 
-/* $Id: master.c,v 1.54.2.1 2000/06/30 16:25:09 gson Exp $ */
+/* $Id: master.c,v 1.54.2.3 2000/07/10 19:17:35 gson Exp $ */
 
 #include <config.h>
 
@@ -120,7 +120,16 @@ on_list(dns_rdatalist_t *this, dns_rdata_t *rdata);
 		default: \
 			goto error_cleanup; \
 		} \
-	} while (0) \
+	} while (0)
+
+#define WARNUNEXPECTEDEOF(lexer) \
+	do { \
+		if (isc_lex_isfile(lexer)) \
+			(*callbacks->warn)(callbacks, \
+			    	"%s:%lu: file does not end with newline", \
+				isc_lex_getsourcename(lexer), \
+				isc_lex_getsourceline(lexer)); \
+	} while (0)
 
 static inline isc_result_t
 gettoken(isc_lex_t *lex, unsigned int options, isc_token_t *token,
@@ -186,6 +195,7 @@ load(isc_lex_t *lex, dns_name_t *top, dns_name_t *origin,
 	isc_boolean_t finish_origin = ISC_FALSE;
 	isc_boolean_t finish_include = ISC_FALSE;
 	isc_boolean_t read_till_eol = ISC_FALSE;
+	isc_boolean_t initialws;
 	char *include_file = NULL;
 	isc_token_t token;
 	isc_result_t result = ISC_R_UNEXPECTED; 
@@ -253,9 +263,12 @@ load(isc_lex_t *lex, dns_name_t *top, dns_name_t *origin,
 	memset(name_in_use, 0, NBUFS * sizeof(isc_boolean_t));
 
 	do {
+		initialws = ISC_FALSE;
 		GETTOKEN(lex, ISC_LEXOPT_INITIALWS, &token, ISC_TRUE);
 
 		if (token.type == isc_tokentype_eof) {
+			if (read_till_eol)
+				WARNUNEXPECTEDEOF(lex);
 			done = ISC_TRUE;
 			continue;
 		}
@@ -269,18 +282,10 @@ load(isc_lex_t *lex, dns_name_t *top, dns_name_t *origin,
 			continue;
 
 		if (token.type == isc_tokentype_initialws) {
-			if (!current_known) {
-				(*callbacks->error)(callbacks,
-					"%s: %s:%lu: No current owner name",
-						"dns_master_load",
-						isc_lex_getsourcename(lex),
-						isc_lex_getsourceline(lex));
-				result = DNS_R_NOOWNER;
-				goto cleanup;
-			}
 			/*
 			 * Still working on the same name.
 			 */
+			initialws = ISC_TRUE;
 		} else if (token.type == isc_tokentype_string) {
 
 			/*
@@ -340,8 +345,11 @@ load(isc_lex_t *lex, dns_name_t *top, dns_name_t *origin,
 					goto error_cleanup;
 				}
 				GETTOKEN(lex, 0, &token, ISC_TRUE);
+
 				if (token.type == isc_tokentype_eol ||
 				    token.type == isc_tokentype_eof) {
+					if (token.type == isc_tokentype_eof)
+						WARNUNEXPECTEDEOF(lex);
 					/*
 					 * No origin field.
 					 */
@@ -545,7 +553,30 @@ load(isc_lex_t *lex, dns_name_t *top, dns_name_t *origin,
 		type = 0;
 		rdclass = 0;
 
-		GETTOKEN(lex, 0, &token, ISC_FALSE);
+		GETTOKEN(lex, 0, &token, initialws);
+
+		if (initialws) {
+			if (token.type == isc_tokentype_eol) {
+				read_till_eol = ISC_FALSE;
+				continue;		/* blank line */
+			}
+
+			if (token.type == isc_tokentype_eof) {
+				WARNUNEXPECTEDEOF(lex);
+				done = ISC_TRUE;
+				continue;
+			}
+
+			if (!current_known) {
+				(*callbacks->error)(callbacks,
+					"%s: %s:%lu: No current owner name",
+						"dns_master_load",
+						isc_lex_getsourcename(lex),
+						isc_lex_getsourceline(lex));
+				result = DNS_R_NOOWNER;
+				goto cleanup;
+			}
+		}
 
 		if (dns_rdataclass_fromtext(&rdclass,
 					    &token.value.as_textregion)

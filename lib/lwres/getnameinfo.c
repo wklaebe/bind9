@@ -15,7 +15,7 @@
  * SOFTWARE.
  */
 
-/* $Id: getnameinfo.c,v 1.18.2.1 2000/06/28 22:01:06 gson Exp $ */
+/* $Id: getnameinfo.c,v 1.18.2.5 2000/07/10 22:23:24 gson Exp $ */
 
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
@@ -57,12 +57,12 @@
  *   but INRIA implementation returns EAI_xxx defined for getaddrinfo().
  */
 
+#include <config.h>
+
 #include <sys/types.h>
 #include <sys/socket.h>
 
 #include <netinet/in.h>
-
-#include <config.h>
 
 #include <stdio.h>
 #include <string.h>
@@ -88,13 +88,13 @@ static struct afd {
 	{0, 0, 0},
 };
 
-#define ENI_NOSOCKET 	0
 #define ENI_NOSERVNAME	1
 #define ENI_NOHOSTNAME	2
 #define ENI_MEMORY	3
 #define ENI_SYSTEM	4
 #define ENI_FAMILY	5
 #define ENI_SALEN	6
+#define ENI_NOSOCKET 	7
 
 /*
  * The test against 0 is there to keep the Solaris compiler
@@ -112,7 +112,7 @@ lwres_getnameinfo(const struct sockaddr *sa, size_t salen, char *host,
 	struct afd *afd;
 	struct servent *sp;
 	unsigned short port;
-#ifdef ISC_PLATFORM_HAVESALEN
+#ifdef LWRES_PLATFORM_HAVESALEN
 	size_t len;
 #endif
 	int family, i;
@@ -135,7 +135,7 @@ lwres_getnameinfo(const struct sockaddr *sa, size_t salen, char *host,
 	if (sa == NULL)
 		ERR(ENI_NOSOCKET);
 
-#ifdef ISC_PLATFORM_HAVESALEN
+#ifdef LWRES_PLATFORM_HAVESALEN
 	len = sa->sa_len;
 	if (len != salen)
 		ERR(ENI_SALEN);
@@ -255,6 +255,9 @@ lwres_getnameinfo(const struct sockaddr *sa, size_t salen, char *host,
 
 		n = lwres_context_create(&lwrctx, NULL, NULL, NULL, 0);
 		if (n == 0)
+			(void) lwres_conf_parse(lwrctx, "/etc/resolv.conf");
+
+		if (n == 0)
 			n = lwres_getnamebyaddr(lwrctx, lwf, afd->a_addrlen,
 						addr, &by);
 		if (n == 0) {
@@ -282,7 +285,9 @@ lwres_getnameinfo(const struct sockaddr *sa, size_t salen, char *host,
  cleanup:
 	if (by != NULL)
 		lwres_gnbaresponse_free(lwrctx, &by);
-	if (lwrctx != NULL)
+	if (lwrctx != NULL) {
+		lwres_conf_clear(lwrctx);
 		lwres_context_destroy(&lwrctx);
+	}
 	return (result);
 }

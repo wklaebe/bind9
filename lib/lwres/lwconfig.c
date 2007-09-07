@@ -15,23 +15,23 @@
  * SOFTWARE.
  */
 
-/* $Id: lwconfig.c,v 1.15 2000/06/22 21:59:32 tale Exp $ */
+/* $Id: lwconfig.c,v 1.15.2.4 2000/07/11 00:56:03 gson Exp $ */
 
 /***
  *** Module for parsing resolv.conf files.
  ***
  *** entry points are:
- ***	lwres_conf_init(lwres_context_t *ctx, lwres_conf_t *confdata)
- ***		intializes data structure for subsequent parsing.
+ ***	lwres_conf_init(lwres_context_t *ctx)
+ ***		intializes data structure for subsequent config parsing.
  ***
- ***	lwres_conf_parse(const char *filename, lwres_conf_t *confdata)
+ ***	lwres_conf_parse(lwres_context_t *ctx, const char *filename)
  ***		parses a file and fills in the data structure.
  ***
- ***	lwres_conf_print(FILE *fp, lwres_conf_t *confdata)
- ***		prints the data structure to the FILE.
+ ***	lwres_conf_print(lwres_context_t *ctx, FILE *fp)
+ ***		prints the config data structure to the FILE.
  ***
- ***	lwres_conf_clear(lwres_conf_t *confdata)
- ***		frees up all the internal memory used by the data
+ ***	lwres_conf_clear(lwres_context_t *ctx)
+ ***		frees up all the internal memory used by the config data
  ***		 structure, returning it to the lwres_context_t.
  ***
  ***/
@@ -286,7 +286,7 @@ lwres_conf_parsenameserver(lwres_context_t *ctx,  FILE *fp) {
 	confdata = &ctx->confdata;
 
 	if (confdata->nsnext == LWRES_CONFMAXNAMESERVERS)
-		return (LWRES_R_FAILURE);
+		return (LWRES_R_SUCCESS);
 
 	res = getword(fp, word, sizeof(word));
 	if (strlen(word) == 0)
@@ -382,7 +382,7 @@ lwres_conf_parsesearch(lwres_context_t *ctx,  FILE *fp) {
 	idx = 0;
 	while (strlen(word) > 0) {
 		if (confdata->searchnxt == LWRES_CONFMAXSEARCH)
-			return (LWRES_R_FAILURE); /* Too many domains. */
+			goto ignore; /* Too many domains. */
 
 		confdata->search[idx] = lwres_strdup(ctx, word);
 		if (confdata->search[idx] == NULL)
@@ -390,6 +390,7 @@ lwres_conf_parsesearch(lwres_context_t *ctx,  FILE *fp) {
 		idx++;
 		confdata->searchnxt++;
 
+	ignore:
 		if (delim == EOF || delim == '\n')
 			break;
 		else
@@ -421,7 +422,7 @@ lwres_create_addr(const char *buffer, lwres_addr_t *addr) {
 		addr->length = NS_IN6ADDRSZ;
 		len = 16;
 	} else {
-		return (LWRES_R_FAILURE); /* Unrecongnised format. */
+		return (LWRES_R_FAILURE); /* Unrecognised format. */
 	}
 
 	memcpy((void *)addr->address, addrbuff, len);
@@ -524,7 +525,7 @@ lwres_result_t
 lwres_conf_parse(lwres_context_t *ctx, const char *filename) {
 	FILE *fp = NULL;
 	char word[256];
-	lwres_result_t rval;
+	lwres_result_t rval, ret;
 	lwres_conf_t *confdata;
 	int stopchar;
 
@@ -535,11 +536,11 @@ lwres_conf_parse(lwres_context_t *ctx, const char *filename) {
 	REQUIRE(strlen(filename) > 0);
 	REQUIRE(confdata != NULL);
 
-	rval = LWRES_R_FAILURE;		/* Make compiler happy. */
 	errno = 0;
 	if ((fp = fopen(filename, "r")) == NULL)
 		return (LWRES_R_FAILURE);
 
+	ret = LWRES_R_SUCCESS;
 	do {
 		stopchar = getword(fp, word, sizeof(word));
 		if (stopchar == EOF) {
@@ -547,7 +548,9 @@ lwres_conf_parse(lwres_context_t *ctx, const char *filename) {
 			break;
 		}
 
-		if (strcmp(word, "nameserver") == 0)
+		if (strlen(word) == 0)
+			rval = LWRES_R_SUCCESS;
+		else if (strcmp(word, "nameserver") == 0)
 			rval = lwres_conf_parsenameserver(ctx, fp);
 		else if (strcmp(word, "domain") == 0)
 			rval = lwres_conf_parsedomain(ctx, fp);
@@ -557,7 +560,7 @@ lwres_conf_parse(lwres_context_t *ctx, const char *filename) {
 			rval = lwres_conf_parsesortlist(ctx, fp);
 		else if (strcmp(word, "option") == 0)
 			rval = lwres_conf_parseoption(ctx, fp);
-		else if (strlen(word) > 0) {
+		else {
 			/* unrecognised word. Ignore entire line */
 			rval = LWRES_R_SUCCESS;
 			stopchar = eatline(fp);
@@ -565,11 +568,13 @@ lwres_conf_parse(lwres_context_t *ctx, const char *filename) {
 				break;
 			}
 		}
-	} while (rval == LWRES_R_SUCCESS);
+		if (ret == LWRES_R_SUCCESS && rval != LWRES_R_SUCCESS)
+			ret = rval;
+	} while (1);
 
 	fclose(fp);
 
-	return (rval);
+	return (ret);
 }
 
 lwres_result_t

@@ -16,8 +16,9 @@
  - SOFTWARE.
 -->
 
-<!-- $Id: Bv9ARM.3.html,v 1.5.2.2 2000/06/29 00:14:58 gson Exp $ -->
+<!-- $Id: Bv9ARM.3.html,v 1.5.2.4 2000/07/13 03:16:31 gson Exp $ -->
 
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML EXPERIMENTAL 970324//EN">
 <HTML>
 <HEAD>
 <META NAME="GENERATOR" CONTENT="Adobe FrameMaker 5.5/HTML Export Filter">
@@ -404,7 +405,8 @@ dig @server domain query-type query-class</STRONG></CODE>
 <P CLASS="4LevelContinued">
 <A NAME="pgfId=997473">
 </A>
-For more information and a list of available commands and options, see the dig man page.</P>
+For more information and a list of available commands and options, see the <CODE CLASS="Program-Process">
+dig</CODE> man page.</P>
 </DIV>
 <DIV>
 <H5 CLASS="Subhead4">
@@ -432,6 +434,8 @@ Usage</H5>
 host [-aCdlrTwv] [-c class] [-N ndots] [-t type]
      [-W timeout] [-R retries] hostname [server]
 </STRONG></CODE></PRE>
+For more information and a list of available commands and options, see the <CODE CLASS="Program-Process">
+host</CODE> man page.<p></P>
 <DIV>
 <H5 CLASS="Subhead4">
 <A NAME="pgfId=997478">
@@ -502,39 +506,188 @@ dig</CODE>
 </A>
 Administrative tools play an integral part in the management of a server.</P>
 </DIV>
-<DIV>
+      <DIV> 
+        <H5 CLASS="Subhead4"> <A NAME="pgfId=997489"> </A> rndc</H5>
+        <P CLASS="4LevelContinued"> <A NAME="pgfId=997490"> </A> The remote name 
+          daemon control (<CODE CLASS="Program-Process">rndc</CODE>) program allows 
+          the system administrator to control the operation of a nameserver. If 
+          you run (<code class="Program-Process">rndc</code>) without any options 
+          it will display a usage message as follows: </P>
 <H5 CLASS="Subhead4">
-<A NAME="pgfId=997489">
+<A NAME="pgfId=997469">
 </A>
-rndc</H5>
-<P CLASS="4LevelContinued">
-<A NAME="pgfId=997490">
-</A>
-The remote name daemon control (<CODE CLASS="Program-Process">
-rndc</CODE>
-) program is a program that allows the system administrator to control the operation of a nameserver. If you run <CODE CLASS="Program-Process">
-rndc</CODE>
- without any options it will display a usage message.</P>
-<P CLASS="4LevelContinued">
-<A NAME="pgfId=1012780">
-</A>
-Usage:</P>
-<PRE>
-<CODE><STRONG>
-rndc [-p port] [-m] server command [command ...]
+Usage</H5>
+        <PRE>
+<CODE><STRONG>rndc [-c config] [-s server] [-p port] [-y key] command [command ...]
 </STRONG></CODE></PRE>
-<P CLASS="4LevelContinued">
-<A NAME="pgfId=997493">
-</A>
-For more information and a list of available commands and options, see the <CODE CLASS="Program-Process">
-rndc</CODE>
- man page.</P>
+  <CODE><STRONG>command</STRONG></CODE> is one of the following for named:
+
+<TABLE>
+	<TR>
+		
+            <TD>*<code>status</code></TD>
+            <TD>Display ps(1) status of named.</TD>
+	</TR>
+	<TR>
+		<TD>*<CODE>dumpdb</CODE></TD> <TD>Dump database and cache to /var/tmp/named_dump.db.</TD>
+	</TR>
+	<TR>
+		<TD><CODE>reload</CODE></TD> <TD>Reload configuration file and zones.</TD>
+	</TR>
+	<TR>
+		<TD>*<CODE>stats</CODE></TD> <TD>Dump statistics to /var/tmp/named.stats.</TD>
+	</TR>
+	<TR>
+		<TD>*<CODE>trace</CODE></TD> <TD>Increment debugging level by one.</TD>
+	</TR>
+	<TR>
+		<TD>*<CODE>notrace</CODE></TD> <TD>Set debugging level to 0.</TD>
+	</TR>
+	<TR>
+		<TD>*<CODE>querylog</CODE></TD> <TD>Toggle query logging.</TD>
+	</TR>
+	<TR>
+		<TD>*<CODE>stop</CODE></TD> <TD>Stop the server.</TD>
+	</TR>
+	<TR>
+		<TD>*<CODE>restart</CODE></TD> <TD>Restart the server.</TD>
+	</TR>
+	<TR>
+		<TD>* == not yet implemented</TD>
+	</TR>
+</TABLE>
+
+
+        <p>As noted above, "reload" is the only command available for BIND 9.0.0. 
+          The other commands, and more, are planned to be implemented for future 
+          releases.</p>
+        <p> A configuration file is required, since all communication with the 
+          server is authenticated with digital signatures that rely on a shared 
+          secret, and there is no way to provide that secret other than with a 
+          configuration file. The default location for the rndc configuration 
+          file is <EM>/etc/rndc.conf</EM>, but an alternate location can be specified with 
+          the "<CODE>-c</CODE>" option.</p>
+        <p>The format of the configuration file is similar to that of named.conf, 
+          but limited to only three statements, the <CODE>options{}</CODE>, <CODE>key{}</CODE> and <CODE>server{}</CODE> 
+          statements. These statements are what associate the secret keys to the 
+          servers with which they are meant to be shared. The order of statements 
+          is not significant.</p>
+        <p>The <CODE>options{}</CODE> statement has two clauses: <CODE>default-server</CODE> and default-key. 
+          <CODE>default-server</CODE> takes a host name or address argument and represents the server that will be contacted if 
+          no "<CODE>-s</CODE>" option is provided on the command line. default-key takes the 
+          name of the key as its argument, as defined by a <CODE>key{}</CODE> statement. In 
+          the future a default-port clause will be added to specify the port to 
+          which <CODE>rndc</CODE> should connect.</p>
+        <p>The <CODE>key{}</CODE> statement names a key with its string argument. The string 
+          is required by the server to be a valid domain name, though it need 
+          not actually be hierarchical; thus, a string like "rndc_key" is a valid 
+          name. The <CODE>key{}</CODE> statement has two clauses: <CODE>algorithm</CODE> and <CODE>secret</CODE>. While 
+          the configuration parser will accept any string as the argument to algorithm, 
+          currently only the string "hmac-md5" has any meaning. The secret is 
+          a base-64 encoded string, typically generated with either <CODE>dnssec-keygen</CODE> 
+          or <CODE>mmencode</CODE>.</p>
+        <p>The <CODE>server{}</CODE> statement uses the key clause to associate a <CODE>key{}</CODE>-defined 
+          key with a server. The argument to the <CODE>server{}</CODE> statement is a host 
+          name or address (addresses must be double quoted). The argument to the 
+          key clause is the name of key as defined by the <CODE>key{}</CODE> statement. A port 
+          clause will be added to a future release to specify the port to which 
+          rndc should connect on the given server.</p>
+        <p>A sample minimal configuration file is as follows:</p>
+        <PRE>
+<CODE><STRONG>key rndc_key {
+     algorithm "hmac-md5";
+     secret "c3Ryb25nIGVub3VnaCBmb3IgYSBtYW4gYnV0IG1hZGUgZm9yIGEgd29tYW4K";
+};</STRONG></CODE>
+<CODE><STRONG>options {
+     default-server localhost;
+     default-key rndc_key;
+};</STRONG></CODE>
+</PRE>
+        <p>This file, if installed as<EM> /etc/rndc.conf</EM>, would allow the command:</p>
+        <p> <strong><code>$ rndc reload</code></strong></p>
+        <p>to connect to 127.0.0.1 port 953 and cause the nameserver to reload, 
+          if a nameserver on the local machine were running with following controls 
+          statements:</p>
+        <PRE>
+<CODE><STRONG>controls {
+     inet 127.0.0.1 allow { localhost; } keys { rndc_key; };         
+};</STRONG></CODE>
+</PRE>
+        <p>and it had an identical key statement for <CODE>rndc_key</CODE>.</p>
+        <P CLASS="4LevelContinued">&nbsp;</P>
 </DIV>
+<H4 CLASS="3Level">
+<A NAME="pgfId=998650">
+</A>
+3.4.2	Signals</H4>
+
+<P CLASS="3LevelContinued">
+<A NAME="pgfId=998651">
+</A>
+Certain UNIX signals cause the name server to take specific actions, as described in the following table.  These signals can be sent using the <CODE CLASS="Program-Process">
+kill</CODE>
+ command.</P>
+<P CLASS="3LevelContinued">
+<A NAME="pgfId=1073295">
+</A>
+&nbsp;</P>
+<TABLE>
+<TR>
+<TD ROWSPAN="1" COLSPAN="1">
+<P CLASS="CellBody4">
+<A NAME="pgfId=1073306">
+</A>
+<CODE CLASS="Program-Process">
+SIGHUP</CODE>
+</P>
+</TD>
+<TD ROWSPAN="1" COLSPAN="1">
+<P CLASS="CellBody">
+<A NAME="pgfId=1073308">
+</A>
+Causes the server to read <CODE CLASS="Program-Process">
+named.conf</CODE>
+ and reload the database. </P>
+</TD>
+</TR>
+<TR>
+<TD ROWSPAN="1" COLSPAN="1">
+<P CLASS="CellBody4">
+<A NAME="pgfId=1073310">
+</A>
+<CODE CLASS="Program-Process">
+SIGTERM</CODE>
+</P>
+</TD>
+<TD ROWSPAN="1" COLSPAN="1">
+<P CLASS="CellBody">
+<A NAME="pgfId=1073312">
+</A>
+Causes the server to clean up and exit.</P>
+</TD>
+</TR>
+<TR>
+<TD ROWSPAN="1" COLSPAN="1">
+<P CLASS="CellBody4">
+<A NAME="pgfId=1073322">
+</A>
+<CODE CLASS="Program-Process">
+SIGINT</CODE>
+</P>
+</TD>
+<TD ROWSPAN="1" COLSPAN="1">
+<P CLASS="CellBody">
+<A NAME="pgfId=1073324">
+</A>
+Causes the server to clean up and exit.</P>
+</TD>
+</TR>
+</TABLE>
 </DIV>
 </DIV>
 <HR ALIGN="center">
 <p>Return to <A href="Bv9ARM.html">BIND 9 Administrator Reference Manual</A> table of contents.</p>
 
 
-</BODY>
-</HTML>
+
+</div></BODY></HTML>

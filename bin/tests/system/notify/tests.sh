@@ -15,7 +15,7 @@
 # ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
 # SOFTWARE.
 
-# $Id: tests.sh,v 1.16 2000/06/22 21:52:19 tale Exp $
+# $Id: tests.sh,v 1.16.2.2 2000/07/12 18:02:32 gson Exp $
 
 #
 # Perform tests
@@ -25,18 +25,16 @@ SYSTEMTESTTOP=..
 . $SYSTEMTESTTOP/conf.sh
 
 status=0
+
 $DIG +tcp +noadd +nosea +nostat +noquest +nocomm +nocmd a.example.\
-	@10.53.0.2 a -p 5300 > dig.out.ns2
-status=`expr $status + $?`
+	@10.53.0.2 a -p 5300 > dig.out.ns2 || status=1
 grep ";" dig.out.ns2
 
 $DIG +tcp +noadd +nosea +nostat +noquest +nocomm +nocmd a.example.\
-	@10.53.0.3 a -p 5300 > dig.out.ns3
-status=`expr $status + $?`
+	@10.53.0.3 a -p 5300 > dig.out.ns3 || status=1
 grep ";" dig.out.ns3
 
-$PERL ../digcomp.pl dig.out.ns2 dig.out.ns3
-status=`expr $status + $?`
+$PERL ../digcomp.pl dig.out.ns2 dig.out.ns3 || status=1
 
 rm -f ns2/example.db
 cp ns2/example2.db ns2/example.db
@@ -45,61 +43,84 @@ kill -HUP `cat ns2/named.pid`
 sleep 60
 
 $DIG +tcp +noadd +nosea +nostat +noquest +nocomm +nocmd a.example.\
-	@10.53.0.2 a -p 5300 > dig.out.ns2
-status=`expr $status + $?`
+	@10.53.0.2 a -p 5300 > dig.out.ns2 || status=1
 grep ";" dig.out.ns2
 
 $DIG +tcp +noadd +nosea +nostat +noquest +nocomm +nocmd a.example.\
-	@10.53.0.3 a -p 5300 > dig.out.ns3
-status=`expr $status + $?`
+	@10.53.0.3 a -p 5300 > dig.out.ns3 || status=1
 grep ";" dig.out.ns3
 
-$PERL ../digcomp.pl dig.out.ns2 dig.out.ns3
-status=`expr $status + $?`
+$PERL ../digcomp.pl dig.out.ns2 dig.out.ns3 || status=1
 
-kill `cat ns3/named.pid`
+kill -TERM `cat ns3/named.pid` > /dev/null 2>&1
+if [ $? != 0 ]; then
+	echo "I:ns3 died before a SIGTERM was sent"
+	status=1
+	rm -f ns3/named.pid
+fi
 rm -f ns2/example.db
 cp ns2/example3.db ns2/example.db
 sleep 6
+
+if [ -f ns3/named.pid ]; then
+	echo "I:ns3 didn't die when sent a SIGTERM"
+	kill -KILL `cat ns3/named.pid` > /dev/null 2>&1
+	if [ $? != 0 ]; then
+		echo "I:ns3 died before a SIGKILL was sent"
+		status=1
+		rm -f ns3/named.pid
+	fi
+	status=1
+fi
+
 kill -HUP `cat ns2/named.pid`
 (cd ns3 ; $NAMED -c named.conf -d 99 -g >> named.run 2>&1 & )
 sleep 60
 
 $DIG +tcp +noadd +nosea +nostat +noquest +nocomm +nocmd a.example.\
-	@10.53.0.2 a -p 5300 > dig.out.ns2
-status=`expr $status + $?`
+	@10.53.0.2 a -p 5300 > dig.out.ns2 || status=1
 grep ";" dig.out.ns2
 
 $DIG +tcp +noadd +nosea +nostat +noquest +nocomm +nocmd a.example.\
-	@10.53.0.3 a -p 5300 > dig.out.ns3
-status=`expr $status + $?`
+	@10.53.0.3 a -p 5300 > dig.out.ns3 || status=1
 grep ";" dig.out.ns3
 
-$PERL ../digcomp.pl dig.out.ns2 dig.out.ns3
-status=`expr $status + $?`
+$PERL ../digcomp.pl dig.out.ns2 dig.out.ns3 || status=1
 
 rm -f ns2/example.db
-kill `cat ns2/named.pid`
+kill -TERM `cat ns2/named.pid` > /dev/null 2>&1
+if [ $? != 0 ]; then
+	echo "I:ns2 died before a SIGTERM was sent"
+	status=1
+	rm -f ns2/named.pid
+fi
+sleep 6
+
+if [ -f ns2/named.pid ]; then
+	echo "I:ns2 didn't die when sent a SIGTERM"
+	kill -KILL `cat ns2/named.pid` > /dev/null 2>&1
+	if [ $? != 0 ]; then
+		echo "I:ns2 died before a SIGKILL was sent"
+		status=1
+		rm -f ns2/named.pid
+	fi
+	status=1
+fi
+
 cp ns2/example4.db ns2/example.db
 sleep 6
 (cd ns2 ; $NAMED -c named.conf -d 99 -g >> named.run 2>&1 & )
 sleep 60
 
 $DIG +tcp +noadd +nosea +nostat +noquest +nocomm +nocmd a.example.\
-	@10.53.0.2 a -p 5300 > dig.out.ns2
-status=`expr $status + $?`
+	@10.53.0.2 a -p 5300 > dig.out.ns2 || status=1
 grep ";" dig.out.ns2
 
 $DIG +tcp +noadd +nosea +nostat +noquest +nocomm +nocmd a.example.\
-	@10.53.0.3 a -p 5300 > dig.out.ns3
-status=`expr $status + $?`
+	@10.53.0.3 a -p 5300 > dig.out.ns3 || status=1
 grep ";" dig.out.ns3
 
-$PERL ../digcomp.pl dig.out.ns2 dig.out.ns3
-status=`expr $status + $?`
+$PERL ../digcomp.pl dig.out.ns2 dig.out.ns3 || status=1
 
-if [ $status != 0 ]; then
-	echo "R:FAIL"
-else
-	echo "R:PASS"
-fi
+echo "I:exit status: $status"
+exit $status

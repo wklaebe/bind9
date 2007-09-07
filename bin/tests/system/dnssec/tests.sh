@@ -15,7 +15,7 @@
 # ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
 # SOFTWARE.
 
-# $Id: tests.sh,v 1.15 2000/06/22 21:51:36 tale Exp $
+# $Id: tests.sh,v 1.15.2.4 2000/07/11 00:43:45 bwelling Exp $
 
 #
 # Perform tests
@@ -25,72 +25,110 @@ SYSTEMTESTTOP=..
 . $SYSTEMTESTTOP/conf.sh
 
 status=0
+n=0
 
 rm -f dig.out.*
 
-DIGOPTS="+tcp +noadd +nosea +nostat +noquest +nocomm +nocmd -p 5300"
+DIGOPTS="+tcp +noadd +nosea +nostat +noquest +nocmd -p 5300"
 
 # Check the example. domain
-$DIG $DIGOPTS a.example. @10.53.0.2 a > dig.out.ns2 || status=1
-grep ";" dig.out.ns2
+echo "I:checking that zone transfer worked"
+ret=0
+$DIG $DIGOPTS a.example. @10.53.0.2 a > dig.out.ns2.test$n || ret=1
+$DIG $DIGOPTS a.example. @10.53.0.3 a > dig.out.ns3.test$n || ret=1
+$PERL ../digcomp.pl dig.out.ns2.test$n dig.out.ns3.test$n || ret=1
+n=`expr $n + 1`
+if [ $ret != 0 ]; then echo "I:failed"; fi
+status=`expr $status + $ret`
 
-$DIG $DIGOPTS a.example. @10.53.0.3 a > dig.out.ns3 || status=1
-grep ";" dig.out.ns3
-
-$PERL ../digcomp.pl dig.out.ns2 dig.out.ns3 || status=1
-
-rm -f dig.out.*
-
-$DIG $DIGOPTS +noauth a.example. @10.53.0.2 a > dig.out.ns2 || status=1
-grep ";" dig.out.ns2
-
-$DIG $DIGOPTS +noauth a.example. @10.53.0.4 a > dig.out.ns4 || status=1
-grep ";" dig.out.ns2
-
-$PERL ../digcomp.pl dig.out.ns2 dig.out.ns4 || status=1
+echo "I:checking positive validation"
+ret=0
+$DIG $DIGOPTS +noauth a.example. @10.53.0.2 a > dig.out.ns2.test$n || ret=1
+$DIG $DIGOPTS +noauth a.example. @10.53.0.4 a > dig.out.ns4.test$n || ret=1
+$PERL ../digcomp.pl dig.out.ns2.test$n dig.out.ns4.test$n || ret=1
+n=`expr $n + 1`
+if [ $ret != 0 ]; then echo "I:failed"; fi
+status=`expr $status + $ret`
 
 # Check the insecure.example domain
 
-rm -f dig.out.*
-
-$DIG $DIGOPTS a.insecure.example. @10.53.0.3 a > dig.out.ns3 || status=1
-grep ";" dig.out.ns3
-
-$DIG $DIGOPTS a.insecure.example. @10.53.0.4 a > dig.out.ns4 || status=1
-grep ";" dig.out.ns4
-
-$PERL ../digcomp.pl dig.out.ns3 dig.out.ns4 || status=1
+echo "I:checking 1-server insecurity proof"
+ret=0
+$DIG $DIGOPTS a.insecure.example. @10.53.0.3 a > dig.out.ns3.test$n || ret=1
+$DIG $DIGOPTS a.insecure.example. @10.53.0.4 a > dig.out.ns4.test$n || ret=1
+$PERL ../digcomp.pl dig.out.ns3.test$n dig.out.ns4.test$n || ret=1
+n=`expr $n + 1`
+if [ $ret != 0 ]; then echo "I:failed"; fi
+status=`expr $status + $ret`
 
 # Check the secure.example domain
 
-rm -f dig.out.*
-
-$DIG $DIGOPTS a.secure.example. @10.53.0.3 a > dig.out.ns3 || status=1
-grep ";" dig.out.ns3
-
-$DIG $DIGOPTS a.secure.example. @10.53.0.4 a > dig.out.ns4 || status=1
-grep ";" dig.out.ns4
-
-$PERL ../digcomp.pl dig.out.ns3 dig.out.ns4 || status=1
+echo "I:checking multi-stage positive validation"
+ret=0
+$DIG $DIGOPTS a.secure.example. @10.53.0.3 a > dig.out.ns3.test$n || ret=1
+$DIG $DIGOPTS a.secure.example. @10.53.0.4 a > dig.out.ns4.test$n || ret=1
+$PERL ../digcomp.pl dig.out.ns3.test$n dig.out.ns4.test$n || ret=1
+n=`expr $n + 1`
+if [ $ret != 0 ]; then echo "I:failed"; fi
+status=`expr $status + $ret`
 
 # Check the bogus domain
 
-rm -f dig.out.*
-
-$DIG +tcp +noadd +nosea +nostat +noquest +nocmd -p 5300 \
-	a.bogus.example. @10.53.0.4 a > dig.out.ns4 || status=1
-grep "SERVFAIL" dig.out.ns4 > /dev/null || status=1
+echo "I:checking negative validation"
+ret=0
+$DIG $DIGOPTS a.bogus.example. @10.53.0.4 a > dig.out.ns4.test$n || ret=1
+grep "SERVFAIL" dig.out.ns4.test$n > /dev/null || ret=1
+n=`expr $n + 1`
+if [ $ret != 0 ]; then echo "I:failed"; fi
+status=`expr $status + $ret`
 
 # Try validating a key with a bad trusted key.
 # This should fail.
 
-$DIG +tcp +noadd +nosea +nostat +noquest +nocmd -p 5300 \
-    example. key @10.53.0.5 -p 5300 > dig.out.ns5 || status=1
-grep "SERVFAIL" dig.out.ns5 > /dev/null || status=1
+echo "I:checking that validation fails with a misconfigured trusted key"
+ret=0
+$DIG $DIGOPTS example. key @10.53.0.5 -p 5300 > dig.out.ns5.test$n || ret=1
+grep "SERVFAIL" dig.out.ns5.test$n > /dev/null || ret=1
+n=`expr $n + 1`
+if [ $ret != 0 ]; then echo "I:failed"; fi
+status=`expr $status + $ret`
 
-if [ $status != 0 ]; then
-	echo "R:FAIL"
-else
-	echo "R:PASS"
-fi
+# Check the insecure.secure.example domain (insecurity proof)
 
+echo "I:checking 2-server insecurity proof"
+ret=0
+$DIG $DIGOPTS a.insecure.secure.example. @10.53.0.2 a > dig.out.ns2.test$n \
+	|| ret=1
+$DIG $DIGOPTS a.insecure.secure.example. @10.53.0.4 a > dig.out.ns4.test$n \
+	|| ret=1
+$PERL ../digcomp.pl dig.out.ns2.test$n dig.out.ns4.test$n || ret=1
+n=`expr $n + 1`
+if [ $ret != 0 ]; then echo "I:failed"; fi
+status=`expr $status + $ret`
+
+# Check a negative response in insecure.secure.example
+
+echo "I:checking 2-server insecurity proof with a negative answer"
+ret=0
+$DIG $DIGOPTS q.insecure.secure.example. @10.53.0.2 a > dig.out.ns2.test$n \
+	|| ret=1
+$DIG $DIGOPTS q.insecure.secure.example. @10.53.0.4 a > dig.out.ns4.test$n \
+	|| ret=1
+$PERL ../digcomp.pl dig.out.ns2.test$n dig.out.ns4.test$n || ret=1
+n=`expr $n + 1`
+if [ $ret != 0 ]; then echo "I:failed"; fi
+status=`expr $status + $ret`
+
+# Check that the query for a security root is successful and has ad set
+
+echo "I:checking security root query"
+ret=0
+$DIG $DIGOPTS . @10.53.0.4 key > dig.out.ns4.test$n || ret=1
+grep "NOERROR" dig.out.ns4.test$n > /dev/null || ret=1
+grep "flags:.*ad.*QUERY" dig.out.ns4.test$n > /dev/null || ret=1
+n=`expr $n + 1`
+if [ $ret != 0 ]; then echo "I:failed"; fi
+status=`expr $status + $ret`
+
+echo "I:exit status: $status"
+exit $status

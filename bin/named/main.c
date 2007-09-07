@@ -15,7 +15,7 @@
  * SOFTWARE.
  */
 
-/* $Id: main.c,v 1.71 2000/06/22 21:49:31 tale Exp $ */
+/* $Id: main.c,v 1.71.2.2 2000/07/11 17:23:02 gson Exp $ */
 
 #include <config.h>
 
@@ -385,12 +385,12 @@ create_managers(void) {
 
 static void
 destroy_managers(void) {
-	if (!lwresd_only) {
-		if (ns_g_omapimgr != NULL)
-			omapi_listener_shutdown(ns_g_omapimgr);
-		else
-			omapi_lib_destroy();
-	}
+	if (!lwresd_only)
+		/*
+		 * The omapi listeners need to be stopped here so that
+		 * isc_taskmgr_destroy() won't block on the omapi task.
+		 */
+		ns_omapi_shutdown(ISC_TRUE);
 
 	isc_entropy_detach(&ns_g_entropy);
 	/*
@@ -405,6 +405,13 @@ static void
 setup(void) {
 	isc_result_t result;
 
+	/*
+	 * Get the user and group information before changing the root
+	 * directory, so the administrator does not need to keep a copy
+	 * of the user and group databases in the chroot'ed environment.
+	 */
+	ns_os_inituserinfo(ns_g_username);
+
 	ns_os_chroot(ns_g_chrootdir);
 
 	/*
@@ -415,7 +422,7 @@ setup(void) {
 	 * time.  (We need to read the config file to know which possibly
 	 * privileged ports to bind() to.)
 	 */
-	ns_os_minprivs(ns_g_username);
+	ns_os_minprivs();
 
 	result = ns_log_init(ISC_TF(ns_g_username != NULL));
 	if (result != ISC_R_SUCCESS)
@@ -448,29 +455,20 @@ setup(void) {
 	if (!lwresd_only) {
 		result = ns_omapi_init();
 		if (result != ISC_R_SUCCESS)
-			ns_main_earlyfatal("omapi_lib_init() failed: %s",
+			ns_main_earlyfatal("ns_omapi_init() failed: %s",
 					   isc_result_totext(result));
-	
-		result = ns_omapi_listen(&ns_g_omapimgr);
-		if (result == ISC_R_SUCCESS)
-			isc_log_write(ns_g_lctx, NS_LOGCATEGORY_GENERAL,
-				      NS_LOGMODULE_MAIN, ISC_LOG_DEBUG(3),
-				      "OMAPI started");
-		else
-			isc_log_write(ns_g_lctx, NS_LOGCATEGORY_GENERAL,
-				      NS_LOGMODULE_MAIN, ISC_LOG_WARNING,
-				      "OMAPI failed to start: %s",
-				      isc_result_totext(result));
 	}
 }
 
 static void
 cleanup(void) {
 	destroy_managers();
+
 	if (lwresd_only)
 		ns_lwresd_destroy(&ns_g_lwresd);
 	else
 		ns_server_destroy(&ns_g_server);
+
 	isc_log_write(ns_g_lctx, NS_LOGCATEGORY_GENERAL, NS_LOGMODULE_MAIN,
 		      ISC_LOG_NOTICE, "exiting");
 	ns_log_shutdown();
@@ -536,5 +534,3 @@ main(int argc, char *argv[]) {
 
 	return (0);
 }
-
-

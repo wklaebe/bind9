@@ -15,7 +15,7 @@
  * SOFTWARE.
  */
 
-/* $Id: resolver.c,v 1.137 2000/06/22 21:54:46 tale Exp $ */
+/* $Id: resolver.c,v 1.137.2.3 2000/07/11 00:06:07 gson Exp $ */
 
 #include <config.h>
 
@@ -91,6 +91,12 @@
  */
 #define SEND_BUFFER_SIZE		2048		/* XXXRTH  Constant. */
 
+/*
+ * This defines the maximum number of restarts we will permit before we
+ * disable EDNS0 on the query.
+ */
+#define NOEDNS0_RESTARTS		3
+
 typedef struct fetchctx fetchctx_t;
 
 typedef struct query {
@@ -111,6 +117,7 @@ typedef struct query {
 	dns_tsigkey_t			*tsigkey;
 	unsigned int			options;
 	unsigned int			attributes;
+	unsigned int			sends;
 	unsigned char			data[512];
 } resquery_t;
 
@@ -125,6 +132,7 @@ typedef struct query {
 					  RESQUERY_ATTR_CONNECTING) != 0)
 #define RESQUERY_CANCELED(q)		(((q)->attributes & \
 					  RESQUERY_ATTR_CANCELED) != 0)
+#define RESQUERY_SENDING(q)		((q)->sends > 0)
 
 typedef enum {
 	fetchstate_init = 0,		/* Start event has not run yet. */
@@ -331,7 +339,7 @@ resquery_destroy(resquery_t **queryp) {
 	INSIST(query->tcpsocket == NULL);
 	
 	query->magic = 0;
-	isc_mem_put(query->mctx, query, sizeof *query);
+	isc_mem_put(query->mctx, query, sizeof(*query));
 	*queryp = NULL;
 }
 
@@ -387,26 +395,39 @@ fctx_cancelquery(resquery_t **queryp, dns_dispatchevent_t **deventp,
 
 	if (query->dispentry != NULL)
 		dns_dispatch_removeresponse(&query->dispentry, deventp);
+
 	ISC_LIST_UNLINK(fctx->queries, query, link);
+
 	if (query->tsig != NULL)
 		isc_buffer_free(&query->tsig);
-	if (RESQUERY_CONNECTING(query)) {
+
+	/*
+	 * Check for any outstanding socket events.  If they exist, cancel
+	 * them and let the event handlers finish the cleanup.  The resolver
+	 * only needs to worry about managing the connect and send events;
+	 * the dispatcher manages the recv events.
+	 */
+	if (RESQUERY_CONNECTING(query))
 		/*
 		 * Cancel the connect.
 		 */
 		isc_socket_cancel(query->tcpsocket, NULL,
 				  ISC_SOCKCANCEL_CONNECT);
-	}
+	else if (RESQUERY_SENDING(query))
+		/*
+		 * Cancel the pending send.
+		 */
+		isc_socket_cancel(dns_dispatch_getsocket(query->dispatch),
+				  NULL, ISC_SOCKCANCEL_SEND);
 
 	if (query->dispatch != NULL)
 		dns_dispatch_detach(&query->dispatch);
 	
-	if (!RESQUERY_CONNECTING(query)) {
+	if (! (RESQUERY_CONNECTING(query) || RESQUERY_SENDING(query)))
 		/*
 		 * It's safe to destroy the query now.
 		 */
 		resquery_destroy(&query);
-	}
 }
 
 static void
@@ -530,9 +551,23 @@ resquery_senddone(isc_task_t *task, isc_event_t *event) {
 
 	UNUSED(task);
 
-	if (sevent->result != ISC_R_SUCCESS)
+	INSIST(RESQUERY_SENDING(query));
+
+	query->sends--;
+
+	if (RESQUERY_CANCELED(query)) {
+		if (query->sends == 0) {
+			/*
+			 * This query was canceled while the
+			 * isc_socket_sendto() was in progress.
+			 */
+			if (query->tcpsocket != NULL)
+				isc_socket_detach(&query->tcpsocket);
+			resquery_destroy(&query);
+		}
+	} else if (sevent->result != ISC_R_SUCCESS)
 		fctx_cancelquery(&query, NULL, NULL, ISC_FALSE);
-				 
+
 	isc_event_free(&event);
 }
 
@@ -648,6 +683,7 @@ fctx_query(fetchctx_t *fctx, dns_adbaddrinfo_t *addrinfo,
 	query->mctx = res->mctx;
 	query->options = options;
 	query->attributes = 0;
+	query->sends = 0;
 	/*
 	 * Note that the caller MUST guarantee that 'addrinfo' will remain
 	 * valid until this query is canceled.
@@ -835,6 +871,11 @@ resquery_send(resquery_t *query) {
 	dns_message_addname(fctx->qmessage, qname, DNS_SECTION_QUESTION);
 	qname = NULL;
 	qrdataset = NULL;
+	if (fctx->restarts > NOEDNS0_RESTARTS) {
+		query->options |= DNS_FETCHOPT_NOEDNS0;
+		FCTXTRACE("too many restarts, disabling EDNS0");
+	}
+
 
 	/*
 	 * Set RD if the client has requested that we do a recursive query,
@@ -976,6 +1017,7 @@ resquery_send(resquery_t *query) {
 				   query, address, NULL);
 	if (result != ISC_R_SUCCESS)
 		goto cleanup_message;
+	query->sends++;
 	QTRACE("sent");
 
 	return (ISC_R_SUCCESS);
@@ -1064,7 +1106,8 @@ resquery_connected(isc_task_t *task, isc_event_t *event) {
 			
 			if (result != ISC_R_SUCCESS) {
 				fetchctx_t *fctx = query->fctx;
-				fctx_cancelquery(&query, NULL, NULL, ISC_FALSE);
+				fctx_cancelquery(&query, NULL, NULL,
+						 ISC_FALSE);
 				fctx_done(fctx, result);
 			}
 		} else {
@@ -1506,12 +1549,12 @@ possibly_mark(fetchctx_t *fctx, dns_adbaddrinfo_t *addr)
 		isc_netaddr_fromsockaddr(&na, sa);
 		isc_netaddr_format(&na, buf, sizeof buf);
 		addr->flags |= FCTX_ADDRINFO_MARK;
-		FCTXTRACE2("Ignoring IPv6 mapped IPV4 address: ", buf);
+		FCTXTRACE2("ignoring IPv6 mapped IPV4 address: ", buf);
 	} else if (IN6_IS_ADDR_V4COMPAT(&sa->type.sin6.sin6_addr)) {
 		isc_netaddr_fromsockaddr(&na, sa);
 		isc_netaddr_format(&na, buf, sizeof buf);
 		addr->flags |= FCTX_ADDRINFO_MARK;
-		FCTXTRACE2("Ignoring IPv6 compatibility IPV4 address: ", buf);
+		FCTXTRACE2("ignoring IPv6 compatibility IPV4 address: ", buf);
 	}
 }
 
@@ -1924,6 +1967,7 @@ fctx_create(dns_resolver_t *res, dns_name_t *name, dns_rdatatype_t type,
 	isc_result_t iresult;
 	isc_interval_t interval;
 	dns_fixedname_t qdomain;
+	unsigned int findoptions = 0;
 
 	/*
 	 * Caller must be holding the lock for bucket number 'bucketnum'.
@@ -1947,10 +1991,12 @@ fctx_create(dns_resolver_t *res, dns_name_t *name, dns_rdatatype_t type,
 			 * nameservers, and we're not in forward-only mode,
 			 * so find the best nameservers to use.
 			 */
+			if (type == dns_rdatatype_key)
+				findoptions |= DNS_DBFIND_NOEXACT;
 			dns_fixedname_init(&qdomain);
 			result = dns_view_findzonecut(res->view, name,
 					      dns_fixedname_name(&qdomain), 0,
-						      0, ISC_TRUE,
+						      findoptions, ISC_TRUE,
 						      &fctx->nameservers,
 						      NULL);
 			if (result != ISC_R_SUCCESS)

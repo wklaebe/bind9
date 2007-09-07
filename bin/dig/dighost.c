@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dighost.c,v 1.221.2.6 2001/10/31 23:04:26 marka Exp $ */
+/* $Id: dighost.c,v 1.221.2.7 2001/11/15 01:24:12 marka Exp $ */
 
 /*
  * Notice to programmers:  Do not use this code as an example of how to
@@ -744,9 +744,7 @@ setup_libs(void) {
  * options are UDP buffer size and the DO bit.
  */
 static void
-add_opt(dns_message_t *msg, isc_uint16_t udpsize, isc_boolean_t dnssec
-	)
-{
+add_opt(dns_message_t *msg, isc_uint16_t udpsize, isc_boolean_t dnssec) {
 	dns_rdataset_t *rdataset = NULL;
 	dns_rdatalist_t *rdatalist = NULL;
 	dns_rdata_t *rdata = NULL;
@@ -1357,10 +1355,8 @@ setup_lookup(dig_lookup_t *lookup) {
 					 &lookup->sendbuf);
 	check_result(result, "dns_message_renderbegin");
 	if (lookup->udpsize > 0 || lookup->dnssec) {
-
 		if (lookup->udpsize == 0)
 			lookup->udpsize = 2048;
-
 		add_opt(lookup->sendmsg, lookup->udpsize, lookup->dnssec);
 	}
 

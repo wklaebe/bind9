@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: query.c,v 1.198 2001/08/27 17:20:09 gson Exp $ */
+/* $Id: query.c,v 1.198.2.1 2001/11/15 01:24:17 marka Exp $ */
 
 #include <config.h>
 

@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: client.c,v 1.176.2.5 2001/10/30 01:12:34 marka Exp $ */
+/* $Id: client.c,v 1.176.2.8 2001/11/16 21:21:42 bwelling Exp $ */
 
 #include <config.h>
 
@@ -173,104 +173,6 @@ static void client_start(isc_task_t *task, isc_event_t *event);
 static void client_request(isc_task_t *task, isc_event_t *event);
 static void ns_client_dumpmessage(ns_client_t *client, const char *reason);
 
-/*
- * Enter the inactive state.
- *
- * Requires:
- *	No requests are outstanding.
- */
-static void
-client_deactivate(ns_client_t *client) {
-	REQUIRE(NS_CLIENT_VALID(client));
-
-	if (client->interface)
-		ns_interface_detach(&client->interface);
-
-	INSIST(client->naccepts == 0);
-	INSIST(client->recursionquota == NULL);
-	if (client->tcplistener != NULL)
-		isc_socket_detach(&client->tcplistener);
-
-	if (client->udpsocket != NULL)
-		isc_socket_detach(&client->udpsocket);
-
-	if (client->dispatch != NULL)
-		dns_dispatch_detach(&client->dispatch);
-
-	client->attributes = 0;
-	client->mortal = ISC_FALSE;
-
-	LOCK(&client->manager->lock);
-	ISC_LIST_UNLINK(client->manager->active, client, link);
-	ISC_LIST_APPEND(client->manager->inactive, client, link);
-	client->list = &client->manager->inactive;
-	UNLOCK(&client->manager->lock);
-}
-
-/*
- * Clean up a client object and free its memory.
- * Requires:
- *   The client is in the inactive state.
- */
-
-static void
-client_free(ns_client_t *client) {
-	isc_boolean_t need_clientmgr_destroy = ISC_FALSE;
-	ns_clientmgr_t *manager = NULL;
-
-	REQUIRE(NS_CLIENT_VALID(client));
-
-	/*
-	 * When "shuttingdown" is true, either the task has received
-	 * its shutdown event or no shutdown event has ever been
-	 * set up.  Thus, we have no outstanding shutdown
-	 * event at this point.
-	 */
-	REQUIRE(client->state == NS_CLIENTSTATE_INACTIVE);
-
-	INSIST(client->recursionquota == NULL);
-
-	ns_query_free(client);
-	isc_mem_put(client->mctx, client->recvbuf, RECV_BUFFER_SIZE);
-	isc_event_free((isc_event_t **)&client->sendevent);
-	isc_event_free((isc_event_t **)&client->recvevent);
-	isc_timer_detach(&client->timer);
-
-	if (client->tcpbuf != NULL)
-		isc_mem_put(client->mctx, client->tcpbuf, TCP_BUFFER_SIZE);
-	if (client->opt != NULL) {
-		INSIST(dns_rdataset_isassociated(client->opt));
-		dns_rdataset_disassociate(client->opt);
-		dns_message_puttemprdataset(client->message, &client->opt);
-	}
-	dns_message_destroy(&client->message);
-	if (client->manager != NULL) {
-		manager = client->manager;
-		LOCK(&manager->lock);
-		ISC_LIST_UNLINK(*client->list, client, link);
-		client->list = NULL;
-		if (manager->exiting &&
-		    ISC_LIST_EMPTY(manager->active) &&
-		    ISC_LIST_EMPTY(manager->inactive))
-			need_clientmgr_destroy = ISC_TRUE;
-		UNLOCK(&manager->lock);
-	}
-	/*
-	 * Detaching the task must be done after unlinking from
-	 * the manager's lists because the manager accesses
-	 * client->task.
-	 */
-	if (client->task != NULL)
-		isc_task_detach(&client->task);
-
-	CTRACE("free");
-	client->magic = 0;
-	isc_mem_put(client->mctx, client, sizeof *client);
-
-	if (need_clientmgr_destroy)
-		clientmgr_destroy(manager);
-}
-
 void
 ns_client_settimeout(ns_client_t *client, unsigned int seconds) {
 	isc_result_t result;
@@ -297,6 +199,9 @@ ns_client_settimeout(ns_client_t *client, unsigned int seconds) {
  */
 static isc_boolean_t
 exit_check(ns_client_t *client) {
+	ns_clientmgr_t *locked_manager = NULL;
+	ns_clientmgr_t *destroy_manager = NULL;
+
 	REQUIRE(NS_CLIENT_VALID(client));
 
 	if (client->state <= client->newstate)
@@ -436,12 +341,47 @@ exit_check(ns_client_t *client) {
 		}
 		/* Recv cancel is complete. */
 
-		client_deactivate(client);
+		if (client->nctls > 0) {
+			/* Still waiting for control event to be delivered */
+			return (ISC_TRUE);
+		}
+
+		/* Deactivate the client. */
+		if (client->interface)
+			ns_interface_detach(&client->interface);
+
+		INSIST(client->naccepts == 0);
+		INSIST(client->recursionquota == NULL);
+		if (client->tcplistener != NULL)
+			isc_socket_detach(&client->tcplistener);
+
+		if (client->udpsocket != NULL)
+			isc_socket_detach(&client->udpsocket);
+
+		if (client->dispatch != NULL)
+			dns_dispatch_detach(&client->dispatch);
+
+		client->attributes = 0;
+		client->mortal = ISC_FALSE;
+
+		LOCK(&client->manager->lock);
+		/*
+		 * Put the client on the inactive list.  If we are aiming for
+		 * the "freed" state, it will be removed from the inactive
+		 * list shortly, and we need to keep the manager locked until
+		 * that has been done, lest the manager decide to reactivate
+		 * the dying client inbetween.
+		 */
+		locked_manager = client->manager;
+		ISC_LIST_UNLINK(*client->list, client, link);
+		ISC_LIST_APPEND(client->manager->inactive, client, link);
+		client->list = &client->manager->inactive;
 		client->state = NS_CLIENTSTATE_INACTIVE;
 		INSIST(client->recursionquota == NULL);
+
 		if (client->state == client->newstate) {
 			client->newstate = NS_CLIENTSTATE_MAX;
-			return (ISC_TRUE); /* We're done. */
+			goto unlock;
 		}
 	}
 
@@ -449,10 +389,70 @@ exit_check(ns_client_t *client) {
 		INSIST(client->newstate == NS_CLIENTSTATE_FREED);
 		/*
 		 * We are trying to free the client.
+		 *
+		 * When "shuttingdown" is true, either the task has received
+		 * its shutdown event or no shutdown event has ever been
+		 * set up.  Thus, we have no outstanding shutdown
+		 * event at this point.
 		 */
-		client_free(client);
-		return (ISC_TRUE);
+		REQUIRE(client->state == NS_CLIENTSTATE_INACTIVE);
+
+		INSIST(client->recursionquota == NULL);
+
+		ns_query_free(client);
+		isc_mem_put(client->mctx, client->recvbuf, RECV_BUFFER_SIZE);
+		isc_event_free((isc_event_t **)&client->sendevent);
+		isc_event_free((isc_event_t **)&client->recvevent);
+		isc_timer_detach(&client->timer);
+
+		if (client->tcpbuf != NULL)
+			isc_mem_put(client->mctx, client->tcpbuf, TCP_BUFFER_SIZE);
+		if (client->opt != NULL) {
+			INSIST(dns_rdataset_isassociated(client->opt));
+			dns_rdataset_disassociate(client->opt);
+			dns_message_puttemprdataset(client->message, &client->opt);
+		}
+		dns_message_destroy(&client->message);
+		if (client->manager != NULL) {
+			ns_clientmgr_t *manager = client->manager;
+			if (locked_manager == NULL) {
+				LOCK(&manager->lock);
+				locked_manager = manager;
+			}
+			ISC_LIST_UNLINK(*client->list, client, link);
+			client->list = NULL;
+			if (manager->exiting &&
+			    ISC_LIST_EMPTY(manager->active) &&
+			    ISC_LIST_EMPTY(manager->inactive))
+				destroy_manager = manager;
+		}
+		/*
+		 * Detaching the task must be done after unlinking from
+		 * the manager's lists because the manager accesses
+		 * client->task.
+		 */
+		if (client->task != NULL)
+			isc_task_detach(&client->task);
+
+		CTRACE("free");
+		client->magic = 0;
+		isc_mem_put(client->mctx, client, sizeof(*client));
+
+		goto unlock;
 	}
+
+ unlock:
+	if (locked_manager != NULL) {
+		UNLOCK(&locked_manager->lock);
+		locked_manager = NULL;
+	}
+
+	/*
+	 * Only now is it safe to destroy the client manager (if needed),
+	 * because we have accessed its lock for the last time.
+	 */
+	if (destroy_manager != NULL)
+		clientmgr_destroy(destroy_manager);
 
 	return (ISC_TRUE);
 }
@@ -468,6 +468,12 @@ client_start(isc_task_t *task, isc_event_t *event) {
 	INSIST(task == client->task);
 
 	UNUSED(task);
+
+	INSIST(client->nctls == 1);
+	client->nctls--;
+
+	if (exit_check(client))
+		return;
 
 	if (TCP_CLIENT(client)) {
 		client_accept(client);
@@ -974,7 +980,6 @@ ns_client_error(ns_client_t *client, isc_result_t result) {
 	ns_client_send(client);
 }
 
-	
 static inline isc_result_t
 client_addopt(ns_client_t *client) {
 	dns_rdataset_t *rdataset;
@@ -1020,7 +1025,6 @@ client_addopt(ns_client_t *client) {
 	rdata->type = rdatalist->type;
 	rdata->flags = 0;
 
-
 	ISC_LIST_INIT(rdatalist->rdata);
 	ISC_LIST_APPEND(rdatalist->rdata, rdata, link);
 	dns_rdatalist_tordataset(rdatalist, rdataset);
@@ -1029,7 +1033,6 @@ client_addopt(ns_client_t *client) {
 
 	return (ISC_R_SUCCESS);
 }
-
 
 static inline isc_boolean_t
 allowed(isc_netaddr_t *addr, dns_acl_t *acl) {
@@ -1061,6 +1064,7 @@ client_request(isc_task_t *task, isc_event_t *event) {
 	dns_rdataset_t *opt;
 	isc_boolean_t ra; 	/* Recursion available. */
 	isc_netaddr_t netaddr;
+	isc_netaddr_t destaddr;
 	int match;
 	dns_messageid_t id;
 	unsigned int flags;
@@ -1282,6 +1286,20 @@ client_request(isc_task_t *task, isc_event_t *event) {
 	}
 
 	/*
+	 * Determine the destination address.  For IPv6, we get this from the
+	 * pktinfo structure (if supported).  For IPv4, we have to make do with
+	 * the address of the interface where the request was received.
+	 */
+	if (client->interface->addr.type.sa.sa_family == AF_INET6) {
+		if ((client->attributes & NS_CLIENTATTR_PKTINFO) != 0)
+			isc_netaddr_fromin6(&destaddr, &client->pktinfo.ipi6_addr);
+		else
+			isc_netaddr_any6(&destaddr);
+	} else {
+		isc_netaddr_fromsockaddr(&destaddr, &client->interface->addr);
+	}
+
+	/*
 	 * Find a view that matches the client's source address.
 	 */
 	for (view = ISC_LIST_HEAD(ns_g_server->viewlist);
@@ -1290,10 +1308,6 @@ client_request(isc_task_t *task, isc_event_t *event) {
 		if (client->message->rdclass == view->rdclass ||
 		    client->message->rdclass == dns_rdataclass_any)
 		{
-			isc_netaddr_t destaddr;
-
-			isc_netaddr_fromsockaddr(&destaddr,
-						 &client->interface->addr); 
 			if (allowed(&netaddr, view->matchclients) &&
 			    allowed(&destaddr, view->matchdestinations) &&
 			    !((flags & DNS_MESSAGEFLAG_RD) == 0 &&
@@ -1530,6 +1544,7 @@ client_create(ns_clientmgr_t *manager, ns_client_t **clientp)
 	client->nreads = 0;
 	client->nsends = 0;
 	client->nrecvs = 0;
+	client->nctls = 0;
 	client->references = 0;
 	client->attributes = 0;
 	client->view = NULL;
@@ -2000,6 +2015,8 @@ ns_clientmgr_createclients(ns_clientmgr_t *manager, unsigned int n,
 		ISC_LIST_APPEND(manager->active, client, link);
 		client->list = &manager->active;
 
+		INSIST(client->nctls == 0);
+		client->nctls++;
 		ev = &client->ctlevent;
 		isc_task_send(client->task, &ev);
 	}

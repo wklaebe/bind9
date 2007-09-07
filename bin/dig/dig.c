@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dig.c,v 1.157.2.2 2001/09/18 01:04:05 gson Exp $ */
+/* $Id: dig.c,v 1.157.2.3 2001/11/15 01:24:10 marka Exp $ */
 
 #include <config.h>
 #include <stdlib.h>
@@ -856,9 +856,9 @@ plus_option(char *option, isc_boolean_t is_batchfile,
 		}
 		break;
 	case 'v':
-			if (!is_batchfile)
-				lookup->tcp_mode = state;
-			break;
+		if (!is_batchfile)
+			lookup->tcp_mode = state;
+		break;
 	default:
 	invalid_option:
 	need_value:

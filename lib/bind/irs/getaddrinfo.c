@@ -172,11 +172,7 @@ static const struct explore explore[] = {
 
 #define PTON_MAX	16
 
-#if PACKETSZ > 1024
-#define MAXPACKET	PACKETSZ
-#else
-#define MAXPACKET	1024
-#endif
+#define MAXPACKET	(1024*64)
 
 typedef union {
 	HEADER hdr;
@@ -324,7 +320,7 @@ getaddrinfo(hostname, servname, hints, res)
 	struct addrinfo sentinel;
 	struct addrinfo *cur;
 	int error = 0;
-	struct addrinfo ai, ai0, *afai;
+	struct addrinfo ai, ai0, *afai = NULL;
 	struct addrinfo *pai;
 	const struct explore *ex;
 

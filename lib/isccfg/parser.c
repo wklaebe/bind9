@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2000, 2001  Internet Software Consortium.
+ * Copyright (C) 2000-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: parser.c,v 1.70.2.9 2001/11/13 02:52:10 marka Exp $ */
+/* $Id: parser.c,v 1.70.2.14 2002/02/08 03:57:47 marka Exp $ */
 
 #include <config.h>
 
@@ -857,7 +857,6 @@ options_clauses[] = {
 
 static cfg_clausedef_t
 view_clauses[] = {
-	{ "allow-notify", &cfg_type_bracketed_aml, 0 },
 	{ "allow-recursion", &cfg_type_bracketed_aml, 0 },
 	{ "allow-v6-synthesis", &cfg_type_bracketed_aml, 0 },
 	{ "sortlist", &cfg_type_bracketed_aml, 0 },
@@ -877,8 +876,6 @@ view_clauses[] = {
 	 */
 	{ "query-source", &cfg_type_querysource4, 0 },
 	{ "query-source-v6", &cfg_type_querysource6, 0 },
-	{ "notify-source", &cfg_type_sockaddr4wild, 0 },
-	{ "notify-source-v6", &cfg_type_sockaddr6wild, 0 },
 	{ "cleaning-interval", &cfg_type_uint32, 0 },
 	{ "min-roots", &cfg_type_uint32, CFG_CLAUSEFLAG_NOTIMP },
 	{ "lame-ttl", &cfg_type_uint32, 0 },
@@ -912,7 +909,10 @@ zone_clauses[] = {
 	{ "allow-query", &cfg_type_bracketed_aml, 0 },
 	{ "allow-transfer", &cfg_type_bracketed_aml, 0 },
 	{ "allow-update-forwarding", &cfg_type_bracketed_aml, 0 },
+	{ "allow-notify", &cfg_type_bracketed_aml, 0 },
 	{ "notify", &cfg_type_notifytype, 0 },
+	{ "notify-source", &cfg_type_sockaddr4wild, 0 },
+	{ "notify-source-v6", &cfg_type_sockaddr6wild, 0 },
 	{ "also-notify", &cfg_type_portiplist, 0 },
 	{ "dialup", &cfg_type_dialuptype, 0 },
 	{ "forward", &cfg_type_forwardtype, 0 },
@@ -1359,11 +1359,13 @@ cfg_parser_create(isc_mem_t *mctx, isc_log_t *lctx, cfg_parser_t **ret)
 	pctx->seen_eof = ISC_FALSE;
 	pctx->ungotten = ISC_FALSE;
 	pctx->errors = 0;
+	pctx->warnings = 0;
 	pctx->open_files = NULL;
 	pctx->closed_files = NULL;
 	pctx->line = 0;
 	pctx->callback = NULL;
 	pctx->callbackarg = NULL;
+	pctx->token.type = isc_tokentype_unknown;
 
 	memset(specials, 0, sizeof(specials));
 	specials['{'] = 1;
@@ -3507,6 +3509,7 @@ cfg_gettoken(cfg_parser_t *pctx, int options) {
 	options |= (ISC_LEXOPT_EOF | ISC_LEXOPT_NOMORE);
 
  redo:
+	pctx->token.type = isc_tokentype_unknown;
 	result = isc_lex_gettoken(pctx->lexer, options, &pctx->token);
 	pctx->ungotten = ISC_FALSE;
 	pctx->line = isc_lex_getsourceline(pctx->lexer);
@@ -3539,6 +3542,11 @@ cfg_gettoken(cfg_parser_t *pctx, int options) {
 	case ISC_R_NOSPACE:
 		/* More understandable than "ran out of space". */
 		parser_error(pctx, LOG_NEAR, "token too big");
+		break;
+
+	case ISC_R_IOERROR:
+		parser_error(pctx, 0, "%s",
+				 isc_result_totext(result));
 		break;
 
 	default:
@@ -3651,6 +3659,9 @@ parser_complain(cfg_parser_t *pctx, isc_boolean_t is_warning,
 
 		if (pctx->token.type == isc_tokentype_eof) {
 			snprintf(tokenbuf, sizeof(tokenbuf), "end of file");
+		} else if (pctx->token.type == isc_tokentype_unknown) {
+			flags = 0;
+			tokenbuf[0] = '\0';
 		} else {
 			isc_lex_getlasttokentext(pctx->lexer,
 						 &pctx->token, &r);

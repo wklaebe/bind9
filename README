@@ -44,6 +44,15 @@ BIND 9
 		Nominum, Inc.
 
 
+BIND 9.2.1
+
+	BIND 9.2.1 is a maintenance release, containing fixes for
+	a number of bugs in 9.2.0 but no new features.
+
+	NOTE: dig, nslookup name. now report "Not Implemented" as
+	NOTIMP rather than NOTIMPL.  This will have impact on scripts
+	that are looking for NOTIMPL.
+
 BIND 9.2.0
 
 	BIND 9.2.0 introduces a number of new features over 9.1,
@@ -163,11 +172,13 @@ Building
 		SuSE Linux 7.0
 		Slackware Linux 7.x, 8.0
 	        Red Hat Linux 7.1
+		Debian GNU/Linux 2.2 and 3.0
 		OpenBSD 2.6, 2.8, 2.9
 		UnixWare 7.1.1
 		HP-UX 10.20
 		BSD/OS 4.2
 		OpenUNIX 8
+		Mac OS X 10.1
 
 	To build, just
 
@@ -241,6 +252,9 @@ Building
 	should also "make depend".  If you're using Emacs, you might find
 	"make tags" helpful.
 
+	If you need to re-run configure please run "make distclean" first.
+	This will ensure that all the option changes take.
+
 	Building with gcc is not supported, unless gcc is the vendor's usual
 	compiler (e.g. the various BSD systems, Linux).
 
@@ -265,6 +279,9 @@ Documentation
 	notes in doc/misc/migration.  If you are upgrading from
 	BIND 4, read doc/misc/migration-4to9.
 
+	Frequently asked questions and their answers can be found in
+	FAQ.
+
 
 Bug Reports and Mailing Lists
 
@@ -275,6 +292,10 @@ Bug Reports and Mailing Lists
 	To join the BIND 9 Users mailing list, send mail to
 
 		bind9-users-request@isc.org
+ 
+	archives of which can be found via
+
+		http://www.isc.org/ml-archives/
 
 	If you're planning on making changes to the BIND 9 source
 	code, you might want to join the BIND 9 Workers mailing list.

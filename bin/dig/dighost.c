@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2000, 2001  Internet Software Consortium.
+ * Copyright (C) 2000-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dighost.c,v 1.221.2.7 2001/11/15 01:24:12 marka Exp $ */
+/* $Id: dighost.c,v 1.221.2.11 2002/02/19 22:12:57 gson Exp $ */
 
 /*
  * Notice to programmers:  Do not use this code as an example of how to
@@ -363,7 +363,7 @@ make_empty_lookup(void) {
 	looknew->identify = ISC_FALSE;
 	looknew->identify_previous_line = ISC_FALSE;
 	looknew->ignore = ISC_FALSE;
-	looknew->servfail_stops = ISC_FALSE;
+	looknew->servfail_stops = ISC_TRUE;
 	looknew->besteffort = ISC_TRUE;
 	looknew->dnssec = ISC_FALSE;
 	looknew->udpsize = 0;
@@ -2174,8 +2174,10 @@ recv_done(isc_task_t *task, isc_event_t *event) {
 
 	debug("before parse starts");
 	parseflags = DNS_MESSAGEPARSE_PRESERVEORDER;
-	if (l->besteffort)
+	if (l->besteffort) {
 		parseflags |= DNS_MESSAGEPARSE_BESTEFFORT;
+		parseflags |= DNS_MESSAGEPARSE_IGNORETRUNCATION;
+	}
 	result = dns_message_parse(msg, b, parseflags);
 	if (result == DNS_R_RECOVERABLE) {
 		printf(";; Warning: Message parser reports malformed "
@@ -2208,7 +2210,7 @@ recv_done(isc_task_t *task, isc_event_t *event) {
 		UNLOCK_LOOKUP;
 		return;
 	}			
-	if (msg->rcode == dns_rcode_servfail && l->servfail_stops) {
+	if (msg->rcode == dns_rcode_servfail && !l->servfail_stops) {
 		dig_query_t *next = ISC_LIST_NEXT(query, link);
 		if (l->current_query == query)
 			l->current_query = NULL;
@@ -2393,15 +2395,16 @@ get_address(char *host, in_port_t port, isc_sockaddr_t *sockaddr) {
 
 	debug("get_address()");
 
-	/*
-	 * Assume we have v4 if we don't have v6, since setup_libs
-	 * fatal()'s out if we don't have either.
-	 */
-	if (have_ipv6 && inet_pton(AF_INET6, host, &in6) == 1)
+	if (inet_pton(AF_INET6, host, &in6) == 1) {
+		if (!have_ipv6)
+			fatal("Protocol family INET6 not supported '%s'", host);
 		isc_sockaddr_fromin6(sockaddr, &in6, port);
-	else if (inet_pton(AF_INET, host, &in4) == 1)
-		isc_sockaddr_fromin(sockaddr, &in4, port);
-	else {
+	} else if (inet_pton(AF_INET, host, &in4) == 1) {
+		if (have_ipv4)
+			isc_sockaddr_fromin(sockaddr, &in4, port);
+		else
+			isc_sockaddr_v6fromin(sockaddr, &in4, port);
+	} else {
 #ifdef USE_GETADDRINFO
 		memset(&hints, 0, sizeof(hints));
 		if (!have_ipv6)

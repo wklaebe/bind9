@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1998-2001  Internet Software Consortium.
+ * Copyright (C) 1998-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: socket.c,v 1.207.2.4 2001/11/10 03:03:44 marka Exp $ */
+/* $Id: socket.c,v 1.207.2.9 2002/02/08 03:57:42 marka Exp $ */
 
 #include <config.h>
 
@@ -353,9 +353,7 @@ wakeup_socket(isc_socketmgr_t *manager, int fd, int msg) {
 	sock = manager->fds[fd];
 
 	/*
-	 * If there are no events, or there is an event but we
-	 * have already queued up the internal event on a task's
-	 * queue, clear the bit.  Otherwise, set it.
+	 * Set requested bit.
 	 */
 	if (msg == SELECT_POKE_READ)
 		FD_SET(sock->fd, &manager->read_fds);
@@ -380,6 +378,16 @@ select_poke(isc_socketmgr_t *mgr, int fd, int msg) {
 
 	do {
 		cc = write(mgr->pipe_fds[1], buf, sizeof(buf));
+#ifdef ENOSR
+		/*
+		 * Treat ENOSR as EAGAIN but loop slowly as it is
+		 * unlikely to clear fast.
+		 */
+		if (cc < 0 && errno == ENOSR) {
+			sleep(1);
+			errno = EAGAIN;
+		}
+#endif
 	} while (cc < 0 && SOFT_ERROR(errno));
 			        
 	if (cc < 0) {
@@ -489,10 +497,7 @@ process_cmsg(isc_socket_t *sock, struct msghdr *msg, isc_socketevent_t *dev) {
 	UNUSED(msg);
 	UNUSED(dev);
 
-#ifndef ISC_NET_BSD44MSGHDR
-	return;
-
-#else  /* defined ISC_NET_BSD44MSGHDR */
+#ifdef ISC_NET_BSD44MSGHDR
 
 #ifdef MSG_TRUNC
 	if ((msg->msg_flags & MSG_TRUNC) == MSG_TRUNC)
@@ -503,12 +508,6 @@ process_cmsg(isc_socket_t *sock, struct msghdr *msg, isc_socketevent_t *dev) {
 	if ((msg->msg_flags & MSG_CTRUNC) == MSG_CTRUNC)
 		dev->attributes |= ISC_SOCKEVENTATTR_CTRUNC;
 #endif
-
-	/*
-	 * Check for multicast.
-	 */
-	if (isc_sockaddr_ismulticast(&dev->address))
-		dev->attributes |= ISC_SOCKEVENTATTR_MULTICAST;
 
 #ifndef USE_CMSG
 	return;
@@ -542,6 +541,8 @@ process_cmsg(isc_socket_t *sock, struct msghdr *msg, isc_socketevent_t *dev) {
 				   ISC_MSG_IFRECEIVED,
 				   "interface received on ifindex %u",
 				   dev->pktinfo.ipi6_ifindex);
+			if (IN6_IS_ADDR_MULTICAST(&pktinfop->ipi6_addr))
+				dev->attributes |= ISC_SOCKEVENTATTR_MULTICAST;				
 			goto next;
 		}
 #endif
@@ -563,7 +564,6 @@ process_cmsg(isc_socket_t *sock, struct msghdr *msg, isc_socketevent_t *dev) {
 #endif /* USE_CMSG */
 
 #endif /* ISC_NET_BSD44MSGHDR */
-
 }
 
 /*
@@ -2254,14 +2254,14 @@ isc_socketmgr_create(isc_mem_t *mctx, isc_socketmgr_t **managerp) {
 	 */
 	if (isc_thread_create(watcher, manager, &manager->watcher) !=
 	    ISC_R_SUCCESS) {
+		close(manager->pipe_fds[0]);
+		close(manager->pipe_fds[1]);
 		DESTROYLOCK(&manager->lock);
 		isc_mem_put(mctx, manager, sizeof *manager);
 		UNEXPECTED_ERROR(__FILE__, __LINE__,
 				 "isc_thread_create() %s",
 				 isc_msgcat_get(isc_msgcat, ISC_MSGSET_GENERAL,
 						ISC_MSG_FAILED, "failed"));
-		close(manager->pipe_fds[0]);
-		close(manager->pipe_fds[1]);
 		return (ISC_R_UNEXPECTED);
 	}
 #endif /* ISC_PLATFORM_USETHREADS */

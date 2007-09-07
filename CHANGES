@@ -1,3 +1,173 @@
+	--- 9.2.1rc1 released ---
+
+1207.	[bug]		libbind: getaddrinfo() could call freeaddrinfo() with
+			an invalid pointer.
+
+1206.	[bug]		SERVFAIL and NOTIMP responses to a EDNS should trigger
+			a non-EDNS retry.
+
+1205.	[bug]		OPT, TSIG and TKEY cannot be used to set the "class"
+			of the message. [RT #2449]
+
+1204.	[bug]		libbind: res_nupdate() failed to update the name
+			server addresses before sending the update.
+
+1201.	[bug]		Require that if 'callbacks' is passed to
+			dns_rdata_fromtext(), callbacks->error and 
+			callbacks->warn are initialized.
+
+1200.	[bug]		Log 'errno' that we are unable to convert to
+			isc_result_t. [RT #2404]
+
+1198.	[bug]		OPT printing style was not consistant with the way the
+			header fields are printed.  The DO bit was not reported
+			if set.  Report if any of the MBZ bits are set.
+
+1197.	[bug]		Attempts to define the same acl multiple times were not
+			detected.
+
+1196.	[contrib]	update mdnkit to 2.2.3.
+
+1195.	[bug]		Attempts to redefine builtin acls should be caught.
+			[RT #2403]
+
+1194.	[bug]		Not all duplicate zone definitions were being detected
+			at the named.conf checking stage. [RT #2431]
+
+1193.	[bug]		Best effort parsing didn't handle packet truncation.
+
+1191.   [bug]           A dynamic update removing the last non-apex name in
+			a secure zone would fail. [RT #2399]
+
+1189.	[bug]		On some systems, malloc(0) returns NULL, which
+			could cause the caller to report an out of memory
+			error. [RT #2398]
+
+1188.	[bug]		Dynamic updates of a signed zone would fail if
+			some of the zone private keys were unavailable.
+
+1186.   [bug]           isc_hex_tobuffer(,,length = 0) failed to unget the
+                        EOL token when reading to end of line.
+
+1185.	[bug]		libbind: don't assume statp->_u._ext.ext is valid
+			unless RES_INIT is set when calling res_*init().
+
+1184.	[bug]		libbind: call res_ndestroy() if RES_INIT is set
+			when res_*init() is called.
+
+1183.	[bug]		Handle ENOSR error when writing to the internal
+			control pipe. [RT #2395]
+
+1182.	[bug]		The server could throw an assertion failure when
+			constructing a negative response packet.
+
+1176.	[doc]		Document that allow-v6-synthesis is only performed
+			for clients that are supplied recursive service.
+			[RT #2260]
+
+1175.	[bug]		named-checkzone failed to call dns_result_register()
+			at startup which could result in runtime
+			exceptions when printing "out of memory" errors.
+			[RT #2335]
+
+1174.	[bug]		Win32: add WSAECONNRESET to the expected errors
+			from connect(). [RT #2308]
+
+1173.	[bug]		Potential memory leaks in isc_log_create() and
+			isc_log_settag(). [RT #2336]
+
+1172.	[doc]		Add CERT, GPOS, KX, NAPTR, NSAP, PX and TXT to 
+			table of RR types in ARM.
+
+1170.	[bug]		Don't attempt to print the token when a I/O error
+			occurs when parsing named.conf. [RT #2275]
+
+1168.	[bug]		Empty also-notify clauses were not handled. [RT #2309]
+
+1167.	[contrib]	nslint-2.1a3 (from author).
+
+1166.	[bug]		"Not Implemented" should be reported as NOTIMP,
+			not NOTIMPL. [RT #2281]
+
+1165.	[bug]		We were rejecting notify-source{-v6} in zone clauses.
+
+1164.	[bug]		Empty masters clauses in slave / stub zones were not
+			handled gracefully. [RT #2262]
+
+1162.	[bug]		The allow-notify option was not accepted in slave
+			zone statements.
+
+1161.	[bug]		named-checkzone looped on unbalanced brackets.
+			[RT #2248]
+
+1160.	[bug]		Generating Diffie-Hellman keys longer than 1024
+			bits could fail. [RT #2241]
+
+1156.	[port]		The configure test for strsep() incorrectly
+			succeeded on certain patched versions of
+			AIX 4.3.3. [RT #2190]
+
+1154.	[bug]		Don't attempt to obtain the netmask of a interface
+			if there is no address configured. [RT #2176]
+
+1152.	[bug]		libbind: read buffer overflows.
+
+1144.	[bug]		rndc-confgen would crash if both the -a and -t
+			options were specified. [RT #2159]
+
+1142.	[bug]		dnssec-signzone would fail to delete temporary files
+			in some failure cases. [RT #2144]
+
+1141.	[bug]		When named rejected a control message, it would
+			leak a file descriptor and memory.  It would also
+			fail to respond, causing rndc to hang.
+			[RT #2139, #2164]
+
+1140.	[bug]		rndc-confgen did not accept IPv6 addresses as arguments
+			to the -s option. [RT #2138]
+
+1136.	[bug]		CNAME records synthesized from DNAMEs did not
+			have a TTL of zero as required by RFC2672.
+			[RT #2129]
+
+1125.	[bug]		rndc: -k option was missing from usage message.
+			[RT #2057]
+
+1124.	[doc]		dig: +[no]dnssec, +[no]besteffort and +[no]fail
+			are now documented. [RT #2052]
+
+1123.	[bug]		dig +[no]fail did not match description. [RT #2052]
+
+1109.	[bug]		nsupdate accepted illegal ttl values.
+
+1108.	[bug]		On Win32, rndc was hanging when named was not running
+			due to failure to select for exceptional conditions
+			in select(). [RT #1870]
+
+1081.	[bug]		Multicast queries were incorrectly identified
+			based on the source address, not the destination
+			address.
+
+1072.	[bug]		The TCP client quota could be exceeded when
+			recursion occurred. [RT #1937]
+
+1071.	[bug]		Sockets listening for TCP DNS connections
+			specified an excessive listen backlog. [RT #1937]
+
+1070.	[bug]		Copy DNSSEC OK (DO) to response as specified by
+			draft-ietf-dnsext-dnssec-okbit-03.txt.
+
+1014.	[bug]		Some queries would cause statistics counters to
+			increment more than once or not at all. [RT #1321]
+
+1012.	[bug]		The -p option to named did not behave as documented.
+
+ 988.	[bug]		'additional-from-auth no;' did not work reliably
+			in the case of queries answered from the cache.
+			[RT #1436]
+
+ 995.	[bug]		dig, host, nslookup: using a raw IPv6 address as a
+			target address should be fatal on a IPv4 only system.
 
 	--- 9.2.0 released ---
 
@@ -263,6 +433,7 @@
 			files. [RT #1783]
  
 	--- 9.2.0rc4 released ---
+
 
 1013.	[bug]		It was possible to cancel a query twice when marking
 			a server as bogus or by having a blackhole acl.

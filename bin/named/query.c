@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1999-2001  Internet Software Consortium.
+ * Copyright (C) 1999-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: query.c,v 1.198.2.1 2001/11/15 01:24:17 marka Exp $ */
+/* $Id: query.c,v 1.198.2.6 2002/02/08 03:57:12 marka Exp $ */
 
 #include <config.h>
 
@@ -143,18 +143,53 @@ synth_rev_respond(ns_client_t *client, dns_byaddrevent_t *bevent);
  * Increment query statistics counters.
  */
 static inline void
-count_query(dns_zone_t *zone, isc_boolean_t is_zone,
-	    dns_statscounter_t counter)
-{
+inc_stats(ns_client_t *client, dns_statscounter_t counter) {
+	dns_zone_t *zone = client->query.authzone;
+	
 	REQUIRE(counter < DNS_STATS_NCOUNTERS);
 
 	ns_g_server->querystats[counter]++;
 
-	if (is_zone && zone != NULL) {
+	if (zone != NULL) {
 		isc_uint64_t *zonestats = dns_zone_getstatscounters(zone);
 		if (zonestats != NULL)
 			zonestats[counter]++;
 	}
+}
+
+static void
+query_send(ns_client_t *client) {
+	dns_statscounter_t counter;
+	if (client->message->rcode == dns_rcode_noerror) {
+		if (ISC_LIST_EMPTY(client->message->sections[DNS_SECTION_ANSWER])) {
+			if (client->query.isreferral) {
+				counter = dns_statscounter_referral;
+			} else {
+				counter = dns_statscounter_nxrrset;
+			}
+		} else {
+			counter = dns_statscounter_success;
+		}
+	} else if (client->message->rcode == dns_rcode_nxdomain) {
+		counter = dns_statscounter_nxdomain;
+	} else {
+		/* We end up here in case of YXDOMAIN, and maybe others */
+		counter = dns_statscounter_failure;
+	}
+	inc_stats(client, counter);
+	ns_client_send(client);
+}
+
+static void
+query_error(ns_client_t *client, isc_result_t result) {
+	inc_stats(client, dns_statscounter_failure);
+	ns_client_error(client, result);
+}
+
+static void
+query_next(ns_client_t *client, isc_result_t result) {
+	inc_stats(client, dns_statscounter_failure);
+	ns_client_next(client, result);
 }
 
 static inline void
@@ -205,6 +240,8 @@ query_reset(ns_client_t *client, isc_boolean_t everything) {
 
 	if (client->query.authdb != NULL)
 		dns_db_detach(&client->query.authdb);
+	if (client->query.authzone != NULL)
+		dns_zone_detach(&client->query.authzone);
 
 	/*
 	 * Clean up free versions.
@@ -246,11 +283,12 @@ query_reset(ns_client_t *client, isc_boolean_t everything) {
 	client->query.dboptions = 0;
 	client->query.fetchoptions = 0;
 	client->query.gluedb = NULL;
-	client->query.authdb = NULL;
+	client->query.authdbset = ISC_FALSE;
+	client->query.isreferral = ISC_FALSE;
 }
 
 static void
-query_next(ns_client_t *client) {
+query_next_callback(ns_client_t *client) {
 	query_reset(client, ISC_FALSE);
 }
 
@@ -473,6 +511,9 @@ ns_query_init(ns_client_t *client) {
 	client->query.qname = NULL;
 	client->query.fetch = NULL;
 	client->query.authdb = NULL;
+	client->query.authzone = NULL;
+	client->query.authdbset = ISC_FALSE;
+	client->query.isreferral = ISC_FALSE;	
 	query_reset(client, ISC_FALSE);
 	result = query_newdbversion(client, 3);
 	if (result != ISC_R_SUCCESS)
@@ -550,25 +591,15 @@ query_getzonedb(ns_client_t *client, dns_name_t *name, unsigned int options,
 		goto fail;
 
 	/*
-	 * If this is the first time we are called (that is, looking up
-	 * the actual name in the query section) remember this database.
-	 *
-	 * If authdb is non-NULL, we have been here before, and the
-	 * found database is always returned.
-	 *
 	 * This limits our searching to the zone where the first name
-	 * (the query target) is found.  This prevents following CNAMES
-	 * or DNAMES into other zones and prevents returning additional
-	 * data from other zones.
+	 * (the query target) was looked for.  This prevents following
+	 * CNAMES or DNAMES into other zones and prevents returning 
+	 * additional data from other zones.
 	 */
-	if (!client->view->additionalfromauth) {
-		if (client->query.authdb != NULL) {
-			if (db != client->query.authdb)
-				goto refuse;
-		} else {
-			dns_db_attach(db, &client->query.authdb);
-		}
-	}
+	if (!client->view->additionalfromauth &&
+	    client->query.authdbset &&
+	    db != client->query.authdb)
+		goto refuse;
 
 	/*
 	 * If the zone has an ACL, we'll check it, otherwise
@@ -847,7 +878,6 @@ query_simplefind(void *arg, dns_name_t *name, dns_rdatatype_t type,
 		    dns_rdataset_isassociated(sigrdataset))
 			dns_rdataset_disassociate(sigrdataset);
 		if (is_zone) {
-			count_query(zone, is_zone, dns_statscounter_referral);
 			if (USECACHE(client)) {
 				/*
 				 * Either the answer is in the cache, or we
@@ -912,11 +942,8 @@ query_simplefind(void *arg, dns_name_t *name, dns_rdatatype_t type,
 	}
 	/*
 	 * If we get here, the result is ISC_R_SUCCESS, and we found the
-	 * answer we were looking for in the zone.  Update the zone's
-	 * query counter.
+	 * answer we were looking for in the zone.
 	 */
-	if (result == ISC_R_SUCCESS)
-		count_query(zone, is_zone, dns_statscounter_success);
 
  cleanup:
 	if (dns_rdataset_isassociated(&zrdataset)) {
@@ -2041,7 +2068,7 @@ query_resume(isc_task_t *task, isc_event_t *event) {
 		if (devent->sigrdataset != NULL)
 			query_putrdataset(client, &devent->sigrdataset);
 		isc_event_free(&event);
-		ns_client_next(client, ISC_R_CANCELED);
+		query_next(client, ISC_R_CANCELED);
 		/*
 		 * This may destroy the client.
 		 */
@@ -2058,18 +2085,23 @@ query_recurse(ns_client_t *client, dns_rdatatype_t qtype, dns_name_t *qdomain,
 	isc_result_t result;
 	dns_rdataset_t *rdataset, *sigrdataset;
 
+	inc_stats(client, dns_statscounter_recursion);
+
 	/*
 	 * We are about to recurse, which means that this client will
 	 * be unavailable for serving new requests for an indeterminate
 	 * amount of time.  If this client is currently responsible
 	 * for handling incoming queries, set up a new client
 	 * object to handle them while we are waiting for a
-	 * response.
+	 * response.  There is no need to replace TCP clients
+	 * because those have already been replaced when the
+	 * connection was accepted (if allowed by the TCP quota).
 	 */
 	if (! client->mortal) {
 		result = isc_quota_attach(&ns_g_server->recursionquota,
 					  &client->recursionquota);
-		if (result == ISC_R_SUCCESS)
+		if (result == ISC_R_SUCCESS &&
+		    (client->attributes & NS_CLIENTATTR_TCP) == 0)
 			result = ns_client_replace(client);
 		if (result != ISC_R_SUCCESS) {
 			ns_client_log(client, NS_LOGCATEGORY_CLIENT,
@@ -2385,20 +2417,17 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype) 
 		 */
 		dbuf = query_getnamebuf(client);
 		if (dbuf == NULL) {
-			count_query(zone, is_zone, dns_statscounter_failure);
 			QUERY_ERROR(DNS_R_SERVFAIL);
 			goto cleanup;
 		}
 		fname = query_newname(client, dbuf, &b);
 		if (fname == NULL) {
-			count_query(zone, is_zone, dns_statscounter_failure);
 			QUERY_ERROR(DNS_R_SERVFAIL);
 			goto cleanup;
 		}
 		tname = dns_fixedname_name(&event->foundname);
 		result = dns_name_copy(tname, fname, NULL);
 		if (result != ISC_R_SUCCESS) {
-			count_query(zone, is_zone, dns_statscounter_failure);
 			QUERY_ERROR(DNS_R_SERVFAIL);
 			goto cleanup;
 		}
@@ -2432,7 +2461,6 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype) 
 	result = query_getdb(client, client->query.qname, 0, &zone, &db,
 			     &version, &is_zone);
 	if (result != ISC_R_SUCCESS) {
-		count_query(NULL, ISC_FALSE, dns_statscounter_failure);
 		if (result == DNS_R_REFUSED)
 			QUERY_ERROR(DNS_R_REFUSED);
 		else
@@ -2442,6 +2470,14 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype) 
 
 	if (is_zone)
 		authoritative = ISC_TRUE;
+       
+	if (event == NULL && client->query.restarts == 0) {
+		if (is_zone) {
+			dns_zone_attach(zone, &client->query.authzone);
+			dns_db_attach(db, &client->query.authdb);
+		}
+		client->query.authdbset = ISC_TRUE;
+	}
 
  db_find:
 	CTRACE("query_find: db_find");
@@ -2450,21 +2486,18 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype) 
 	 */
 	dbuf = query_getnamebuf(client);
 	if (dbuf == NULL) {
-		count_query(zone, is_zone, dns_statscounter_failure);
 		QUERY_ERROR(DNS_R_SERVFAIL);
 		goto cleanup;
 	}
 	fname = query_newname(client, dbuf, &b);
 	rdataset = query_newrdataset(client);
 	if (fname == NULL || rdataset == NULL) {
-		count_query(zone, is_zone, dns_statscounter_failure);
 		QUERY_ERROR(DNS_R_SERVFAIL);
 		goto cleanup;
 	}
 	if (WANTDNSSEC(client)) {
 		sigrdataset = query_newrdataset(client);
 		if (sigrdataset == NULL) {
-			count_query(zone, is_zone, dns_statscounter_failure);
 			QUERY_ERROR(DNS_R_SERVFAIL);
 			goto cleanup;
 		}
@@ -2521,8 +2554,6 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype) 
 			result = dns_name_copy(client->query.qname,
 					       fname, NULL);
 			if (result != ISC_R_SUCCESS) {
-				count_query(zone, is_zone,
-					    dns_statscounter_failure);
 				QUERY_ERROR(DNS_R_SERVFAIL);
 				goto cleanup;
 			}
@@ -2540,7 +2571,6 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype) 
 	CTRACE("query_find: resume");
 	switch (result) {
 	case ISC_R_SUCCESS:
-		count_query(zone, is_zone, dns_statscounter_success);
 		/*
 		 * This case is handled in the main line below.
 		 */
@@ -2590,8 +2620,6 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype) 
 			 * recurse anyway.
 			 */
 			if (RECURSIONOK(client)) {
-				count_query(zone, is_zone,
-					    dns_statscounter_recursion);
 				result = query_recurse(client, qtype,
 						       NULL, NULL);
 				if (result == ISC_R_SUCCESS)
@@ -2599,15 +2627,11 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype) 
 						NS_QUERYATTR_RECURSING;
 				else {
 					/* Unable to recurse. */
-					count_query(zone, is_zone,
-						    dns_statscounter_failure);
 					QUERY_ERROR(DNS_R_SERVFAIL);
 				}
 				goto cleanup;
 			} else {
 				/* Unable to give root server referral. */
-				count_query(zone, is_zone,
-					    dns_statscounter_failure);
 				QUERY_ERROR(DNS_R_SERVFAIL);
 				goto cleanup;
 			}
@@ -2639,6 +2663,7 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype) 
 				 * database by setting client->query.gluedb.
 				 */
 				client->query.gluedb = db;
+				client->query.isreferral = ISC_TRUE;
 				/*
 				 * We must ensure NOADDITIONAL is off,
 				 * because the generation of
@@ -2651,9 +2676,9 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype) 
 					sigrdatasetp = &sigrdataset;
 				else
 					sigrdatasetp = NULL;
-				query_addrrset(client, &fname, &rdataset,
-					       sigrdatasetp, dbuf,
-					       DNS_SECTION_AUTHORITY);
+				query_addrrset(client, &fname,
+					       &rdataset, sigrdatasetp,
+					       dbuf, DNS_SECTION_AUTHORITY);
 				client->query.gluedb = NULL;
 			} else {
 				/*
@@ -2714,8 +2739,6 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype) 
 				/*
 				 * Recurse!
 				 */
-				count_query(zone, is_zone,
-					    dns_statscounter_recursion);
 				if (type == dns_rdatatype_key)
 					result = query_recurse(client, qtype,
 							       NULL, NULL);
@@ -2725,20 +2748,16 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype) 
 				if (result == ISC_R_SUCCESS)
 					client->query.attributes |=
 						NS_QUERYATTR_RECURSING;
-				else {
-					count_query(zone, is_zone,
-						    dns_statscounter_failure);
+				else
 					QUERY_ERROR(DNS_R_SERVFAIL);
-				}
 			} else {
 				/*
 				 * This is the best answer.
 				 */
-				count_query(zone, is_zone,
-					    dns_statscounter_referral);
-				client->query.gluedb = zdb;
 				client->query.attributes |=
 					NS_QUERYATTR_CACHEGLUEOK;
+				client->query.gluedb = zdb;
+				client->query.isreferral = ISC_TRUE;
 				/*
 				 * We must ensure NOADDITIONAL is off,
 				 * because the generation of
@@ -2762,7 +2781,6 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype) 
 		goto cleanup;
 	case DNS_R_NXRRSET:
 		INSIST(is_zone);
-		count_query(zone, is_zone, dns_statscounter_nxrrset);
 		if (dns_rdataset_isassociated(rdataset)) {
 			/*
 			 * If we've got a NXT record, we need to save the
@@ -2783,7 +2801,6 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype) 
 		 */
 		result = query_addsoa(client, db, ISC_FALSE);
 		if (result != ISC_R_SUCCESS) {
-			count_query(zone, is_zone, dns_statscounter_failure);
 			QUERY_ERROR(result);
 			goto cleanup;
 		}
@@ -2799,7 +2816,6 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype) 
 		goto cleanup;
 	case DNS_R_NXDOMAIN:
 		INSIST(is_zone);
-		count_query(zone, is_zone, dns_statscounter_nxdomain);
 		if (dns_rdataset_isassociated(rdataset)) {
 			/*
 			 * If we've got a NXT record, we need to save the
@@ -2826,7 +2842,6 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype) 
 		else
 			result = query_addsoa(client, db, ISC_FALSE);
 		if (result != ISC_R_SUCCESS) {
-			count_query(zone, is_zone, dns_statscounter_failure);
 			QUERY_ERROR(result);
 			goto cleanup;
 		}
@@ -2845,13 +2860,8 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype) 
 		client->message->rcode = dns_rcode_nxdomain;
 		goto cleanup;
 	case DNS_R_NCACHENXDOMAIN:
-		INSIST(!is_zone);
-		count_query(NULL, is_zone, dns_statscounter_nxdomain);
-		goto ncachenxrrset;
 	case DNS_R_NCACHENXRRSET:
 		INSIST(!is_zone);
-		count_query(NULL, is_zone, dns_statscounter_nxrrset);
-	ncachenxrrset:
 		authoritative = ISC_FALSE;
 		/*
 		 * Set message rcode, if required.
@@ -3024,8 +3034,7 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype) 
 		 */
 		dns_name_init(tname, NULL);
 		query_addcnamelike(client, client->query.qname, fname,
-				   trdataset->ttl, &tname,
-				   dns_rdatatype_cname);
+				   0, &tname, dns_rdatatype_cname);
 		if (tname != NULL)
 			dns_message_puttempname(client->message, &tname);
 		/*
@@ -3040,7 +3049,6 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype) 
 		/*
 		 * Something has gone wrong.
 		 */
-		count_query(zone, is_zone, dns_statscounter_failure);
 		QUERY_ERROR(DNS_R_SERVFAIL);
 		goto cleanup;
 	}
@@ -3054,7 +3062,6 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype) 
 		rdsiter = NULL;
 		result = dns_db_allrdatasets(db, node, version, 0, &rdsiter);
 		if (result != ISC_R_SUCCESS) {
-			count_query(zone, is_zone, dns_statscounter_failure);
 			QUERY_ERROR(DNS_R_SERVFAIL);
 			goto cleanup;
 		}
@@ -3130,14 +3137,11 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype) 
 				/*
 				 * Something went wrong.
 				 */
-				count_query(zone, is_zone,
-					    dns_statscounter_failure);
 				result = DNS_R_SERVFAIL;
 			}
 		}
 		dns_rdatasetiter_destroy(&rdsiter);
 		if (result != ISC_R_NOMORE) {
-			count_query(zone, is_zone, dns_statscounter_failure);
 			QUERY_ERROR(DNS_R_SERVFAIL);
 			goto cleanup;
 		}
@@ -3233,7 +3237,7 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype) 
 		 * or if the client requested recursion and thus wanted
 		 * the complete answer, send an error response.
 		 */
-		 ns_client_error(client, eresult);
+		 query_error(client, eresult);
 		 ns_client_detach(&client);
 	} else if (!RECURSING(client)) {
 		/*
@@ -3248,7 +3252,7 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype) 
 		    client->view->auth_nxdomain == ISC_TRUE)
 			client->message->flags |= DNS_MESSAGEFLAG_AA;
 
-		ns_client_send(client);
+		query_send(client);
 		ns_client_detach(&client);
 	}
 	CTRACE("query_find: done");
@@ -3288,7 +3292,7 @@ ns_query_start(ns_client_t *client) {
 	/*
 	 * Ensure that appropriate cleanups occur.
 	 */
-	client->next = query_next;
+	client->next = query_next_callback;
 
 	if ((message->flags & DNS_MESSAGEFLAG_RD) != 0)
 		client->query.attributes |= NS_QUERYATTR_WANTRECURSION;
@@ -3325,7 +3329,7 @@ ns_query_start(ns_client_t *client) {
 	 */
 	result = dns_message_firstname(message, DNS_SECTION_QUESTION);
 	if (result != ISC_R_SUCCESS) {
-		ns_client_error(client, result);
+		query_error(client, result);
 		return;
 	}
 	dns_message_currentname(message, DNS_SECTION_QUESTION,
@@ -3338,9 +3342,9 @@ ns_query_start(ns_client_t *client) {
 			 * There's more than one QNAME in the question
 			 * section.
 			 */
-			ns_client_error(client, DNS_R_FORMERR);
+			query_error(client, DNS_R_FORMERR);
 		} else
-			ns_client_error(client, result);
+			query_error(client, result);
 		return;
 	}
 
@@ -3351,7 +3355,7 @@ ns_query_start(ns_client_t *client) {
 	 * Check for multiple question queries, since edns1 is dead.
 	 */
 	if (message->counts[DNS_SECTION_QUESTION] > 1) {
-		ns_client_error(client, DNS_R_FORMERR);
+		query_error(client, DNS_R_FORMERR);
 		return;
 	}
 
@@ -3371,19 +3375,19 @@ ns_query_start(ns_client_t *client) {
 			return;
 		case dns_rdatatype_maila:
 		case dns_rdatatype_mailb:
-			ns_client_error(client, DNS_R_NOTIMP);
+			query_error(client, DNS_R_NOTIMP);
 			return;
 		case dns_rdatatype_tkey:
 			result = dns_tkey_processquery(client->message,
 						ns_g_server->tkeyctx,
 						client->view->dynamickeys);
 			if (result == ISC_R_SUCCESS)
-				ns_client_send(client);
+				query_send(client);
 			else
-				ns_client_error(client, result);
+				query_error(client, result);
 			return;
 		default: /* TSIG, etc. */
-			ns_client_error(client, DNS_R_FORMERR);
+			query_error(client, DNS_R_FORMERR);
 			return;
 		}
 	}
@@ -3405,7 +3409,7 @@ ns_query_start(ns_client_t *client) {
 	 */
 	result = dns_message_reply(message, ISC_TRUE);
 	if (result != ISC_R_SUCCESS) {
-		ns_client_next(client, result);
+		query_next(client, result);
 		return;
 	}
 
@@ -3674,9 +3678,9 @@ synth_fwd_respond(ns_client_t *client, dns_adbfind_t *find) {
 static void
 synth_finish(ns_client_t *client, isc_result_t result) {
 	if (result == ISC_R_SUCCESS)
-		ns_client_send(client);
+		query_send(client);
 	else
-		ns_client_error(client, result);
+		query_error(client, result);
 	ns_client_detach(&client);	
 }
 

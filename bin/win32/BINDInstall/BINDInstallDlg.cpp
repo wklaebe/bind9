@@ -1,5 +1,5 @@
 /*
- * Portions Copyright (C) 2001  Internet Software Consortium.
+ * Portions Copyright (C) 2001, 2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: BINDInstallDlg.cpp,v 1.6.2.1 2001/08/30 20:27:55 gson Exp $ */
+/* $Id: BINDInstallDlg.cpp,v 1.6.2.3 2002/02/20 02:17:22 marka Exp $ */
 
 /*
  * Copyright (c) 1999-2000 by Nortel Networks Corporation
@@ -399,8 +399,6 @@ void CBINDInstallDlg::OnInstall()
 		}
 	}
 
-	ProgramGroup();
-
 	try
 	{
 		CreateDirs();
@@ -434,8 +432,6 @@ void CBINDInstallDlg::OnInstall()
 			RegCloseKey(hKey);
 		}
 	
-		ProgramGroup();
-		
 		if(m_startOnInstall && !m_reboot)
 			StartBINDService();
 	}

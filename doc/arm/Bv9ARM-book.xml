@@ -2,7 +2,7 @@
 <!DOCTYPE book PUBLIC "-//OASIS//DTD DocBook XML V4.0//EN"
                "http://www.oasis-open.org/docbook/xml/4.0/docbookx.dtd">
 
-<!-- File: $Id: Bv9ARM-book.xml,v 1.155.2.10 2001/11/07 19:07:29 gson Exp $ -->
+<!-- File: $Id: Bv9ARM-book.xml,v 1.155.2.16 2002/01/23 01:41:17 gson Exp $ -->
 
 <book>
 <title>BIND 9 Administrator Reference Manual</title>
@@ -2209,12 +2209,20 @@ complete set of local IPv6 addresses for a host.
       used by the <command>rndc</command> utility to send commands to
       and retrieve non-DNS results from a nameserver.</para>
 
-      <para>An <command>inet</command> control channel is a TCP/IP
-      socket accessible to the Internet, created at the specified
+      <para>An <command>inet</command> control channel is a TCP
+      socket listening at the specified
       <command>ip_port</command> on the specified
-      <command>ip_addr</command>.  If no port is specified, port 953
-      is used by default.  "*" cannot be used for
-      <command>ip_port</command>.</para>
+      <command>ip_addr</command>, which can be an IPv4 or IPv6
+      address.  An <command>ip_addr</command>
+      of <literal>*</literal> is interpreted as the IPv4 wildcard
+      address; connections will be accepted on any of the system's
+      IPv4 addresses.  To listen on the IPv6 wildcard address,
+      use an <command>ip_addr</command> of <literal>::</literal>.
+      If you will only use <command>rndc</command> on the local host,
+      using the loopback address (<literal>127.0.0.1</literal>
+      or <literal>::1</literal>) is recommended for maximum
+      security.
+      </para>
 
       <para>The ability to issue commands over the control channel is
       restricted by the <command>allow</command> and
@@ -2257,7 +2265,7 @@ It makes it possible to use an existing <acronym>BIND</acronym> 8
 configuration file in <acronym>BIND</acronym> 9 unchanged,
 and still have <command>rndc</command> work the same way
 <command>ndc</command> worked in BIND 8, simply by executing the
-command <userinput>rndc-keygen -a</userinput> after BIND 9 is
+command <userinput>rndc-confgen -a</userinput> after BIND 9 is
 installed.
 </para>
 
@@ -2281,6 +2289,11 @@ installed.
       releases.  If it is present in the controls statement from a
       <acronym>BIND</acronym> 8 configuration file, it is ignored
       and a warning is logged.</para>
+
+<para>
+To disable the command channel, use an empty <command>controls</command>
+statement: <command>controls { };</command>.
+</para>
 
     </sect2>
     <sect2>
@@ -3854,6 +3867,9 @@ The results are returned as a synthetic PTR record in
 <para>The synthetic records have a TTL of zero.  DNSSEC validation of
 synthetic responses is not currently supported; therefore responses
 containing synthetic RRs will not have the AD flag set.</para>
+
+<note><para><command>allow-v6-synthesis</command> is only performed for
+clients that are supplied recursive service.</para></note>
 </sect3>
 
 <sect3 id="tuning"><title>Tuning</title>
@@ -4683,6 +4699,10 @@ or historical (h) and no longer in general use):</para>
 Experimental.</para></entry>
 </row>
 <row rowsep = "0">
+<entry colname = "1"><para>CERT</para></entry>
+<entry colname = "2"><para>holds a digital certificate.</para></entry>
+</row>
+<row rowsep = "0">
 <entry colname = "1"><para>CNAME</para></entry>
 <entry colname = "2"><para>identifies the canonical name of an alias.</para></entry>
 </row>
@@ -4691,6 +4711,10 @@ Experimental.</para></entry>
 <entry colname = "2"><para>for delegation of reverse addresses.
 Replaces the domain name specified with another name to be looked
 up. Described in RFC 2672.</para></entry>
+</row>
+<row rowsep = "0">
+<entry colname = "1"><para>GPOS</para></entry>
+<entry colname = "2"><para>Specifies the global position. Superseded by LOC.</para></entry>
 </row>
 <row rowsep = "0">
 <entry colname = "1"><para>HINFO</para></entry>
@@ -4707,6 +4731,11 @@ Experimental.</para></entry>
 DNS name.</para></entry>
 </row>
 <row rowsep = "0">
+<entry colname = "1"><para>KX</para></entry>
+<entry colname = "2"><para>identifies a key exchanger for this
+DNS name.</para></entry>
+</row>
+<row rowsep = "0">
 <entry colname = "1"><para>LOC</para></entry>
 <entry colname = "2"><para>(x) for storing GPS info. See RFC 1876.
 Experimental.</para></entry>
@@ -4715,6 +4744,14 @@ Experimental.</para></entry>
 <entry colname = "1"><para>MX</para></entry>
 <entry colname = "2"><para>identifies a mail exchange for the domain.
  See RFC 974 for details.</para></entry>
+</row>
+<row rowsep = "0">
+<entry colname = "1"><para>NAPTR</para></entry>
+<entry colname = "2"><para>name authority pointer.</para></entry>
+</row>
+<row rowsep = "0">
+<entry colname = "1"><para>NSAP</para></entry>
+<entry colname = "2"><para>a network service access point.</para></entry>
 </row>
 <row rowsep = "0">
 <entry colname = "1"><para>NS</para></entry>
@@ -4732,6 +4769,11 @@ See RFC 2535 for details.</para></entry>
 <entry colname = "1"><para>PTR</para></entry>
 <entry colname = "2"><para>a pointer to another part of the domain
 name space.</para></entry>
+</row>
+<row rowsep = "0">
+<entry colname = "1"><para>PX</para></entry>
+<entry colname = "2"><para>provides mappings between RFC 822 and X.400
+addresses.</para></entry>
 </row>
 <row rowsep = "0">
 <entry colname = "1"><para>RP</para></entry>
@@ -4756,6 +4798,10 @@ in the secure DNS. See RFC 2535 for details.</para></entry>
 <entry colname = "1"><para>SRV</para></entry>
 <entry colname = "2"><para>information about well known network
 services (replaces WKS).</para></entry>
+</row>
+<row rowsep = "0">
+<entry colname = "1"><para>TXT</para></entry>
+<entry colname = "2"><para>text records.</para></entry>
 </row>
 <row rowsep = "0">
 <entry colname = "1"><para>WKS</para></entry>
@@ -4937,14 +4983,17 @@ domain names.</para>
 </tgroup></informaltable>
 <para>This example shows two addresses for <literal>XX.LCS.MIT.EDU</literal>,
 each of a different class.</para></sect3></sect2>
+
 <sect2><title>Discussion of MX Records</title>
+
 <para>As described above, domain servers store information as a
 series of resource records, each of which contains a particular
 piece of information about a given domain name (which is usually,
 but not always, a host). The simplest way to think of a RR is as
-a typed pair of datum, a domain name matched with relevant data,
-and stored with some additional type information to help systems determine
-when the RR is relevant.</para>
+a typed pair of data, a domain name matched with a relevant datum,
+and stored with some additional type information to help systems 
+determine when the RR is relevant.</para>
+
 <para>MX records are used to control delivery of email. The data
 specified in the record is a priority and a domain name. The priority
 controls the order in which email delivery is attempted, with the

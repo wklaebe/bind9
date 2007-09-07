@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1999-2001  Internet Software Consortium.
+ * Copyright (C) 1999-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: log.c,v 1.70.2.1 2001/09/05 00:38:03 gson Exp $ */
+/* $Id: log.c,v 1.70.2.3 2002/02/08 03:57:38 marka Exp $ */
 
 /* Principal Authors: DCL */
 
@@ -302,9 +302,12 @@ isc_log_create(isc_mem_t *mctx, isc_log_t **lctxp, isc_logconfig_t **lcfgp) {
 		if (lcfgp != NULL)
 			*lcfgp = lcfg;
 
-	} else
+	} else {
+		if (lcfg != NULL)
+			isc_logconfig_destroy(&lcfg);
 		if (lctx != NULL)
 			isc_log_destroy(&lctx);
+	}
 
 	return (result);
 }
@@ -980,6 +983,8 @@ isc_log_settag(isc_logconfig_t *lcfg, const char *tag) {
 	REQUIRE(VALID_CONFIG(lcfg));
 
 	if (tag != NULL && *tag != '\0') {
+		if (lcfg->tag != NULL)
+			isc_mem_free(lcfg->lctx->mctx, lcfg->tag);
 		lcfg->tag = isc_mem_strdup(lcfg->lctx->mctx, tag);
 		if (lcfg->tag == NULL)
 			return (ISC_R_NOMEMORY);

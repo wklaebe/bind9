@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1997-2001  Internet Software Consortium.
+ * Copyright (C) 1997-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: mem.c,v 1.98.2.2 2001/10/12 01:17:37 marka Exp $ */
+/* $Id: mem.c,v 1.98.2.4 2002/02/08 03:57:39 marka Exp $ */
 
 #include <config.h>
 
@@ -664,6 +664,8 @@ mem_putstats(isc_mem_t *ctx, void *ptr, size_t size) {
 static void *
 default_memalloc(void *arg, size_t size) {
 	UNUSED(arg);
+	if (size == 0)
+		size = 1;
 	return (malloc(size));
 }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2001  Internet Software Consortium.
+ * Copyright (C) 2001, 2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: config.c,v 1.11.2.1 2001/09/21 20:30:32 gson Exp $ */
+/* $Id: config.c,v 1.11.2.3 2002/02/08 03:57:09 marka Exp $ */
 
 #include <config.h>
 
@@ -418,11 +418,6 @@ ns_config_getport(cfg_obj_t *config, in_port_t *portp) {
 	cfg_obj_t *portobj = NULL;
 	isc_result_t result;
 	int i;
-
-	if (ns_g_port != 0) {
-		*portp = ns_g_port;
-		return (ISC_R_SUCCESS);
-	}
 
 	cfg_map_get(config, "options", &options);
 	i = 0;

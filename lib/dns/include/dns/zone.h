@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1999-2001  Internet Software Consortium.
+ * Copyright (C) 1999-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: zone.h,v 1.106.2.1 2001/11/13 18:57:14 gson Exp $ */
+/* $Id: zone.h,v 1.106.2.4 2002/02/08 03:57:35 marka Exp $ */
 
 #ifndef DNS_ZONE_H
 #define DNS_ZONE_H 1
@@ -44,6 +44,12 @@ typedef enum {
 #define DNS_ZONEOPT_CHILDREN	0x00000004U	/* perform child checks */
 #define DNS_ZONEOPT_NOTIFY	0x00000008U	/* perform NOTIFY */
 #define DNS_ZONEOPT_MANYERRORS	0x00000010U	/* return many errors on load */
+#ifndef NOMINUM_PUBLIC
+/*
+ * Nominum specific options build down.
+ */
+#define DNS_ZONEOPT_NOTIFYFORWARD 0x80000000U	/* forward notify to master */
+#endif /* NOMINUM_PUBLIC */
 
 #ifndef DNS_ZONE_MINREFRESH
 #define DNS_ZONE_MINREFRESH		    300	/* 5 minutes */
@@ -208,7 +214,7 @@ dns_zone_loadnew(dns_zone_t *zone);
 /*
  *	Cause the database to be loaded from its backing store.
  *	Confirm that the mimimum requirements for the zone type are
- *	met, otherwise DNS_R_BADZONE is return.
+ *	met, otherwise DNS_R_BADZONE is returned.
  *
  *	dns_zone_loadnew() only loads zones that are not yet loaded.
  *	dns_zone_load() also loads zones that are already loaded and
@@ -415,15 +421,12 @@ dns_zone_setalsonotify(dns_zone_t *zone, isc_sockaddr_t *notify,
 		       isc_uint32_t count);
 /*
  *	Set the list of additional servers to be notified when
- *	a zone changes.	 To clear the list use 'notify = NULL'
- *	and 'count = 0'.
+ *	a zone changes.	 To clear the list use 'count = 0'.
  *
  * Require:
  *	'zone' to be a valid zone.
- *	'notify' to be non NULL.
- *	'count' the number of notify.
- *
- * 	If 'notify' is NULL then 'count' must be zero.
+ *	'notify' to be non-NULL if count != 0.
+ *	'count' to be the number of notifyees
  *
  * Returns:
  *	ISC_R_SUCCESS

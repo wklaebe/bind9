@@ -1829,7 +1829,7 @@ isc_socket_create(isc_socketmgr_t *manager, int pf, isc_sockettype_t type,
 		  isc_socket_t **socketp) {
 	isc_socket_t *sock = NULL;
 	isc_result_t result;
-#if defined(USE_CMSG) || defined(SO_BSDCOMPAT)
+#if defined(USE_CMSG) || (defined(SO_BSDCOMPAT) && 0)
 	int on = 1;
 #endif
 	int socket_errno;

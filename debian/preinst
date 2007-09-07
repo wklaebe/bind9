@@ -1,0 +1,17 @@
+#!/bin/sh
+# pre install script for the Debian bind9 package
+
+set -e
+
+# Check if we are upgrading while running a kernel before 2.2.18. If so abort
+# immediately since we don't support those kernels anymore.
+if [ "$1" = "upgrade" ] && dpkg --compare-versions "`uname -r`" lt 2.2.18 ; then
+        cat <<EOF
+ERROR: you are running a pre-2.2.18 kernel on this machine. Recent
+versions of bind9 no longer support those kernels.
+To prevent breaking nameservices on this system bind9 upgrade will abort.
+EOF
+        exit 1
+fi
+
+exit 0

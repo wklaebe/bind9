@@ -162,10 +162,7 @@ linux_setcaps(unsigned int caps) {
 	cap.inheritable = caps;
 	if (syscall(SYS_capset, &caphead, &cap) < 0) {
 		isc__strerror(errno, strbuf, sizeof(strbuf));
-		ns_main_earlyfatal("capset failed: %s:"
-				   " please ensure that the capset kernel"
-				   " module is loaded.  see insmod(8)",
-				   strbuf);
+		ns_main_earlywarning("capset failed: %s", strbuf);
 	}
 }
 

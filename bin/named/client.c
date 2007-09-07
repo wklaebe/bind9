@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: client.c,v 1.176.2.22 2006/01/04 23:50:16 marka Exp $ */
+/* $Id: client.c,v 1.176.2.24 2006/07/22 01:09:04 marka Exp $ */
 
 #include <config.h>
 
@@ -1252,9 +1252,8 @@ client_request(isc_task_t *task, isc_event_t *event) {
 		ns_client_log(client, NS_LOGCATEGORY_CLIENT,
 			      NS_LOGMODULE_CLIENT, ISC_LOG_DEBUG(2),
 			      "multicast request");
-#if 0
-		ns_client_error(client, DNS_R_REFUSED);
-#endif
+		ns_client_next(client, DNS_R_REFUSED);
+		goto cleanup;
 	}
 
 	result = dns_message_peekheader(buffer, &id, &flags);
@@ -1502,7 +1501,9 @@ client_request(isc_task_t *task, isc_event_t *event) {
 	    /* XXX this will log too much too early */
 	    ns_client_checkacl(client, "recursion available:",
 			       client->view->recursionacl,
-			       ISC_TRUE, ISC_LOG_DEBUG(1)) == ISC_R_SUCCESS)
+			       ISC_TRUE, ISC_LOG_DEBUG(1)) == ISC_R_SUCCESS &&
+	    ns_client_checkaclsilent(client, client->view->queryacl,
+				     ISC_TRUE) == ISC_R_SUCCESS)
 		ra = ISC_TRUE;
 
 	if (ra == ISC_TRUE)

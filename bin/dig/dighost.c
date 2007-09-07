@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dighost.c,v 1.221.2.29 2005/10/14 01:37:48 marka Exp $ */
+/* $Id: dighost.c,v 1.221.2.32 2006/08/01 00:54:08 marka Exp $ */
 
 /*
  * Notice to programmers:  Do not use this code as an example of how to
@@ -153,6 +153,9 @@ cancel_lookup(dig_lookup_t *lookup);
 
 static void
 recv_done(isc_task_t *task, isc_event_t *event);
+
+static void
+send_udp(dig_query_t *query);
 
 static void
 connect_timeout(isc_task_t *task, isc_event_t *event);
@@ -1517,18 +1520,39 @@ setup_lookup(dig_lookup_t *lookup) {
  */
 static void
 send_done(isc_task_t *_task, isc_event_t *event) {
+	isc_socketevent_t *sevent = (isc_socketevent_t *)event;
+	isc_buffer_t *b = NULL;
+	dig_query_t *query, *next;
+	dig_lookup_t *l;
+
 	REQUIRE(event->ev_type == ISC_SOCKEVENT_SENDDONE);
 
 	UNUSED(_task);
 
 	LOCK_LOOKUP;
 
-	isc_event_free(&event);
-
 	debug("send_done()");
 	sendcount--;
 	debug("sendcount=%d", sendcount);
 	INSIST(sendcount >= 0);
+
+	for  (b = ISC_LIST_HEAD(sevent->bufferlist);
+	      b != NULL;
+	      b = ISC_LIST_HEAD(sevent->bufferlist)) 
+		ISC_LIST_DEQUEUE(sevent->bufferlist, b, link);
+
+	query = event->ev_arg;
+	l = query->lookup;
+
+	if (l->ns_search_only && !l->trace_root) {
+		debug("sending next, since searching");
+		next = ISC_LIST_NEXT(query, link);
+		if (next != NULL)
+			send_udp(next);
+	}
+
+	isc_event_free(&event);
+
 	check_if_done();
 	UNLOCK_LOOKUP;
 }
@@ -1676,7 +1700,6 @@ send_tcp_connect(dig_query_t *query) {
 static void
 send_udp(dig_query_t *query) {
 	dig_lookup_t *l = NULL;
-	dig_query_t *next;
 	isc_result_t result;
 
 	debug("send_udp(%p)", query);
@@ -1734,16 +1757,6 @@ send_udp(dig_query_t *query) {
 				    &query->sockaddr, NULL);
 	check_result(result, "isc_socket_sendtov");
 	sendcount++;
-	/*
-	 * If we're at the endgame of a nameserver search, we need to
-	 * immediately bring up all the queries.  Do it here.
-	 */
-	if (l->ns_search_only && !l->trace_root) {
-		debug("sending next, since searching");
-		next = ISC_LIST_NEXT(query, link);
-		if (next != NULL)
-			send_udp(next);
-	}
 }
 
 /*
@@ -1832,6 +1845,10 @@ tcp_length_done(isc_task_t *task, isc_event_t *event) {
 	recvcount--;
 	INSIST(recvcount >= 0);
 
+	b = ISC_LIST_HEAD(sevent->bufferlist);
+	INSIST(b ==  &query->lengthbuf);
+	ISC_LIST_DEQUEUE(sevent->bufferlist, b, link);
+
 	if (sevent->result == ISC_R_CANCELED) {
 		isc_event_free(&event);
 		l = query->lookup;
@@ -1857,8 +1874,6 @@ tcp_length_done(isc_task_t *task, isc_event_t *event) {
 		UNLOCK_LOOKUP;
 		return;
 	}
-	b = ISC_LIST_HEAD(sevent->bufferlist);
-	ISC_LIST_DEQUEUE(sevent->bufferlist, &query->lengthbuf, link);
 	length = isc_buffer_getuint16(b);
 	if (length == 0) {
 		isc_event_free(&event);
@@ -2210,6 +2225,10 @@ recv_done(isc_task_t *task, isc_event_t *event) {
 	REQUIRE(event->ev_type == ISC_SOCKEVENT_RECVDONE);
 	sevent = (isc_socketevent_t *)event;
 
+	b = ISC_LIST_HEAD(sevent->bufferlist);
+	INSIST(b == &query->recvbuf);
+	ISC_LIST_DEQUEUE(sevent->bufferlist, &query->recvbuf, link);
+
 	if ((l->tcp_mode) && (l->timer != NULL))
 		isc_timer_touch(l->timer);
 	if ((!l->pending && !l->ns_search_only) || cancel_now) {
@@ -2242,9 +2261,6 @@ recv_done(isc_task_t *task, isc_event_t *event) {
 		UNLOCK_LOOKUP;
 		return;
 	}
-
-	b = ISC_LIST_HEAD(sevent->bufferlist);
-	ISC_LIST_DEQUEUE(sevent->bufferlist, &query->recvbuf, link);
 
 	if (!l->tcp_mode &&
 	    !isc_sockaddr_equal(&sevent->address, &query->sockaddr)) {

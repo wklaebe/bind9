@@ -1,4 +1,37 @@
 
+	--- 9.2.0rc1 released ---
+
+ 955.	[bug]		When using views, the zone's class was not being
+			inherited from the view's class.  [RT #1583]
+
+ 954.	[bug]		When requesting AXFRs or IXFRs using dig, host, or
+			nslookup, the RD bit should not be set as zone
+			transfers are inherently nonrecursive.  [RT #1575]
+
+ 953.	[func]		The /var/run/named.key file from change #843
+			has been replaced by /etc/rndc.key.  Both
+			named and rndc will look for this file and use
+			it to configure a default control channel key
+			if not already configured using a different
+			method (rndc.conf / controls).  Unlike
+			named.key, rndc.key is not created automatically;
+			it must be created by manually running
+			"rndc-confgen -a".
+
+ 952.	[bug]		The server required manual intervention to serve the
+			affected zones if it died between creating a journal
+			and committing the first change to it.
+
+ 951.	[bug]		CFLAGS was not passed to the linker when
+			linking some of the test programs under
+			bin/tests. [RT #1555].
+
+ 950.	[bug]		Explicit TTLs did not properly override $TTL
+			due to a bug in change 834. [RT #1558]
+
+ 949.	[bug]		host was unable to print records larger than 512
+ 			bytes. [RT #1557]
+
 	--- 9.2.0b2 released ---
 
  948.	[port]		Integrated support for building on Windows NT /

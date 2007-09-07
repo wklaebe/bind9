@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dighost.c,v 1.219 2001/07/30 01:09:13 marka Exp $ */
+/* $Id: dighost.c,v 1.221 2001/08/08 22:54:14 gson Exp $ */
 
 /*
  * Notice to programmers:  Do not use this code as an example of how to
@@ -1281,7 +1281,9 @@ setup_lookup(dig_lookup_t *lookup) {
 	if (lookup->trace || (lookup->ns_search_only && !lookup->trace_root))
 		lookup->recurse = ISC_FALSE;
 
-	if (lookup->recurse) {
+	if (lookup->recurse &&
+	    lookup->rdtype != dns_rdatatype_axfr &&
+	    lookup->rdtype != dns_rdatatype_ixfr) {
 		debug("recursive query");
 		lookup->sendmsg->flags |= DNS_MESSAGEFLAG_RD;
 	}
@@ -1517,7 +1519,7 @@ send_tcp_connect(dig_query_t *query) {
 	dig_query_t *next;
 	dig_lookup_t *l;
 
-	debug("send_tcp_connect(%lx)", query);
+	debug("send_tcp_connect(%p)", query);
 
 	l = query->lookup;
 	query->waiting_connect = ISC_TRUE;
@@ -1586,7 +1588,7 @@ send_udp(dig_query_t *query) {
 	dig_query_t *next;
 	isc_result_t result;
 
-	debug("send_udp(%lx)", query);
+	debug("send_udp(%p)", query);
 
 	l = query->lookup;
 	bringup_timer(query, UDP_TIMEOUT);
@@ -2208,7 +2210,7 @@ recv_done(isc_task_t *task, isc_event_t *event) {
 		if (l->current_query == query)
 			l->current_query = NULL;
 		if (next != NULL) {
-			debug("sending query %lx\n", next);
+			debug("sending query %p\n", next);
 			if (l->tcp_mode)
 				send_tcp_connect(next);
 			else

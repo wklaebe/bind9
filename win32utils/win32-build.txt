@@ -1,4 +1,9 @@
-       BIND 9.2.0 Beta for Win32 Source Build Instructions.  12-Jul-2001
+Copyright (C) 2001  Internet Software Consortium.
+See COPYRIGHT in the source root or http://isc.org/copyright.html for terms.
+
+$Id: win32-build.txt,v 1.5 2001/08/09 00:33:47 gson Exp $
+
+       BIND 9.2.0 Beta for Win32 Source Build Instructions.  28-Jul-2001
 
 Building BIND 9.2 on Windows NT/2000 has two prerequisites:
 1) You need to install Perl for Windows NT/2000. ActiveState
@@ -46,6 +51,8 @@ Execute the BuildAll.bat file. This will do the following:
    BIND 9 Installer.
 7) Copies the release notes and the OpenSSL DLL to the BUILD/Release
    directory.
+8) Copies the BIND 9 ARM HTML files and the application HTML files
+   to the Build\Release area.
 
 If you wish to use Visual Studio for building, you can just run the
 BuildSetup.bat file which will create all the necessary files and you
@@ -55,32 +62,33 @@ directory as this file.
 
 The following files are built:
 
-lib/isc
-lib/dns
-lib/isccc
-lib/isccfg
-lib/lwres
-bin/named
-lib/win32/bindevt
-bin/win32/BINDInstall
+libisc.dll
+libdns.dll
+libisccc.dll
+libisccfg.dll
+liblwres.dll
+named.exe
+bindevt.dll 
+BINDInstall.exe
 
-bin/rndc
-bin/dig (dig.dsw)
-bin/dig (host.dsw)
-bin/dig (nslookup.dsw)
-bin/nsupdate
+rndc.exe
+dig.exe
+host.exe
+nslookup.exe
+nsupdate.exe
 
-bin/check/named-checkconf
-bin/check/named-checkzone
+named-checkconf.exe
+named-checkzone.exe
 
-bin/dnssec (keygen.dsw)
-bin/dnssec (makekeyset.dsw)
-bin/dnssec (signkey.dsw)
-bin/dnssec (signzone.dsw)
+dnssec-keygen.exe
+dnssec-makekeyset.exe
+dnssec-signkey.exe
+dnssec-signzone.exe
 
 You should end up with 20 binaries in the bind9/Build/Release
-directory. Copy the Install instructions Readme1st.txt from win32utils
-and libeay32.dll from the openssl/out32dll/ directory.
+directory. The Install instructions Readme1st.txt from win32utils
+and libeay32.dll from the openssl/out32dll/ directory are also copied
+into the Build area. In addition you should have 22 HTML files.
 
 The set of files in the directory bind9/Build/Release form the
 installation kit which can then be zipped and distributed to any

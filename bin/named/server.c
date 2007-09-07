@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: server.c,v 1.336 2001/07/26 20:42:40 bwelling Exp $ */
+/* $Id: server.c,v 1.339 2001/08/07 01:58:56 marka Exp $ */
 
 #include <config.h>
 
@@ -192,7 +192,8 @@ configure_view_dnsseckey(cfg_obj_t *vconfig, cfg_obj_t *key,
 		viewclass = dns_rdataclass_in;
 	else {
 		cfg_obj_t *classobj = cfg_tuple_get(vconfig, "class");
-		CHECK(ns_config_getclass(classobj, &viewclass));
+		CHECK(ns_config_getclass(classobj, dns_rdataclass_in,
+					 &viewclass));
 	}
 	keystruct.common.rdclass = viewclass;
 	keystruct.common.rdtype = dns_rdatatype_key;
@@ -985,6 +986,7 @@ create_authors_zone(cfg_obj_t *options, dns_zonemgr_t *zmgr, dns_view_t *view)
 		"\022Andreas Gustafsson",
 		"\012Bob Halley",
 		"\016David Lawrence",
+		"\013Danny Mayer",
 		"\013Damien Neil",
 		"\013Matt Nelson",
 		"\016Michael Sawyer",
@@ -1146,8 +1148,14 @@ configure_forward(cfg_obj_t *config, dns_view_t *view, dns_name_t *origin,
 
 	result = dns_fwdtable_add(view->fwdtable, origin, &addresses,
 				  fwdpolicy);
-	if (result != ISC_R_SUCCESS)
+	if (result != ISC_R_SUCCESS) {
+		char namebuf[DNS_NAME_FORMATSIZE];
+		dns_name_format(origin, namebuf, sizeof(namebuf));
+		cfg_obj_log(forwarders, ns_g_lctx, ISC_LOG_WARNING,
+			    "could not set up forwarding for domain '%s': %s",
+			    namebuf, isc_result_totext(result));
 		goto cleanup;
+	}
 
 	result = ISC_R_SUCCESS;
 
@@ -1181,7 +1189,8 @@ create_view(cfg_obj_t *vconfig, dns_viewlist_t *viewlist, dns_view_t **viewp) {
 
 		viewname = cfg_obj_asstring(cfg_tuple_get(vconfig, "name"));
 		classobj = cfg_tuple_get(vconfig, "class");
-		result = ns_config_getclass(classobj, &viewclass);
+		result = ns_config_getclass(classobj, dns_rdataclass_in,
+					    &viewclass);
 	} else {
 		viewname = "_default";
 		viewclass = dns_rdataclass_in;
@@ -1242,7 +1251,8 @@ configure_zone(cfg_obj_t *config, cfg_obj_t *zconfig, cfg_obj_t *vconfig,
 				&buffer, dns_rootname, ISC_FALSE, NULL));
 	origin = dns_fixedname_name(&fixorigin);
 
-	CHECK(ns_config_getclass(cfg_tuple_get(zconfig, "class"), &zclass));
+	CHECK(ns_config_getclass(cfg_tuple_get(zconfig, "class"),
+				 view->rdclass, &zclass));
 	if (zclass != view->rdclass) {
 		const char *vname = NULL;
 		if (vconfig != NULL)

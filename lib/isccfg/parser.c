@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: parser.c,v 1.66 2001/07/26 21:27:51 gson Exp $ */
+/* $Id: parser.c,v 1.70 2001/08/08 20:52:34 gson Exp $ */
 
 #include <config.h>
 
@@ -829,7 +829,7 @@ options_clauses[] = {
 	{ "port", &cfg_type_uint32, 0 },
 	{ "random-device", &cfg_type_qstring, 0 },
 	{ "recursive-clients", &cfg_type_uint32, 0 },
-	{ "rrset-order", &cfg_type_rrsetorder, 0 },
+	{ "rrset-order", &cfg_type_rrsetorder, CFG_CLAUSEFLAG_NOTIMP },
 	{ "serial-queries", &cfg_type_uint32, CFG_CLAUSEFLAG_OBSOLETE },
 	{ "serial-query-rate", &cfg_type_uint32, 0 },
 	{ "stacksize", &cfg_type_size, 0 },
@@ -1557,10 +1557,15 @@ parse_uint32(cfg_parser_t *pctx, const cfg_type_t *type, cfg_obj_t **ret) {
 }
 
 static void
+print_cstr(cfg_printer_t *pctx, const char *s) {
+	print(pctx, s, strlen(s));
+}
+
+static void
 print_uint(cfg_printer_t *pctx, unsigned int u) {
 	char buf[32];
 	snprintf(buf, sizeof(buf), "%u", u);
-	print(pctx, buf, strlen(buf));
+	print_cstr(pctx, buf);
 }
 
 static void
@@ -1642,7 +1647,7 @@ static void
 print_uint64(cfg_printer_t *pctx, cfg_obj_t *obj) {
 	char buf[32];
 	sprintf(buf, "%" ISC_PRINT_QUADFORMAT "u", obj->value.uint64);
-	print(pctx, buf, strlen(buf));
+	print_cstr(pctx, buf);
 }
 
 static cfg_type_t cfg_type_uint64 = {
@@ -1733,7 +1738,7 @@ parse_optional_keyvalue(cfg_parser_t *pctx, const cfg_type_t *type, cfg_obj_t **
 static void
 print_keyvalue(cfg_printer_t *pctx, cfg_obj_t *obj) {
 	const keyword_type_t *kw = obj->type->of;
-	print(pctx, kw->name, strlen(kw->name));
+	print_cstr(pctx, kw->name);
 	print(pctx, " ", 1);
 	kw->type->print(pctx, obj);
 }
@@ -2498,8 +2503,7 @@ print_mapbody(cfg_printer_t *pctx, cfg_obj_t *obj) {
 					     elt != NULL;
 					     elt = ISC_LIST_NEXT(elt, link)) {
 						print_indent(pctx);
-						print(pctx, clause->name,
-						      strlen(clause->name));
+						print_cstr(pctx, clause->name);
 						print(pctx, " ", 1);
 						print_obj(pctx, elt->obj);
 						print(pctx, ";\n", 2);
@@ -2507,8 +2511,7 @@ print_mapbody(cfg_printer_t *pctx, cfg_obj_t *obj) {
 				} else {
 					/* Single-valued. */
 					print_indent(pctx);
-					print(pctx, clause->name,
-					      strlen(clause->name));
+					print_cstr(pctx, clause->name);
 					print(pctx, " ", 1);
 					print_obj(pctx, obj);
 					print(pctx, ";\n", 2);
@@ -3111,36 +3114,9 @@ parse_sockaddrsub(cfg_parser_t *pctx, const cfg_type_t *type,
 }
 
 static isc_result_t
-parse_sockaddr4wild(cfg_parser_t *pctx, const cfg_type_t *type, cfg_obj_t **ret) {
-	UNUSED(type);
-	return (parse_sockaddrsub(pctx, &cfg_type_sockaddr4wild,
-				  WILDOK|V4OK, ret));
-}
-
-static isc_result_t
-parse_sockaddr6wild(cfg_parser_t *pctx, const cfg_type_t *type, cfg_obj_t **ret) {
-	UNUSED(type);
-	return (parse_sockaddrsub(pctx, &cfg_type_sockaddr6wild,
-				  WILDOK|V6OK, ret));
-}
-
-static isc_result_t
 parse_sockaddr(cfg_parser_t *pctx, const cfg_type_t *type, cfg_obj_t **ret) {
-	UNUSED(type);
-	return (parse_sockaddrsub(pctx, &cfg_type_sockaddr,
-				  V4OK|V6OK, ret));
-}
-
-/*
- * The socket address syntax in the "controls" statement is silly.
- * It allows both socket address families, but also allows "*",
- * whis is gratuitously interpreted as the IPv4 wildcard address.
- */
-static isc_result_t
-parse_controls_sockaddr(cfg_parser_t *pctx, const cfg_type_t *type, cfg_obj_t **ret) {
-	UNUSED(type);
-	return (parse_sockaddrsub(pctx, &cfg_type_sockaddr,
-				  V4OK|V6OK|WILDOK, ret));
+	const unsigned int *flagp = type->of;
+	return (parse_sockaddrsub(pctx, &cfg_type_sockaddr4wild, *flagp, ret));
 }
 
 static void
@@ -3151,7 +3127,7 @@ print_sockaddr(cfg_printer_t *pctx, cfg_obj_t *obj) {
 
 	isc_netaddr_fromsockaddr(&netaddr, &obj->value.sockaddr);
 	isc_netaddr_format(&netaddr, buf, sizeof(buf));
-	print(pctx, buf, strlen(buf));
+	print_cstr(pctx, buf);
 	port = isc_sockaddr_getport(&obj->value.sockaddr);
 	if (port != 0) {
 		print(pctx, " port ", 6);
@@ -3172,20 +3148,33 @@ cfg_obj_assockaddr(cfg_obj_t *obj) {
 }
 
 /* An IPv4/IPv6 address with optional port, "*" accepted as wildcard. */
+static unsigned int sockaddr4wild_flags = WILDOK|V4OK;
 static cfg_type_t cfg_type_sockaddr4wild = {
-	"sockaddr4wild", parse_sockaddr4wild, print_sockaddr,
-	&cfg_rep_sockaddr, NULL
+	"sockaddr4wild", parse_sockaddr, print_sockaddr,
+	&cfg_rep_sockaddr, &sockaddr4wild_flags
 };
+
+static unsigned int sockaddr6wild_flags = WILDOK|V6OK;
 static cfg_type_t cfg_type_sockaddr6wild = {
-	"v6addrportwild", parse_sockaddr6wild, print_sockaddr,
-	&cfg_rep_sockaddr, NULL
+	"v6addrportwild", parse_sockaddr, print_sockaddr,
+	&cfg_rep_sockaddr, &sockaddr6wild_flags
 };
+
+static unsigned int sockaddr_flags = V4OK|V6OK;
 static cfg_type_t cfg_type_sockaddr = {
 	"sockaddr", parse_sockaddr, print_sockaddr,
-	&cfg_rep_sockaddr, NULL };
+	&cfg_rep_sockaddr, &sockaddr_flags
+};
+
+/*
+ * The socket address syntax in the "controls" statement is silly.
+ * It allows both socket address families, but also allows "*",
+ * whis is gratuitously interpreted as the IPv4 wildcard address.
+ */
+static unsigned int controls_sockaddr_flags = V4OK|V6OK|WILDOK;
 static cfg_type_t cfg_type_controls_sockaddr = {
-	"controls_sockaddr", parse_controls_sockaddr, print_sockaddr,
-	&cfg_rep_sockaddr, NULL };
+	"controls_sockaddr", parse_sockaddr, print_sockaddr,
+	&cfg_rep_sockaddr, &controls_sockaddr_flags };
 
 
 /*
@@ -3477,6 +3466,24 @@ LIBISCCFG_EXTERNAL_DATA cfg_type_t cfg_type_rndcconf = {
 	rndcconf_clausesets
 };
 
+static cfg_clausedef_t
+rndckey_clauses[] = {
+	{ "key", &cfg_type_key, 0 },
+	{ NULL, NULL, 0 }
+};
+
+static cfg_clausedef_t *
+rndckey_clausesets[] = {
+	rndckey_clauses,
+	NULL
+};
+
+LIBISCCFG_EXTERNAL_DATA cfg_type_t cfg_type_rndckey = {
+	"rndckey", parse_mapbody, print_mapbody, &cfg_rep_map,
+	rndckey_clausesets
+};
+
+
 static isc_result_t
 cfg_gettoken(cfg_parser_t *pctx, int options) {
 	isc_result_t result;
@@ -3567,8 +3574,7 @@ cfg_getstringtoken(cfg_parser_t *pctx) {
 }
 
 static void
-parser_error(cfg_parser_t *pctx, unsigned int flags, const char *fmt, ...)
-{
+parser_error(cfg_parser_t *pctx, unsigned int flags, const char *fmt, ...) {
 	va_list args;
 	va_start(args, fmt);
 	parser_complain(pctx, ISC_FALSE, flags, fmt, args);
@@ -3577,8 +3583,7 @@ parser_error(cfg_parser_t *pctx, unsigned int flags, const char *fmt, ...)
 }
 
 static void
-parser_warning(cfg_parser_t *pctx, unsigned int flags, const char *fmt, ...)
-{
+parser_warning(cfg_parser_t *pctx, unsigned int flags, const char *fmt, ...) {
 	va_list args;
 	va_start(args, fmt);
 	parser_complain(pctx, ISC_TRUE, flags, fmt, args);
@@ -3778,7 +3783,7 @@ print_clause_flags(cfg_printer_t *pctx, unsigned int flags) {
 				print(pctx, " // ", 4);
 			else
 				print(pctx, ", ", 2);
-			print(pctx, p->text, strlen(p->text));
+			print_cstr(pctx, p->text);
 			first = ISC_FALSE;
 		}
 	}
@@ -3794,7 +3799,7 @@ print_grammar(cfg_printer_t *pctx, const cfg_type_t *type) {
 			for (clause = *clauseset;
 			     clause->name != NULL;
 		     clause++) {
-				print(pctx, clause->name, strlen(clause->name));
+				print_cstr(pctx, clause->name);
 				print(pctx, " ", 1);
 				print_grammar(pctx, clause->type);
 				print(pctx, ";", 1);
@@ -3813,7 +3818,7 @@ print_grammar(cfg_printer_t *pctx, const cfg_type_t *type) {
 			     clause->name != NULL;
 			     clause++) {
 				print_indent(pctx);
-				print(pctx, clause->name, strlen(clause->name));
+				print_cstr(pctx, clause->name);
 				if (clause->type->print != print_void)
 					print(pctx, " ", 1);
 				print_grammar(pctx, clause->type);
@@ -3838,7 +3843,7 @@ print_grammar(cfg_printer_t *pctx, const cfg_type_t *type) {
 		const char * const *p;
 		print(pctx, "( ", 2);
 		for (p = type->of; *p != NULL; p++) {
-			print(pctx, *p, strlen(*p));
+			print_cstr(pctx, *p);
 			if (p[1] != NULL)
 				print(pctx, " | ", 3);
 		}
@@ -3849,21 +3854,49 @@ print_grammar(cfg_printer_t *pctx, const cfg_type_t *type) {
 		print(pctx, "; ... }", 7);
 	} else if (type->parse == parse_keyvalue) {
 		const keyword_type_t *kw = type->of;
-		print(pctx, kw->name, strlen(kw->name));
+		print_cstr(pctx, kw->name);
 		print(pctx, " ", 1);
 		print_grammar(pctx, kw->type);
 	} else if (type->parse == parse_optional_keyvalue) {
 		const keyword_type_t *kw = type->of;
 		print(pctx, "[ ", 2);
-		print(pctx, kw->name, strlen(kw->name));
+		print_cstr(pctx, kw->name);
 		print(pctx, " ", 1);
 		print_grammar(pctx, kw->type);
 		print(pctx, " ]", 2);
+	} else if (type->parse == parse_sockaddr) {
+		const unsigned int *flagp = type->of;
+		int n = 0;
+		print(pctx, "( ", 2);
+		if (*flagp & V4OK) {
+			if (n != 0)
+				print(pctx, " | ", 3);
+			print_cstr(pctx, "<ipv4_address>");
+			n++;
+		}
+		if (*flagp & V6OK) {
+			if (n != 0)
+				print(pctx, " | ", 3);
+			print_cstr(pctx, "<ipv6_address>");
+			n++;			
+		}
+		if (*flagp & WILDOK) {
+			if (n != 0)
+				print(pctx, " | ", 3);
+			print(pctx, "*", 1);
+			n++;
+		}
+		print(pctx, " ) ", 3);
+		if (*flagp & WILDOK) {
+			print_cstr(pctx, "[ port ( <integer> | * ) ]");
+		} else {
+			print_cstr(pctx, "[ port <integer> ]");
+		}
 	} else if (type->print == print_void) {
 		/* Print nothing. */
 	} else {
 		print(pctx, "<", 1);
-		print(pctx, type->name, strlen(type->name));
+		print_cstr(pctx, type->name);
 		print(pctx, ">", 1);
 	}
 }

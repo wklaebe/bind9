@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: resolver.c,v 1.187 2000/12/20 23:18:37 gson Exp $ */
+/* $Id: resolver.c,v 1.187.2.2 2001/01/05 22:18:28 bwelling Exp $ */
 
 #include <config.h>
 
@@ -152,6 +152,7 @@ struct fetchctx {
 	/* Locked by appropriate bucket lock. */
 	fetchstate			state;
 	isc_boolean_t			want_shutdown;
+	isc_boolean_t			cloned;
 	unsigned int			references;
 	isc_event_t			control_event;
 	ISC_LINK(struct fetchctx)	link;
@@ -173,19 +174,26 @@ struct fetchctx {
 	dns_fwdpolicy_t			fwdpolicy;
 	isc_sockaddrlist_t		bad;
 	ISC_LIST(dns_validator_t)	validators;
+
 	/*
-	 * # of events we're waiting for.
+	 * The number of events we're waiting for.
 	 */
 	unsigned int			pending;
+
 	/*
-	 * # of times we have started from the beginning
-	 * of the name server set.
+	 * The number of times we've "restarted" the current
+	 * nameserver set.  This acts as a failsafe to prevent
+	 * us from pounding constantly on a particular set of
+	 * servers that, for whatever reason, are not giving
+	 * us useful responses, but are responding in such a
+	 * way that they are not marked "bad".
 	 */
 	unsigned int			restarts;
+
 	/*
-	 * # of timeouts that have occurred since we last
-	 * successfully received a response packet.  This
-	 * is used for EDNS0 black hole detectino.
+	 * The number of timeouts that have occurred since we 
+	 * last successfully received a response packet.  This
+	 * is used for EDNS0 black hole detection.
 	 */
 	unsigned int			timeouts;
 };
@@ -2048,6 +2056,7 @@ fctx_create(dns_resolver_t *res, dns_name_t *name, dns_rdatatype_t type,
 	fctx->bucketnum = bucketnum;
 	fctx->state = fetchstate_init;
 	fctx->want_shutdown = ISC_FALSE;
+	fctx->cloned = ISC_FALSE;
 	ISC_LIST_INIT(fctx->queries);
 	ISC_LIST_INIT(fctx->finds);
 	ISC_LIST_INIT(fctx->forwaddrs);
@@ -2302,6 +2311,7 @@ clone_results(fetchctx_t *fctx) {
 	 * Caller must be holding the appropriate lock.
 	 */
 
+	fctx->cloned = ISC_TRUE;
 	hevent = ISC_LIST_HEAD(fctx->events);
 	if (hevent == NULL)
 		return;
@@ -4213,6 +4223,11 @@ resquery_response(isc_task_t *task, isc_event_t *event) {
 			 */
 			get_nameservers = ISC_TRUE;
 			keep_trying = ISC_TRUE;
+			/*
+			 * We have a new set of name servers, and it
+			 * has not experienced any restarts yet.
+			 */
+			fctx->restarts = 0;
 			result = ISC_R_SUCCESS;
 		} else if (result != ISC_R_SUCCESS) {
 			/*
@@ -4867,7 +4882,16 @@ dns_resolver_createfetch(dns_resolver_t *res, dns_name_t *name,
 		}
 	}
 
-	if (fctx == NULL || fctx->state == fetchstate_done) {
+	/*
+	 * If we didn't have a fetch, would attach to a done fetch, this
+	 * fetch has already cloned its results, or if the fetch has gone
+	 * "idle" (no one was interested in it), we need to start a new
+	 * fetch instead of joining with the existing one.
+	 */
+	if (fctx == NULL ||
+	    fctx->state == fetchstate_done ||
+	    fctx->cloned ||
+	    ISC_LIST_EMPTY(fctx->events)) {
 		fctx = NULL;
 		result = fctx_create(res, name, type, domain, nameservers,
 				     options, bucketnum, &fctx);
@@ -4875,6 +4899,7 @@ dns_resolver_createfetch(dns_resolver_t *res, dns_name_t *name,
 			goto unlock;
 		new_fctx = ISC_TRUE;
 	}
+
 	result = fctx_join(fctx, task, action, arg,
 			   rdataset, sigrdataset, fetch);
 	if (new_fctx) {

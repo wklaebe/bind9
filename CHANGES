@@ -1,4 +1,48 @@
 
+	--- 9.1.0b3 released ---
+
+ 666.	[bug]		If a request sent by dig is longer than 512 bytes,
+			use TCP.
+
+ 664.	[bug]		The t_tasks and t_timers module tests are now skipped
+			when building without threads, since they require
+			threads.
+
+ 661.	[bug]		Certain UDP IXFR requests caused an assertion failure
+			(mpctx->allocated == 0). [RT #355, #394, #623]
+
+ 659.	[performance]	Rewrite the name compression code to be much faster.
+
+ 658.	[cleanup]	Remove all vestiges of 16 bit global compression.
+
+ 657.	[bug]		When a listen-on statement in an lwres block does not
+			specifiy a port, use 921, not 53.  Also update the
+			listen-on documentation. [RT #616]
+
+ 649.	[bug]		It was possible to join to an already running fctx
+			after it had "cloned" its events, but before it sent
+			them.  In this case, the event of the newly joined
+			fetch would not contain the answer, and would
+			trigger the INSIST() in fctx_sendevents().  In
+			BIND 9.0, this bug did not trigger an INSIST(), but
+			caused the fetch to fail with a SERVFAIL result.
+			[RT #588, #597, #605, #607]
+
+ 647.	[bug]		Resolver queries sent after following multiple
+			referrals had excessively long retransmission
+			timeouts due to incorrectly counting the referrals
+			as "restarts".
+
+ 646.	[bug]		The UnixWare ISC_PLATFORM_FIXIN6INADDR fix in isc/net.h
+			didn't _cleanly_ fix the problem it was trying to fix.
+
+ 644.	[bug]		#622 needed more work. [RT #562]
+
+ 645.	[port]		BSD/OS 3.0 needs pthread_init(). [RT #603]
+
+ 642.	[bug]		Break the exit_check() race in the zone module.
+			[RT #598]
+
 	--- 9.1.0b2 released ---
 
  641.	[bug]		$GENERATE caused a uninitialized link to be used.

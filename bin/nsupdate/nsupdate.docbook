@@ -1,22 +1,22 @@
 <!DOCTYPE refentry PUBLIC "-//OASIS//DTD DocBook V4.1//EN">
 <!--
+ - Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
  - Copyright (C) 2001, 2003  Internet Software Consortium.
  -
  - Permission to use, copy, modify, and distribute this software for any
  - purpose with or without fee is hereby granted, provided that the above
  - copyright notice and this permission notice appear in all copies.
  -
- - THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
- - DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
- - IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
- - INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
- - INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
- - FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
- - NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
- - WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ - THE SOFTWARE IS PROVIDED "AS IS" AND ISC DISCLAIMS ALL WARRANTIES WITH
+ - REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+ - AND FITNESS.  IN NO EVENT SHALL ISC BE LIABLE FOR ANY SPECIAL, DIRECT,
+ - INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+ - LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE
+ - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<!-- $Id: nsupdate.docbook,v 1.8.2.3 2003/07/22 04:03:36 marka Exp $ -->
+<!-- $Id: nsupdate.docbook,v 1.8.2.7 2004/03/09 06:09:25 marka Exp $ -->
 
 <refentry>
 <refentryinfo>
@@ -243,6 +243,23 @@ statement is provided,
 <command>nsupdate</command>
 will attempt determine the correct zone to update based on the rest of the input.
 </para>
+</listitem>
+</varlistentry>
+
+<varlistentry><term>
+<cmdsynopsis>
+<command>class</command>
+<arg choice="req">classname</arg>
+</cmdsynopsis>
+</term>
+<listitem>
+<para>
+Specify the default class.
+If no <parameter>class</parameter> is specified the default class is
+<parameter>IN</parameter>.
+</para>
+</listitem>
+</varlistentry>
 
 <varlistentry><term>
 <cmdsynopsis>
@@ -259,6 +276,8 @@ The <command>key</command> command
 overrides any key specified on the command line via
 <option>-y</option> or <option>-k</option>.
 </para>
+</listitem>
+</varlistentry>
 
 <varlistentry><term>
 <cmdsynopsis>
@@ -271,6 +290,8 @@ overrides any key specified on the command line via
 Requires that no resource record of any type exists with name
 <parameter>domain-name</parameter>.
 </para>
+</listitem>
+</varlistentry>
 
 
 <varlistentry><term>
@@ -285,6 +306,8 @@ Requires that
 <parameter>domain-name</parameter>
 exists (has as at least one resource record, of any type).
 </para>
+</listitem>
+</varlistentry>
 
 <varlistentry><term>
 <cmdsynopsis>
@@ -304,6 +327,9 @@ and
 If
 <parameter>class</parameter>
 is omitted, IN (internet) is assumed.
+</para>
+</listitem>
+</varlistentry>
 
 
 <varlistentry><term>
@@ -326,6 +352,8 @@ If
 <parameter>class</parameter>
 is omitted, IN (internet) is assumed.
 </para>
+</listitem>
+</varlistentry>
 
 <varlistentry><term>
 <cmdsynopsis>
@@ -358,6 +386,8 @@ The
 are written in the standard text representation of the resource record's
 RDATA.
 </para>
+</listitem>
+</varlistentry>
 
 <varlistentry><term>
 <cmdsynopsis>
@@ -383,6 +413,8 @@ is not supplied.  The
 <parameter>ttl</parameter>
 is ignored, and is only allowed for compatibility.
 </para>
+</listitem>
+</varlistentry>
 
 <varlistentry><term>
 <cmdsynopsis>
@@ -402,6 +434,8 @@ Adds a new resource record with the specified
 and
 <parameter>data</parameter>.
 </para>
+</listitem>
+</varlistentry>
 
 <varlistentry><term>
 <cmdsynopsis>
@@ -413,6 +447,8 @@ and
 Displays the current message, containing all of the prerequisites and
 updates specified since the last send.
 </para>
+</listitem>
+</varlistentry>
 
 <varlistentry><term>
 <cmdsynopsis>
@@ -427,7 +463,7 @@ Sends the current message.  This is equivalent to entering a blank line.
 </variablelist>
 
 <para>
-Lines beginning with a semicolon are comments, and are ignored.
+Lines beginning with a semicolon are comments and are ignored.
 </para>
 
 </refsect1>
@@ -449,7 +485,7 @@ master name server for
 # nsupdate
 > update delete oldhost.example.com A
 > update add newhost.example.com 86400 A 172.16.1.1
->
+> send
 </programlisting>
 </para>
 <para>
@@ -464,7 +500,7 @@ The newly-added record has a 1 day TTL (86400 seconds)
 # nsupdate
 > prereq nxdomain nickname.example.com
 > update add nickname.example.com 86400 CNAME somehost.example.com
->
+> send
 </programlisting>
 </para>
 <para>

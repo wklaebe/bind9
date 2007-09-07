@@ -1,21 +1,21 @@
 /*
+ * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
- * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
- * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
- * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
- * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
- * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
- * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ * THE SOFTWARE IS PROVIDED "AS IS" AND ISC DISCLAIMS ALL WARRANTIES WITH
+ * REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+ * AND FITNESS.  IN NO EVENT SHALL ISC BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+ * LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE
+ * OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: adb.c,v 1.181.2.14 2003/10/10 00:30:14 marka Exp $ */
+/* $Id: adb.c,v 1.181.2.17 2004/03/09 06:10:59 marka Exp $ */
 
 /*
  * Implementation notes
@@ -3186,6 +3186,7 @@ dbfind_name(dns_adbname_t *adbname, isc_stdtime_t now, dns_rdatatype_t rdtype)
 			       ISC_TF(NAME_HINTOK(adbname)),
 			       NULL, NULL, fname, &rdataset, NULL);
 
+	/* XXXVIX this switch statement is too sparse to gen a jump table. */
 	switch (result) {
 	case DNS_R_GLUE:
 	case DNS_R_HINT:
@@ -3928,20 +3929,32 @@ dns_adb_marklame(dns_adb_t *adb, dns_adbaddrinfo_t *addr, dns_name_t *zone,
 {
 	dns_adbzoneinfo_t *zi;
 	int bucket;
+	isc_result_t result = ISC_R_SUCCESS;
 
 	REQUIRE(DNS_ADB_VALID(adb));
 	REQUIRE(DNS_ADBADDRINFO_VALID(addr));
 	REQUIRE(zone != NULL);
 
+	bucket = addr->entry->lock_bucket;
+	LOCK(&adb->entrylocks[bucket]);
+	zi = ISC_LIST_HEAD(addr->entry->zoneinfo);
+	while (zi != NULL && dns_name_equal(zone, &zi->zone))
+		zi = ISC_LIST_NEXT(zi, plink);
+	if (zi != NULL) {
+		if (expire_time > zi->lame_timer)
+			zi->lame_timer = expire_time;
+		goto unlock;
+	}
 	zi = new_adbzoneinfo(adb, zone);
-	if (zi == NULL)
-		return (ISC_R_NOMEMORY);
+	if (zi == NULL) {
+		result = ISC_R_NOMEMORY;
+		goto unlock;
+	}
 
 	zi->lame_timer = expire_time;
 
-	bucket = addr->entry->lock_bucket;
-	LOCK(&adb->entrylocks[bucket]);
 	ISC_LIST_PREPEND(addr->entry->zoneinfo, zi, plink);
+ unlock:
 	UNLOCK(&adb->entrylocks[bucket]);
 
 	return (ISC_R_SUCCESS);

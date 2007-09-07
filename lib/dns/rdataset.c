@@ -1,27 +1,28 @@
 /*
+ * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2001, 2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
- * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
- * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
- * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
- * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
- * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
- * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ * THE SOFTWARE IS PROVIDED "AS IS" AND ISC DISCLAIMS ALL WARRANTIES WITH
+ * REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+ * AND FITNESS.  IN NO EVENT SHALL ISC BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+ * LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE
+ * OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rdataset.c,v 1.58.2.3 2003/08/05 00:42:55 marka Exp $ */
+/* $Id: rdataset.c,v 1.58.2.5 2004/03/09 06:11:06 marka Exp $ */
 
 #include <config.h>
 
 #include <stdlib.h>
 
 #include <isc/buffer.h>
+#include <isc/mem.h>
 #include <isc/random.h>
 #include <isc/util.h>
 
@@ -285,8 +286,8 @@ towiresorted(dns_rdataset_t *rdataset, dns_name_t *owner_name,
 	unsigned int headlen;
 	isc_boolean_t question = ISC_FALSE;
 	isc_boolean_t shuffle = ISC_FALSE;
-	dns_rdata_t shuffled[MAX_SHUFFLE];
-	struct towire_sort sorted[MAX_SHUFFLE];
+	dns_rdata_t *shuffled = NULL, shuffled_fixed[MAX_SHUFFLE];
+	struct towire_sort *sorted = NULL, sorted_fixed[MAX_SHUFFLE];
 
 	UNUSED(state);
 
@@ -298,6 +299,7 @@ towiresorted(dns_rdataset_t *rdataset, dns_name_t *owner_name,
 	REQUIRE(DNS_RDATASET_VALID(rdataset));
 	REQUIRE(countp != NULL);
 	REQUIRE((order == NULL) == (order_arg == NULL));
+	REQUIRE(cctx != NULL && cctx->mctx != NULL);
 
 	count = 0;
 	if ((rdataset->attributes & DNS_RDATASETATTR_QUESTION) != 0) {
@@ -320,18 +322,24 @@ towiresorted(dns_rdataset_t *rdataset, dns_name_t *owner_name,
 	}
 
 	/*
-	 * We'll only shuffle if we've got enough slots in our
-	 * deck.
-	 *
-	 * There's no point to shuffling SIGs.
+	 * Do we want to shuffle this anwer?
 	 */
-	if (!question &&
-	    count > 1 &&
-	    !WANT_FIXED(rdataset) &&
-	    count <= MAX_SHUFFLE &&
+	if (!question && count > 1 &&
+	    (!WANT_FIXED(rdataset) || order != NULL) &&
 	    rdataset->type != dns_rdatatype_sig)
-	{
 		shuffle = ISC_TRUE;
+
+	if (shuffle && count > MAX_SHUFFLE) {
+		shuffled = isc_mem_get(cctx->mctx, count * sizeof(*shuffled));
+		sorted = isc_mem_get(cctx->mctx, count * sizeof(*sorted));
+		if (shuffled == NULL || sorted == NULL)
+			shuffle = ISC_FALSE;
+	} else {
+		shuffled = shuffled_fixed;
+		sorted = sorted_fixed;
+	}
+
+	if (shuffle) {
 		/*
 		 * First we get handles to all of the rdata.
 		 */
@@ -344,7 +352,7 @@ towiresorted(dns_rdataset_t *rdataset, dns_name_t *owner_name,
 			result = dns_rdataset_next(rdataset);
 		} while (result == ISC_R_SUCCESS);
 		if (result != ISC_R_NOMORE)
-			return (result);
+			goto cleanup;
 		INSIST(i == count);
 		/*
 		 * Now we shuffle.
@@ -449,21 +457,27 @@ towiresorted(dns_rdataset_t *rdataset, dns_name_t *owner_name,
 
 	*countp += count;
 
-	return (ISC_R_SUCCESS);
+	result = ISC_R_SUCCESS;
+	goto cleanup;
 
- rollback:
+	rollback:
 	if (partial && result == ISC_R_NOSPACE) {
 		INSIST(rrbuffer.used < 65536);
 		dns_compress_rollback(cctx, (isc_uint16_t)rrbuffer.used);
 		*countp += added;
 		*target = rrbuffer;
-		return (result);
+		goto cleanup;
 	}
 	INSIST(savedbuffer.used < 65536);
 	dns_compress_rollback(cctx, (isc_uint16_t)savedbuffer.used);
 	*countp = 0;
 	*target = savedbuffer;
 
+	cleanup:
+	if (sorted != NULL && sorted != sorted_fixed)
+		isc_mem_put(cctx->mctx, sorted, count * sizeof(*sorted));
+	if (shuffled != NULL && shuffled != shuffled_fixed)
+		isc_mem_put(cctx->mctx, shuffled, count * sizeof(*shuffled));
 	return (result);
 }
 

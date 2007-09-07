@@ -1,21 +1,21 @@
 /*
+ * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
- * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
- * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
- * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
- * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
- * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
- * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ * THE SOFTWARE IS PROVIDED "AS IS" AND ISC DISCLAIMS ALL WARRANTIES WITH
+ * REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+ * AND FITNESS.  IN NO EVENT SHALL ISC BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+ * LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE
+ * OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: nsupdate.c,v 1.103.2.15 2003/07/25 03:31:42 marka Exp $ */
+/* $Id: nsupdate.c,v 1.103.2.22 2004/04/10 04:07:09 marka Exp $ */
 
 #include <config.h>
 
@@ -52,6 +52,7 @@
 #include <dns/masterdump.h>
 #include <dns/message.h>
 #include <dns/name.h>
+#include <dns/rcode.h>
 #include <dns/rdata.h>
 #include <dns/rdataclass.h>
 #include <dns/rdatalist.h>
@@ -114,8 +115,6 @@ static isc_timermgr_t *timermgr = NULL;
 static dns_dispatch_t *dispatchv4 = NULL;
 static dns_dispatch_t *dispatchv6 = NULL;
 static dns_message_t *updatemsg = NULL;
-static dns_fixedname_t resolvdomain; /* from resolv.conf's domain line */
-static dns_name_t *origin; /* Points to one of above, or dns_rootname */
 static dns_fixedname_t fuserzone;
 static dns_name_t *userzone = NULL;
 static dns_tsigkey_t *key = NULL;
@@ -134,6 +133,8 @@ static isc_boolean_t interactive = ISC_TRUE;
 static isc_boolean_t seenerror = ISC_FALSE;
 static const dns_master_style_t *style;
 static int requests = 0;
+static dns_rdataclass_t defaultclass = dns_rdataclass_in;
+static dns_rdataclass_t zoneclass = dns_rdataclass_none;
 
 typedef struct nsu_requestinfo {
 	dns_message_t *msg;
@@ -156,6 +157,23 @@ ddebug(const char *format, ...) ISC_FORMAT_PRINTF(1, 2);
 #define STATUS_SEND	(isc_uint16_t)1
 #define STATUS_QUIT	(isc_uint16_t)2
 #define STATUS_SYNTAX	(isc_uint16_t)3
+
+static dns_rdataclass_t
+getzoneclass(void) {
+	if (zoneclass == dns_rdataclass_none)
+		zoneclass = defaultclass;
+	return (zoneclass);
+}
+
+static isc_boolean_t
+setzoneclass(dns_rdataclass_t rdclass) {
+	if (zoneclass == dns_rdataclass_none ||
+	    rdclass == dns_rdataclass_none)
+		zoneclass = rdclass;
+	if (zoneclass != rdclass)
+		return (ISC_FALSE);
+	return (ISC_TRUE);
+}
 
 static void
 fatal(const char *format, ...) {
@@ -240,20 +258,6 @@ nsu_strsep(char **stringp, const char *delim) {
 	}
 	*stringp = NULL;
 	return (string);
-}
-
-static unsigned int
-count_dots(char *s, isc_boolean_t *last_was_dot) {
-	int i = 0;
-	*last_was_dot = ISC_FALSE;
-	while (*s != 0) {
-		if (*s++ == '.') {
-			i++;
-			*last_was_dot = ISC_TRUE;
-		} else
-			*last_was_dot = ISC_FALSE;
-	}
-	return (i);
 }
 
 static void
@@ -430,7 +434,6 @@ static void
 setup_system(void) {
 	isc_result_t result;
 	isc_sockaddr_t bind_any, bind_any6;
-	isc_buffer_t buf;
 	lwres_result_t lwresult;
 	unsigned int attrs, attrmask;
 	int i;
@@ -548,20 +551,6 @@ setup_system(void) {
 				       socketmgr, taskmgr, dispatchmgr,
 				       dispatchv4, dispatchv6, &requestmgr);
 	check_result(result, "dns_requestmgr_create");
-
-	if (lwconf->domainname != NULL) {
-		dns_fixedname_init(&resolvdomain);
-		isc_buffer_init(&buf, lwconf->domainname,
-				strlen(lwconf->domainname));
-		isc_buffer_add(&buf, strlen(lwconf->domainname));
-		result = dns_name_fromtext(dns_fixedname_name(&resolvdomain),
-					   &buf, dns_rootname, ISC_FALSE,
-					   NULL);
-		check_result(result, "dns_name_fromtext");
-		origin = dns_fixedname_name(&resolvdomain);
-	}
-	else
-		origin = dns_rootname;
 
 	if (keystr != NULL)
 		setup_keystr();
@@ -710,9 +699,6 @@ parse_name(char **cmdlinep, dns_message_t *msg, dns_name_t **namep) {
 	char *word;
 	isc_buffer_t *namebuf = NULL;
 	isc_buffer_t source;
-	unsigned int dots;
-	isc_boolean_t last;
-	dns_name_t *rn;
 
 	word = nsu_strsep(cmdlinep, " \t\r\n");
 	if (*word == 0) {
@@ -729,14 +715,7 @@ parse_name(char **cmdlinep, dns_message_t *msg, dns_name_t **namep) {
 	dns_message_takebuffer(msg, &namebuf);
 	isc_buffer_init(&source, word, strlen(word));
 	isc_buffer_add(&source, strlen(word));
-	dots = count_dots(word, &last);
-	if (dots > lwconf->ndots || last)
-		rn = dns_rootname;
-	else if (userzone != NULL)
-		rn = userzone;
-	else
-		rn = origin;
-	result = dns_name_fromtext(*namep, &source, rn,
+	result = dns_name_fromtext(*namep, &source, dns_rootname,
 				   ISC_FALSE, NULL);
 	check_result(result, "dns_name_fromtext");
 	isc_buffer_invalidate(&source);
@@ -754,17 +733,12 @@ parse_rdata(char **cmdlinep, dns_rdataclass_t rdataclass,
 	isc_lex_t *lex = NULL;
 	dns_rdatacallbacks_t callbacks;
 	isc_result_t result;
-	dns_name_t *rn;
 
 	while (*cmdline != 0 && isspace((unsigned char)*cmdline))
 		cmdline++;
 
 	if (*cmdline != 0) {
 		dns_rdatacallbacks_init(&callbacks);
-		if (userzone != NULL)
-			rn = userzone;
-		else
-			rn = origin;
 		result = isc_lex_create(mctx, strlen(cmdline), &lex);
 		check_result(result, "isc_lex_create");
 		isc_buffer_init(&source, cmdline, strlen(cmdline));
@@ -774,7 +748,7 @@ parse_rdata(char **cmdlinep, dns_rdataclass_t rdataclass,
 		result = isc_buffer_allocate(mctx, &buf, MAXWIRE);
 		check_result(result, "isc_buffer_allocate");
 		result = dns_rdata_fromtext(rdata, rdataclass, rdatatype, lex,
-					    rn, ISC_FALSE, mctx, buf,
+					    dns_rootname, ISC_FALSE, mctx, buf,
 					    &callbacks);
 		isc_lex_destroy(&lex);
 		if (result == ISC_R_SUCCESS) {
@@ -834,6 +808,10 @@ make_prereq(char *cmdline, isc_boolean_t ispositive, isc_boolean_t isrrset) {
 		region.length = strlen(word);
 		result = dns_rdataclass_fromtext(&rdataclass, &region);
 		if (result == ISC_R_SUCCESS) {
+			if (!setzoneclass(rdataclass)) {
+				fprintf(stderr, "class mismatch: %s\n", word);
+				goto failure;
+			}
 			/*
 			 * Now read the type.
 			 */
@@ -850,7 +828,7 @@ make_prereq(char *cmdline, isc_boolean_t ispositive, isc_boolean_t isrrset) {
 				goto failure;
 			}
 		} else {
-			rdataclass = dns_rdataclass_in;
+			rdataclass = getzoneclass();
 			result = dns_rdatatype_fromtext(&rdatatype, &region);
 			if (result != ISC_R_SUCCESS) {
 				fprintf(stderr, "invalid type: %s\n", word);
@@ -1114,6 +1092,39 @@ evaluate_zone(char *cmdline) {
 }
 
 static isc_uint16_t
+evaluate_class(char *cmdline) {
+	char *word;
+	isc_textregion_t r;
+	isc_result_t result;
+	dns_rdataclass_t rdclass;
+
+	word = nsu_strsep(&cmdline, " \t\r\n");
+	if (*word == 0) {
+		fprintf(stderr, "could not read class name\n");
+		return (STATUS_SYNTAX);
+	}
+
+	r.base = word;
+        r.length = strlen(word);
+        result = dns_rdataclass_fromtext(&rdclass, &r);
+	if (result != ISC_R_SUCCESS) {
+		fprintf(stderr, "could not parse class name: %s\n", word);
+		return (STATUS_SYNTAX);
+	}
+	switch (rdclass) {
+	case dns_rdataclass_none:
+	case dns_rdataclass_any:
+	case dns_rdataclass_reserved0:
+		fprintf(stderr, "bad default class: %s\n", word);
+		return (STATUS_SYNTAX);
+	default:
+		defaultclass = rdclass;
+	}
+
+	return (STATUS_MORE);
+}
+
+static isc_uint16_t
 update_addordelete(char *cmdline, isc_boolean_t isdelete) {
 	isc_result_t result;
 	dns_name_t *name = NULL;
@@ -1202,6 +1213,10 @@ update_addordelete(char *cmdline, isc_boolean_t isdelete) {
 	region.length = strlen(word);
 	result = dns_rdataclass_fromtext(&rdataclass, &region);
 	if (result == ISC_R_SUCCESS) {
+		if (!setzoneclass(rdataclass)) {
+			fprintf(stderr, "class mismatch: %s\n", word);
+			goto failure;
+		}
 		/*
 		 * Now read the type.
 		 */
@@ -1226,7 +1241,7 @@ update_addordelete(char *cmdline, isc_boolean_t isdelete) {
 			goto failure;
 		}
 	} else {
-		rdataclass = dns_rdataclass_in;
+		rdataclass = getzoneclass();
 		result = dns_rdatatype_fromtext(&rdatatype, &region);
 		if (result != ISC_R_SUCCESS) {
 			fprintf(stderr, "'%s' is not a valid class or type: "
@@ -1369,6 +1384,8 @@ get_next_command(void) {
 		return (evaluate_local(cmdline));
 	if (strcasecmp(word, "zone") == 0)
 		return (evaluate_zone(cmdline));
+	if (strcasecmp(word, "class") == 0)
+		return (evaluate_class(cmdline));
 	if (strcasecmp(word, "send") == 0)
 		return (STATUS_SEND);
 	if (strcasecmp(word, "show") == 0) {
@@ -1399,6 +1416,29 @@ done_update(void) {
 	isc_event_t *event = global_event;
 	ddebug("done_update()");
 	isc_task_send(global_task, &event);
+}
+
+static void
+check_tsig_error(dns_rdataset_t *rdataset, isc_buffer_t *b) {
+	isc_result_t result;
+	dns_rdata_t rdata = DNS_RDATA_INIT;
+	dns_rdata_any_tsig_t tsig;
+
+	result = dns_rdataset_first(rdataset);
+	check_result(result, "dns_rdataset_first");
+	dns_rdataset_current(rdataset, &rdata);
+	result = dns_rdata_tostruct(&rdata, &tsig, NULL);
+	check_result(result, "dns_rdata_tostruct");
+	if (tsig.error != 0) {
+		if (isc_buffer_remaininglength(b) < 1)
+		      check_result(ISC_R_NOSPACE, "isc_buffer_remaininglength");
+		isc__buffer_putstr(b, "(" /*)*/);
+		result = dns_tsigrcode_totext(tsig.error, b);
+		check_result(result, "dns_tsigrcode_totext");
+		if (isc_buffer_remaininglength(b) < 1)
+		      check_result(ISC_R_NOSPACE, "isc_buffer_remaininglength");
+		isc__buffer_putstr(b,  /*(*/ ")");
+	}
 }
 
 static void
@@ -1452,8 +1492,23 @@ update_completed(isc_task_t *task, isc_event_t *event) {
 		check_result(result, "dns_request_getresponse");
 	}
 
-	if (rcvmsg->rcode != dns_rcode_noerror)
+	if (rcvmsg->rcode != dns_rcode_noerror) {
 		seenerror = ISC_TRUE;
+		if (!debugging) {
+			char buf[64];
+			isc_buffer_t b;
+			dns_rdataset_t *rds;
+			
+			isc_buffer_init(&b, buf, sizeof(buf) - 1);
+			result = dns_rcode_totext(rcvmsg->rcode, &b);
+			check_result(result, "dns_rcode_totext");
+			rds = dns_message_gettsig(rcvmsg, NULL);
+			if (rds != NULL)
+				check_tsig_error(rds, &b);
+			fprintf(stderr, "update failed: %.*s\n",
+				(int)isc_buffer_usedlength(&b), buf);
+		}
+	}
 	if (debugging) {
 		isc_buffer_t *buf = NULL;
 		int bufsz;
@@ -1503,8 +1558,7 @@ send_update(dns_name_t *zonename, isc_sockaddr_t *master,
 	dns_name_clone(zonename, name);
 	result = dns_message_gettemprdataset(updatemsg, &rdataset);
 	check_result(result, "dns_message_gettemprdataset");
-	dns_rdataset_makequestion(rdataset, dns_rdataclass_in,
-				  dns_rdatatype_soa);
+	dns_rdataset_makequestion(rdataset, getzoneclass(), dns_rdatatype_soa);
 	ISC_LIST_INIT(name->list);
 	ISC_LIST_APPEND(name->list, rdataset, link);
 	dns_message_addname(updatemsg, name, DNS_SECTION_ZONE);
@@ -1578,6 +1632,7 @@ recvsoa(isc_task_t *task, isc_event_t *event) {
 		sendrequest(localaddr, &servers[ns_inuse], soaquery, &request);
 		isc_mem_put(mctx, reqinfo, sizeof(nsu_requestinfo_t));
 		isc_event_free(&event);
+		setzoneclass(dns_rdataclass_none);
 		return;
 	}
 	isc_mem_put(mctx, reqinfo, sizeof(nsu_requestinfo_t));
@@ -1590,6 +1645,25 @@ recvsoa(isc_task_t *task, isc_event_t *event) {
 	check_result(result, "dns_message_create");
 	result = dns_request_getresponse(request, rcvmsg,
 					 DNS_MESSAGEPARSE_PRESERVEORDER);
+	if (result == DNS_R_TSIGERRORSET && userserver != NULL) {
+		dns_message_destroy(&rcvmsg);
+		ddebug("Destroying request [%p]", request);
+		dns_request_destroy(&request);
+		reqinfo = isc_mem_get(mctx, sizeof(nsu_requestinfo_t));
+		if (reqinfo == NULL)
+			fatal("out of memory");
+		reqinfo->msg = soaquery;
+		reqinfo->addr = addr;
+		dns_message_renderreset(soaquery);
+		ddebug("retrying soa request without TSIG");
+		result = dns_request_createvia(requestmgr, soaquery,
+					       localaddr, addr, 0, NULL,
+					       FIND_TIMEOUT, global_task,
+					       recvsoa, reqinfo, &request);
+		check_result(result, "dns_request_createvia");
+		requests++;
+		return;
+	}
 	check_result(result, "dns_request_getresponse");
 	section = DNS_SECTION_ANSWER;
 	if (debugging) {
@@ -1735,6 +1809,7 @@ recvsoa(isc_task_t *task, isc_event_t *event) {
 	dns_request_destroy(&request);
 
  out:
+	setzoneclass(dns_rdataclass_none);
 	dns_rdata_freestruct(&soa);
 	dns_message_destroy(&rcvmsg);
 	ddebug("Out of recvsoa");
@@ -1752,8 +1827,9 @@ sendrequest(isc_sockaddr_t *srcaddr, isc_sockaddr_t *destaddr,
 		fatal("out of memory");
 	reqinfo->msg = msg;
 	reqinfo->addr = destaddr;
-	result = dns_request_createvia(requestmgr, msg, srcaddr, destaddr,
-				       0, NULL, FIND_TIMEOUT, global_task,
+	result = dns_request_createvia(requestmgr, msg, srcaddr, destaddr, 0,
+				       (userserver != NULL) ? key : NULL,
+				       FIND_TIMEOUT, global_task,
 				       recvsoa, reqinfo, request);
 	check_result(result, "dns_request_createvia");
 	requests++;
@@ -1778,6 +1854,7 @@ start_update(void) {
 
 	if (userzone != NULL && userserver != NULL) {
 		send_update(userzone, userserver, localaddr);
+		setzoneclass(dns_rdataclass_none);
 		return;
 	}
 
@@ -1793,8 +1870,7 @@ start_update(void) {
 	result = dns_message_gettemprdataset(soaquery, &rdataset);
 	check_result(result, "dns_message_gettemprdataset");
 
-	dns_rdataset_makequestion(rdataset, dns_rdataclass_in,
-				  dns_rdatatype_soa);
+	dns_rdataset_makequestion(rdataset, getzoneclass(), dns_rdatatype_soa);
 
 	firstname = NULL;
 	dns_message_currentname(updatemsg, DNS_SECTION_UPDATE, &firstname);
@@ -1868,6 +1944,8 @@ main(int argc, char **argv) {
 	style = &dns_master_style_debug;
 
 	input = stdin;
+
+	interactive = ISC_TF(isatty(0));
 
 	isc_app_start();
 

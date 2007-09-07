@@ -1,24 +1,25 @@
 /*
+ * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
- * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
- * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
- * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
- * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
- * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
- * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ * THE SOFTWARE IS PROVIDED "AS IS" AND ISC DISCLAIMS ALL WARRANTIES WITH
+ * REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+ * AND FITNESS.  IN NO EVENT SHALL ISC BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+ * LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE
+ * OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: resolver.c,v 1.218.2.24 2003/09/22 00:32:39 marka Exp $ */
+/* $Id: resolver.c,v 1.218.2.29 2004/03/09 06:11:07 marka Exp $ */
 
 #include <config.h>
 
+#include <isc/string.h>
 #include <isc/task.h>
 #include <isc/timer.h>
 #include <isc/util.h>
@@ -242,6 +243,7 @@ struct dns_resolver {
 	unsigned int			magic;
 	isc_mem_t *			mctx;
 	isc_mutex_t			lock;
+	isc_mutex_t			primelock;
 	dns_rdataclass_t		rdclass;
 	isc_socketmgr_t *		socketmgr;
 	isc_timermgr_t *		timermgr;
@@ -261,6 +263,7 @@ struct dns_resolver {
 	isc_eventlist_t			whenshutdown;
 	unsigned int			activebuckets;
 	isc_boolean_t			priming;
+	/* Locked by primelock. */
 	dns_fetch_t *			primefetch;
 };
 
@@ -1747,6 +1750,12 @@ possibly_mark(fetchctx_t *fctx, dns_adbaddrinfo_t *addr)
 		msg = "ignoring blackholed / bogus server: ";
 	} else if (sa->type.sa.sa_family != AF_INET6) {
 		return;
+	} else if (isc_sockaddr_ismulticast(sa)) {
+		addr->flags |= FCTX_ADDRINFO_MARK;
+		msg = "ignoring multicast address: ";
+	} else if (isc_sockaddr_isexperimental(sa)) {
+		addr->flags |= FCTX_ADDRINFO_MARK;
+		msg = "ignoring experimental address: ";
 	} else if (IN6_IS_ADDR_V4MAPPED(&sa->type.sin6.sin6_addr)) {
 		addr->flags |= FCTX_ADDRINFO_MARK;
 		msg = "ignoring IPv6 mapped IPV4 address: ";
@@ -3917,21 +3926,20 @@ answer_response(fetchctx_t *fctx) {
 				 * We could add an "else" clause here and
 				 * log that we're ignoring this rdataset.
 				 */
-				
-				/*
-				 * If wanted_chaining is true, we've done
-				 * some chaining as the result of processing
-				 * this node, and thus we need to set
-				 * chaining to true.
-				 *
-				 * We don't set chaining inside of the
-				 * rdataset loop because doing that would
-				 * cause us to ignore the signatures of
-				 * CNAMEs.
-				 */
-				if (wanted_chaining)
-					chaining = ISC_TRUE;
 			}
+			/*
+			 * If wanted_chaining is true, we've done
+			 * some chaining as the result of processing
+			 * this node, and thus we need to set
+			 * chaining to true.
+			 *
+			 * We don't set chaining inside of the
+			 * rdataset loop because doing that would
+			 * cause us to ignore the signatures of
+			 * CNAMEs.
+			 */
+			if (wanted_chaining)
+				chaining = ISC_TRUE;
 		} else {
 			/*
 			 * Look for a DNAME (or its SIG).  Anything else is
@@ -4069,7 +4077,7 @@ answer_response(fetchctx_t *fctx) {
 	/*
 	 * Did chaining end before we got the final answer?
 	 */
-	if (want_chaining) {
+	if (chaining) {
 		/*
 		 * Yes.  This may be a negative reply, so hand off
 		 * authority section processing to the noanswer code.
@@ -4677,6 +4685,7 @@ destroy(dns_resolver_t *res) {
 
 	RTRACE("destroy");
 
+	DESTROYLOCK(&res->primelock);
 	DESTROYLOCK(&res->lock);
 	for (i = 0; i < res->nbuckets; i++) {
 		INSIST(ISC_LIST_EMPTY(res->buckets[i].fctxs));
@@ -4811,11 +4820,18 @@ dns_resolver_create(dns_view_t *view,
 	if (result != ISC_R_SUCCESS)
 		goto cleanup_dispatches;
 
+	result = isc_mutex_init(&res->primelock);
+	if (result != ISC_R_SUCCESS)
+		goto cleanup_lock;
+
 	res->magic = RES_MAGIC;
 
 	*resp = res;
 
 	return (ISC_R_SUCCESS);
+
+ cleanup_lock:
+	DESTROYLOCK(&res->lock);
 
  cleanup_dispatches:
 	if (res->dispatchv6 != NULL)
@@ -4855,8 +4871,10 @@ prime_done(isc_task_t *task, isc_event_t *event) {
 
 	INSIST(res->priming);
 	res->priming = ISC_FALSE;
+	LOCK(&res->primelock);
 	fetch = res->primefetch;
 	res->primefetch = NULL;
+	UNLOCK(&res->primelock);
 
 	UNLOCK(&res->lock);
 
@@ -4877,7 +4895,6 @@ prime_done(isc_task_t *task, isc_event_t *event) {
 void
 dns_resolver_prime(dns_resolver_t *res) {
 	isc_boolean_t want_priming = ISC_FALSE;
-	dns_fetch_t *fetch;
 	dns_rdataset_t *rdataset;
 	isc_result_t result;
 
@@ -4917,21 +4934,21 @@ dns_resolver_prime(dns_resolver_t *res) {
 			return;
 		}
 		dns_rdataset_init(rdataset);
-		fetch = NULL;
+		LOCK(&res->primelock);
 		result = dns_resolver_createfetch(res, dns_rootname,
 						  dns_rdatatype_ns,
 						  NULL, NULL, NULL, 0,
 						  res->buckets[0].task,
 						  prime_done,
-						  res, rdataset, NULL, &fetch);
-		LOCK(&res->lock);
-		INSIST(res->priming);
-		INSIST(res->primefetch == NULL);
-		if (result == ISC_R_SUCCESS)
-			res->primefetch = fetch;
-		else
+						  res, rdataset, NULL,
+						  &res->primefetch);
+		UNLOCK(&res->primelock);
+		if (result != ISC_R_SUCCESS) {
+			LOCK(&res->lock);
+			INSIST(res->priming);
 			res->priming = ISC_FALSE;
-		UNLOCK(&res->lock);
+			UNLOCK(&res->lock);
+		}
 	}
 }
 

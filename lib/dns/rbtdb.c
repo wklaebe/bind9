@@ -1,21 +1,21 @@
 /*
+ * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
- * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
- * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
- * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
- * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
- * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
- * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ * THE SOFTWARE IS PROVIDED "AS IS" AND ISC DISCLAIMS ALL WARRANTIES WITH
+ * REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+ * AND FITNESS.  IN NO EVENT SHALL ISC BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+ * LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE
+ * OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rbtdb.c,v 1.168.2.13 2003/10/17 05:39:44 marka Exp $ */
+/* $Id: rbtdb.c,v 1.168.2.16 2004/03/09 06:11:04 marka Exp $ */
 
 /*
  * Principal Author: Bob Halley
@@ -23,6 +23,7 @@
 
 #include <config.h>
 
+#include <isc/event.h>
 #include <isc/mem.h>
 #include <isc/print.h>
 #include <isc/mutex.h>
@@ -30,10 +31,12 @@
 #include <isc/refcount.h>
 #include <isc/rwlock.h>
 #include <isc/string.h>
+#include <isc/task.h>
 #include <isc/util.h>
 
 #include <dns/db.h>
 #include <dns/dbiterator.h>
+#include <dns/events.h>
 #include <dns/fixedname.h>
 #include <dns/log.h>
 #include <dns/masterdump.h>
@@ -180,6 +183,7 @@ typedef struct {
 	rbtdb_version_t *		future_version;
 	rbtdb_versionlist_t		open_versions;
 	isc_boolean_t			overmem;
+	isc_task_t *			task;
 	/* Locked by tree_lock. */
 	dns_rbt_t *			tree;
 	isc_boolean_t			secure;
@@ -298,6 +302,9 @@ typedef struct rbtdb_dbiterator {
 #define IS_STUB(rbtdb)  (((rbtdb)->common.attributes & DNS_DBATTR_STUB)  != 0)
 #define IS_CACHE(rbtdb) (((rbtdb)->common.attributes & DNS_DBATTR_CACHE) != 0)
 
+static void free_rbtdb(dns_rbtdb_t *rbtdb, isc_boolean_t log,
+		       isc_event_t *event);
+
 /*
  * Locking
  *
@@ -341,10 +348,20 @@ attach(dns_db_t *source, dns_db_t **targetp) {
 }
 
 static void
-free_rbtdb(dns_rbtdb_t *rbtdb) {
+free_rbtdb_callback(isc_task_t *task, isc_event_t *event) {
+	dns_rbtdb_t *rbtdb = event->ev_arg;
+
+	UNUSED(task);
+
+	free_rbtdb(rbtdb, ISC_TRUE, event);
+}
+
+static void
+free_rbtdb(dns_rbtdb_t *rbtdb, isc_boolean_t log, isc_event_t *event) {
 	unsigned int i;
 	isc_ondestroy_t ondest;
-	isc_mem_t *mctx;
+	isc_result_t result;
+	char buf[DNS_NAME_FORMATSIZE];
 
 	REQUIRE(EMPTY(rbtdb->open_versions));
 	REQUIRE(rbtdb->future_version == NULL);
@@ -352,23 +369,53 @@ free_rbtdb(dns_rbtdb_t *rbtdb) {
 	if (rbtdb->current_version != NULL)
 		isc_mem_put(rbtdb->common.mctx, rbtdb->current_version,
 			    sizeof (rbtdb_version_t));
+ again:
+	if (rbtdb->tree != NULL) {
+		result = dns_rbt_destroy2(&rbtdb->tree,
+					  (rbtdb->task != NULL) ? 5 : 0);
+		if (result == ISC_R_QUOTA) {
+			INSIST(rbtdb->task != NULL);
+			if (event == NULL)
+				event = isc_event_allocate(rbtdb->common.mctx,
+							   NULL,
+							 DNS_EVENT_FREESTORAGE,
+							   free_rbtdb_callback,
+							   rbtdb,
+							   sizeof(isc_event_t));
+			if (event == NULL)
+				goto again;
+			isc_task_send(rbtdb->task, &event);
+			return;
+		}
+		INSIST(result == ISC_R_SUCCESS && rbtdb->tree == NULL);
+	}
+	if (event != NULL)
+		isc_event_free(&event);
+	if (log) {
+		if (dns_name_dynamic(&rbtdb->common.origin))
+			dns_name_format(&rbtdb->common.origin, buf,
+					sizeof(buf));
+		else
+			strcpy(buf, "<UNKNOWN>");
+		isc_log_write(dns_lctx, DNS_LOGCATEGORY_DATABASE,
+			      DNS_LOGMODULE_CACHE, ISC_LOG_DEBUG(1),
+			      "done free_rbtdb(%s)", buf);
+	}
 	if (dns_name_dynamic(&rbtdb->common.origin))
 		dns_name_free(&rbtdb->common.origin, rbtdb->common.mctx);
-	if (rbtdb->tree != NULL)
-		dns_rbt_destroy(&rbtdb->tree);
 	for (i = 0; i < rbtdb->node_lock_count; i++)
 		DESTROYLOCK(&rbtdb->node_locks[i].lock);
 	isc_mem_put(rbtdb->common.mctx, rbtdb->node_locks,
 		    rbtdb->node_lock_count * sizeof (rbtdb_nodelock_t));
 	isc_rwlock_destroy(&rbtdb->tree_lock);
 	isc_refcount_destroy(&rbtdb->references);
+	if (rbtdb->task != NULL)
+		isc_task_detach(&rbtdb->task);
 	DESTROYLOCK(&rbtdb->lock);
 	rbtdb->common.magic = 0;
 	rbtdb->common.impmagic = 0;
 	ondest = rbtdb->common.ondest;
-	mctx = rbtdb->common.mctx;
-	isc_mem_put(mctx, rbtdb, sizeof *rbtdb);
-	isc_mem_detach(&mctx);
+	isc_mem_putanddetach(&rbtdb->common.mctx, rbtdb, sizeof(*rbtdb));
 	isc_ondestroy_notify(&ondest, rbtdb);
 }
 
@@ -398,8 +445,18 @@ maybe_free_rbtdb(dns_rbtdb_t *rbtdb) {
 		if (rbtdb->active == 0)
 			want_free = ISC_TRUE;
 		UNLOCK(&rbtdb->lock);
-		if (want_free)
-			free_rbtdb(rbtdb);
+		if (want_free) {
+			char buf[DNS_NAME_FORMATSIZE];
+			if (dns_name_dynamic(&rbtdb->common.origin))
+				dns_name_format(&rbtdb->common.origin, buf,
+						sizeof(buf));
+			else
+				strcpy(buf, "<UNKNOWN>");
+			isc_log_write(dns_lctx, DNS_LOGCATEGORY_DATABASE,
+				      DNS_LOGMODULE_CACHE, ISC_LOG_DEBUG(1),
+				      "calling free_rbtdb(%s)", buf);
+			free_rbtdb(rbtdb, ISC_TRUE, NULL);
+		}
 	}
 }
 
@@ -3068,8 +3125,18 @@ detachnode(dns_db_t *db, dns_dbnode_t **targetp) {
 		if (rbtdb->active == 0)
 			want_free = ISC_TRUE;
 		UNLOCK(&rbtdb->lock);
-		if (want_free)
-			free_rbtdb(rbtdb);
+		if (want_free) {
+			char buf[DNS_NAME_FORMATSIZE];
+			if (dns_name_dynamic(&rbtdb->common.origin))
+				dns_name_format(&rbtdb->common.origin, buf,
+						sizeof(buf));
+			else
+				strcpy(buf, "<UNKNOWN>");
+			isc_log_write(dns_lctx, DNS_LOGCATEGORY_DATABASE,
+				      DNS_LOGMODULE_CACHE, ISC_LOG_DEBUG(1),
+				      "calling free_rbtdb(%s)", buf);
+			free_rbtdb(rbtdb, ISC_TRUE, NULL);
+		}
 	}
 }
 
@@ -3923,13 +3990,12 @@ addrdataset(dns_db_t *db, dns_dbnode_t *node, dns_dbversion_t *version,
 	newheader->type = RBTDB_RDATATYPE_VALUE(rdataset->type,
 						rdataset->covers);
 	newheader->attributes = 0;
+	newheader->trust = rdataset->trust;
 	if (rbtversion != NULL) {
 		newheader->serial = rbtversion->serial;
-		newheader->trust = 0;
 		now = 0;
 	} else {
 		newheader->serial = 1;
-		newheader->trust = rdataset->trust;
 		if ((rdataset->attributes & DNS_RDATASETATTR_NXDOMAIN) != 0)
 			newheader->attributes |= RDATASET_ATTR_NXDOMAIN;
 	}
@@ -4378,6 +4444,22 @@ nodecount(dns_db_t *db) {
 	return (count);
 }
 
+static void
+settask(dns_db_t *db, isc_task_t *task) {
+	dns_rbtdb_t *rbtdb;
+
+	rbtdb = (dns_rbtdb_t *)db;
+
+	REQUIRE(VALID_RBTDB(rbtdb));
+
+	LOCK(&rbtdb->lock);
+	if (rbtdb->task != NULL)
+		isc_task_detach(&rbtdb->task);
+	if (task != NULL)
+		isc_task_attach(task, &rbtdb->task);
+	UNLOCK(&rbtdb->lock);
+}
+
 static isc_boolean_t
 ispersistent(dns_db_t *db) {
 	UNUSED(db);
@@ -4410,7 +4492,8 @@ static dns_dbmethods_t zone_methods = {
 	issecure,
 	nodecount,
 	ispersistent,
-	overmem
+	overmem,
+	settask
 };
 
 static dns_dbmethods_t cache_methods = {
@@ -4439,7 +4522,8 @@ static dns_dbmethods_t cache_methods = {
 	issecure,
 	nodecount,
 	ispersistent,
-	overmem
+	overmem,
+	settask
 };
 
 isc_result_t
@@ -4540,7 +4624,7 @@ dns_rbtdb_create
 	 */
 	result = dns_name_dupwithoffsets(origin, mctx, &rbtdb->common.origin);
 	if (result != ISC_R_SUCCESS) {
-		free_rbtdb(rbtdb);
+		free_rbtdb(rbtdb, ISC_FALSE, NULL);
 		return (result);
 	}
 
@@ -4549,7 +4633,7 @@ dns_rbtdb_create
 	 */
 	result = dns_rbt_create(mctx, delete_callback, rbtdb, &rbtdb->tree);
 	if (result != ISC_R_SUCCESS) {
-		free_rbtdb(rbtdb);
+		free_rbtdb(rbtdb, ISC_FALSE, NULL);
 		return (result);
 	}
 	/*
@@ -4571,7 +4655,7 @@ dns_rbtdb_create
 					 &rbtdb->origin_node);
 		if (result != ISC_R_SUCCESS) {
 			INSIST(result != ISC_R_EXISTS);
-			free_rbtdb(rbtdb);
+			free_rbtdb(rbtdb, ISC_FALSE, NULL);
 			return (result);
 		}
 		/*
@@ -4597,6 +4681,7 @@ dns_rbtdb_create
 	rbtdb->attributes = 0;
 	rbtdb->secure = ISC_FALSE;
 	rbtdb->overmem = ISC_FALSE;
+	rbtdb->task = NULL;
 
 	/*
 	 * Version Initialization.
@@ -4606,7 +4691,7 @@ dns_rbtdb_create
 	rbtdb->next_serial = 2;
 	rbtdb->current_version = allocate_version(mctx, 1, 0, ISC_FALSE);
 	if (rbtdb->current_version == NULL) {
-		free_rbtdb(rbtdb);
+		free_rbtdb(rbtdb, ISC_FALSE, NULL);
 		return (ISC_R_NOMEMORY);
 	}
 	rbtdb->future_version = NULL;

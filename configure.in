@@ -1,19 +1,19 @@
+# Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
 # Copyright (C) 1998-2003  Internet Software Consortium.
 #
 # Permission to use, copy, modify, and distribute this software for any
 # purpose with or without fee is hereby granted, provided that the above
 # copyright notice and this permission notice appear in all copies.
 #
-# THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
-# DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
-# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
-# INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
-# INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
-# FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
-# NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
-# WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+# THE SOFTWARE IS PROVIDED "AS IS" AND ISC DISCLAIMS ALL WARRANTIES WITH
+# REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+# AND FITNESS.  IN NO EVENT SHALL ISC BE LIABLE FOR ANY SPECIAL, DIRECT,
+# INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+# LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE
+# OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+# PERFORMANCE OF THIS SOFTWARE.
 
-AC_REVISION($Revision: 1.294.2.24 $)
+AC_REVISION($Revision: 1.294.2.31 $)
 
 AC_INIT(lib/dns/name.c)
 AC_PREREQ(2.13)
@@ -187,9 +187,37 @@ fi
 
 AC_PROG_CC
 
+#
+# OS dependent CC flags
+#
+case "$host" in
+	# OSF 5.0: recv/send are only avaliable with -D_POSIX_PII_SOCKET or
+	# -D_XOPEN_SOURCE_EXTENDED.
+	*-dec-osf*)
+		STD_CDEFINES="$STD_CDEFINES -D_POSIX_PII_SOCKET"
+		CPPFLAGS="$CPPFLAGS -D_POSIX_PII_SOCKET"
+		;;
+	#HP-UX: need -D_XOPEN_SOURCE_EXTENDED and -lxnet for CMSG macros
+	*-hp-hpux*)
+		STD_CDEFINES="$STD_CDEFINES -D_XOPEN_SOURCE_EXTENDED"
+		CPPFLAGS="$CPPFLAGS -D_XOPEN_SOURCE_EXTENDED"
+		LIBS="-lxnet $LIBS"
+		;;
+	# Solaris: need -D_XPG4_2 and -D__EXTENSIONS__ for CMSG macros
+	*-solaris*)
+		STD_CDEFINES="$STD_CDEFINES -D_XPG4_2 -D__EXTENSIONS__"
+		CPPFLAGS="$CPPFLAGS -D_XPG4_2 -D__EXTENSIONS__"
+		;;
+esac
+
 AC_HEADER_STDC
 
-AC_CHECK_HEADERS(fcntl.h sys/time.h unistd.h sys/sockio.h sys/select.h sys/sysctl.h)
+AC_CHECK_HEADERS(fcntl.h sys/time.h unistd.h sys/sockio.h sys/select.h sys/param.h sys/sysctl.h,,,
+[$ac_includes_default
+#ifdef HAVE_SYS_PARAM_H
+# include <sys/param.h>
+#endif
+])
 
 AC_C_CONST
 AC_C_INLINE
@@ -308,7 +336,14 @@ case "$use_openssl" in
 		fi
 		USE_OPENSSL='-DOPENSSL'
 		DST_OPENSSL_INC="-I$use_openssl/include"
-		DNS_OPENSSL_LIBS="-L$use_openssl/lib -lcrypto"
+		case $host in
+		*-solaris*)
+			DNS_OPENSSL_LIBS="-L$use_openssl/lib -R$use_openssl/lib -lcrypto"
+			;;
+		*)
+			DNS_OPENSSL_LIBS="-L$use_openssl/lib -lcrypto"
+			;;
+		esac
 		AC_MSG_RESULT(using openssl from $use_openssl/lib and $use_openssl/include)
 
 		saved_cflags="$CFLAGS"
@@ -516,9 +551,14 @@ case $host in
         # UnixWare
 	use_threads=false ;;
 *-netbsd*)
-	# Socket I/O optimizations introduced in 9.2 expose a
-	# bug in unproven-pthreads; see PR #12650
-	use_threads=false ;;
+	if test -r /usr/lib/libpthread.so ; then
+	    use_threads=true
+	else
+	    # Socket I/O optimizations introduced in 9.2 expose a
+	    # bug in unproven-pthreads; see PR #12650
+	    use_threads=false
+	fi
+	;;
 *-openbsd*)
 	# OpenBSD users have reported that named dumps core on
 	# startup when built with threads.
@@ -593,21 +633,27 @@ then
 [linking with PTL2 is highly experimental and not expected to work])
 			CC=ptlgcc
 		else
-			if test ! -d $LOCALBASE/pthreads
+			if test -r /usr/lib/libpthread.so
 			then
-				AC_MSG_RESULT(none)
-				AC_MSG_ERROR("could not find thread libraries")
-			fi
+				AC_MSG_RESULT(native)
+				LIBS="-lpthread $LIBS"
+			else
+				if test ! -d $LOCALBASE/pthreads
+				then
+					AC_MSG_RESULT(none)
+					AC_MSG_ERROR("could not find thread libraries")
+				fi
 
-			if $use_threads
-			then
-				AC_MSG_RESULT(mit-pthreads/unproven-pthreads)
-				pkg="$LOCALBASE/pthreads"
-				lib1="-L$pkg/lib -Wl,-R$pkg/lib"
-				lib2="-lpthread -lm -lgcc -lpthread"
-				LIBS="$lib1 $lib2 $LIBS"
-				CPPFLAGS="$CPPFLAGS -I$pkg/include"
-				STD_CINCLUDES="$STD_CINCLUDES -I$pkg/include"
+				if $use_threads
+				then
+					AC_MSG_RESULT(mit-pthreads/unproven-pthreads)
+					pkg="$LOCALBASE/pthreads"
+					lib1="-L$pkg/lib -Wl,-R$pkg/lib"
+					lib2="-lpthread -lm -lgcc -lpthread"
+					LIBS="$lib1 $lib2 $LIBS"
+					CPPFLAGS="$CPPFLAGS -I$pkg/include"
+					STD_CINCLUDES="$STD_CINCLUDES -I$pkg/include"
+				fi
 			fi
 		fi
 		;;
@@ -902,6 +948,9 @@ case $use_libtool in
 		O=lo
 		A=la
 		LIBTOOL_MKDEP_SED='s;\.o;\.lo;'
+		LIBTOOL_MODE_COMPILE='--mode=compile'
+		LIBTOOL_MODE_INSTALL='--mode=install'
+		LIBTOOL_MODE_LINK='--mode=link'
 		;;
 	*)
 		O=o
@@ -909,6 +958,9 @@ case $use_libtool in
 		LIBTOOL=
 		AC_SUBST(LIBTOOL)
 		LIBTOOL_MKDEP_SED=
+		LIBTOOL_MODE_COMPILE=
+		LIBTOOL_MODE_INSTALL=
+		LIBTOOL_MODE_LINK=
 		;;
 esac
 
@@ -922,6 +974,9 @@ AC_SUBST(O)
 AC_SUBST(A)
 AC_SUBST(SA)
 AC_SUBST(LIBTOOL_MKDEP_SED)
+AC_SUBST(LIBTOOL_MODE_COMPILE)
+AC_SUBST(LIBTOOL_MODE_INSTALL)
+AC_SUBST(LIBTOOL_MODE_LINK)
 
 #
 # build libbind?
@@ -1484,6 +1539,11 @@ case "$enable_linux_caps" in
 		;;
 esac
 AC_CHECK_HEADERS(sys/prctl.h)
+
+#
+# Time Zone Stuff
+#
+AC_CHECK_FUNC(tzset, AC_DEFINE(HAVE_TZSET))
 
 #
 # BSD/OS, and perhaps some others, don't define rlim_t.

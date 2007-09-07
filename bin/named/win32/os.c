@@ -1,21 +1,21 @@
 /*
+ * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
- * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
- * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
- * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
- * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
- * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
- * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ * THE SOFTWARE IS PROVIDED "AS IS" AND ISC DISCLAIMS ALL WARRANTIES WITH
+ * REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+ * AND FITNESS.  IN NO EVENT SHALL ISC BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+ * LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE
+ * OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: os.c,v 1.5.2.3 2002/08/08 19:15:19 mayer Exp $ */
+/* $Id: os.c,v 1.5.2.6 2004/03/09 06:09:24 marka Exp $ */
 
 #include <config.h>
 #include <stdarg.h>
@@ -44,6 +44,7 @@
 
 
 static char *pidfile = NULL;
+static int devnullfd = -1;
 
 static BOOL Initialized = FALSE;
 
@@ -85,30 +86,38 @@ ns_os_init(const char *progname) {
 
 void
 ns_os_daemonize(void) {
-	int fd;
-
 	/*
 	 * Try to set stdin, stdout, and stderr to /dev/null, but press
 	 * on even if it fails.
-	 *
-	 * XXXMLG The close() calls here are unneeded on all but NetBSD, but
-	 * are harmless to include everywhere.  dup2() is supposed to close
-	 * the FD if it is in use, but unproven-pthreads-0.16 is broken
-	 * and will end up closing the wrong FD.  This will be fixed eventually,
-	 * and these calls will be removed.
 	 */
-	fd = open("NUL", O_RDWR, 0);
-	if (fd != -1) {
-		close(_fileno(stdin));
-		(void)_dup2(fd, _fileno(stdin));
-		close(_fileno(stdout));
-		(void)_dup2(fd, _fileno(stdout));
-		close(_fileno(stderr));
-		(void)_dup2(fd, _fileno(stderr));
-		if (fd != _fileno(stdin) &&
-		    fd != _fileno(stdout) &&
-		    fd != _fileno(stderr))
-			(void)close(fd);
+	if (devnullfd != -1) {
+		if (devnullfd != _fileno(stdin)) {
+			close(_fileno(stdin));
+			(void)_dup2(devnullfd, _fileno(stdin));
+		}
+		if (devnullfd != _fileno(stdout)) {
+			close(_fileno(stdout));
+			(void)_dup2(devnullfd, _fileno(stdout));
+		}
+		if (devnullfd != _fileno(stderr)) {
+			close(_fileno(stderr));
+			(void)_dup2(devnullfd, _fileno(stderr));
+		}
+	}
+}
+
+void
+ns_os_opendevnull(void) {
+	devnullfd = open("NUL", O_RDWR, 0);
+}
+
+void
+ns_os_closedevnull(void) {
+	if (devnullfd != _fileno(stdin) &&
+	    devnullfd != _fileno(stdout) &&
+	    devnullfd != _fileno(stderr)) {
+		close(devnullfd);
+		devnullfd = -1;
 	}
 }
 
@@ -225,3 +234,11 @@ ns_os_shutdown(void) {
 	cleanup_pidfile();
 	ntservice_shutdown();	/* This MUST be the last thing done */
 }
+
+void
+ns_os_tzset(void) {
+#ifdef HAVE_TZSET
+	tzset();
+#endif
+}
+

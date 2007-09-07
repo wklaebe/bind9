@@ -1,4 +1,5 @@
 /*
+ * Portions Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
  * Portions Copyright (C) 1999-2001, 2003  Internet Software Consortium.
  * Portions Copyright (C) 1995-2000 by Network Associates, Inc.
  *
@@ -6,20 +7,18 @@
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM AND
- * NETWORK ASSOCIATES DISCLAIM ALL WARRANTIES WITH REGARD TO THIS
- * SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
- * FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE CONSORTIUM OR NETWORK
- * ASSOCIATES BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR
- * CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
- * USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
- * OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
- * PERFORMANCE OF THIS SOFTWARE.
+ * THE SOFTWARE IS PROVIDED "AS IS" AND ISC AND NETWORK ASSOCIATES DISCLAIMS
+ * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS.  IN NO EVENT SHALL ISC BE LIABLE
+ * FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR
+ * IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
 /*
  * Principal Author: Brian Wellington
- * $Id: dst_api.c,v 1.88.2.4 2003/10/09 07:32:46 marka Exp $
+ * $Id: dst_api.c,v 1.88.2.6 2004/03/09 06:11:39 marka Exp $
  */
 
 #include <config.h>
@@ -695,22 +694,23 @@ dst_key_sigsize(const dst_key_t *key, unsigned int *n) {
 	REQUIRE(VALID_KEY(key));
 	REQUIRE(n != NULL);
 
+	/* XXXVIX this switch statement is too sparse to gen a jump table. */
 	switch (key->key_alg) {
-		case DST_ALG_RSAMD5:
-			*n = (key->key_size + 7) / 8;
-			break;
-		case DST_ALG_DSA:
-			*n = DNS_SIG_DSASIGSIZE;
-			break;
-		case DST_ALG_HMACMD5:
-			*n = 16;
-			break;
-		case DST_ALG_GSSAPI:
-			*n = 128; /* XXX */
-			break;
-		case DST_ALG_DH:
-		default:
-			return (DST_R_UNSUPPORTEDALG);
+	case DST_ALG_RSAMD5:
+		*n = (key->key_size + 7) / 8;
+		break;
+	case DST_ALG_DSA:
+		*n = DNS_SIG_DSASIGSIZE;
+		break;
+	case DST_ALG_HMACMD5:
+		*n = 16;
+		break;
+	case DST_ALG_GSSAPI:
+		*n = 128; /* XXX */
+		break;
+	case DST_ALG_DH:
+	default:
+		return (DST_R_UNSUPPORTEDALG);
 	}
 	return (ISC_R_SUCCESS);
 }
@@ -721,16 +721,10 @@ dst_key_secretsize(const dst_key_t *key, unsigned int *n) {
 	REQUIRE(VALID_KEY(key));
 	REQUIRE(n != NULL);
 
-	switch (key->key_alg) {
-		case DST_ALG_DH:
-			*n = (key->key_size + 7) / 8;
-			break;
-		case DST_ALG_RSAMD5:
-		case DST_ALG_DSA:
-		case DST_ALG_HMACMD5:
-		default:
-			return (DST_R_UNSUPPORTEDALG);
-	}
+	if (key->key_alg == DST_ALG_DH)
+		*n = (key->key_size + 7) / 8;
+	else
+		return (DST_R_UNSUPPORTEDALG);
 	return (ISC_R_SUCCESS);
 }
 

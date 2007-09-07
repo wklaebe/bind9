@@ -1,21 +1,21 @@
 /*
+ * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2001, 2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
- * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
- * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
- * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
- * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
- * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
- * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ * THE SOFTWARE IS PROVIDED "AS IS" AND ISC DISCLAIMS ALL WARRANTIES WITH
+ * REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+ * AND FITNESS.  IN NO EVENT SHALL ISC BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+ * LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE
+ * OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: db.h,v 1.67.2.2 2003/10/09 07:32:39 marka Exp $ */
+/* $Id: db.h,v 1.67.2.4 2004/03/09 06:11:14 marka Exp $ */
 
 #ifndef DNS_DB_H
 #define DNS_DB_H 1
@@ -144,6 +144,7 @@ typedef struct dns_dbmethods {
 	unsigned int	(*nodecount)(dns_db_t *db);
 	isc_boolean_t	(*ispersistent)(dns_db_t *db);
 	void		(*overmem)(dns_db_t *db, isc_boolean_t overmem);
+	void		(*settask)(dns_db_t *db, isc_task_t *);
 } dns_dbmethods_t;
 
 typedef isc_result_t
@@ -1170,6 +1171,16 @@ dns_db_nodecount(dns_db_t *db);
  *
  * Returns:
  * 	The number of nodes in the database
+ */
+
+void
+dns_db_settask(dns_db_t *db, isc_task_t *task);
+/*
+ * If task is set then the final detach maybe performed asynchronously.
+ *
+ * Requires:
+ *	'db' is a valid database.
+ *	'task' to be valid or NULL.
  */
 
 isc_boolean_t

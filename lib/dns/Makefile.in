@@ -1,19 +1,19 @@
+# Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
 # Copyright (C) 1998-2001, 2003  Internet Software Consortium.
 #
 # Permission to use, copy, modify, and distribute this software for any
 # purpose with or without fee is hereby granted, provided that the above
 # copyright notice and this permission notice appear in all copies.
 #
-# THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
-# DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
-# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
-# INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
-# INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
-# FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
-# NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
-# WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+# THE SOFTWARE IS PROVIDED "AS IS" AND ISC DISCLAIMS ALL WARRANTIES WITH
+# REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+# AND FITNESS.  IN NO EVENT SHALL ISC BE LIABLE FOR ANY SPECIAL, DIRECT,
+# INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+# LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE
+# OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+# PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: Makefile.in,v 1.126.2.4 2003/10/09 06:47:59 marka Exp $
+# $Id: Makefile.in,v 1.126.2.8 2004/03/09 06:10:58 marka Exp $
 
 srcdir =	@srcdir@
 VPATH =		@srcdir@
@@ -47,7 +47,7 @@ OPENSSLOBJS =	sec/dst/openssl_link.@O@ sec/dst/openssldh_link.@O@ \
 GSSAPIOBJS =	sec/dst/gssapi_link.@O@ sec/dst/gssapictx.@O@
 
 # Alphabetically
-OBJS =		a6.@O@ acl.@O@ adb.@O@ byaddr.@O@ \
+DNSOBJS =	a6.@O@ acl.@O@ adb.@O@ byaddr.@O@ \
 		cache.@O@ callbacks.@O@ compress.@O@ \
 		db.@O@ dbiterator.@O@ dbtable.@O@ diff.@O@ dispatch.@O@ \
 		dnssec.@O@ forward.@O@ journal.@O@ keytable.@O@ \
@@ -59,8 +59,9 @@ OBJS =		a6.@O@ acl.@O@ adb.@O@ byaddr.@O@ \
 		resolver.@O@ result.@O@ rootns.@O@ sdb.@O@ soa.@O@ ssu.@O@ \
 		stats.@O@ tcpmsg.@O@ time.@O@ timer.@O@ tkey.@O@ \
 		tsig.@O@ ttl.@O@ validator.@O@ \
-		version.@O@ view.@O@ xfrin.@O@ zone.@O@ zonekey.@O@ zt.@O@ \
-		${OTHEROBJS} ${DSTOBJS} ${OPENSSLOBJS} ${GSSAPIOBJS}
+		version.@O@ view.@O@ xfrin.@O@ zone.@O@ zonekey.@O@ zt.@O@
+
+OBJS =		${DNSOBJS} ${OTHEROBJS} ${DSTOBJS} ${OPENSSLOBJS} ${GSSAPIOBJS}
 
 # Alphabetically
 SRCS =		a6.c acl.c adb.c byaddr.c \
@@ -87,7 +88,7 @@ DEPENDEXTRA =	./gen -F include/dns/rdatastruct.h \
 @BIND9_MAKE_RULES@
 
 version.@O@: version.c
-	${LIBTOOL} ${CC} ${ALL_CFLAGS} \
+	${LIBTOOL_MODE_COMPILE} ${CC} ${ALL_CFLAGS} \
 		-DVERSION=\"${VERSION}\" \
 		-DLIBINTERFACE=${LIBINTERFACE} \
 		-DLIBREVISION=${LIBREVISION} \
@@ -99,17 +100,17 @@ libdns.@SA@: ${OBJS}
 	${RANLIB} $@
 
 libdns.la: ${OBJS}
-	${LIBTOOL} --mode=link \
+	${LIBTOOL_MODE_LINK} \
 		${CC} ${ALL_CFLAGS} -o libdns.la -rpath ${libdir} \
 		-version-info ${LIBINTERFACE}:${LIBREVISION}:${LIBAGE} \
-		${OBJS} ${LIBS} ${ISCLIBS}
+		${OBJS} ${ISCLIBS} @DNS_OPENSSL_LIBS@ ${LIBS}
 
 libdstcypto.@SA@: ${OPENSSLOBJS}
 	${AR} ${ARFLAGS} $@ ${OPENSSLOBJS}
 	${RANLIB} $@
 
 libdstcypto.la: ${OPENSSLOBJS}
-	${LIBTOOL} --mode=link \
+	${LIBTOOL_MODE_LINK} \
 		${CC} ${ALL_CFLAGS} -o $@ -rpath ${libdir} \
 		-version-info ${LIBINTERFACE}:${LIBREVISION}:${LIBAGE} \
 		${OPENSSLOBJS} ${LIBS}
@@ -119,7 +120,7 @@ libdstgssapi.@SA@: ${GSSAPIOBJS}
 	${RANLIB} $@
 
 libdstgssapi.la: ${GSSAPIOBJS}
-	${LIBTOOL} --mode=link \
+	${LIBTOOL_MODE_LINK} \
 		${CC} ${ALL_CFLAGS} -o $@ -rpath ${libdir} \
 		-version-info ${LIBINTERFACE}:${LIBREVISION}:${LIBAGE} \
 		${GSSAPIOBJS} ${LIBS}
@@ -131,7 +132,7 @@ installdirs:
 	$(SHELL) ${top_srcdir}/mkinstalldirs ${DESTDIR}${libdir}
 
 install:: timestamp installdirs
-	${LIBTOOL} ${INSTALL_DATA} libdns.@A@ ${DESTDIR}${libdir}
+	${LIBTOOL_MODE_INSTALL} ${INSTALL_DATA} libdns.@A@ ${DESTDIR}${libdir}
 
 clean distclean::
 	rm -f libdns.@A@ timestamp
@@ -172,3 +173,5 @@ depend: include/dns/enumtype.h include/dns/enumclass.h \
 	include/dns/rdatastruct.h code.h
 subdirs: include/dns/enumtype.h include/dns/enumclass.h \
 	include/dns/rdatastruct.h code.h
+${DNSOBJS}: include/dns/enumtype.h include/dns/enumclass.h \
+        include/dns/rdatastruct.h

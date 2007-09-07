@@ -1,21 +1,21 @@
 /*
+ * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
- * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
- * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
- * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
- * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
- * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
- * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ * THE SOFTWARE IS PROVIDED "AS IS" AND ISC DISCLAIMS ALL WARRANTIES WITH
+ * REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+ * AND FITNESS.  IN NO EVENT SHALL ISC BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+ * LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE
+ * OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: query.c,v 1.198.2.14 2003/09/02 02:27:53 marka Exp $ */
+/* $Id: query.c,v 1.198.2.17 2004/03/09 06:09:19 marka Exp $ */
 
 #include <config.h>
 
@@ -1939,6 +1939,7 @@ query_addbestns(ns_client_t *client) {
 			query_keepname(client, fname, dbuf);
 			zdb = db;
 			zfname = fname;
+			fname = NULL;
 			zrdataset = rdataset;
 			rdataset = NULL;
 			zsigrdataset = sigrdataset;
@@ -2706,6 +2707,7 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype) 
 				query_keepname(client, fname, dbuf);
 				zdb = db;
 				zfname = fname;
+				fname = NULL;
 				zrdataset = rdataset;
 				rdataset = NULL;
 				zsigrdataset = sigrdataset;
@@ -3796,7 +3798,8 @@ synth_rev_start(ns_client_t *client) {
 	result = dns_byaddr_create(client->mctx,
 				   &client->query.synth.na,
 				   client->view,
-				   0, client->task,
+				   DNS_BYADDROPT_IPV6NIBBLE,
+				   client->task,
 				   synth_rev_byaddrdone_arpa,
 				   client, &byaddr_dummy);
 	if (result == ISC_R_SUCCESS)
@@ -3822,7 +3825,8 @@ synth_rev_byaddrdone_arpa(isc_task_t *task, isc_event_t *event) {
 		result = dns_byaddr_create(client->mctx,
 					   &client->query.synth.na,
 					   client->view,
-					   DNS_BYADDROPT_IPV6NIBBLE,
+					   DNS_BYADDROPT_IPV6NIBBLE|
+					   DNS_BYADDROPT_IPV6INT,
 					   client->task,
 					   synth_rev_byaddrdone_int,
 					   client, &byaddr_dummy);

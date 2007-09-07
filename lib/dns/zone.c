@@ -1,21 +1,21 @@
 /*
+ * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
- * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
- * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
- * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
- * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
- * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
- * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ * THE SOFTWARE IS PROVIDED "AS IS" AND ISC DISCLAIMS ALL WARRANTIES WITH
+ * REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+ * AND FITNESS.  IN NO EVENT SHALL ISC BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+ * LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE
+ * OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: zone.c,v 1.333.2.23 2003/07/28 07:03:15 marka Exp $ */
+/* $Id: zone.c,v 1.333.2.31 2004/03/09 06:11:11 marka Exp $ */
 
 #include <config.h>
 
@@ -920,7 +920,10 @@ zone_load(dns_zone_t *zone, unsigned int flags) {
 		 * zone being reloaded.  Do nothing - the database
 		 * we already have is guaranteed to be up-to-date.
 		 */
-		result = ISC_R_SUCCESS;
+		if (zone->type == dns_zone_master)
+			result = DNS_R_DYNAMIC;
+		else
+			result = ISC_R_SUCCESS;
 		goto cleanup;
 	}
 		
@@ -995,6 +998,7 @@ zone_load(dns_zone_t *zone, unsigned int flags) {
 			     isc_result_totext(result));
 		goto cleanup;
 	}
+	dns_db_settask(db, zone->task);
 
 	if (! dns_db_ispersistent(db)) {
 		if (zone->masterfile != NULL) {
@@ -2696,6 +2700,12 @@ zone_notify(dns_zone_t *zone) {
 			UNLOCK_ZONE(zone);
 			return;
 		}
+		if (!loggednotify) {
+			notify_log(zone, ISC_LOG_INFO,
+				   "sending notifies (serial %u)",
+				   serial);
+			loggednotify = ISC_TRUE;
+		}
 		notify = NULL;
 	}
 	UNLOCK_ZONE(zone);
@@ -3551,11 +3561,11 @@ soa_query(isc_task_t *task, isc_event_t *event) {
 			      dns_result_totext(result));
 		goto cleanup;
 	}
-	if (key != NULL)
-		dns_tsigkey_detach(&key);
 	cancel = ISC_FALSE;
 
  cleanup:
+	if (key != NULL)
+		dns_tsigkey_detach(&key);
 	if (message != NULL)
 		dns_message_destroy(&message);
 	if (cancel)
@@ -3623,6 +3633,7 @@ ns_query(dns_zone_t *zone, dns_rdataset_t *soardataset, dns_stub_t *stub) {
 					     dns_result_totext(result));
 				goto cleanup;
 			}
+			dns_db_settask(stub->db, zone->task);
 		}
 
 		dns_db_newversion(stub->db, &stub->version);
@@ -4135,15 +4146,25 @@ dns_zone_notifyreceive(dns_zone_t *zone, isc_sockaddr_t *from,
 		return (ISC_R_SUCCESS);
 	}
 
-	for (i = 0; i < zone->masterscnt; i++)
+	isc_netaddr_fromsockaddr(&netaddr, from);
+	for (i = 0; i < zone->masterscnt; i++) {
 		if (isc_sockaddr_eqaddr(from, &zone->masters[i]))
 			break;
+		if (zone->view->aclenv.match_mapped &&
+		    IN6_IS_ADDR_V4MAPPED(&from->type.sin6.sin6_addr) &&
+		    isc_sockaddr_pf(&zone->masters[i]) == AF_INET) {
+			isc_netaddr_t na1, na2;
+			isc_netaddr_fromv4mapped(&na1, &netaddr);
+			isc_netaddr_fromsockaddr(&na2, &zone->masters[i]);
+			if (isc_netaddr_equal(&na1, &na2))
+				break;
+		}
+	}
 
 	/*
 	 * Accept notify requests from non masters if they are on
 	 * 'zone->notify_acl'.
 	 */
-	isc_netaddr_fromsockaddr(&netaddr, from);
 	if (i >= zone->masterscnt && zone->notify_acl != NULL &&
 	    dns_acl_match(&netaddr, NULL, zone->notify_acl,
 		    	  &zone->view->aclenv,
@@ -4552,6 +4573,8 @@ dns_zone_settask(dns_zone_t *zone, isc_task_t *task) {
 	if (zone->task != NULL)
 		isc_task_detach(&zone->task);
 	isc_task_attach(task, &zone->task);
+	if (zone->db != NULL)
+		dns_db_settask(zone->db, zone->task);
 	UNLOCK_ZONE(zone);
 }
 
@@ -4740,6 +4763,7 @@ zone_replacedb(dns_zone_t *zone, dns_db_t *db, isc_boolean_t dump) {
 	if (zone->db != NULL)
 		dns_db_detach(&zone->db);
 	dns_db_attach(db, &zone->db);
+	dns_db_settask(zone->db, zone->task);
 	DNS_ZONE_SETFLAG(zone, DNS_ZONEFLG_LOADED|DNS_ZONEFLG_NEEDNOTIFY);
 	return (ISC_R_SUCCESS);
 
@@ -4780,26 +4804,6 @@ zone_xfrdone(dns_zone_t *zone, isc_result_t result) {
 		 */
 		if (zone->db == NULL)
 			goto same_master;
-		/*
-		 * This is not neccessary if we just performed a AXFR
-		 * however it is necessary for an IXFR / UPTODATE and
-		 * won't hurt with an AXFR.
-		 */
-		if (zone->masterfile != NULL || zone->journal != NULL) {
-			result = ISC_R_FAILURE;
-			if (zone->journal != NULL)
-				result = isc_file_settime(zone->journal, &now);
-			if (result != ISC_R_SUCCESS &&
-			    zone->masterfile != NULL)
-				result = isc_file_settime(zone->masterfile,
-							  &now);
-			if (result != ISC_R_SUCCESS)
-				dns_zone_log(zone, ISC_LOG_ERROR,
-					     "transfer: could not set file "
-					     "modification time of '%s': %s",
-					     zone->masterfile,
-					     dns_result_totext(result));
-		}
 
 		/*
 		 * Update the zone structure's data from the actual
@@ -4851,6 +4855,31 @@ zone_xfrdone(dns_zone_t *zone, isc_result_t result) {
 		if (result == ISC_R_SUCCESS && xfrresult == ISC_R_SUCCESS)
 			dns_zone_log(zone, ISC_LOG_INFO,
 				     "transferred serial %u", zone->serial);
+
+		/*
+		 * This is not neccessary if we just performed a AXFR
+		 * however it is necessary for an IXFR / UPTODATE and
+		 * won't hurt with an AXFR.
+		 */
+		if (zone->masterfile != NULL || zone->journal != NULL) {
+			result = ISC_R_FAILURE;
+			if (zone->journal != NULL)
+				result = isc_file_settime(zone->journal, &now);
+			if (result != ISC_R_SUCCESS &&
+			    zone->masterfile != NULL)
+				result = isc_file_settime(zone->masterfile,
+							  &now);
+			/* Someone removed the file from underneath us! */
+			if (result == ISC_R_FILENOTFOUND &&
+			    zone->masterfile != NULL)
+				zone_needdump(zone, DNS_DUMP_DELAY);
+			else if (result != ISC_R_SUCCESS)
+				dns_zone_log(zone, ISC_LOG_ERROR,
+					     "transfer: could not set file "
+					     "modification time of '%s': %s",
+					     zone->masterfile,
+					     dns_result_totext(result));
+		}
 
 		break;
 

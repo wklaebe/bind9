@@ -1,21 +1,21 @@
 /*
+ * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
- * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
- * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
- * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
- * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
- * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
- * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ * THE SOFTWARE IS PROVIDED "AS IS" AND ISC DISCLAIMS ALL WARRANTIES WITH
+ * REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+ * AND FITNESS.  IN NO EVENT SHALL ISC BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+ * LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE
+ * OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: log.c,v 1.70.2.9 2003/09/17 05:20:04 marka Exp $ */
+/* $Id: log.c,v 1.70.2.12 2004/04/10 04:30:05 marka Exp $ */
 
 /* Principal Authors: DCL */
 
@@ -1316,7 +1316,7 @@ isc_log_open(isc_logchannel_t *channel) {
 	if (stat(path, &statbuf) == 0) {
 		regular_file = S_ISREG(statbuf.st_mode) ? ISC_TRUE : ISC_FALSE;
 		/* XXXDCL if not regular_file complain? */
-		roll = ISC_TF(regular_file &&
+		roll = ISC_TF(regular_file && FILE_MAXSIZE(channel) > 0 &&
 			      statbuf.st_size >= FILE_MAXSIZE(channel));
 	} else if (errno == ENOENT)
 		regular_file = ISC_TRUE;
@@ -1327,6 +1327,8 @@ isc_log_open(isc_logchannel_t *channel) {
 	 * Version control.
 	 */
 	if (result == ISC_R_SUCCESS && roll) {
+		if (FILE_VERSIONS(channel) == ISC_LOG_ROLLNEVER)
+			return (ISC_R_MAXSIZE);
 		result = roll_log(channel);
 		if (result != ISC_R_SUCCESS) {
 			if ((channel->flags & ISC_LOG_OPENERR) == 0) {
@@ -1672,6 +1674,7 @@ isc_log_doit(isc_log_t *lctx, isc_logcategory_t *category,
 			if (FILE_STREAM(channel) == NULL) {
 				result = isc_log_open(channel);
 				if (result != ISC_R_SUCCESS &&
+				    result != ISC_R_MAXSIZE &&
 				    (channel->flags & ISC_LOG_OPENERR) == 0) {
 					syslog(LOG_ERR,
 					       "isc_log_open '%s' failed: %s",
@@ -1707,7 +1710,7 @@ isc_log_doit(isc_log_t *lctx, isc_logcategory_t *category,
 			 * threshold, note it so that it will not be logged
 			 * to any more.
 			 */
-			if (FILE_MAXSIZE(channel) != 0) {
+			if (FILE_MAXSIZE(channel) > 0) {
 				INSIST(channel->type == ISC_LOG_TOFILE);
 
 				/* XXXDCL NT fstat/fileno */

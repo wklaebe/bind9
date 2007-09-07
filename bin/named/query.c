@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: query.c,v 1.257.18.28 2006/03/09 23:46:20 marka Exp $ */
+/* $Id: query.c,v 1.257.18.31 2006/05/26 02:48:26 marka Exp $ */
 
 /*! \file */
 
@@ -1761,8 +1761,6 @@ query_addadditional2(void *arg, dns_name_t *name, dns_rdatatype_t qtype) {
 	/* Find AAAA RRset with sig RRset */
 	result = dns_db_findrdataset(db, node, version, dns_rdatatype_aaaa,
 				     0, client->now, rdataset, sigrdataset);
-	/* The NXDOMAIN case should be covered above */
-	INSIST(result != DNS_R_NCACHENXDOMAIN);
 	/*
 	 * If we can't promote glue/pending from the cache to secure
 	 * then drop it.
@@ -1776,13 +1774,6 @@ query_addadditional2(void *arg, dns_name_t *name, dns_rdatatype_t qtype) {
 		if (dns_rdataset_isassociated(sigrdataset))
 			dns_rdataset_disassociate(sigrdataset);
 		result = ISC_R_NOTFOUND;
-	}
-	if (result == DNS_R_NCACHENXRRSET) {
-		dns_rdataset_disassociate(rdataset);
-		/*
-		 * Negative cache entries don't have sigrdatasets.
-		 */
-		INSIST(! dns_rdataset_isassociated(sigrdataset));
 	}
 	if (result == ISC_R_SUCCESS) {
 		ISC_LIST_APPEND(cfname.list, rdataset, link);
@@ -2958,17 +2949,31 @@ query_recurse(ns_client_t *client, dns_rdatatype_t qtype, dns_name_t *qdomain,
 		result = isc_quota_attach(&ns_g_server->recursionquota,
 					  &client->recursionquota);
 		if  (result == ISC_R_SOFTQUOTA) {
-			ns_client_log(client, NS_LOGCATEGORY_CLIENT,
-				      NS_LOGMODULE_QUERY, ISC_LOG_WARNING,
-				      "recursive-clients soft limit exceeded, "
-				      "aborting oldest query");
+			static isc_stdtime_t last = 0;
+			isc_stdtime_t now;
+			isc_stdtime_get(&now);
+			if (now != last) {
+				last = now;
+				ns_client_log(client, NS_LOGCATEGORY_CLIENT,
+					      NS_LOGMODULE_QUERY,
+					      ISC_LOG_WARNING,
+					      "recursive-clients soft limit "
+					      "exceeded, aborting oldest query");
+			}
 			ns_client_killoldestquery(client);
 			result = ISC_R_SUCCESS;
 		} else if (result == ISC_R_QUOTA) {
-			ns_client_log(client, NS_LOGCATEGORY_CLIENT,
-				      NS_LOGMODULE_QUERY, ISC_LOG_WARNING,
-				      "no more recursive clients: %s",
-				      isc_result_totext(result));
+			static isc_stdtime_t last = 0;
+			isc_stdtime_t now;
+			isc_stdtime_get(&now);
+			if (now != last) {
+				last = now;
+				ns_client_log(client, NS_LOGCATEGORY_CLIENT,
+					      NS_LOGMODULE_QUERY,
+					      ISC_LOG_WARNING,
+					      "no more recursive clients: %s",
+					      isc_result_totext(result));
+			}
 			ns_client_killoldestquery(client);
 		}
 		if (result == ISC_R_SUCCESS && !client->mortal &&
@@ -3486,9 +3491,10 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype)
 		}
 	}
 	if (result != ISC_R_SUCCESS) {
-		if (result == DNS_R_REFUSED)
-			QUERY_ERROR(DNS_R_REFUSED);
-		else
+		if (result == DNS_R_REFUSED) {
+			if (!PARTIALANSWER(client))
+				QUERY_ERROR(DNS_R_REFUSED);
+		} else
 			QUERY_ERROR(DNS_R_SERVFAIL);
 		goto cleanup;
 	}

@@ -14,7 +14,7 @@
  - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  - PERFORMANCE OF THIS SOFTWARE.
 -->
-<!-- $Id: Bv9ARM.ch03.html,v 1.35.18.18 2006/04/23 10:12:42 marka Exp $ -->
+<!-- $Id: Bv9ARM.ch03.html,v 1.35.18.20 2006/05/17 02:38:42 marka Exp $ -->
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
@@ -47,13 +47,13 @@
 <dl>
 <dt><span class="sect1"><a href="Bv9ARM.ch03.html#sample_configuration">Sample Configurations</a></span></dt>
 <dd><dl>
-<dt><span class="sect2"><a href="Bv9ARM.ch03.html#id2548734">A Caching-only Name Server</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch03.html#id2548750">An Authoritative-only Name Server</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch03.html#id2548733">A Caching-only Name Server</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch03.html#id2548749">An Authoritative-only Name Server</a></span></dt>
 </dl></dd>
-<dt><span class="sect1"><a href="Bv9ARM.ch03.html#id2548773">Load Balancing</a></span></dt>
-<dt><span class="sect1"><a href="Bv9ARM.ch03.html#id2549265">Name Server Operations</a></span></dt>
+<dt><span class="sect1"><a href="Bv9ARM.ch03.html#id2548772">Load Balancing</a></span></dt>
+<dt><span class="sect1"><a href="Bv9ARM.ch03.html#id2549264">Name Server Operations</a></span></dt>
 <dd><dl>
-<dt><span class="sect2"><a href="Bv9ARM.ch03.html#id2549270">Tools for Use With the Name Server Daemon</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch03.html#id2549269">Tools for Use With the Name Server Daemon</a></span></dt>
 <dt><span class="sect2"><a href="Bv9ARM.ch03.html#id2550907">Signals</a></span></dt>
 </dl></dd>
 </dl>
@@ -68,7 +68,7 @@
 <a name="sample_configuration"></a>Sample Configurations</h2></div></div></div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2548734"></a>A Caching-only Name Server</h3></div></div></div>
+<a name="id2548733"></a>A Caching-only Name Server</h3></div></div></div>
 <p>
           The following sample configuration is appropriate for a caching-only
           name server for use by clients internal to a corporation.  All
@@ -95,7 +95,7 @@ zone "0.0.127.in-addr.arpa" {
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2548750"></a>An Authoritative-only Name Server</h3></div></div></div>
+<a name="id2548749"></a>An Authoritative-only Name Server</h3></div></div></div>
 <p>
           This sample configuration is for an authoritative-only server
           that is the master server for "<code class="filename">example.com</code>"
@@ -137,7 +137,7 @@ zone "eng.example.com" {
 </div>
 <div class="sect1" lang="en">
 <div class="titlepage"><div><div><h2 class="title" style="clear: both">
-<a name="id2548773"></a>Load Balancing</h2></div></div></div>
+<a name="id2548772"></a>Load Balancing</h2></div></div></div>
 <p>
         A primitive form of load balancing can be achieved in
         the <span class="acronym">DNS</span> by using multiple A records for
@@ -280,10 +280,10 @@ zone "eng.example.com" {
 </div>
 <div class="sect1" lang="en">
 <div class="titlepage"><div><div><h2 class="title" style="clear: both">
-<a name="id2549265"></a>Name Server Operations</h2></div></div></div>
+<a name="id2549264"></a>Name Server Operations</h2></div></div></div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2549270"></a>Tools for Use With the Name Server Daemon</h3></div></div></div>
+<a name="id2549269"></a>Tools for Use With the Name Server Daemon</h3></div></div></div>
 <p>
           This section describes several indispensable diagnostic,
           administrative and monitoring tools available to the system
@@ -430,7 +430,7 @@ zone "eng.example.com" {
                   it will display a usage message as follows:
                 </p>
 <div class="cmdsynopsis"><p><code class="command">rndc</code>  [-c <em class="replaceable"><code>config</code></em>] [-s <em class="replaceable"><code>server</code></em>] [-p <em class="replaceable"><code>port</code></em>] [-y <em class="replaceable"><code>key</code></em>]  <em class="replaceable"><code>command</code></em>  [<em class="replaceable"><code>command</code></em>...]</p></div>
-<p><span><strong class="command">command</strong></span>
+<p>The <span><strong class="command">command</strong></span>
                   is one of the following:
                 </p>
 <div class="variablelist"><dl>
@@ -536,7 +536,7 @@ zone "eng.example.com" {
                         made through dynamic update or IXFR are first saved to
                         the master files of the updated zones.
                         If -p is specified named's process id is returned.
-                        This allows a external process to determine when named
+                        This allows an external process to determine when named
                         had completed stopping.
                       </p></dd>
 <dt><span class="term"><strong class="userinput"><code>halt [<span class="optional">-p</span>]</code></strong></span></dt>
@@ -546,7 +546,7 @@ zone "eng.example.com" {
                         the master files, but will be rolled forward from the
                         journal files when the server is restarted.
                         If -p is specified named's process id is returned.
-                        This allows a external process to determine when named
+                        This allows an external process to determine when named
                         had completed halting.
                       </p></dd>
 <dt><span class="term"><strong class="userinput"><code>trace</code></strong></span></dt>

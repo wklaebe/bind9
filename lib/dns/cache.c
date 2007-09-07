@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: cache.c,v 1.57.18.11 2006/01/26 23:07:49 marka Exp $ */
+/* $Id: cache.c,v 1.57.18.13 2006/05/16 03:57:15 marka Exp $ */
 
 /*! \file */
 
@@ -212,14 +212,15 @@ adjust_increment(cache_cleaner_t *cleaner, unsigned int remaining,
 	}
 
 	new = (names * interval);
-	new /= usecs;
+	new /= (usecs * 2);
 	if (new == 0)
 		new = 1;
-	else if (new > DNS_CACHE_CLEANERINCREMENT)
-		new = DNS_CACHE_CLEANERINCREMENT;
 
 	/* Smooth */
 	new = (new + cleaner->increment * 7) / 8;
+
+	if (new > DNS_CACHE_CLEANERINCREMENT)
+		new = DNS_CACHE_CLEANERINCREMENT;
 
 	cleaner->increment = (unsigned int)new;
 
@@ -855,7 +856,7 @@ incremental_cleaning_action(isc_task_t *task, isc_event_t *event) {
 			 * Either the end was reached (ISC_R_NOMORE) or
 			 * some error was signaled.  If the cache is still
 			 * overmem and no error was encountered,
-			 * keep trying to clean it, otherwise stop cleanng.
+			 * keep trying to clean it, otherwise stop cleaning.
 			 */
 			if (result != ISC_R_NOMORE)
 				UNEXPECTED_ERROR(__FILE__, __LINE__,

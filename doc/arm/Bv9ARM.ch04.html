@@ -14,7 +14,7 @@
  - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  - PERFORMANCE OF THIS SOFTWARE.
 -->
-<!-- $Id: Bv9ARM.ch04.html,v 1.40.18.25 2006/04/23 10:12:42 marka Exp $ -->
+<!-- $Id: Bv9ARM.ch04.html,v 1.40.18.27 2006/05/17 02:38:42 marka Exp $ -->
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
@@ -94,7 +94,7 @@
       </p>
 <div class="note" style="margin-left: 0.5in; margin-right: 0.5in;">
 <h3 class="title">Note</h3>
-        As slave zone can also be a master to other slaves, named,
+        As a slave zone can also be a master to other slaves, named,
         by default, sends <span><strong class="command">NOTIFY</strong></span> messages for every zone
         it loads.  Specifying <span><strong class="command">notify master-only;</strong></span> will
         cause named to only send <span><strong class="command">NOTIFY</strong></span> for master
@@ -347,7 +347,7 @@
 <p>
         Here is an example configuration for the setup we just
         described above. Note that this is only configuration information;
-        for information on how to configure your zone files, see <a href="Bv9ARM.ch03.html#sample_configuration" title="Sample Configurations">the section called &#8220;Sample Configurations&#8221;</a>
+        for information on how to configure your zone files, see <a href="Bv9ARM.ch03.html#sample_configuration" title="Sample Configurations">the section called &#8220;Sample Configurations&#8221;</a>.
       </p>
 <p>
         Internal DNS server config:
@@ -628,7 +628,7 @@ allow-update { key host1-host2. ;};
 <p>
           The processing of TSIG signed messages can result in
           several errors. If a signed message is sent to a non-TSIG aware
-          server, a FORMERR will be returned, since the server will not
+          server, a FORMERR (format error) will be returned, since the server will not
           understand the record. This is a result of misconfiguration,
           since the server must be explicitly configured to send a TSIG
           signed message to a specific server.
@@ -644,7 +644,7 @@ allow-update { key host1-host2. ;};
           the TSIG extended error code set to BADTIME, and the time values
           will be adjusted so that the response can be successfully
           verified. In any of these cases, the message's rcode is set to
-          NOTAUTH.
+          NOTAUTH (not authenticated).
         </p>
 </div>
 </div>
@@ -735,7 +735,7 @@ allow-update { key host1-host2. ;};
         There must also be communication with the administrators of
         the parent and/or child zone to transmit keys.  A zone's security
         status must be indicated by the parent zone for a DNSSEC capable
-        resolver to trust its data.  This is done through the presense
+        resolver to trust its data.  This is done through the presence
         or absence of a <code class="literal">DS</code> record at the
         delegation
         point.
@@ -852,12 +852,12 @@ allow-update { key host1-host2. ;};
           To enable <span><strong class="command">named</strong></span> to validate answers from
           other servers both <span><strong class="command">dnssec-enable</strong></span> and
           <span><strong class="command">dnssec-validate</strong></span> must be set and some
-          some <span><strong class="command">trusted-keys</strong></span> must be configured
+          <span><strong class="command">trusted-keys</strong></span> must be configured
           into <code class="filename">named.conf</code>.
         </p>
 <p>
           <span><strong class="command">trusted-keys</strong></span> are copies of DNSKEY RRs
-          for zones that are used to form the first link the the
+          for zones that are used to form the first link in the
           cryptographic chain of trust.  All keys listed in
           <span><strong class="command">trusted-keys</strong></span> (and corresponding zones)
           are deemed to exist and only the listed keys will be used
@@ -923,7 +923,7 @@ options {
 </pre>
 <div class="note" style="margin-left: 0.5in; margin-right: 0.5in;">
 <h3 class="title">Note</h3>
-          None of the keys listed in this example are valid.  In particular
+          None of the keys listed in this example are valid.  In particular,
           the root key is not valid.
         </div>
 </div>

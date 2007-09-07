@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: server.c,v 1.419.18.45 2006/05/03 01:46:40 marka Exp $ */
+/* $Id: server.c,v 1.419.18.47 2006/05/24 04:30:43 marka Exp $ */
 
 /*! \file */
 
@@ -1545,19 +1545,13 @@ configure_view(dns_view_t *view, const cfg_obj_t *config,
 	 * For now, there is only one kind of trusted keys, the
 	 * "security roots".
 	 */
-	if (view->enablednssec) {
-		CHECK(configure_view_dnsseckeys(vconfig, config, mctx,
-						&view->secroots));
-		dns_resolver_resetmustbesecure(view->resolver);
-		obj = NULL;
-		result = ns_config_get(maps, "dnssec-must-be-secure", &obj);
-		if (result == ISC_R_SUCCESS)
-			CHECK(mustbesecure(obj, view->resolver));
-	} else {
-		if (view->secroots != NULL)
-			dns_keytable_detach(&view->secroots);
-		dns_resolver_resetmustbesecure(view->resolver);
-	}
+	CHECK(configure_view_dnsseckeys(vconfig, config, mctx,
+					&view->secroots));
+	dns_resolver_resetmustbesecure(view->resolver);
+	obj = NULL;
+	result = ns_config_get(maps, "dnssec-must-be-secure", &obj);
+	if (result == ISC_R_SUCCESS)
+		CHECK(mustbesecure(obj, view->resolver));
 
 	obj = NULL;
 	result = ns_config_get(maps, "max-cache-ttl", &obj);
@@ -4027,20 +4021,29 @@ isc_result_t
 ns_server_refreshcommand(ns_server_t *server, char *args, isc_buffer_t *text) {
 	isc_result_t result;
 	dns_zone_t *zone = NULL;
-	const unsigned char msg[] = "zone refresh queued";
+	const unsigned char msg1[] = "zone refresh queued";
+	const unsigned char msg2[] = "not a slave or stub zone";
+	dns_zonetype_t type;
 
 	result = zone_from_args(server, args, &zone);
 	if (result != ISC_R_SUCCESS)
 		return (result);
 	if (zone == NULL)
 		return (ISC_R_UNEXPECTEDEND);
-	
-	dns_zone_refresh(zone);
-	dns_zone_detach(&zone);
-	if (sizeof(msg) <= isc_buffer_availablelength(text))
-		isc_buffer_putmem(text, msg, sizeof(msg));
 
-	return (ISC_R_SUCCESS);
+	type = dns_zone_gettype(zone);
+	if (type == dns_zone_slave || type == dns_zone_stub) {
+		dns_zone_refresh(zone);
+		dns_zone_detach(&zone);
+		if (sizeof(msg1) <= isc_buffer_availablelength(text))
+			isc_buffer_putmem(text, msg1, sizeof(msg1));
+		return (ISC_R_SUCCESS);
+	}
+		
+	dns_zone_detach(&zone);
+	if (sizeof(msg2) <= isc_buffer_availablelength(text))
+		isc_buffer_putmem(text, msg2, sizeof(msg2));
+	return (ISC_R_FAILURE);
 }	
 
 isc_result_t

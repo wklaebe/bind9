@@ -1,4 +1,52 @@
 
+	--- 9.4.0a6 released ---
+
+2032.	[bug]		Remove a INSIST in query_addadditional2(). [RT #16074]
+
+2031.	[bug]		Emit a error message when "rndc refresh" is called on
+			a non slave/stub zone. [RT # 16073]
+
+2030.	[bug]		We were being overly conservative when disabling
+			openssl engine support. [RT #16030]
+
+2029.	[bug]		host printed out the server multiple times when
+			specified on the command line. [RT #15992]
+
+2028.	[port]		linux: socket.c compatability for old systems.
+			[RT #16015]
+
+2027.	[port]		libbind: Solaris x86 support. [RT #16020]
+
+2026.	[bug]		Rate limit the two recursive client exceeded messages.
+			[RT #16044]
+
+2025.	[func]		Update "zone serial unchanged" message. [RT #16026]
+
+2024.	[bug]		named emited spurious "zone serial unchanged"
+			messages on reload. [RT #16027]
+
+2023.	[bug]		"make install" should create ${localstatedir}/run and
+			${sysconfdir} if they do not exist. [RT #16033]
+
+2022.	[bug]		If dnssec validation is disabled only assert CD if
+			CD was requested. [RT #16037]
+
+2021.	[bug]		dnssec-enable no; triggered a REQUIRE. [RT #16037]
+
+2020.	[bug]		rdataset_setadditional() could leak memory. [RT #16034]
+
+2019.	[tuning]	Reduce the amount of work performed per quantum
+			when cleaning the cache. [RT #15986]
+
+2018.	[bug]		Checking if the HMAC MD5 private file was broken.
+			[RT #15960]
+
+2017.	[bug]		allow-query default was not correct. [RT #15946]
+
+2016.	[bug]		Return a partial answer if recursion is not
+			allowed but requested and we had the answer
+			to the original qname. [RT #15945]
+
 	--- 9.4.0a5 released ---
 
 2015.	[cleanup]	use-additional-cache is now acache-enable for
@@ -159,7 +207,7 @@
 			Jason Vas Dias <jvdias@redhat.com>.
 
 1971.	[port]		linux: make detection of missing IF_NAMESIZE more
-                        robust. [RT #15443]
+			robust. [RT #15443]
 
 1970.	[bug]		nsupdate: adjust UDP timeout when falling back to
 			unsigned SOA query. [RT #15775]
@@ -748,14 +796,14 @@
 
 1779.	[port]		OSF 5.1: libtool didn't handle -pthread correctly.
 
-1778.   [port]   	HUX 11.11: fix broken IN6ADDR_ANY_INIT and
+1778.	[port]		HUX 11.11: fix broken IN6ADDR_ANY_INIT and
 			IN6ADDR_LOOPBACK_INIT macros.
 
-1777.   [port]   	OSF 5.1: fix broken IN6ADDR_ANY_INIT and
+1777.	[port]		OSF 5.1: fix broken IN6ADDR_ANY_INIT and
 			IN6ADDR_LOOPBACK_INIT macros.
 
-1776.   [port]   	Solaris 2.9: fix broken IN6ADDR_ANY_INIT and
-                        IN6ADDR_LOOPBACK_INIT macros.
+1776.	[port]		Solaris 2.9: fix broken IN6ADDR_ANY_INIT and
+			IN6ADDR_LOOPBACK_INIT macros.
 
 1775.	[bug]		Only compile getnetent_r.c when threaded. [RT #13205]
 

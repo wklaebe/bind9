@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,10 +15,11 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: lfsr.c,v 1.11.2.2.2.3 2004/03/08 09:04:49 marka Exp $ */
+/* $Id: lfsr.c,v 1.11.2.2.2.5 2005/06/09 23:54:30 marka Exp $ */
 
 #include <config.h>
 
+#include <stddef.h>
 #include <stdlib.h>
 
 #include <isc/assertions.h>

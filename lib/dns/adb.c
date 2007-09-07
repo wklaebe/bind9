@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: adb.c,v 1.181.2.11.2.20 2004/11/10 22:32:40 marka Exp $ */
+/* $Id: adb.c,v 1.181.2.11.2.22 2005/03/17 03:58:29 marka Exp $ */
 
 /*
  * Implementation notes
@@ -3347,7 +3347,7 @@ dns_adb_marklame(dns_adb_t *adb, dns_adbaddrinfo_t *addr, dns_name_t *zone,
 	bucket = addr->entry->lock_bucket;
 	LOCK(&adb->entrylocks[bucket]);
 	zi = ISC_LIST_HEAD(addr->entry->zoneinfo);
-	while (zi != NULL && dns_name_equal(zone, &zi->zone))
+	while (zi != NULL && !dns_name_equal(zone, &zi->zone))
 		zi = ISC_LIST_NEXT(zi, plink);
 	if (zi != NULL) {
 		if (expire_time > zi->lame_timer)

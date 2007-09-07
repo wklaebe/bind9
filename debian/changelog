@@ -1,3 +1,10 @@
+bind9 (1:9.3.2-P1.0-1) unstable; urgency=low
+
+  * Fix README.Debian to point to the URL.  Closes: #387437
+  * Strip rfc's from orig.tar.gz.  Closes: #393359
+
+ -- LaMont Jones <lamont@mmjgroup.com>  Mon, 16 Oct 2006 06:38:22 -0600
+
 bind9 (1:9.3.2-P1-2) unstable; urgency=low
 
   * Fix init script output.  Closes: #354192

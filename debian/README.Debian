@@ -96,7 +96,7 @@ various issues associated with making this the default configuration for the
 package in Debian.  In the meantime, reasonable instructions on how to do
 this yourself are available on the web from:
 
-	http://www.linuxdoc.org/HOWTO/Chroot-BIND-HOWTO.html
+	http://www.tldp.org/HOWTO/Chroot-BIND-HOWTO.html
 
 
 Running Non-Root:

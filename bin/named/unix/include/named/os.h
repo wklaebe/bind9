@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: os.h,v 1.22.18.3 2005/04/29 00:15:39 marka Exp $ */
+/* $Id: os.h,v 1.25 2005/04/29 00:22:34 marka Exp $ */
 
 #ifndef NS_OS_H
 #define NS_OS_H 1

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: types.h,v 1.21.18.2 2005/04/29 00:15:38 marka Exp $ */
+/* $Id: types.h,v 1.25 2006/12/22 01:59:43 marka Exp $ */
 
 #ifndef NAMED_TYPES_H
 #define NAMED_TYPES_H 1
@@ -28,6 +28,8 @@ typedef struct ns_client		ns_client_t;
 typedef struct ns_clientmgr		ns_clientmgr_t;
 typedef struct ns_query			ns_query_t;
 typedef struct ns_server 		ns_server_t;
+typedef struct ns_xmld			ns_xmld_t;
+typedef struct ns_xmldmgr		ns_xmldmgr_t;
 typedef struct ns_interface 		ns_interface_t;
 typedef struct ns_interfacemgr		ns_interfacemgr_t;
 typedef struct ns_lwresd		ns_lwresd_t;

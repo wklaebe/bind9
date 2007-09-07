@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: syslog.c,v 1.3.18.2 2005/04/29 00:17:09 marka Exp $ */
+/* $Id: syslog.c,v 1.5 2005/04/29 00:23:52 marka Exp $ */
 
 /*! \file */
 

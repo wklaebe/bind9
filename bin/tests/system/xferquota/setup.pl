@@ -15,7 +15,7 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: setup.pl,v 1.11.18.1 2004/11/23 05:24:46 marka Exp $
+# $Id: setup.pl,v 1.12 2004/11/23 05:23:42 marka Exp $
 
 #
 # Set up test data for zone transfer quota tests.

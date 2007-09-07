@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1998-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,12 +15,12 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: region.h,v 1.19.18.2 2005/04/29 00:17:01 marka Exp $ */
+/* $Id: region.h,v 1.23 2006/12/22 01:59:43 marka Exp $ */
 
 #ifndef ISC_REGION_H
 #define ISC_REGION_H 1
 
-/*! \file */
+/*! \file isc/region.h */
 
 #include <isc/types.h>
 

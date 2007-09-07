@@ -1,5 +1,5 @@
 /*
- * Portions Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
+ * Portions Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
  * Portions Copyright (C) 2001  Internet Software Consortium.
  * Portions Copyright (C) 2001  Nominum, Inc.
  *
@@ -16,12 +16,12 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: alist.h,v 1.3.18.2 2005/04/29 00:17:12 marka Exp $ */
+/* $Id: alist.h,v 1.7 2006/12/22 01:59:44 marka Exp $ */
 
 #ifndef ISCCC_ALIST_H
 #define ISCCC_ALIST_H 1
 
-/*! \file */
+/*! \file isccc/alist.h */
 
 #include <stdio.h>
 

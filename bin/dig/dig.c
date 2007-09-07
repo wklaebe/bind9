@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dig.c,v 1.186.18.28 2007/04/24 23:46:25 tbox Exp $ */
+/* $Id: dig.c,v 1.216 2007/04/03 23:06:39 marka Exp $ */
 
 /*! \file */
 

@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: socket.c,v 1.30.18.18 2007/06/18 03:08:56 marka Exp $ */
+/* $Id: socket.c,v 1.49 2007/03/06 01:50:48 marka Exp $ */
 
 /* This code has been rewritten to take advantage of Windows Sockets
  * I/O Completion Ports and Events. I/O Completion Ports is ONLY
@@ -77,7 +77,6 @@
 #include <isc/msgs.h>
 #include <isc/mutex.h>
 #include <isc/net.h>
-#include <isc/once.h>
 #include <isc/os.h>
 #include <isc/platform.h>
 #include <isc/print.h>
@@ -91,6 +90,8 @@
 #include <isc/win32os.h>
 
 #include "errno2result.h"
+
+#define ISC_SOCKET_NAMES 1
 
 /*
  * Define this macro to control the behavior of connection
@@ -224,6 +225,11 @@ struct isc_socket {
 	unsigned int		references;
 	SOCKET			fd;
 	int			pf;
+
+#ifdef ISC_SOCKET_NAMES   
+	char			name[16];
+	void *			tag;
+#endif
 
 	ISC_LIST(isc_socketevent_t)		send_list;
 	ISC_LIST(isc_socketevent_t)		recv_list;
@@ -905,11 +911,10 @@ socket_close(isc_socket_t *sock) {
 	}
 }
 
-static isc_once_t initialise_once = ISC_ONCE_INIT;
-static isc_boolean_t initialised = ISC_FALSE;
-
-static void
-initialise(void) {
+/*
+ * Initialize socket services
+ */
+BOOL InitSockets() {
 	WORD wVersionRequested;
 	WSADATA wsaData;
 	int err;
@@ -918,26 +923,11 @@ initialise(void) {
 	wVersionRequested = MAKEWORD(2, 0);
 
 	err = WSAStartup(wVersionRequested, &wsaData);
-	if (err != 0) {
-		char strbuf[ISC_STRERRORSIZE];
-		isc__strerror(err, strbuf, sizeof(strbuf));
-		FATAL_ERROR(__FILE__, __LINE__, "WSAStartup() %s: %s",
-			    isc_msgcat_get(isc_msgcat, ISC_MSGSET_GENERAL,
-					   ISC_MSG_FAILED, "failed"),
-			    strbuf);
-	} else
-		initialised = ISC_TRUE;
-}
-
-/*
- * Initialize socket services
- */
-void
-InitSockets(void) {
-	RUNTIME_CHECK(isc_once_do(&initialise_once,
-                                  initialise) == ISC_R_SUCCESS);
-	if (!initialised)
-		exit(1);
+	if ( err != 0 ) {
+		/* Tell the user that we could not find a usable Winsock DLL */
+		return(FALSE);
+	}
+	return(TRUE);
 }
 
 int
@@ -2792,8 +2782,6 @@ isc_socketmgr_create(isc_mem_t *mctx, isc_socketmgr_t **managerp) {
 	if (manager == NULL)
 		return (ISC_R_NOMEMORY);
 
-	InitSockets();
-
 	manager->magic = SOCKET_MANAGER_MAGIC;
 	manager->mctx = NULL;
 	ISC_LIST_INIT(manager->socklist);
@@ -3834,4 +3822,36 @@ isc_socket_permunix(isc_sockaddr_t *addr, isc_uint32_t perm,
 	UNUSED(owner);
 	UNUSED(group);
 	return (ISC_R_NOTIMPLEMENTED);
+}
+
+void
+isc_socket_setname(isc_socket_t *socket, const char *name, void *tag) {
+
+	/*
+	 * Name 'socket'.
+	 */
+
+	REQUIRE(VALID_SOCKET(socket));
+
+#ifdef ISC_SOCKET_NAMES
+	LOCK(&socket->lock);
+	memset(socket->name, 0, sizeof(socket->name));
+	strncpy(socket->name, name, sizeof(socket->name) - 1);
+	socket->tag = tag;
+	UNLOCK(&socket->lock);
+#else
+	UNUSED(name);
+	UNUSED(tag);
+#endif
+
+}
+
+const char *
+isc_socket_getname(isc_socket_t *socket) {
+	return (socket->name);
+}
+
+void *
+isc_socket_gettag(isc_socket_t *socket) {
+	return (socket->tag);
 }

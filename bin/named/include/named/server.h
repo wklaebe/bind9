@@ -15,21 +15,23 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: server.h,v 1.73.18.8 2006/03/09 23:46:20 marka Exp $ */
+/* $Id: server.h,v 1.85 2006/12/21 06:02:30 marka Exp $ */
 
 #ifndef NAMED_SERVER_H
 #define NAMED_SERVER_H 1
 
 /*! \file */
 
+#include <isc/httpd.h>
 #include <isc/log.h>
-#include <isc/sockaddr.h>
 #include <isc/magic.h>
-#include <isc/types.h>
 #include <isc/quota.h>
+#include <isc/sockaddr.h>
+#include <isc/types.h>
+#include <isc/xml.h>
 
-#include <dns/types.h>
 #include <dns/acl.h>
+#include <dns/types.h>
 
 #include <named/types.h>
 
@@ -97,6 +99,9 @@ struct ns_server {
 	ns_dispatchlist_t	dispatches;
 
 	dns_acache_t		*acache;
+
+	isc_httpdmgr_t		*httpd;
+	isc_sockaddr_t		httpd_sockaddr;
 };
 
 #define NS_SERVER_MAGIC			ISC_MAGIC('S','V','E','R')
@@ -202,6 +207,18 @@ ns_server_flushname(ns_server_t *server, char *args);
  */
 isc_result_t
 ns_server_status(ns_server_t *server, isc_buffer_t *text);
+
+/*%
+ * Report a list of dynamic and static tsig keys, per view.
+ */
+isc_result_t
+ns_server_tsiglist(ns_server_t *server, isc_buffer_t *text);
+
+/*%
+ * Delete a specific key (with optional view).
+ */
+isc_result_t
+ns_server_tsigdelete(ns_server_t *server, char *command, isc_buffer_t *text);
 
 /*%
  * Enable or disable updates for a zone.

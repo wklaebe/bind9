@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: time.c,v 1.26.18.3 2005/04/29 00:16:06 marka Exp $ */
+/* $Id: time.c,v 1.29 2005/04/29 00:22:52 marka Exp $ */
 
 /*! \file */
 

@@ -18,7 +18,7 @@
  * IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: getaddrinfo.c,v 1.43.18.6 2006/11/14 01:07:28 marka Exp $ */
+/* $Id: getaddrinfo.c,v 1.49 2006/11/14 01:07:29 marka Exp $ */
 
 /*! \file */
 

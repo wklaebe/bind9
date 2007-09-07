@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: lfsr_test.c,v 1.12.18.2 2005/04/29 00:15:46 marka Exp $ */
+/* $Id: lfsr_test.c,v 1.14 2005/04/29 00:22:41 marka Exp $ */
 
 /*! \file */
 #include <config.h>

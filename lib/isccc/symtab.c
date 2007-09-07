@@ -16,7 +16,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: symtab.c,v 1.5.18.2 2005/04/29 00:17:12 marka Exp $ */
+/* $Id: symtab.c,v 1.7 2005/04/29 00:23:57 marka Exp $ */
 
 /*! \file */
 

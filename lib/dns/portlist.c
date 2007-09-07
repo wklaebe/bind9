@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: portlist.c,v 1.6.18.5 2006/08/25 05:25:51 marka Exp $ */
+/* $Id: portlist.c,v 1.11 2006/08/25 05:25:52 marka Exp $ */
 
 /*! \file */
 

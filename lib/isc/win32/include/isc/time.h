@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2006  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1998-2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: time.h,v 1.27 2004/03/16 05:52:23 marka Exp $ */
+/* $Id: time.h,v 1.29 2006/12/22 01:59:44 marka Exp $ */
 
 #ifndef ISC_TIME_H
 #define ISC_TIME_H 1
@@ -243,6 +243,35 @@ isc_time_formattimestamp(const isc_time_t *t, char *buf, unsigned int len);
  *      'buf' points to an array of at least len chars
  *
  */
+
+void
+isc_time_formathttptimestamp(const isc_time_t *t, char *buf, unsigned int len);
+/*
+ * Format the time 't' into the buffer 'buf' of length 'len',
+ * using a format like "Mon, 30 Aug 2000 04:06:47 GMT"
+ * If the text does not fit in the buffer, the result is indeterminate,
+ * but is always guaranteed to be null terminated.
+ *
+ *  Requires:
+ *      'len' > 0
+ *      'buf' points to an array of at least len chars
+ *
+ */
+
+void
+isc_time_formatISO8601(const isc_time_t *t, char *buf, unsigned int len);
+/*%<
+ * Format the time 't' into the buffer 'buf' of length 'len',
+ * using the ISO8601 format: "yyyy-mm-ddThh:mm:ssZ"
+ * If the text does not fit in the buffer, the result is indeterminate,
+ * but is always guaranteed to be null terminated.
+ *
+ *  Requires:
+ *\li      'len' > 0
+ *\li      'buf' points to an array of at least len chars
+ *
+ */
+
 isc_uint32_t
 isc_time_seconds(const isc_time_t *t);
 

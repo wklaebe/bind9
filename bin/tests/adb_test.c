@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: adb_test.c,v 1.63.18.3 2005/06/23 23:51:47 marka Exp $ */
+/* $Id: adb_test.c,v 1.66 2005/06/23 23:49:35 marka Exp $ */
 
 /*! \file */
 

@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: keycreate.c,v 1.10.18.3 2005/11/30 23:52:53 marka Exp $ */
+/* $Id: keycreate.c,v 1.13 2005/11/30 23:52:54 marka Exp $ */
 
 #include <config.h>
 

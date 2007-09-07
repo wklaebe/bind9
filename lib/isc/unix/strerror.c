@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: strerror.c,v 1.4.18.2 2005/04/29 00:17:08 marka Exp $ */
+/* $Id: strerror.c,v 1.6 2005/04/29 00:23:52 marka Exp $ */
 
 /*! \file */
 

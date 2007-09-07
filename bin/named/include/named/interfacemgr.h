@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: interfacemgr.h,v 1.26.18.4 2005/04/27 05:00:35 sra Exp $ */
+/* $Id: interfacemgr.h,v 1.31 2005/07/18 05:58:57 marka Exp $ */
 
 #ifndef NAMED_INTERFACEMGR_H
 #define NAMED_INTERFACEMGR_H 1

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005, 2007  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: db.h,v 1.76.18.9 2007/03/06 02:12:08 tbox Exp $ */
+/* $Id: db.h,v 1.88 2007/03/06 02:12:39 tbox Exp $ */
 
 #ifndef DNS_DB_H
 #define DNS_DB_H 1
@@ -24,7 +24,7 @@
  ***** Module Info
  *****/
 
-/*! \file
+/*! \file dns/db.h
  * \brief
  * The DNS DB interface allows named rdatasets to be stored and retrieved.
  *
@@ -146,6 +146,8 @@ typedef struct dns_dbmethods {
 	void		(*overmem)(dns_db_t *db, isc_boolean_t overmem);
 	void		(*settask)(dns_db_t *db, isc_task_t *);
 	isc_result_t	(*getoriginnode)(dns_db_t *db, dns_dbnode_t **nodep);
+	void		(*transfernode)(dns_db_t *db, dns_dbnode_t **sourcep,
+				        dns_dbnode_t **targetp);
 } dns_dbmethods_t;
 
 typedef isc_result_t
@@ -881,6 +883,27 @@ dns_db_detachnode(dns_db_t *db, dns_dbnode_t **nodep);
  * Ensures:
  *
  * \li	*nodep is NULL.
+ */
+
+void
+dns_db_transfernode(dns_db_t *db, dns_dbnode_t **sourcep, 
+                    dns_dbnode_t **targetp);
+/*%<
+ * Transfer a node between pointer.
+ *
+ * This is equivalent to calling dns_db_attachnode() then dns_db_detachnode().
+ *
+ * Requires:
+ *
+ * \li	'db' is a valid database.
+ *
+ * \li	'*sourcep' is a valid node.
+ *
+ * \li	'targetp' points to a NULL dns_dbnode_t *.
+ *
+ * Ensures:
+ *
+ * \li	'*sourcep' is NULL.
  */
 
 isc_result_t

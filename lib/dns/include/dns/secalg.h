@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,12 +15,12 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: secalg.h,v 1.13.18.2 2005/04/29 00:16:21 marka Exp $ */
+/* $Id: secalg.h,v 1.17 2006/12/22 01:59:43 marka Exp $ */
 
 #ifndef DNS_SECALG_H
 #define DNS_SECALG_H 1
 
-/*! \file */
+/*! \file dns/secalg.h */
 
 #include <isc/lang.h>
 

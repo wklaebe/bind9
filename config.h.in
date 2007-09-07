@@ -16,7 +16,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: config.h.in,v 1.60.18.24 2007/02/12 00:54:52 marka Exp $ */
+/* $Id: config.h.in,v 1.88 2007/02/12 00:50:01 marka Exp $ */
 
 /*! \file */
 
@@ -163,6 +163,12 @@ int sigwait(const unsigned int *set, int *sig);
 /* Define to 1 if you have the <fcntl.h> header file. */
 #undef HAVE_FCNTL_H
 
+/* Define to 1 if you have the <gssapi/gssapi.h> header file. */
+#undef HAVE_GSSAPI_GSSAPI_H
+
+/* Define to 1 if you have the <gssapi.h> header file. */
+#undef HAVE_GSSAPI_H
+
 /* Define to 1 if you have the <inttypes.h> header file. */
 #undef HAVE_INTTYPES_H
 
@@ -186,6 +192,9 @@ int sigwait(const unsigned int *set, int *sig);
 
 /* Define to 1 if you have the `thr' library (-lthr). */
 #undef HAVE_LIBTHR
+
+/* Define if libxml2 was found */
+#undef HAVE_LIBXML2
 
 /* Define to 1 if you have the <linux/capability.h> header file. */
 #undef HAVE_LINUX_CAPABILITY_H

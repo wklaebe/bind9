@@ -15,12 +15,12 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: check.h,v 1.2.18.4 2006/03/02 00:37:21 marka Exp $ */
+/* $Id: check.h,v 1.7 2006/12/22 01:44:59 marka Exp $ */
 
 #ifndef BIND9_CHECK_H
 #define BIND9_CHECK_H 1
 
-/*! \file */
+/*! \file bind9/check.h */
 
 #include <isc/lang.h>
 #include <isc/types.h>

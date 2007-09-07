@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2001-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: controlconf.c,v 1.40.18.10 2006/12/07 04:53:02 marka Exp $ */
+/* $Id: controlconf.c,v 1.53 2007/02/14 00:27:26 marka Exp $ */
 
 /*! \file */
 
@@ -603,6 +603,7 @@ control_newconn(isc_task_t *task, isc_event_t *event) {
 	}
 
 	sock = nevent->newsocket;
+	isc_socket_setname(sock, "control", NULL);
 	(void)isc_socket_getpeername(sock, &peeraddr);
 	if (listener->type == isc_sockettype_tcp &&
 	    !address_ok(&peeraddr, listener->acl)) {
@@ -1149,6 +1150,8 @@ add_listener(ns_controls_t *cp, controllistener_t **listenerp,
 		result = isc_socket_create(ns_g_socketmgr,
 					   isc_sockaddr_pf(&listener->address),
 					   type, &listener->sock);
+	if (result == ISC_R_SUCCESS)
+		isc_socket_setname(listener->sock, "control", NULL);
 
 	if (result == ISC_R_SUCCESS)
 		result = isc_socket_bind(listener->sock,

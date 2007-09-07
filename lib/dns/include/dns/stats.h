@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000, 2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,12 +15,12 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: stats.h,v 1.5.18.4 2005/06/27 00:20:03 marka Exp $ */
+/* $Id: stats.h,v 1.11 2006/12/22 01:59:43 marka Exp $ */
 
 #ifndef DNS_STATS_H
 #define DNS_STATS_H 1
 
-/*! \file */
+/*! \file dns/stats.h */
 
 #include <dns/types.h>
 

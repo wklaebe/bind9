@@ -50,7 +50,7 @@
 
 /*%
  *	@(#)resolv.h	8.1 (Berkeley) 6/2/93
- *	$Id: resolv.h,v 1.19.18.3 2005/08/25 04:43:51 marka Exp $
+ *	$Id: resolv.h,v 1.23 2005/08/25 04:41:46 marka Exp $
  */
 
 #ifndef _RESOLV_H_

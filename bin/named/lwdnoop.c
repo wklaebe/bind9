@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: lwdnoop.c,v 1.7.18.2 2005/04/29 00:15:25 marka Exp $ */
+/* $Id: lwdnoop.c,v 1.9 2005/04/29 00:22:28 marka Exp $ */
 
 /*! \file */
 

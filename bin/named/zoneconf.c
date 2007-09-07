@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: zoneconf.c,v 1.110.18.23 2006/05/16 03:39:57 marka Exp $ */
+/* $Id: zoneconf.c,v 1.135 2006/12/04 01:52:45 marka Exp $ */
 
 /*% */
 
@@ -158,6 +158,14 @@ configure_zone_ssutable(const cfg_obj_t *zconfig, dns_zone_t *zone) {
 			mtype = DNS_SSUMATCHTYPE_SELFSUB;
 		else if (strcasecmp(str, "selfwild") == 0)
 			mtype = DNS_SSUMATCHTYPE_SELFWILD;
+		else if (strcasecmp(str, "ms-self") == 0)
+			mtype = DNS_SSUMATCHTYPE_SELFMS;
+		else if (strcasecmp(str, "krb5-self") == 0)
+			mtype = DNS_SSUMATCHTYPE_SELFKRB5;
+		else if (strcasecmp(str, "ms-subdomain") == 0)
+			mtype = DNS_SSUMATCHTYPE_SUBDOMAINMS;
+		else if (strcasecmp(str, "krb5-subdomain") == 0)
+			mtype = DNS_SSUMATCHTYPE_SUBDOMAINKRB5;
 		else
 			INSIST(0);
 
@@ -876,6 +884,10 @@ ns_zone_configure(const cfg_obj_t *config, const cfg_obj_t *vconfig,
 			alt = cfg_obj_asboolean(obj);
 		dns_zone_setoption(zone, DNS_ZONEOPT_USEALTXFRSRC, alt);
 
+		obj = NULL;
+		(void)ns_config_get(maps, "try-tcp-refresh", &obj);
+		dns_zone_setoption(zone, DNS_ZONEOPT_TRYTCPREFRESH,
+				   cfg_obj_asboolean(obj));
 		break;
 
 	default:

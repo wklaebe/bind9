@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000, 2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: entropy.h,v 1.25.18.2 2005/04/29 00:16:54 marka Exp $ */
+/* $Id: entropy.h,v 1.30 2006/12/22 01:45:00 marka Exp $ */
 
 #ifndef ISC_ENTROPY_H
 #define ISC_ENTROPY_H 1
@@ -24,7 +24,7 @@
  ***** Module Info
  *****/
 
-/*! \file entropy.h
+/*! \file isc/entropy.h
  * \brief The entropy API
  *
  * \li MP:
@@ -265,6 +265,13 @@ void
 isc_entropy_stats(isc_entropy_t *ent, FILE *out);
 /*!<
  * \brief Dump some (trivial) stats to the stdio stream "out".
+ */
+
+unsigned int
+isc_entropy_status(isc_entropy_t *end);
+/*
+ * Returns the number of bits the pool currently contains.  This is just
+ * an estimate.
  */
 
 isc_result_t

@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: errno2result.c,v 1.9.18.3 2005/09/01 03:04:30 marka Exp $ */
+/* $Id: errno2result.c,v 1.12 2005/09/01 02:25:02 marka Exp $ */
 
 #include <config.h>
 

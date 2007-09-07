@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2006  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000, 2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: netdb.h,v 1.3 2004/03/05 05:13:35 marka Exp $ */
+/* $Id: netdb.h,v 1.5 2006/12/22 01:59:44 marka Exp $ */
 
 #ifndef LWRES_NETDB_H
 #define LWRES_NETDB_H 1
@@ -47,7 +47,7 @@ struct addrinfo {
 #endif
 
 /*
- * Undefine all #defines we are interested in as <netdb.h> may or may not have
+ * Undefine all \#defines we are interested in as <netdb.h> may or may not have
  * defined them.
  */
 

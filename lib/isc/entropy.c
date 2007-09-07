@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: entropy.c,v 1.11.18.3 2005/07/12 01:22:28 marka Exp $ */
+/* $Id: entropy.c,v 1.16 2006/12/05 00:13:48 marka Exp $ */
 
 /*! \file
  * \brief
@@ -1100,6 +1100,17 @@ isc_entropy_stats(isc_entropy_t *ent, FILE *out) {
 	LOCK(&ent->lock);
 	dumpstats(ent, out);
 	UNLOCK(&ent->lock);
+}
+
+unsigned int
+isc_entropy_status(isc_entropy_t *ent) {
+	unsigned int estimate;
+
+	LOCK(&ent->lock);
+	estimate = ent->pool.entropy;
+	UNLOCK(&ent->lock);
+
+	return estimate;
 }
 
 void

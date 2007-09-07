@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: t_timers.c,v 1.23.18.1 2004/06/21 06:45:18 marka Exp $ */
+/* $Id: t_timers.c,v 1.24 2004/06/21 05:36:41 marka Exp $ */
 
 #include <config.h>
 

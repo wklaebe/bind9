@@ -50,8 +50,12 @@ options {
         use-ixfr <boolean>;
         version ( <quoted_string> | none );
         flush-zones-on-shutdown <boolean>;
+        stats-server <addrport4>;
+        stats-server-v6 <addrport6>;
         allow-query-cache { <address_match_element>; ... };
+        allow-query-cache-on { <address_match_element>; ... };
         allow-recursion { <address_match_element>; ... };
+        allow-recursion-on { <address_match_element>; ... };
         allow-v6-synthesis { <address_match_element>; ... }; // obsolete
         sortlist { <address_match_element>; ... };
         topology { <address_match_element>; ... }; // not implemented
@@ -101,7 +105,11 @@ options {
         empty-zones-enable <boolean>;
         disable-empty-zone <string>;
         zero-no-soa-ttl-cache <boolean>;
+        use-queryport-pool <boolean>;
+        queryport-pool-ports <integer>;
+        queryport-pool-updateinterval <integer>;
         allow-query { <address_match_element>; ... };
+        allow-query-on { <address_match_element>; ... };
         allow-transfer { <address_match_element>; ... };
         allow-update { <address_match_element>; ... };
         allow-update-forwarding { <address_match_element>; ... };
@@ -147,6 +155,7 @@ options {
         check-sibling <boolean>;
         zero-no-soa-ttl <boolean>;
         update-check-ksk <boolean>;
+        try-tcp-refresh <boolean>;
 };
 
 controls {
@@ -195,12 +204,13 @@ view <string> <optional_class> {
                 pubkey <integer> <integer> <integer> <quoted_string>; //
                     obsolete
                 update-policy { ( grant | deny ) <string> ( name |
-                    subdomain | wildcard | self | selfsub | selfwild ) <string> <rrtypelist>; ... };
+                    subdomain | wildcard | self | selfsub | selfwild | krb5-self | ms-self | krb5-subdomain | ms-subdomain ) <string> <rrtypelist>; ... };
                 database <string>;
                 delegation-only <boolean>;
                 check-names ( fail | warn | ignore );
                 ixfr-from-differences <boolean>;
                 allow-query { <address_match_element>; ... };
+                allow-query-on { <address_match_element>; ... };
                 allow-transfer { <address_match_element>; ... };
                 allow-update { <address_match_element>; ... };
                 allow-update-forwarding { <address_match_element>; ... };
@@ -250,6 +260,7 @@ view <string> <optional_class> {
                 check-sibling <boolean>;
                 zero-no-soa-ttl <boolean>;
                 update-check-ksk <boolean>;
+                try-tcp-refresh <boolean>;
         };
         dlz <string> {
                 database <string>;
@@ -279,7 +290,9 @@ view <string> <optional_class> {
         trusted-keys { <string> <integer> <integer> <integer>
             <quoted_string>; ... };
         allow-query-cache { <address_match_element>; ... };
+        allow-query-cache-on { <address_match_element>; ... };
         allow-recursion { <address_match_element>; ... };
+        allow-recursion-on { <address_match_element>; ... };
         allow-v6-synthesis { <address_match_element>; ... }; // obsolete
         sortlist { <address_match_element>; ... };
         topology { <address_match_element>; ... }; // not implemented
@@ -329,7 +342,11 @@ view <string> <optional_class> {
         empty-zones-enable <boolean>;
         disable-empty-zone <string>;
         zero-no-soa-ttl-cache <boolean>;
+        use-queryport-pool <boolean>;
+        queryport-pool-ports <integer>;
+        queryport-pool-updateinterval <integer>;
         allow-query { <address_match_element>; ... };
+        allow-query-on { <address_match_element>; ... };
         allow-transfer { <address_match_element>; ... };
         allow-update { <address_match_element>; ... };
         allow-update-forwarding { <address_match_element>; ... };
@@ -375,6 +392,7 @@ view <string> <optional_class> {
         check-sibling <boolean>;
         zero-no-soa-ttl <boolean>;
         update-check-ksk <boolean>;
+        try-tcp-refresh <boolean>;
         database <string>;
 };
 
@@ -401,12 +419,13 @@ zone <string> <optional_class> {
             <integer>] | <ipv6_address> [port <integer>] ) [ key <string> ]; ... };
         pubkey <integer> <integer> <integer> <quoted_string>; // obsolete
         update-policy { ( grant | deny ) <string> ( name | subdomain |
-            wildcard | self | selfsub | selfwild ) <string> <rrtypelist>; ... };
+            wildcard | self | selfsub | selfwild | krb5-self | ms-self | krb5-subdomain | ms-subdomain ) <string> <rrtypelist>; ... };
         database <string>;
         delegation-only <boolean>;
         check-names ( fail | warn | ignore );
         ixfr-from-differences <boolean>;
         allow-query { <address_match_element>; ... };
+        allow-query-on { <address_match_element>; ... };
         allow-transfer { <address_match_element>; ... };
         allow-update { <address_match_element>; ... };
         allow-update-forwarding { <address_match_element>; ... };
@@ -452,6 +471,7 @@ zone <string> <optional_class> {
         check-sibling <boolean>;
         zero-no-soa-ttl <boolean>;
         update-check-ksk <boolean>;
+        try-tcp-refresh <boolean>;
 };
 
 dlz <string> {

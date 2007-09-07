@@ -16,7 +16,7 @@
  */
 
 #if !defined(LINT) && !defined(CODECENTER)
-static const char rcsid[] = "$Id: irp.c,v 1.6.18.3 2006/03/10 00:20:08 marka Exp $";
+static const char rcsid[] = "$Id: irp.c,v 1.9 2006/03/09 23:57:56 marka Exp $";
 #endif
 
 /* Imports */

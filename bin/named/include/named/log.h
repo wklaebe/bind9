@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: log.h,v 1.21.18.2 2005/04/29 00:15:35 marka Exp $ */
+/* $Id: log.h,v 1.23 2005/04/29 00:22:30 marka Exp $ */
 
 #ifndef NAMED_LOG_H
 #define NAMED_LOG_H 1

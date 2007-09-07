@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dst_test.c,v 1.38.18.3 2005/11/30 23:52:53 marka Exp $ */
+/* $Id: dst_test.c,v 1.41 2005/11/30 23:52:54 marka Exp $ */
 
 #include <config.h>
 

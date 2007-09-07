@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: errno2result.h,v 1.6.18.2 2005/06/09 23:55:10 marka Exp $ */
+/* $Id: errno2result.h,v 1.8 2005/06/10 00:00:58 marka Exp $ */
 
 #ifndef UNIX_ERRNO2RESULT_H
 #define UNIX_ERRNO2RESULT_H 1

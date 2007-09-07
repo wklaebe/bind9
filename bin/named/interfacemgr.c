@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: interfacemgr.c,v 1.76.18.8 2006/07/20 01:10:30 marka Exp $ */
+/* $Id: interfacemgr.c,v 1.88 2007/02/13 02:49:08 marka Exp $ */
 
 /*! \file */
 
@@ -304,6 +304,7 @@ ns_interface_accepttcp(ns_interface_t *ifp) {
 				 isc_result_totext(result));
 		goto tcp_socket_failure;
 	}
+	isc_socket_setname(ifp->tcpsocket, "dispatcher", NULL);
 #ifndef ISC_ALLOW_MAPPED
 	isc_socket_ipv6only(ifp->tcpsocket, ISC_TRUE);
 #endif
@@ -802,7 +803,9 @@ do_scan(ns_interfacemgr_t *mgr, ns_listenlist_t *ext_listen,
 					(void)dns_acl_match(&listen_netaddr,
 							    NULL, ele->acl,
 							    NULL, &match, NULL);
-					if (match > 0 && ele->port == le->port)
+					if (match > 0 &&
+					    (ele->port == le->port ||
+					    ele->port == 0))
 						break;
 					else
 						match = 0;

@@ -48,7 +48,7 @@
  * SUCH DAMAGE.
  */
 
-/* $Id: gen-win32.h,v 1.16.18.5 2006/10/03 23:50:51 marka Exp $ */
+/* $Id: gen-win32.h,v 1.21 2006/10/03 23:50:52 marka Exp $ */
 
 /*! \file
  * \author Principal Authors: Computer Systems Research Group at UC Berkeley

@@ -15,7 +15,7 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: stop.pl,v 1.6.18.4 2006/03/05 23:58:51 marka Exp $
+# $Id: stop.pl,v 1.10 2006/03/05 23:58:52 marka Exp $
 
 # Framework for stopping test servers
 # Based on the type of server specified, signal the server to stop, wait

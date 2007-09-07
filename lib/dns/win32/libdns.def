@@ -164,7 +164,6 @@ dns_dispatch_detach
 dns_dispatch_getlocaladdress
 dns_dispatch_getsocket
 dns_dispatch_getudp
-dns_dispatch_hash
 dns_dispatch_importrecv
 dns_dispatch_removeresponse
 dns_dispatch_starttcp
@@ -488,6 +487,7 @@ dns_resolver_algorithm_supported
 dns_resolver_attach
 dns_resolver_cancelfetch
 dns_resolver_create
+dns_resolver_createdispatchpool
 dns_resolver_createfetch
 dns_resolver_createfetch2
 dns_resolver_destroyfetch
@@ -498,6 +498,7 @@ dns_resolver_dispatchv4
 dns_resolver_dispatchv6
 dns_resolver_freeze
 dns_resolver_getlamettl
+dns_resolver_getoptions
 dns_resolver_getudpsize
 dns_resolver_getzeronosoattl
 dns_resolver_nrunning
@@ -579,6 +580,7 @@ dns_ttl_totext
 dns_validator_cancel
 dns_validator_create
 dns_validator_destroy
+dns_validator_send
 dns_view_adddelegationonly
 dns_view_addzone
 dns_view_attach
@@ -610,6 +612,7 @@ dns_view_simplefind
 dns_view_weakattach
 dns_view_weakdetach
 dns_viewlist_find
+dns_viewlist_findzone
 dns_xfrin_attach
 dns_xfrin_create
 dns_xfrin_detach
@@ -716,6 +719,7 @@ dns_zone_setnotifytype
 dns_zone_setoption
 dns_zone_setorigin
 dns_zone_setqueryacl
+dns_zone_setqueryonacl
 dns_zone_setsigvalidityinterval
 dns_zone_setssutable
 dns_zone_setstatistics

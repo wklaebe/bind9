@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,12 +15,12 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: types.h,v 1.35.18.2 2005/04/29 00:17:04 marka Exp $ */
+/* $Id: types.h,v 1.41 2006/12/22 01:59:43 marka Exp $ */
 
 #ifndef ISC_TYPES_H
 #define ISC_TYPES_H 1
 
-/*! \file
+/*! \file isc/types.h
  * \brief
  * OS-specific types, from the OS-specific include directories.
  */
@@ -52,6 +52,9 @@ typedef ISC_LIST(isc_event_t)		isc_eventlist_t;	/*%< Event List */
 typedef unsigned int			isc_eventtype_t;	/*%< Event Type */
 typedef isc_uint32_t			isc_fsaccess_t;		/*%< FS Access */
 typedef struct isc_hash			isc_hash_t;		/*%< Hash */
+typedef struct isc_httpd		isc_httpd_t;		/*%< HTTP client */
+typedef struct isc_httpdmgr		isc_httpdmgr_t;		/*%< HTTP manager */
+typedef struct isc_httpdurl		isc_httpdurl_t;		/*%< HTTP URL */
 typedef struct isc_interface		isc_interface_t;	/*%< Interface */
 typedef struct isc_interfaceiter	isc_interfaceiter_t;	/*%< Interface Iterator */
 typedef struct isc_interval		isc_interval_t;		/*%< Interval */
@@ -86,6 +89,17 @@ typedef struct isc_timer		isc_timer_t;		/*%< Timer */
 typedef struct isc_timermgr		isc_timermgr_t;		/*%< Timer Manager */
 
 typedef void (*isc_taskaction_t)(isc_task_t *, isc_event_t *);
+typedef int (*isc_sockfdwatch_t)(isc_task_t *, isc_socket_t *, void *);
+typedef void (isc_httpdfree_t)(isc_buffer_t *, void *);	/*%< HTTP free function */
+typedef isc_result_t (isc_httpdaction_t)(const char *url,
+					 const char *querystring,
+					 void *arg,
+					 unsigned int *retcode,
+					 const char **retmsg,
+					 const char **mimetype,
+					 isc_buffer_t *body,
+					 isc_httpdfree_t **freecb,
+					 void **freecb_args);
 
 /*% Resource */
 typedef enum {

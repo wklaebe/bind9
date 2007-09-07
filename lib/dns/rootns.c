@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rootns.c,v 1.26.18.3 2005/04/27 05:01:26 sra Exp $ */
+/* $Id: rootns.c,v 1.29 2005/04/27 04:56:51 sra Exp $ */
 
 /*! \file */
 

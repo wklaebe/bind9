@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: base64.c,v 1.28.18.2 2005/04/29 00:16:44 marka Exp $ */
+/* $Id: base64.c,v 1.30 2005/04/29 00:23:22 marka Exp $ */
 
 /*! \file */
 

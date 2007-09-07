@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,12 +15,12 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: ttl.h,v 1.13.18.2 2005/04/29 00:16:24 marka Exp $ */
+/* $Id: ttl.h,v 1.17 2006/12/22 01:59:43 marka Exp $ */
 
 #ifndef DNS_TTL_H
 #define DNS_TTL_H 1
 
-/*! \file */
+/*! \file dns/ttl.h */
 
 /***
  ***	Imports

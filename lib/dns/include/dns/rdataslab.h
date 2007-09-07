@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,12 +15,12 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rdataslab.h,v 1.25.18.2 2005/04/29 00:16:19 marka Exp $ */
+/* $Id: rdataslab.h,v 1.29 2006/12/22 01:59:43 marka Exp $ */
 
 #ifndef DNS_RDATASLAB_H
 #define DNS_RDATASLAB_H 1
 
-/*! \file
+/*! \file dns/rdataslab.h
  * \brief
  * Implements storage of rdatasets into slabs of memory.
  *

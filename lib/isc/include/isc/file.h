@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000, 2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,12 +15,12 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: file.h,v 1.27.18.2 2005/04/29 00:16:54 marka Exp $ */
+/* $Id: file.h,v 1.31 2006/12/22 01:59:43 marka Exp $ */
 
 #ifndef ISC_FILE_H
 #define ISC_FILE_H 1
 
-/*! \file */
+/*! \file isc/file.h */
 
 #include <stdio.h>
 

@@ -14,7 +14,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: paths.h,v 1.1.6.2 2007/05/16 23:46:24 tbox Exp $ */
+/* $Id: paths.h,v 1.2 2007/05/16 23:46:54 tbox Exp $ */
 
 #define _PATH_DEVNULL "/dev/null"
 

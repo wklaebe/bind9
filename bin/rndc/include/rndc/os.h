@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: os.h,v 1.5.18.2 2005/04/29 00:15:41 marka Exp $ */
+/* $Id: os.h,v 1.7 2005/04/29 00:22:36 marka Exp $ */
 
 /*! \file */
 

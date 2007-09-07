@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: zt.c,v 1.38.18.5 2005/11/30 03:44:39 marka Exp $ */
+/* $Id: zt.c,v 1.45 2006/12/22 01:59:43 marka Exp $ */
 
 /*! \file */
 
@@ -63,7 +63,8 @@ static isc_result_t
 freezezones(dns_zone_t *zone, void *uap);
 
 isc_result_t
-dns_zt_create(isc_mem_t *mctx, dns_rdataclass_t rdclass, dns_zt_t **ztp) {
+dns_zt_create(isc_mem_t *mctx, dns_rdataclass_t rdclass, dns_zt_t **ztp)
+{
 	dns_zt_t *zt;
 	isc_result_t result;
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2007  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2006  Internet Systems Consortium, Inc. ("ISC")
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -14,28 +14,17 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: socket.c,v 1.1.4.2 2007/06/18 23:46:33 tbox Exp $ */
+/* */
+#ifndef IN_1_DHCID_49_H
+#define IN_1_DHCID_49_H 1
 
-#include <stdio.h>
-#include <lwres/platform.h>
-#include <Winsock2.h>
+/* $Id: dhcid_49.h,v 1.3 2006/12/07 23:57:59 marka Exp $ */
 
-void
-InitSockets(void) {
-	WORD wVersionRequested;
-	WSADATA wsaData;
-	int err;
- 
-	wVersionRequested = MAKEWORD(2, 0);
- 
-	err = WSAStartup( wVersionRequested, &wsaData );
-	if (err != 0) {
-		fprintf(stderr, "WSAStartup() failed: %d\n", err);
-		exit(1);
-	}
-}
+typedef struct dns_rdata_in_dhcid {
+	dns_rdatacommon_t	common;
+	isc_mem_t		*mctx;
+	unsigned char		*dhcid;
+	unsigned int		length;
+} dns_rdata_in_dhcid_t;
 
-void
-DestroySockets(void) {
-	WSACleanup();
-}
+#endif /* IN_1_DHCID_49_H */

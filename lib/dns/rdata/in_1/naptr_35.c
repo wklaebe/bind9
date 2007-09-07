@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: naptr_35.c,v 1.47.18.2 2005/04/29 00:16:42 marka Exp $ */
+/* $Id: naptr_35.c,v 1.49 2005/04/29 00:23:20 marka Exp $ */
 
 /* Reviewed: Thu Mar 16 16:52:50 PST 2000 by bwelling */
 

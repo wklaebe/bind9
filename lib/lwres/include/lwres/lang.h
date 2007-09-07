@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000, 2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,12 +15,12 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: lang.h,v 1.7.18.2 2005/04/29 00:17:21 marka Exp $ */
+/* $Id: lang.h,v 1.11 2006/12/22 01:59:44 marka Exp $ */
 
 #ifndef LWRES_LANG_H
 #define LWRES_LANG_H 1
 
-/*! \file */
+/*! \file lwres/lang.h */
 
 #ifdef __cplusplus
 #define LWRES_LANG_BEGINDECLS	extern "C" {

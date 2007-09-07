@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,12 +15,12 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: magic.h,v 1.12.18.2 2005/04/29 00:16:59 marka Exp $ */
+/* $Id: magic.h,v 1.16 2006/12/22 01:59:43 marka Exp $ */
 
 #ifndef ISC_MAGIC_H
 #define ISC_MAGIC_H 1
 
-/*! \file */
+/*! \file isc/magic.h */
 
 typedef struct {
 	unsigned int magic;

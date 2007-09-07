@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: acconfig.h,v 1.44.18.5 2005/04/29 00:15:20 marka Exp $ */
+/* $Id: acconfig.h,v 1.49 2005/04/29 00:22:24 marka Exp $ */
 
 /*! \file */
 

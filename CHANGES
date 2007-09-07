@@ -1,46 +1,5 @@
 
-	--- 9.4.2b1 released ---
-
-2206.	[security]	"allow-query-cache" and "allow-recursion" now
-			cross inherit from each other.
-
-			If allow-query-cache is not set in named.conf then
-			allow-recursion is used if set, otherwise allow-query
-			is used if set, otherwise the default (localnets;
-			localhost;) is used.
-
-			If allow-recursion is not set in named.conf then
-			allow-query-cache is used if set, otherwise allow-query
-			is used if set, otherwise the default (localnets;
-			localhost;) is used.
-
-			[RT #16987]
-	
-2205.	[bug]		libbind: change #2119 broke thread support. [RT #16982]
-
-2203.	[security]	Query id generation was cryptographically weak.
-			[RT # 16915]
-
-2202.	[security]	The default acls for allow-query-cache and 
-			allow-recursion were not being applied. [RT #16960]
-
-2200.	[bug]		The search for cached NSEC records was stopping to
-			early leading to excessive DLV queries. [RT #16930]
-
-2199.	[bug]		win32: don't call WSAStartup() while loading dlls.
-			[RT #16911]
-
-2198.	[bug]		win32: RegCloseKey() could be called when
-			RegOpenKeyEx() failed. [RT #16911]
-
-2197.	[bug]		Add INSIST to catch negative responses which are
-			not setting the event result code appropriately.
-			[RT #16909]
-
-2196.	[port]		win32: yield processor while waiting for once to
-			to complete. [RT #16958]
-
-2194.	[bug]		Close journal before calling 'done' in xfrin.c.
+	--- 9.5.0a5 released ---
 
 2193.	[port]		win32: BINDInstall.exe is now linked statically.
 			[RT #16906]
@@ -48,6 +7,17 @@
 2192.	[port]		win32: use vcredist_x86.exe to install Visual
 			Studio's redistributable dlls if building with
 			Visual Stdio 2005 or later.
+
+2191.	[func]		named-checkzone now allows dumping to stdout (-).
+			named-checkconf now has -h for help.
+			named-checkzone now has -h for help.
+			rndc now has -h for help.
+			Better handling of '-?' for usage summaries.
+			[RT #16707]
+
+2190.	[func]		Make fallback to plain DNS from EDNS due to timeouts
+			more visible.  New logging category "edns-disabled".
+			[RT #16871]
 
 2189.	[bug]		Handle socket() returning EINTR. [RT #15949]
 
@@ -64,6 +34,9 @@
 2185.	[port]		sunos: libbind: check for ssize_t, memmove() and
 			memchr(). [RT #16463]
 
+2184.	[bug]		bind9.xsl.h didn't build out of the source tree.
+			[RT #16830]
+
 2183.	[bug]		dnssec-signzone didn't handle offline private keys
 			well.  [RT #16832]
 
@@ -75,6 +48,9 @@
 
 2180.	[cleanup]	Remove bit test from 'compress_test' as they
 			are no longer needed. [RT #16497]
+
+2179.	[func]		'rndc command zone' will now find 'zone' if it is
+			unique to all the views. [RT #16821]
 
 2178.	[bug]		'rndc reload' of a slave or stub zone resulted in
 			a reference leak. [RT #16867]
@@ -94,6 +70,11 @@
 2173.	[port]		win32: When compiling with MSVS 2005 SP1 we also
 			need to ship Microsoft.VC80.MFCLOC.
 
+	--- 9.5.0a4 released ---
+
+2172.	[bug]		query_addsoa() was being called with a non zone db.
+			[RT #16834]
+
 2171.	[bug]		Handle breaks in DNSSEC trust chains where the parent
 			servers are not DS aware (DS queries to the parent
 			return a referral to the child).
@@ -110,26 +91,42 @@
 2167.	[bug]		When re-using a automatic zone named failed to
 			attach it to the new view. [RT #16786]
 
+	--- 9.5.0a3 released ---
+
 2166.	[bug]		When running in batch mode, dig could misinterpret
 			a server address as a name to be looked up, causing
 			unexpected output. [RT #16743]
+
+2165.	[func]		Allow the destination address of a query to determine
+			if we will answer the query or recurse.
+			allow-query-on, allow-recursion-on and
+			allow-query-cache-on. [RT #16291]
 
 2164.	[bug]		The code to determine how named-checkzone / 
 			named-compilezone was called failed under windows.
 			[RT #16764]
 
+2163.	[bug]		If only one of query-source and query-source-v6
+			specified a port the query pools code broke (change
+			2129).  [RT #16768]
+
 2162.	[func]		Allow "rrset-order fixed" to be disabled at compile
 			time. [RT #16665]
 
-2161.	[bug]		'rndc flush' could report a false success. [RT #16698]
+2161.	[bug]		Fix which log messages are emitted for 'rndc flush'.
+			[RT #16698]
 
 2160.	[bug]		libisc wasn't handling NULL ifa_addr pointers returned
 			from getifaddrs(). [RT #16708]
+
+	--- 9.5.0a2 released ---
 
 2159.	[bug]		Array bounds overrun in acache processing. [RT #16710]
 
 2158.	[bug]		ns_client_isself() failed to initialise key
 			leading to a REQUIRE failure. [RT #16688]
+
+2157.	[func]		dns_db_transfernode() created. [RT #16685]
 
 2156.	[bug]		Fix node reference leaks in lookup.c:lookup_find(),
 			resolver.c:validated() and resolver.c:cache_name().
@@ -139,6 +136,9 @@
 
 2155.	[contrib]	SQLite sdb module from jaboydjr@netwalk.com.
 			[RT #16694]
+
+2154.	[func]		Scoped (e.g. IPv6 link-local) addresses may now be
+			matched in acls by omitting the scope. [RT #16599]
 
 2153.	[bug]		nsupdate could leak memory. [RT #16691]
 
@@ -155,6 +155,8 @@
 2149.	[bug]		isc_mem_checkdestroyed() failed to abort on
 			if there were still active memory contexts.
 			[RT #16672]
+
+2148.	[func]		Add positive logging for rndc commands. [RT #14623]
 
 2147.	[bug]		libbind: remove potential buffer overflow from
 			hmac_link.c. [RT #16437]
@@ -184,17 +186,6 @@
 2139.	[bug]		dns_view_find() was being called with wrong type
 			in adb.c. [RT #16670]
 
-2119.	[compat]	libbind: allow res_init() to succeed enough to
-			return the default domain even if it was unable
-			to allocate memory.
-
-	--- 9.4.1 released ---
-
-2172.	[bug]		query_addsoa() was being called with a non zone db.
-			[RT #16834]
-
-	--- 9.4.0 released ---
-
 2138.	[bug]		Lock order reversal in resolver.c. [RT #16653]
 
 2137.	[port]		Mips little endian and/or mips 64 bit are now
@@ -205,6 +196,8 @@
 
 2135.	[bug]		Uninitialised rdataset in sdlz.c. [RT# 16656]
 
+2134.	[func]		Additional statistics support. [RT #16666]
+
 2133.	[port]		powerpc:  Support both IBM and MacOS Power PC
 			assembler syntaxes. [RT #16647]
 
@@ -213,9 +206,13 @@
 
 2131.	[contrib]	dlz/mysql: AXFR was broken. [RT #16630]
 
-2128.	[doc]		xsltproc --nonet, update DTD versions.  [RT #16635]
+2130.	[func]		Log if CD or DO were set. [RT #16640]
 
-	--- 9.4.0rc2 released ---
+2129.	[func]		Provide a pool of UDP sockets for queries to be
+			made over. See use-queryport-pool, queryport-pool-ports
+			and queryport-pool-updateinterval.  [RT #16415]
+
+2128.	[doc]		xsltproc --nonet, update DTD versions.  [RT #16635]
 
 2127.	[port]		Improved OpenSSL 0.9.8 support. [RT #16563]
 
@@ -227,9 +224,22 @@
 2124.	[security]	It was possible to dereference a freed fetch
 			context. [RT #16584]
 
+	--- 9.5.0a1 released ---
+
+2123.	[func]		Use Doxygen to generate internal documention.
+			[RT #11398]
+
+2122.	[func]		Experimental http server and statistics support
+			for named via xml.
+
+2121.	[func]		Add a 10 slot dead masters cache (LRU) with a 600
+			second timeout. [RT #16553]
+
 2120.	[doc]		Fix markup on nsupdate man page. [RT #16556]
 
-	--- 9.4.0rc1 released ---
+2119.	[compat]	libbind: allow res_init() to succeed enough to
+			return the default domain even if it was unable
+			to allocate memory.
 
 2118.	[bug]		Handle response with long chains of domain name
 			compression pointers which point to other compression
@@ -264,7 +274,13 @@
 
 2109.	[port]		libbind: silence aix 5.3 compiler warnings. [RT #16502]
 
+2108.	[func]		DHCID support. [RT #16456]
+
 2107.	[bug]		dighost.c: more cleanup of buffers. [RT #16499]
+
+2106.	[func]		'rndc status' now reports named's version. [RT #16426]
+
+2105.	[func]		GSS-TSIG support (RFC 3645).
 
 2104.	[port]		Fix Solaris SMF error message.
 
@@ -272,8 +288,6 @@
 			under Solaris.
 
 2102.	[port]		Silence solaris 10 warnings.
-
-	--- 9.4.0b4 released ---
 
 2101.	[bug]		OpenSSL version checks were not quite right.
 			[RT #16476]
@@ -286,8 +300,6 @@
 2098.	[bug]		Race in rbtdb.c:no_references(), which occasionally
 			triggered an INSIST failure about the node lock
 			reference.  [RT #16411]
-
-	--- 9.4.0b3 released ---
 
 2097.	[bug]		named could reference a destroyed memory context
 			after being reloaded / reconfigured. [RT #16428]
@@ -332,8 +344,6 @@
 2083.	[port]		win32: Visual C++ 2005 support.
 
 2082.	[doc]		Document 'cache-file' as a test only option.
-
-	--- 9.4.0b2 released ---
 
 2081.	[port]		libbind: minor 64-bit portability fix in memcluster.c.
 			[RT #16360]
@@ -397,8 +407,6 @@
 
 2060.	[bug]		Enabling DLZ support could leave views partially
 			configured. [RT #16295]
-
-	--- 9.4.0b1 released ---
 
 2059.	[bug]		Search into cache rbtdb could trigger an INSIST
 			failure while cleaning up a stale rdataset.
@@ -479,12 +487,14 @@
 2036.	[bug]		'rndc recursing' could cause trigger a REQUIRE.
 			[RT #16075]
 
+2035.	[func]		Make falling back to TCP on UDP refresh failure
+			optional. Default "try-tcp-refresh yes;" for BIND 8
+			compatibility. [RT #16123]
+
 2034.	[bug]		gcc: set -fno-strict-aliasing. [RT #16124]
 
 2033.	[bug]		We wern't creating multiple client memory contexts
 			on demand as expected. [RT #16095]
-
-	--- 9.4.0a6 released ---
 
 2032.	[bug]		Remove a INSIST in query_addadditional2(). [RT #16074]
 
@@ -532,8 +542,6 @@
 			allowed but requested and we had the answer
 			to the original qname. [RT #15945]
 
-	--- 9.4.0a5 released ---
-
 2015.	[cleanup]	use-additional-cache is now acache-enable for
 			consistancy.  Default acache-enable off in BIND 9.4
 			as it requires memory usage to be configured.
@@ -553,7 +561,7 @@
 			the signed zone, either as an increment or as the
 			system time(). [RT #15633]
 
-	--- 9.4.0a4 released ---
+2010.	[placeholder]	rt15958
 
 2009.	[bug]		libbind: coverity fixes. [RT #15808]
 
@@ -683,7 +691,7 @@
 			hex strings with comments. [RT #15814]
 
 1974.	[doc]		List each of the zone types and associated zone
-			options separately in the ARM.
+			options seperately in the ARM.
 
 1973.	[func]		TSIG HMACSHA1, HMACSHA224, HMACSHA256, HMACSHA384 and
 			HMACSHA512 support. [RT #13606]
@@ -710,7 +718,7 @@
 1965.	[func]		Suppress spurious "recusion requested but not
 			available" warning with 'dig +qr'. [RT #15780].
 
-1964.	[func]		Separate out MX and SRV to CNAME checks. [RT #15723]
+1964.	[func]		Seperate out MX and SRV to CNAME checks. [RT #15723]
 
 1963.	[port]		Tru64 4.0E doesn't support send() and recv(). 
 			[RT #15586]
@@ -784,12 +792,6 @@
 1943.	[bug]		Set the loadtime after rolling forward the journal.
 			[RT #15647]
 
-1597.	[func]		Allow notify-source and query-source to be specified
-			on a per server basis similar to transfer-source.
-			[RT #6496]
-
-	--- 9.4.0a3 released ---
-
 1942.	[bug]		If the name of a DNSKEY match that of one in
 			trusted-keys do not attempt to validate the DNSKEY
 			using the parents DS RRset. [RT #15649]
@@ -816,12 +818,6 @@
 1934.	[func]		Validate pending NS RRsets, in the authority section,
 			prior to returning them if it can be done without
 			requiring DNSKEYs to be fetched.  [RT #15430]
-
-1919.	[contrib]	queryperf: a set of new features: collecting/printing
-			response delays, printing intermediate results, and
-			adjusting query rate for the "target" qps.
-
-	--- 9.4.0a2 released ---
 
 1933.	[bug]		dump_rdataset_raw() had a incorrect INSIST. [RT #15534]
 
@@ -861,7 +857,9 @@
 			have the desired performance characteristics.
 			[RT #15454]
 
-	--- 9.4.0a1 released ---
+1919.	[contrib]	queryperf: a set of new features: collecting/printing
+			response delays, printing intermediate results, and
+			adjusting query rate for the "target" qps.
 
 1918.	[bug]		Memory leak when checking acls. [RT #15391]
 
@@ -930,7 +928,7 @@
 1898.	[bug]		Extend ISC_SOCKADDR_FORMATSIZE and
 			ISC_NETADDR_FORMATSIZE to allow for scope details.
 
-1897.	[func]		x86 and x86_64 now have separate atomic locking
+1897.	[func]		x86 and x86_64 now have seperate atomic locking
 			implementations.
 
 1896.	[bug]		Recursive clients soft quota support wasn't working
@@ -984,7 +982,7 @@
 			[RT #14892]
 
 1878.	[func]		Detect duplicates of UDP queries we are recursing on
-			and drop them.  New stats category "duplicate".
+			and drop them.  New stats category "duplicates".
 			[RT #2471]
 
 1877.	[bug]		Fix unreasonably low quantum on call to
@@ -1003,6 +1001,8 @@
 			[RT #13753]
 
 1872.	[port]		win32: Handle ERROR_NETNAME_DELETED.  [RT #13753]
+
+1871.	[placeholder]
 
 1870.	[func]		Added framework for handling multiple EDNS versions.
 			[RT #14873]
@@ -1147,6 +1147,8 @@
 			[RT#13418]
 
 1822.	[bug]		check-names test for RT was reversed. [RT #13382]
+
+1821.	[placeholder]
 
 1820.	[bug]		Gracefully handle acl loops. [RT #13659]
 
@@ -1296,6 +1298,10 @@
 			[RT #13154]
 
 1773.	[bug]		Fast retry on host / net unreachable. [RT #13153]
+
+1772.	[placeholder]
+
+1771.	[placeholder]
 
 1770.	[bug]		named-checkconf failed to report missing a missing
 			file clause for rbt{64} master/hint zones. [RT#13009]
@@ -1600,6 +1606,8 @@
 1670.	[func]		Log UPDATE requests to slave zones without an acl as
 			"disabled" at debug level 3. [RT# 11657]
 
+1669.	[placeholder]
+
 1668.	[bug]		DIG_SIGCHASE was making bin/dig/host dump core.
 
 1667.	[port]		linux: not all versions have IF_NAMESIZE.
@@ -1805,6 +1813,10 @@
 
 1598.	[func]		Specify that certain parts of the namespace must
 			be secure (dnssec-must-be-secure).
+
+1597.	[func]		Allow notify-source and query-source to be specified
+			on a per server basis similar to transfer-source.
+			[RT #6496]
 
 1596.	[func]		Accept 'notify-source' style syntax for query-source.
 
@@ -6409,7 +6421,7 @@
 			and has been removed.
 
  170.	[cleanup]	Remove inter server consistancy checks from zone,
-			these should return as a separate module in 9.1.
+			these should return as a seperate module in 9.1.
 			dns_zone_checkservers(), dns_zone_checkparents(),
 			dns_zone_checkchildren(), dns_zone_checkglue().
 

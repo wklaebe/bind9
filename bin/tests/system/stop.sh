@@ -15,7 +15,7 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: stop.sh,v 1.22.18.2 2007/01/18 00:06:11 marka Exp $
+# $Id: stop.sh,v 1.24 2007/01/09 03:11:15 marka Exp $
 
 . ./conf.sh
 $PERL ./stop.pl "$@"

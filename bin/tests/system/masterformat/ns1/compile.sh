@@ -12,6 +12,6 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: compile.sh,v 1.2.2.3 2006/01/07 00:23:34 marka Exp $
+# $Id: compile.sh,v 1.4 2006/01/07 00:23:35 marka Exp $
 
 ../named-compilezone -D -F raw -o example.db.raw example example.db

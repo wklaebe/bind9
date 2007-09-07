@@ -15,12 +15,12 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: ssu.h,v 1.13.18.4 2006/02/16 23:51:32 marka Exp $ */
+/* $Id: ssu.h,v 1.19 2006/12/22 01:45:00 marka Exp $ */
 
 #ifndef DNS_SSU_H
 #define DNS_SSU_H 1
 
-/*! \file */
+/*! \file dns/ssu.h */
 
 #include <isc/lang.h>
 
@@ -28,14 +28,17 @@
 
 ISC_LANG_BEGINDECLS
 
-#define DNS_SSUMATCHTYPE_NAME 0
-#define DNS_SSUMATCHTYPE_SUBDOMAIN 1
-#define DNS_SSUMATCHTYPE_WILDCARD 2
-#define DNS_SSUMATCHTYPE_SELF 3
-#define DNS_SSUMATCHTYPE_SELFSUB 4
-#define DNS_SSUMATCHTYPE_SELFWILD 5
-#define DNS_SSUMATCHTYPE_MAX 5		/* maximum defined value */
-
+#define DNS_SSUMATCHTYPE_NAME		0
+#define DNS_SSUMATCHTYPE_SUBDOMAIN	1
+#define DNS_SSUMATCHTYPE_WILDCARD	2
+#define DNS_SSUMATCHTYPE_SELF		3
+#define DNS_SSUMATCHTYPE_SELFSUB	4
+#define DNS_SSUMATCHTYPE_SELFWILD	5
+#define DNS_SSUMATCHTYPE_SELFKRB5	6
+#define DNS_SSUMATCHTYPE_SELFMS		7
+#define DNS_SSUMATCHTYPE_SUBDOMAINMS	8
+#define DNS_SSUMATCHTYPE_SUBDOMAINKRB5	9
+#define DNS_SSUMATCHTYPE_MAX 		9  /* max value */
 
 isc_result_t
 dns_ssutable_create(isc_mem_t *mctx, dns_ssutable_t **table);
@@ -91,8 +94,8 @@ dns_ssutable_addrule(dns_ssutable_t *table, isc_boolean_t grant,
  *	at that name.
  *
  *	Notes:
- *\li		If 'matchtype' is SELF, this rule only matches if the name
- *		to be updated matches the signing identity.
+ *\li		If 'matchtype' is of SELF type, this rule only matches if the
+ *              name to be updated matches the signing identity.
  *
  *\li		If 'ntypes' is 0, this rule applies to all types except
  *		NS, SOA, RRSIG, and NSEC.

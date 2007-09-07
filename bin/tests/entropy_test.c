@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: entropy_test.c,v 1.19.18.2 2005/04/29 00:15:44 marka Exp $ */
+/* $Id: entropy_test.c,v 1.21 2005/04/29 00:22:38 marka Exp $ */
 
 /*! \file */
 

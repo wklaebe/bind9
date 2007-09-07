@@ -48,7 +48,7 @@
  * SUCH DAMAGE.
  */
 
-/* $Id: file.c,v 1.47.18.2 2005/04/29 00:17:07 marka Exp $ */
+/* $Id: file.c,v 1.49 2005/04/29 00:23:50 marka Exp $ */
 
 /*! \file */
 

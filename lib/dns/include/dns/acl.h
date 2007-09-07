@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: acl.h,v 1.22.18.4 2006/03/02 00:37:21 marka Exp $ */
+/* $Id: acl.h,v 1.27 2006/12/22 01:44:59 marka Exp $ */
 
 #ifndef DNS_ACL_H
 #define DNS_ACL_H 1
@@ -24,7 +24,7 @@
  ***** Module Info
  *****/
 
-/*! \file
+/*! \file dns/acl.h
  * \brief
  * Address match list handling.
  */

@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: check.c,v 1.44.18.33 2007/03/14 23:46:21 tbox Exp $ */
+/* $Id: check.c,v 1.79 2007/03/29 06:36:30 marka Exp $ */
 
 /*! \file */
 
@@ -392,9 +392,10 @@ check_viewacls(cfg_aclconfctx_t *actx, const cfg_obj_t *voptions,
 	isc_result_t result = ISC_R_SUCCESS, tresult;
 	int i = 0;
 	
-	static const char *acls[] = { "allow-query", "allow-query-cache",
-		"allow-recursion", "blackhole", "match-clients",
-		"match-destinations", "sortlist", NULL };
+	static const char *acls[] = { "allow-query", "allow-query-on",
+                "allow-query-cache", "allow-query-cache-on",
+		"blackhole", "match-clients", "match-destinations",
+		"sortlist", NULL };
 
 	while (acls[i] != NULL) {
 		tresult = checkacl(acls[i++], actx, NULL, voptions, config,
@@ -402,6 +403,84 @@ check_viewacls(cfg_aclconfctx_t *actx, const cfg_obj_t *voptions,
 		if (tresult != ISC_R_SUCCESS)
 			result = tresult;  
 	}
+	return (result);
+}
+
+/*
+ * Check allow-recursion and allow-recursion-on acls, and also log a
+ * warning if they're inconsistent with the "recursion" option.
+ */
+static isc_result_t
+check_recursionacls(cfg_aclconfctx_t *actx, const cfg_obj_t *voptions,
+		    const char *viewname, const cfg_obj_t *config,
+		    isc_log_t *logctx, isc_mem_t *mctx)
+{
+	const cfg_obj_t *options, *aclobj, *obj = NULL;
+	dns_acl_t *acl = NULL;
+	isc_result_t result = ISC_R_SUCCESS, tresult;
+	isc_boolean_t recursion;
+	const char *forview = " for view ";
+	int i = 0;
+
+	static const char *acls[] = { "allow-recursion", "allow-recursion-on",
+		 		      NULL };
+	
+	if (voptions != NULL)
+		cfg_map_get(voptions, "recursion", &obj);
+	if (obj == NULL && config != NULL) {
+		options = NULL;
+		cfg_map_get(config, "options", &options);
+		if (options != NULL)
+			cfg_map_get(options, "recursion", &obj);
+	}
+	if (obj == NULL)
+		recursion = ISC_TRUE;
+	else
+		recursion = cfg_obj_asboolean(obj);
+
+	if (viewname == NULL) {
+		viewname = "";
+		forview = "";
+	}
+
+	for (i = 0; acls[i] != NULL; i++) {
+		aclobj = options = NULL;
+		acl = NULL;
+
+		if (voptions != NULL)
+			cfg_map_get(voptions, acls[i], &aclobj);
+		if (config != NULL && aclobj == NULL) {
+			options = NULL;
+			cfg_map_get(config, "options", &options);
+			if (options != NULL)
+				cfg_map_get(options, acls[i], &aclobj);
+		}
+		if (aclobj == NULL) 
+			continue;
+
+		tresult = cfg_acl_fromconfig(aclobj, config, logctx,
+					    actx, mctx, &acl);
+
+		if (tresult != ISC_R_SUCCESS)
+			result = tresult;  
+
+		if (acl == NULL)
+			continue;
+
+		if (recursion == ISC_FALSE &&
+		    (acl->length != 1 ||
+		     acl->elements[0].type != dns_aclelementtype_any ||
+		     acl->elements[0].negative != ISC_TRUE)) {
+			cfg_obj_log(aclobj, logctx, ISC_LOG_WARNING,
+				    "both \"recursion no;\" and "
+				    "\"%s\" active%s%s",
+				    acls[i], forview, viewname);
+		}
+
+		if (acl != NULL)
+			dns_acl_detach(&acl);
+	}	
+
 	return (result);
 }
 
@@ -942,6 +1021,7 @@ check_zoneconf(const cfg_obj_t *zconfig, const cfg_obj_t *voptions,
 	{ "check-srv-cname", MASTERZONE },
 	{ "masterfile-format", MASTERZONE | SLAVEZONE | STUBZONE | HINTZONE },
 	{ "update-check-ksk", MASTERZONE },
+	{ "try-tcp-refresh", SLAVEZONE },
 	};
 
 	static optionstable dialups[] = {
@@ -1392,7 +1472,8 @@ check_servers(const cfg_obj_t *servers, isc_log_t *logctx) {
 		
 static isc_result_t
 check_viewconf(const cfg_obj_t *config, const cfg_obj_t *voptions,
-	       dns_rdataclass_t vclass, isc_log_t *logctx, isc_mem_t *mctx)
+	       const char *viewname, dns_rdataclass_t vclass,
+	       isc_log_t *logctx, isc_mem_t *mctx)
 {
 	const cfg_obj_t *servers = NULL;
 	const cfg_obj_t *zones = NULL;
@@ -1544,6 +1625,11 @@ check_viewconf(const cfg_obj_t *config, const cfg_obj_t *voptions,
 		result = tresult;
 
 	tresult = check_viewacls(&actx, voptions, config, logctx, mctx);
+	if (tresult != ISC_R_SUCCESS)
+		result = tresult;
+
+	tresult = check_recursionacls(&actx, voptions, viewname,
+				      config, logctx, mctx);
 	if (tresult != ISC_R_SUCCESS)
 		result = tresult;
 
@@ -1860,7 +1946,7 @@ bind9_check_namedconf(const cfg_obj_t *config, isc_log_t *logctx,
 			result = ISC_R_FAILURE;
 
 	if (views == NULL) {
-		if (check_viewconf(config, NULL, dns_rdataclass_in,
+		if (check_viewconf(config, NULL, NULL, dns_rdataclass_in,
 				   logctx, mctx) != ISC_R_SUCCESS)
 			result = ISC_R_FAILURE;
 	} else {
@@ -1932,7 +2018,7 @@ bind9_check_namedconf(const cfg_obj_t *config, isc_log_t *logctx,
 			}
 		}
 		if (tresult == ISC_R_SUCCESS)
-			tresult = check_viewconf(config, voptions,
+			tresult = check_viewconf(config, voptions, key,
 						 vclass, logctx, mctx);
 		if (tresult != ISC_R_SUCCESS)
 			result = ISC_R_FAILURE;

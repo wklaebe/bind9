@@ -14,7 +14,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: acache.c,v 1.3.2.16 2006/07/19 00:34:56 marka Exp $ */
+/* $Id: acache.c,v 1.18 2006/07/06 06:30:00 jinmei Exp $ */
 
 #include <config.h>
 

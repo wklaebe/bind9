@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: getaddresses.c,v 1.15.18.5 2005/10/14 01:28:24 marka Exp $ */
+/* $Id: getaddresses.c,v 1.20 2005/10/14 01:14:08 marka Exp $ */
 
 /*! \file */
 

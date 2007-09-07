@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: name_test.c,v 1.36.18.3 2005/03/17 03:57:07 marka Exp $ */
+/* $Id: name_test.c,v 1.39 2005/03/17 03:56:11 marka Exp $ */
 
 #include <config.h>
 

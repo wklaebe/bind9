@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: t_db.c,v 1.31.18.3 2005/11/30 23:52:53 marka Exp $ */
+/* $Id: t_db.c,v 1.34 2005/11/30 23:52:54 marka Exp $ */
 
 #include <config.h>
 

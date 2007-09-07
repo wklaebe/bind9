@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: assertions.c,v 1.17.18.2 2005/04/29 00:16:44 marka Exp $ */
+/* $Id: assertions.c,v 1.19 2005/04/29 00:23:22 marka Exp $ */
 
 /*! \file */
 

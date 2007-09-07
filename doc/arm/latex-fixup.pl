@@ -14,7 +14,7 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: latex-fixup.pl,v 1.2.2.2 2005/07/19 05:55:47 marka Exp $
+# $Id: latex-fixup.pl,v 1.3 2005/07/19 04:55:23 marka Exp $
 
 # Sadly, the final stages of generating a presentable PDF file always
 # seem to require some manual tweaking.  Doesn't seem to matter what

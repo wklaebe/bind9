@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,12 +15,12 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: commandline.h,v 1.10.18.2 2005/04/29 00:16:53 marka Exp $ */
+/* $Id: commandline.h,v 1.14 2006/12/22 01:59:43 marka Exp $ */
 
 #ifndef ISC_COMMANDLINE_H
 #define ISC_COMMANDLINE_H 1
 
-/*! \file */
+/*! \file isc/commandline.h */
 
 #include <isc/boolean.h>
 #include <isc/lang.h>

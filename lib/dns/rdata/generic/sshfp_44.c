@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: sshfp_44.c,v 1.3.18.1 2006/03/10 04:04:32 marka Exp $ */
+/* $Id: sshfp_44.c,v 1.5 2006/01/07 00:23:35 marka Exp $ */
 
 /* RFC 4255 */
 

@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rbtdb.c,v 1.196.18.47 2007/06/19 06:21:25 marka Exp $ */
+/* $Id: rbtdb.c,v 1.244 2007/03/14 05:57:10 marka Exp $ */
 
 /*! \file */
 
@@ -3323,8 +3323,7 @@ find_coveringnsec(rbtdb_search_t *search, dns_dbnode_t **nodep,
 					header_prev = header;
 				continue;
 			}
-			if (NONEXISTENT(header) ||
-			    RBTDB_RDATATYPE_BASE(header->type) == 0) {
+			if (NONEXISTENT(header) || NXDOMAIN(header)) {
 				header_prev = header;
 				continue;
 			}
@@ -3350,7 +3349,7 @@ find_coveringnsec(rbtdb_search_t *search, dns_dbnode_t **nodep,
 			result = DNS_R_COVERINGNSEC;
 		} else if (!empty_node) {
 			result = ISC_R_NOTFOUND;
-		} else
+		}else
 			result = dns_rbtnodechain_prev(&search->chain, NULL,
 						       NULL);
  unlock_node:
@@ -5401,7 +5400,8 @@ static dns_dbmethods_t zone_methods = {
 	ispersistent,
 	overmem,
 	settask,
-	getoriginnode
+	getoriginnode,
+	NULL,
 };
 
 static dns_dbmethods_t cache_methods = {
@@ -5432,7 +5432,8 @@ static dns_dbmethods_t cache_methods = {
 	ispersistent,
 	overmem,
 	settask,
-	getoriginnode
+	getoriginnode,
+	NULL
 };
 
 isc_result_t

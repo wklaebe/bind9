@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: kx_36.c,v 1.41.18.2 2005/04/29 00:16:42 marka Exp $ */
+/* $Id: kx_36.c,v 1.43 2005/04/29 00:23:19 marka Exp $ */
 
 /* Reviewed: Thu Mar 16 17:24:54 PST 2000 by explorer */
 

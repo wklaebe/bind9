@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: sig0_test.c,v 1.11.18.2 2005/03/17 03:57:08 marka Exp $ */
+/* $Id: sig0_test.c,v 1.13 2005/03/17 03:56:11 marka Exp $ */
 
 #include <config.h>
 

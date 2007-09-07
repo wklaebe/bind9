@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: nsec.c,v 1.5.20.2 2005/04/29 00:15:59 marka Exp $ */
+/* $Id: nsec.c,v 1.7 2005/04/29 00:22:48 marka Exp $ */
 
 /*! \file */
 

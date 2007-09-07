@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2001, 2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: refcount.h,v 1.6.18.5 2005/07/12 01:22:31 marka Exp $ */
+/* $Id: refcount.h,v 1.13 2006/12/22 01:59:43 marka Exp $ */
 
 #ifndef ISC_REFCOUNT_H
 #define ISC_REFCOUNT_H 1
@@ -27,7 +27,7 @@
 #include <isc/types.h>
 #include <isc/util.h>
 
-/*! \file
+/*! \file isc/refcount.h
  * \brief Implements a locked reference counter.  
  *
  * These functions may actually be

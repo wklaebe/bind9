@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2007  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2001, 2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: db.c,v 1.74.18.6 2005/10/13 02:12:24 marka Exp $ */
+/* $Id: db.c,v 1.82 2007/03/06 02:12:39 tbox Exp $ */
 
 /*! \file */
 
@@ -525,6 +525,30 @@ dns_db_detachnode(dns_db_t *db, dns_dbnode_t **nodep) {
 	(db->methods->detachnode)(db, nodep);
 
 	ENSURE(*nodep == NULL);
+}
+
+void
+dns_db_transfernode(dns_db_t *db, dns_dbnode_t **sourcep,
+		    dns_dbnode_t **targetp)
+{
+	REQUIRE(DNS_DB_VALID(db));
+	REQUIRE(targetp != NULL && *targetp == NULL);
+	/*
+	 * This doesn't check the implementation magic.  If we find that
+	 * we need such checks in future then this will be done in the
+	 * method.
+	 */
+	REQUIRE(sourcep != NULL && *sourcep != NULL);
+
+	UNUSED(db);
+
+	if (db->methods->transfernode == NULL) {
+	 	*targetp = *sourcep;
+	 	*sourcep = NULL;
+	} else
+	 	(db->methods->transfernode)(db, sourcep, targetp);
+
+	ENSURE(*sourcep == NULL);
 }
 
 isc_result_t

@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rdatalist.c,v 1.28.18.3 2005/04/29 00:16:02 marka Exp $ */
+/* $Id: rdatalist.c,v 1.31 2005/04/29 00:22:50 marka Exp $ */
 
 /*! \file */
 

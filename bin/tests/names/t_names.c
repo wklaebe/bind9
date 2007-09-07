@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: t_names.c,v 1.36.18.5 2006/12/07 23:57:58 marka Exp $ */
+/* $Id: t_names.c,v 1.41 2006/12/07 23:57:59 marka Exp $ */
 
 #include <config.h>
 

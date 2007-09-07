@@ -18,7 +18,7 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<!-- File: $Id: Bv9ARM-book.xml,v 1.241.18.78 2007/07/09 02:18:49 marka Exp $ -->
+<!-- File: $Id: Bv9ARM-book.xml,v 1.325 2007/05/21 02:03:22 marka Exp $ -->
 <book xmlns:xi="http://www.w3.org/2001/XInclude">
   <title>BIND 9 Administrator Reference Manual</title>
 
@@ -600,7 +600,7 @@
         traffic.
         Additionally, if additional section caching
         (<xref linkend="acache"/>) is enabled,
-        the <command>max-acache-size</command> option can be used to
+        the <command>max-acache-size</command> can be used to
         limit the amount
         of memory used by the mechanism.
         It is still good practice to have enough memory to load
@@ -741,8 +741,8 @@ zone "eng.example.com" {
 
       <para>
         A primitive form of load balancing can be achieved in
-        the <acronym>DNS</acronym> by using multiple records
-	(such as multiple A records) for one name.
+        the <acronym>DNS</acronym> by using multiple A records for
+        one name.
       </para>
 
       <para>
@@ -1620,10 +1620,15 @@ controls {
       </para>
 
       <para>
-        Dynamic update is enabled by
-        including an <command>allow-update</command> or
-        <command>update-policy</command> clause in the
-        <command>zone</command> statement.
+	Dynamic update is enabled by including an
+	<command>allow-update</command> or <command>update-policy</command>
+	clause in the <command>zone</command> statement.  The
+	<command>tkey-gssapi-credential</command> and
+	<command>tkey-domain</command> clauses in the
+	<command>options</command>        statement enable the
+	server to negotiate keys that can be matched against those
+	in <command>update-policy</command> or
+	<command>allow-update</command>.
       </para>
 
       <para>
@@ -2154,15 +2159,16 @@ server 10.1.2.3 {
 allow-update { key host1-host2. ;};
 </programlisting>
 
-        <para>
-          This allows dynamic updates to succeed only if the request
-          was signed by a key named
-          "<command>host1-host2.</command>".
-        </para>
 	<para>
-          You may want to read about the more
-          powerful <command>update-policy</command> statement in <xref linkend="dynamic_update_policies"/>.
-        </para>
+	  This allows dynamic updates to succeed only if the request
+	  was signed by a key named "<command>host1-host2.</command>".
+	</para>
+
+	<para>
+	  You may want to read about the more powerful
+	  <command>update-policy</command> statement in
+	  <xref linkend="dynamic_update_policies"/>.
+	</para>
 
       </sect2>
       <sect2>
@@ -2421,7 +2427,7 @@ allow-update { key host1-host2. ;};
 	<para>
 	  To enable <command>named</command> to validate answers from
 	  other servers both <command>dnssec-enable</command> and
-	  <command>dnssec-validation</command> must be set and some
+	  <command>dnssec-validate</command> must be set and some
 	  <command>trusted-keys</command> must be configured
 	  into <filename>named.conf</filename>.
         </para>
@@ -2792,33 +2798,29 @@ $ORIGIN 0.0.0.0.0.0.0.0.8.b.d.0.1.0.0.2.ip6.arpa.
                   <varname>ip6_addr</varname>
                 </para>
               </entry>
-              <entry colname="2">
-                <para>
-                  An IPv6 address, such as <command>2001:db8::1234</command>.
-                  IPv6 scoped addresses that have ambiguity on their scope
-                  zones must be
-                  disambiguated by an appropriate zone ID with the percent
-                  character
-                  (`%') as delimiter.
-                  It is strongly recommended to use string zone names rather
-                  than
-                  numeric identifiers, in order to be robust against system
-                  configuration changes.
-                  However, since there is no standard mapping for such names
-                  and
-                  identifier values, currently only interface names as link
-                  identifiers
-                  are supported, assuming one-to-one mapping between
-                  interfaces and links.
-                  For example, a link-local address <command>fe80::1</command> on the
-                  link attached to the interface <command>ne0</command>
-                  can be specified as <command>fe80::1%ne0</command>.
-                  Note that on most systems link-local addresses always have
-                  the
-                  ambiguity, and need to be disambiguated.
-                </para>
-              </entry>
-            </row>
+	      <entry colname="2">
+		<para>
+		  An IPv6 address, such as <command>2001:db8::1234</command>.
+		  IPv6 scoped addresses that have ambiguity on their
+		  scope zones must be disambiguated by an appropriate
+		  zone ID with the percent character (`%') as
+		  delimiter.  It is strongly recommended to use
+		  string zone names rather than numeric identifiers,
+		  in order to be robust against system configuration
+		  changes.  However, since there is no standard
+		  mapping for such names and identifier values,
+		  currently only interface names as link identifiers
+		  are supported, assuming one-to-one mapping between
+		  interfaces and links.  For example, a link-local
+		  address <command>fe80::1</command> on the link
+		  attached to the interface <command>ne0</command>
+		  can be specified as <command>fe80::1%ne0</command>.
+		  Note that on most systems link-local addresses
+		  always have the ambiguity, and need to be
+		  disambiguated.
+		</para>
+	      </entry>
+	    </row>
             <row rowsep="0">
               <entry colname="1">
                 <para>
@@ -2867,6 +2869,11 @@ $ORIGIN 0.0.0.0.0.0.0.0.8.b.d.0.1.0.0.2.ip6.arpa.
                   network <command>127.0.0.0</command> with
                   netmask <command>255.0.0.0</command> and <command>1.2.3.0/28</command> is
                   network <command>1.2.3.0</command> with netmask <command>255.255.255.240</command>.
+                </para>
+                <para>
+		  When specifying a prefix involving a IPv6 scoped address
+		  the scope may be omitted.  In that case the prefix will
+		  match packets from any scope.
                 </para>
               </entry>
             </row>
@@ -3075,8 +3082,12 @@ $ORIGIN 0.0.0.0.0.0.0.0.8.b.d.0.1.0.0.2.ip6.arpa.
 	    allows access and a negated match denies access. If
 	    there is no match, access is denied. The clauses
 	    <command>allow-notify</command>,
+	    <command>allow-recursion</command>,
+	    <command>allow-recursion-on</command>,
 	    <command>allow-query</command>,
+	    <command>allow-query-on</command>,
 	    <command>allow-query-cache</command>,
+	    <command>allow-query-cache-on</command>,
 	    <command>allow-transfer</command>,
 	    <command>allow-update</command>,
 	    <command>allow-update-forwarding</command>, and
@@ -4194,15 +4205,18 @@ category notify { null; };
                       enable query logging unless <command>querylog</command> option has been
                       specified.
                     </para>
-                    <para>
-                      The query log entry reports the client's IP address and
-                      port number, and the
-                      query name, class and type.  It also reports whether the
-                      Recursion Desired
-                      flag was set (+ if set, - if not set), EDNS was in use
-                      (E) or if the
-                      query was signed (S).
-                    </para>
+
+		    <para>
+		      The query log entry reports the client's IP
+		      address and port number, and the query name,
+		      class and type.  It also reports whether the
+		      Recursion Desired flag was set (+ if set, -
+		      if not set), if the query was signed (S),
+		      EDNS was in use (E), if DO (DNSSSEC ok) was
+		      set (D), or if CD (checking disabled) was set
+		      (C).
+		    </para>
+
                     <para>
                       <computeroutput>client 127.0.0.1#62536: query: www.example.com IN AAAA +SE</computeroutput>
                     </para>
@@ -4259,10 +4273,43 @@ category notify { null; };
                     </para>
                   </entry>
                 </row>
-              </tbody>
-            </tgroup>
-          </informaltable>
-        </sect3>
+                <row rowsep="0">
+                  <entry colname="1">
+                    <para><command>edns-disabled</command></para>
+                  </entry>
+		  <entry colname="2">
+		    <para>
+		      Log queries that have been forced to use plain
+		      DNS due to timeouts.  This is often due to
+		      the remote servers not being RFC 1034 compliant
+		      (not always returning FORMERR or similar to
+		      EDNS queries and other extension to the DNS
+		      when they are not understood).  i.e. this is
+		      targeted at servers that fail to respond to
+		      DNS queries that they don't understand.
+		    </para>
+		    <para>
+		      Note: the log message can be also due to
+		      packet loss.  Before reporting servers for
+		      non RFC 1034 compliance they should be re-tested
+		      to determine the nature of of the non-compliance.
+		      This testing should prevent / reduce the
+		      number of false positive reports.
+		    </para>
+		    <para>
+		      Note: eventually named will have to stop
+		      treating such timeouts as due to RFC 1034 non
+		      compliance and start treating it as plain
+		      packet loss as falsely classifying packet
+		      loss as due to RFC 1034 non compliance impacts
+		      on DNSSEC validation.
+		    </para>
+		  </entry>
+		</row>
+	      </tbody>
+	    </tgroup>
+	  </informaltable>
+	</sect3>
       </sect2>
 
       <sect2>
@@ -4370,13 +4417,13 @@ category notify { null; };
     <optional> directory <replaceable>path_name</replaceable>; </optional>
     <optional> key-directory <replaceable>path_name</replaceable>; </optional>
     <optional> named-xfer <replaceable>path_name</replaceable>; </optional>
+    <optional> tkey-gssapi-credential <replaceable>principal</replaceable>; </optional>
     <optional> tkey-domain <replaceable>domainname</replaceable>; </optional>
     <optional> tkey-dhkey <replaceable>key_name</replaceable> <replaceable>key_tag</replaceable>; </optional>
     <optional> cache-file <replaceable>path_name</replaceable>; </optional>
     <optional> dump-file <replaceable>path_name</replaceable>; </optional>
     <optional> memstatistics-file <replaceable>path_name</replaceable>; </optional>
     <optional> pid-file <replaceable>path_name</replaceable>; </optional>
-    <optional> recursing-file <replaceable>path_name</replaceable>; </optional>
     <optional> statistics-file <replaceable>path_name</replaceable>; </optional>
     <optional> zone-statistics <replaceable>yes_or_no</replaceable>; </optional>
     <optional> auth-nxdomain <replaceable>yes_or_no</replaceable>; </optional>
@@ -4416,12 +4463,16 @@ category notify { null; };
     <optional> check-sibling <replaceable>yes_or_no</replaceable>; </optional>
     <optional> allow-notify { <replaceable>address_match_list</replaceable> }; </optional>
     <optional> allow-query { <replaceable>address_match_list</replaceable> }; </optional>
+    <optional> allow-query-on { <replaceable>address_match_list</replaceable> }; </optional>
     <optional> allow-query-cache { <replaceable>address_match_list</replaceable> }; </optional>
+    <optional> allow-query-cache-on { <replaceable>address_match_list</replaceable> }; </optional>
     <optional> allow-transfer { <replaceable>address_match_list</replaceable> }; </optional>
     <optional> allow-recursion { <replaceable>address_match_list</replaceable> }; </optional>
+    <optional> allow-recursion-on { <replaceable>address_match_list</replaceable> }; </optional>
     <optional> allow-update { <replaceable>address_match_list</replaceable> }; </optional>
     <optional> allow-update-forwarding { <replaceable>address_match_list</replaceable> }; </optional>
     <optional> update-check-ksk <replaceable>yes_or_no</replaceable>; </optional>
+    <optional> try-tcp-refresh <replaceable>yes_or_no</replaceable>; </optional>
     <optional> allow-v6-synthesis { <replaceable>address_match_list</replaceable> }; </optional>
     <optional> blackhole { <replaceable>address_match_list</replaceable> }; </optional>
     <optional> avoid-v4-udp-ports { <replaceable>port_list</replaceable> }; </optional>
@@ -4436,6 +4487,9 @@ category notify { null; };
 	<optional> port ( <replaceable>ip_port</replaceable> | <replaceable>*</replaceable> ) </optional> | 
 	<optional> address ( <replaceable>ip6_addr</replaceable> | <replaceable>*</replaceable> ) </optional> 
 	<optional> port ( <replaceable>ip_port</replaceable> | <replaceable>*</replaceable> ) </optional> ) ; </optional>
+    <optional> use-queryport-pool <replaceable>yes_or_no</replaceable>; </optional>
+    <optional> queryport-pool-ports <replaceable>number</replaceable>; </optional>
+    <optional> queryport-pool-interval <replaceable>number</replaceable>; </optional>
     <optional> max-transfer-time-in <replaceable>number</replaceable>; </optional>
     <optional> max-transfer-time-out <replaceable>number</replaceable>; </optional>
     <optional> max-transfer-idle-in <replaceable>number</replaceable>; </optional>
@@ -4565,39 +4619,57 @@ category notify { null; };
 
           <varlistentry>
             <term><command>named-xfer</command></term>
-            <listitem>
-              <para>
-                <emphasis>This option is obsolete.</emphasis>
-                It was used in <acronym>BIND</acronym> 8 to
-                specify the pathname to the <command>named-xfer</command> program.
-                In <acronym>BIND</acronym> 9, no separate <command>named-xfer</command> program is
-                needed; its functionality is built into the name server.
-              </para>
+	    <listitem>
+	      <para>
+		<emphasis>This option is obsolete.</emphasis> It
+		was used in <acronym>BIND</acronym> 8 to specify
+		the pathname to the <command>named-xfer</command>
+		program.  In <acronym>BIND</acronym> 9, no separate
+		<command>named-xfer</command> program is needed;
+		its functionality is built into the name server.
+	      </para>
+	    </listitem>
+	  </varlistentry>
 
-            </listitem>
-          </varlistentry>
+	  <varlistentry>
+	    <term><command>tkey-gssapi-credential</command></term>
+	    <listitem>
+	      <para>
+		The security credential with which the server should
+		authenticate keys requested by the GSS-TSIG protocol.
+		Currently only Kerberos 5 authentication is available
+		and the credential is a Kerberos principal which
+		the server can acquire through the default system
+		key file, normally <filename>/etc/krb5.keytab</filename>.
+		Normally this principal is of the form
+		"<userinput>dns/</userinput><varname>server.domain</varname>".
+		To use GSS-TSIG, <command>tkey-domain</command>
+		must also be set.
+	      </para>
+	    </listitem>
+	  </varlistentry>
 
           <varlistentry>
             <term><command>tkey-domain</command></term>
-            <listitem>
-              <para>
-                The domain appended to the names of all
-                shared keys generated with
-                <command>TKEY</command>. When a client
-                requests a <command>TKEY</command> exchange, it
-                may or may not specify
-                the desired name for the key. If present, the name of the
-                shared
-                key will be "<varname>client specified part</varname>" +
-                "<varname>tkey-domain</varname>".
-                Otherwise, the name of the shared key will be "<varname>random hex
-digits</varname>" + "<varname>tkey-domain</varname>". In most cases,
-                the <command>domainname</command> should be the
-                server's domain
-                name.
-              </para>
-            </listitem>
-          </varlistentry>
+	    <listitem>
+	      <para>
+		The domain appended to the names of all shared keys
+		generated with <command>TKEY</command>.  When a
+		client requests a <command>TKEY</command> exchange,
+		it may or may not specify the desired name for the
+		key. If present, the name of the shared key will
+		will be <varname>client specified part</varname> +
+		<varname>tkey-domain</varname>.  Otherwise, the
+		name of the shared key will be <varname>random hex
+		digits</varname> + <varname>tkey-domain</varname>.
+		In most cases, the <command>domainname</command>
+		should be the server's domain name, or an otherwise
+		non-existent subdomain like
+		"_tkey.<varname>domainname</varname>".  If you are
+		using GSS-TSIG, this variable must be defined.
+	      </para>
+	    </listitem>
+	  </varlistentry>
 
           <varlistentry>
             <term><command>tkey-dhkey</command></term>
@@ -4662,18 +4734,6 @@ digits</varname>" + "<varname>tkey-domain</varname>". In most cases,
                 is a keyword, not a filename, and therefore is not enclosed
                 in
                 double quotes.
-              </para>
-            </listitem>
-          </varlistentry>
-
-          <varlistentry>
-            <term><command>recursing-file</command></term>
-            <listitem>
-              <para>
-                The pathname of the file the server dumps
-                the queries that are currently recursing when instructed
-                to do so with <command>rndc recursing</command>.
-                If not specified, the default is <filename>named.recursing</filename>.
               </para>
             </listitem>
           </varlistentry>
@@ -5698,6 +5758,17 @@ options {
 	      </listitem>
 	    </varlistentry>
 
+	    <varlistentry>
+	      <term><command>try-tcp-refresh</command></term>
+	      <listitem>
+	        <para>
+		  Try to refresh the zone using TCP if UDP queries fail.
+		  For BIND 8 compatibility, the default is
+		  <command>yes</command>.
+		</para>
+	      </listitem>
+	    </varlistentry>
+
           </variablelist>
 
         </sect3>
@@ -5838,16 +5909,63 @@ options {
 	    </varlistentry>
 
 	    <varlistentry>
+	      <term><command>allow-query-on</command></term>
+	      <listitem>
+		<para>
+		  Specifies which local addresses can accept ordinary
+		  DNS questions. This makes it possible, for instance,
+		  to allow queries on internal-facing interfaces but
+		  disallow them on external-facing ones, without
+		  necessarily knowing the internal network's addresses.
+		</para>
+		<para>
+		  <command>allow-query-on</command> may
+		  also be specified in the <command>zone</command>
+		  statement, in which case it overrides the
+		  <command>options allow-query-on</command> statement.
+		</para>
+		<para>
+		  If not specified, the default is to allow queries
+		  on all addresses.
+		</para>
+		<note>
+		  <para>
+		    <command>allow-query-cache</command> is
+		    used to specify access to the cache.
+		  </para>
+		</note>
+	      </listitem>
+	    </varlistentry>
+
+	    <varlistentry>
 	      <term><command>allow-query-cache</command></term>
 	      <listitem>
 		<para>
 		  Specifies which hosts are allowed to get answers
-		  from the cache.  If <command>allow-query-cache</command>
-		  is not set then <command>allow-recursion</command>
-		  is used if set, otherwise <command>allow-query</command>
-		  is used if set, otherwise the default
-		  (<command>localnets;</command>
-		  <command>localhost;</command>) is used.
+		  from the cache. The default is the builtin acls
+		  <command>localnets</command> and
+		  <command>localhost</command>.
+
+		  <!-- The way to set query access to the cache is now via allow-query-cache. This differs from earlier versions which used allow-query. -->
+		</para>
+		<para>
+		  The way to set query access to the cache is now via
+		  <command>allow-query-cache</command>.
+		  This differs from earlier versions which used 
+		  <command>allow-query</command>.
+		</para>
+	      </listitem>
+	    </varlistentry>
+
+	    <varlistentry>
+	      <term><command>allow-query-cache-on</command></term>
+	      <listitem>
+		<para>
+		  Specifies which local addresses can give answers
+		  from the cache.  If not specified, the default is
+		  to allow cache queries on any address,
+		  <command>localnets</command> and
+		  <command>localhost</command>.
 		</para>
 	      </listitem>
 	    </varlistentry>
@@ -5855,16 +5973,27 @@ options {
             <varlistentry>
               <term><command>allow-recursion</command></term>
               <listitem>
-		<para>
+                <para>
 		  Specifies which hosts are allowed to make recursive
-		  queries through this server. If
-		  <command>allow-recursion</command> is not set
-		  then <command>allow-query-cache</command> is
-		  used if set, otherwise <command>allow-query</command>
-		  is used if set, otherwise the default
-		  (<command>localnets;</command>
-		  <command>localhost;</command>) is used.
-		</para>
+		  queries through this server. If not specified,
+		  the default is to allow recursive queries from
+		  the builtin acls <command>localnets</command> and
+		  <command>localhost</command>.
+		  Note that disallowing recursive queries for a
+		  host does not prevent the host from retrieving
+		  data that is already in the server's cache.
+                </para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><command>allow-recursion-on</command></term>
+              <listitem>
+                <para>
+		  Specifies which local addresses can accept recursive
+		  queries.  If not specified, the default is to allow
+		  recursive queries on all addresses.
+                </para>
               </listitem>
             </varlistentry>
 
@@ -6050,7 +6179,7 @@ listen-on-v6 port 1234 { !2001:db8::/32; any; };
           </para>
         </sect3>
 
-        <sect3>
+        <sect3 id="query_address">
           <title>Query Address</title>
           <para>
             If the server doesn't know the answer to a question, it will
@@ -6061,22 +6190,61 @@ listen-on-v6 port 1234 { !2001:db8::/32; any; };
             a wildcard IP address (<command>INADDR_ANY</command>)
             will be used.
             If <command>port</command> is <command>*</command> or is omitted,
-            a random unprivileged port will be used. The <command>avoid-v4-udp-ports</command>
+            a pool of random unprivileged ports will be used.  See the
+	    <command>use-queryport-pool</command>,
+	    <command>queryport-pool-ports</command> and
+	    <command>queryport-pool-updateinterval</command> options below for how the pool
+	    is configured.
+	    The <command>avoid-v4-udp-ports</command>
             and <command>avoid-v6-udp-ports</command> options can be used
             to prevent named
-            from selecting certain ports. The defaults are:
+            from selecting certain ports.
+	    The defaults are:
           </para>
 
 <programlisting>query-source address * port *;
 query-source-v6 address * port *;
 </programlisting>
 
+          <variablelist>
+            <varlistentry>
+              <term><command>use-queryport-pool</command></term>
+              <listitem>
+                <para>
+		  Enable the use of query port pools.  By default query port
+		  pools are enabled unless there is a explicit port defined
+		  in <command>query-source</command> or
+		  <command>query-source-v6</command>.
+		</para>
+	      </listitem>
+	    </varlistentry>
+
+            <varlistentry>
+              <term><command>queryport-pool-ports</command></term>
+              <listitem>
+                <para>
+		  Specify how many pool ports to use.  The default is 8.
+		</para>
+	      </listitem>
+	    </varlistentry>
+
+            <varlistentry>
+              <term><command>queryport-pool-updateinterval</command></term>
+              <listitem>
+                <para>
+		  Specify how often, in minutes, that the queryport pool
+		  should be recreated (new ports selected).  The default
+		  is 15 minutes.
+		</para>
+	      </listitem>
+	    </varlistentry>
+	    
+          </variablelist>
           <note>
             <para>
               The address specified in the <command>query-source</command> option
               is used for both UDP and TCP queries, but the port applies only
-              to
-              UDP queries.  TCP queries always use a random
+              to UDP queries.  TCP queries always use a random
               unprivileged port.
             </para>
           </note>
@@ -7499,32 +7667,6 @@ query-source-v6 address * port *;
                     </para>
                   </entry>
                 </row>
-                <row rowsep="0">
-                  <entry colname="1">
-                    <para><command>duplicate</command></para>
-                  </entry>
-                  <entry colname="2">
-                    <para>
-                      The number of queries which the server attempted to
-		      recurse but discover a existing query with the same
-		      IP address, port, query id, name, type and class
-		      already being processed.
-                    </para>
-                  </entry>
-                </row>
-                <row rowsep="0">
-                  <entry colname="1">
-                    <para><command>dropped</command></para>
-                  </entry>
-                  <entry colname="2">
-                    <para>
-		      The number of queries for which the server
-		      discovered a excessive number of existing
-		      recursive queries for the same name, type and
-		      class and were subsequently dropped.
-		    </para>
-		  </entry>
-		</row>
               </tbody>
             </tgroup>
           </informaltable>
@@ -7682,6 +7824,9 @@ query-source-v6 address * port *;
     <optional> notify-source-v6 (<replaceable>ip6_addr</replaceable> | <constant>*</constant>) <optional>port <replaceable>ip_port</replaceable></optional> ; </optional>
     <optional> query-source <optional> address ( <replaceable>ip_addr</replaceable> | <replaceable>*</replaceable> ) </optional> <optional> port ( <replaceable>ip_port</replaceable> | <replaceable>*</replaceable> ) </optional>; </optional>
     <optional> query-source-v6 <optional> address ( <replaceable>ip_addr</replaceable> | <replaceable>*</replaceable> ) </optional> <optional> port ( <replaceable>ip_port</replaceable> | <replaceable>*</replaceable> ) </optional>; </optional>
+    <optional> use-queryport-pool <replaceable>yes_or_no</replaceable>; </optional>
+    <optional> queryport-pool-ports <replaceable>number</replaceable>; </optional>
+    <optional> queryport-pool-interval <replaceable>number</replaceable>; </optional>
 };
 </programlisting>
 
@@ -8060,6 +8205,7 @@ view "external" {
 <programlisting>zone <replaceable>zone_name</replaceable> <optional><replaceable>class</replaceable></optional> {
     type master;
     <optional> allow-query { <replaceable>address_match_list</replaceable> }; </optional>
+    <optional> allow-query-on { <replaceable>address_match_list</replaceable> }; </optional>
     <optional> allow-transfer { <replaceable>address_match_list</replaceable> }; </optional>
     <optional> allow-update { <replaceable>address_match_list</replaceable> }; </optional>
     <optional> update-policy { <replaceable>update_policy_rule</replaceable> <optional>...</optional> }; </optional>
@@ -8100,9 +8246,11 @@ zone <replaceable>zone_name</replaceable> <optional><replaceable>class</replacea
     type slave;
     <optional> allow-notify { <replaceable>address_match_list</replaceable> }; </optional>
     <optional> allow-query { <replaceable>address_match_list</replaceable> }; </optional>
+    <optional> allow-query-on { <replaceable>address_match_list</replaceable> }; </optional>
     <optional> allow-transfer { <replaceable>address_match_list</replaceable> }; </optional>
     <optional> allow-update-forwarding { <replaceable>address_match_list</replaceable> }; </optional>
     <optional> update-check-ksk <replaceable>yes_or_no</replaceable>; </optional>
+    <optional> try-tcp-refresh <replaceable>yes_or_no</replaceable>; </optional>
     <optional> also-notify { <replaceable>ip_addr</replaceable> <optional>port <replaceable>ip_port</replaceable></optional> ; <optional> <replaceable>ip_addr</replaceable> <optional>port <replaceable>ip_port</replaceable></optional> ; ... </optional> }; </optional>
     <optional> check-names (<constant>warn</constant>|<constant>fail</constant>|<constant>ignore</constant>) ; </optional>
     <optional> dialup <replaceable>dialup_option</replaceable> ; </optional>
@@ -8149,6 +8297,7 @@ zone <replaceable>zone_name</replaceable> <optional><replaceable>class</replacea
 zone <replaceable>zone_name</replaceable> <optional><replaceable>class</replaceable></optional> {
     type stub;
     <optional> allow-query { <replaceable>address_match_list</replaceable> }; </optional>
+    <optional> allow-query-on { <replaceable>address_match_list</replaceable> }; </optional>
     <optional> check-names (<constant>warn</constant>|<constant>fail</constant>|<constant>ignore</constant>) ; </optional>
     <optional> dialup <replaceable>dialup_option</replaceable> ; </optional>
     <optional> delegation-only <replaceable>yes_or_no</replaceable> ; </optional>
@@ -8449,6 +8598,16 @@ zone <replaceable>zone_name</replaceable> <optional><replaceable>class</replacea
               </varlistentry>
 
               <varlistentry>
+                <term><command>allow-query-on</command></term>
+                <listitem>
+                  <para>
+                    See the description of
+                    <command>allow-query-on</command> in <xref linkend="access_control"/>.
+                  </para>
+                </listitem>
+              </varlistentry>
+
+              <varlistentry>
                 <term><command>allow-transfer</command></term>
                 <listitem>
                   <para>
@@ -8583,6 +8742,16 @@ zone <replaceable>zone_name</replaceable> <optional><replaceable>class</replacea
                   <para>
                     See the description of
                     <command>update-check-ksk</command> in <xref linkend="boolean_options"/>.
+                  </para>
+                </listitem>
+              </varlistentry>
+
+	      <varlistentry>
+	        <term><command>try-tcp-refresh</command></term>
+                <listitem>
+                  <para>
+                    See the description of
+                    <command>try-tcp-refresh</command> in <xref linkend="boolean_options"/>.
                   </para>
                 </listitem>
               </varlistentry>
@@ -8926,45 +9095,41 @@ zone <replaceable>zone_name</replaceable> <optional><replaceable>class</replacea
           </sect3>
           <sect3 id="dynamic_update_policies">
             <title>Dynamic Update Policies</title>
-            <para>
-              <acronym>BIND</acronym> 9 supports two alternative
-              methods of granting clients
-              the right to perform dynamic updates to a zone,
-              configured by the <command>allow-update</command>
-              and
-              <command>update-policy</command> option,
-              respectively.
-            </para>
-            <para>
-              The <command>allow-update</command> clause works the
-              same
-              way as in previous versions of <acronym>BIND</acronym>. It grants given clients the
-              permission to update any record of any name in the zone.
-            </para>
-            <para>
-              The <command>update-policy</command> clause is new
-              in <acronym>BIND</acronym>
-              9 and allows more fine-grained control over what updates are
-              allowed.
-              A set of rules is specified, where each rule either grants or
-              denies
-              permissions for one or more names to be updated by one or more
-              identities.
-              If the dynamic update request message is signed (that is, it
-              includes
-              either a TSIG or SIG(0) record), the identity of the signer can
-              be determined.
-            </para>
-            <para>
-              Rules are specified in the <command>update-policy</command> zone
-              option, and are only meaningful for master zones.  When the <command>update-policy</command> statement
-              is present, it is a configuration error for the <command>allow-update</command> statement
-              to be present.  The <command>update-policy</command>
-              statement only
-              examines the signer of a message; the source address is not
-              relevant.
-            </para>
-            <para>
+	    <para><acronym>BIND</acronym> 9 supports two alternative
+	      methods of granting clients the right to perform
+	      dynamic updates to a zone, configured by the
+	      <command>allow-update</command> and
+	      <command>update-policy</command> option, respectively.
+	    </para>
+	    <para>
+	      The <command>allow-update</command> clause works the
+	      same way as in previous versions of <acronym>BIND</acronym>.
+	      It grants given clients the permission to update any
+	      record of any name in the zone.
+	    </para>
+	    <para>
+	      The <command>update-policy</command> clause is new
+	      in <acronym>BIND</acronym> 9 and allows more fine-grained
+	      control over what updates are allowed.  A set of rules
+	      is specified, where each rule either grants or denies
+	      permissions for one or more names to be updated by
+	      one or more identities.  If the dynamic update request
+	      message is signed (that is, it includes either a TSIG
+	      or SIG(0) record), the identity of the signer can be
+	      determined.
+	    </para>
+	    <para>
+	      Rules are specified in the <command>update-policy</command>
+	      zone option, and are only meaningful for master zones.
+	      When the <command>update-policy</command> statement
+	      is present, it is a configuration error for the
+	      <command>allow-update</command> statement to be
+	      present.  The <command>update-policy</command> statement
+	      only examines the signer of a message; the source
+	      address is not relevant.
+	    </para>
+
+	    <para>
               This is how a rule definition looks:
             </para>
 
@@ -8982,22 +9147,23 @@ zone <replaceable>zone_name</replaceable> <optional><replaceable>class</replacea
               matches
               the types specified in the type field.
             </para>
-
-            <para>
-              The identity field specifies a name or a wildcard name.
-              Normally, this
-              is the name of the TSIG or SIG(0) key used to sign the update
-              request.  When a
-              TKEY exchange has been used to create a shared secret, the
-              identity of the
-              shared secret is the same as the identity of the key used to
-              authenticate the
-              TKEY exchange.  When the <replaceable>identity</replaceable> field specifies a
-              wildcard name, it is subject to DNS wildcard expansion, so the
-              rule will apply
-              to multiple identities.  The <replaceable>identity</replaceable> field must
-              contain a fully-qualified domain name.
-            </para>
+	    <para>
+	      The identity field specifies a name or a wildcard
+	      name.  Normally, this is the name of the TSIG or
+	      SIG(0) key used to sign the update request.  When a
+	      TKEY exchange has been used to create a shared secret,
+	      the identity of the shared secret is the same as the
+	      identity of the key used to authenticate the TKEY
+	      exchange.  TKEY is also the negotiation method used
+	      by GSS-TSIG, which establishes an identity that is
+	      the Kerberos principal of the client, such as
+	      <userinput>"user@host.domain"</userinput>.  When the
+	      <replaceable>identity</replaceable> field specifies
+	      a wildcard name, it is subject to DNS wildcard
+	      expansion, so the rule will apply to multiple identities.
+	      The <replaceable>identity</replaceable> field must
+	      contain a fully-qualified domain name.
+	    </para>
 
             <para>
               The <replaceable>nametype</replaceable> field has 6
@@ -10623,7 +10789,8 @@ $GENERATE 1-127 $ CNAME $.0</programlisting>
         <para>
           Access Control Lists (ACLs), are address match lists that
           you can set up and nickname for future use in <command>allow-notify</command>,
-          <command>allow-query</command>, <command>allow-recursion</command>,
+          <command>allow-query</command>, <command>allow-query-on</command>,
+	  <command>allow-recursion</command>, <command>allow-recursion-on</command>,
           <command>blackhole</command>, <command>allow-transfer</command>,
           etc.
         </para>

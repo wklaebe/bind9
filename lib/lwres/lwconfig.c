@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: lwconfig.c,v 1.38.18.5 2006/10/03 23:50:51 marka Exp $ */
+/* $Id: lwconfig.c,v 1.44 2006/10/03 23:50:52 marka Exp $ */
 
 /*! \file */
 

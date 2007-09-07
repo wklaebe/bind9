@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: gxba_test.c,v 1.9.18.2 2005/04/29 00:15:45 marka Exp $ */
+/* $Id: gxba_test.c,v 1.11 2005/04/29 00:22:40 marka Exp $ */
 
 /*! \file */
 #include <config.h>

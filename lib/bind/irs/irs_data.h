@@ -16,7 +16,7 @@
  */
 
 /*
- * $Id: irs_data.h,v 1.2.18.1 2005/04/27 05:01:01 sra Exp $
+ * $Id: irs_data.h,v 1.3 2005/04/27 04:56:30 sra Exp $
  */
 
 #ifndef __BIND_NOSTATIC

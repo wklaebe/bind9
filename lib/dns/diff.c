@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: diff.c,v 1.9.18.3 2005/04/27 05:01:15 sra Exp $ */
+/* $Id: diff.c,v 1.12 2005/04/27 04:56:45 sra Exp $ */
 
 /*! \file */
 

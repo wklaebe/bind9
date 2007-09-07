@@ -15,7 +15,7 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: start.pl,v 1.5.18.4 2006/03/05 23:58:51 marka Exp $
+# $Id: start.pl,v 1.9 2006/03/05 23:58:52 marka Exp $
 
 # Framework for starting test servers.
 # Based on the type of server specified, check for port availability, remove

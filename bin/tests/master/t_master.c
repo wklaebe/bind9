@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: t_master.c,v 1.32.18.2 2005/11/30 23:52:53 marka Exp $ */
+/* $Id: t_master.c,v 1.34 2005/11/30 23:52:54 marka Exp $ */
 
 #include <config.h>
 

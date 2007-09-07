@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: shutdown_test.c,v 1.20.18.1 2004/08/28 06:17:29 marka Exp $ */
+/* $Id: shutdown_test.c,v 1.21 2004/08/28 06:16:53 marka Exp $ */
 
 #include <config.h>
 

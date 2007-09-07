@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1998-2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: time.h,v 1.30.18.2 2005/04/29 00:17:10 marka Exp $ */
+/* $Id: time.h,v 1.34 2006/12/22 01:59:43 marka Exp $ */
 
 #ifndef ISC_TIME_H
 #define ISC_TIME_H 1
@@ -110,7 +110,7 @@ isc_time_settoepoch(isc_time_t *t);
  * Set 't' to the time of the epoch.
  *
  * Notes:
- * \li	The date of the epoch is platform-dependent.
+ *\li	The date of the epoch is platform-dependent.
  *
  * Requires:
  *
@@ -199,7 +199,7 @@ isc_time_add(const isc_time_t *t, const isc_interval_t *i, isc_time_t *result);
  *\li	't', 'i', and 'result' are valid pointers.
  *
  * Returns:
- * \li	Success
+ *\li	Success
  *\li	Out of range
  * 		The interval added to the time is too large to
  *		be represented in the current definition of isc_time_t.
@@ -295,7 +295,35 @@ isc_time_formattimestamp(const isc_time_t *t, char *buf, unsigned int len);
  *
  *  Requires:
  *\li      'len' > 0
- *  \li    'buf' points to an array of at least len chars
+ *\li      'buf' points to an array of at least len chars
+ *
+ */
+
+void
+isc_time_formathttptimestamp(const isc_time_t *t, char *buf, unsigned int len);
+/*%<
+ * Format the time 't' into the buffer 'buf' of length 'len',
+ * using a format like "Mon, 30 Aug 2000 04:06:47 GMT"
+ * If the text does not fit in the buffer, the result is indeterminate,
+ * but is always guaranteed to be null terminated.
+ *
+ *  Requires:
+ *\li      'len' > 0
+ *\li      'buf' points to an array of at least len chars
+ *
+ */
+
+void
+isc_time_formatISO8601(const isc_time_t *t, char *buf, unsigned int len);
+/*%<
+ * Format the time 't' into the buffer 'buf' of length 'len',
+ * using the ISO8601 format: "yyyy-mm-ddThh:mm:ssZ"
+ * If the text does not fit in the buffer, the result is indeterminate,
+ * but is always guaranteed to be null terminated.
+ *
+ *  Requires:
+ *\li      'len' > 0
+ *\li      'buf' points to an array of at least len chars
  *
  */
 

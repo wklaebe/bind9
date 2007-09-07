@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: hash_test.c,v 1.10.18.7 2006/08/16 23:54:34 marka Exp $ */
+/* $Id: hash_test.c,v 1.17 2006/08/16 23:54:35 marka Exp $ */
 
 /*! \file */
 #include <config.h>

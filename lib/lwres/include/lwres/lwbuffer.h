@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000, 2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,10 +15,10 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: lwbuffer.h,v 1.16.18.2 2005/04/29 00:17:22 marka Exp $ */
+/* $Id: lwbuffer.h,v 1.20 2006/12/22 01:59:44 marka Exp $ */
 
 
-/*! \file lwbuffer.h
+/*! \file lwres/lwbuffer.h
  *
  * A buffer is a region of memory, together with a set of related subregions.
  * Buffers are used for parsing and I/O operations.

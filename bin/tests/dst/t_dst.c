@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: t_dst.c,v 1.48.18.3 2005/11/30 23:52:53 marka Exp $ */
+/* $Id: t_dst.c,v 1.51 2005/11/30 23:52:54 marka Exp $ */
 
 #include <config.h>
 

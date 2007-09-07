@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000, 2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,12 +15,12 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: int.h,v 1.8.18.2 2005/04/29 00:17:21 marka Exp $ */
+/* $Id: int.h,v 1.12 2006/12/22 01:59:44 marka Exp $ */
 
 #ifndef LWRES_INT_H
 #define LWRES_INT_H 1
 
-/*! \file */
+/*! \file lwres/int.h */
 
 typedef char				lwres_int8_t;
 typedef unsigned char			lwres_uint8_t;

@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rwlock.c,v 1.37.18.5 2005/07/12 01:22:30 marka Exp $ */
+/* $Id: rwlock.c,v 1.42 2005/07/12 01:00:18 marka Exp $ */
 
 /*! \file */
 

@@ -15,7 +15,7 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: prereq.sh,v 1.5.18.3 2006/01/04 00:37:23 marka Exp $
+# $Id: prereq.sh,v 1.8 2006/01/04 00:37:24 marka Exp $
 
 ../../genrandom 400 random.data
 

@@ -14,7 +14,7 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: clean.sh,v 1.2.2.2 2006/03/05 23:58:51 marka Exp $
+# $Id: clean.sh,v 1.3 2006/03/05 23:58:52 marka Exp $
 
 rm -f dig.out.cyclic dig.out.fixed dig.out.random
 rm -f ns2/root.bk

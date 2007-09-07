@@ -43,22 +43,25 @@ BIND 9
 		Nominum, Inc.
 
 
-BIND 9.4.2
+BIND 9.5.0
 
-	BIND 9.4.2 is a maintenance release, containing fixes for
-	a number of bugs in 9.4.1.
+	BIND 9.5.0 has a number of new features over 9.4,
+	including:
 
-BIND 9.4.1
+	GSS-TSIG support (RFC 3645).
 
-	BIND 9.4.1 is a security release, containing a fix for
-	a security bugs in 9.4.0.
+	DHCID support.
+
+	Experimental http server and statistics support for named via xml.
+
+	Use Doxygen to generate internal documention.
 
 BIND 9.4.0
 
 	BIND 9.4.0 has a number of new features over 9.3,
 	including:
 
-	Implemented "additional section caching" (or "acache"), an
+	Implemented "additional section caching (or acache)", an
 	internal cache framework for additional section content to
 	improve response performance.  Several configuration options
 	were provided to control the behavior.
@@ -147,10 +150,11 @@ BIND 9.4.0
 
 	Add support for CH A record.
 
-	Add additional zone data consistancy checks.  named-checkzone
+	Add additional zone data constancy checks.  named-checkzone
 	has extended checking of NS, MX and SRV record and the hosts
 	they reference.  named has extended post zone load checks.
 	New zone options: check-mx and integrity-check.
+
 
 	edns-udp-size can now be overridden on a per server basis.
 
@@ -164,7 +168,7 @@ BIND 9.4.0
 	Detect duplicates of UDP queries we are recursing on and
 	drop them.  New stats category "duplicates".
 
-	Memory management. "USE INTERNAL MALLOC" is now runtime selectable.
+	"USE INTERNAL MALLOC" is now runtime selectable.
 
 	The lame cache is now done on a <qname,qclass,qtype> basis
 	as some servers only appear to be lame for certain query
@@ -179,9 +183,9 @@ BIND 9.4.0
 
 	Support for IPSECKEY rdata type.
 
-	Raise the UDP receive buffer size to 32k if it is less than 32k.
+	Raise the UDP recieve buffer size to 32k if it is less than 32k.
 
-	x86 and x86_64 now have separate atomic locking implementations.
+	x86 and x86_64 now have seperate atomic locking implementations.
 
 	named-checkconf now validates update-policy entries.
 
@@ -209,69 +213,9 @@ BIND 9.4.0
 	to set 'RA' when 'RD' is set unless a server is explicitly
 	set.
 
-	Integrate contributed DLZ code into named.
+	Integrate contibuted DLZ code into named.
 
-	Integrate contributed IDN code from JPNIC.
-
-	Validate pending NS RRsets, in the authority section, prior
-	to returning them if it can be done without requiring DNSKEYs
-	to be fetched.
-
-	It is now possible to configure named to accept expired
-	RRSIGs.  Default "dnssec-accept-expired no;".  Setting
-	"dnssec-accept-expired yes;" leaves named vulnerable to
-	replay attacks.
-
-	Additional memory leakage checks.
-
-	The maximum EDNS UDP response named will send can now be
-	set in named.conf (max-udp-size).  This is independent of
-	the advertised receive buffer (edns-udp-size).
-
-	Named now falls back to advertising EDNS with a 512 byte
-	receive buffer if the initial EDNS queries fail.
-
-	Control the zeroing of the negative response TTL to a soa
-	query.  Defaults "zero-no-soa-ttl yes;" and
-	"zero-no-soa-ttl-cache no;".
-			
-	Separate out MX and SRV to CNAME checks.
-
-	dig/nslookup/host: warn about missing "QR".
-
-	TSIG HMACSHA1, HMACSHA224, HMACSHA256, HMACSHA384 and
-	HMACSHA512 support.
-
-	dnssec-signzone: output the SOA record as the first record
-	in the signed zone.
-
-	Two new update policies.  "selfsub" and "selfwild".
-
-	dig, nslookup and host now advertise a 4096 byte EDNS UDP
-	buffer size by default.
-
-	Report when a zone is removed.
-
-	DS/DLV SHA256 digest algorithm support.
-
-	Implement "rrset-order fixed".
-
-	Check the KSK flag when updating a secure dynamic zone.
-	New zone option "update-check-ksk yes;".
-
-	It is now possible to explicitly enable DNSSEC validation.
-	default dnssec-validation no; to be changed to yes in 9.5.0.
-
-	It is now possible to enable/disable DNSSEC validation
-	from rndc.  This is useful for the mobile hosts where the
-	current connection point breaks DNSSEC (firewall/proxy).
-
-		rndc validation newstate [view]
-
-	dnssec-signzone can now update the SOA record of the signed
-	zone, either as an increment or as the system time().
-
-	Statistics about acache now recorded and sent to log.
+	Integrate contibuted IDN code from JPNIC.
 
 	libbind: corresponds to that from BIND 8.4.7.
 
@@ -589,8 +533,9 @@ Bug Reports and Mailing Lists
 		http://www.isc.org/ops/lists/
 
 	If you're planning on making changes to the BIND 9 source
-	code, you might want to join the BIND Forum as a Worker.
-	This gives you access to the bind-workers@isc.org mailing
-	list and pre-release access to the code.
+	code, you might want to join the BIND Workers mailing list.
+	Send mail to
 
-		http://www.isc.org/sw/guild/bf/
+		bind-workers-request@isc.org
+
+

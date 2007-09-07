@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1997-2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,12 +15,12 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: mem.h,v 1.59.18.9 2006/01/04 23:50:23 marka Exp $ */
+/* $Id: mem.h,v 1.71 2007/02/14 00:27:26 marka Exp $ */
 
 #ifndef ISC_MEM_H
 #define ISC_MEM_H 1
 
-/*! \file */
+/*! \file isc/mem.h */
 
 #include <stdio.h>
 
@@ -28,6 +28,7 @@
 #include <isc/mutex.h>
 #include <isc/platform.h>
 #include <isc/types.h>
+#include <isc/xml.h>
 
 ISC_LANG_BEGINDECLS
 
@@ -537,6 +538,11 @@ void *
 isc__mempool_get(isc_mempool_t * _ISC_MEM_FLARG);
 void 		
 isc__mempool_put(isc_mempool_t *, void * _ISC_MEM_FLARG);
+
+#ifdef HAVE_LIBXML2
+void
+isc_mem_renderxml(isc_mem_t *mgr, xmlTextWriterPtr writer);
+#endif /* HAVE_LIBXML2 */
 
 ISC_LANG_ENDDECLS
 

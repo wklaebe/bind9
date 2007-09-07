@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,12 +15,12 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: zone.h,v 1.126.18.19 2006/08/01 03:45:21 marka Exp $ */
+/* $Id: zone.h,v 1.151 2007/03/29 23:47:04 tbox Exp $ */
 
 #ifndef DNS_ZONE_H
 #define DNS_ZONE_H 1
 
-/*! \file */
+/*! \file dns/zone.h */
 
 /***
  ***	Imports
@@ -31,6 +31,7 @@
 #include <isc/formatcheck.h>
 #include <isc/lang.h>
 #include <isc/rwlock.h>
+#include <isc/xml.h>
 
 #include <dns/masterdump.h>
 #include <dns/types.h>
@@ -66,6 +67,7 @@ typedef enum {
 #define DNS_ZONEOPT_WARNSRVCNAME  0x00200000U	/*%< warn on SRV CNAME check */
 #define DNS_ZONEOPT_IGNORESRVCNAME 0x00400000U	/*%< ignore SRV CNAME check */
 #define DNS_ZONEOPT_UPDATECHECKKSK 0x00800000U	/*%< check dnskey KSK flag */
+#define DNS_ZONEOPT_TRYTCPREFRESH 0x01000000U	/*%< try tcp refresh on udp failure */
 
 #ifndef NOMINUM_PUBLIC
 /*
@@ -701,6 +703,16 @@ dns_zone_setqueryacl(dns_zone_t *zone, dns_acl_t *acl);
  */
 
 void
+dns_zone_setqueryonacl(dns_zone_t *zone, dns_acl_t *acl);
+/*%<
+ *	Sets the query-on acl list for the zone.
+ *
+ * Require:
+ *\li	'zone' to be a valid zone.
+ *\li	'acl' to be a valid acl.
+ */
+
+void
 dns_zone_setupdateacl(dns_zone_t *zone, dns_acl_t *acl);
 /*%<
  *	Sets the update acl list for the zone.
@@ -747,6 +759,19 @@ dns_acl_t *
 dns_zone_getqueryacl(dns_zone_t *zone);
 /*%<
  * 	Returns the current query acl or NULL.
+ *
+ * Require:
+ *\li	'zone' to be a valid zone.
+ *
+ * Returns:
+ *\li	acl a pointer to the acl.
+ *\li	NULL
+ */
+
+dns_acl_t *
+dns_zone_getqueryonacl(dns_zone_t *zone);
+/*%<
+ * 	Returns the current query-on acl or NULL.
  *
  * Require:
  *\li	'zone' to be a valid zone.
@@ -826,6 +851,15 @@ void
 dns_zone_clearqueryacl(dns_zone_t *zone);
 /*%<
  *	Clear the current query acl.
+ *
+ * Require:
+ *\li	'zone' to be a valid zone.
+ */
+
+void
+dns_zone_clearqueryonacl(dns_zone_t *zone);
+/*%<
+ *	Clear the current query-on acl.
  *
  * Require:
  *\li	'zone' to be a valid zone.
@@ -1195,6 +1229,8 @@ dns_zone_next(dns_zone_t *zone, dns_zone_t **next);
  *	(result ISC_R_NOMORE).
  */
 
+
+
 isc_result_t
 dns_zone_first(dns_zonemgr_t *zmgr, dns_zone_t **first);
 /*%<
@@ -1410,6 +1446,18 @@ dns_zonemgr_getcount(dns_zonemgr_t *zmgr, int state);
  */
 
 void
+dns_zonemgr_unreachableadd(dns_zonemgr_t *zmgr, isc_sockaddr_t *remote,
+			   isc_sockaddr_t *local, isc_time_t *now);
+/*%<
+ *	Add the pair of addresses to the unreachable cache.
+ *
+ * Requires:
+ *\li	'zmgr' to be a valid zone manager.
+ *\li	'remote' to be a valid sockaddr.
+ *\li	'local' to be a valid sockaddr.
+ */
+
+void
 dns_zone_forcereload(dns_zone_t *zone);
 /*%<
  *      Force a reload of specified zone.
@@ -1580,6 +1628,13 @@ dns_zone_setisself(dns_zone_t *zone, dns_isselffunc_t isself, void *arg);
  * 'destaddr' with optional key 'mykey' for class 'rdclass' would be
  * delivered to 'myview'.
  */
+
+#ifdef HAVE_LIBXML2
+
+isc_result_t
+dns_zone_xmlrender(dns_zone_t *zone, xmlTextWriterPtr xml, int flags);
+
+#endif
 
 ISC_LANG_ENDDECLS
 

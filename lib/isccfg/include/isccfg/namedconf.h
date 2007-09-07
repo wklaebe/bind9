@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,12 +15,12 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: namedconf.h,v 1.3.18.2 2005/04/29 00:17:16 marka Exp $ */
+/* $Id: namedconf.h,v 1.7 2006/12/22 01:59:44 marka Exp $ */
 
 #ifndef ISCCFG_NAMEDCONF_H
 #define ISCCFG_NAMEDCONF_H 1
 
-/*! \file
+/*! \file isccfg/namedconf.h
  * \brief
  * This module defines the named.conf, rndc.conf, and rndc.key grammars.
  */

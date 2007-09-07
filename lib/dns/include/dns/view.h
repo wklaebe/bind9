@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: view.h,v 1.91.18.9 2006/03/09 23:38:21 marka Exp $ */
+/* $Id: view.h,v 1.106 2007/05/15 02:38:34 marka Exp $ */
 
 #ifndef DNS_VIEW_H
 #define DNS_VIEW_H 1
@@ -24,7 +24,7 @@
  ***** Module Info
  *****/
 
-/*! \file
+/*! \file dns/view.h
  * \brief
  * DNS View
  *
@@ -70,6 +70,7 @@
 #include <isc/refcount.h>
 #include <isc/rwlock.h>
 #include <isc/stdtime.h>
+#include <isc/xml.h>
 
 #include <dns/acl.h>
 #include <dns/fixedname.h>
@@ -100,6 +101,7 @@ struct dns_view {
 	isc_event_t			resevent;
 	isc_event_t			adbevent;
 	isc_event_t			reqevent;
+
 	/* Configurable data. */
 	dns_tsig_keyring_t *		statickeys;
 	dns_tsig_keyring_t *		dynamickeys;
@@ -116,7 +118,9 @@ struct dns_view {
 	isc_boolean_t			acceptexpired;
 	dns_transfer_format_t		transfer_format;
 	dns_acl_t *			queryacl;
+	dns_acl_t *			queryonacl;
 	dns_acl_t *			recursionacl;
+	dns_acl_t *			recursiononacl;
 	dns_acl_t *			sortlist;
 	isc_boolean_t			requestixfr;
 	isc_boolean_t			provideixfr;
@@ -591,6 +595,19 @@ dns_viewlist_find(dns_viewlist_t *list, const char *name,
  */
 
 isc_result_t
+dns_viewlist_findzone(dns_viewlist_t *list, dns_name_t *name, isc_boolean_t allclasses,
+                      dns_rdataclass_t rdclass, dns_zone_t **zonep);
+
+/*%<
+ * Search zone with 'name' in view with 'rdclass' in viewlist 'list'
+ * If found, zone is returned in *zonep. If allclasses is set rdclass is ignored
+ *
+ * Returns:
+ *\li	#ISC_R_SUCCESS          A matching zone was found.
+ *\li	#ISC_R_NOTFOUND         No matching zone was found.
+ */
+
+isc_result_t
 dns_view_findzone(dns_view_t *view, dns_name_t *name, dns_zone_t **zonep);
 /*%<
  * Search for the zone 'name' in the zone table of 'view'.
@@ -801,4 +818,12 @@ dns_view_freezezones(dns_view_t *view, isc_boolean_t freeze);
  * Requires:
  * \li	'view' is valid.
  */
+
+#ifdef HAVE_LIBXML2
+
+isc_result_t
+dns_view_xmlrender(dns_view_t *view, xmlTextWriterPtr xml, int flags);
+
+#endif
+
 #endif /* DNS_VIEW_H */

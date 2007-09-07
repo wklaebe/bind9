@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: main.c,v 1.136.18.17 2006/11/10 18:51:14 marka Exp $ */
+/* $Id: main.c,v 1.156 2007/05/21 03:46:41 tbox Exp $ */
 
 /*! \file */
 
@@ -447,6 +447,8 @@ parse_command_line(int argc, char *argv[]) {
 			exit(0);
 		case '?':
 			usage();
+			if (isc_commandline_option == '?')
+				exit(0);
 			ns_main_earlyfatal("unknown option '-%c'",
 					   isc_commandline_option);
 		default:
@@ -669,6 +671,14 @@ setup(void) {
 					   isc_result_totext(result));
 		ns_g_conffile = absolute_conffile;
 	}
+
+	/*
+	 * Record the server's startup time.
+	 */
+	result = isc_time_now(&ns_g_boottime);
+	if (result != ISC_R_SUCCESS)
+		ns_main_earlyfatal("isc_time_now() failed: %s",
+				   isc_result_totext(result));
 
 	result = create_managers();
 	if (result != ISC_R_SUCCESS)

@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: result.c,v 1.115.10.7 2005/06/17 02:04:31 marka Exp $ */
+/* $Id: result.c,v 1.121 2005/06/17 01:58:22 marka Exp $ */
 
 /*! \file */
 

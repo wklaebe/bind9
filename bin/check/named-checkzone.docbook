@@ -18,7 +18,7 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<!-- $Id: named-checkzone.docbook,v 1.11.18.20 2007/06/19 06:59:09 marka Exp $ -->
+<!-- $Id: named-checkzone.docbook,v 1.32 2007/05/21 02:47:25 marka Exp $ -->
 <refentry id="man.named-checkzone">
   <refentryinfo>
     <date>June 13, 2000</date>
@@ -56,6 +56,7 @@
     <cmdsynopsis>
       <command>named-checkzone</command>
       <arg><option>-d</option></arg>
+      <arg><option>-h</option></arg>
       <arg><option>-j</option></arg>
       <arg><option>-q</option></arg>
       <arg><option>-v</option></arg>
@@ -132,6 +133,15 @@
         <listitem>
           <para>
             Enable debugging.
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>-h</term>
+        <listitem>
+          <para>
+            Print the usage summary and exit.
           </para>
         </listitem>
       </varlistentry>
@@ -301,6 +311,8 @@
         <listitem>
           <para>
             Write zone output to <filename>filename</filename>.
+	    If <filename>filename</filename> is <filename>-</filename> then
+	    write to standard out.
 	    This is mandatory for <command>named-compilezone</command>.
           </para>
         </listitem>
@@ -421,9 +433,6 @@
     <title>SEE ALSO</title>
     <para><citerefentry>
         <refentrytitle>named</refentrytitle><manvolnum>8</manvolnum>
-      </citerefentry>,
-      <citerefentry>
-        <refentrytitle>named-checkconf</refentrytitle><manvolnum>8</manvolnum>  
       </citerefentry>,
       <citetitle>RFC 1035</citetitle>,
       <citetitle>BIND 9 Administrator Reference Manual</citetitle>.

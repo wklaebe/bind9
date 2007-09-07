@@ -50,7 +50,7 @@
  * USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dlz.c,v 1.2.2.2 2005/09/06 03:47:17 marka Exp $ */
+/* $Id: dlz.c,v 1.3 2005/09/06 03:51:35 marka Exp $ */
 
 /*! \file */
 

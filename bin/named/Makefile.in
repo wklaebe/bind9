@@ -1,4 +1,4 @@
-# Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
+# Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
 # Copyright (C) 1998-2002  Internet Software Consortium.
 #
 # Permission to use, copy, modify, and distribute this software for any
@@ -13,7 +13,7 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: Makefile.in,v 1.80.18.7 2005/09/05 00:18:10 marka Exp $
+# $Id: Makefile.in,v 1.94 2007/05/18 06:12:51 marka Exp $
 
 srcdir =	@srcdir@
 VPATH =		@srcdir@
@@ -84,6 +84,8 @@ OBJS =		builtin.@O@ client.@O@ config.@O@ control.@O@ \
 
 UOBJS =		unix/os.@O@
 
+GENERATED =	bind9.xsl.h
+
 SRCS =		builtin.c client.c config.c control.c \
 		controlconf.c interfacemgr.c \
 		listenlist.c log.c logconf.c main.c notify.c \
@@ -128,7 +130,13 @@ docclean manclean maintainer-clean::
 	rm -f ${MANOBJS}
 
 clean distclean maintainer-clean::
-	rm -f ${TARGETS} ${OBJS}
+	rm -f ${TARGETS} ${OBJS} ${GENERATED}
+
+bind9.xsl.h: bind9.xsl convertxsl.pl
+	${PERL} ${srcdir}/convertxsl.pl < ${srcdir}/bind9.xsl > bind9.xsl.h
+
+depend: bind9.xsl.h
+server.@O@: bind9.xsl.h
 
 installdirs:
 	$(SHELL) ${top_srcdir}/mkinstalldirs ${DESTDIR}${sbindir}

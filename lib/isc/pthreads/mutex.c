@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: mutex.c,v 1.8.18.4 2005/07/12 01:22:32 marka Exp $ */
+/* $Id: mutex.c,v 1.12 2005/07/12 01:00:19 marka Exp $ */
 
 /*! \file */
 

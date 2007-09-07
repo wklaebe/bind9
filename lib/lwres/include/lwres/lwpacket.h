@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: lwpacket.h,v 1.18.18.2 2005/04/29 00:17:22 marka Exp $ */
+/* $Id: lwpacket.h,v 1.22 2006/12/22 01:59:44 marka Exp $ */
 
 #ifndef LWRES_LWPACKET_H
 #define LWRES_LWPACKET_H 1
@@ -118,7 +118,7 @@ struct lwres_lwpacket {
 
 #define LWRES_LWPACKETVERSION_0		0	/*%< Header format. */
 
-/*! \file lwpacket.h
+/*! \file lwres/lwpacket.h
  *
  *
  * The remainder of the packet consists of two regions, one described by

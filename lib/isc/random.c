@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: random.c,v 1.21.18.2 2005/04/29 00:16:48 marka Exp $ */
+/* $Id: random.c,v 1.23 2005/04/29 00:23:29 marka Exp $ */
 
 /*! \file */
 

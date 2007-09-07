@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: entropy.c,v 1.71.18.7 2006/12/07 04:53:03 marka Exp $ */
+/* $Id: entropy.c,v 1.78 2006/12/07 04:46:27 marka Exp $ */
 
 /* \file unix/entropy.c
  * \brief

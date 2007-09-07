@@ -16,7 +16,7 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static const char rcsid[] = "$Id: dns_gr.c,v 1.3.18.1 2005/04/27 05:00:54 sra Exp $";
+static const char rcsid[] = "$Id: dns_gr.c,v 1.4 2005/04/27 04:56:21 sra Exp $";
 #endif
 
 /*! \file

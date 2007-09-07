@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: lookup.c,v 1.14.18.6 2007/03/06 02:12:08 tbox Exp $ */
+/* $Id: lookup.c,v 1.20 2007/03/06 02:12:39 tbox Exp $ */
 
 /*! \file */
 

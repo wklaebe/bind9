@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2001, 2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: parseint.h,v 1.3.18.2 2005/04/29 00:17:00 marka Exp $ */
+/* $Id: parseint.h,v 1.7 2006/12/22 01:59:43 marka Exp $ */
 
 #ifndef ISC_PARSEINT_H
 #define ISC_PARSEINT_H 1
@@ -23,7 +23,7 @@
 #include <isc/lang.h>
 #include <isc/types.h>
 
-/*! \file
+/*! \file isc/parseint.h
  * \brief Parse integers, in a saner way than atoi() or strtoul() do.
  */
 

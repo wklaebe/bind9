@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,12 +15,12 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: getaddresses.h,v 1.3.18.2 2005/04/29 00:15:48 marka Exp $ */
+/* $Id: getaddresses.h,v 1.7 2006/12/22 01:59:43 marka Exp $ */
 
 #ifndef BIND9_GETADDRESSES_H
 #define BIND9_GETADDRESSES_H 1
 
-/*! \file */
+/*! \file bind9/getaddresses.h */
 
 #include <isc/lang.h>
 #include <isc/types.h>

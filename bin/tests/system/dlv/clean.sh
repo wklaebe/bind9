@@ -14,7 +14,7 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: clean.sh,v 1.2.2.1 2004/05/14 05:19:47 marka Exp $
+# $Id: clean.sh,v 1.2 2004/05/14 04:58:18 marka Exp $
 
 rm -f random.data
 rm -f ns*/named.run

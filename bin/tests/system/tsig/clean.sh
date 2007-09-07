@@ -14,7 +14,7 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: clean.sh,v 1.2.2.2 2006/01/27 23:57:44 marka Exp $
+# $Id: clean.sh,v 1.3 2006/01/27 23:57:46 marka Exp $
 
 #
 # Clean up after tsig tests.

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,9 +15,9 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: portlist.h,v 1.3.18.2 2005/04/29 00:16:17 marka Exp $ */
+/* $Id: portlist.h,v 1.7 2006/12/22 01:59:43 marka Exp $ */
 
-/*! \file */
+/*! \file dns/portlist.h */
 
 #include <isc/lang.h>
 #include <isc/net.h>

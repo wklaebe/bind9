@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: notify.h,v 1.10.18.2 2005/04/29 00:15:37 marka Exp $ */
+/* $Id: notify.h,v 1.12 2005/04/29 00:22:32 marka Exp $ */
 
 #ifndef NAMED_NOTIFY_H
 #define NAMED_NOTIFY_H 1

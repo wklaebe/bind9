@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2006  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: ntservice.c,v 1.8 2004/03/05 04:58:08 marka Exp $ */
+/* $Id: ntservice.c,v 1.10 2006/12/22 01:59:43 marka Exp $ */
 
 #include <config.h>
 #include <stdio.h>
@@ -221,7 +221,7 @@ void GetArgs(int *argc, char ***argv, char ***envp)
     
 	/*
 	 * Set the app type to Console (check CRT/SRC/INTERNAL.H:
-	 * #define _CONSOLE_APP 1)
+	 * \#define _CONSOLE_APP 1)
 	 */
 	__set_app_type(1);
 	

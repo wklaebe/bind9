@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1998-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: socket.h,v 1.57.18.6 2006/06/07 00:29:45 marka Exp $ */
+/* $Id: socket.h,v 1.71 2007/02/13 02:49:08 marka Exp $ */
 
 #ifndef ISC_SOCKET_H
 #define ISC_SOCKET_H 1
@@ -24,7 +24,7 @@
  ***** Module Info
  *****/
 
-/*! \file
+/*! \file isc/socket.h
  * \brief Provides TCP and UDP sockets for network I/O.  The sockets are event
  * sources in the task system.
  *
@@ -64,6 +64,7 @@
 #include <isc/time.h>
 #include <isc/region.h>
 #include <isc/sockaddr.h>
+#include <isc/xml.h>
 
 ISC_LANG_BEGINDECLS
 
@@ -144,7 +145,8 @@ struct isc_socket_connev {
 typedef enum {
 	isc_sockettype_udp = 1,
 	isc_sockettype_tcp = 2,
-	isc_sockettype_unix = 3
+	isc_sockettype_unix = 3,
+	isc_sockettype_fdwatch = 4,
 } isc_sockettype_t;
 
 /*@{*/
@@ -175,12 +177,59 @@ typedef enum {
 #define ISC_SOCKFLAG_NORETRY	0x00000002	/*%< drop failed UDP sends */
 /*@}*/
 
+/*@{*/
+/*!
+ * Flags for fdwatchcreate.
+ */
+#define ISC_SOCKFDWATCH_READ	0x00000001	/*%< watch for readable */
+#define ISC_SOCKFDWATCH_WRITE	0x00000002	/*%< watch for writable */
+/*@}*/
+
 /***
  *** Socket and Socket Manager Functions
  ***
  *** Note: all Ensures conditions apply only if the result is success for
  *** those functions which return an isc_result.
  ***/
+
+isc_result_t
+isc_socket_fdwatchcreate(isc_socketmgr_t *manager,
+			 int fd,
+			 int flags,
+			 isc_sockfdwatch_t callback,
+			 void *cbarg,
+			 isc_task_t *task,
+			 isc_socket_t **socketp);
+/*%<
+ * Create a new file descriptor watch socket managed by 'manager'.
+ *
+ * Note:
+ *
+ *\li   'fd' is the already-opened file descriptor.
+ *\li	This function is not available on Windows.
+ *\li	The callback function is called "in-line" - this means the function
+ *	needs to return as fast as possible, as all other I/O will be suspended
+ *	until the callback completes.
+ *
+ * Requires:
+ *
+ *\li	'manager' is a valid manager
+ *
+ *\li	'socketp' is a valid pointer, and *socketp == NULL
+ *
+ *\li	'fd' be opened.
+ *
+ * Ensures:
+ *
+ *	'*socketp' is attached to the newly created fdwatch socket
+ *
+ * Returns:
+ *
+ *\li	#ISC_R_SUCCESS
+ *\li	#ISC_R_NOMEMORY
+ *\li	#ISC_R_NORESOURCES
+ *\li	#ISC_R_UNEXPECTED
+ */
 
 isc_result_t
 isc_socket_create(isc_socketmgr_t *manager,
@@ -746,6 +795,33 @@ isc_socket_permunix(isc_sockaddr_t *sockaddr, isc_uint32_t perm,
  * \li	#ISC_R_SUCCESS
  * \li	#ISC_R_FAILURE
  */
+
+void isc_socket_setname(isc_socket_t *socket, const char *name, void *tag);
+/*%<
+ * Set the name and optional tag for a socket.  This allows tracking of the
+ * owner or purpose for this socket, and is useful for tracing and statistics
+ * reporting.
+ */
+
+const char *isc_socket_getname(isc_socket_t *socket);
+/*%<
+ * Get the name associated with a socket, if any.
+ */
+
+void *isc_socket_gettag(isc_socket_t *socket);
+/*%<
+ * Get the tag associated with a socket, if any.
+ */
+
+#ifdef HAVE_LIBXML2
+
+void
+isc_socketmgr_renderxml(isc_socketmgr_t *mgr, xmlTextWriterPtr writer);
+/*%<
+ * Render internal statistics and other state into the XML document.
+ */
+
+#endif /* HAVE_LIBXML2 */
 
 ISC_LANG_ENDDECLS
 

@@ -14,7 +14,7 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: clean.sh,v 1.2.2.1 2005/06/20 01:19:29 marka Exp $
+# $Id: clean.sh,v 1.2 2005/06/20 01:03:49 marka Exp $
 
 rm -f named-compilezone
 rm -f ns1/example.db.raw

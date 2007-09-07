@@ -15,16 +15,17 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: view.c,v 1.126.18.13 2007/03/06 02:12:08 tbox Exp $ */
+/* $Id: view.c,v 1.142 2007/05/15 02:38:34 marka Exp $ */
 
 /*! \file */
 
 #include <config.h>
 
 #include <isc/hash.h>
-#include <isc/task.h>
 #include <isc/string.h>		/* Required for HP/UX (and others?) */
+#include <isc/task.h>
 #include <isc/util.h>
+#include <isc/xml.h>
 
 #include <dns/acache.h>
 #include <dns/acl.h>
@@ -165,7 +166,9 @@ dns_view_create(isc_mem_t *mctx, dns_rdataclass_t rdclass,
 	view->minimalresponses = ISC_FALSE;
 	view->transfer_format = dns_one_answer;
 	view->queryacl = NULL;
+	view->queryonacl = NULL;
 	view->recursionacl = NULL;
+	view->recursiononacl = NULL;
 	view->sortlist = NULL;
 	view->requestixfr = ISC_TRUE;
 	view->provideixfr = ISC_TRUE;
@@ -286,8 +289,12 @@ destroy(dns_view_t *view) {
 		dns_acl_detach(&view->matchdestinations);
 	if (view->queryacl != NULL)
 		dns_acl_detach(&view->queryacl);
+	if (view->queryonacl != NULL)
+		dns_acl_detach(&view->queryonacl);
 	if (view->recursionacl != NULL)
 		dns_acl_detach(&view->recursionacl);
+	if (view->recursiononacl != NULL)
+		dns_acl_detach(&view->recursiononacl);
 	if (view->sortlist != NULL)
 		dns_acl_detach(&view->sortlist);
 	if (view->delonly != NULL) {
@@ -1140,6 +1147,40 @@ dns_viewlist_find(dns_viewlist_t *list, const char *name,
 }
 
 isc_result_t
+dns_viewlist_findzone(dns_viewlist_t *list, dns_name_t *name,
+		      isc_boolean_t allclasses, dns_rdataclass_t rdclass,
+		      dns_zone_t **zonep)
+{
+	dns_view_t *view;
+	isc_result_t result;
+	dns_zone_t *zone1 = NULL, *zone2 = NULL;
+
+	REQUIRE(list != NULL);
+	for (view = ISC_LIST_HEAD(*list);
+             view != NULL;
+             view = ISC_LIST_NEXT(view, link)) {
+		if (allclasses == ISC_FALSE && view->rdclass != rdclass)
+			continue;
+		result = dns_zt_find(view->zonetable, name, 0, NULL,
+				    (zone1 == NULL) ? &zone1 : &zone2);
+		INSIST(result == ISC_R_SUCCESS || result == ISC_R_NOTFOUND);
+		if (zone2 != NULL) {
+			dns_zone_detach(&zone1);
+			dns_zone_detach(&zone2);
+			return (ISC_R_NOTFOUND);
+		}
+	}
+
+	if (zone1 != NULL) {
+		dns_zone_attach(zone1, zonep);
+		dns_zone_detach(&zone1);
+		return (ISC_R_SUCCESS);
+	}
+
+	return (ISC_R_NOTFOUND);
+}
+
+isc_result_t
 dns_view_load(dns_view_t *view, isc_boolean_t stop) {
 
 	REQUIRE(DNS_VIEW_VALID(view));
@@ -1365,3 +1406,47 @@ dns_view_freezezones(dns_view_t *view, isc_boolean_t value) {
 	REQUIRE(DNS_VIEW_VALID(view));
 	return (dns_zt_freezezones(view->zonetable, value));
 }
+
+#ifdef HAVE_LIBXML2
+
+struct xmlarg {
+	int flags;
+	xmlTextWriterPtr xml;
+};
+
+static isc_result_t
+zone_xmlrender(dns_zone_t *zone, void *arg) {
+	struct xmlarg *xmlarg = arg;
+
+	return (dns_zone_xmlrender(zone, xmlarg->xml, xmlarg->flags));
+}
+
+isc_result_t
+dns_view_xmlrender(dns_view_t *view, xmlTextWriterPtr xml, int flags)
+{
+	struct xmlarg xmlargs;
+
+	xmlargs.flags = flags;
+	xmlargs.xml = xml;
+
+	/* XXXMLG render config data here */
+
+	if ((flags & ISC_XML_RENDERSTATS) != 0) {
+		xmlTextWriterStartElement(xml, ISC_XMLCHAR "view");
+
+		xmlTextWriterStartElement(xml, ISC_XMLCHAR "name");
+		xmlTextWriterWriteString(xml, ISC_XMLCHAR view->name);
+		xmlTextWriterEndElement(xml);
+
+		xmlTextWriterStartElement(xml, ISC_XMLCHAR "zones");
+		dns_zt_apply(view->zonetable, ISC_FALSE, zone_xmlrender,
+			     &xmlargs);
+		xmlTextWriterEndElement(xml);
+
+		xmlTextWriterEndElement(xml);
+	}
+
+	return (ISC_R_SUCCESS);
+}
+
+#endif /* HAVE_LIBXML2 */

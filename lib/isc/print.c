@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: print.c,v 1.27.18.3 2006/04/17 18:27:33 explorer Exp $ */
+/* $Id: print.c,v 1.31 2006/04/03 00:00:42 marka Exp $ */
 
 /*! \file */
 

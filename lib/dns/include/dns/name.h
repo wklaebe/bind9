@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: name.h,v 1.107.18.15 2006/03/02 00:37:21 marka Exp $ */
+/* $Id: name.h,v 1.124 2006/12/22 01:45:00 marka Exp $ */
 
 #ifndef DNS_NAME_H
 #define DNS_NAME_H 1
@@ -24,7 +24,7 @@
  ***** Module Info
  *****/
 
-/*! \file
+/*! \file dns/name.h
  * \brief
  * Provides facilities for manipulating DNS names and labels, including
  * conversions to and from wire format and text format.
@@ -131,6 +131,7 @@ struct dns_name {
 #define DNS_NAMEATTR_READONLY		0x0002
 #define DNS_NAMEATTR_DYNAMIC		0x0004
 #define DNS_NAMEATTR_DYNOFFSETS		0x0008
+#define DNS_NAMEATTR_NOCOMPRESS		0x0010
 /*
  * Attributes below 0x0100 reserved for name.c usage.
  */

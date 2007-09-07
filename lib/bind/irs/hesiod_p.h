@@ -16,7 +16,7 @@
  */
 
 /*
- * $Id: hesiod_p.h,v 1.2.18.1 2005/04/27 05:00:59 sra Exp $
+ * $Id: hesiod_p.h,v 1.3 2005/04/27 04:56:27 sra Exp $
  */
 
 #ifndef _HESIOD_P_H_INCLUDED

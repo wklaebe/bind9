@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: config.c,v 1.47.18.30 2007/06/18 23:46:32 tbox Exp $ */
+/* $Id: config.c,v 1.77 2007/03/29 23:47:04 tbox Exp $ */
 
 /*! \file */
 
@@ -104,7 +104,9 @@ options {\n\
 	allow-notify {none;};\n\
 	allow-update-forwarding {none;};\n\
 	allow-query-cache { localnets; localhost; };\n\
+	allow-query-cache-on { any; };\n\
 	allow-recursion { localnets; localhost; };\n\
+	allow-recursion-on { any; };\n\
 #	allow-v6-synthesis <obsolete>;\n\
 #	sortlist <none>\n\
 #	topology <none>\n\
@@ -145,6 +147,7 @@ options {\n\
 
 "	/* zone */\n\
 	allow-query {any;};\n\
+	allow-query-on {any;};\n\
 	allow-transfer {any;};\n\
 	notify yes;\n\
 #	also-notify <none>\n\
@@ -178,11 +181,12 @@ options {\n\
 	check-srv-cname warn;\n\
 	zero-no-soa-ttl yes;\n\
 	update-check-ksk yes;\n\
+	try-tcp-refresh yes; /* BIND 8 compat */\n\
 };\n\
 "
 
 "#\n\
-#  Zones in the \"_bind\" view are NOT counted in the count of zones.\n\
+#  Zones in the \"_bind\" view are NOT counted is the count of zones.\n\
 #\n\
 view \"_bind\" chaos {\n\
 	recursion no;\n\

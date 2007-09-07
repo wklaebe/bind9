@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dig.h,v 1.82.18.22 2007/04/24 06:49:52 each Exp $ */
+/* $Id: dig.h,v 1.104 2007/04/03 23:06:39 marka Exp $ */
 
 #ifndef DIG_H
 #define DIG_H

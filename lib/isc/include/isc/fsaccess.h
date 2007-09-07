@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000, 2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,12 +15,12 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: fsaccess.h,v 1.8.18.2 2005/04/29 00:16:55 marka Exp $ */
+/* $Id: fsaccess.h,v 1.12 2006/12/22 01:59:43 marka Exp $ */
 
 #ifndef ISC_FSACCESS_H
 #define ISC_FSACCESS_H 1
 
-/*! \file
+/*! \file isc/fsaccess.h
  * \brief The ISC filesystem access module encapsulates the setting of file
  * and directory access permissions into one API that is meant to be
  * portable to multiple operating systems.
@@ -104,12 +104,13 @@
  * so that every file created had DELETE set for the owner but noone else.
  *
  * On Unix systems, setting #ISC_FSACCESS_LISTDIRECTORY sets READ.
- * ... setting either of #ISC_FSACCESS_(CREATE|DELETE)CHILD sets WRITE.
+ * ... setting either #ISC_FSACCESS_CREATECHILD or #ISC_FSACCESS_DELETECHILD
+ *      sets WRITE.
  * ... setting #ISC_FSACCESS_ACCESSCHILD sets EXECUTE.
  *
  * On NT systems, setting #ISC_FSACCESS_LISTDIRECTORY sets FILE_LIST_DIRECTORY.
- * ... setting ISC_FSACCESS_(CREATE|DELETE)CHILD sets
- *	FILE_(CREATE|DELETE)_CHILD independently.
+ * ... setting #ISC_FSACCESS_CREATECHILD sets FILE_CREATE_CHILD independently.
+ * ... setting #ISC_FSACCESS_DELETECHILD sets FILE_DELETE_CHILD independently.
  * ... setting #ISC_FSACCESS_ACCESSCHILD sets FILE_TRAVERSE.
  *
  * Unresolved:							XXXDCL

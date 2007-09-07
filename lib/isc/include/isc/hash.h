@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: hash.h,v 1.4.18.2 2005/04/29 00:16:55 marka Exp $ */
+/* $Id: hash.h,v 1.8 2006/12/22 01:59:43 marka Exp $ */
 
 #ifndef ISC_HASH_H
 #define ISC_HASH_H 1
@@ -24,7 +24,7 @@
  ***** Module Info
  *****/
 
-/*! \file
+/*! \file isc/hash.h
  *
  * \brief The hash API
  *	provides an unpredictable hash value for variable length data.

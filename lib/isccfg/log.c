@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: log.c,v 1.5.18.2 2005/04/29 00:17:15 marka Exp $ */
+/* $Id: log.c,v 1.9 2006/12/22 01:59:44 marka Exp $ */
 
 /*! \file */
 
@@ -27,7 +27,7 @@
 
 /*%
  * When adding a new category, be sure to add the appropriate
- * #define to <isccfg/log.h>.
+ * \#define to <isccfg/log.h>.
  */
 LIBISCCFG_EXTERNAL_DATA isc_logcategory_t cfg_categories[] = {
 	{ "config", 	0 },
@@ -36,7 +36,7 @@ LIBISCCFG_EXTERNAL_DATA isc_logcategory_t cfg_categories[] = {
 
 /*%
  * When adding a new module, be sure to add the appropriate
- * #define to <isccfg/log.h>.
+ * \#define to <isccfg/log.h>.
  */
 LIBISCCFG_EXTERNAL_DATA isc_logmodule_t cfg_modules[] = {
 	{ "isccfg/parser",	0 },

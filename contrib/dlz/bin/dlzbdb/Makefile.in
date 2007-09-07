@@ -13,7 +13,7 @@
 # NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
 # WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: Makefile.in,v 1.2.2.1 2005/09/05 00:18:14 marka Exp $
+# $Id: Makefile.in,v 1.2 2005/09/05 00:10:54 marka Exp $
 
 srcdir =	@srcdir@
 VPATH =		@srcdir@

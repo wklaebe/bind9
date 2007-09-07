@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: region.c,v 1.3.18.2 2005/04/29 00:16:49 marka Exp $ */
+/* $Id: region.c,v 1.5 2005/04/29 00:23:30 marka Exp $ */
 
 /*! \file */
 

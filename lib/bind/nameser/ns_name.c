@@ -16,7 +16,7 @@
  */
 
 #ifndef lint
-static const char rcsid[] = "$Id: ns_name.c,v 1.8.18.2 2005/04/27 05:01:08 sra Exp $";
+static const char rcsid[] = "$Id: ns_name.c,v 1.10 2005/04/27 04:56:40 sra Exp $";
 #endif
 
 #include "port_before.h"

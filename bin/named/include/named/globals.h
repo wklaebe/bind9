@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: globals.h,v 1.64.18.4 2006/03/02 00:37:21 marka Exp $ */
+/* $Id: globals.h,v 1.70 2006/12/22 03:07:57 explorer Exp $ */
 
 #ifndef NAMED_GLOBALS_H
 #define NAMED_GLOBALS_H 1
@@ -113,6 +113,7 @@ EXTERN const char *		lwresd_g_defaultpidfile INIT(NS_LOCALSTATEDIR
 EXTERN const char *		ns_g_username		INIT(NULL);
 
 EXTERN int			ns_g_listen		INIT(3);
+EXTERN isc_time_t		ns_g_boottime;
 
 #undef EXTERN
 #undef INIT

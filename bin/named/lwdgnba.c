@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: lwdgnba.c,v 1.16.18.2 2005/04/29 00:15:24 marka Exp $ */
+/* $Id: lwdgnba.c,v 1.18 2005/04/29 00:22:28 marka Exp $ */
 
 /*! \file */
 

@@ -1,4 +1,17 @@
 
+	--- 9.1.1rc7 released ---
+
+ 791.	[bug]		The control channel did not work over IPv6.
+
+ 790.	[bug]		Wildcards created using dynamic update or IXFR
+			could fail to match. [RT #1111]
+
+ 787.	[bug]		The DNSSEC tools failed to downcase domain
+			names when mapping them into file names.
+
+ 786.	[bug]		When DNSSEC signing/verifying data, owner names were
+			not properly downcased.
+
 	--- 9.1.1rc6 released ---
 
  785.	[bug]		A race condition in the resolver could cause

@@ -44,12 +44,9 @@
  */
 
 #include <isc/lang.h>
-#include <isc/types.h>
 #include <isc/stdtime.h>
-#include <isc/buffer.h>
 
 #include <dns/types.h>
-#include <dns/result.h>
 
 ISC_LANG_BEGINDECLS
 
@@ -60,6 +57,9 @@ dns_ncache_add(dns_message_t *message, dns_db_t *cache, dns_dbnode_t *node,
 /*
  * Convert the authority data from 'message' into a negative cache
  * rdataset, and store it in 'cache' at 'node'.
+ *
+ * The 'covers' argument is the RR type whose nonexistence we are caching,
+ * or dns_rdatatype_any when caching a NXDOMAIN response.
  *
  * Note:
  *	If 'addedrdataset' is not NULL, then it will be attached to the added
@@ -99,7 +99,7 @@ dns_ncache_towire(dns_rdataset_t *rdataset, dns_compress_t *cctx,
  *	'countp' is a valid pointer.
  *
  * Ensures:
- *	On a return of DNS_R_SUCCESS, 'target' contains a wire format
+ *	On a return of ISC_R_SUCCESS, 'target' contains a wire format
  *	for the data contained in 'rdataset'.  Any error return leaves
  *	the buffer unchanged.
  *
@@ -107,8 +107,8 @@ dns_ncache_towire(dns_rdataset_t *rdataset, dns_compress_t *cctx,
  *	target.
  *
  * Returns:
- *	DNS_R_SUCCESS		- all ok
- *	DNS_R_NOSPACE		- 'target' doesn't have enough room
+ *	ISC_R_SUCCESS		- all ok
+ *	ISC_R_NOSPACE		- 'target' doesn't have enough room
  *
  *	Any error returned by dns_rdata_towire(), dns_rdataset_next(),
  *	dns_name_towire().

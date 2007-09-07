@@ -17,39 +17,29 @@
 
 #include <config.h>
 
-#include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <string.h>
-
-#include <sys/types.h>
 
 #include <isc/app.h>
-#include <isc/assertions.h>
-#include <isc/error.h>
+#include <isc/log.h>
 #include <isc/mem.h>
-#include <isc/net.h>
+#include <isc/string.h>
 #include <isc/task.h>
-#include <isc/thread.h>
-#include <isc/result.h>
-#include <isc/socket.h>
-#include <isc/timer.h>
+#include <isc/util.h>
 
 #include <dns/dispatch.h>
+#include <dns/log.h>
 #include <dns/message.h>
 #include <dns/rdatalist.h>
 #include <dns/rdataset.h>
-#include <dns/rdata.h>
-#include <dns/rdataclass.h>
-#include <dns/rdatatype.h>
-
-#include "printmsg.h"
+#include <dns/result.h>
 
 isc_mem_t *mctx;
-isc_taskmgr_t *manager;
+isc_taskmgr_t *taskmgr;
 isc_socketmgr_t *socketmgr;
+dns_dispatchmgr_t *dispatchmgr;
 dns_dispatch_t *disp;
-isc_task_t *t0, *t1, *t2;
+isc_task_t *t0;
 isc_buffer_t render;
 unsigned char render_buffer[1024];
 dns_rdataset_t rdataset;
@@ -63,13 +53,32 @@ static inline void CHECKRESULT(isc_result_t, char *);
 void send_done(isc_task_t *, isc_event_t *);
 void hex_dump(isc_buffer_t *);
 
+static isc_result_t
+printmsg(dns_message_t *msg, FILE *out) {
+	unsigned char text[8192];
+	isc_buffer_t textbuf;
+	int result;
+
+	isc_buffer_init(&textbuf, text, sizeof text);
+	result = dns_message_totext(msg, ISC_TRUE, ISC_TRUE,
+				    ISC_FALSE, &textbuf);
+
+	if (result != ISC_R_SUCCESS)
+		return (result);
+
+	fprintf(out, "msg:\n%*s\n",
+		isc_buffer_usedlength(&textbuf),
+		isc_buffer_base(&textbuf));
+
+	return (ISC_R_SUCCESS);
+}
+
 void
-hex_dump(isc_buffer_t *b)
-{
+hex_dump(isc_buffer_t *b) {
 	unsigned int len;
 	isc_region_t r;
 
-	isc_buffer_remaining(b, &r);
+	isc_buffer_remainingregion(b, &r);
 
 	printf("Buffer %p (%p, %d):  used region base %p, length %d",
 	       b, b->base, b->length, r.base, r.length);
@@ -82,9 +91,8 @@ hex_dump(isc_buffer_t *b)
 }
 
 static inline void
-CHECKRESULT(isc_result_t result, char *msg)
-{
-	if (result != DNS_R_SUCCESS) {
+CHECKRESULT(isc_result_t result, char *msg) {
+	if (result != ISC_R_SUCCESS) {
 		printf("%s: %s\n", msg, isc_result_totext(result));
 
 		exit(1);
@@ -92,10 +100,10 @@ CHECKRESULT(isc_result_t result, char *msg)
 }
 
 void
-my_accept(isc_task_t *task, isc_event_t *ev_in)
-{
+my_accept(isc_task_t *task, isc_event_t *ev_in) {
 	isc_socket_newconnev_t *ev = (isc_socket_newconnev_t *)ev_in;
 	dns_dispentry_t *resp;
+	unsigned int attrs;
 
 	if (ev->result != ISC_R_SUCCESS) {
 		isc_event_free(&ev_in);
@@ -105,9 +113,13 @@ my_accept(isc_task_t *task, isc_event_t *ev_in)
 	/*
 	 * Create a dispatch context
 	 */
+	attrs = 0;
+	attrs |= DNS_DISPATCHATTR_IPV4;
+	attrs |= DNS_DISPATCHATTR_TCP;
 	disp = NULL;
-	RUNTIME_CHECK(dns_dispatch_create(mctx, ev->newsocket, task,
-					  512, 6, 1024, 17, 19, NULL, &disp)
+	RUNTIME_CHECK(dns_dispatch_createtcp(dispatchmgr, ev->newsocket,
+					     taskmgr, 4096, 64, 1024,
+					     17, 19, attrs, &disp)
 		      == ISC_R_SUCCESS);
 
 	resp = NULL;
@@ -121,10 +133,9 @@ my_accept(isc_task_t *task, isc_event_t *ev_in)
 }
 
 void
-send_done(isc_task_t *task, isc_event_t *ev_in)
-{
+send_done(isc_task_t *task, isc_event_t *ev_in) {
 	isc_socketevent_t *ev = (isc_socketevent_t *)ev_in;
-	dns_dispentry_t *resp = (dns_dispentry_t *)ev_in->arg;
+	dns_dispentry_t *resp = (dns_dispentry_t *)ev_in->ev_arg;
 
 	(void)task;
 
@@ -139,13 +150,12 @@ send_done(isc_task_t *task, isc_event_t *ev_in)
 	isc_event_free(&ev_in);
 
 	printf("--- removing response (FAILURE)\n");
-	dns_dispatch_removeresponse(disp, &resp, NULL);
+	dns_dispatch_removeresponse(&resp, NULL);
 	isc_app_shutdown();
 }
 
 void
-start_response(void)
-{
+start_response(void) {
 	dns_dispentry_t *resp;
 	dns_messageid_t id;
 	isc_sockaddr_t from;
@@ -159,12 +169,10 @@ start_response(void)
 
 #define QUESTION "flame.org."
 
-	isc_buffer_init(&source, QUESTION, strlen(QUESTION),
-			ISC_BUFFERTYPE_TEXT);
+	isc_buffer_init(&source, QUESTION, strlen(QUESTION));
 	isc_buffer_add(&source, strlen(QUESTION));
 	isc_buffer_setactive(&source, strlen(QUESTION));
-	isc_buffer_init(&target, namebuf, sizeof(namebuf),
-			ISC_BUFFERTYPE_BINARY);
+	isc_buffer_init(&target, namebuf, sizeof(namebuf));
 
 	memset(&from, 0, sizeof(from));
 	from.length = sizeof(struct sockaddr_in);
@@ -202,11 +210,10 @@ start_response(void)
 
 	ISC_LIST_APPEND(name->list, &rdataset, link);
 
-	result = printmessage(msg);
-	CHECKRESULT(result, "printmessage()");
+	result = printmsg(msg, stderr);
+	CHECKRESULT(result, "printmsg()");
 
-	isc_buffer_init(&render, render_buffer, sizeof(render_buffer),
-			ISC_BUFFERTYPE_BINARY);
+	isc_buffer_init(&render, render_buffer, sizeof(render_buffer));
 	result = dns_message_renderbegin(msg, &render);
 	CHECKRESULT(result, "dns_message_renderbegin()");
 
@@ -226,7 +233,7 @@ start_response(void)
 
 	printf("--- adding response\n");
 	resp = NULL;
-	result = dns_dispatch_addresponse(disp, &from, t2, got_response, NULL,
+	result = dns_dispatch_addresponse(disp, &from, t0, got_response, NULL,
 					  &id, &resp);
 	CHECKRESULT(result, "dns_dispatch_addresponse");
 
@@ -242,17 +249,16 @@ start_response(void)
 
 	dns_message_destroy(&msg);
 
-	isc_buffer_used(&render, &region);
+	isc_buffer_usedregion(&render, &region);
 	result = isc_socket_send(dns_dispatch_getsocket(disp), &region,
-				   t2, send_done, resp);
+				 t0, send_done, resp);
 	CHECKRESULT(result, "isc_socket_send()");
 }
 
 void
-got_response(isc_task_t *task, isc_event_t *ev_in)
-{
+got_response(isc_task_t *task, isc_event_t *ev_in) {
 	dns_dispatchevent_t *ev = (dns_dispatchevent_t *)ev_in;
-	dns_dispentry_t *resp = ev->sender;
+	dns_dispentry_t *resp = ev->ev_sender;
 	dns_message_t *msg;
 	isc_result_t result;
 
@@ -268,22 +274,21 @@ got_response(isc_task_t *task, isc_event_t *ev_in)
 	result = dns_message_parse(msg, &ev->buffer, ISC_FALSE);
 	CHECKRESULT(result, "dns_message_parse() failed");
 
-	result = printmessage(msg);
-	CHECKRESULT(result, "printmessage() failed");
+	result = printmsg(msg, stderr);
+	CHECKRESULT(result, "printmsg() failed");
 
 	dns_message_destroy(&msg);
 
 	printf("--- removing response\n");
-	dns_dispatch_removeresponse(disp, &resp, &ev);
+	dns_dispatch_removeresponse(&resp, &ev);
 
 	isc_app_shutdown();
 }
 
 void
-got_request(isc_task_t *task, isc_event_t *ev_in)
-{
+got_request(isc_task_t *task, isc_event_t *ev_in) {
 	dns_dispatchevent_t *ev = (dns_dispatchevent_t *)ev_in;
-	dns_dispentry_t *resp = ev->sender;
+	dns_dispentry_t *resp = ev->ev_sender;
 	static int cnt = 0;
 	dns_message_t *msg;
 	isc_result_t result;
@@ -291,9 +296,9 @@ got_request(isc_task_t *task, isc_event_t *ev_in)
 	printf("App:  Got request.  Result: %s\n",
 	       isc_result_totext(ev->result));
 
-	if (ev->result != DNS_R_SUCCESS) {
+	if (ev->result != ISC_R_SUCCESS) {
 		printf("Got error, terminating application\n");
-		dns_dispatch_removerequest(disp, &resp, &ev);
+		dns_dispatch_removerequest(&resp, &ev);
 		dns_dispatch_detach(&disp);
 		isc_app_shutdown();
 		return;
@@ -308,8 +313,8 @@ got_request(isc_task_t *task, isc_event_t *ev_in)
 	result = dns_message_parse(msg, &ev->buffer, ISC_FALSE);
 	CHECKRESULT(result, "dns_message_parse() failed");
 
-	result = printmessage(msg);
-	CHECKRESULT(result, "printmessage() failed");
+	result = printmsg(msg, stderr);
+	CHECKRESULT(result, "printmsg() failed");
 
 	dns_message_destroy(&msg);
 
@@ -320,18 +325,18 @@ got_request(isc_task_t *task, isc_event_t *ev_in)
 	switch (cnt) {
 	case 6:
 		printf("--- removing request\n");
-		dns_dispatch_removerequest(disp, &resp, &ev);
+		dns_dispatch_removerequest(&resp, &ev);
 		dns_dispatch_detach(&disp);
 		isc_app_shutdown();
 		break;
 		
 	case 3:
 		printf("--- removing request\n");
-		dns_dispatch_removerequest(disp, &resp, &ev);
+		dns_dispatch_removerequest(&resp, &ev);
 		printf("--- adding request\n");
 		RUNTIME_CHECK(dns_dispatch_addrequest(disp, task, got_request,
 						      NULL, &resp)
-			      == DNS_R_SUCCESS);
+			      == ISC_R_SUCCESS);
 		break;
 
 	default:
@@ -341,8 +346,7 @@ got_request(isc_task_t *task, isc_event_t *ev_in)
 }
 
 int
-main(int argc, char *argv[])
-{
+main(int argc, char *argv[]) {
 	isc_socket_t *s0;
 	isc_sockaddr_t sockaddr;
 
@@ -362,19 +366,19 @@ main(int argc, char *argv[])
 	/*
 	 * The task manager is independent (other than memory context)
 	 */
-	manager = NULL;
-	RUNTIME_CHECK(isc_taskmgr_create(mctx, 5, 0, &manager) ==
+	taskmgr = NULL;
+	RUNTIME_CHECK(isc_taskmgr_create(mctx, 5, 0, &taskmgr) ==
 		      ISC_R_SUCCESS);
 
 	t0 = NULL;
-	RUNTIME_CHECK(isc_task_create(manager, NULL, 0, &t0) == ISC_R_SUCCESS);
-	t1 = NULL;
-	RUNTIME_CHECK(isc_task_create(manager, NULL, 0, &t1) == ISC_R_SUCCESS);
-	t2 = NULL;
-	RUNTIME_CHECK(isc_task_create(manager, NULL, 0, &t2) == ISC_R_SUCCESS);
+	RUNTIME_CHECK(isc_task_create(taskmgr, 0, &t0) == ISC_R_SUCCESS);
 
 	socketmgr = NULL;
 	RUNTIME_CHECK(isc_socketmgr_create(mctx, &socketmgr) == ISC_R_SUCCESS);
+
+	dispatchmgr = NULL;
+	RUNTIME_CHECK(dns_dispatchmgr_create(mctx, &dispatchmgr)
+		      == ISC_R_SUCCESS);
 
 	/*
 	 * Open up a random socket.  Who cares where.
@@ -389,28 +393,52 @@ main(int argc, char *argv[])
 		      ISC_R_SUCCESS);
 	RUNTIME_CHECK(isc_socket_bind(s0, &sockaddr) == ISC_R_SUCCESS);
 	RUNTIME_CHECK(isc_socket_listen(s0, 0) == ISC_R_SUCCESS);
-	RUNTIME_CHECK(isc_socket_accept(s0, t1, my_accept, NULL)
+	RUNTIME_CHECK(isc_socket_accept(s0, t0, my_accept, NULL)
 		      == ISC_R_SUCCESS);
 
 	isc_app_run();
 
 	isc_socket_detach(&s0);
 
+	fprintf(stderr, "canceling dispatcher\n");
+	isc_mem_stats(mctx, stderr);
+	sleep(2);
+	dns_dispatch_cancel(disp);
+
+	INSIST(disp != NULL);
+	fprintf(stderr, "detaching from dispatcher\n");
+	isc_mem_stats(mctx, stderr);
+	sleep(2);
+	dns_dispatch_detach(&disp);
+
+	fprintf(stderr, "destroying dispatch manager\n");
+	isc_mem_stats(mctx, stderr);
+	sleep(2);
+	dns_dispatchmgr_destroy(&dispatchmgr);
+
 	fprintf(stderr, "Destroying socket manager\n");
+	isc_mem_stats(mctx, stderr);
+	sleep(2);
 	isc_socketmgr_destroy(&socketmgr);
 
 	isc_task_shutdown(t0);
 	isc_task_detach(&t0);
-	isc_task_shutdown(t1);
-	isc_task_detach(&t1);
-	isc_task_shutdown(t2);
-	isc_task_detach(&t2);
 
 	fprintf(stderr, "Destroying task manager\n");
-	isc_taskmgr_destroy(&manager);
+	isc_mem_stats(mctx, stderr);
+	sleep(2);
+	isc_taskmgr_destroy(&taskmgr);
+
+	isc_app_finish();
+
+#if 0
+	isc_log_destroy(&log);
+	sleep(2);
+#endif
 
 	isc_mem_stats(mctx, stderr);
-	isc_mem_destroy(&mctx);
+	fflush(stderr);
+	isc_mem_detach(&mctx);
 
 	isc_app_finish();
 

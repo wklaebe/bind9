@@ -1,42 +1,35 @@
 /*
  * Portions Copyright (c) 1995-1999 by Network Associates, Inc.
+ * Portions Copyright (C) 1999, 2000  Internet Software Consortium.
  *
- * Permission to use, copy modify, and distribute this software for any
+ * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
- * THE SOFTWARE IS PROVIDED "AS IS" AND NETWORK ASSOCIATES
- * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS.  IN NO EVENT SHALL
- * NETWORK ASSOCIATES BE LIABLE FOR ANY SPECIAL, DIRECT,
- * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
- * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
- * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
- * WITH THE USE OR PERFORMANCE OF THE SOFTWARE.
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM AND
+ * NETWORK ASSOCIATES DISCLAIM ALL WARRANTIES WITH REGARD TO THIS
+ * SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+ * FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE CONSORTIUM OR NETWORK
+ * ASSOCIATES BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR
+ * CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+ * USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+ * OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ * PERFORMANCE OF THIS SOFTWARE.
  */
 
 /*
  * Principal Author: Brian Wellington
- * $Id: dst_parse.c,v 1.9 1999/10/20 22:14:14 bwelling Exp $
+ * $Id: dst_parse.c,v 1.16 2000/05/15 23:14:11 bwelling Exp $
  */
 
 #include <config.h>
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <ctype.h>
-#include <limits.h>
-
-#include <isc/assertions.h>
 #include <isc/base64.h>
-#include <isc/buffer.h>
 #include <isc/dir.h>
-#include <isc/int.h>
 #include <isc/lex.h>
 #include <isc/mem.h>
-#include <isc/region.h>
-#include <dns/rdata.h>
+#include <isc/string.h>
+#include <isc/util.h>
 
 /* XXXBEW For chmod.  This should be removed. */
 #include <sys/stat.h>
@@ -194,9 +187,8 @@ dst_s_free_private_structure_fields(dst_private_t *priv, isc_mem_t *mctx) {
 }
 
 int
-dst_s_parse_private_key_file(const char *name, const int alg,
-			     const isc_uint16_t id, dst_private_t *priv,
-			     isc_mem_t *mctx)
+dst_s_parse_private_key_file(dst_key_t *key, const isc_uint16_t id,
+			     dst_private_t *priv, isc_mem_t *mctx)
 {
 	char filename[ISC_DIR_NAMEMAX];
 	int n = 0, ret, major, minor;
@@ -205,16 +197,16 @@ dst_s_parse_private_key_file(const char *name, const int alg,
 	isc_token_t token;
 	unsigned int opt = ISC_LEXOPT_EOL;
 	isc_result_t iret;
-	isc_result_t error = DST_R_INVALIDPRIVATEKEY;
 
 	REQUIRE(priv != NULL);
 
 	priv->nelements = 0;
 
-	ret = dst_s_build_filename(filename, name, id, alg, PRIVATE_KEY,
-				   sizeof(filename));
-	if (ret < 0)
-		return (DST_R_NAMETOOLONG);
+	isc_buffer_init(&b, filename, sizeof(filename));
+	key->key_id = id;
+	ret = dst_key_buildfilename(key, DST_TYPE_PRIVATE, &b);
+	if (ret != ISC_R_SUCCESS)
+		return (ret);
 
 	iret = isc_lex_create(mctx, 1024, &lex);
 	if (iret != ISC_R_SUCCESS)
@@ -236,7 +228,9 @@ dst_s_parse_private_key_file(const char *name, const int alg,
 		NEXTTOKEN(lex, opt, token) \
 	} while ((*token).type != isc_tokentype_eol) \
 
-	/* Read the description line */
+	/*
+	 * Read the description line.
+	 */
 	NEXTTOKEN(lex, opt, &token);
 	if (token.type != isc_tokentype_string ||
 	    strcmp(token.value.as_pointer, PRIVATE_KEY_STR) != 0)
@@ -255,7 +249,9 @@ dst_s_parse_private_key_file(const char *name, const int alg,
 
 	READLINE(lex, opt, &token);
 
-	/* Read the algorithm line */
+	/*
+	 * Read the algorithm line.
+	 */
 	NEXTTOKEN(lex, opt, &token);
 	if (token.type != isc_tokentype_string ||
 	    strcmp(token.value.as_pointer, ALGORITHM_STR) != 0)
@@ -263,12 +259,14 @@ dst_s_parse_private_key_file(const char *name, const int alg,
 
 	NEXTTOKEN(lex, opt | ISC_LEXOPT_NUMBER, &token);
 	if (token.type != isc_tokentype_number ||
-	    token.value.as_ulong != (unsigned long) alg)
+	    token.value.as_ulong != (unsigned long) dst_key_alg(key))
 		goto fail;
 
 	READLINE(lex, opt, &token);
 
-	/* Read the key data */
+	/*
+	 * Read the key data.
+	 */
 	for (n = 0; n < MAXFIELDS; n++) {
 		int tag;
 		unsigned char *data;
@@ -283,21 +281,20 @@ dst_s_parse_private_key_file(const char *name, const int alg,
 			goto fail;
 
 		memset(&priv->elements[n], 0, sizeof(dst_private_element_t));
-		tag = find_value(token.value.as_pointer, alg);
-		if (tag < 0 || TAG_ALG(tag) != alg)
+		tag = find_value(token.value.as_pointer, dst_key_alg(key));
+		if (tag < 0 || TAG_ALG(tag) != dst_key_alg(key))
 			goto fail;
 		priv->elements[n].tag = tag;
 
 		data = (unsigned char *) isc_mem_get(mctx, MAXFIELDSIZE);
-		if (data == NULL) {
-			error = DST_R_INVALIDPRIVATEKEY;
+		if (data == NULL)
 			goto fail;
-		}
-		isc_buffer_init(&b, data, MAXFIELDSIZE, ISC_BUFFERTYPE_BINARY);
+
+		isc_buffer_init(&b, data, MAXFIELDSIZE);
 		ret = isc_base64_tobuffer(lex, &b, -1);
 		if (ret != ISC_R_SUCCESS)
 			goto fail;
-		isc_buffer_used(&b, &r);
+		isc_buffer_usedregion(&b, &r);
 		priv->elements[n].length = r.length;
 		priv->elements[n].data = r.base;
 
@@ -306,7 +303,7 @@ dst_s_parse_private_key_file(const char *name, const int alg,
 
 	priv->nelements = n;
 
-	if (check_data(priv, alg) < 0)
+	if (check_data(priv, dst_key_alg(key)) < 0)
 		goto fail;
 
 	isc_lex_close(lex);
@@ -326,24 +323,23 @@ fail:
 }
 
 int
-dst_s_write_private_key_file(const char *name, const int alg,
-			     const isc_uint16_t id, const dst_private_t *priv)
-{
+dst_s_write_private_key_file(const dst_key_t *key, const dst_private_t *priv) {
 	FILE *fp;
 	int ret, i;
 	isc_result_t iret;
 	char filename[ISC_DIR_NAMEMAX];
 	char buffer[MAXFIELDSIZE * 2];
+	isc_buffer_t b;
 
 	REQUIRE(priv != NULL);
 
-	if (check_data(priv, alg) < 0)
+	if (check_data(priv, dst_key_alg(key)) < 0)
 		return (DST_R_INVALIDPRIVATEKEY);
 
-	ret = dst_s_build_filename(filename, name, id, alg, PRIVATE_KEY,
-				   sizeof(filename));
-	if (ret < 0)
-		return (DST_R_NAMETOOLONG);
+	isc_buffer_init(&b, filename, sizeof(filename));
+	ret = dst_key_buildfilename(key, DST_TYPE_PRIVATE, &b);
+	if (ret != ISC_R_SUCCESS)
+		return (ret);
 
 	if ((fp = fopen(filename, "w")) == NULL)
 		return (DST_R_WRITEERROR);
@@ -354,8 +350,8 @@ dst_s_write_private_key_file(const char *name, const int alg,
 	fprintf(fp, "%s v%d.%d\n", PRIVATE_KEY_STR, MAJOR_VERSION,
 		MINOR_VERSION);
 
-	fprintf(fp, "%s %d ", ALGORITHM_STR, alg);
-	switch (alg) {
+	fprintf(fp, "%s %d ", ALGORITHM_STR, dst_key_alg(key));
+	switch (dst_key_alg(key)) {
 		case DST_ALG_RSA: fprintf(fp, "(RSA)\n"); break;
 		case DST_ALG_DH: fprintf(fp, "(DH)\n"); break;
 		case DST_ALG_DSA: fprintf(fp, "(DSA)\n"); break;
@@ -372,14 +368,13 @@ dst_s_write_private_key_file(const char *name, const int alg,
 
 		r.base = priv->elements[i].data;
 		r.length = priv->elements[i].length;
-		isc_buffer_init(&b, buffer, sizeof(buffer),
-				ISC_BUFFERTYPE_TEXT);
+		isc_buffer_init(&b, buffer, sizeof(buffer));
 		iret = isc_base64_totext(&r, sizeof(buffer), "", &b);
 		if (iret != ISC_R_SUCCESS) {
 			fclose(fp);
 			return (DST_R_INVALIDPRIVATEKEY);
 		}
-		isc_buffer_used(&b, &r);
+		isc_buffer_usedregion(&b, &r);
 
 		fprintf(fp, "%s ", s);
 		fwrite(r.base, 1, r.length, fp);

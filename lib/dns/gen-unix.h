@@ -27,10 +27,16 @@
  * The dir stuff was shrunk to fit the needs of gen.c.
  */
 
+#ifndef DNS_GEN_UNIX_H
+#define DNS_GEN_UNIX_H 1
+
+#include <sys/types.h>
+
 #include <dirent.h>
 #include <unistd.h>
 
 #include <isc/boolean.h>
+#include <isc/lang.h>
 
 #define isc_commandline_parse		getopt
 #define isc_commandline_argument 	optarg
@@ -39,6 +45,8 @@ typedef struct {
 	DIR *handle;
 	char *filename;
 } isc_dir_t;
+
+ISC_LANG_BEGINDECLS
 
 static isc_boolean_t
 start_directory(const char *path, isc_dir_t *dir) {
@@ -77,3 +85,6 @@ end_directory(isc_dir_t *dir) {
 	dir->handle = NULL;
 }
 
+ISC_LANG_ENDDECLS
+
+#endif /* DNS_GEN_UNIX_H */

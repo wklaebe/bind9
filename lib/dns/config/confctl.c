@@ -15,21 +15,17 @@
  * SOFTWARE.
  */
 
+/* $Id: confctl.c,v 1.20 2000/05/13 19:44:53 tale Exp $ */
+
 #include <config.h>
 
-#include <sys/types.h>
-
-#include <isc/assertions.h>
-#include <isc/net.h>
-#include <isc/magic.h>
+#include <isc/mem.h>
+#include <isc/util.h>
 
 #include <dns/confctl.h>
-#include <dns/confcommon.h>
-
 
 isc_result_t
-dns_c_ctrllist_new(isc_mem_t *mem, dns_c_ctrllist_t **newlist)
-{
+dns_c_ctrllist_new(isc_mem_t *mem, dns_c_ctrllist_t **newlist) {
 	dns_c_ctrllist_t *newl;
 	
 	REQUIRE(mem != NULL);
@@ -50,12 +46,9 @@ dns_c_ctrllist_new(isc_mem_t *mem, dns_c_ctrllist_t **newlist)
 
 	return (ISC_R_SUCCESS);
 }
-	
 		
-	
 void
-dns_c_ctrllist_print(FILE *fp, int indent, dns_c_ctrllist_t *cl)
-{
+dns_c_ctrllist_print(FILE *fp, int indent, dns_c_ctrllist_t *cl) {
 	dns_c_ctrl_t *ctl;
 
 	if (cl == NULL) {
@@ -79,11 +72,8 @@ dns_c_ctrllist_print(FILE *fp, int indent, dns_c_ctrllist_t *cl)
 	fprintf(fp, "};\n");
 }
 
-
-
 isc_result_t
-dns_c_ctrllist_delete(dns_c_ctrllist_t **list)
-{
+dns_c_ctrllist_delete(dns_c_ctrllist_t **list) {
 	dns_c_ctrl_t	       *ctrl;
 	dns_c_ctrl_t	       *tmpctrl;
 	dns_c_ctrllist_t      *clist;
@@ -109,7 +99,6 @@ dns_c_ctrllist_delete(dns_c_ctrllist_t **list)
 
 	return (ISC_R_SUCCESS);
 }
-
 
 isc_result_t
 dns_c_ctrlinet_new(isc_mem_t *mem, dns_c_ctrl_t **control,
@@ -149,7 +138,6 @@ dns_c_ctrlinet_new(isc_mem_t *mem, dns_c_ctrl_t **control,
 	return (ISC_R_SUCCESS);
 }
 
-
 isc_result_t
 dns_c_ctrlunix_new(isc_mem_t *mem, dns_c_ctrl_t **control,
 		   const char *path, int perm, uid_t uid, gid_t gid)
@@ -183,12 +171,9 @@ dns_c_ctrlunix_new(isc_mem_t *mem, dns_c_ctrl_t **control,
 	return (ISC_R_SUCCESS);
 }
 
-
 isc_result_t
-dns_c_ctrl_delete(dns_c_ctrl_t **control)
-{
+dns_c_ctrl_delete(dns_c_ctrl_t **control) {
 	isc_result_t res = ISC_R_SUCCESS;
-	isc_result_t rval;
 	isc_mem_t *mem;
 	dns_c_ctrl_t *ctrl;
 	
@@ -204,7 +189,8 @@ dns_c_ctrl_delete(dns_c_ctrl_t **control)
 	switch (ctrl->control_type) {
 	case dns_c_inet_control:
 		if (ctrl->u.inet_v.matchlist != NULL)
-			res = dns_c_ipmatchlist_detach(&ctrl->u.inet_v.matchlist);
+			res = dns_c_ipmatchlist_detach(&ctrl->
+						       u.inet_v.matchlist);
 		else
 			res = ISC_R_SUCCESS;
 		break;
@@ -215,8 +201,6 @@ dns_c_ctrl_delete(dns_c_ctrl_t **control)
 		break;
 	}
 
-	rval = res;
-
 	ctrl->magic = 0;
 	
 	isc_mem_put(mem, ctrl, sizeof *ctrl);
@@ -226,10 +210,8 @@ dns_c_ctrl_delete(dns_c_ctrl_t **control)
 	return (res);
 }
 
-
 void
-dns_c_ctrl_print(FILE *fp, int indent, dns_c_ctrl_t *ctl)
-{
+dns_c_ctrl_print(FILE *fp, int indent, dns_c_ctrl_t *ctl) {
 	in_port_t port;
 	dns_c_ipmatchlist_t *iml;
 

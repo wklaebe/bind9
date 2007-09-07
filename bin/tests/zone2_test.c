@@ -15,25 +15,29 @@
  * SOFTWARE.
  */
 
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
-
 #include <config.h>
 
+#include <stdlib.h>
+#include <unistd.h>
 
 #include <isc/app.h>
-#include <isc/error.h>
 #include <isc/mem.h>
+#include <isc/string.h>
+#include <isc/util.h>
 
 #include <dns/confparser.h>
+#include <dns/journal.h>
+#include <dns/fixedname.h>
+#include <dns/rdataset.h>
+#include <dns/result.h>
 #include <dns/view.h>
 #include <dns/zone.h>
-#include <dns/journal.h>
+#include <dns/zoneconf.h>
+#include <dns/zt.h>
 
 #define ERRRET(result, function) \
 	do { \
-		if (result != DNS_R_SUCCESS) { \
+		if (result != ISC_R_SUCCESS) { \
 			fprintf(stdout, "%s() returned %s\n", \
 				function, dns_result_totext(result)); \
 			return; \
@@ -41,12 +45,130 @@
 	} while (0)
 
 #define ERRCONT(result, function) \
-		if (result != DNS_R_SUCCESS) { \
+		if (result != ISC_R_SUCCESS) { \
 			fprintf(stdout, "%s() returned %s\n", \
 				function, dns_result_totext(result)); \
 			continue; \
 		} else \
 			(void)NULL
+
+typedef struct dns_zone_callbackarg dns_zone_callbackarg_t;
+
+struct dns_zone_callbackarg {
+        isc_mem_t *mctx;
+	dns_viewlist_t oldviews;
+	dns_viewlist_t newviews;
+};
+
+static isc_result_t
+dns_zone_callback(dns_c_ctx_t *cfg, dns_c_zone_t *czone, dns_c_view_t *cview,
+		  void *uap) {
+	dns_zone_callbackarg_t *cba = uap;
+	dns_name_t *name = NULL;
+	dns_view_t *oldview = NULL;
+	dns_zone_t *oldzone = NULL;
+	dns_view_t *newview = NULL;
+	dns_zone_t *newzone = NULL;
+	dns_zone_t *tmpzone = NULL;
+	isc_result_t result;
+	isc_boolean_t boolean;
+	const char *viewname;
+
+	REQUIRE(czone != NULL);
+	REQUIRE(cba != NULL);
+
+	/*
+	 * Find views by name.
+	 */
+	if (cview != NULL)
+		dns_c_view_getname(cview, &viewname);
+	else
+		viewname = "default";
+
+	printf("view %s\n", viewname);
+
+	result = dns_viewlist_find(&cba->oldviews, viewname, czone->zclass,
+				   &oldview);
+	result = dns_viewlist_find(&cba->newviews, viewname, czone->zclass,
+				   &newview);
+
+	if (newview == NULL) {
+		result = dns_view_create(cba->mctx, czone->zclass, viewname,
+					 &newview);
+		if (result != ISC_R_SUCCESS)
+			goto cleanup;
+		ISC_LIST_APPEND(cba->newviews, newview, link);
+	}
+
+	/*
+	 * Create and populate a new zone structure.
+	 */
+	result = dns_zone_create(&newzone, cba->mctx);
+	if (result != ISC_R_SUCCESS)
+		goto cleanup;
+
+	result = dns_zone_configure(cfg, NULL, czone, NULL, newzone);
+	if (result != ISC_R_SUCCESS)
+		goto cleanup;
+
+#if 0
+	/* XXX hints should be a zone */
+	if (dns_zone_gettype(newzone) == dns_zone_hint) {
+		dns_view_sethints(newview, newzone);
+		goto cleanup;
+	}
+#endif
+
+	/*
+	 * Find zone in mount table.
+	 */
+	name = dns_zone_getorigin(newzone);
+	dns_zone_print(newzone);
+
+	result = dns_zt_find(newview->zonetable, name, 0, NULL, &tmpzone);
+	if (result == ISC_R_SUCCESS) {
+		printf("zone already exists=\n");
+		result = ISC_R_EXISTS;
+		goto cleanup;
+	} else if (result != DNS_R_PARTIALMATCH && result != ISC_R_NOTFOUND)
+		goto cleanup;
+
+	if (oldview != NULL)
+		result = dns_zt_find(oldview->zonetable, name, 0, NULL,
+				     &oldzone);
+	else
+		result = ISC_R_NOTFOUND;
+
+	printf("dns_zt_find() returned %s\n", dns_result_totext(result));
+
+	if (result == ISC_R_NOTFOUND || result == DNS_R_PARTIALMATCH) {
+		if (result == DNS_R_PARTIALMATCH) {
+			dns_zone_print(oldzone);
+		}
+		result = dns_view_addzone(newview, newzone);
+		if (result != ISC_R_SUCCESS)
+			goto cleanup;
+	} else if (result == ISC_R_SUCCESS) {
+		dns_zone_print(oldzone);
+		/* Does the new configuration match the existing one? */
+		boolean = dns_zone_equal(newzone, oldzone);
+	printf("dns_zone_equal() returned %s\n", boolean ? "TRUE" : "FALSE");
+		if (boolean)
+			result = dns_view_addzone(newview, oldzone);
+		else
+			result = dns_view_addzone(newview, newzone);
+	}
+
+ cleanup:
+	if (tmpzone != NULL)
+		dns_zone_detach(&tmpzone);
+	if (newzone != NULL)
+		dns_zone_detach(&newzone);
+	if (oldzone != NULL)
+		dns_zone_detach(&oldzone);
+	return (result);
+}
+
 static void
 print_rdataset(dns_name_t *name, dns_rdataset_t *rdataset) {
         isc_buffer_t text;
@@ -54,11 +176,11 @@ print_rdataset(dns_name_t *name, dns_rdataset_t *rdataset) {
         isc_result_t result;
         isc_region_t r;
 
-        isc_buffer_init(&text, t, sizeof t, ISC_BUFFERTYPE_TEXT);
+        isc_buffer_init(&text, t, sizeof(t));
         result = dns_rdataset_totext(rdataset, name, ISC_FALSE, ISC_FALSE,
 				     &text);
-        isc_buffer_used(&text, &r);
-        if (result == DNS_R_SUCCESS)
+        isc_buffer_usedregion(&text, &r);
+        if (result == ISC_R_SUCCESS)
                 printf("%.*s", (int)r.length, (char *)r.base);
         else
                 printf("%s\n", dns_result_totext(result));
@@ -111,13 +233,13 @@ query(dns_view_t *view) {
 			continue;
 		}
 		if (strcasecmp(buf, "journal") == 0) {
-			dns_journal_print(view->mctx, "dv.isc.org.ixfr");
+			dns_journal_print(view->mctx, "dv.isc.org.ixfr", stdout);
 			reload = 0;
 			continue;
 		}
 
 		dns_fixedname_init(&name);
-		isc_buffer_init(&buffer, buf, strlen(buf), ISC_BUFFERTYPE_TEXT);
+		isc_buffer_init(&buffer, buf, strlen(buf));
 		isc_buffer_add(&buffer, strlen(buf));
 		result = dns_name_fromtext(dns_fixedname_name(&name),
 				  &buffer, dns_rootname, ISC_FALSE, NULL);
@@ -126,9 +248,9 @@ query(dns_view_t *view) {
 		if (reload) {
 			dns_zone_t *zone = NULL;
 			result = dns_zt_find(view->zonetable,
-					     dns_fixedname_name(&name), NULL,
-					     &zone);
-			if (result != DNS_R_SUCCESS) {
+					     dns_fixedname_name(&name), 0,
+					     NULL, &zone);
+			if (result != ISC_R_SUCCESS) {
 				if (result == DNS_R_PARTIALMATCH)
 					dns_zone_detach(&zone);
 				reload = 0;
@@ -148,7 +270,7 @@ query(dns_view_t *view) {
 				"dns_view_simplefind",
 				dns_result_totext(result));
 			switch (result) {
-			case DNS_R_SUCCESS:
+			case ISC_R_SUCCESS:
 				print_rdataset(dns_fixedname_name(&name), 
 					       &rdataset);
 				break;
@@ -201,9 +323,9 @@ main(int argc, char **argv) {
 
 /*
 	RUNTIME_CHECK(dns_view_create(mctx, dns_rdataclass_in,
-				      "default/IN", &view1) == DNS_R_SUCCESS);
+				      "default/IN", &view1) == ISC_R_SUCCESS);
 	RUNTIME_CHECK(dns_view_create(mctx, dns_rdataclass_in,
-				      "default/IN", &view2) == DNS_R_SUCCESS);
+				      "default/IN", &view2) == ISC_R_SUCCESS);
  */
 
 	cba.mctx = mctx;
@@ -215,11 +337,11 @@ main(int argc, char **argv) {
 	cbks.optscbk = NULL;
 	cbks.optscbkuap = NULL;
 
-	result = dns_c_parse_namedconf(NULL, conf, mctx, &configctx, &cbks);
+	result = dns_c_parse_namedconf(conf, mctx, &configctx, &cbks);
 	fprintf(stdout, "%s() returned %s\n", "dns_c_parse_namedconf",
 		dns_result_totext(result));
 	if (configctx != NULL)
-		dns_c_ctx_delete(NULL, &configctx);
+		dns_c_ctx_delete(&configctx);
 
 	view = ISC_LIST_HEAD(cba.newviews);
 
@@ -243,17 +365,17 @@ main(int argc, char **argv) {
 	}
 	*/
 
-	result = dns_c_parse_namedconf(NULL, conf, mctx, &configctx, &cbks);
+	result = dns_c_parse_namedconf(conf, mctx, &configctx, &cbks);
 	fprintf(stdout, "%s() returned %s\n", "dns_c_parse_namedconf",
 		dns_result_totext(result));
-	if (result == DNS_R_SUCCESS) {
-		result = dns_c_ctx_getdirectory(NULL, configctx, &dir);
-		if (result == DNS_R_SUCCESS)
+	if (result == ISC_R_SUCCESS) {
+		result = dns_c_ctx_getdirectory(configctx, &dir);
+		if (result == ISC_R_SUCCESS)
 			chdir(dir);
 		view = ISC_LIST_HEAD(cba.newviews);
 		while (view != NULL) {
 			dns_zt_print(view->zonetable);
-			dns_zt_load(view->zonetable);
+			dns_zt_load(view->zonetable, ISC_FALSE);
 			dns_view_freeze(view);
 			view = ISC_LIST_NEXT(view, link);
 		}
@@ -289,7 +411,7 @@ main(int argc, char **argv) {
 	}
 
 	if (configctx != NULL)
-		dns_c_ctx_delete(NULL, &configctx);
+		dns_c_ctx_delete(&configctx);
 	if (view2 != NULL)
 		dns_view_detach(&view2);
 	if (view1 != NULL)
@@ -299,5 +421,5 @@ main(int argc, char **argv) {
 		isc_mem_stats(mctx, stdout);
 	isc_mem_destroy(&mctx);
 
-	exit(0);
+	return (0);
 }

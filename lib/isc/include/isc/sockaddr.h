@@ -18,13 +18,9 @@
 #ifndef ISC_SOCKADDR_H
 #define ISC_SOCKADDR_H 1
 
-#include <isc/buffer.h>
 #include <isc/net.h>
-#include <isc/list.h>
 #include <isc/lang.h>
 #include <isc/types.h>
-
-ISC_LANG_BEGINDECLS
 
 struct isc_sockaddr {
 	union {
@@ -38,6 +34,8 @@ struct isc_sockaddr {
 
 typedef ISC_LIST(struct isc_sockaddr)	isc_sockaddrlist_t;
 
+ISC_LANG_BEGINDECLS
+
 isc_boolean_t
 isc_sockaddr_equal(const isc_sockaddr_t *a, const isc_sockaddr_t *b);
 
@@ -50,6 +48,12 @@ isc_sockaddr_eqaddrprefix(const isc_sockaddr_t *a, const isc_sockaddr_t *b,
 
 unsigned int
 isc_sockaddr_hash(const isc_sockaddr_t *sockaddr, isc_boolean_t address_only);
+
+void
+isc_sockaddr_any(isc_sockaddr_t *sockaddr);
+
+void
+isc_sockaddr_any6(isc_sockaddr_t *sockaddr);
 
 void
 isc_sockaddr_fromin(isc_sockaddr_t *sockaddr, const struct in_addr *ina,
@@ -106,6 +110,17 @@ isc_sockaddr_totext(const isc_sockaddr_t *sockaddr, isc_buffer_t *target);
  *	ISC_R_SUCCESS
  *	ISC_R_NOSPACE	The text or the null termination did not fit.
  */
+
+void
+isc_sockaddr_format(isc_sockaddr_t *sa, char *array, unsigned int size);
+/*
+ * Format a human-readable representation of the socket address '*sa'
+ * into the character array 'array', which is of size 'size'.
+ * The resulting string is guaranteed to be null-terminated.
+ */
+
+#define ISC_SOCKADDR_FORMATSIZE \
+	sizeof("xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:XXX.XXX.XXX.XXX#YYYYY")
 
 ISC_LANG_ENDDECLS
 

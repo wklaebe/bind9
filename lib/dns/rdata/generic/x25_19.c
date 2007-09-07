@@ -15,7 +15,7 @@
  * SOFTWARE.
  */
 
-/* $Id: x25_19.c,v 1.12 2000/03/17 00:15:30 bwelling Exp $ */
+/* $Id: x25_19.c,v 1.20 2000/05/22 12:38:02 marka Exp $ */
 
 /* Reviewed: Thu Mar 16 16:15:57 PST 2000 by bwelling */
 
@@ -24,7 +24,7 @@
 #ifndef RDATA_GENERIC_X25_19_C
 #define RDATA_GENERIC_X25_19_C
 
-#include <ctype.h>
+#define RRTYPE_X25_ATTRIBUTES (0)
 
 static inline isc_result_t
 fromtext_x25(dns_rdataclass_t rdclass, dns_rdatatype_t type,
@@ -45,7 +45,7 @@ fromtext_x25(dns_rdataclass_t rdclass, dns_rdatatype_t type,
 		return (DNS_R_SYNTAX);
 	for (i = 0; i < token.value.as_textregion.length; i++)
 		if (!isdigit(token.value.as_textregion.base[i] & 0xff))
-			return (DNS_R_RANGE);
+			return (ISC_R_RANGE);
 	return (txt_fromtext(&token.value.as_textregion, target));
 }
 
@@ -76,7 +76,7 @@ fromwire_x25(dns_rdataclass_t rdclass, dns_rdatatype_t type,
 
 	REQUIRE(type == 19);
 
-	isc_buffer_active(source, &sr);
+	isc_buffer_activeregion(source, &sr);
 	if (sr.length < 5)
 		return (DNS_R_FORMERR);
 	return (txt_fromwire(source, target));
@@ -109,42 +109,75 @@ static inline isc_result_t
 fromstruct_x25(dns_rdataclass_t rdclass, dns_rdatatype_t type, void *source,
 	       isc_buffer_t *target)
 {
-	UNUSED(rdclass);
-	UNUSED(source);
-	UNUSED(target);
+	dns_rdata_x25_t *x25 = source;
+	isc_uint8_t i;
 
 	REQUIRE(type == 19);
+	REQUIRE(source != NULL);
+	REQUIRE(x25->common.rdtype == type);
+	REQUIRE(x25->common.rdclass == rdclass);
+	REQUIRE((x25->x25 == NULL && x25->x25_len == 0) ||
+		(x25->x25 != NULL && x25->x25_len != 0));
 
-	return (DNS_R_NOTIMPLEMENTED);
+	for (i = 0; i < x25->x25_len; i++)
+		if (!isdigit(x25->x25[i] & 0xff))
+			return (ISC_R_RANGE);
+
+	RETERR(uint8_tobuffer(x25->x25_len, target));
+	return (mem_tobuffer(target, x25->x25, x25->x25_len));
 }
 
 static inline isc_result_t
 tostruct_x25(dns_rdata_t *rdata, void *target, isc_mem_t *mctx) {
+	dns_rdata_x25_t *x25 = target;
+	isc_region_t r;
 
 	REQUIRE(rdata->type == 19);
+	REQUIRE(target != NULL);
 
-	UNUSED(target);
-	UNUSED(mctx);
+	x25->common.rdclass = rdata->rdclass;
+	x25->common.rdtype = rdata->type;
+	ISC_LINK_INIT(&x25->common, link);
 
-	return (DNS_R_NOTIMPLEMENTED);
+	dns_rdata_toregion(rdata, &r);
+	x25->x25_len = uint8_fromregion(&r);
+	isc_region_consume(&r, 1);
+	if (x25->x25_len != 0) {
+		x25->x25 = mem_maybedup(mctx, r.base, x25->x25_len);
+		if (x25->x25 == NULL)
+			return (ISC_R_NOMEMORY);
+	} else
+		x25->x25 = NULL;
+
+	x25->mctx = mctx;
+	return (ISC_R_SUCCESS);
 }
 
 static inline void
 freestruct_x25(void *source) {
+	dns_rdata_x25_t *x25 = source;
 	REQUIRE(source != NULL);
-	REQUIRE(ISC_FALSE);	/*XXX*/
+	REQUIRE(x25->common.rdtype == 19);
+
+	if (x25->mctx == NULL)
+		return;
+
+	if (x25->x25 != NULL)
+		isc_mem_free(x25->mctx, x25->x25);
+	x25->mctx = NULL;
 }
 
 static inline isc_result_t
 additionaldata_x25(dns_rdata_t *rdata, dns_additionaldatafunc_t add,
 		   void *arg)
 {
+	REQUIRE(rdata->type == 19);
+
+	UNUSED(rdata);
 	UNUSED(add);
 	UNUSED(arg);
 
-	REQUIRE(rdata->type == 19);
-
-	return (DNS_R_SUCCESS);
+	return (ISC_R_SUCCESS);
 }
 
 static inline isc_result_t

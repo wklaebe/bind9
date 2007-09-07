@@ -15,12 +15,14 @@
  * SOFTWARE.
  */
 
-/* $Id: null_10.c,v 1.18 2000/03/16 21:58:58 explorer Exp $ */
+/* $Id: null_10.c,v 1.24 2000/05/22 12:37:49 marka Exp $ */
 
 /* Reviewed: Thu Mar 16 13:57:50 PST 2000 by explorer */
 
 #ifndef RDATA_GENERIC_NULL_10_C
 #define RDATA_GENERIC_NULL_10_C
+
+#define RRTYPE_NULL_ATTRIBUTES (0)
 
 static inline isc_result_t
 fromtext_null(dns_rdataclass_t rdclass, dns_rdatatype_t type,
@@ -43,6 +45,7 @@ static inline isc_result_t
 totext_null(dns_rdata_t *rdata, dns_rdata_textctx_t *tctx, 
 	    isc_buffer_t *target) 
 {
+	UNUSED(rdata);
 	UNUSED(tctx);
 	UNUSED(target);
 
@@ -64,7 +67,7 @@ fromwire_null(dns_rdataclass_t rdclass, dns_rdatatype_t type,
 
 	REQUIRE(type == 10);
 
-	isc_buffer_active(source, &sr);
+	isc_buffer_activeregion(source, &sr);
 	isc_buffer_forward(source, sr.length);
 	return (mem_tobuffer(target, sr.base, sr.length));
 }
@@ -98,43 +101,71 @@ static inline isc_result_t
 fromstruct_null(dns_rdataclass_t rdclass, dns_rdatatype_t type, void *source,
 	        isc_buffer_t *target)
 {
-	UNUSED(rdclass);
-	UNUSED(source);
-	UNUSED(target);
+	dns_rdata_null_t *null = source;
 
 	REQUIRE(type == 10);
+	REQUIRE(source != NULL);
+	REQUIRE(null->common.rdtype == type);
+	REQUIRE(null->common.rdclass == rdclass);
+	REQUIRE((null->data != NULL && null->length != 0) ||
+		(null->data == NULL && null->length == 0));
 
-	return (DNS_R_NOTIMPLEMENTED);
+	return (mem_tobuffer(target, null->data, null->length));
 }
 
 static inline isc_result_t
 tostruct_null(dns_rdata_t *rdata, void *target, isc_mem_t *mctx)
 {
-	UNUSED(target);
-	UNUSED(mctx);
+	dns_rdata_null_t *null = target;
+	isc_region_t r;
 
 	REQUIRE(rdata->type == 10);
+	REQUIRE(target != NULL);
 
-	return (DNS_R_NOTIMPLEMENTED);
+	null->common.rdclass = rdata->rdclass;
+	null->common.rdtype = rdata->type;
+	ISC_LINK_INIT(&null->common, link);
+
+	dns_rdata_toregion(rdata, &r);
+	null->length = r.length;
+	if (null->length != 0) {
+		null->data = mem_maybedup(mctx, r.base, r.length);
+		if (null->data == NULL)
+			return (ISC_R_NOMEMORY);
+	} else
+		null->data = NULL;
+
+	null->mctx = mctx;
+	return (ISC_R_SUCCESS);
 }
 
 static inline void
 freestruct_null(void *source)
 {
+	dns_rdata_null_t *null = source;
+	
 	REQUIRE(source != NULL);
-	REQUIRE(ISC_FALSE);
+	REQUIRE(null->common.rdtype == 10);
+
+	if (null->mctx == NULL)
+		return;
+
+	if (null->data != NULL)
+		isc_mem_free(null->mctx, null->data);
+	null->mctx = NULL;
 }
 
 static inline isc_result_t
 additionaldata_null(dns_rdata_t *rdata, dns_additionaldatafunc_t add,
 		    void *arg)
 {
+	UNUSED(rdata);
 	UNUSED(add);
 	UNUSED(arg);
 
 	REQUIRE(rdata->type == 10);
 
-	return (DNS_R_SUCCESS);
+	return (ISC_R_SUCCESS);
 }
 
 static inline isc_result_t

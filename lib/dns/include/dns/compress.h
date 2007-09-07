@@ -18,11 +18,9 @@
 #ifndef DNS_COMPRESS_H
 #define DNS_COMPRESS_H 1
 
-#include <isc/mem.h>
 #include <isc/lang.h>
 
 #include <dns/types.h>
-#include <dns/rbt.h>
 
 ISC_LANG_BEGINDECLS
 
@@ -38,7 +36,6 @@ ISC_LANG_BEGINDECLS
  * was left in, but no longer refers to local compression.
  */
 #define DNS_COMPRESS_ALL		0x03	/* all compression. */
-
 
 /*
  * XXX  An API for manipulating these structures will be forthcoming.
@@ -64,8 +61,8 @@ struct dns_decompress {
 	isc_boolean_t	strict;			/* Strict checking */
 };
 
-isc_result_t dns_compress_init(dns_compress_t *cctx, int edns,
-			       isc_mem_t *mctx);
+isc_result_t
+dns_compress_init(dns_compress_t *cctx, int edns, isc_mem_t *mctx);
 /*
  *	Inialise the compression context structure pointed to by 'cctx'.
  *
@@ -76,7 +73,7 @@ isc_result_t dns_compress_init(dns_compress_t *cctx, int edns,
  *		cctx->global is initalised.
  *
  *	Returns:
- *		DNS_R_SUCCESS
+ *		ISC_R_SUCCESS
  *		failures from dns_rbt_create()
  */
 

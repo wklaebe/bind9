@@ -56,6 +56,9 @@
  * [including the GNU Public Licence.]
  */
 
+#include <config.h>
+#include "../rename.h"
+
 #include <stdio.h>
 #include "cryptlib.h"
 #include <openssl/bn.h>

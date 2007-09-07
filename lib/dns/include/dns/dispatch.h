@@ -49,18 +49,14 @@
  *** Imports
  ***/
 
-#include <isc/boolean.h>
 #include <isc/buffer.h>
+#include <isc/eventclass.h>
 #include <isc/lang.h>
-#include <isc/sockaddr.h>
 #include <isc/socket.h>
 
 #include <dns/types.h>
-#include <dns/result.h>
 
 ISC_LANG_BEGINDECLS
-
-#define DNS_DISPATCHEVENT_RECV	(ISC_EVENTCLASS_DNS + 1) /* XXXMLG */
 
 /*
  * This event is sent to a task when a response (or request) comes in.
@@ -86,39 +82,119 @@ struct dns_dispatchevent {
 	isc_sockaddr_t		addr;		/* address recv'd from */
 	struct in6_pktinfo	pktinfo;	/* reply info for v6 */
 	isc_buffer_t	        buffer;		/* data buffer */
+	isc_uint32_t		attributes;	/* mirrored from socket.h */
 };
 
 /*
- * event attributes
- */
-#define DNS_DISPATCHATTR_PKTINFO	0x00100000U
-
-/*
- * Functions to:
+ * Attributes for added dispatchers.
  *
- *	Return if a packet is a query or a response,
- *	Hash IDs,
- *	Generate a new random ID,
- *	Compare entries (IDs) for equality,
+ * Values with the mask 0xffff0000 are application defined.
+ * Values with the mask 0x0000ffff are library defined.
+ *
+ * Insane values (like setting both TCP and UDP) are not caught.  Don't
+ * do that.
+ *
+ * _PRIVATE
+ *	The dispatcher cannot be shared.
+ *
+ * _TCP, _UDP
+ *	The dispatcher is a TCP or UDP socket.
+ *
+ * _IPV4, _IPV6
+ *	The dispatcher uses an ipv4 or ipv6 socket.
+ *
+ * _ACCEPTREQUEST
+ *	The dispatcher can be used to accept requests.
+ *
+ * _MAKEQUERY
+ *	The dispatcher can be used to issue queries to other servers, and
+ *	accept replies from them.
  */
-struct dns_dispatchmethods {
-	isc_uint32_t (*randomid)(dns_dispatch_t *);
-	isc_uint32_t (*hash)(dns_dispatch_t *, isc_sockaddr_t *,
-			     isc_uint32_t);
-};
-typedef struct dns_dispatchmethods dns_dispatchmethods_t;
+#define DNS_DISPATCHATTR_PRIVATE	0x00000001U
+#define DNS_DISPATCHATTR_TCP		0x00000002U
+#define DNS_DISPATCHATTR_UDP		0x00000004U
+#define DNS_DISPATCHATTR_IPV4		0x00000008U
+#define DNS_DISPATCHATTR_IPV6		0x00000010U
+#define DNS_DISPATCHATTR_ACCEPTREQUEST	0x00000020U
+#define DNS_DISPATCHATTR_MAKEQUERY	0x00000040U
+
+ISC_LANG_BEGINDECLS
 
 isc_result_t
-dns_dispatch_create(isc_mem_t *mctx, isc_socket_t *sock, isc_task_t *task,
-		    unsigned int maxbuffersize,
+dns_dispatchmgr_create(isc_mem_t *mctx, dns_dispatchmgr_t **mgrp);
+/*
+ * Creates a new dispatchmgr object.
+ *
+ * Requires:
+ *	"mctx" be a valid memory context.
+ *
+ *	mgrp != NULL && *mgrp == NULL
+ *
+ * Returns:
+ *	ISC_R_SUCCESS	-- all ok
+ *
+ *	anything else	-- failure
+ */
+
+
+void
+dns_dispatchmgr_destroy(dns_dispatchmgr_t **mgrp);
+/*
+ * Destroys the dispatchmgr when it becomes empty.  This could be
+ * immediately.
+ *
+ * Requires:
+ *	mgrp != NULL && *mgrp is a valid dispatchmgr.
+ */
+
+
+isc_result_t
+dns_dispatchmgr_find(dns_dispatchmgr_t *mgr,
+		     isc_sockaddr_t *local, isc_sockaddr_t *remote,
+		     unsigned int attributes, unsigned int mask,
+		     dns_dispatch_t **dispp);
+/*
+ * Search for a dispatcher that has the attributes specified by
+ *	(attributes & mask)
+ *
+ * Requires:
+ *	"mgr" be a valid dispatchmgr.
+ *
+ *	dispp != NULL && *dispp == NULL.
+ *
+ * Ensures:
+ *	The dispatcher returned into *dispp is attached on behalf of the
+ *	caller.  It is required that the caller detach from it when it is
+ *	no longer needed.
+ *
+ * Returns:
+ *	ISC_R_SUCCESS	-- found.
+ *
+ *	ISC_R_NOTFOUND	-- no dispatcher matching the requirements found.
+ *
+ *	anything else	-- failure.
+ */
+
+
+isc_result_t
+dns_dispatch_getudp(dns_dispatchmgr_t *mgr, isc_socketmgr_t *sockmgr,
+		    isc_taskmgr_t *taskmgr, isc_sockaddr_t *localaddr,
+		    unsigned int buffersize,
 		    unsigned int maxbuffers, unsigned int maxrequests,
 		    unsigned int buckets, unsigned int increment,
-		    dns_dispatchmethods_t *methods,
+		    unsigned int attributes, unsigned int mask,
 		    dns_dispatch_t **dispp);
+
+isc_result_t
+dns_dispatch_createtcp(dns_dispatchmgr_t *mgr, isc_socket_t *sock,
+		       isc_taskmgr_t *taskmgr, unsigned int buffersize,
+		       unsigned int maxbuffers, unsigned int maxrequests,
+		       unsigned int buckets, unsigned int increment,
+		       unsigned int attributes, dns_dispatch_t **dispp);
 /*
  * Create a new dns_dispatch and attach it to the provided isc_socket_t.
  *
- * For all dispatches, "maxbuffersize" is the maximum packet size we will
+ * For all dispatches, "buffersize" is the maximum packet size we will
  * accept.
  *
  * "maxbuffers" and "maxrequests" control the number of buffers in the
@@ -130,13 +206,9 @@ dns_dispatch_create(isc_mem_t *mctx, isc_socket_t *sock, isc_task_t *task,
  * "increment" is used in a collision avoidance function, and needs to be
  * a prime > buckets, and not 2.
  *
- * "methods" be NULL for normal DNS wire format, or all elements in that
- * structure be filled in with function pointers to control dispatch
- * behavior.
- *
  * Requires:
  *
- *	mctx is a valid memory context.
+ *	mgr is a valid dispatch manager.
  *
  *	sock is a valid.
  *
@@ -154,6 +226,7 @@ dns_dispatch_create(isc_mem_t *mctx, isc_socket_t *sock, isc_task_t *task,
  *	increment > buckets (and prime)
  */
 
+
 void
 dns_dispatch_attach(dns_dispatch_t *disp, dns_dispatch_t **dispp);
 /*
@@ -169,6 +242,7 @@ dns_dispatch_attach(dns_dispatch_t *disp, dns_dispatch_t **dispp);
  *	< mumble >
  */
 
+
 void
 dns_dispatch_detach(dns_dispatch_t **dispp);
 /*
@@ -183,6 +257,7 @@ dns_dispatch_detach(dns_dispatch_t **dispp);
  * Returns:
  *	< mumble >
  */
+
 
 isc_result_t
 dns_dispatch_addresponse(dns_dispatch_t *disp, isc_sockaddr_t *dest,
@@ -214,14 +289,15 @@ dns_dispatch_addresponse(dns_dispatch_t *disp, isc_sockaddr_t *dest,
  *
  * Returns:
  *
- *	DNS_R_SUCCESS		-- all is well.
- *	DNS_R_NOMEMORY		-- memory could not be allocated.
- *	DNS_R_NOMORE		-- no more message ids can be allocated
+ *	ISC_R_SUCCESS		-- all is well.
+ *	ISC_R_NOMEMORY		-- memory could not be allocated.
+ *	ISC_R_NOMORE		-- no more message ids can be allocated
  *				   for this destination.
  */
 
+
 void
-dns_dispatch_removeresponse(dns_dispatch_t *disp, dns_dispentry_t **resp,
+dns_dispatch_removeresponse(dns_dispentry_t **resp,
 			    dns_dispatchevent_t **sockevent);
 /*
  * Stops the flow of responses for the provided id and destination.
@@ -238,6 +314,7 @@ dns_dispatch_removeresponse(dns_dispatch_t *disp, dns_dispentry_t **resp,
  * Returns:
  *	< mumble >
  */
+
 
 isc_result_t
 dns_dispatch_addrequest(dns_dispatch_t *disp,
@@ -258,8 +335,9 @@ dns_dispatch_addrequest(dns_dispatch_t *disp,
  *	< mumble >
  */
 
+
 void
-dns_dispatch_removerequest(dns_dispatch_t *disp, dns_dispentry_t **resp,
+dns_dispatch_removerequest(dns_dispentry_t **resp,
 			   dns_dispatchevent_t **sockevent);
 /*
  * Stops the flow of requests for the provided id and destination.
@@ -275,6 +353,7 @@ dns_dispatch_removerequest(dns_dispatch_t *disp, dns_dispentry_t **resp,
  * Returns:
  *	< mumble >
  */
+
 
 void
 dns_dispatch_freeevent(dns_dispatch_t *disp, dns_dispentry_t *resp,
@@ -294,16 +373,53 @@ dns_dispatch_freeevent(dns_dispatch_t *disp, dns_dispentry_t *resp,
  *	< mumble >
  */
 
+
 isc_socket_t *
 dns_dispatch_getsocket(dns_dispatch_t *disp);
 /*
- * Return the socket associated with this dispatcher
+ * Return the socket associated with this dispatcher.
+ *
+ * Requires:
+ *	< mumble >
+ *
+ * Ensures:
+ *	< mumble >
+ *
+ * Returns:
+ *	< mumble >
  */
+
 
 void
 dns_dispatch_cancel(dns_dispatch_t *disp);
 /*
  * cancel outstanding clients
+ *
+ * Requires:
+ *	< mumble >
+ *
+ * Ensures:
+ *	< mumble >
+ *
+ * Returns:
+ *	< mumble >
+ */
+
+void
+dns_dispatch_changeattributes(dns_dispatch_t *disp,
+			      unsigned int attributes, unsigned int mask);
+/*
+ * Set the bits described by "mask" to the corresponding values in
+ * "attributes".
+ *
+ * Requires:
+ *	< mumble >
+ *
+ * Ensures:
+ *	< mumble >
+ *
+ * Returns:
+ *	< mumble >
  */
 
 ISC_LANG_ENDDECLS

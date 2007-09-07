@@ -15,5 +15,15 @@
  * SOFTWARE.
  */
 
-/* $Id: cname_5.h,v 1.16 2000/03/20 22:57:11 gson Exp $ */
+/* $Id: cname_5.h,v 1.19 2000/05/08 14:36:45 tale Exp $ */
 
+#ifndef GENERIC_CNAME_5_H
+#define GENERIC_CNAME_5_H 1
+
+typedef struct dns_rdata_cname {
+	dns_rdatacommon_t	common;
+	isc_mem_t		*mctx;
+	dns_name_t		cname;
+} dns_rdata_cname_t;
+
+#endif /* GENERIC_CNAME_5_H */

@@ -15,33 +15,31 @@
  * SOFTWARE.
  */
 
-/* $Id: log.c,v 1.24 2000/03/23 00:53:04 gson Exp $ */
+/* $Id: log.c,v 1.34 2000/05/18 22:38:49 tale Exp $ */
 
 /* Principal Authors: DCL */
 
+#include <config.h>
+
 #include <errno.h>
 #include <stdlib.h>
-#include <string.h>
-#include <time.h>
 #include <limits.h>
+
 #include <sys/stat.h>
 
-#include <isc/assertions.h>
-#include <isc/boolean.h>
 #include <isc/dir.h>
-#include <isc/error.h>
-#include <isc/list.h>
 #include <isc/log.h>
+#include <isc/magic.h>
 #include <isc/mem.h>
-#include <isc/mutex.h>
 #include <isc/print.h>
+#include <isc/string.h>
 #include <isc/time.h>
 #include <isc/util.h>
 
 #define LCTX_MAGIC		0x4C637478U	/* Lctx. */
-#define VALID_CONTEXT(lctx)	((lctx) != NULL && (lctx)->magic == LCTX_MAGIC)
+#define VALID_CONTEXT(lctx)	ISC_MAGIC_VALID(lctx, LCTX_MAGIC)
 #define LCFG_MAGIC		0x4C636667U	/* Lcfg. */
-#define VALID_CONFIG(lcfg)	((lcfg) != NULL && (lcfg)->magic == LCFG_MAGIC)
+#define VALID_CONFIG(lcfg)	ISC_MAGIC_VALID(lcfg, LCFG_MAGIC)
 
 /*
  * XXXDCL make dynamic?
@@ -110,6 +108,9 @@ struct isc_logconfig {
 	ISC_LIST(isc_logchannellist_t) *channellists;
 	unsigned int			channellist_count;
 	unsigned int			duplicate_interval;
+	int				highest_level;
+	char *				tag;
+	isc_boolean_t			dynamic;
 };
 
 /*
@@ -149,7 +150,12 @@ struct isc_log {
  * Used when ISC_LOG_PRINTLEVEL is enabled for a channel.
  */
 static const char *log_level_strings[] = {
-	"debug", "info", "notice", "warning", "error", "critical"
+	"debug",
+	"info",
+	"notice",
+	"warning",
+	"error",
+	"critical"
 };
 
 /*
@@ -157,7 +163,12 @@ static const char *log_level_strings[] = {
  * XXXDCL This will need modification for NT.
  */
 static const int syslog_map[] = {
-	LOG_DEBUG, LOG_INFO, LOG_NOTICE, LOG_WARNING, LOG_ERR, LOG_CRIT
+	LOG_DEBUG,
+	LOG_INFO,
+	LOG_NOTICE,
+	LOG_WARNING,
+	LOG_ERR,
+	LOG_CRIT
 };
 
 /*
@@ -175,11 +186,24 @@ isc_logcategory_t isc_categories[] = {
 };
 
 /*
- * This essentially static structure must be filled in at run time,
+ * See above comment for categories, and apply it to modules.
+ */
+isc_logmodule_t isc_modules[] = {
+	{ "socket", 0 },
+	{ NULL, 0 }
+};
+
+/*
+ * This essentially constant structure must be filled in at run time,
  * because its channel member is pointed to a channel that is created
  * dynamically with isc_log_createchannel.
  */
-isc_logchannellist_t default_channel;
+static isc_logchannellist_t default_channel;
+
+/*
+ * libisc logs to this context.
+ */
+isc_log_t *isc_lctx = NULL;
 
 /*
  * Forward declarations.
@@ -251,6 +275,7 @@ isc_log_create(isc_mem_t *mctx, isc_log_t **lctxp, isc_logconfig_t **lcfgp) {
 		lctx->magic = LCTX_MAGIC;
 
 		isc_log_registercategories(lctx, isc_categories);
+		isc_log_registermodules(lctx, isc_modules);
 		result = isc_logconfig_create(lctx, &lcfg);
 
 	} else
@@ -286,6 +311,9 @@ isc_logconfig_create(isc_log_t *lctx, isc_logconfig_t **lcfgp) {
 		lcfg->channellists = NULL;
 		lcfg->channellist_count = 0;
 		lcfg->duplicate_interval = 0;
+		lcfg->highest_level = ISC_LOG_CRITICAL;
+		lcfg->tag = NULL;
+		lcfg->dynamic = ISC_FALSE;
 
 		ISC_LIST_INIT(lcfg->channels);
 
@@ -481,6 +509,9 @@ isc_logconfig_destroy(isc_logconfig_t **lcfgp) {
 		    lcfg->channellist_count *
 		    sizeof(ISC_LIST(isc_logchannellist_t)));
 
+	lcfg->dynamic = ISC_FALSE;
+	lcfg->tag = NULL;
+	lcfg->highest_level = 0;
 	lcfg->duplicate_interval = 0;
 	lcfg->magic = 0;
 
@@ -779,6 +810,13 @@ isc_log_vwrite1(isc_log_t *lctx, isc_logcategory_t *category,
 }
 
 void
+isc_log_setcontext(isc_log_t *lctx) {
+	REQUIRE(isc_lctx == NULL);
+
+	isc_lctx = lctx;
+}
+
+void
 isc_log_setdebuglevel(isc_log_t *lctx, unsigned int level) {
 	REQUIRE(VALID_CONTEXT(lctx));
 
@@ -804,6 +842,23 @@ isc_log_getduplicateinterval(isc_logconfig_t *lcfg) {
 	REQUIRE(VALID_CONTEXT(lcfg));
 
 	return (lcfg->duplicate_interval);
+}
+
+void
+isc_log_settag(isc_logconfig_t *lcfg, char *tag) {
+	REQUIRE(VALID_CONFIG(lcfg));
+	
+	if (tag != NULL && *tag != '\0')
+		lcfg->tag = tag;
+	else
+		lcfg->tag = NULL;
+}
+
+char *
+isc_log_gettag(isc_logconfig_t *lcfg) {
+	REQUIRE(VALID_CONFIG(lcfg));
+
+	return (lcfg->tag);
 }
 
 /* XXXDCL NT  -- This interface will assuredly be changing. */
@@ -863,6 +918,18 @@ assignchannel(isc_logconfig_t *lcfg, unsigned int category_id,
 	new_item->channel = channel;
 	new_item->module = module;
 	ISC_LIST_PREPEND(lcfg->channellists[category_id], new_item, link);
+
+	/*
+	 * Remember the highest logging level set by any channel in the
+	 * logging config, so isc_log_doit() can quickly return if the
+	 * message is too high to be logged by any channel.
+	 */
+	if (channel->type != ISC_LOG_TONULL) {
+		if (lcfg->highest_level < channel->level)
+			lcfg->highest_level = channel->level;
+		if (channel->level == ISC_LOG_DYNAMIC)
+			lcfg->dynamic = ISC_TRUE;
+	}
 
 	return (ISC_R_SUCCESS);
 }
@@ -1082,6 +1149,8 @@ isc_log_doit(isc_log_t *lctx, isc_logcategory_t *category,
 	char level_string[24];
 	struct stat statbuf;
 	isc_boolean_t matched = ISC_FALSE;
+	isc_boolean_t printtime, printtag;
+	isc_boolean_t printcategory, printmodule, printlevel;
 	isc_logconfig_t *lcfg;
 	isc_logchannel_t *channel;
 	isc_logchannellist_t *category_channels;
@@ -1089,6 +1158,10 @@ isc_log_doit(isc_log_t *lctx, isc_logcategory_t *category,
 	isc_result_t result;
 
 	REQUIRE(lctx == NULL || VALID_CONTEXT(lctx));
+	REQUIRE(category != NULL);
+	REQUIRE(module != NULL);
+	REQUIRE(level != ISC_LOG_DYNAMIC);
+	REQUIRE(format != NULL);
 
 	/*
 	 * Programs can use libraries that use this logging code without
@@ -1098,12 +1171,30 @@ isc_log_doit(isc_log_t *lctx, isc_logcategory_t *category,
 	if (lctx == NULL)
 		return;
 
-	REQUIRE(category != NULL && category->id < lctx->category_count);
-	REQUIRE(module != NULL && module->id < lctx->module_count);
-	REQUIRE(level != ISC_LOG_DYNAMIC);
-	REQUIRE(format != NULL);
+	REQUIRE(category->id < lctx->category_count);
+	REQUIRE(module->id < lctx->module_count);
 
-	time_string[0] = '\0';
+	/*
+	 * Try to avoid locking the mutex for messages which can't
+	 * possibly be logged to any channels -- primarily debugging
+	 * messages that the debug level is not high enough to print.
+	 *
+	 * If the level is (mathematically) less than or equal to the
+	 * highest_level, or if there is a dynamic channel and the level is 
+	 * less than or equal to the debug level, the main loop must be
+	 * entered to see if the message should really be output.
+	 *
+	 * NOTE: this is UNLOCKED access to the logconfig.  However,
+	 * the worst thing that can happen is that a bad decision is made
+	 * about returning without logging, and that's not a big concern,
+	 * because that's a risk anyway if the logconfig is being
+	 * dynamically changed.
+	 */
+	if (! (level <= lctx->logconfig->highest_level ||
+	       (lctx->logconfig->dynamic && level <= lctx->debug_level)))
+		return;
+
+	time_string[0]  = '\0';
 	level_string[0] = '\0';
 	lctx->buffer[0] = '\0';
 
@@ -1154,7 +1245,7 @@ isc_log_doit(isc_log_t *lctx, isc_logcategory_t *category,
 		channel = category_channels->channel;
 		category_channels = ISC_LIST_NEXT(category_channels, link);
 
-		if (((channel->flags & ISC_LOG_DEBUGONLY) > 0) &&
+		if (((channel->flags & ISC_LOG_DEBUGONLY) != 0) &&
 		    lctx->debug_level == 0)
 			continue;
 
@@ -1164,16 +1255,17 @@ isc_log_doit(isc_log_t *lctx, isc_logcategory_t *category,
 		} else if (channel->level < level)
 			continue;
 
-		if ((channel->flags & ISC_LOG_PRINTTIME) &&
+		if ((channel->flags & ISC_LOG_PRINTTIME) != 0 &&
 		    time_string[0] == '\0') {
+			time_t now;
+
 			result = isc_time_now(&time);
+			if (result == ISC_R_SUCCESS)
+				result = isc_time_secondsastimet(&time, &now);
 
 			if (result == ISC_R_SUCCESS) {
-				time_t now;
 				unsigned int len;
 				struct tm *timeptr;
-
-				now = isc_time_seconds(&time);
 
 				timeptr = localtime(&now);
 				/*
@@ -1203,7 +1295,7 @@ isc_log_doit(isc_log_t *lctx, isc_logcategory_t *category,
 
 		}
 
-		if ((channel->flags & ISC_LOG_PRINTLEVEL) &&
+		if ((channel->flags & ISC_LOG_PRINTLEVEL) != 0 &&
 		    level_string[0] == '\0') {
 			if (level < ISC_LOG_CRITICAL)
 				sprintf(level_string, "level %d: ", level);
@@ -1238,13 +1330,18 @@ isc_log_doit(isc_log_t *lctx, isc_logcategory_t *category,
 				 * which fall within the duplicate_interval
 				 * range.
 				 */
-				if (isc_time_now(&oldest) != ISC_R_SUCCESS)
+				if (isc_time_now(&oldest) != ISC_R_SUCCESS ||
+				    isc_time_subtract(&oldest, &interval,
+						      &oldest) !=
+				    ISC_R_SUCCESS)
+					/*
+					 * Can't effectively do the checking
+					 * without having a valid time.
+					 */
 					message = NULL;
 				else
-					isc_time_subtract(&oldest, &interval,
-							  &oldest);
+					message =ISC_LIST_HEAD(lctx->messages);
 
-				message = ISC_LIST_HEAD(lctx->messages);
 				while (message != NULL) {
 					if (isc_time_compare(&message->time,
 							     &oldest) < 0) {
@@ -1325,6 +1422,17 @@ isc_log_doit(isc_log_t *lctx, isc_logcategory_t *category,
 			}
 		}
 
+		printtime     = ISC_TF((channel->flags & ISC_LOG_PRINTTIME)
+				       != 0);
+		printtag      = ISC_TF((channel->flags & ISC_LOG_PRINTTAG)
+				       != 0 && lcfg->tag != NULL);
+		printcategory = ISC_TF((channel->flags & ISC_LOG_PRINTCATEGORY)
+				       != 0);
+		printmodule   = ISC_TF((channel->flags & ISC_LOG_PRINTMODULE)
+				       != 0);
+		printlevel    = ISC_TF((channel->flags & ISC_LOG_PRINTLEVEL)
+				       != 0);
+
 		switch (channel->type) {
 		case ISC_LOG_TOFILE:
 			if (FILE_STREAM(channel) == NULL) {
@@ -1339,21 +1447,17 @@ isc_log_doit(isc_log_t *lctx, isc_logcategory_t *category,
 			/* FALLTHROUGH */
 
 		case ISC_LOG_TOFILEDESC:
-			fprintf(FILE_STREAM(channel), "%s%s%s%s%s%s%s\n",
-				(channel->flags & ISC_LOG_PRINTTIME) ?
-					time_string : "",
-				(channel->flags & ISC_LOG_PRINTCATEGORY) ?
-					category->name : "",
-				(channel->flags & ISC_LOG_PRINTCATEGORY) ?
-					": " : "",
-				(channel->flags & ISC_LOG_PRINTMODULE) ?
-					(module != NULL ? module->name :
-					                  "no_module")
-					: "",
-				(channel->flags & ISC_LOG_PRINTMODULE) ?
-					": " : "",
-				(channel->flags & ISC_LOG_PRINTLEVEL) ?
-					level_string : "",
+			fprintf(FILE_STREAM(channel), "%s%s%s%s%s%s%s%s%s\n",
+				printtime     ? time_string	: "",
+				printtag      ? lcfg->tag	: "",
+				printtag      ? ": "		: "",
+				printcategory ? category->name	: "",
+				printcategory ? ": "		: "",
+				printmodule   ? (module != NULL ? module->name
+						 		: "no_module")
+					      			: "",
+				printmodule   ? ": "		: "",
+				printlevel    ? level_string	: "",
 				lctx->buffer);
 
 			fflush(FILE_STREAM(channel));
@@ -1387,21 +1491,17 @@ isc_log_doit(isc_log_t *lctx, isc_logcategory_t *category,
 				syslog_level = syslog_map[-level];
 
 			syslog(FACILITY(channel) | syslog_level,
-			       "%s%s%s%s%s%s%s",
-			       (channel->flags & ISC_LOG_PRINTTIME) ?
-			       		time_string : "",
-			       (channel->flags & ISC_LOG_PRINTCATEGORY) ?
-			       		category->name : "",
-			       (channel->flags & ISC_LOG_PRINTCATEGORY) ?
-			       		": " : "",
-			       (channel->flags & ISC_LOG_PRINTMODULE) ?
-					(module != NULL ? module->name :
-					                  "no_module")
-			       		: "",
-			       (channel->flags & ISC_LOG_PRINTMODULE) ?
-			       		": " : "",
-			       (channel->flags & ISC_LOG_PRINTLEVEL) ?
-			       		level_string : "",
+			       "%s%s%s%s%s%s%s%s%s",
+			       printtime     ? time_string	: "",
+			       printtag      ? lcfg->tag	: "",
+			       printtag      ? ": "		: "",
+			       printcategory ? category->name	: "",
+			       printcategory ? ": "		: "",
+			       printmodule   ? (module != NULL	? module->name
+						 		: "no_module")
+					      			: "",
+			       printmodule   ? ": "		: "",
+			       printlevel    ? level_string	: "",
 			       lctx->buffer);
 			break;
 

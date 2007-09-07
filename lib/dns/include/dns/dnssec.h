@@ -18,9 +18,8 @@
 #ifndef DNS_DNSSEC_H
 #define DNS_DNSSEC_H 1
 
-#include <isc/mem.h>
 #include <isc/lang.h>
-#include <isc/time.h>
+#include <isc/stdtime.h>
 
 #include <dns/types.h>
 
@@ -80,11 +79,13 @@ dns_dnssec_sign(dns_name_t *name, dns_rdataset_t *set, dst_key_t *key,
 
 isc_result_t
 dns_dnssec_verify(dns_name_t *name, dns_rdataset_t *set, dst_key_t *key,
-		  isc_mem_t *mctx, dns_rdata_t *sigrdata);
+		  isc_boolean_t ignoretime, isc_mem_t *mctx,
+		  dns_rdata_t *sigrdata);
 /*
  *	Verifies the SIG record covering this rdataset signed by a specific
  *	key.  This does not determine if the key's owner is authorized to
  *	sign this record, as this requires a resolver or database.
+ *	If 'ignoretime' is ISC_TRUE, temporal validity will not be checked.
  *
  *	Requires:
  *		'name' (the owner name of the record) is a valid name
@@ -94,7 +95,7 @@ dns_dnssec_verify(dns_name_t *name, dns_rdataset_t *set, dst_key_t *key,
  *		'sigrdata' is a valid rdata containing a SIG record
  *
  *	Returns:
- *		DNS_R_SUCCESS
+ *		ISC_R_SUCCESS
  *		ISC_R_NOMEMORY
  *		DNS_R_SIGINVALID - the signature fails to verify
  *		DNS_R_SIGEXPIRED - the signature has expired
@@ -131,7 +132,8 @@ dns_dnssec_signmessage(dns_message_t *msg, dst_key_t *key);
  */
 
 isc_result_t
-dns_dnssec_verifymessage(dns_message_t *msg, dst_key_t *key);
+dns_dnssec_verifymessage(isc_buffer_t *source, dns_message_t *msg,
+			 dst_key_t *key);
 /*
  *	Verifies a message signed by a SIG(0) record.  This is not
  *	called implicitly by dns_message_parse().  If dns_message_signer()
@@ -141,6 +143,7 @@ dns_dnssec_verifymessage(dns_message_t *msg, dst_key_t *key);
  *	the sig0status field otherwise.
  *
  *	Requires:
+ *		'source' is a valid buffer containing the unparsed message
  *		'msg' is a valid message
  *		'key' is a valid key
  *

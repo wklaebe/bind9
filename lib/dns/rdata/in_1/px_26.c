@@ -15,7 +15,7 @@
  * SOFTWARE.
  */
 
-/* $Id: px_26.c,v 1.15 2000/03/20 19:32:10 gson Exp $ */
+/* $Id: px_26.c,v 1.23 2000/05/15 21:14:34 tale Exp $ */
 
 /* Reviewed: Mon Mar 20 10:44:27 PST 2000 */
 
@@ -23,6 +23,8 @@
 
 #ifndef RDATA_IN_1_PX_26_C
 #define RDATA_IN_1_PX_26_C
+
+#define RRTYPE_PX_ATTRIBUTES (0)
 
 static inline isc_result_t
 fromtext_in_px(dns_rdataclass_t rdclass, dns_rdatatype_t type,
@@ -36,23 +38,29 @@ fromtext_in_px(dns_rdataclass_t rdclass, dns_rdatatype_t type,
 	REQUIRE(type == 26);
 	REQUIRE(rdclass == 1);
 
-	/* preference */
+	/*
+	 * Preference.
+	 */
 	RETERR(gettoken(lexer, &token, isc_tokentype_number, ISC_FALSE));
+	if (token.value.as_ulong > 0xffff)
+		return (ISC_R_RANGE);
 	RETERR(uint16_tobuffer(token.value.as_ulong, target));
 
-	/* MAP822 */
+	/*
+	 * MAP822.
+	 */
 	RETERR(gettoken(lexer, &token, isc_tokentype_string, ISC_FALSE));
 	dns_name_init(&name, NULL);
-	buffer_fromregion(&buffer, &token.value.as_region,
-			  ISC_BUFFERTYPE_TEXT);
+	buffer_fromregion(&buffer, &token.value.as_region);
 	origin = (origin != NULL) ? origin : dns_rootname;
 	RETERR(dns_name_fromtext(&name, &buffer, origin, downcase, target));
 
-	/* MAPX400 */
+	/*
+	 * MAPX400.
+	 */
 	RETERR(gettoken(lexer, &token, isc_tokentype_string, ISC_FALSE));
 	dns_name_init(&name, NULL);
-	buffer_fromregion(&buffer, &token.value.as_region,
-			  ISC_BUFFERTYPE_TEXT);
+	buffer_fromregion(&buffer, &token.value.as_region);
 	origin = (origin != NULL) ? origin : dns_rootname;
 	return (dns_name_fromtext(&name, &buffer, origin, downcase, target));
 }
@@ -74,7 +82,9 @@ totext_in_px(dns_rdata_t *rdata, dns_rdata_textctx_t *tctx,
 	dns_name_init(&name, NULL);
 	dns_name_init(&prefix, NULL);
 
-	/* preference */
+	/*
+	 * Preference.
+	 */
 	dns_rdata_toregion(rdata, &region);
 	num = uint16_fromregion(&region);
 	isc_region_consume(&region, 2);
@@ -82,14 +92,18 @@ totext_in_px(dns_rdata_t *rdata, dns_rdata_textctx_t *tctx,
 	RETERR(str_totext(buf, target));
 	RETERR(str_totext(" ", target));
 
-	/* MAP822 */
+	/*
+	 * MAP822.
+	 */
 	dns_name_fromregion(&name, &region);
 	sub = name_prefix(&name, tctx->origin, &prefix);
 	isc_region_consume(&region, name_length(&name));
 	RETERR(dns_name_totext(&prefix, sub, target));
 	RETERR(str_totext(" ", target));
 
-	/* MAPX400 */
+	/*
+	 * MAPX400.
+	 */
 	dns_name_fromregion(&name, &region);
 	sub = name_prefix(&name, tctx->origin, &prefix);
 	return(dns_name_totext(&prefix, sub, target));
@@ -106,24 +120,27 @@ fromwire_in_px(dns_rdataclass_t rdclass, dns_rdatatype_t type,
 	REQUIRE(type == 26);
 	REQUIRE(rdclass == 1);
 
-	if (dns_decompress_edns(dctx) >= 1 || !dns_decompress_strict(dctx))
-		dns_decompress_setmethods(dctx, DNS_COMPRESS_ALL);
-	else
-		dns_decompress_setmethods(dctx, DNS_COMPRESS_NONE);
+	dns_decompress_setmethods(dctx, DNS_COMPRESS_NONE);
         
         dns_name_init(&name, NULL);
 
-	/* preference */
-	isc_buffer_active(source, &sregion);
+	/*
+	 * Preference.
+	 */
+	isc_buffer_activeregion(source, &sregion);
 	if (sregion.length < 2)
-		return (DNS_R_UNEXPECTEDEND);
+		return (ISC_R_UNEXPECTEDEND);
 	RETERR(mem_tobuffer(target, sregion.base, 2));
 	isc_buffer_forward(source, 2);
 
-	/* MAP822 */
+	/*
+	 * MAP822.
+	 */
 	RETERR(dns_name_fromwire(&name, source, dctx, downcase, target));
 
-	/* MAPX400 */
+	/*
+	 * MAPX400.
+	 */
 	return (dns_name_fromwire(&name, source, dctx, downcase, target));
 }
 
@@ -135,23 +152,25 @@ towire_in_px(dns_rdata_t *rdata, dns_compress_t *cctx, isc_buffer_t *target) {
 	REQUIRE(rdata->type == 26);
 	REQUIRE(rdata->rdclass == 1);
 
-	if (dns_compress_getedns(cctx) >= 1)
-		dns_compress_setmethods(cctx, DNS_COMPRESS_ALL);
-	else
-		dns_compress_setmethods(cctx, DNS_COMPRESS_NONE);
-
-	/* preference */
+	dns_compress_setmethods(cctx, DNS_COMPRESS_NONE);
+	/*
+	 * Preference.
+	 */
 	dns_rdata_toregion(rdata, &region);
 	RETERR(mem_tobuffer(target, region.base, 2));
 	isc_region_consume(&region, 2);
 
-	/* MAP822 */
+	/*
+	 * MAP822.
+	 */
 	dns_name_init(&name, NULL);
 	dns_name_fromregion(&name, &region);
 	RETERR(dns_name_towire(&name, cctx, target));
 	isc_region_consume(&region, name_length(&name));
 
-	/* MAPX400 */
+	/*
+	 * MAPX400.
+	 */
 	dns_name_init(&name, NULL);
 	dns_name_fromregion(&name, &region);
 	return (dns_name_towire(&name, cctx, target));
@@ -221,16 +240,14 @@ fromstruct_in_px(dns_rdataclass_t rdclass, dns_rdatatype_t type, void *source,
 
 static inline isc_result_t
 tostruct_in_px(dns_rdata_t *rdata, void *target, isc_mem_t *mctx) {
-	isc_region_t region;
-	isc_region_t nr;
 	dns_rdata_in_px_t *px = target;
 	dns_name_t name;
+	isc_region_t region;
 	isc_result_t result;
 
 	REQUIRE(rdata->type == 26);
 	REQUIRE(rdata->rdclass == 1);
 	REQUIRE(target != NULL);
-	REQUIRE(mctx != NULL);
 
 	px->common.rdclass = rdata->rdclass;
 	px->common.rdtype = rdata->type;
@@ -243,23 +260,22 @@ tostruct_in_px(dns_rdata_t *rdata, void *target, isc_mem_t *mctx) {
 	isc_region_consume(&region, 2);
 
 	dns_name_fromregion(&name, &region);
-	dns_name_toregion(&name, &nr);
-	isc_region_consume(&region, nr.length);
-	px->mctx = mctx;
+
 	dns_name_init(&px->map822, NULL);
-	result = dns_name_dup(&name, px->mctx, &px->map822);
-	if (result != ISC_R_SUCCESS) {
-		px->mctx = NULL;
-		return (result);
-	}
+	RETERR(name_duporclone(&name, mctx, &px->map822));
+	isc_region_consume(&region, name_length(&px->map822));
 
 	dns_name_init(&px->mapx400, NULL);
-	result = dns_name_dup(&name, px->mctx, &px->map822);
-	if (result != ISC_R_SUCCESS) {
-		dns_name_free(&px->map822, px->mctx);
-		px->mctx = NULL;
-	}
+	result = name_duporclone(&name, mctx, &px->mapx400);
+	if (result != ISC_R_SUCCESS)
+		goto cleanup;
+
+	px->mctx = mctx;
 	return (result);
+
+ cleanup:
+	dns_name_free(&px->map822, mctx);
+	return (ISC_R_NOMEMORY);
 }
 
 static inline void
@@ -267,6 +283,11 @@ freestruct_in_px(void *source) {
 	dns_rdata_in_px_t *px = source;
 
 	REQUIRE(source != NULL);
+	REQUIRE(px->common.rdclass == 1);
+	REQUIRE(px->common.rdtype == 26);
+
+	if (px->mctx == NULL)
+		return;
 
 	dns_name_free(&px->map822, px->mctx);
 	dns_name_free(&px->mapx400, px->mctx);
@@ -280,10 +301,11 @@ additionaldata_in_px(dns_rdata_t *rdata, dns_additionaldatafunc_t add,
 	REQUIRE(rdata->type == 26);
 	REQUIRE(rdata->rdclass == 1);
 
+	UNUSED(rdata);
 	UNUSED(add);
 	UNUSED(arg);
 
-	return (DNS_R_SUCCESS);
+	return (ISC_R_SUCCESS);
 }
 
 static inline isc_result_t
@@ -300,12 +322,12 @@ digest_in_px(dns_rdata_t *rdata, dns_digestfunc_t digest, void *arg) {
 	isc_region_consume(&r2, 2);
 	r1.length = 2;
 	result = (digest)(arg, &r1);
-	if (result != DNS_R_SUCCESS)
+	if (result != ISC_R_SUCCESS)
 		return (result);
 	dns_name_init(&name, NULL);
 	dns_name_fromregion(&name, &r2);
 	result = dns_name_digest(&name, digest, arg);
-	if (result != DNS_R_SUCCESS)
+	if (result != ISC_R_SUCCESS)
 		return (result);
 	isc_region_consume(&r2, name_length(&name));
 	dns_name_init(&name, NULL);

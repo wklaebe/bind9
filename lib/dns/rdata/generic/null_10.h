@@ -15,4 +15,17 @@
  * SOFTWARE.
  */
 
-/* $Id: null_10.h,v 1.13 2000/03/20 22:57:13 gson Exp $ */
+#ifndef GENERIC_NULL_10_H
+#define GENERIC_NULL_10_H 1
+
+/* $Id: null_10.h,v 1.15 2000/04/29 02:01:46 tale Exp $ */
+
+typedef struct dns_rdata_null {
+	dns_rdatacommon_t	common;
+	isc_mem_t		*mctx;
+	isc_int16_t		length;
+	unsigned char		*data;
+} dns_rdata_null_t;
+
+
+#endif /* GENERIC_NULL_10_H */

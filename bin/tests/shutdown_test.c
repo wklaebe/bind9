@@ -17,23 +17,14 @@
 
 #include <config.h>
 
-#include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
 
-#include <isc/assertions.h>
-#include <isc/error.h>
+#include <isc/app.h>
 #include <isc/mem.h>
 #include <isc/task.h>
-#include <isc/thread.h>
-#include <isc/result.h>
+#include <isc/time.h>
 #include <isc/timer.h>
-#include <isc/mutex.h>
-#include <isc/condition.h>
-#include <isc/event.h>
-#include <isc/eventclass.h>
-#include <isc/app.h>
+#include <isc/util.h>
 
 typedef struct {
 	isc_mem_t *	mctx;
@@ -57,7 +48,7 @@ static isc_timermgr_t *		timer_manager;
 
 static void
 t1_shutdown(isc_task_t *task, isc_event_t *event) {
-	t_info *info = event->arg;
+	t_info *info = event->ev_arg;
 	
 	printf("task %s (%p) t1_shutdown\n", info->name, task);
 	isc_task_detach(&info->task);
@@ -66,7 +57,7 @@ t1_shutdown(isc_task_t *task, isc_event_t *event) {
 
 static void
 t2_shutdown(isc_task_t *task, isc_event_t *event) {
-	t_info *info = event->arg;
+	t_info *info = event->ev_arg;
 
 	printf("task %s (%p) t2_shutdown\n", info->name, task);
 	info->exiting = ISC_TRUE;
@@ -75,10 +66,10 @@ t2_shutdown(isc_task_t *task, isc_event_t *event) {
 
 static void
 shutdown_action(isc_task_t *task, isc_event_t *event) {
-	t_info *info = event->arg;
+	t_info *info = event->ev_arg;
 	isc_event_t *nevent;
 
-	INSIST(event->type == ISC_TASKEVENT_SHUTDOWN);
+	INSIST(event->ev_type == ISC_TASKEVENT_SHUTDOWN);
 
 	printf("task %s (%p) shutdown\n", info->name, task);
 	if (strcmp(info->name, "0") == 0) {
@@ -102,10 +93,10 @@ foo_event(isc_task_t *task, isc_event_t *event) {
 static void
 tick(isc_task_t *task, isc_event_t *event)
 {
-	t_info *info = event->arg;
+	t_info *info = event->ev_arg;
 	isc_event_t *nevent;
 
-	INSIST(event->type == ISC_TIMEREVENT_TICK);
+	INSIST(event->ev_type == ISC_TIMEREVENT_TICK);
 
 	printf("task %s (%p) tick\n", info->name, task);
 
@@ -154,7 +145,7 @@ new_task(isc_mem_t *mctx, char *name) {
 		strcpy(ti->name, name);
 	} else
 		sprintf(ti->name, "%d", task_count);
-	RUNTIME_CHECK(isc_task_create(task_manager, mctx, 0, &ti->task) ==
+	RUNTIME_CHECK(isc_task_create(task_manager, 0, &ti->task) ==
 		      ISC_R_SUCCESS);
 	RUNTIME_CHECK(isc_task_onshutdown(ti->task, shutdown_action, ti) ==
 		      ISC_R_SUCCESS);
@@ -209,14 +200,14 @@ main(int argc, char *argv[]) {
 	 * Test implicit shutdown.
 	 */
 	task = NULL;
-	RUNTIME_CHECK(isc_task_create(task_manager, mctx, 0, &task) ==
+	RUNTIME_CHECK(isc_task_create(task_manager, 0, &task) ==
 		      ISC_R_SUCCESS);
 	isc_task_detach(&task);
 
 	/*
 	 * Test anti-zombie code.
 	 */
-	RUNTIME_CHECK(isc_task_create(task_manager, mctx, 0, &task) ==
+	RUNTIME_CHECK(isc_task_create(task_manager, 0, &task) ==
 		      ISC_R_SUCCESS);
 	isc_task_detach(&task);
 

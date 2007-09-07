@@ -15,20 +15,25 @@
  * SOFTWARE.
  */
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include <config.h>
 
-#include <isc/commandline.h>
-#include <isc/error.h>
-#include <isc/mem.h>
+#include <stdlib.h>
+
 #include <isc/app.h>
+#include <isc/commandline.h>
+#include <isc/mem.h>
 #include <isc/socket.h>
+#include <isc/string.h>
+#include <isc/task.h>
 #include <isc/timer.h>
+#include <isc/util.h>
 
 #include <dns/db.h>
-#include <dns/zone.h>
+#include <dns/fixedname.h>
 #include <dns/rdataclass.h>
+#include <dns/rdataset.h>
+#include <dns/result.h>
+#include <dns/zone.h>
 
 static int debug = 0;
 static int quiet = 0;
@@ -44,7 +49,7 @@ isc_sockaddr_t addr;
 
 #define ERRRET(result, function) \
 	do { \
-		if (result != DNS_R_SUCCESS) { \
+		if (result != ISC_R_SUCCESS) { \
 			fprintf(stderr, "%s() returned %s\n", \
 				function, dns_result_totext(result)); \
 			return; \
@@ -52,7 +57,7 @@ isc_sockaddr_t addr;
 	} while (0)
 
 #define ERRCONT(result, function) \
-		if (result != DNS_R_SUCCESS) { \
+		if (result != ISC_R_SUCCESS) { \
 			fprintf(stderr, "%s() returned %s\n", \
 				function, dns_result_totext(result)); \
 			continue; \
@@ -83,7 +88,7 @@ setup(char *zonename, char *filename, char *classname) {
 
 	dns_zone_settype(zone, zonetype);
 
-	isc_buffer_init(&buffer, zonename, strlen(zonename), ISC_BUFFERTYPE_TEXT);
+	isc_buffer_init(&buffer, zonename, strlen(zonename));
 	isc_buffer_add(&buffer, strlen(zonename));
 	dns_fixedname_init(&fixorigin);
 	result = dns_name_fromtext(dns_fixedname_name(&fixorigin),
@@ -107,9 +112,8 @@ setup(char *zonename, char *filename, char *classname) {
 
 	dns_zone_setclass(zone, rdclass);
 
-	if (zonetype == dns_zone_slave) {
-		dns_zone_addmaster(zone, &addr);
-	}
+	if (zonetype == dns_zone_slave)
+		dns_zone_setmasters(zone, &addr, 1);
 
 	result = dns_zone_load(zone);
 	ERRRET(result, "dns_zone_load");
@@ -125,11 +129,11 @@ print_rdataset(dns_name_t *name, dns_rdataset_t *rdataset) {
         isc_result_t result;
         isc_region_t r;
 
-        isc_buffer_init(&text, t, sizeof t, ISC_BUFFERTYPE_TEXT);
+        isc_buffer_init(&text, t, sizeof(t));
         result = dns_rdataset_totext(rdataset, name, ISC_FALSE, ISC_FALSE,
 				     &text);
-        isc_buffer_used(&text, &r);
-        if (result == DNS_R_SUCCESS)
+        isc_buffer_usedregion(&text, &r);
+        if (result == ISC_R_SUCCESS)
                 printf("%.*s", (int)r.length, (char *)r.base);
         else
                 printf("%s\n", dns_result_totext(result));
@@ -150,7 +154,7 @@ query(void) {
 
 	db = NULL;
 	result = dns_zone_getdb(zone, &db);
-	if (result != DNS_R_SUCCESS) {
+	if (result != ISC_R_SUCCESS) {
 		fprintf(stderr, "%s() returned %s\n", "dns_zone_getdb",
 			dns_result_totext(result));
 		return;
@@ -186,7 +190,7 @@ query(void) {
 		if (strlen(buf) == 0)
 			continue;
 		dns_fixedname_init(&name);
-		isc_buffer_init(&buffer, buf, strlen(buf), ISC_BUFFERTYPE_TEXT);
+		isc_buffer_init(&buffer, buf, strlen(buf));
 		isc_buffer_add(&buffer, strlen(buf));
 		result = dns_name_fromtext(dns_fixedname_name(&name),
 				  &buffer, dns_rootname, ISC_FALSE, NULL);
@@ -206,7 +210,7 @@ query(void) {
 		case DNS_R_DELEGATION:
 			print_rdataset(dns_fixedname_name(&found), &rdataset);
 			break;
-		case DNS_R_SUCCESS:
+		case ISC_R_SUCCESS:
 			print_rdataset(dns_fixedname_name(&name), &rdataset);
 			break;
 		default:

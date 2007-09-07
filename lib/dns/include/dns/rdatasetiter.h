@@ -60,13 +60,11 @@
  ***** Imports
  *****/
 
-#include <isc/boolean.h>
-#include <isc/buffer.h>
 #include <isc/lang.h>
+#include <isc/magic.h>
 #include <isc/stdtime.h>
 
 #include <dns/types.h>
-#include <dns/result.h>
 
 ISC_LANG_BEGINDECLS
 
@@ -82,10 +80,8 @@ typedef struct dns_rdatasetitermethods {
 				   dns_rdataset_t *rdataset);
 } dns_rdatasetitermethods_t;
 
-#define DNS_RDATASETITER_MAGIC		0x444E5369U		/* DNSi. */
-#define DNS_RDATASETITER_VALID(dbi)	((dbi) != NULL && \
-					 (dbi)->magic == \
-					 DNS_RDATASETITER_MAGIC)
+#define DNS_RDATASETITER_MAGIC	     0x444E5369U		/* DNSi. */
+#define DNS_RDATASETITER_VALID(i)    ISC_MAGIC_VALID(i, DNS_RDATASETITER_MAGIC)
 
 /*
  * This structure is actually just the common prefix of a DNS db
@@ -131,8 +127,8 @@ dns_rdatasetiter_first(dns_rdatasetiter_t *iterator);
  *	'iterator' is a valid iterator.
  *
  * Returns:
- *	DNS_R_SUCCESS
- *	DNS_R_NOMORE			There are no rdatasets at the node.
+ *	ISC_R_SUCCESS
+ *	ISC_R_NOMORE			There are no rdatasets at the node.
  *
  *	Other results are possible, depending on the DB implementation.
  */
@@ -146,8 +142,8 @@ dns_rdatasetiter_next(dns_rdatasetiter_t *iterator);
  *	'iterator' is a valid iterator.
  *
  * Returns:
- *	DNS_R_SUCCESS
- *	DNS_R_NOMORE			There are no more rdatasets at the
+ *	ISC_R_SUCCESS
+ *	ISC_R_NOMORE			There are no more rdatasets at the
  *					node.
  *
  *	Other results are possible, depending on the DB implementation.
@@ -165,7 +161,7 @@ dns_rdatasetiter_current(dns_rdatasetiter_t *iterator,
  *	'rdataset' is a valid, disassociated rdataset.
  *
  *	The rdataset cursor of 'iterator' is at a valid location (i.e. the
- *	result of last call to a cursor movement command was DNS_R_SUCCESS).
+ *	result of last call to a cursor movement command was ISC_R_SUCCESS).
  */
 
 ISC_LANG_ENDDECLS

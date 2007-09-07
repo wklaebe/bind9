@@ -17,19 +17,14 @@
 
 #include <config.h>
 
-#include <isc/assertions.h>
-#include <isc/region.h>
-#include <isc/buffer.h>
+#include <isc/util.h>
 
-#include <dns/types.h>
-#include <dns/ncache.h>
-#include <dns/name.h>
-#include <dns/compress.h>
-#include <dns/message.h>
 #include <dns/db.h>
+#include <dns/message.h>
+#include <dns/ncache.h>
 #include <dns/rdata.h>
-#include <dns/rdataset.h>
 #include <dns/rdatalist.h>
+#include <dns/rdataset.h>
 
 /*
  * The format of an ncache rdata is a sequence of one or more records of
@@ -53,7 +48,7 @@ copy_rdataset(dns_rdataset_t *rdataset, isc_buffer_t *buffer) {
 	/*
 	 * Copy the rdataset count to the buffer.
 	 */
-	isc_buffer_available(buffer, &ar);
+	isc_buffer_availableregion(buffer, &ar);
 	if (ar.length < 2)
 		return (ISC_R_NOSPACE);
 	count = dns_rdataset_count(rdataset);
@@ -65,7 +60,7 @@ copy_rdataset(dns_rdataset_t *rdataset, isc_buffer_t *buffer) {
 		dns_rdataset_current(rdataset, &rdata);
 		dns_rdata_toregion(&rdata, &r);
 		INSIST(r.length <= 65535);
-		isc_buffer_available(buffer, &ar);
+		isc_buffer_availableregion(buffer, &ar);
 		if (ar.length < 2)
 			return (ISC_R_NOSPACE);
 		/*
@@ -121,7 +116,7 @@ dns_ncache_add(dns_message_t *message, dns_db_t *cache, dns_dbnode_t *node,
 	 */
 	ttl = 0xffffffff;
 	trust = 0xffff;
-	isc_buffer_init(&buffer, data, sizeof data, ISC_BUFFERTYPE_BINARY);
+	isc_buffer_init(&buffer, data, sizeof(data));
 	result = dns_message_firstname(message, DNS_SECTION_AUTHORITY);
 	while (result == ISC_R_SUCCESS) {
 		name = NULL;
@@ -154,10 +149,12 @@ dns_ncache_add(dns_message_t *message, dns_db_t *cache, dns_dbnode_t *node,
 					/*
 					 * Copy the type to the buffer.
 					 */
-					isc_buffer_available(&buffer, &r);
+					isc_buffer_availableregion(&buffer,
+								   &r);
 					if (r.length < 2)
 						return (ISC_R_NOSPACE);
-					isc_buffer_putuint16(&buffer, type);
+					isc_buffer_putuint16(&buffer,
+							     rdataset->type);
 					/*
 					 * Copy the rdataset into the buffer.
 					 */
@@ -198,7 +195,7 @@ dns_ncache_add(dns_message_t *message, dns_db_t *cache, dns_dbnode_t *node,
 		/*
 		 * Copy the type and a zero rdata count to the buffer.
 		 */
-		isc_buffer_available(&buffer, &r);
+		isc_buffer_availableregion(&buffer, &r);
 		if (r.length < 4)
 			return (ISC_R_NOSPACE);
 		isc_buffer_putuint16(&buffer, 0);
@@ -227,7 +224,7 @@ dns_ncache_add(dns_message_t *message, dns_db_t *cache, dns_dbnode_t *node,
 	 */
 	INSIST(trust != 0xffff);
 	dns_rdata_init(&rdata);
-	isc_buffer_used(&buffer, &r);
+	isc_buffer_usedregion(&buffer, &r);
 	rdata.data = r.base;
 	rdata.length = r.length;
 	rdata.rdclass = dns_db_class(cache);
@@ -276,21 +273,15 @@ dns_ncache_towire(dns_rdataset_t *rdataset, dns_compress_t *cctx,
 		return (result);
 	dns_rdataset_current(rdataset, &rdata);
 	INSIST(dns_rdataset_next(rdataset) == ISC_R_NOMORE);
-	isc_buffer_init(&source, rdata.data, rdata.length,
-			ISC_BUFFERTYPE_BINARY);
+	isc_buffer_init(&source, rdata.data, rdata.length);
 	isc_buffer_add(&source, rdata.length);
-	
-	if (dns_compress_getedns(cctx) >= 1)
-		dns_compress_setmethods(cctx, DNS_COMPRESS_GLOBAL);
-	else
-		dns_compress_setmethods(cctx, DNS_COMPRESS_GLOBAL14);
 
 	savedbuffer = *target;
 
 	count = 0;
 	do {
 		dns_name_init(&name, NULL);
-		isc_buffer_remaining(&source, &remaining);
+		isc_buffer_remainingregion(&source, &remaining);
 		dns_name_fromregion(&name, &remaining);
 		INSIST(remaining.length >= name.length);
 		isc_buffer_forward(&source, name.length);
@@ -305,11 +296,11 @@ dns_ncache_towire(dns_rdataset_t *rdataset, dns_compress_t *cctx,
 			 * Get the length of this rdata and set up an
 			 * rdata structure for it.
 			 */
-			isc_buffer_remaining(&source, &remaining);
+			isc_buffer_remainingregion(&source, &remaining);
 			INSIST(remaining.length >= 2);
 			dns_rdata_init(&rdata);
 			rdata.length = isc_buffer_getuint16(&source);
-			isc_buffer_remaining(&source, &remaining);
+			isc_buffer_remainingregion(&source, &remaining);
 			rdata.data = remaining.base;
 			rdata.type = type;
 			rdata.rdclass = rdataset->rdclass;
@@ -319,15 +310,16 @@ dns_ncache_towire(dns_rdataset_t *rdataset, dns_compress_t *cctx,
 			/*
 			 * Write the name.
 			 */
+			dns_compress_setmethods(cctx, DNS_COMPRESS_GLOBAL14);
 			result = dns_name_towire(&name, cctx, target);
-			if (result != DNS_R_SUCCESS)
+			if (result != ISC_R_SUCCESS)
 				goto rollback;
 
 			/*
 			 * See if we have space for type, class, ttl, and
 			 * rdata length.  Write the type, class, and ttl.
 			 */
-			isc_buffer_remaining(target, &tremaining);
+			isc_buffer_remainingregion(target, &tremaining);
 			if (tremaining.length < 10) {
 				result = ISC_R_NOSPACE;
 				goto rollback;
@@ -346,7 +338,7 @@ dns_ncache_towire(dns_rdataset_t *rdataset, dns_compress_t *cctx,
 			 * Write the rdata.
 			 */
 			result = dns_rdata_towire(&rdata, cctx, target);
-			if (result != DNS_R_SUCCESS)
+			if (result != ISC_R_SUCCESS)
 				goto rollback;
 
 			/*
@@ -361,7 +353,7 @@ dns_ncache_towire(dns_rdataset_t *rdataset, dns_compress_t *cctx,
 
 			count++;
 		}
-		isc_buffer_remaining(&source, &remaining);
+		isc_buffer_remainingregion(&source, &remaining);
 	} while (remaining.length > 0);
 
 	*countp = count;

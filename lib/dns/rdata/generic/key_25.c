@@ -15,7 +15,7 @@
  * SOFTWARE.
  */
 
-/* $Id: key_25.c,v 1.17 2000/03/16 22:42:32 halley Exp $ */
+/* $Id: key_25.c,v 1.25 2000/05/22 12:37:37 marka Exp $ */
 
 /*
  * Reviewed: Wed Mar 15 16:47:10 PST 2000 by halley.
@@ -25,6 +25,8 @@
 
 #ifndef RDATA_GENERIC_KEY_25_C
 #define RDATA_GENERIC_KEY_25_C
+
+#define RRTYPE_KEY_ATTRIBUTES (DNS_RDATATYPEATTR_DNSSEC)
 
 static inline isc_result_t
 fromtext_key(dns_rdataclass_t rdclass, dns_rdatatype_t type,
@@ -59,7 +61,7 @@ fromtext_key(dns_rdataclass_t rdclass, dns_rdatatype_t type,
 	
 	/* No Key? */
 	if ((flags & 0xc000) == 0xc000)
-		return (DNS_R_SUCCESS);
+		return (ISC_R_SUCCESS);
 
 	return (isc_base64_tobuffer(lexer, target, -1));
 }
@@ -98,7 +100,7 @@ totext_key(dns_rdata_t *rdata, dns_rdata_textctx_t *tctx,
 
 	/* No Key? */
 	if ((flags & 0xc000) == 0xc00)
-		return (DNS_R_SUCCESS);
+		return (ISC_R_SUCCESS);
 
 	/* key */
 	if ((tctx->flags & DNS_STYLEFLAG_MULTILINE) != 0)
@@ -109,7 +111,7 @@ totext_key(dns_rdata_t *rdata, dns_rdata_textctx_t *tctx,
 	if ((tctx->flags & DNS_STYLEFLAG_MULTILINE) != 0)
 		RETERR(str_totext(" )", target));
 
-	return DNS_R_SUCCESS;
+	return ISC_R_SUCCESS;
 }
 
 static inline isc_result_t
@@ -125,9 +127,9 @@ fromwire_key(dns_rdataclass_t rdclass, dns_rdatatype_t type,
 
 	REQUIRE(type == 25);
 
-	isc_buffer_active(source, &sr);
+	isc_buffer_activeregion(source, &sr);
 	if (sr.length < 4)
-		return (DNS_R_UNEXPECTEDEND);
+		return (ISC_R_UNEXPECTEDEND);
 
 	isc_buffer_forward(source, sr.length);
 	return (mem_tobuffer(target, sr.base, sr.length));
@@ -163,17 +165,12 @@ static inline isc_result_t
 fromstruct_key(dns_rdataclass_t rdclass, dns_rdatatype_t type, void *source,
 	       isc_buffer_t *target)
 {
-	dns_rdata_generic_key_t *key;
-	isc_region_t tr;
-
-	UNUSED(rdclass);
-	UNUSED(source);
-	UNUSED(target);
+	dns_rdata_key_t *key = source;
 
 	REQUIRE(type == 25);
-	
-	key = (dns_rdata_generic_key_t *) source;
-	REQUIRE(key->mctx != NULL);
+	REQUIRE(source != NULL);
+	REQUIRE(key->common.rdtype == type);
+	REQUIRE(key->common.rdclass == rdclass);
 
 	/* Flags */
 	RETERR(uint16_tobuffer(key->flags, target));
@@ -185,32 +182,21 @@ fromstruct_key(dns_rdataclass_t rdclass, dns_rdatatype_t type, void *source,
 	RETERR(uint8_tobuffer(key->algorithm, target));
 
 	/* Data */
-	if (key->datalen > 0) {
-		isc_buffer_available(target, &tr);
-		if (tr.length < key->datalen)
-			return (DNS_R_NOSPACE);
-		memcpy(tr.base, key->data, key->datalen);
-		isc_buffer_add(target, key->datalen);
-	}
-
-	return (DNS_R_SUCCESS);
+	return (mem_tobuffer(target, key->data, key->datalen));
 }
 
 static inline isc_result_t
 tostruct_key(dns_rdata_t *rdata, void *target, isc_mem_t *mctx) {
-	dns_rdata_generic_key_t *key;
+	dns_rdata_key_t *key = target;
 	isc_region_t sr;
 
-	UNUSED(target);
-	UNUSED(mctx);
-
 	REQUIRE(rdata->type == 25);
+	REQUIRE(target != NULL);
 
-	key = (dns_rdata_generic_key_t *) target;
 	key->common.rdclass = rdata->rdclass;
 	key->common.rdtype = rdata->type;
 	ISC_LINK_INIT(&key->common, link);
-	key->mctx = mctx;
+
 	dns_rdata_toregion(rdata, &sr);
 
 	/* Flags */
@@ -234,27 +220,29 @@ tostruct_key(dns_rdata_t *rdata, void *target, isc_mem_t *mctx) {
 	/* Data */
 	key->datalen = sr.length;
 	if (key->datalen > 0) {
-		key->data = isc_mem_get(mctx, key->datalen);
+		key->data = mem_maybedup(mctx, sr.base, key->datalen);
 		if (key->data == NULL)
-			return (DNS_R_NOMEMORY);
-		memcpy(key->data, sr.base, key->datalen);
-		isc_region_consume(&sr, key->datalen);
-	}
-	else
+			return (ISC_R_NOMEMORY);
+	} else
 		key->data = NULL;
 
-	return (DNS_R_SUCCESS);
+	key->mctx = mctx;
+	return (ISC_R_SUCCESS);
 }
 
 static inline void
 freestruct_key(void *source) {
-	dns_rdata_generic_key_t *key = (dns_rdata_generic_key_t *) source;
+	dns_rdata_key_t *key = (dns_rdata_key_t *) source;
 
 	REQUIRE(source != NULL);
 	REQUIRE(key->common.rdtype == 25);
 
-	if (key->datalen > 0)
-		isc_mem_put(key->mctx, key->data, key->datalen);
+	if (key->mctx == NULL)
+		return;
+
+	if (key->data != NULL)
+		isc_mem_free(key->mctx, key->data);
+	key->mctx = NULL;
 }
 
 static inline isc_result_t
@@ -263,10 +251,11 @@ additionaldata_key(dns_rdata_t *rdata, dns_additionaldatafunc_t add,
 {
 	REQUIRE(rdata->type == 25);
 
+	UNUSED(rdata);
 	UNUSED(add);
 	UNUSED(arg);
 
-	return (DNS_R_SUCCESS);
+	return (ISC_R_SUCCESS);
 }
 
 static inline isc_result_t

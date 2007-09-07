@@ -48,7 +48,7 @@
  * SUCH DAMAGE.
  */
 
-/* $Id: gen-win32.h,v 1.2 2000/02/03 23:43:47 halley Exp $ */
+/* $Id: gen-win32.h,v 1.4 2000/05/01 17:59:02 tale Exp $ */
 
 /*
  * Principal Authors: Computer Systems Research Group at UC Berkeley
@@ -73,6 +73,9 @@
  * isc/commandline.c.  The dir stuff was shrunk to fit the needs of gen.c.
  */
 
+#ifndef DNS_GEN_WIN32_H
+#define DNS_GEN_WIN32_H 1
+
 #include <stdio.h>
 #include <string.h>
 #include <windows.h>
@@ -80,6 +83,7 @@
 #include <isc/assertions.h>
 #include <isc/boolean.h>
 #include <isc/commandline.h>
+#include <isc/lang.h>
 
 int isc_commandline_index = 1;		/* Index into parent argv vector. */
 int isc_commandline_option;		/* Character checked for validity. */
@@ -93,6 +97,8 @@ isc_boolean_t isc_commandline_reset = ISC_TRUE; /* Reset processing. */
 #define	BADOPT	'?'
 #define	BADARG	':'
 #define ENDOPT  ""
+
+ISC_LANG_BEGINDECLS
 
 /*
  * getopt --
@@ -280,3 +286,7 @@ end_directory(isc_dir_t *dir) {
 	if (dir->handle != INVALID_HANDLE_VALUE)
 		FindClose(dir->handle);
 }
+
+ISC_LANG_ENDDECLS
+
+#endif /* DNS_GEN_WIN32_H */

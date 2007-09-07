@@ -24,39 +24,21 @@
 
 #include <config.h>
 
-#include <stddef.h>
 #include <stdlib.h>
-#include <string.h>
 
-#include <isc/assertions.h>
-#include <isc/buffer.h>
+#include <isc/app.h>
 #include <isc/commandline.h>
-#include <isc/error.h>
 #include <isc/task.h>
 #include <isc/timer.h>
-#include <isc/app.h>
-#include <isc/mutex.h>
-#include <isc/boolean.h>
-#include <isc/net.h>
-#include <isc/region.h>
-#include <isc/sockaddr.h>
-#include <isc/socket.h>
 #include <isc/util.h>
-#include <isc/netaddr.h>
-#include <isc/log.h>
 
-#include <dns/types.h>
-#include <dns/result.h>
 #include <dns/adb.h>
 #include <dns/cache.h>
-#include <dns/name.h>
-#include <dns/fixedname.h>
-#include <dns/resolver.h>
-#include <dns/events.h>
 #include <dns/dispatch.h>
-#include <dns/byaddr.h>
-#include <dns/view.h>
+#include <dns/events.h>
 #include <dns/log.h>
+#include <dns/resolver.h>
+#include <dns/result.h>
 
 static isc_mem_t *mctx = NULL;
 static dns_view_t *view = NULL;
@@ -65,6 +47,7 @@ static isc_task_t *task = NULL;
 static dns_fixedname_t name;
 static dns_fixedname_t target;
 static isc_log_t *lctx;
+static isc_logconfig_t *lcfg;
 static unsigned int level = 0;
 
 static void adb_callback(isc_task_t *task, isc_event_t *event);
@@ -77,8 +60,10 @@ log_init(void) {
 	/*
 	 * Setup a logging context.
 	 */
-	RUNTIME_CHECK(isc_log_create(mctx, &lctx) == ISC_R_SUCCESS);
-	RUNTIME_CHECK(dns_log_init(lctx) == ISC_R_SUCCESS);
+	RUNTIME_CHECK(isc_log_create(mctx, &lctx, &lcfg) == ISC_R_SUCCESS);
+	isc_log_setcontext(lctx);
+	dns_log_init(lctx);
+	dns_log_setcontext(lctx);
 
 	/*
 	 * Create and install the default channel.
@@ -88,12 +73,12 @@ log_init(void) {
 	destination.file.versions = ISC_LOG_ROLLNEVER;
 	destination.file.maximum_size = 0;
 	flags = ISC_LOG_PRINTTIME;
-	RUNTIME_CHECK(isc_log_createchannel(lctx, "_default",
+	RUNTIME_CHECK(isc_log_createchannel(lcfg, "_default",
 					    ISC_LOG_TOFILEDESC,
 					    ISC_LOG_DYNAMIC,
 					    &destination, flags) ==
 		      ISC_R_SUCCESS);
-	RUNTIME_CHECK(isc_log_usechannel(lctx, "_default", NULL, NULL) ==
+	RUNTIME_CHECK(isc_log_usechannel(lcfg, "_default", NULL, NULL) ==
 		      ISC_R_SUCCESS);
 	isc_log_setdebuglevel(lctx, level);
 }
@@ -106,7 +91,7 @@ print_addresses(dns_adbfind_t *find) {
 	isc_region_t r;
 	char text[1024];
 
-	isc_buffer_init(&b, text, sizeof text, ISC_BUFFERTYPE_TEXT);
+	isc_buffer_init(&b, text, sizeof(text));
 
 	for (address = ISC_LIST_HEAD(find->list);
 	     address != NULL;
@@ -114,7 +99,7 @@ print_addresses(dns_adbfind_t *find) {
 		isc_buffer_clear(&b);
 		result = isc_sockaddr_totext(address->sockaddr, &b);
 		if (result == ISC_R_SUCCESS) {
-			isc_buffer_used(&b, &r);
+			isc_buffer_usedregion(&b, &r);
 			printf("%.*s\n", (int)r.length, r.base);
 		} else
 			printf("isc_sockaddr_totext() failed: %s\n",
@@ -129,11 +114,11 @@ print_name(dns_name_t *name) {
 	isc_region_t r;
 	char text[1024];
 
-	isc_buffer_init(&b, text, sizeof text, ISC_BUFFERTYPE_TEXT);
+	isc_buffer_init(&b, text, sizeof(text));
 
 	result = dns_name_totext(name, ISC_FALSE, &b);
 	if (result == ISC_R_SUCCESS) {
-		isc_buffer_used(&b, &r);
+		isc_buffer_usedregion(&b, &r);
 		printf("%.*s\n", (int)r.length, r.base);
 	} else
 		printf("dns_name_totext() failed: %s\n",
@@ -199,7 +184,7 @@ do_find(isc_boolean_t want_event) {
 
 static void
 adb_callback(isc_task_t *etask, isc_event_t *event) {
-	unsigned int type = event->type;
+	unsigned int type = event->ev_type;
 
 	REQUIRE(etask == task);
 
@@ -232,6 +217,7 @@ main(int argc, char *argv[]) {
 	isc_timermgr_t *timermgr;
 	int ch;
 	isc_socketmgr_t *socketmgr;
+	dns_dispatchmgr_t *dispatchmgr;
 	dns_cache_t *cache;
 	isc_buffer_t b;
 
@@ -268,13 +254,19 @@ main(int argc, char *argv[]) {
 	RUNTIME_CHECK(isc_taskmgr_create(mctx, workers, 0, &taskmgr) ==
 		      ISC_R_SUCCESS);
 	task = NULL;
-	RUNTIME_CHECK(isc_task_create(taskmgr, mctx, 0, &task) ==
+	RUNTIME_CHECK(isc_task_create(taskmgr, 0, &task) ==
 		      ISC_R_SUCCESS);
+
+	dispatchmgr = NULL;
+	RUNTIME_CHECK(dns_dispatchmgr_create(mctx, &dispatchmgr)
+		      == ISC_R_SUCCESS);
 
 	timermgr = NULL;
 	RUNTIME_CHECK(isc_timermgr_create(mctx, &timermgr) == ISC_R_SUCCESS);
 	socketmgr = NULL;
 	RUNTIME_CHECK(isc_socketmgr_create(mctx, &socketmgr) == ISC_R_SUCCESS);
+
+	
 
 	cache = NULL;
 	RUNTIME_CHECK(dns_cache_create(mctx, taskmgr, timermgr,
@@ -286,8 +278,9 @@ main(int argc, char *argv[]) {
 				      &view) == ISC_R_SUCCESS);
 
 	RUNTIME_CHECK(dns_view_createresolver(view, taskmgr, 10, socketmgr,
-					      timermgr, 0, NULL, NULL) ==
-		      DNS_R_SUCCESS);
+					      timermgr, 0,
+					      dispatchmgr, NULL, NULL) ==
+		      ISC_R_SUCCESS);
 
 	{
 		struct in_addr ina;
@@ -310,8 +303,7 @@ main(int argc, char *argv[]) {
 
 	printf("name = %s\n", argv[isc_commandline_index]);
 	isc_buffer_init(&b, argv[isc_commandline_index],
-			strlen(argv[isc_commandline_index]),
-			ISC_BUFFERTYPE_TEXT);
+			strlen(argv[isc_commandline_index]));
 	isc_buffer_add(&b, strlen(argv[isc_commandline_index]));
 	dns_fixedname_init(&name);
 	dns_fixedname_init(&target);

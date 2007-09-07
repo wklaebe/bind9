@@ -17,32 +17,23 @@
 
 #include <config.h>
 
-#include <stdlib.h>
-#include <unistd.h>
-#include <stdio.h>
 #include <errno.h>
-#include <string.h>
+#include <stdlib.h>
 
 #include <isc/mem.h>
+#include <isc/string.h>
+#include <isc/util.h>
 
 #include <dns/log.h>
 #include <dns/namedconf.h>
 
-#include <isc/error.h>
-
-isc_result_t zonecbk(dns_c_ctx_t *ctx, dns_c_zone_t *zone,
-		     dns_c_view_t *view, void *uap);
-isc_result_t optscbk(dns_c_ctx_t *ctx, void *uap);
-
-
-isc_result_t
-zonecbk(dns_c_ctx_t *ctx, dns_c_zone_t *zone, dns_c_view_t *view, void *uap)
-{
+static isc_result_t
+zonecbk(dns_c_ctx_t *ctx, dns_c_zone_t *zone, dns_c_view_t *view, void *uap) {
 	const char *zname;
 	const char *vname;
 
-	(void) ctx;
-	(void) uap;
+	UNUSED(ctx);
+	UNUSED(uap);
 	
 	dns_c_zone_getname(zone, &zname);
 
@@ -53,7 +44,7 @@ zonecbk(dns_c_ctx_t *ctx, dns_c_zone_t *zone, dns_c_view_t *view, void *uap)
 		vname = "no current view";
 	}
 #else
-	(void) view;
+	UNUSED(view);
 	vname = "foo";
 #endif	
 
@@ -62,20 +53,20 @@ zonecbk(dns_c_ctx_t *ctx, dns_c_zone_t *zone, dns_c_view_t *view, void *uap)
 	return (ISC_R_SUCCESS);
 }
 
-
-isc_result_t
-optscbk(dns_c_ctx_t *ctx, void *uap)
-{
-	(void) ctx;
-	(void) uap;
+static isc_result_t
+optscbk(dns_c_ctx_t *ctx, void *uap) {
+	UNUSED(ctx);
+	UNUSED(uap);
 	
 	fprintf(stderr, "Processing options in callback.\n");
 	return (ISC_R_SUCCESS);
 }
 
 
-	
-int main (int argc, char **argv) {
+extern int dns__yydebug;
+
+int
+main (int argc, char **argv) {
 	dns_c_ctx_t *configctx = NULL;
 	const char *conffile;
 	FILE *outfp;
@@ -84,22 +75,21 @@ int main (int argc, char **argv) {
 	isc_log_t *log = NULL;
 	isc_logconfig_t *logcfg = NULL;
 	
+	callbacks.zonecbk = zonecbk;
+	callbacks.optscbk = optscbk;
+	callbacks.zonecbkuap = NULL;
+	callbacks.optscbkuap = NULL;
+
 #if 1
 	callbacks.zonecbk = NULL;
-	callbacks.zonecbkuap = NULL;
 	callbacks.optscbk = NULL;
-	callbacks.optscbkuap = NULL;
-#else
-	callbacks.zonecbk = zonecbk;
-	callbacks.zonecbkuap = NULL;
-	callbacks.optscbk = optscbk;
-	callbacks.optscbkuap = NULL;
 #endif
 	
 	if (argc > 1 && strcmp(argv[1],"-d") == 0) {
 		argv++;
 		argc--;
-		debug_mem_print = ISC_TRUE;
+		/* debug_mem_print = ISC_TRUE; */
+		dns__yydebug = 1;
 	}
 	
 	conffile = getenv("NAMED_CONF");
@@ -111,7 +101,9 @@ int main (int argc, char **argv) {
 	RUNTIME_CHECK(isc_mem_create(0, 0, &mem) == ISC_R_SUCCESS);
 
 	RUNTIME_CHECK(isc_log_create(mem, &log, &logcfg) == ISC_R_SUCCESS);
+	isc_log_setcontext(log);
 	dns_log_init(log);
+	dns_log_setcontext(log);
 	
 	RUNTIME_CHECK(isc_log_usechannel(logcfg, "default_stderr", NULL, NULL)
 		      == ISC_R_SUCCESS);
@@ -166,7 +158,3 @@ int main (int argc, char **argv) {
 
 	return (0);
 }
-	
-	
-
-	

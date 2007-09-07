@@ -59,15 +59,13 @@
  * Standards:
  * None.  */
 
-#include <isc/types.h>
 #include <isc/lang.h>
+#include <isc/magic.h>
 #include <isc/event.h>
-#include <isc/mutex.h>
 #include <isc/rwlock.h>
 #include <isc/stdtime.h>
 
 #include <dns/types.h>
-#include <dns/result.h>
 
 ISC_LANG_BEGINDECLS
 
@@ -80,6 +78,7 @@ struct dns_view {
 	dns_zt_t *			zonetable;
 	dns_resolver_t *		resolver;
 	dns_adb_t *			adb;
+	dns_requestmgr_t *		requestmgr;
 	dns_cache_t *			cache;
 	dns_db_t *			cachedb;
 	dns_db_t *			hints;
@@ -91,23 +90,38 @@ struct dns_view {
 	isc_task_t *			task;
 	isc_event_t			resevent;
 	isc_event_t			adbevent;
+	isc_event_t			reqevent;
 	/* Configurable data, locked by conflock. */
 	dns_tsig_keyring_t *		statickeys;
 	dns_tsig_keyring_t *		dynamickeys;
 	dns_peerlist_t *		peers;
+	isc_boolean_t			recursion;
+	isc_boolean_t			auth_nxdomain;
+	dns_transfer_format_t		transfer_format;
+	dns_acl_t *			queryacl;
+	dns_acl_t *			recursionacl;
+	isc_boolean_t			requestixfr;
+	isc_boolean_t			provideixfr;
+
+	/*
+	 * Configurable data for server use only,
+	 * locked by server configuration lock.
+	 */
+	dns_acl_t *			matchclients;
 	/* Locked by lock. */
 	unsigned int			references;
+	unsigned int			weakrefs;
 	unsigned int			attributes;
 	/* Under owner's locking control. */
 	ISC_LINK(struct dns_view)	link;
 };
 
 #define DNS_VIEW_MAGIC			0x56696577	/* View. */
-#define DNS_VIEW_VALID(view)		((view) != NULL && \
-					 (view)->magic == DNS_VIEW_MAGIC)
+#define DNS_VIEW_VALID(view)		ISC_MAGIC_VALID(view, DNS_VIEW_MAGIC)
 
 #define DNS_VIEWATTR_RESSHUTDOWN	0x01
 #define DNS_VIEWATTR_ADBSHUTDOWN	0x02
+#define DNS_VIEWATTR_REQSHUTDOWN	0x04
 
 isc_result_t
 dns_view_create(isc_mem_t *mctx, dns_rdataclass_t rdclass,
@@ -152,10 +166,44 @@ dns_view_attach(dns_view_t *source, dns_view_t **targetp);
  * Ensures:
  *
  *	*targetp is attached to source.
+ *
+ *	While *targetp is attached, the view will not shut down.
  */
 
 void
 dns_view_detach(dns_view_t **viewp);
+/*
+ * Detach '*viewp' from its view.
+ *
+ * Requires:
+ *
+ *	'viewp' points to a valid dns_view_t *
+ *
+ * Ensures:
+ *
+ *	*viewp is NULL.
+ */
+
+void
+dns_view_weakattach(dns_view_t *source, dns_view_t **targetp);
+/*
+ * Weakly attach '*targetp' to 'source'.
+ *
+ * Requires:
+ *
+ *	'source' is a valid, frozen view.
+ *
+ *	'targetp' points to a NULL dns_view_t *.
+ *
+ * Ensures:
+ *
+ *	*targetp is attached to source.
+ *
+ * 	While *targetp is attached, the view will not be freed.
+ */
+
+void
+dns_view_weakdetach(dns_view_t **targetp);
 /*
  * Detach '*viewp' from its view.
  *
@@ -166,10 +214,6 @@ dns_view_detach(dns_view_t **viewp);
  * Ensures:
  *
  *	*viewp is NULL.
- *
- *	If '*viewp' is the last reference to the view,
- *
- *		All resources used by the view will be freed.
  */
 
 isc_result_t
@@ -178,6 +222,7 @@ dns_view_createresolver(dns_view_t *view,
 			isc_socketmgr_t *socketmgr,
 			isc_timermgr_t *timermgr,
 			unsigned int options,
+			dns_dispatchmgr_t *dispatchmgr,
 			dns_dispatch_t *dispatchv4,
 			dns_dispatch_t *dispatchv6);
 /*

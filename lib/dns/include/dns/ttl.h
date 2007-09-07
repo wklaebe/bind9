@@ -22,8 +22,8 @@
  ***	Imports
  ***/
 
+#include <isc/lang.h>
 #include <isc/types.h>
-#include <isc/buffer.h>
 
 ISC_LANG_BEGINDECLS
 
@@ -45,8 +45,8 @@ dns_ttl_totext(isc_uint32_t src, isc_boolean_t verbose,
  * in "dig", like "1 week 2 days 3 hours 4 minutes 5 seconds".
  *
  * Returns:
- * 	DNS_R_SUCCESS
- * 	DNS_R_NOSPACE
+ * 	ISC_R_SUCCESS
+ * 	ISC_R_NOSPACE
  */
 
 isc_result_t
@@ -55,7 +55,7 @@ dns_counter_fromtext(isc_textregion_t *source, isc_uint32_t *ttl);
  * Converts a counter from either a plain number or a BIND 8 style value.
  *
  * Returns:
- *	DNS_R_SUCCESS
+ *	ISC_R_SUCCESS
  *	DNS_R_SYNTAX
  */
 
@@ -65,10 +65,10 @@ dns_ttl_fromtext(isc_textregion_t *source, isc_uint32_t *ttl);
  * Converts a ttl from either a plain number or a BIND 8 style value.
  *
  * Returns:
- *	DNS_R_SUCCESS
+ *	ISC_R_SUCCESS
  *	DNS_R_BADTTL
  */
 
 ISC_LANG_ENDDECLS
 
-#endif	/* DNS_MASTER_H */
+#endif /* DNS_TTL_H */

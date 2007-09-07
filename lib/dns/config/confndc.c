@@ -15,10 +15,11 @@
  * SOFTWARE.
  */
 
+/* $Id: confndc.c,v 1.14 2000/05/13 19:45:13 tale Exp $ */
 
 /*
 **	options {
-**	  [ default-server  server_name; ]
+**	  [ default-server server_name; ]
 **	  [ default-key key_name; ]
 **	};
 **	
@@ -37,38 +38,21 @@
 
 #include <config.h>
 
-#include <config.h>
-
-#include <stdarg.h>
-#include <stdio.h>
-#include <stdlib.h>
 #include <ctype.h>
-#include <errno.h> 
-#include <limits.h>
-#include <string.h>
-#include <sys/types.h> 
+#include <stdlib.h>
 
-#include <syslog.h>
-
-#include <isc/assertions.h>
-#include <isc/error.h>
-#include <isc/mutex.h>
-#include <isc/lex.h>
-#include <isc/symtab.h>
-#include <isc/error.h>
-#include <isc/once.h>
+#include <isc/string.h>
 #include <isc/dir.h>
+#include <isc/lex.h>
+#include <isc/mem.h>
 #include <isc/net.h>
+#include <isc/print.h>
+#include <isc/symtab.h>
+#include <isc/util.h>
 
 #include <dns/confndc.h>
 #include <dns/log.h>
  
-#include <dns/result.h>
-#include <dns/rdatatype.h>
-#include <dns/rdataclass.h>
-
-#include <dns/types.h>
-
 /* Type keys for symtab lookup */
 #define KEYWORD_SYM_TYPE 0x1
 #define CLASS_SYM_TYPE 0x2
@@ -391,6 +375,30 @@ dns_c_ndcctx_addserver(dns_c_ndcctx_t *ctx, dns_c_ndcserver_t **server) {
 	*server = NULL;
 
 	return (ISC_R_SUCCESS);
+}
+
+isc_result_t
+dns_c_ndcctx_getserver(dns_c_ndcctx_t *ctx, const char *name,
+		       dns_c_ndcserver_t **server)
+{
+	dns_c_ndcserver_t *s;
+
+	REQUIRE(DNS_C_NDCCTX_VALID(ctx));
+	REQUIRE(name != NULL);
+	REQUIRE(server != NULL && *server == NULL);
+
+	if (ctx->servers != NULL) {
+		for (s = ISC_LIST_HEAD(ctx->servers->list); s != NULL;
+		     s = ISC_LIST_NEXT(s, next)) {
+			INSIST(s->name != NULL);
+			if (strcasecmp(s->name, name) == 0) {
+				*server = s;
+				return (ISC_R_SUCCESS);
+			}
+		}
+	}
+
+	return (ISC_R_NOTFOUND);
 }
 
 isc_result_t
@@ -843,8 +851,7 @@ parse_file(ndcpcontext *pctx, dns_c_ndcctx_t **context) {
 }
 
 static isc_result_t
-parse_statement(ndcpcontext *pctx)
-{
+parse_statement(ndcpcontext *pctx) {
 	isc_result_t result;
 	dns_c_ndcctx_t *ctx = pctx->thecontext;
 	dns_c_ndcopts_t *opts = NULL;
@@ -860,7 +867,7 @@ parse_statement(ndcpcontext *pctx)
 			result = dns_c_ndcctx_setoptions(ctx, opts);
 			if (result == ISC_R_EXISTS) {
 				parser_warn(pctx, ISC_FALSE,
-					    "redefining `options'");
+					    "redefining 'options'");
 				result = ISC_R_SUCCESS;
 				dns_c_ndcopts_destroy(&tmpopts);
 			}
@@ -1035,7 +1042,7 @@ parse_serverstmt(ndcpcontext *pctx, dns_c_ndcserver_t **server) {
 
 			if (keyname != NULL) {
 				parser_warn(pctx, ISC_FALSE,
-					    "multiple `key' definitions");
+					    "multiple 'key' definitions");
 				isc_mem_free(pctx->themem, keyname);
 			}
 
@@ -1056,7 +1063,7 @@ parse_serverstmt(ndcpcontext *pctx, dns_c_ndcserver_t **server) {
 
 			if (hostname != NULL) {
 				parser_warn(pctx, ISC_FALSE,
-					    "multiple `host' definitions");
+					    "multiple 'host' definitions");
 				isc_mem_free(pctx->themem, hostname);
 			}
 
@@ -1139,7 +1146,6 @@ parse_keystmt(ndcpcontext *pctx, dns_c_kdeflist_t *keys) {
 	isc_result_t result = ISC_R_FAILURE;
 	dns_c_ndcctx_t *ctx = pctx->thecontext;
 	dns_c_kdef_t *key = NULL;
-	isc_mem_t *mem;
 	char *keyname = NULL;
 	char *algorithm = NULL;
 	char *secret = NULL;
@@ -1147,8 +1153,6 @@ parse_keystmt(ndcpcontext *pctx, dns_c_kdeflist_t *keys) {
 	REQUIRE(DNS_C_NDCCTX_VALID(ctx));
 	REQUIRE(DNS_C_KDEFLIST_VALID(keys));
 
-	mem = ctx->mem;
-	
 	if (!eat(pctx, L_KEY))
 		return (ISC_R_FAILURE);
 
@@ -1190,7 +1194,7 @@ parse_keystmt(ndcpcontext *pctx, dns_c_kdeflist_t *keys) {
 			
 			if (algorithm != NULL) {
 				parser_warn(pctx, ISC_FALSE,
-					    "multiple `algorithm' values.");
+					    "multiple 'algorithm' values.");
 				isc_mem_free(pctx->themem, algorithm);
 			}
 
@@ -1209,7 +1213,7 @@ parse_keystmt(ndcpcontext *pctx, dns_c_kdeflist_t *keys) {
 			
 			if (secret != NULL) {
 				parser_warn(pctx, ISC_FALSE,
-					    "multiple `secret' values.");
+					    "multiple 'secret' values.");
 				isc_mem_free(pctx->themem, secret);
 			}
 
@@ -1240,28 +1244,29 @@ parse_keystmt(ndcpcontext *pctx, dns_c_kdeflist_t *keys) {
 	}
 
 	if (algorithm == NULL) {
-		parser_error(pctx, ISC_FALSE, "missing `algorithm'");
+		parser_error(pctx, ISC_FALSE, "missing 'algorithm'");
 		result = ISC_R_FAILURE;
 
 	} else if (*algorithm == '\0') {
-		parser_error(pctx, ISC_FALSE, "zero length `algorithm'");
+		parser_error(pctx, ISC_FALSE, "zero length 'algorithm'");
 		result = ISC_R_FAILURE;
 	}
 	
 	if (secret == NULL) {
-		parser_error(pctx, ISC_FALSE, "missing `secret'");
+		parser_error(pctx, ISC_FALSE, "missing 'secret'");
 		result = ISC_R_FAILURE;
 	} else if (*secret == '\0') {
-		parser_error(pctx, ISC_FALSE, "zero length `secret'");
+		parser_error(pctx, ISC_FALSE, "zero length 'secret'");
 		result = ISC_R_FAILURE;
 	}
 
 	if (result != ISC_R_SUCCESS)
 		goto done;
 	
-	result = dns_c_kdef_new(keys, keyname, &key);
+	result = dns_c_kdef_new(keys->mem, keyname, &key);
 	if (result != ISC_R_SUCCESS)
 		goto done;
+	dns_c_kdeflist_append(keys, key, ISC_FALSE);
 
 	result = dns_c_kdef_setalgorithm(key, algorithm);
 	if (result != ISC_R_SUCCESS)
@@ -1313,7 +1318,7 @@ looking_at(ndcpcontext *pctx, isc_uint32_t token) {
 	isc_boolean_t rval = ISC_TRUE;
 	
 	if (pctx->currtok != token) {
-		parser_error(pctx, ISC_TRUE, "expected a ``%s''",
+		parser_error(pctx, ISC_TRUE, "expected a '%s'",
 			     keyword2str(token));
 		rval = ISC_FALSE;
 	}
@@ -1350,10 +1355,8 @@ eat_eos(ndcpcontext *pctx) {
 /* *************      PRIVATE STUFF      ************ */
 /* ************************************************** */
 
-
 static isc_result_t
-parser_setup(ndcpcontext *pctx, isc_mem_t *mem, const char *filename)
-{
+parser_setup(ndcpcontext *pctx, isc_mem_t *mem, const char *filename) {
 	isc_result_t result;
 	isc_lexspecials_t specials;
         struct keywordtoken *tok;
@@ -1468,11 +1471,11 @@ parser_complain(isc_boolean_t is_warning, isc_boolean_t print_last_token,
 		if (dns_lctx != NULL)
 			isc_log_write(dns_lctx, DNS_LOGCATEGORY_CONFIG,
 				       DNS_LOGMODULE_CONFIG, level,
-				       "%s%s near `%s'", where, message,
+				       "%s%s near '%s'", where, message,
 				      pctx->tokstr);
 
 		else
-			fprintf(stderr, "%s%s near `%s'\n", where, message,
+			fprintf(stderr, "%s%s near '%s'\n", where, message,
 				pctx->tokstr);
 
         } else {
@@ -1744,6 +1747,6 @@ getnexttoken(ndcpcontext *pctx) {
 
 static void
 syntax_error(ndcpcontext *pctx, isc_uint32_t keyword) {
-	parser_error(pctx, ISC_FALSE, "syntax error near ``%s''",
+	parser_error(pctx, ISC_FALSE, "syntax error near '%s'",
 		     keyword2str(keyword));
 }

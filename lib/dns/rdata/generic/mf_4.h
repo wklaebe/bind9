@@ -15,5 +15,15 @@
  * SOFTWARE.
  */
 
-/* $Id: mf_4.h,v 1.14 2000/03/20 22:57:12 gson Exp $ */
+#ifndef GENERIC_MF_4_H
+#define GENERIC_MF_4_H 1
 
+/* $Id: mf_4.h,v 1.17 2000/05/08 14:36:49 tale Exp $ */
+
+typedef struct dns_rdata_mf {
+	dns_rdatacommon_t	common;
+	isc_mem_t		*mctx;
+	dns_name_t		mf;
+} dns_rdata_mf_t;
+
+#endif /* GENERIC_MF_4_H */

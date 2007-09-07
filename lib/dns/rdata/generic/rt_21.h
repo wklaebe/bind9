@@ -15,7 +15,18 @@
  * SOFTWARE.
  */
 
-/* $Id: rt_21.h,v 1.10 2000/03/20 22:57:14 gson Exp $ */
+#ifndef GENERIC_RT_21_H
+#define GENERIC_RT_21_H 1
+
+/* $Id: rt_21.h,v 1.13 2000/05/08 14:36:57 tale Exp $ */
 
 /* RFC 1183 */
 
+typedef struct dns_rdata_rt {
+	dns_rdatacommon_t	common;
+	isc_mem_t		*mctx;
+	isc_uint16_t		preference;
+	dns_name_t		host;
+} dns_rdata_rt_t;
+
+#endif /* GENERIC_RT_21_H */

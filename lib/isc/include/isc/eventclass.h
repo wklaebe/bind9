@@ -18,10 +18,6 @@
 #ifndef ISC_EVENTCLASS_H
 #define ISC_EVENTCLASS_H 1
 
-#include <isc/lang.h>
-
-ISC_LANG_BEGINDECLS
-
 /*****
  ***** Registry of Predefined Event Type Classes
  *****/
@@ -45,11 +41,10 @@ ISC_LANG_BEGINDECLS
 #define	ISC_EVENTCLASS_DNS		ISC_EVENTCLASS(4)
 #define	ISC_EVENTCLASS_APP		ISC_EVENTCLASS(5)
 #define	ISC_EVENTCLASS_OMAPI		ISC_EVENTCLASS(6)
+#define	ISC_EVENTCLASS_RATELIMITER	ISC_EVENTCLASS(7)
 
 /*
  * Event classes >= 1024 and <= 65535 are reserved for application use.
  */
-
-ISC_LANG_ENDDECLS
 
 #endif /* ISC_EVENTCLASS_H */

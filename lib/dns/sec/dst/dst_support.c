@@ -1,32 +1,32 @@
 /*
  * Portions Copyright (c) 1995-1999 by Network Associates, Inc.
+ * Portions Copyright (C) 1999, 2000  Internet Software Consortium.
  *
- * Permission to use, copy modify, and distribute this software for any
+ * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
- * THE SOFTWARE IS PROVIDED "AS IS" AND NETWORK ASSOCIATES
- * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS.  IN NO EVENT SHALL
- * NETWORK ASSOCIATES BE LIABLE FOR ANY SPECIAL, DIRECT,
- * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
- * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
- * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
- * WITH THE USE OR PERFORMANCE OF THE SOFTWARE.
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM AND
+ * NETWORK ASSOCIATES DISCLAIM ALL WARRANTIES WITH REGARD TO THIS
+ * SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+ * FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE CONSORTIUM OR NETWORK
+ * ASSOCIATES BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR
+ * CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+ * USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+ * OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ * PERFORMANCE OF THIS SOFTWARE.
  */
 
 /*
  * Principal Author: Brian Wellington
- * $Id: dst_support.c,v 1.3 1999/11/02 19:52:29 bwelling Exp $
+ * $Id: dst_support.c,v 1.5 2000/05/15 21:02:34 bwelling Exp $
  */
 
 #include <config.h>
 
 #include <stdio.h>
-#include <unistd.h>
-#include <memory.h>
-#include <string.h>
-#include <isc/int.h>
+
+#include <isc/string.h>
 
 #include "dst_internal.h"
 
@@ -42,8 +42,7 @@
  */
 
 int
-dst_s_calculate_bits(const unsigned char *str, const int max_bits)
-{
+dst_s_calculate_bits(const unsigned char *str, const int max_bits) {
 	const unsigned char *p = str;
 	unsigned char i, j = 0x80;
 	int bits;
@@ -65,8 +64,7 @@ dst_s_calculate_bits(const unsigned char *str, const int max_bits)
  *	N	the 16 bit checksum.
  */
 isc_uint16_t
-dst_s_id_calc(const unsigned char *key, const int keysize)
-{
+dst_s_id_calc(const unsigned char *key, const int keysize) {
 	isc_uint32_t ac;
 	const unsigned char *kp = key;
 	int size = keysize;
@@ -82,48 +80,4 @@ dst_s_id_calc(const unsigned char *key, const int keysize)
 	ac += (ac >> 16) & 0xffff;
 
 	return ((isc_uint16_t)(ac & 0xffff));
-}
-
-/*
- *  dst_s_build_filename
- *	Builds a key filename from the key name, its id, and a
- *	suffix.  '\', '/' and ':' are not allowed. fA filename is of the
- *	form:  K<keyname><id>.<suffix>
- *	form: K<keyname>+<alg>+<id>.<suffix>
- *
- *	Returns -1 if the conversion fails:
- *	  if the filename would be too long for space allotted
- *	  if the filename would contain a '\', '/' or ':'
- *	Returns 0 on success
- */
-
-int
-dst_s_build_filename(char *filename, const char *name, isc_uint16_t id,
-		     int alg, const char *suffix, size_t filename_length)
-{
-	isc_uint32_t my_id;
-	char *dot;
-	if (filename == NULL)
-		return (-1);
-	memset(filename, 0, filename_length);
-	if (name == NULL)
-		return (-1);
-	if (suffix == NULL)
-		return (-1);
-	if (filename_length < 1 + strlen(name) + 1 + 4 + 6 + 1 + strlen(suffix))
-		return (-1);
-	my_id = id;
-	if (name[strlen(name) - 1] == '.')
-		dot = "";
-	else
-		dot = ".";
-	sprintf(filename, "K%s%s+%03d+%05d.%s", name, dot, alg, my_id,
-		(char *) suffix);
-	if (strrchr(filename, '/'))
-		return (-1);
-	if (strrchr(filename, '\\'))
-		return (-1);
-	if (strrchr(filename, ':'))
-		return (-1);
-	return (0);
 }

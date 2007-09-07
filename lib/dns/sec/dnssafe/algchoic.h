@@ -6,8 +6,8 @@
    prohibited.
  */
 
-#ifndef _ALGCHOICE_H_
-#define _ALGCHOICE_H_ 1
+#ifndef DNSSAFE_ALGCHOIC_H
+#define DNSSAFE_ALGCHOIC_H 1
 
 #define IS_FATAL_BSAFE_ERROR(status) \
   (status == BE_ALLOC || status == BE_HARDWARE || status == BE_CANCEL)
@@ -71,7 +71,6 @@ private:
   ResizeContext context;
 };
  */
-struct B_AlgorithmInfoType;
 
 typedef struct ResizeContext {
   struct {
@@ -108,4 +107,4 @@ int AlgaChoiceChoose PROTO_LIST
 
 int ConvertAlgaeError PROTO_LIST ((int));
 
-#endif
+#endif /* DNSSAFE_ALGCHOIC_H */

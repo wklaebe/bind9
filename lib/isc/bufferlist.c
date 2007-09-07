@@ -17,14 +17,14 @@
 
 #include <config.h>
 
-#include <isc/assertions.h>
+#include <stddef.h>
+
 #include <isc/buffer.h>
 #include <isc/bufferlist.h>
-#include <isc/list.h>
+#include <isc/util.h>
 
 unsigned int
-isc_bufferlist_usedcount(isc_bufferlist_t *bl)
-{
+isc_bufferlist_usedcount(isc_bufferlist_t *bl) {
 	isc_buffer_t *buffer;
 	unsigned int length;
 
@@ -34,7 +34,7 @@ isc_bufferlist_usedcount(isc_bufferlist_t *bl)
 	buffer = ISC_LIST_HEAD(*bl);
 	while (buffer != NULL) {
 		REQUIRE(ISC_BUFFER_VALID(buffer));
-		length += ISC_BUFFER_USEDCOUNT(buffer);
+		length += isc_buffer_usedlength(buffer);
 		buffer = ISC_LIST_NEXT(buffer, link);
 	}
 
@@ -42,8 +42,7 @@ isc_bufferlist_usedcount(isc_bufferlist_t *bl)
 }
 
 unsigned int
-isc_bufferlist_availablecount(isc_bufferlist_t *bl)
-{
+isc_bufferlist_availablecount(isc_bufferlist_t *bl) {
 	isc_buffer_t *buffer;
 	unsigned int length;
 
@@ -53,7 +52,7 @@ isc_bufferlist_availablecount(isc_bufferlist_t *bl)
 	buffer = ISC_LIST_HEAD(*bl);
 	while (buffer != NULL) {
 		REQUIRE(ISC_BUFFER_VALID(buffer));
-		length += ISC_BUFFER_AVAILABLECOUNT(buffer);
+		length += isc_buffer_availablelength(buffer);
 		buffer = ISC_LIST_NEXT(buffer, link);
 	}
 

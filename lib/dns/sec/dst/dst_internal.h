@@ -1,6 +1,3 @@
-#ifndef DST_INTERNAL_H
-#define DST_INTERNAL_H
-
 /*
  * Portions Copyright (c) 1995-1998 by Trusted Information Systems, Inc.
  *
@@ -17,13 +14,18 @@
  * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
  * WITH THE USE OR PERFORMANCE OF THE SOFTWARE.
  */
+
+#ifndef DST_DST_INTERNAL_H
+#define DST_DST_INTERNAL_H 1
+
 #include <isc/lang.h>
 #include <isc/buffer.h>
 #include <isc/int.h>
 #include <isc/region.h>
 
+#include "../rename.h"
+
 #include <dst/dst.h>
-#include <dst/result.h>
 
 ISC_LANG_BEGINDECLS
 
@@ -83,41 +85,44 @@ struct dst_func {
 
 extern dst_func *dst_t_func[DST_MAX_ALGS];
 
-/* suffixes for key file names */
-#define PRIVATE_KEY		"private"
-#define PUBLIC_KEY		"key"
-
 #ifndef DST_HASH_SIZE
 #define DST_HASH_SIZE 20	/* RIPEMD160 & SHA-1 are 20 bytes, MD5 is 16 */
 #endif
 
-void		dst_s_hmacmd5_init(void);
-void		dst_s_bsafersa_init(void);
-void		dst_s_openssldsa_init(void);
-void		dst_s_openssldh_init(void);
+void
+dst_s_hmacmd5_init(void);
+void
+dst_s_bsafersa_init(void);
+void
+dst_s_openssldsa_init(void);
+void
+dst_s_openssldh_init(void);
 
-/* support functions */
+/*
+ * Support functions.
+ */
+int
+dst_s_calculate_bits(const unsigned char *str, const int max_bits); 
+isc_uint16_t
+dst_s_id_calc(const unsigned char *key, const int keysize);
 
-int		dst_s_calculate_bits(const unsigned char *str, const int max_bits); 
-isc_uint16_t	dst_s_id_calc(const unsigned char *key, const int keysize);
-int		dst_s_build_filename(char *filename, const char *name, 
-				     isc_uint16_t id, int alg,
-				     const char *suffix, 
-				     size_t filename_length);
+/*
+ * Digest functions.
+ */
+isc_result_t
+dst_s_md5(const unsigned int mode, void **context, isc_region_t *data,
+	  isc_buffer_t *digest, isc_mem_t *mctx);
 
-
-/* digest functions */
-isc_result_t	dst_s_md5(const unsigned int mode, void **context,
-			  isc_region_t *data, isc_buffer_t *digest,
-			  isc_mem_t *mctx);
-
-
-/* memory allocators using the DST memory pool */
-void *		dst_mem_alloc(size_t size);
-void		dst_mem_free(void *ptr);
-void *		dst_mem_realloc(void *ptr, size_t size);
-
+/*
+ * Memory allocators using the DST memory pool.
+ */
+void *
+dst_mem_alloc(size_t size);
+void
+dst_mem_free(void *ptr);
+void *
+dst_mem_realloc(void *ptr, size_t size);
 
 ISC_LANG_ENDDECLS
 
-#endif /* DST_INTERNAL_H */
+#endif /* DST_DST_INTERNAL_H */

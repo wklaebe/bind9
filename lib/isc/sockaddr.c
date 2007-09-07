@@ -17,20 +17,18 @@
 
 #include <config.h>
 
-#include <stddef.h>
-#include <stdlib.h>
-#include <string.h>
 #include <stdio.h>
 
-#include <isc/types.h>
-#include <isc/assertions.h>
-#include <isc/error.h>
-#include <isc/sockaddr.h>
+#include <isc/buffer.h>
 #include <isc/netaddr.h>
+#include <isc/print.h>
+#include <isc/region.h>
+#include <isc/sockaddr.h>
+#include <isc/string.h>
+#include <isc/util.h>
 
 isc_boolean_t
-isc_sockaddr_equal(const isc_sockaddr_t *a, const isc_sockaddr_t *b)
-{
+isc_sockaddr_equal(const isc_sockaddr_t *a, const isc_sockaddr_t *b) {
 	REQUIRE(a != NULL && b != NULL);
 
 	if (a->length != b->length)
@@ -65,13 +63,11 @@ isc_sockaddr_equal(const isc_sockaddr_t *a, const isc_sockaddr_t *b)
 	return (ISC_TRUE);
 }
 
-
 /*
  * Compare just the addresses (ignore ports)
  */
 isc_boolean_t
-isc_sockaddr_eqaddr(const isc_sockaddr_t *a, const isc_sockaddr_t *b)
-{
+isc_sockaddr_eqaddr(const isc_sockaddr_t *a, const isc_sockaddr_t *b) {
 	REQUIRE(a != NULL && b != NULL);
 
 	if (a->length != b->length)
@@ -144,7 +140,7 @@ isc_sockaddr_totext(const isc_sockaddr_t *sockaddr, isc_buffer_t *target) {
 	alen = strlen(abuf);
 	plen = strlen(pbuf);
 
-	isc_buffer_available(target, &avail);
+	isc_buffer_availableregion(target, &avail);
 	if (alen + 1 + plen + 1 > avail.length)
 		return (ISC_R_NOSPACE);
 	    
@@ -153,11 +149,26 @@ isc_sockaddr_totext(const isc_sockaddr_t *sockaddr, isc_buffer_t *target) {
 	isc_buffer_putmem(target, (unsigned char *) pbuf, plen);
 
 	/* Null terminate after used region. */
-	isc_buffer_available(target, &avail);
+	isc_buffer_availableregion(target, &avail);
 	INSIST(avail.length >= 1);
 	avail.base[0] = '\0';
 
 	return (ISC_R_SUCCESS);
+}
+
+void
+isc_sockaddr_format(isc_sockaddr_t *sa, char *array, unsigned int size) {
+	isc_result_t result;
+	isc_buffer_t buf;
+
+	isc_buffer_init(&buf, array, size);
+	result = isc_sockaddr_totext(sa, &buf);
+	if (result != ISC_R_SUCCESS) {
+		snprintf(array, size,
+			 "<unknown address, family %u>",
+			 sa->type.sa.sa_family);
+		array[size - 1] = '\0';
+	}
 }
 
 unsigned int
@@ -203,6 +214,34 @@ isc_sockaddr_hash(const isc_sockaddr_t *sockaddr, isc_boolean_t address_only) {
 		length--;
 	}
 	return (h);
+}
+
+void
+isc_sockaddr_any(isc_sockaddr_t *sockaddr)
+{
+	memset(sockaddr, 0, sizeof *sockaddr);
+	sockaddr->type.sin.sin_family = AF_INET;
+#ifdef ISC_PLATFORM_HAVESALEN
+	sockaddr->type.sin.sin_len = sizeof sockaddr->type.sin;
+#endif
+	sockaddr->type.sin.sin_addr.s_addr = INADDR_ANY;
+	sockaddr->type.sin.sin_port = 0;
+	sockaddr->length = sizeof sockaddr->type.sin;
+	ISC_LINK_INIT(sockaddr, link);
+}
+
+void
+isc_sockaddr_any6(isc_sockaddr_t *sockaddr)
+{
+	memset(sockaddr, 0, sizeof *sockaddr);
+	sockaddr->type.sin6.sin6_family = AF_INET6;
+#ifdef ISC_PLATFORM_HAVESALEN
+	sockaddr->type.sin6.sin6_len = sizeof sockaddr->type.sin6;
+#endif
+	sockaddr->type.sin6.sin6_addr = in6addr_any;
+	sockaddr->type.sin6.sin6_port = 0;
+	sockaddr->length = sizeof sockaddr->type.sin6;
+	ISC_LINK_INIT(sockaddr, link);
 }
 
 void

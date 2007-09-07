@@ -15,19 +15,17 @@
  * SOFTWARE.
  */
 
-/* $Id: omapi.c,v 1.10 2000/03/18 02:38:20 tale Exp $ */
+/* $Id: omapi.c,v 1.13 2000/05/08 14:32:57 tale Exp $ */
 
 /*
  * Principal Author: DCL
  */
 
-#include <stdlib.h>
-#include <stdarg.h>
+#include <config.h>
 
-#include <isc/assertions.h>
+#include <isc/event.h>
 #include <isc/util.h>
 
-#include <named/globals.h>
 #include <named/log.h>
 #include <named/omapi.h>
 #include <named/server.h>

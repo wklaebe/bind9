@@ -15,7 +15,7 @@
  * SOFTWARE.
  */
 
-/* $Id: nsap_22.c,v 1.14 2000/03/20 18:03:53 gson Exp $ */
+/* $Id: nsap_22.c,v 1.21 2000/05/22 12:38:10 marka Exp $ */
 
 /* Reviewed: Fri Mar 17 10:41:07 PST 2000 by gson */
 
@@ -24,7 +24,7 @@
 #ifndef RDATA_IN_1_NSAP_22_C
 #define RDATA_IN_1_NSAP_22_C
 
-#include <string.h>
+#define RRTYPE_NSAP_ATTRIBUTES (0)
 
 static inline isc_result_t
 fromtext_in_nsap(dns_rdataclass_t rdclass, dns_rdatatype_t type,
@@ -46,7 +46,7 @@ fromtext_in_nsap(dns_rdataclass_t rdclass, dns_rdatatype_t type,
 	RETERR(gettoken(lexer, &token, isc_tokentype_string, ISC_FALSE));
 	sr = &token.value.as_textregion;
 	if (sr->length < 2)
-		return (DNS_R_UNEXPECTEDEND);
+		return (ISC_R_UNEXPECTEDEND);
 	if (sr->base[0] != '0' || (sr->base[1] != 'x' && sr->base[1] != 'X'))
 		return (DNS_R_SYNTAX);
 	isc_textregion_consume(sr, 2);
@@ -68,9 +68,9 @@ fromtext_in_nsap(dns_rdataclass_t rdclass, dns_rdatatype_t type,
 		isc_textregion_consume(sr, 1);
 	}
 	if (digits) {
-		return (DNS_R_UNEXPECTEDEND);
+		return (ISC_R_UNEXPECTEDEND);
 	}
-	return (DNS_R_SUCCESS);
+	return (ISC_R_SUCCESS);
 }
 
 static inline isc_result_t
@@ -92,7 +92,7 @@ totext_in_nsap(dns_rdata_t *rdata, dns_rdata_textctx_t *tctx,
 		isc_region_consume(&region, 1);
 		RETERR(str_totext(buf, target));
 	}
-	return (DNS_R_SUCCESS);
+	return (ISC_R_SUCCESS);
 }
 
 static inline isc_result_t
@@ -108,13 +108,13 @@ fromwire_in_nsap(dns_rdataclass_t rdclass, dns_rdatatype_t type,
 	UNUSED(dctx);
 	UNUSED(downcase);
 
-	isc_buffer_active(source, &region);
+	isc_buffer_activeregion(source, &region);
 	if (region.length < 1)
-		return (DNS_R_UNEXPECTEDEND);
+		return (ISC_R_UNEXPECTEDEND);
 
 	RETERR(mem_tobuffer(target, region.base, region.length));
 	isc_buffer_forward(source, region.length);
-	return (DNS_R_SUCCESS);
+	return (ISC_R_SUCCESS);
 }
 
 static inline isc_result_t
@@ -147,32 +147,59 @@ static inline isc_result_t
 fromstruct_in_nsap(dns_rdataclass_t rdclass, dns_rdatatype_t type,
 		   void *source, isc_buffer_t *target)
 {
+	dns_rdata_in_nsap_t *nsap = source;
 
 	REQUIRE(type == 22);
 	REQUIRE(rdclass == 1);
+	REQUIRE(source != NULL);
+	REQUIRE(nsap->common.rdtype == type);
+	REQUIRE(nsap->common.rdclass == rdclass);
+	REQUIRE((nsap->nsap == NULL && nsap->nsap_len == 0) ||
+		(nsap->nsap != NULL && nsap->nsap_len != 0));
 
-	UNUSED(source);
-	UNUSED(target);
-
-	return (DNS_R_NOTIMPLEMENTED);
+	return (mem_tobuffer(target, nsap->nsap, nsap->nsap_len));
 }
 
 static inline isc_result_t
 tostruct_in_nsap(dns_rdata_t *rdata, void *target, isc_mem_t *mctx) {
+	dns_rdata_in_nsap_t *nsap = target;
+	isc_region_t r;
 
 	REQUIRE(rdata->type == 22);
 	REQUIRE(rdata->rdclass == 1);
+	REQUIRE(target != NULL);
 
-	UNUSED(target);
-	UNUSED(mctx);
+	nsap->common.rdclass = rdata->rdclass;
+	nsap->common.rdtype = rdata->type;
+	ISC_LINK_INIT(&nsap->common, link);
 
-	return (DNS_R_NOTIMPLEMENTED);
+	dns_rdata_toregion(rdata, &r);
+	nsap->nsap_len = r.length;
+	if (nsap->nsap_len != 0) {
+		nsap->nsap = mem_maybedup(mctx, r.base, r.length);
+		if (nsap->nsap == NULL)
+			return (ISC_R_NOMEMORY);
+	} else
+		nsap->nsap = NULL;
+
+	nsap->mctx = mctx;
+	return (ISC_R_SUCCESS);
 }
 
 static inline void
 freestruct_in_nsap(void *source) {
+	dns_rdata_in_nsap_t *nsap = source;
+
 	REQUIRE(source != NULL);
-	REQUIRE(ISC_FALSE);
+	REQUIRE(nsap->common.rdclass == 1);
+	REQUIRE(nsap->common.rdtype == 22);
+
+	if (nsap->mctx == NULL)
+		return;
+
+	if (nsap->nsap != NULL)
+		isc_mem_free(nsap->mctx, nsap->nsap);
+	nsap->mctx = NULL;
 }
 
 static inline isc_result_t
@@ -182,10 +209,11 @@ additionaldata_in_nsap(dns_rdata_t *rdata, dns_additionaldatafunc_t add,
 	REQUIRE(rdata->type == 22);
 	REQUIRE(rdata->rdclass == 1);
 
+	UNUSED(rdata);
 	UNUSED(add);
 	UNUSED(arg);
 
-	return (DNS_R_SUCCESS);
+	return (ISC_R_SUCCESS);
 }
 
 static inline isc_result_t

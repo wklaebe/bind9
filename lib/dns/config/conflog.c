@@ -15,17 +15,16 @@
  * SOFTWARE.
  */
 
+/* $Id: conflog.c,v 1.15 2000/05/08 18:42:38 brister Exp $ */
+
 #include <config.h>
 
-#include <string.h>
-
-#include <isc/assertions.h>
-#include <isc/magic.h>
+#include <isc/mem.h>
+#include <isc/string.h>
+#include <isc/util.h>
 
 #include <dns/conflog.h>
-#include <dns/confcommon.h>
 #include <dns/log.h>
-
 
 #include "confpvt.h"
 
@@ -44,20 +43,17 @@
 #define CHAN_PTIME_BIT			6
 #define CHAN_FACILITY_BIT		7
 
+static void
+print_log_facility(FILE *fp, int value);
 
+static void
+print_log_severity(FILE *fp, dns_c_logseverity_t severity);
 
-static void		print_log_facility(FILE *fp,
-					   int value);
-static void		print_log_severity(FILE *fp,
-					   dns_c_logseverity_t severity);
-static isc_boolean_t	logginglist_empty(dns_c_logginglist_t *ll);
-
-
+static isc_boolean_t
+logginglist_empty(dns_c_logginglist_t *ll);
 
 isc_result_t
-dns_c_logginglist_new(isc_mem_t *mem,
-		      dns_c_logginglist_t **list)
-{
+dns_c_logginglist_new(isc_mem_t *mem, dns_c_logginglist_t **list) {
 	dns_c_logginglist_t *newl;
 
 	REQUIRE(list != NULL);
@@ -79,8 +75,7 @@ dns_c_logginglist_new(isc_mem_t *mem,
 
 
 isc_result_t
-dns_c_logginglist_delete(dns_c_logginglist_t **list)
-{
+dns_c_logginglist_delete(dns_c_logginglist_t **list) {
 	dns_c_logginglist_t *l;
 	dns_c_logchan_t *chan, *tmpchan;
 	dns_c_logcat_t *cat, *tmpcat;
@@ -167,13 +162,14 @@ dns_c_logginglist_copy(isc_mem_t *mem,
 		logcat = ISC_LIST_NEXT(logcat, next);
 	}
 
+	*dest = newl;
+
 	return (ISC_R_SUCCESS);
 }
 
 
 static isc_boolean_t
-logginglist_empty(dns_c_logginglist_t *ll)
-{
+logginglist_empty(dns_c_logginglist_t *ll) {
 	dns_c_logchan_t *logchan;
 	dns_c_logcat_t *logcat;
 
@@ -529,8 +525,7 @@ dns_c_logchan_new(isc_mem_t *mem, const char *name,
 
 
 isc_result_t
-dns_c_logchan_delete(dns_c_logchan_t **channel)
-{
+dns_c_logchan_delete(dns_c_logchan_t **channel) {
 	dns_c_logchan_t *logc;
 
 	REQUIRE(channel != NULL);
@@ -686,8 +681,7 @@ dns_c_logchan_print(FILE *fp, int indent, dns_c_logchan_t *logchan,
 
 
 isc_result_t
-dns_c_logchan_setpath(dns_c_logchan_t *channel, const char *path)
-{
+dns_c_logchan_setpath(dns_c_logchan_t *channel, const char *path) {
 	isc_boolean_t existed = ISC_FALSE;
 
 	REQUIRE(DNS_C_LOGCHAN_VALID(channel));
@@ -717,8 +711,7 @@ dns_c_logchan_setpath(dns_c_logchan_t *channel, const char *path)
 
 
 isc_result_t
-dns_c_logchan_setversions(dns_c_logchan_t *channel, isc_uint32_t versions)
-{
+dns_c_logchan_setversions(dns_c_logchan_t *channel, isc_uint32_t versions) {
 	isc_boolean_t existed;
 
 	REQUIRE(DNS_C_LOGCHAN_VALID(channel));
@@ -741,8 +734,7 @@ dns_c_logchan_setversions(dns_c_logchan_t *channel, isc_uint32_t versions)
 
 
 isc_result_t
-dns_c_logchan_setsize(dns_c_logchan_t *channel, isc_uint32_t size)
-{
+dns_c_logchan_setsize(dns_c_logchan_t *channel, isc_uint32_t size) {
 	isc_boolean_t existed;
 
 	REQUIRE(DNS_C_LOGCHAN_VALID(channel));
@@ -765,8 +757,7 @@ dns_c_logchan_setsize(dns_c_logchan_t *channel, isc_uint32_t size)
 
 
 isc_result_t
-dns_c_logchan_setfacility(dns_c_logchan_t *channel, int facility)
-{
+dns_c_logchan_setfacility(dns_c_logchan_t *channel, int facility) {
 	isc_boolean_t existed;
 
 	REQUIRE(DNS_C_LOGCHAN_VALID(channel));
@@ -816,8 +807,7 @@ dns_c_logchan_setseverity(dns_c_logchan_t *channel,
 
 
 isc_result_t
-dns_c_logchan_setdebuglevel(dns_c_logchan_t *channel, isc_int32_t level)
-{
+dns_c_logchan_setdebuglevel(dns_c_logchan_t *channel, isc_int32_t level) {
 	isc_boolean_t existed;
 
 	REQUIRE(DNS_C_LOGCHAN_VALID(channel));
@@ -837,8 +827,7 @@ dns_c_logchan_setdebuglevel(dns_c_logchan_t *channel, isc_int32_t level)
 
 
 isc_result_t
-dns_c_logchan_setprintcat(dns_c_logchan_t *channel, isc_boolean_t newval)
-{
+dns_c_logchan_setprintcat(dns_c_logchan_t *channel, isc_boolean_t newval) {
 	isc_boolean_t existed;
 
 	REQUIRE(DNS_C_LOGCHAN_VALID(channel));
@@ -853,8 +842,7 @@ dns_c_logchan_setprintcat(dns_c_logchan_t *channel, isc_boolean_t newval)
 
 
 isc_result_t
-dns_c_logchan_setprintsev(dns_c_logchan_t *channel, isc_boolean_t newval)
-{
+dns_c_logchan_setprintsev(dns_c_logchan_t *channel, isc_boolean_t newval) {
 	isc_boolean_t existed;
 
 	REQUIRE(DNS_C_LOGCHAN_VALID(channel));
@@ -869,8 +857,7 @@ dns_c_logchan_setprintsev(dns_c_logchan_t *channel, isc_boolean_t newval)
 
 
 isc_result_t
-dns_c_logchan_setprinttime(dns_c_logchan_t *channel, isc_boolean_t newval)
-{
+dns_c_logchan_setprinttime(dns_c_logchan_t *channel, isc_boolean_t newval) {
 	isc_boolean_t existed;
 
 	REQUIRE(DNS_C_LOGCHAN_VALID(channel));
@@ -884,8 +871,7 @@ dns_c_logchan_setprinttime(dns_c_logchan_t *channel, isc_boolean_t newval)
 }
 
 isc_result_t
-dns_c_logchan_setpredef(dns_c_logchan_t *channel, isc_boolean_t newval)
-{
+dns_c_logchan_setpredef(dns_c_logchan_t *channel, isc_boolean_t newval) {
 	REQUIRE(DNS_C_LOGCHAN_VALID(channel));
 
 	channel->predefined = newval;
@@ -898,8 +884,7 @@ dns_c_logchan_setpredef(dns_c_logchan_t *channel, isc_boolean_t newval)
 
 
 isc_result_t
-dns_c_logchan_getpath(dns_c_logchan_t *channel, const char **path)
-{
+dns_c_logchan_getpath(dns_c_logchan_t *channel, const char **path) {
 	isc_result_t res;
 
 	REQUIRE(DNS_C_LOGCHAN_VALID(channel));
@@ -920,8 +905,7 @@ dns_c_logchan_getpath(dns_c_logchan_t *channel, const char **path)
 
 
 isc_result_t
-dns_c_logchan_getversions(dns_c_logchan_t *channel, isc_uint32_t *retval)
-{
+dns_c_logchan_getversions(dns_c_logchan_t *channel, isc_uint32_t *retval) {
 	isc_result_t res;
 
 	REQUIRE(DNS_C_LOGCHAN_VALID(channel));
@@ -942,8 +926,7 @@ dns_c_logchan_getversions(dns_c_logchan_t *channel, isc_uint32_t *retval)
 
 
 isc_result_t
-dns_c_logchan_getsize(dns_c_logchan_t *channel, isc_uint32_t *retval)
-{
+dns_c_logchan_getsize(dns_c_logchan_t *channel, isc_uint32_t *retval) {
 	isc_result_t res;
 
 	REQUIRE(DNS_C_LOGCHAN_VALID(channel));
@@ -964,8 +947,7 @@ dns_c_logchan_getsize(dns_c_logchan_t *channel, isc_uint32_t *retval)
 
 
 isc_result_t
-dns_c_logchan_getfacility(dns_c_logchan_t *channel, int *retval)
-{
+dns_c_logchan_getfacility(dns_c_logchan_t *channel, int *retval) {
 	isc_result_t res;
 
 	REQUIRE(DNS_C_LOGCHAN_VALID(channel));
@@ -1007,8 +989,7 @@ dns_c_logchan_getseverity(dns_c_logchan_t *channel,
 
 
 isc_result_t
-dns_c_logchan_getdebuglevel(dns_c_logchan_t *channel, isc_int32_t *retval)
-{
+dns_c_logchan_getdebuglevel(dns_c_logchan_t *channel, isc_int32_t *retval) {
 	isc_result_t res;
 
 	REQUIRE(DNS_C_LOGCHAN_VALID(channel));
@@ -1026,8 +1007,7 @@ dns_c_logchan_getdebuglevel(dns_c_logchan_t *channel, isc_int32_t *retval)
 
 
 isc_result_t
-dns_c_logchan_getprintcat(dns_c_logchan_t *channel, isc_boolean_t *retval)
-{
+dns_c_logchan_getprintcat(dns_c_logchan_t *channel, isc_boolean_t *retval) {
 	isc_result_t res;
 
 	REQUIRE(DNS_C_LOGCHAN_VALID(channel));
@@ -1045,8 +1025,7 @@ dns_c_logchan_getprintcat(dns_c_logchan_t *channel, isc_boolean_t *retval)
 
 
 isc_result_t
-dns_c_logchan_getprintsev(dns_c_logchan_t *channel, isc_boolean_t *retval)
-{
+dns_c_logchan_getprintsev(dns_c_logchan_t *channel, isc_boolean_t *retval) {
 	isc_result_t res;
 
 	REQUIRE(DNS_C_LOGCHAN_VALID(channel));
@@ -1065,8 +1044,7 @@ dns_c_logchan_getprintsev(dns_c_logchan_t *channel, isc_boolean_t *retval)
 
 
 isc_result_t
-dns_c_logchan_getprinttime(dns_c_logchan_t *channel, isc_boolean_t *retval)
-{
+dns_c_logchan_getprinttime(dns_c_logchan_t *channel, isc_boolean_t *retval) {
 	isc_result_t res;
 
 	REQUIRE(DNS_C_LOGCHAN_VALID(channel));
@@ -1084,8 +1062,7 @@ dns_c_logchan_getprinttime(dns_c_logchan_t *channel, isc_boolean_t *retval)
 
 
 isc_result_t
-dns_c_logchan_getpredef(dns_c_logchan_t *channel, isc_boolean_t *retval)
-{
+dns_c_logchan_getpredef(dns_c_logchan_t *channel, isc_boolean_t *retval) {
 	REQUIRE(DNS_C_LOGCHAN_VALID(channel));
 	REQUIRE(retval != NULL);
 
@@ -1099,8 +1076,7 @@ dns_c_logchan_getpredef(dns_c_logchan_t *channel, isc_boolean_t *retval)
  * Logging category
  */
 isc_result_t
-dns_c_logcat_new(isc_mem_t *mem, const char *name, dns_c_logcat_t **newlc)
-{
+dns_c_logcat_new(isc_mem_t *mem, const char *name, dns_c_logcat_t **newlc) {
 	dns_c_logcat_t *newc;
 	unsigned int i;
 
@@ -1135,8 +1111,7 @@ dns_c_logcat_new(isc_mem_t *mem, const char *name, dns_c_logcat_t **newlc)
 
 
 isc_result_t
-dns_c_logcat_delete(dns_c_logcat_t **logcat)
-{
+dns_c_logcat_delete(dns_c_logcat_t **logcat) {
 	dns_c_logcat_t *logc;
 	unsigned int i;
 
@@ -1167,8 +1142,7 @@ dns_c_logcat_delete(dns_c_logcat_t **logcat)
 
 
 isc_result_t
-dns_c_logcat_copy(isc_mem_t *mem, dns_c_logcat_t **dest, dns_c_logcat_t *src)
-{
+dns_c_logcat_copy(isc_mem_t *mem, dns_c_logcat_t **dest, dns_c_logcat_t *src) {
 	unsigned int i;
 	dns_c_logcat_t *newc;
 	isc_result_t res;
@@ -1188,6 +1162,8 @@ dns_c_logcat_copy(isc_mem_t *mem, dns_c_logcat_t **dest, dns_c_logcat_t *src)
 			return (res);
 		}
 	}
+
+	*dest = newc;
 
 	return (ISC_R_SUCCESS);
 }
@@ -1220,8 +1196,7 @@ dns_c_logcat_print(FILE *fp, int indent, dns_c_logcat_t *logcat,
 
 
 isc_result_t
-dns_c_logcat_addname(dns_c_logcat_t *logcat, const char *name)
-{
+dns_c_logcat_addname(dns_c_logcat_t *logcat, const char *name) {
 	unsigned int i;
 
 	REQUIRE(DNS_C_LOGCAT_VALID(logcat));
@@ -1265,8 +1240,7 @@ dns_c_logcat_addname(dns_c_logcat_t *logcat, const char *name)
 
 
 isc_result_t
-dns_c_logcat_delname(dns_c_logcat_t *logcat, const char *name)
-{
+dns_c_logcat_delname(dns_c_logcat_t *logcat, const char *name) {
 	unsigned int i ;
 	isc_result_t res;
 
@@ -1299,8 +1273,7 @@ dns_c_logcat_delname(dns_c_logcat_t *logcat, const char *name)
 
 
 isc_result_t
-dns_c_logcat_setpredef(dns_c_logcat_t *logcat,isc_boolean_t newval)
-{
+dns_c_logcat_setpredef(dns_c_logcat_t *logcat,isc_boolean_t newval) {
 	REQUIRE(DNS_C_LOGCAT_VALID(logcat));
 
 	logcat->predefined = newval;
@@ -1310,8 +1283,7 @@ dns_c_logcat_setpredef(dns_c_logcat_t *logcat,isc_boolean_t newval)
 
 
 isc_result_t
-dns_c_logcat_getpredef(dns_c_logcat_t *logcat, isc_boolean_t *retval)
-{
+dns_c_logcat_getpredef(dns_c_logcat_t *logcat, isc_boolean_t *retval) {
 	REQUIRE(DNS_C_LOGCAT_VALID(logcat));
 	REQUIRE(retval != NULL);
 
@@ -1327,8 +1299,7 @@ dns_c_logcat_getpredef(dns_c_logcat_t *logcat, isc_boolean_t *retval)
 
 
 static void
-print_log_facility(FILE *fp, int value)
-{
+print_log_facility(FILE *fp, int value) {
 	REQUIRE(fp != NULL);
 	
 	fputs(dns_c_facility2string(value, ISC_TRUE), fp);
@@ -1336,8 +1307,7 @@ print_log_facility(FILE *fp, int value)
 
 
 static void
-print_log_severity(FILE *fp, dns_c_logseverity_t severity)
-{
+print_log_severity(FILE *fp, dns_c_logseverity_t severity) {
 	REQUIRE(fp != NULL);
 	
 	fputs(dns_c_logseverity2string(severity, ISC_TRUE), fp);

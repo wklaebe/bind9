@@ -15,18 +15,15 @@
  * SOFTWARE.
  */
 
-/* $Id: log.h,v 1.13 2000/03/23 00:53:45 gson Exp $ */
+/* $Id: log.h,v 1.20 2000/05/09 23:31:12 gson Exp $ */
 
 /* Principal Authors: DCL */
 
 #ifndef DNS_LOG_H
 #define DNS_LOG_H 1
 
+#include <isc/lang.h>
 #include <isc/log.h>
-
-#include <dns/result.h>
-
-ISC_LANG_BEGINDECLS
 
 extern isc_log_t *dns_lctx;
 extern isc_logcategory_t dns_categories[];
@@ -36,10 +33,11 @@ extern isc_logmodule_t dns_modules[];
 #define DNS_LOGCATEGORY_DATABASE	(&dns_categories[1])
 #define DNS_LOGCATEGORY_SECURITY	(&dns_categories[2])
 #define DNS_LOGCATEGORY_CONFIG		(&dns_categories[3])
-/* Unused slot */
+#define DNS_LOGCATEGORY_DNSSEC		(&dns_categories[4])
 #define DNS_LOGCATEGORY_RESOLVER	(&dns_categories[5])
 #define DNS_LOGCATEGORY_XFER_IN		(&dns_categories[6])
 #define DNS_LOGCATEGORY_XFER_OUT	(&dns_categories[7])
+#define DNS_LOGCATEGORY_DISPATCH	(&dns_categories[8])
 
 /* Backwards compatibility. */
 #define DNS_LOGCATEGORY_GENERAL		ISC_LOGCATEGORY_GENERAL
@@ -60,11 +58,17 @@ extern isc_logmodule_t dns_modules[];
 #define DNS_LOGMODULE_XFER_IN		(&dns_modules[13])
 #define DNS_LOGMODULE_XFER_OUT		(&dns_modules[14])
 #define DNS_LOGMODULE_ACL		(&dns_modules[15])
+#define DNS_LOGMODULE_VALIDATOR		(&dns_modules[16])
+#define DNS_LOGMODULE_DISPATCH		(&dns_modules[17])
+#define DNS_LOGMODULE_REQUEST		(&dns_modules[18])
+#define DNS_LOGMODULE_MASTERDUMP	(&dns_modules[19])
+
+ISC_LANG_BEGINDECLS
 
 void
 dns_log_init(isc_log_t *lctx);
 /*
- * Make the libdns.a categories and modules available for use with the
+ * Make the libdns categories and modules available for use with the
  * ISC logging library.
  *
  * Requires:
@@ -75,6 +79,18 @@ dns_log_init(isc_log_t *lctx);
  * Ensures:
  * 	The catgories and modules defined above are available for
  * 	use by isc_log_usechannnel() and isc_log_write().
+ */
+
+void
+dns_log_setcontext(isc_log_t *lctx);
+/*
+ * Make the libdns library use the provided context for logging internal
+ * messages.
+ *
+ * Requires:
+ *	lctx is a valid logging context.
+ *
+ *	dns_log_setcontext() is called only once.
  */
 
 ISC_LANG_ENDDECLS

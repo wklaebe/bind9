@@ -17,13 +17,13 @@
 
 #include <config.h>
 
-#include <isc/base64.h>
-#include <isc/lex.h>
+#include <isc/buffer.h>
+#include <isc/string.h>		/* Required for HP/UX (and others?) */
+#include <isc/mem.h>
 
-#include <dns/confctx.h>
-#include <dns/confkeys.h>
 #include <dns/keyvalues.h>
 #include <dns/name.h>
+#include <dns/tkey.h>
 #include <dns/tkeyconf.h>
 
 #define RETERR(x) do { \
@@ -67,9 +67,9 @@ dns_tkeyctx_fromconfig(dns_c_ctx_t *cfg, isc_mem_t *mctx,
 		goto failure;
 	}
 	dns_name_init(tctx->domain, NULL);
-	isc_buffer_init(&b, s, strlen(s), ISC_BUFFERTYPE_TEXT);
+	isc_buffer_init(&b, s, strlen(s));
 	isc_buffer_add(&b, strlen(s));
-	isc_buffer_init(&namebuf, data, sizeof(data), ISC_BUFFERTYPE_BINARY);
+	isc_buffer_init(&namebuf, data, sizeof(data));
 	RETERR(dns_name_fromtext(&domain, &b, dns_rootname, ISC_FALSE,
 				 &namebuf));
 	RETERR(dns_name_dup(&domain, mctx, tctx->domain));
@@ -78,10 +78,8 @@ dns_tkeyctx_fromconfig(dns_c_ctx_t *cfg, isc_mem_t *mctx,
 	return (ISC_R_SUCCESS);
 
  failure:
-	if (tctx->dhkey != NULL) {
-		dst_key_free(tctx->dhkey);
-		tctx->dhkey = NULL;
-	}
+	if (tctx->dhkey != NULL)
+		dst_key_free(&tctx->dhkey);
 	if (tctx->domain != NULL) {
 		dns_name_free(tctx->domain, mctx);
 		isc_mem_put(mctx, tctx->domain, sizeof(dns_name_t));

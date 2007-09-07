@@ -15,22 +15,24 @@
  * SOFTWARE.
  */
 
-#ifndef NS_LOG_H
-#define NS_LOG_H 1
+#ifndef NAMED_LOG_H
+#define NAMED_LOG_H 1
 
-#include <isc/types.h>
 #include <isc/log.h>
+#include <isc/types.h>
 
 #include <dns/log.h>
 
-#include <named/globals.h>
+#include <named/globals.h>	/* Required for ns_g_(categories|modules). */
 
-/* Unused slot */
+/* Unused slot 0. */
 #define NS_LOGCATEGORY_CLIENT		(&ns_g_categories[1])
 #define NS_LOGCATEGORY_NETWORK		(&ns_g_categories[2])
 #define NS_LOGCATEGORY_UPDATE		(&ns_g_categories[3])
 
-/* Backwards compatibility. */
+/*
+ * Backwards compatibility.
+ */
 #define NS_LOGCATEGORY_GENERAL		ISC_LOGCATEGORY_GENERAL
 
 #define NS_LOGMODULE_MAIN		(&ns_g_modules[0])
@@ -45,12 +47,38 @@
 #define NS_LOGMODULE_OMAPI		(&ns_g_modules[9])
 
 isc_result_t
-ns_log_init(void);
+ns_log_init(isc_boolean_t safe);
+/*
+ * Initialize the logging system and set up an initial default
+ * logging default configuration that will be used until the
+ * config file has been read.
+ * 
+ * If 'safe' is true, use a default configuration that refrains
+ * from opening files.  This is to avoid creating log files
+ * as root.
+ */
 
 isc_result_t
-ns_log_setdefaults(isc_logconfig_t *lcfg);
+ns_log_setdefaultchannels(isc_logconfig_t *lcfg);
+/*
+ * Set up logging channels according to the named defaults, which
+ * may differ from the logging library defaults.  Currently,
+ * this just means setting up default_debug.
+ */
+
+isc_result_t
+ns_log_setsafechannels(isc_logconfig_t *lcfg);
+/*
+ * Like ns_log_setdefaultchannels(), but omits any logging to files.
+ */
+
+isc_result_t
+ns_log_setdefaultcategory(isc_logconfig_t *lcfg);
+/*
+ * Set up "category default" to go to the right places.
+ */
 
 void
 ns_log_shutdown(void);
 
-#endif /* NS_LOG_H */
+#endif /* NAMED_LOG_H */

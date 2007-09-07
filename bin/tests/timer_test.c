@@ -17,18 +17,14 @@
 
 #include <config.h>
 
-#include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <string.h>
 
-#include <isc/assertions.h>
-#include <isc/error.h>
 #include <isc/mem.h>
 #include <isc/task.h>
-#include <isc/thread.h>
-#include <isc/result.h>
+#include <isc/time.h>
 #include <isc/timer.h>
+#include <isc/util.h>
 
 isc_mem_t *mctx1, *mctx2, *mctx3;
 isc_task_t *t1, *t2, *t3;
@@ -37,18 +33,17 @@ int tick_count = 0;
 
 static void
 shutdown_task(isc_task_t *task, isc_event_t *event) {
-	char *name = event->arg;
+	char *name = event->ev_arg;
 
 	printf("task %p shutdown %s\n", task, name);
 	isc_event_free(&event);
 }
 
 static void
-tick(isc_task_t *task, isc_event_t *event)
-{
-	char *name = event->arg;
+tick(isc_task_t *task, isc_event_t *event) {
+	char *name = event->ev_arg;
 
-	INSIST(event->type == ISC_TIMEREVENT_TICK);
+	INSIST(event->ev_type == ISC_TIMEREVENT_TICK);
 
 	printf("task %s (%p) tick\n", name, task);
 
@@ -73,15 +68,14 @@ tick(isc_task_t *task, isc_event_t *event)
 }
 
 static void
-timeout(isc_task_t *task, isc_event_t *event)
-{
-	char *name = event->arg;
+timeout(isc_task_t *task, isc_event_t *event) {
+	char *name = event->ev_arg;
 	char *type;
 
-	INSIST(event->type == ISC_TIMEREVENT_IDLE || 
-	       event->type == ISC_TIMEREVENT_LIFE);
+	INSIST(event->ev_type == ISC_TIMEREVENT_IDLE || 
+	       event->ev_type == ISC_TIMEREVENT_LIFE);
 
-	if (event->type == ISC_TIMEREVENT_IDLE)
+	if (event->ev_type == ISC_TIMEREVENT_IDLE)
 		type = "idle";
 	else
 		type = "life";
@@ -112,17 +106,15 @@ main(int argc, char *argv[]) {
 	printf("%d workers\n", workers);
 
 	RUNTIME_CHECK(isc_mem_create(0, 0, &mctx1) == ISC_R_SUCCESS);
-	RUNTIME_CHECK(isc_mem_create(0, 0, &mctx2) == ISC_R_SUCCESS);
-	RUNTIME_CHECK(isc_mem_create(0, 0, &mctx3) == ISC_R_SUCCESS);
 	RUNTIME_CHECK(isc_taskmgr_create(mctx1, workers, 0, &manager) ==
 		      ISC_R_SUCCESS);
 	RUNTIME_CHECK(isc_timermgr_create(mctx1, &timgr) == ISC_R_SUCCESS);
 
-	RUNTIME_CHECK(isc_task_create(manager, mctx1, 0, &t1) ==
+	RUNTIME_CHECK(isc_task_create(manager, 0, &t1) ==
 		      ISC_R_SUCCESS);
-	RUNTIME_CHECK(isc_task_create(manager, mctx2, 0, &t2) ==
+	RUNTIME_CHECK(isc_task_create(manager, 0, &t2) ==
 		      ISC_R_SUCCESS);
-	RUNTIME_CHECK(isc_task_create(manager, mctx3, 0, &t3) ==
+	RUNTIME_CHECK(isc_task_create(manager, 0, &t3) ==
 		      ISC_R_SUCCESS);
 	RUNTIME_CHECK(isc_task_onshutdown(t1, shutdown_task, "1") ==
 		      ISC_R_SUCCESS);
@@ -148,7 +140,8 @@ main(int argc, char *argv[]) {
 		      ISC_R_SUCCESS);
 				       
 	isc_interval_set(&interval, 10, 0);
-	isc_time_add(&now, &interval, &expires);
+	RUNTIME_CHECK(isc_time_add(&now, &interval, &expires) ==
+		      ISC_R_SUCCESS);
 	isc_interval_set(&interval, 2, 0);
 	RUNTIME_CHECK(isc_timer_create(timgr, isc_timertype_once, &expires,
 				       &interval, t3, timeout, "3", &ti3) ==
@@ -171,12 +164,6 @@ main(int argc, char *argv[]) {
 	printf("Statistics for mctx1:\n");
 	isc_mem_stats(mctx1, stdout);
 	isc_mem_destroy(&mctx1);
-	printf("Statistics for mctx2:\n");
-	isc_mem_stats(mctx2, stdout);
-	isc_mem_destroy(&mctx2);
-	printf("Statistics for mctx3:\n");
-	isc_mem_stats(mctx3, stdout);
-	isc_mem_destroy(&mctx3);
 
 	return (0);
 }

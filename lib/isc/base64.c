@@ -15,30 +15,25 @@
  * SOFTWARE.
  */
 
-/* $Id: base64.c,v 1.8 2000/03/17 17:45:50 gson Exp $ */
+/* $Id: base64.c,v 1.13 2000/05/16 05:19:46 tale Exp $ */
 
 #include <config.h>
-
-#include <stdarg.h>
-#include <stdio.h>
-#include <string.h>
-#include <time.h>
 
 #include <isc/base64.h>
 #include <isc/buffer.h>
 #include <isc/lex.h>
-#include <isc/assertions.h>
-#include <isc/error.h>
-#include <isc/region.h>
+#include <isc/string.h>
+#include <isc/util.h>
 
 #define RETERR(x) do { \
-	isc_result_t __r = (x); \
-	if (__r != ISC_R_SUCCESS) \
-		return (__r); \
+	isc_result_t _r = (x); \
+	if (_r != ISC_R_SUCCESS) \
+		return (_r); \
 	} while (0)
 
 
-/* These static functions are also present in lib/dns/rdata.c.  I'm not
+/*
+ * These static functions are also present in lib/dns/rdata.c.  I'm not
  * sure where they should go. -- bwelling
  */
 static isc_result_t	str_totext(char *source, isc_buffer_t *target);
@@ -166,7 +161,7 @@ str_totext(char *source, isc_buffer_t *target) {
 	unsigned int l;
 	isc_region_t region;
 
-	isc_buffer_available(target, &region);
+	isc_buffer_availableregion(target, &region);
 	l = strlen(source);
 
 	if (l > region.length)
@@ -181,7 +176,7 @@ static isc_result_t
 mem_tobuffer(isc_buffer_t *target, void *base, unsigned int length) {
 	isc_region_t tr;
 
-	isc_buffer_available(target, &tr);
+	isc_buffer_availableregion(target, &tr);
 	if (length > tr.length)
 		return (ISC_R_NOSPACE);
 	memcpy(tr.base, base, length);

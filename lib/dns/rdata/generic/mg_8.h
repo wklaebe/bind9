@@ -15,5 +15,15 @@
  * SOFTWARE.
  */
 
-/* $Id: mg_8.h,v 1.14 2000/03/20 22:57:13 gson Exp $ */
+#ifndef GENERIC_MG_8_H
+#define GENERIC_MG_8_H 1
 
+/* $Id: mg_8.h,v 1.17 2000/05/08 14:36:50 tale Exp $ */
+
+typedef struct dns_rdata_mg {
+	dns_rdatacommon_t	common;
+	isc_mem_t		*mctx;
+	dns_name_t		mg;
+} dns_rdata_mg_t;
+
+#endif /* GENERIC_MG_8_H */

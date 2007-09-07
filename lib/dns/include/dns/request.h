@@ -39,16 +39,12 @@
  *	No anticipated impact.
  */
 
-#include <isc/types.h>
 #include <isc/lang.h>
 #include <isc/event.h>
 
 #include <dns/types.h>
-#include <dns/result.h>
 
 #define DNS_REQUESTOPT_TCP 0x00000001U
-
-ISC_LANG_BEGINDECLS
 
 typedef struct dns_requestevent {
         ISC_EVENT_COMMON(struct dns_requestevent);
@@ -56,9 +52,12 @@ typedef struct dns_requestevent {
 	dns_request_t *request;
 } dns_requestevent_t;
 
+ISC_LANG_BEGINDECLS
+
 isc_result_t
 dns_requestmgr_create(isc_mem_t *mctx, isc_timermgr_t *timermgr,
-		      isc_socketmgr_t *socketmgr,
+		      isc_socketmgr_t *socketmgr, isc_taskmgr_t *taskmgr,
+		      dns_dispatchmgr_t *dispatchmgr,
 		      dns_dispatch_t *dispatchv4, dns_dispatch_t *dispatchv6,
 		      dns_requestmgr_t **requestmgrp);
 /*
@@ -71,6 +70,8 @@ dns_requestmgr_create(isc_mem_t *mctx, isc_timermgr_t *timermgr,
  *	'timermgr' is a valid timer manager.
  *
  *	'socketmgr' is a valid socket manager.
+ *
+ *	'taskmgr' is a valid task manager.
  *
  *	'dispatchv4' is a valid dispatcher with an IPv4 UDP socket, or is NULL.
  *
@@ -130,10 +131,32 @@ dns_requestmgr_shutdown(dns_requestmgr_t *requestmgr);
 
 void
 dns_requestmgr_attach(dns_requestmgr_t *source, dns_requestmgr_t **targetp);
+/*
+ *	Attach to the request manager.  dns_requestmgr_shutdown() must not
+ *	have been called on 'source' prior to calling dns_requestmgr_attach().
+ *
+ * Requires:
+ *
+ *	'source' is a valid requestmgr.
+ *
+ *	'targetp' to be non NULL and '*targetp' to be NULL.
+ */
 
 void
 dns_requestmgr_detach(dns_requestmgr_t **requestmgrp);
-
+/*
+ *
+ *	Detach from the given requestmgr.  If this is the final detach
+ *	requestmgr will be destroyed.  dns_requestmgr_shutdown() must
+ *	be called before the final detach.
+ *
+ * Requires:
+ *
+ *	'*requestmgrp' is a valid requestmgr.
+ *
+ * Ensures:
+ *	'*requestmgrp' is NULL.
+ */
 
 isc_result_t
 dns_request_create(dns_requestmgr_t *requestmgr, dns_message_t *message,
@@ -182,9 +205,13 @@ dns_request_cancel(dns_request_t *request);
  */
 
 isc_result_t
-dns_request_getresponse(dns_request_t *request, dns_message_t *message);
+dns_request_getresponse(dns_request_t *request, dns_message_t *message,
+			isc_boolean_t preserve_order);
 /*
- * Get the response to 'request'.
+ * Get the response to 'request' by filling in 'message'.
+ *
+ * 'preserve_order' is passed to dns_message_parse().  See dns_message_parse()
+ * for more details.
  *
  * Requires:
  *

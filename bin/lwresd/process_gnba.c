@@ -17,31 +17,20 @@
 
 #include <config.h>
 
-#include <string.h>
-
-#include <sys/types.h>
-
-#include <isc/assertions.h>
-#include <isc/mem.h>
-#include <isc/netaddr.h>
-#include <isc/result.h>
-#include <isc/sockaddr.h>
 #include <isc/socket.h>
-#include <isc/task.h>
+#include <isc/string.h>		/* Required for HP/UX (and others?) */
 #include <isc/util.h>
 
+#include <dns/adb.h>
 #include <dns/byaddr.h>
-
-#include <lwres/lwres.h>
-#include <lwres/result.h>
+#include <dns/result.h>
 
 #include "client.h"
 
 static void start_byaddr(client_t *);
 
 static void
-byaddr_done(isc_task_t *task, isc_event_t *event)
-{
+byaddr_done(isc_task_t *task, isc_event_t *event) {
 	client_t *client;
 	clientmgr_t *cm;
 	dns_byaddrevent_t *bevent;
@@ -55,12 +44,12 @@ byaddr_done(isc_task_t *task, isc_event_t *event)
 	isc_uint16_t naliases;
 	isc_stdtime_t now;
 
-	(void)task;
+	UNUSED(task);
 
 	lwb.base = NULL;
-	client = event->arg;
+	client = event->ev_arg;
 	cm = client->clientmgr;
-	INSIST(client->byaddr == event->sender);
+	INSIST(client->byaddr == event->ev_sender);
 
 	bevent = (dns_byaddrevent_t *)event;
 	gnba = &client->gnba;
@@ -174,8 +163,7 @@ byaddr_done(isc_task_t *task, isc_event_t *event)
 }
 
 static void
-start_byaddr(client_t *client)
-{
+start_byaddr(client_t *client) {
 	isc_result_t result;
 	clientmgr_t *cm;
 
@@ -194,8 +182,7 @@ start_byaddr(client_t *client)
 }
 
 void
-process_gnba(client_t *client, lwres_buffer_t *b)
-{
+process_gnba(client_t *client, lwres_buffer_t *b) {
 	lwres_gnbarequest_t *req;
 	isc_result_t result;
 	isc_sockaddr_t sa;

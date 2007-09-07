@@ -15,31 +15,25 @@
  * SOFTWARE.
  */
 
-/* $Id: master.c,v 1.45 2000/03/22 19:27:51 gson Exp $ */
+/* $Id: master.c,v 1.52 2000/05/08 14:34:42 tale Exp $ */
 
 #include <config.h>
 
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
-#include <limits.h>
-#include <time.h>
-
 #include <isc/lex.h>
-#include <isc/list.h>
 #include <isc/mem.h>
-#include <isc/assertions.h>
-#include <isc/error.h>
 #include <isc/stdtime.h>
+#include <isc/string.h>
+#include <isc/util.h>
 
+#include <dns/callbacks.h>
 #include <dns/master.h>
-#include <dns/types.h>
-#include <dns/result.h>
+#include <dns/name.h>
+#include <dns/rdata.h>
+#include <dns/rdataclass.h>
 #include <dns/rdatalist.h>
 #include <dns/rdataset.h>
-#include <dns/rdataclass.h>
 #include <dns/rdatatype.h>
-#include <dns/rdata.h>
+#include <dns/result.h>
 #include <dns/time.h>
 #include <dns/ttl.h>
 
@@ -91,32 +85,37 @@ typedef struct {
 	isc_boolean_t 	warn_1035;
 } loadctx_t;
 
-static isc_result_t	loadfile(const char *master_file, dns_name_t *top,
-				 dns_name_t *origin,
-				 dns_rdataclass_t zclass, isc_boolean_t age_ttl,
-				 int *soacount, int *nscount,
-				 dns_rdatacallbacks_t *callbacks,
-				 loadctx_t *ctx,
-				 isc_mem_t *mctx);
-static isc_result_t	commit(dns_rdatacallbacks_t *, rdatalist_head_t *,
-			       dns_name_t *);
-static isc_boolean_t	is_glue(rdatalist_head_t *, dns_name_t *);
-static dns_rdatalist_t	*grow_rdatalist(int, dns_rdatalist_t *, int,
-				        rdatalist_head_t *,
-					rdatalist_head_t *,
-					isc_mem_t *mctx);
-static dns_rdata_t	*grow_rdata(int, dns_rdata_t *, int,
-				    rdatalist_head_t *, rdatalist_head_t *,
-				    isc_mem_t *);
-static isc_boolean_t	on_list(dns_rdatalist_t *this, dns_rdata_t *rdata);
+static isc_result_t
+loadfile(const char *master_file, dns_name_t *top, dns_name_t *origin,
+	 dns_rdataclass_t zclass, isc_boolean_t age_ttl, int *soacount,
+	 int *nscount, dns_rdatacallbacks_t *callbacks, loadctx_t *ctx,
+	 isc_mem_t *mctx);
+
+static isc_result_t
+commit(dns_rdatacallbacks_t *, isc_lex_t *, rdatalist_head_t *, dns_name_t *,
+       dns_name_t *);
+
+static isc_boolean_t
+is_glue(rdatalist_head_t *, dns_name_t *);
+
+static dns_rdatalist_t *
+grow_rdatalist(int, dns_rdatalist_t *, int, rdatalist_head_t *,
+		rdatalist_head_t *, isc_mem_t *mctx);
+
+static dns_rdata_t *
+grow_rdata(int, dns_rdata_t *, int, rdatalist_head_t *, rdatalist_head_t *,
+	   isc_mem_t *);
+
+static isc_boolean_t
+on_list(dns_rdatalist_t *this, dns_rdata_t *rdata);
 
 #define GETTOKEN(lexer, options, token, eol) \
 	do { \
 		result = gettoken(lexer, options, token, eol, callbacks); \
 		switch (result) { \
-		case DNS_R_SUCCESS: \
+		case ISC_R_SUCCESS: \
 			break; \
-		case DNS_R_UNEXPECTED: \
+		case ISC_R_UNEXPECTED: \
 			goto cleanup; \
 		default: \
 			goto error_cleanup; \
@@ -135,12 +134,12 @@ gettoken(isc_lex_t *lex, unsigned int options, isc_token_t *token,
 	if (result != ISC_R_SUCCESS) {
 		switch (result) {
 		case ISC_R_NOMEMORY:
-			return (DNS_R_NOMEMORY);
+			return (ISC_R_NOMEMORY);
 		default:
 			UNEXPECTED_ERROR(__FILE__, __LINE__,
 				"isc_lex_gettoken() failed: %s",
 				isc_result_totext(result));
-			return (DNS_R_UNEXPECTED);
+			return (ISC_R_UNEXPECTED);
 		}
 		/*NOTREACHED*/
 	}
@@ -154,9 +153,9 @@ gettoken(isc_lex_t *lex, unsigned int options, isc_token_t *token,
 					    (token->type ==
 					     isc_tokentype_eol) ?
 					    "line" : "file");
-			return (DNS_R_UNEXPECTEDEND);
+			return (ISC_R_UNEXPECTEDEND);
 		}
-	return (DNS_R_SUCCESS);
+	return (ISC_R_SUCCESS);
 }
 
 static void
@@ -190,7 +189,7 @@ load(isc_lex_t *lex, dns_name_t *top, dns_name_t *origin,
 	isc_boolean_t read_till_eol = ISC_FALSE;
 	char *include_file = NULL;
 	isc_token_t token;
-	isc_result_t result = DNS_R_UNEXPECTED; 
+	isc_result_t result = ISC_R_UNEXPECTED; 
 	rdatalist_head_t glue_list;
 	rdatalist_head_t current_list;
 	dns_rdatalist_t *this;
@@ -248,11 +247,10 @@ load(isc_lex_t *lex, dns_name_t *top, dns_name_t *origin,
 	 */
 	target_mem = isc_mem_get(mctx, target_size);
 	if (target_mem == NULL) {
-		result = DNS_R_NOMEMORY;
+		result = ISC_R_NOMEMORY;
 		goto error_cleanup;
 	}
-	isc_buffer_init(&target, target_mem, target_size,
-			ISC_BUFFERTYPE_BINARY);
+	isc_buffer_init(&target, target_mem, target_size);
 	target_save = target;
 
 	memset(name_in_use, 0, NBUFS * sizeof(isc_boolean_t));
@@ -283,7 +281,9 @@ load(isc_lex_t *lex, dns_name_t *top, dns_name_t *origin,
 				result = DNS_R_NOOWNER;
 				goto cleanup;
 			}
-			/* Still working on the same name. */
+			/*
+			 * Still working on the same name.
+			 */
 		} else if (token.type == isc_tokentype_string) {
 
 			/*
@@ -303,9 +303,9 @@ load(isc_lex_t *lex, dns_name_t *top, dns_name_t *origin,
 				              "$TTL") == 0) {
 				GETTOKEN(lex, 0, &token, ISC_FALSE);
 				result =
-				    dns_ttl_fromtext(&token.value.as_textregion,
-						     &ctx->ttl);
-				if (result != DNS_R_SUCCESS)
+				   dns_ttl_fromtext(&token.value.as_textregion,
+						    &ctx->ttl);
+				if (result != ISC_R_SUCCESS)
 					goto cleanup;
 				if (ctx->ttl > 0x7fffffffUL) {
 					(callbacks->warn)(callbacks,
@@ -335,7 +335,7 @@ load(isc_lex_t *lex, dns_name_t *top, dns_name_t *origin,
 				include_file = isc_mem_strdup(mctx,
 						token.value.as_pointer);
 				if (include_file == NULL) {
-					result = DNS_R_NOMEMORY;
+					result = ISC_R_NOMEMORY;
 					goto error_cleanup;
 				}
 				GETTOKEN(lex, 0, &token, ISC_TRUE);
@@ -354,7 +354,7 @@ load(isc_lex_t *lex, dns_name_t *top, dns_name_t *origin,
 							  callbacks,
 							  ctx,
 							  mctx);
-					if (result != DNS_R_SUCCESS)
+					if (result != ISC_R_SUCCESS)
 						goto cleanup;
 					isc_lex_ungettoken(lex, &token);
 					continue;
@@ -417,17 +417,16 @@ load(isc_lex_t *lex, dns_name_t *top, dns_name_t *origin,
 					break;
 			INSIST(new_in_use < NBUFS);
 			isc_buffer_init(&name, &name_buf[new_in_use][0],
-					MAXWIRESZ, ISC_BUFFERTYPE_BINARY);
+					MAXWIRESZ);
 			dns_name_init(&new_name, NULL);
 			isc_buffer_init(&buffer, token.value.as_region.base,
-					token.value.as_region.length,
-					ISC_BUFFERTYPE_TEXT);
+					token.value.as_region.length);
 			isc_buffer_add(&buffer, token.value.as_region.length);
 			isc_buffer_setactive(&buffer,
 					     token.value.as_region.length);
 			result = dns_name_fromtext(&new_name, &buffer,
 					  &origin_name, ISC_FALSE, &name);
-			if (result != DNS_R_SUCCESS)
+			if (result != ISC_R_SUCCESS)
 				goto error_cleanup;
 
 			/*
@@ -453,7 +452,7 @@ load(isc_lex_t *lex, dns_name_t *top, dns_name_t *origin,
 						  callbacks,
 						  ctx,
 						  mctx);
-				if (result != DNS_R_SUCCESS)
+				if (result != ISC_R_SUCCESS)
 					goto cleanup;
 				finish_include = ISC_FALSE;
 				continue;
@@ -471,9 +470,9 @@ load(isc_lex_t *lex, dns_name_t *top, dns_name_t *origin,
 			 */
 			if (in_glue && dns_name_compare(&glue_name,
 							&new_name) != 0) {
-				result = commit(callbacks, &glue_list,
-						&glue_name);
-				if (result != DNS_R_SUCCESS)
+				result = commit(callbacks, lex, &glue_list,
+						&glue_name, top);
+				if (result != ISC_R_SUCCESS)
 					goto cleanup;
 				if (glue_in_use != -1)
 					name_in_use[glue_in_use] = ISC_FALSE;
@@ -504,10 +503,10 @@ load(isc_lex_t *lex, dns_name_t *top, dns_name_t *origin,
 					glue_in_use = new_in_use;
 					name_in_use[glue_in_use] = ISC_TRUE;
 				} else {
-					result = commit(callbacks,
+					result = commit(callbacks, lex,
 							&current_list,
-							&current_name);
-					if (result != DNS_R_SUCCESS)
+							&current_name, top);
+					if (result != ISC_R_SUCCESS)
 						goto cleanup;
 					rdcount = 0;
 					rdlcount = 0;
@@ -520,8 +519,7 @@ load(isc_lex_t *lex, dns_name_t *top, dns_name_t *origin,
 					current_known = ISC_TRUE;
 					current_has_delegation = ISC_FALSE;
 					isc_buffer_init(&target, target_mem,
-							target_size,
-							ISC_BUFFERTYPE_BINARY);
+							target_size);
 				}
 			}
 		} else {
@@ -530,7 +528,7 @@ load(isc_lex_t *lex, dns_name_t *top, dns_name_t *origin,
 					 isc_lex_getsourcename(lex),
 					 isc_lex_getsourceline(lex),
 					 token.type);
-			result = DNS_R_UNEXPECTED;
+			result = ISC_R_UNEXPECTED;
 			goto cleanup;
 		}
 
@@ -550,11 +548,11 @@ load(isc_lex_t *lex, dns_name_t *top, dns_name_t *origin,
 
 		if (dns_rdataclass_fromtext(&rdclass,
 					    &token.value.as_textregion)
-				== DNS_R_SUCCESS)
+				== ISC_R_SUCCESS)
 			GETTOKEN(lex, 0, &token, ISC_FALSE);
 
 		if (dns_ttl_fromtext(&token.value.as_textregion, &ctx->ttl)
-				== DNS_R_SUCCESS) {
+				== ISC_R_SUCCESS) {
 			if (ctx->ttl > 0x7fffffffUL) {
 				(callbacks->warn)(callbacks,
 	"dns_master_load: %s:%d: TTL %lu > MAXTTL, setting TTL to 0",
@@ -590,26 +588,26 @@ load(isc_lex_t *lex, dns_name_t *top, dns_name_t *origin,
 		if (token.type != isc_tokentype_string) {
 			UNEXPECTED_ERROR(__FILE__, __LINE__,
 			"isc_lex_gettoken() returned unexpected token type");
-			result = DNS_R_UNEXPECTED;
+			result = ISC_R_UNEXPECTED;
 			goto cleanup;
 		}
 			
 		if (rdclass == 0 &&
 		    dns_rdataclass_fromtext(&rdclass,
 					    &token.value.as_textregion)
-				== DNS_R_SUCCESS)
+				== ISC_R_SUCCESS)
 			GETTOKEN(lex, 0, &token, ISC_FALSE);
 
 		if (token.type !=  isc_tokentype_string) {
 			UNEXPECTED_ERROR(__FILE__, __LINE__,
 			"isc_lex_gettoken() returned unexpected token type");
-			result = DNS_R_UNEXPECTED;
+			result = ISC_R_UNEXPECTED;
 			goto cleanup;
 		}
 
 		result = dns_rdatatype_fromtext(&type,
 						&token.value.as_textregion);
-		if (result != DNS_R_SUCCESS)
+		if (result != ISC_R_SUCCESS)
 			goto cleanup;
 
 		/*
@@ -623,29 +621,27 @@ load(isc_lex_t *lex, dns_name_t *top, dns_name_t *origin,
 			isc_buffer_t buffer;
 			isc_region_t region;
 
-			isc_buffer_init(&buffer, buf1, sizeof buf1,
-					ISC_BUFFERTYPE_TEXT);
+			isc_buffer_init(&buffer, buf1, sizeof(buf1));
 			result = dns_rdataclass_totext(rdclass, &buffer);
-			if (result != DNS_R_SUCCESS) {
+			if (result != ISC_R_SUCCESS) {
 				UNEXPECTED_ERROR(__FILE__, __LINE__,
 					"dns_rdataclass_totext() failed: %s",
 						 dns_result_totext(result));
-				result = DNS_R_UNEXPECTED;
+				result = ISC_R_UNEXPECTED;
 				goto cleanup;
 			}
-			isc_buffer_used(&buffer, &region);
+			isc_buffer_usedregion(&buffer, &region);
 			len1 = region.length;
-			isc_buffer_init(&buffer, buf2, sizeof buf2,
-					ISC_BUFFERTYPE_TEXT);
+			isc_buffer_init(&buffer, buf2, sizeof(buf2));
 			result = dns_rdataclass_totext(zclass, &buffer);
-			if (result != DNS_R_SUCCESS) {
+			if (result != ISC_R_SUCCESS) {
 				UNEXPECTED_ERROR(__FILE__, __LINE__,
 					"dns_rdataclass_totext() failed: %s",
 						 dns_result_totext(result));
-				result = DNS_R_UNEXPECTED;
+				result = ISC_R_UNEXPECTED;
 				goto cleanup;
 			}
-			isc_buffer_used(&buffer, &region);
+			isc_buffer_usedregion(&buffer, &region);
 			len2 = region.length;
 			(*callbacks->error)(callbacks,
 			       "%s: %s:%d: class (%.*s) != zone class (%.*s)",
@@ -682,7 +678,7 @@ load(isc_lex_t *lex, dns_name_t *top, dns_name_t *origin,
 					       rdata_size, &current_list,
 					       &glue_list, mctx);
 			if (new_rdata == NULL) {
-				result = DNS_R_NOMEMORY;
+				result = ISC_R_NOMEMORY;
 				goto error_cleanup;
 			}
 			rdata_size += RDSZ;
@@ -695,7 +691,7 @@ load(isc_lex_t *lex, dns_name_t *top, dns_name_t *origin,
 		result = dns_rdata_fromtext(&rdata[rdcount], zclass, type,
 				   lex, &origin_name, ISC_FALSE, &target,
 				   callbacks);
-		if (result != DNS_R_SUCCESS)
+		if (result != ISC_R_SUCCESS)
 			goto cleanup;
 		if (type == dns_rdatatype_sig)
 			covers = dns_rdata_covers(&rdata[rdcount]);
@@ -729,7 +725,7 @@ load(isc_lex_t *lex, dns_name_t *top, dns_name_t *origin,
 						       &glue_list,
 						       mctx);
 				if (new_rdatalist == NULL) {
-					result = DNS_R_NOMEMORY;
+					result = ISC_R_NOMEMORY;
 					goto error_cleanup;
 				}
 				rdatalist = new_rdatalist;
@@ -775,12 +771,13 @@ load(isc_lex_t *lex, dns_name_t *top, dns_name_t *origin,
 		 * If we don't commit everything we have so far.
 		 */
 		if ((target.length - target.used) < MINTSIZ) {
-			result = commit(callbacks, &current_list,
-					&current_name);
-			if (result != DNS_R_SUCCESS)
+			result = commit(callbacks, lex, &current_list,
+					&current_name, top);
+			if (result != ISC_R_SUCCESS)
 				goto cleanup;
-			result = commit(callbacks, &glue_list, &glue_name);
-			if (result != DNS_R_SUCCESS)
+			result = commit(callbacks, lex, &glue_list, &glue_name,
+					top);
+			if (result != ISC_R_SUCCESS)
 				goto cleanup;
 			rdcount = 0;
 			rdlcount = 0;
@@ -789,21 +786,20 @@ load(isc_lex_t *lex, dns_name_t *top, dns_name_t *origin,
 			glue_in_use = -1;
 			in_glue = ISC_FALSE;
 			current_has_delegation = ISC_FALSE;
-			isc_buffer_init(&target, target_mem, target_size,
-					ISC_BUFFERTYPE_BINARY);
+			isc_buffer_init(&target, target_mem, target_size);
 		}
 	} while (!done);
 	/*
 	 * Commit what has not yet been committed.
 	 */
-	result = commit(callbacks, &current_list, &current_name);
-	if (result != DNS_R_SUCCESS)
+	result = commit(callbacks, lex, &current_list, &current_name, top);
+	if (result != ISC_R_SUCCESS)
 		goto cleanup;
-	result = commit(callbacks, &glue_list, &glue_name);
-	if (result != DNS_R_SUCCESS)
+	result = commit(callbacks, lex, &glue_list, &glue_name, top);
+	if (result != ISC_R_SUCCESS)
 		goto cleanup;
 	else
-		result = DNS_R_SUCCESS;
+		result = ISC_R_SUCCESS;
 	goto cleanup;
 
  error_cleanup:
@@ -1051,23 +1047,42 @@ grow_rdata(int new_len, dns_rdata_t *old, int old_len,
  */
 
 static isc_result_t
-commit(dns_rdatacallbacks_t *callbacks, rdatalist_head_t *head,
-       dns_name_t *owner)
+commit(dns_rdatacallbacks_t *callbacks, isc_lex_t *lex,
+       rdatalist_head_t *head, dns_name_t *owner, dns_name_t *top)
 {
 	dns_rdatalist_t *this;
 	dns_rdataset_t dataset;
 	isc_result_t result;
+	isc_boolean_t ignore = ISC_FALSE;
 
-	while ((this = ISC_LIST_HEAD(*head)) != NULL) {
-		dns_rdataset_init(&dataset);
-		dns_rdatalist_tordataset(this, &dataset);
-		result = ((*callbacks->add)(callbacks->add_private, owner,
-					    &dataset));
-		if (result != DNS_R_SUCCESS)
-			return (result);
-		ISC_LIST_UNLINK(*head, this, link);
+	this = ISC_LIST_HEAD(*head);
+	if (this == NULL)
+		return (ISC_R_SUCCESS);
+	if (!dns_name_issubdomain(owner, top)) {
+		/*
+		 * Ignore out-of-zone data.
+		 */
+		(callbacks->warn)(callbacks,
+		"dns_master_load: %s:%d: ignoring out-of-zone data",
+				  isc_lex_getsourcename(lex),
+				  isc_lex_getsourceline(lex));
+		ignore = ISC_TRUE;
 	}
-	return (DNS_R_SUCCESS);
+	do {
+		if (!ignore) {
+			dns_rdataset_init(&dataset);
+			dns_rdatalist_tordataset(this, &dataset);
+			dataset.trust = dns_trust_ultimate;
+			result = ((*callbacks->add)(callbacks->add_private,
+						    owner,
+						    &dataset));
+			if (result != ISC_R_SUCCESS)
+				return (result);
+		}
+		ISC_LIST_UNLINK(*head, this, link);
+		this = ISC_LIST_HEAD(*head);
+	} while (this != NULL);
+	return (ISC_R_SUCCESS);
 }
 
 /*
@@ -1081,7 +1096,9 @@ is_glue(rdatalist_head_t *head, dns_name_t *owner) {
 	isc_region_t region;
 	dns_name_t name;
 
-	/* find NS rrset */
+	/*
+	 * Find NS rrset.
+	 */
 	this = ISC_LIST_HEAD(*head);
 	while (this != NULL) {
 		if (this->type == dns_rdatatype_ns)

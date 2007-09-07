@@ -17,16 +17,14 @@
 
 /*
  * Principal Author: Brian Wellington
- * $Id: dst_lib.c,v 1.2 2000/03/23 19:30:04 halley Exp $
+ * $Id: dst_lib.c,v 1.4 2000/05/08 14:37:01 tale Exp $
  */
 
 #include <config.h>
 
-#include <stddef.h>
-
 #include <isc/once.h>
-#include <isc/error.h>
 #include <isc/msgcat.h>
+#include <isc/util.h>
 
 #include <dst/lib.h>
 

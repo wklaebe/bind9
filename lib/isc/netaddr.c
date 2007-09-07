@@ -17,15 +17,11 @@
 
 #include <config.h>
 
-#include <stddef.h>
-#include <stdlib.h>
-#include <string.h>
 
-#include <isc/assertions.h>
-#include <isc/error.h>
 #include <isc/netaddr.h>
 #include <isc/sockaddr.h>
-#include <isc/types.h>
+#include <isc/string.h>
+#include <isc/util.h>
 
 isc_boolean_t
 isc_netaddr_equal(const isc_netaddr_t *a, const isc_netaddr_t *b) {

@@ -15,5 +15,15 @@
  * SOFTWARE.
  */
 
-/* $Id: mr_9.h,v 1.14 2000/03/20 22:57:13 gson Exp $ */
+#ifndef GENERIC_MR_9_H
+#define GENERIC_MR_9_H 1
 
+/* $Id: mr_9.h,v 1.17 2000/05/08 14:36:52 tale Exp $ */
+
+typedef struct dns_rdata_mr {
+	dns_rdatacommon_t	common;
+	isc_mem_t		*mctx;
+	dns_name_t		mr;
+} dns_rdata_mr_t;
+
+#endif /* GENERIC_MR_9_H */

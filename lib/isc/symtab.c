@@ -18,11 +18,9 @@
 #include <config.h>
 
 #include <ctype.h>
-#include <stdlib.h>
-#include <string.h>
 
-#include <isc/assertions.h>
-#include <isc/list.h>
+#include <isc/mem.h>
+#include <isc/string.h>
 #include <isc/symtab.h>
 #include <isc/util.h>
 
@@ -140,8 +138,7 @@ hash(const char *key, isc_boolean_t case_sensitive) {
 	} else {
 		for (s = key; *s != '\0'; s++) {
 			c = *s;
-			if (isascii(c) && isupper(c))
-				c = tolower(c);
+			c = tolower((unsigned char)c);
 			h = ( h << 4 ) + c;
 			if ((g = ( h & 0xf0000000 )) != 0) {
 				h = h ^ (g >> 24);

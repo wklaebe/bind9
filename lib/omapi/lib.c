@@ -15,14 +15,14 @@
  * SOFTWARE.
  */
 
-/* $ID: $ */
+/* $Id: lib.c,v 1.11 2000/05/14 03:51:07 tale Exp $ */
 
-#include <stddef.h>
+#include <config.h>
 
-#include <isc/assertions.h>
-#include <isc/once.h>
-#include <isc/error.h>
 #include <isc/msgcat.h>
+#include <isc/once.h>
+#include <isc/task.h>
+#include <isc/util.h>
 
 #include <omapi/lib.h>
 #include <omapi/private.h>
@@ -91,7 +91,7 @@ omapi_lib_init(isc_mem_t *mctx, isc_taskmgr_t *taskmgr,
 	omapi_taskmgr = taskmgr;
 	omapi_socketmgr = socketmgr;
 
-	result = isc_task_create(omapi_taskmgr, omapi_mctx, 0, &omapi_task);
+	result = isc_task_create(omapi_taskmgr, 0, &omapi_task);
 	if (result == ISC_R_SUCCESS)
 		isc_task_setname(omapi_task, "omapi", NULL);
 
@@ -123,7 +123,7 @@ omapi_lib_init(isc_mem_t *mctx, isc_taskmgr_t *taskmgr,
  * omapi_object_dereference).
  */
 void
-omapi_lib_destroy() {
+omapi_lib_destroy(void) {
 	object_destroytypes();
 
 	handle_destroy();

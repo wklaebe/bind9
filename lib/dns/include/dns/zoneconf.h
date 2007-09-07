@@ -15,24 +15,19 @@
  * SOFTWARE.
  */
 
-#ifndef NS_ZONECONF_H
-#define NS_ZONECONF_H 1
+#ifndef DNS_ZONECONF_H
+#define DNS_ZONECONF_H 1
 
-#include <isc/log.h>
+#include <isc/lang.h>
 #include <isc/types.h>
 
-#include <dns/acl.h>
-#include <dns/confacl.h>
-#include <dns/confip.h>
+#include <dns/aclconf.h>
 
-/*
- * Create a dns_acl_t from the corresponding configuration data structure,
- * 'caml'.  References to named ACLs in caml are resolved against the ACL
- * table in 'cctx'.
- */
+ISC_LANG_BEGINDECLS
 
-isc_result_t dns_zone_configure(dns_c_ctx_t *cctx, dns_aclconfctx_t *ac,
-				dns_c_zone_t *czone, dns_zone_t *zone);
+isc_result_t
+dns_zone_configure(dns_c_ctx_t *cctx, dns_c_view_t *cview, dns_c_zone_t *czone,
+		   dns_aclconfctx_t *ac, dns_zone_t *zone);
 /*
  * Configure or reconfigure a zone according to the named.conf
  * data in 'cctx' and 'czone'.
@@ -65,4 +60,4 @@ dns_zonemgr_configure(dns_c_ctx_t *cctx, dns_zonemgr_t *zonemgr);
  */
 ISC_LANG_ENDDECLS
 
-#endif /* NS_ZONECONF_H */
+#endif /* DNS_ZONECONF_H */

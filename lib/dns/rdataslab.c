@@ -15,21 +15,17 @@
  * SOFTWARE.
  */
 
-/* $Id: rdataslab.c,v 1.9 2000/02/03 23:43:58 halley Exp $ */
+/* $Id: rdataslab.c,v 1.13 2000/05/08 19:23:14 tale Exp $ */
 
 #include <config.h>
 
-#include <string.h>
-
+#include <isc/mem.h>
 #include <isc/region.h>
-#include <isc/buffer.h>
-#include <isc/assertions.h>
+#include <isc/string.h>		/* Required for HP/UX (and others?) */
+#include <isc/util.h>
 
-#include <dns/types.h>
 #include <dns/result.h>
 #include <dns/rdata.h>
-#include <dns/rdataclass.h>
-#include <dns/rdatatype.h>
 #include <dns/rdataset.h>
 #include <dns/rdataslab.h>
 
@@ -44,7 +40,7 @@ dns_rdataslab_fromrdataset(dns_rdataset_t *rdataset, isc_mem_t *mctx,
 	unsigned int	nitems;
 
 	result = dns_rdataset_first(rdataset);
-	REQUIRE(result == DNS_R_SUCCESS);
+	REQUIRE(result == ISC_R_SUCCESS);
 
 	buflen = reservelen + 2;
 	nitems = 0;
@@ -63,9 +59,9 @@ dns_rdataslab_fromrdataset(dns_rdataset_t *rdataset, isc_mem_t *mctx,
 		nitems++;
 
 		result = dns_rdataset_next(rdataset);
-	} while (result == DNS_R_SUCCESS);
+	} while (result == ISC_R_SUCCESS);
 
-	if (result != DNS_R_NOMORE)
+	if (result != ISC_R_NOMORE)
 		return (result);
 
 	/*
@@ -74,7 +70,7 @@ dns_rdataslab_fromrdataset(dns_rdataset_t *rdataset, isc_mem_t *mctx,
 	 */
 	rawbuf = isc_mem_get(mctx, buflen);
 	if (rawbuf == NULL)
-		return (DNS_R_NOMEMORY);
+		return (ISC_R_NOMEMORY);
 
 	region->base = rawbuf;
 	region->length = buflen;
@@ -84,7 +80,7 @@ dns_rdataslab_fromrdataset(dns_rdataset_t *rdataset, isc_mem_t *mctx,
 	*rawbuf++ = (nitems & 0xff00) >> 8;
 	*rawbuf++ = (nitems & 0x00ff);
 	result = dns_rdataset_first(rdataset);
-	REQUIRE(result == DNS_R_SUCCESS);
+	REQUIRE(result == ISC_R_SUCCESS);
 	do {
 		dns_rdataset_current(rdataset, &rdata);
 		*rawbuf++ = (rdata.length & 0xff00) >> 8;
@@ -93,9 +89,9 @@ dns_rdataslab_fromrdataset(dns_rdataset_t *rdataset, isc_mem_t *mctx,
 		rawbuf += rdata.length;
 
 		result = dns_rdataset_next(rdataset);
-	} while (result == DNS_R_SUCCESS);
+	} while (result == ISC_R_SUCCESS);
 
-	if (result != DNS_R_NOMORE) {
+	if (result != ISC_R_NOMORE) {
 		isc_mem_put(mctx, region->base, region->length);
 		region->base = NULL;
 		region->length = 0;
@@ -103,7 +99,7 @@ dns_rdataslab_fromrdataset(dns_rdataset_t *rdataset, isc_mem_t *mctx,
 		return (result);
 	}
 
-	return (DNS_R_SUCCESS);
+	return (ISC_R_SUCCESS);
 }
 
 unsigned int
@@ -219,7 +215,7 @@ dns_rdataslab_merge(unsigned char *oslab, unsigned char *nslab,
 	 */
 	tstart = isc_mem_get(mctx, tlength);
 	if (tstart == NULL)
-		return (DNS_R_NOMEMORY);
+		return (ISC_R_NOMEMORY);
 	memcpy(tstart, nslab, reservelen);
 	tcurrent = tstart + reservelen;
 	
@@ -271,7 +267,7 @@ dns_rdataslab_merge(unsigned char *oslab, unsigned char *nslab,
 
 	*tslabp = tstart;
 
-	return (DNS_R_SUCCESS);
+	return (ISC_R_SUCCESS);
 }
 
 isc_result_t
@@ -348,7 +344,7 @@ dns_rdataslab_subtract(unsigned char *mslab, unsigned char *sslab,
 	 * Don't continue if the new rdataslab would be empty.
 	 */
 	if (tcount == 0)
-		return (DNS_R_NXRDATASET);
+		return (DNS_R_NXRRSET);
 
 	/*
 	 * If nothing is going to change, we can stop.
@@ -361,7 +357,7 @@ dns_rdataslab_subtract(unsigned char *mslab, unsigned char *sslab,
 	 */
 	tstart = isc_mem_get(mctx, tlength);
 	if (tstart == NULL)
-		return (DNS_R_NOMEMORY);
+		return (ISC_R_NOMEMORY);
 	memcpy(tstart, mslab, reservelen);
 	tcurrent = tstart + reservelen;
 	
@@ -408,5 +404,5 @@ dns_rdataslab_subtract(unsigned char *mslab, unsigned char *sslab,
 
 	*tslabp = tstart;
 
-	return (DNS_R_SUCCESS);
+	return (ISC_R_SUCCESS);
 }

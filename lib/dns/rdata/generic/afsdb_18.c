@@ -15,7 +15,7 @@
  * SOFTWARE.
  */
 
-/* $Id: afsdb_18.c,v 1.19 2000/03/18 01:46:15 tale Exp $ */
+/* $Id: afsdb_18.c,v 1.28 2000/05/22 12:37:29 marka Exp $ */
 
 /* Reviewed: Wed Mar 15 14:59:00 PST 2000 by explorer */
 
@@ -23,6 +23,8 @@
 
 #ifndef RDATA_GENERIC_AFSDB_18_C
 #define RDATA_GENERIC_AFSDB_18_C
+
+#define RRTYPE_AFSDB_ATTRIBUTES (0)
 
 static inline isc_result_t
 fromtext_afsdb(dns_rdataclass_t rdclass, dns_rdatatype_t type,
@@ -37,15 +39,20 @@ fromtext_afsdb(dns_rdataclass_t rdclass, dns_rdatatype_t type,
 
 	REQUIRE(type == 18);
 
-	/* subtype */
+	/*
+	 * Subtype.
+	 */
 	RETERR(gettoken(lexer, &token, isc_tokentype_number, ISC_FALSE));
+	if (token.value.as_ulong > 0xffff)
+		return (ISC_R_RANGE);
 	RETERR(uint16_tobuffer(token.value.as_ulong, target));
 	
-	/* hostname */
+	/*
+	 * Hostname.
+	 */
 	RETERR(gettoken(lexer, &token, isc_tokentype_string, ISC_FALSE));
 	dns_name_init(&name, NULL);
-	buffer_fromregion(&buffer, &token.value.as_region,
-			  ISC_BUFFERTYPE_TEXT);
+	buffer_fromregion(&buffer, &token.value.as_region);
 	origin = (origin != NULL) ? origin : dns_rootname;
 	return (dns_name_fromtext(&name, &buffer, origin, downcase, target));
 }
@@ -89,19 +96,16 @@ fromwire_afsdb(dns_rdataclass_t rdclass, dns_rdatatype_t type,
 
 	REQUIRE(type == 18);
 	
-	if (dns_decompress_edns(dctx) >= 1 || !dns_decompress_strict(dctx))
-		dns_decompress_setmethods(dctx, DNS_COMPRESS_ALL);
-	else
-		dns_decompress_setmethods(dctx, DNS_COMPRESS_NONE);
+	dns_decompress_setmethods(dctx, DNS_COMPRESS_NONE);
 
 	dns_name_init(&name, NULL);
 
-	isc_buffer_active(source, &sr);
-	isc_buffer_available(target, &tr);
+	isc_buffer_activeregion(source, &sr);
+	isc_buffer_availableregion(target, &tr);
 	if (tr.length < 2)
-		return (DNS_R_NOSPACE);
+		return (ISC_R_NOSPACE);
 	if (sr.length < 2)
-		return (DNS_R_UNEXPECTEDEND);
+		return (ISC_R_UNEXPECTEDEND);
 	memcpy(tr.base, sr.base, 2);
 	isc_buffer_forward(source, 2);
 	isc_buffer_add(target, 2);
@@ -109,23 +113,18 @@ fromwire_afsdb(dns_rdataclass_t rdclass, dns_rdatatype_t type,
 }
 
 static inline isc_result_t
-towire_afsdb(dns_rdata_t *rdata, dns_compress_t *cctx, isc_buffer_t *target)
-{
+towire_afsdb(dns_rdata_t *rdata, dns_compress_t *cctx, isc_buffer_t *target) {
 	isc_region_t tr;
 	isc_region_t sr;
 	dns_name_t name;
 
 	REQUIRE(rdata->type == 18);
 
-	if (dns_compress_getedns(cctx) >= 1)
-		dns_compress_setmethods(cctx, DNS_COMPRESS_ALL);
-	else
-		dns_compress_setmethods(cctx, DNS_COMPRESS_NONE);
-
-	isc_buffer_available(target, &tr);
+	dns_compress_setmethods(cctx, DNS_COMPRESS_NONE);
+	isc_buffer_availableregion(target, &tr);
 	dns_rdata_toregion(rdata, &sr);
 	if (tr.length < 2)
-		return (DNS_R_NOSPACE);
+		return (ISC_R_NOSPACE);
 	memcpy(tr.base, sr.base, 2);
 	isc_region_consume(&sr, 2);
 	isc_buffer_add(target, 2);
@@ -137,8 +136,7 @@ towire_afsdb(dns_rdata_t *rdata, dns_compress_t *cctx, isc_buffer_t *target)
 }
 
 static inline int
-compare_afsdb(dns_rdata_t *rdata1, dns_rdata_t *rdata2)
-{
+compare_afsdb(dns_rdata_t *rdata1, dns_rdata_t *rdata2) {
 	int result;
 	dns_name_t name1;
 	dns_name_t name2;
@@ -172,35 +170,59 @@ static inline isc_result_t
 fromstruct_afsdb(dns_rdataclass_t rdclass, dns_rdatatype_t type, void *source,
 		 isc_buffer_t *target)
 {
-	UNUSED(rdclass);
-	UNUSED(source);
-	UNUSED(target);
+	dns_rdata_afsdb_t *afsdb = source;
+	isc_region_t region;
 
 	REQUIRE(type == 18);
+	REQUIRE(source != NULL);
+	REQUIRE(afsdb->common.rdclass == rdclass);
+	REQUIRE(afsdb->common.rdtype == type);
 	
-	return (DNS_R_NOTIMPLEMENTED);
+	RETERR(uint16_tobuffer(afsdb->subtype, target));
+	dns_name_toregion(&afsdb->server, &region);
+	return (isc_buffer_copyregion(target, &region));
 }
 
 static inline isc_result_t
-tostruct_afsdb(dns_rdata_t *rdata, void *target, isc_mem_t *mctx)
-{
-	UNUSED(target);
-	UNUSED(mctx);
+tostruct_afsdb(dns_rdata_t *rdata, void *target, isc_mem_t *mctx) {
+	isc_region_t region;
+	dns_rdata_afsdb_t *afsdb = target;
+	dns_name_t name;
 
 	REQUIRE(rdata->type == 18);
 	REQUIRE(target != NULL);
 
-	return (DNS_R_NOTIMPLEMENTED);
+	afsdb->common.rdclass = rdata->rdclass;
+	afsdb->common.rdtype = rdata->type;
+	ISC_LINK_INIT(&afsdb->common, link);
+
+	dns_name_init(&afsdb->server, NULL);
+
+	dns_rdata_toregion(rdata, &region);
+
+	afsdb->subtype = uint16_fromregion(&region);
+	isc_region_consume(&region, 2);
+
+	dns_name_init(&name, NULL);
+	dns_name_fromregion(&name, &region);
+
+	RETERR(name_duporclone(&name, mctx, &afsdb->server));
+	afsdb->mctx = mctx;
+	return (ISC_R_SUCCESS);
 }
 
 static inline void
-freestruct_afsdb(void *source)
-{
+freestruct_afsdb(void *source) {
 	dns_rdata_afsdb_t *afsdb = source;
 
 	REQUIRE(source != NULL);
 	REQUIRE(afsdb->common.rdtype == 18);
-	REQUIRE(ISC_FALSE);
+
+	if (afsdb->mctx == NULL)
+		return;
+
+	dns_name_free(&afsdb->server, afsdb->mctx);
+	afsdb->mctx = NULL;
 }
 
 static inline isc_result_t
@@ -221,8 +243,7 @@ additionaldata_afsdb(dns_rdata_t *rdata, dns_additionaldatafunc_t add,
 }
 
 static inline isc_result_t
-digest_afsdb(dns_rdata_t *rdata, dns_digestfunc_t digest, void *arg)
-{
+digest_afsdb(dns_rdata_t *rdata, dns_digestfunc_t digest, void *arg) {
 	isc_region_t r1, r2;
 	dns_name_t name;
 

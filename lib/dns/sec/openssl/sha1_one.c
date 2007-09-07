@@ -56,6 +56,9 @@
  * [including the GNU Public Licence.]
  */
 
+#include <config.h>
+#include "../rename.h"
+
 #include <stdio.h>
 #include <string.h>
 #include <openssl/sha.h>

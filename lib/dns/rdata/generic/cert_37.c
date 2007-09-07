@@ -15,7 +15,7 @@
  * SOFTWARE.
  */
 
-/* $Id: cert_37.c,v 1.20 2000/03/16 02:15:52 tale Exp $ */
+/* $Id: cert_37.c,v 1.29 2000/05/22 12:37:30 marka Exp $ */
 
 /* Reviewed: Wed Mar 15 21:14:32 EST 2000 by tale */
 
@@ -23,6 +23,8 @@
 
 #ifndef RDATA_GENERIC_CERT_37_C
 #define RDATA_GENERIC_CERT_37_C
+
+#define RRTYPE_CERT_ATTRIBUTES (0)
 
 static inline isc_result_t
 fromtext_cert(dns_rdataclass_t rdclass, dns_rdatatype_t type,
@@ -39,16 +41,24 @@ fromtext_cert(dns_rdataclass_t rdclass, dns_rdatatype_t type,
 	UNUSED(origin);
 	UNUSED(downcase);
 
-	/* cert type */
+	/*
+	 * Cert type.
+	 */
 	RETERR(gettoken(lexer, &token, isc_tokentype_string, ISC_FALSE));
 	RETERR(dns_cert_fromtext(&cert, &token.value.as_textregion));
 	RETERR(uint16_tobuffer(cert, target));
 	
-	/* key tag */
+	/*
+	 * Key tag.
+	 */
 	RETERR(gettoken(lexer, &token, isc_tokentype_number, ISC_FALSE));
+	if (token.value.as_ulong > 0xffff)
+		return (ISC_R_RANGE);
 	RETERR(uint16_tobuffer(token.value.as_ulong, target));
 
-	/* algorithm */
+	/*
+	 * Algorithm.
+	 */
 	RETERR(gettoken(lexer, &token, isc_tokentype_string, ISC_FALSE));
 	RETERR(dns_secalg_fromtext(&secalg, &token.value.as_textregion));
 	RETERR(mem_tobuffer(target, &secalg, 1));
@@ -70,23 +80,31 @@ totext_cert(dns_rdata_t *rdata, dns_rdata_textctx_t *tctx,
 
 	dns_rdata_toregion(rdata, &sr);
 
-	/* type */
+	/*
+	 * Type.
+	 */
 	n = uint16_fromregion(&sr);
 	isc_region_consume(&sr, 2);
 	RETERR(dns_cert_totext((dns_cert_t)n, target));
 	RETERR(str_totext(" ", target));
 
-	/* key tag */
+	/*
+	 * Key tag.
+	 */
 	n = uint16_fromregion(&sr);
 	isc_region_consume(&sr, 2);
 	sprintf(buf, "%u ", n);
 	RETERR(str_totext(buf, target));
 
-	/* algorithm */
+	/*
+	 * Algorithm.
+	 */
 	RETERR(dns_secalg_totext(sr.base[0], target));
 	isc_region_consume(&sr, 1);
 
-	/* cert */
+	/*
+	 * Cert.
+	 */
 	if ((tctx->flags & DNS_STYLEFLAG_MULTILINE) != 0)
 		RETERR(str_totext(" (", target));
 	RETERR(str_totext(tctx->linebreak, target));
@@ -94,7 +112,7 @@ totext_cert(dns_rdata_t *rdata, dns_rdata_textctx_t *tctx,
 				 tctx->linebreak, target));
 	if ((tctx->flags & DNS_STYLEFLAG_MULTILINE) != 0)
 		RETERR(str_totext(" )", target));
-	return (DNS_R_SUCCESS);
+	return (ISC_R_SUCCESS);
 }
 
 static inline isc_result_t
@@ -110,9 +128,9 @@ fromwire_cert(dns_rdataclass_t rdclass, dns_rdatatype_t type,
 	UNUSED(dctx);
 	UNUSED(downcase);
 
-	isc_buffer_active(source, &sr);
+	isc_buffer_activeregion(source, &sr);
 	if (sr.length < 5)
-		return (DNS_R_UNEXPECTEDEND);
+		return (ISC_R_UNEXPECTEDEND);
 
 	isc_buffer_forward(source, sr.length);
 	return (mem_tobuffer(target, sr.base, sr.length));
@@ -148,32 +166,67 @@ static inline isc_result_t
 fromstruct_cert(dns_rdataclass_t rdclass, dns_rdatatype_t type, void *source,
 		isc_buffer_t *target)
 {
+	dns_rdata_cert_t *cert = source;
 
 	REQUIRE(type == 37);
+	REQUIRE(source != NULL);
+	REQUIRE(cert->common.rdtype == type);
+	REQUIRE(cert->common.rdclass == rdclass);
 	
-	UNUSED(rdclass);
-	UNUSED(source);
-	UNUSED(target);
+	RETERR(uint16_tobuffer(cert->type, target));
+	RETERR(uint16_tobuffer(cert->key_tag, target));
+	RETERR(uint8_tobuffer(cert->algorithm, target));
 
-	return (DNS_R_NOTIMPLEMENTED);
+	return (mem_tobuffer(target, cert->certificate, cert->length));
 }
 
 static inline isc_result_t
 tostruct_cert(dns_rdata_t *rdata, void *target, isc_mem_t *mctx) {
+	dns_rdata_cert_t *cert = target;
+	isc_region_t region;
 
 	REQUIRE(rdata->type == 37);
-	REQUIRE(target != NULL && target == NULL);
-	
-	UNUSED(target);
-	UNUSED(mctx);
+	REQUIRE(target != NULL);
 
-	return (DNS_R_NOTIMPLEMENTED);
+	cert->common.rdclass = rdata->rdclass;
+	cert->common.rdtype = rdata->type;
+	ISC_LINK_INIT(&cert->common, link);
+
+	dns_rdata_toregion(rdata, &region);
+
+	cert->type = uint16_fromregion(&region);
+	isc_region_consume(&region, 2);
+	cert->key_tag = uint16_fromregion(&region);
+	isc_region_consume(&region, 2);
+	cert->algorithm = uint8_fromregion(&region);
+	isc_region_consume(&region, 1);
+	cert->length = region.length;
+
+	if (cert->length > 0) {
+		cert->certificate = mem_maybedup(mctx, region.base,
+						 region.length);
+		if (cert->certificate == NULL)
+			return (ISC_R_NOMEMORY);
+	} else
+		cert->certificate = NULL;
+
+	cert->mctx = mctx;
+	return (ISC_R_SUCCESS);
 }
 
 static inline void
 freestruct_cert(void *target) {
+	dns_rdata_cert_t *cert = target;
+
 	REQUIRE(target != NULL && target != NULL);
-	REQUIRE(ISC_FALSE);	/* XXX */
+	REQUIRE(cert->common.rdtype == 37);
+
+	if (cert->mctx == NULL)
+		return;
+
+	if (cert->certificate != NULL)
+		isc_mem_free(cert->mctx, cert->certificate);
+	cert->mctx = NULL;
 }
 
 static inline isc_result_t
@@ -182,10 +235,11 @@ additionaldata_cert(dns_rdata_t *rdata, dns_additionaldatafunc_t add,
 {
 	REQUIRE(rdata->type == 37);
 
+	UNUSED(rdata);
 	UNUSED(add);
 	UNUSED(arg);
 
-	return (DNS_R_SUCCESS);
+	return (ISC_R_SUCCESS);
 }
 
 static inline isc_result_t

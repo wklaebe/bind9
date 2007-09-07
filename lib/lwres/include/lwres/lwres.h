@@ -78,17 +78,9 @@
  *	response_free().
  */
 
-/*
- * Helper macro to calculate a string's length.  Strings are encoded
- * using a 16-bit length, the string itself, and a trailing NUL.  The
- * length does not include this NUL character -- it is there merely to
- * help reduce copying on the receive side, since most strings are
- * printable character strings, and C needs the trailing NUL.
- */
-
 #define LWRES_UDP_PORT		921	/* XXXMLG */
-#define LWRES_RECVLENGTH	2048	/* XXXMLG */
-#define LWRES_ADDR_MAXLEN	16	/* XXXMLG changing this breaks ABI */
+#define LWRES_RECVLENGTH	4096	/* XXXMLG */
+#define LWRES_ADDR_MAXLEN	16	/* changing this breaks ABI */
 
 /*
  * XXXMLG
@@ -98,7 +90,30 @@
 #endif
 
 /*
- * NO-OP
+ * Flags.
+ *
+ * TRUST* define a two-bit value:
+ *
+ *	TRUSTDEFAULT:  Let the server decide what to do.
+ *
+ *	TRUSTNOTREQUIRED:  DNSSEC (or NIS equavalent) is not required.
+ *
+ *	TRUSTREQUIRED:  DNSSEC (if present) must validate, and the
+ *		daemon the client is talking to must be DNSSEC aware.
+ *
+ *	TRUSTRESERVED:  No not used, reserved for future.
+ *
+ * XXXMLG -- currently not implemented!
+ *
+ */
+#define LWRES_FLAG_TRUSTDEFAULT		0x00000000U
+#define LWRES_FLAG_TRUSTNOTREQUIRED	0x00000001U
+#define LWRES_FLAG_TRUSTREQUIRED	0x00000010U
+#define LWRES_FLAG_TRUSTRESERVED	0x00000011U
+#define LWRES_FLAG_TRUSTMASK		0x00000011U  /* mask for the above */
+
+/*
+ * no-op
  */
 #define LWRES_OPCODE_NOOP		0x00000000U
 
@@ -115,7 +130,7 @@ typedef struct {
 } lwres_noopresponse_t;
 
 /*
- * GET ADDRESSES BY NAME
+ * get addresses by name
  */
 #define LWRES_OPCODE_GETADDRSBYNAME	0x00010001U
 
@@ -131,6 +146,7 @@ struct lwres_addr {
 
 typedef struct {
 	/* public */
+	lwres_uint32_t			flags;
 	lwres_uint32_t			addrtypes;
 	lwres_uint16_t			namelen;
 	char			       *name;
@@ -138,6 +154,7 @@ typedef struct {
 
 typedef struct {
 	/* public */
+	lwres_uint32_t			flags;
 	lwres_uint16_t			naliases;
 	lwres_uint16_t			naddrs;
 	char			       *realname;
@@ -151,16 +168,18 @@ typedef struct {
 } lwres_gabnresponse_t;
 
 /*
- * GET NAME BY ADDRESS
+ * get name by address
  */
 #define LWRES_OPCODE_GETNAMEBYADDR	0x00010002U
 typedef struct {
 	/* public */
+	lwres_uint32_t			flags;
 	lwres_addr_t			addr;
 } lwres_gnbarequest_t;
 
 typedef struct {
 	/* public */
+	lwres_uint32_t			flags;
 	lwres_uint16_t			naliases;
 	char			       *realname;
 	char			      **aliases;
@@ -171,9 +190,8 @@ typedef struct {
 	size_t				baselen;
 } lwres_gnbaresponse_t;
 
-
 /*
- * resolv.conf DATA
+ * resolv.conf data
  */
 
 #define LWRES_CONFMAXNAMESERVERS 3	/* max 3 "nameserver" entries */
@@ -205,8 +223,8 @@ typedef struct {
 #define LWRES_ADDRTYPE_V4		0x00000001U	/* ipv4 */
 #define LWRES_ADDRTYPE_V6		0x00000002U	/* ipv6 */
 
-#define LWRES_MAX_ALIASES		8		/* max # of aliases */
-#define LWRES_MAX_ADDRS			32		/* max # of addrs */
+#define LWRES_MAX_ALIASES		16		/* max # of aliases */
+#define LWRES_MAX_ADDRS			64		/* max # of addrs */
 
 LWRES_LANG_BEGINDECLS
 
@@ -430,8 +448,7 @@ void
 lwres_conf_clear(lwres_context_t *ctx);
 /*
  * frees all internally allocated memory in confdata. Uses the memory 
- * routines supplies by ctx (so that should probably be the same value as
- * given to lwres_conf_parse()).
+ * routines supplied by ctx.
  */
 
 lwres_conf_t *

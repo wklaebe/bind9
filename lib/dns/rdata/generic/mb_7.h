@@ -15,5 +15,15 @@
  * SOFTWARE.
  */
 
-/* $Id: mb_7.h,v 1.15 2000/03/20 22:57:12 gson Exp $ */
+#ifndef GENERIC_MB_7_H
+#define GENERIC_MB_7_H 1
 
+/* $Id: mb_7.h,v 1.18 2000/05/08 14:36:47 tale Exp $ */
+
+typedef struct dns_rdata_mb {
+	dns_rdatacommon_t	common;
+	isc_mem_t		*mctx;
+	dns_name_t		mb;
+} dns_rdata_mb_t;
+
+#endif /* GENERIC_MB_7_H */

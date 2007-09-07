@@ -15,10 +15,12 @@
  * SOFTWARE.
  */
 
-/* $Id: proforma.c,v 1.19 2000/03/20 22:48:58 gson Exp $ */
+/* $Id: proforma.c,v 1.23 2000/05/22 12:37:52 marka Exp $ */
 
 #ifndef RDATA_GENERIC_#_#_C
 #define RDATA_GENERIC_#_#_C
+
+#define RRTYPE_#_ATTRIBUTES (0)
 
 static inline isc_result_t
 fromtext_#(dns_rdataclass_t rdclass, dns_rdatatype_t type,
@@ -31,7 +33,7 @@ fromtext_#(dns_rdataclass_t rdclass, dns_rdatatype_t type,
 
 	RETERR(gettoken(lexer, &token, isc_tokentype_string, ISC_FALSE));
 
-	return (DNS_R_NOTIMPLEMENTED);
+	return (ISC_R_NOTIMPLEMENTED);
 }
 
 static inline isc_result_t
@@ -42,7 +44,7 @@ totext_#(dns_rdata_t *rdata, dns_rdata_textctx_t *tctx,
 	REQUIRE(rdata->type == #);
 	REQUIRE(rdata->rdclass == #);
 
-	return (DNS_R_NOTIMPLEMENTED);
+	return (ISC_R_NOTIMPLEMENTED);
 }
 
 static inline isc_result_t
@@ -53,13 +55,10 @@ fromwire_#(dns_rdataclass_t rdclass, dns_rdatatype_t type,
 	REQUIRE(type == #);
 	REQUIRE(rdclass == #);
 
-	if (dns_decompress_edns(dctx) >= 1 || !dns_decompress_strict(dctx))
-		dns_decompress_setmethods(dctx, DNS_COMPRESS_ALL);
-	else
-		/* NONE or GLOBAL14 */
-		dns_decompress_setmethods(dctx, DNS_COMPRESS_NONE);
+	/* NONE or GLOBAL14 */
+	dns_decompress_setmethods(dctx, DNS_COMPRESS_NONE);
 
-	return (DNS_R_NOTIMPLEMENTED);
+	return (ISC_R_NOTIMPLEMENTED);
 }
 
 static inline isc_result_t
@@ -68,13 +67,10 @@ towire_#(dns_rdata_t *rdata, dns_compress_t *cctx, isc_buffer_t *target) {
 	REQUIRE(rdata->type == #);
 	REQUIRE(rdata->rdclass == #);
 
-	if (dns_compress_getedns(cctx) >= 1)
-		dns_compress_setmethods(cctx, DNS_COMPRESS_ALL):
-	else
-		/* NONE or GLOBAL14 */
-		dns_compress_setmethods(cctx, DNS_COMPRESS_NONE);
+	/* NONE or GLOBAL14 */
+	dns_compress_setmethods(cctx, DNS_COMPRESS_NONE);
 
-	return (DNS_R_NOTIMPLEMENTED);
+	return (ISC_R_NOTIMPLEMENTED);
 }
 
 static inline int
@@ -94,12 +90,17 @@ compare_#(dns_rdata_t *rdata1, dns_rdata_t *rdata2) {
 
 static inline isc_result_t
 fromstruct_#(dns_rdataclass_t rdclass, dns_rdatatype_t type, void *source,
-	     isc_buffer_t *target) {
+	     isc_buffer_t *target)
+{
+	dns_rdata_#_t *# = source;
 
 	REQUIRE(type == #);
 	REQUIRE(rdclass == #);
+	REQUIRE(source != NULL);
+	REQUIRE(#->common.rdtype == type);
+	REQUIRE(#->common.rdclass == rdclass);
 
-	return (DNS_R_NOTIMPLEMENTED);
+	return (ISC_R_NOTIMPLEMENTED);
 }
 
 static inline isc_result_t
@@ -108,7 +109,7 @@ tostruct_#(dns_rdata_t *rdata, void *target, isc_mem_t *mctx) {
 	REQUIRE(rdata->type == #);
 	REQUIRE(rdata->rdclass == #);
 
-	return (DNS_R_NOTIMPLEMENTED);
+	return (ISC_R_NOTIMPLEMENTED);
 }
 
 static inline void
@@ -131,7 +132,7 @@ additionaldata_#(dns_rdata_t *rdata, dns_additionaldatafunc_t add,
 	(void)add;
 	(void)arg;
 
-	return (DNS_R_SUCCESS);
+	return (ISC_R_SUCCESS);
 }
 
 static inline isc_result_t

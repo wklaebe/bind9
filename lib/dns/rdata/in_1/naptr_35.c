@@ -15,7 +15,7 @@
  * SOFTWARE.
  */
 
-/* $Id: naptr_35.c,v 1.18 2000/03/20 22:44:36 gson Exp $ */
+/* $Id: naptr_35.c,v 1.29 2000/05/22 12:38:08 marka Exp $ */
 
 /* Reviewed: Thu Mar 16 16:52:50 PST 2000 by bwelling */
 
@@ -23,6 +23,8 @@
 
 #ifndef RDATA_IN_1_NAPTR_35_C
 #define RDATA_IN_1_NAPTR_35_C
+
+#define RRTYPE_NAPTR_ATTRIBUTES (0)
 
 static inline isc_result_t
 fromtext_in_naptr(dns_rdataclass_t rdclass, dns_rdatatype_t type,
@@ -36,31 +38,46 @@ fromtext_in_naptr(dns_rdataclass_t rdclass, dns_rdatatype_t type,
 	REQUIRE(type == 35);
 	REQUIRE(rdclass == 1);
 
-	/* order */
+	/*
+	 * Order.
+	 */
 	RETERR(gettoken(lexer, &token, isc_tokentype_number, ISC_FALSE));
+	if (token.value.as_ulong > 0xffff)
+		return (ISC_R_RANGE);
 	RETERR(uint16_tobuffer(token.value.as_ulong, target));
 
-	/* preference */
+	/*
+	 * Preference.
+	 */
 	RETERR(gettoken(lexer, &token, isc_tokentype_number, ISC_FALSE));
+	if (token.value.as_ulong > 0xffff)
+		return (ISC_R_RANGE);
 	RETERR(uint16_tobuffer(token.value.as_ulong, target));
 
-	/* flags */
+	/*
+	 * Flags.
+	 */
 	RETERR(gettoken(lexer, &token, isc_tokentype_qstring, ISC_FALSE));
 	RETERR(txt_fromtext(&token.value.as_textregion, target));
 
-	/* service */
+	/*
+	 * Service.
+	 */
 	RETERR(gettoken(lexer, &token, isc_tokentype_qstring, ISC_FALSE));
 	RETERR(txt_fromtext(&token.value.as_textregion, target));
 
-	/* regexp */
+	/*
+	 * Regexp.
+	 */
 	RETERR(gettoken(lexer, &token, isc_tokentype_qstring, ISC_FALSE));
 	RETERR(txt_fromtext(&token.value.as_textregion, target));
 
-	/* replacement */
+	/*
+	 * Replacement.
+	 */
 	RETERR(gettoken(lexer, &token, isc_tokentype_string, ISC_FALSE));
 	dns_name_init(&name, NULL);
-	buffer_fromregion(&buffer, &token.value.as_region,
-			  ISC_BUFFERTYPE_TEXT);
+	buffer_fromregion(&buffer, &token.value.as_region);
 	origin = (origin != NULL) ? origin : dns_rootname;
 	return (dns_name_fromtext(&name, &buffer, origin, downcase, target));
 }
@@ -84,33 +101,45 @@ totext_in_naptr(dns_rdata_t *rdata, dns_rdata_textctx_t *tctx,
 
 	dns_rdata_toregion(rdata, &region);
 
-	/* order */
+	/*
+	 * Order.
+	 */
 	num = uint16_fromregion(&region);
 	isc_region_consume(&region, 2);
 	sprintf(buf, "%u", num);
 	RETERR(str_totext(buf, target));
 	RETERR(str_totext(" ", target));
 
-	/* preference */
+	/*
+	 * Preference.
+	 */
 	num = uint16_fromregion(&region);
 	isc_region_consume(&region, 2);
 	sprintf(buf, "%u", num);
 	RETERR(str_totext(buf, target));
 	RETERR(str_totext(" ", target));
 
-	/* flags */
+	/*
+	 * Flags.
+	 */
 	RETERR(txt_totext(&region, target));
 	RETERR(str_totext(" ", target));
 
-	/* service */
+	/*
+	 * Service.
+	 */
 	RETERR(txt_totext(&region, target));
 	RETERR(str_totext(" ", target));
 
-	/* regexp */
+	/*
+	 * Regexp.
+	 */
 	RETERR(txt_totext(&region, target));
 	RETERR(str_totext(" ", target));
 
-	/* replacement */
+	/*
+	 * Replacement.
+	 */
 	dns_name_fromregion(&name, &region);
 	sub = name_prefix(&name, tctx->origin, &prefix);
 	return (dns_name_totext(&prefix, sub, target));
@@ -127,30 +156,37 @@ fromwire_in_naptr(dns_rdataclass_t rdclass, dns_rdatatype_t type,
 	REQUIRE(type == 35);
 	REQUIRE(rdclass == 1);
 
-	if (dns_decompress_edns(dctx) >= 1 || !dns_decompress_strict(dctx))
-		dns_decompress_setmethods(dctx, DNS_COMPRESS_ALL);
-	else
-		dns_decompress_setmethods(dctx, DNS_COMPRESS_NONE);
+	dns_decompress_setmethods(dctx, DNS_COMPRESS_NONE);
         
         dns_name_init(&name, NULL);
 
-	/* order, preference */
-	isc_buffer_active(source, &sr);
+	/*
+	 * Order, preference.
+	 */
+	isc_buffer_activeregion(source, &sr);
 	if (sr.length < 4)
-		return (DNS_R_UNEXPECTEDEND);
+		return (ISC_R_UNEXPECTEDEND);
 	RETERR(mem_tobuffer(target, sr.base, 4));
 	isc_buffer_forward(source, 4);
 
-	/* flags */
+	/*
+	 * Flags.
+	 */
 	RETERR(txt_fromwire(source, target));
 
-	/* service */
+	/*
+	 * Service.
+	 */
 	RETERR(txt_fromwire(source, target));
 
-	/* regexp */
+	/*
+	 * Regexp.
+	 */
 	RETERR(txt_fromwire(source, target));
 
-	/* replacement */
+	/*
+	 * Replacement.
+	 */
 	return (dns_name_fromwire(&name, source, dctx, downcase, target));
 }
 
@@ -162,29 +198,35 @@ towire_in_naptr(dns_rdata_t *rdata, dns_compress_t *cctx, isc_buffer_t *target) 
 	REQUIRE(rdata->type == 35);
 	REQUIRE(rdata->rdclass == 1);
 
-	if (dns_compress_getedns(cctx) >= 1)
-		dns_compress_setmethods(cctx, DNS_COMPRESS_ALL);
-	else
-		dns_compress_setmethods(cctx, DNS_COMPRESS_NONE);
-
-	/* order, preference */
+	dns_compress_setmethods(cctx, DNS_COMPRESS_NONE);
+	/*
+	 * Order, preference.
+	 */
 	dns_rdata_toregion(rdata, &sr);
 	RETERR(mem_tobuffer(target, sr.base, 4));
 	isc_region_consume(&sr, 4);
 	
-	/* flags */
+	/*
+	 * Flags.
+	 */
 	RETERR(mem_tobuffer(target, sr.base, sr.base[0] + 1));
 	isc_region_consume(&sr, sr.base[0] + 1);
 
-	/* service */
+	/*
+	 * Service.
+	 */
 	RETERR(mem_tobuffer(target, sr.base, sr.base[0] + 1));
 	isc_region_consume(&sr, sr.base[0] + 1);
 
-	/* regexp */
+	/*
+	 * Regexp.
+	 */
 	RETERR(mem_tobuffer(target, sr.base, sr.base[0] + 1));
 	isc_region_consume(&sr, sr.base[0] + 1);
 
-	/* replacement */
+	/*
+	 * Replacement.
+	 */
 	dns_name_init(&name, NULL);
 	dns_name_fromregion(&name, &sr);
 	return (dns_name_towire(&name, cctx, target));
@@ -206,14 +248,18 @@ compare_in_naptr(dns_rdata_t *rdata1, dns_rdata_t *rdata2) {
 	dns_rdata_toregion(rdata1, &region1);
 	dns_rdata_toregion(rdata2, &region2);
 
-	/* order, preference */
+	/*
+	 * Order, preference.
+	 */
 	order = memcmp(region1.base, region2.base, 4);
 	if (order != 0)
 		return (order < 0 ? -1 : 1);
 	isc_region_consume(&region1, 4);
 	isc_region_consume(&region2, 4);
 
-	/* flags */
+	/*
+	 * Flags.
+	 */
 	len = ISC_MIN(region1.base[0], region2.base[0]);
 	order = memcmp(region1.base, region2.base, len + 1);
 	if (order != 0)
@@ -221,7 +267,9 @@ compare_in_naptr(dns_rdata_t *rdata1, dns_rdata_t *rdata2) {
 	isc_region_consume(&region1, region1.base[0] + 1);
 	isc_region_consume(&region2, region2.base[0] + 1);
 
-	/* service */
+	/*
+	 * Service.
+	 */
 	len = ISC_MIN(region1.base[0], region2.base[0]);
 	order = memcmp(region1.base, region2.base, len + 1);
 	if (order != 0)
@@ -229,7 +277,9 @@ compare_in_naptr(dns_rdata_t *rdata1, dns_rdata_t *rdata2) {
 	isc_region_consume(&region1, region1.base[0] + 1);
 	isc_region_consume(&region2, region2.base[0] + 1);
 
-	/* regexp */
+	/*
+	 * Regexp.
+	 */
 	len = ISC_MIN(region1.base[0], region2.base[0]);
 	order = memcmp(region1.base, region2.base, len + 1);
 	if (order != 0)
@@ -237,7 +287,9 @@ compare_in_naptr(dns_rdata_t *rdata1, dns_rdata_t *rdata2) {
 	isc_region_consume(&region1, region1.base[0] + 1);
 	isc_region_consume(&region2, region2.base[0] + 1);
 
-	/* replacement */
+	/*
+	 * Replacement.
+	 */
 	dns_name_init(&name1, NULL);
 	dns_name_init(&name2, NULL);
 
@@ -251,30 +303,129 @@ static inline isc_result_t
 fromstruct_in_naptr(dns_rdataclass_t rdclass, dns_rdatatype_t type,
 		    void *source, isc_buffer_t *target)
 {
-	UNUSED(source);
-	UNUSED(target);
+	dns_rdata_in_naptr_t *naptr = source;
+	isc_region_t region;
 
 	REQUIRE(type == 35);
 	REQUIRE(rdclass == 1);
+	REQUIRE(source != NULL);
+	REQUIRE(naptr->common.rdtype == type);
+	REQUIRE(naptr->common.rdclass == rdclass);
+	REQUIRE((naptr->flags == NULL && naptr->flags_len == 0) ||
+		(naptr->flags != NULL && naptr->flags_len != 0));
+	REQUIRE((naptr->service == NULL && naptr->service_len == 0) ||
+		(naptr->service != NULL && naptr->service_len != 0));
+	REQUIRE((naptr->regexp == NULL && naptr->regexp_len == 0) ||
+		(naptr->regexp != NULL && naptr->regexp_len != 0));
 
-	return (DNS_R_NOTIMPLEMENTED);
+	RETERR(uint16_tobuffer(naptr->order, target));
+	RETERR(uint16_tobuffer(naptr->preference, target));
+	RETERR(uint8_tobuffer(naptr->flags_len, target));
+	RETERR(mem_tobuffer(target, naptr->flags, naptr->flags_len));
+	RETERR(uint8_tobuffer(naptr->service_len, target));
+	RETERR(mem_tobuffer(target, naptr->service, naptr->service_len));
+	RETERR(uint8_tobuffer(naptr->regexp_len, target));
+	RETERR(mem_tobuffer(target, naptr->regexp, naptr->regexp_len));
+	dns_name_toregion(&naptr->replacement, &region);
+	return (isc_buffer_copyregion(target, &region));
 }
 
 static inline isc_result_t
 tostruct_in_naptr(dns_rdata_t *rdata, void *target, isc_mem_t *mctx) {
-	UNUSED(target);
-	UNUSED(mctx);
+	dns_rdata_in_naptr_t *naptr = target;
+	isc_region_t r;
+	isc_result_t result;
+	dns_name_t name;
 
 	REQUIRE(rdata->type == 35);
 	REQUIRE(rdata->rdclass == 1);
+	REQUIRE(target != NULL);
 
-	return (DNS_R_NOTIMPLEMENTED);
+	naptr->common.rdclass = rdata->rdclass;
+	naptr->common.rdtype = rdata->type;
+	ISC_LINK_INIT(&naptr->common, link);
+
+	naptr->flags = NULL;
+	naptr->service = NULL;
+	naptr->regexp = NULL;
+
+	dns_rdata_toregion(rdata, &r);
+
+	naptr->order = uint16_fromregion(&r);
+	isc_region_consume(&r, 2);
+
+	naptr->preference = uint16_fromregion(&r);
+	isc_region_consume(&r, 2);
+
+	naptr->flags_len = uint8_fromregion(&r);
+	isc_region_consume(&r, 1);
+	if (naptr->flags_len != 0) {
+		INSIST(naptr->flags_len <= r.length);
+		naptr->flags = mem_maybedup(mctx, r.base, naptr->flags_len);
+		if (naptr->flags == NULL)
+			goto cleanup;
+		isc_region_consume(&r, naptr->flags_len);
+	}
+
+	naptr->service_len = uint8_fromregion(&r);
+	isc_region_consume(&r, 1);
+	if (naptr->service_len != 0) {
+		INSIST(naptr->service_len <= r.length);
+		naptr->service = mem_maybedup(mctx, r.base,
+					       naptr->service_len);
+		if (naptr->service == NULL)
+			goto cleanup;
+		isc_region_consume(&r, naptr->service_len);
+	}
+
+	naptr->regexp_len = uint8_fromregion(&r);
+	isc_region_consume(&r, 1);
+	if (naptr->regexp_len != 0) {
+		INSIST(naptr->regexp_len <= r.length);
+		naptr->regexp = mem_maybedup(mctx, r.base, naptr->regexp_len);
+		if (naptr->regexp == NULL)
+			goto cleanup;
+		isc_region_consume(&r, naptr->regexp_len);
+	}
+
+	dns_name_init(&name, NULL);
+	dns_name_fromregion(&name, &r);
+	dns_name_init(&naptr->replacement, NULL);
+	result = name_duporclone(&name, mctx, &naptr->replacement);
+	if (result != ISC_R_SUCCESS)
+		goto cleanup;
+	naptr->mctx = mctx;
+	return (ISC_R_SUCCESS);
+
+ cleanup:
+	if (mctx != NULL && naptr->flags != NULL)
+		isc_mem_free(mctx, naptr->flags);
+	if (mctx != NULL && naptr->service != NULL)
+		isc_mem_free(mctx, naptr->service);
+	if (mctx != NULL && naptr->regexp != NULL)
+		isc_mem_free(mctx, naptr->regexp);
+	return (ISC_R_NOMEMORY);
 }
 
 static inline void
 freestruct_in_naptr(void *source) {
+	dns_rdata_in_naptr_t *naptr = source;
+	
 	REQUIRE(source != NULL);
-	REQUIRE(ISC_FALSE);
+	REQUIRE(naptr->common.rdclass == 1);
+	REQUIRE(naptr->common.rdtype == 35);
+
+	if (naptr->mctx == NULL)
+		return;
+
+	if (naptr->flags != NULL)
+		isc_mem_free(naptr->mctx, naptr->flags);
+	if (naptr->service != NULL)
+		isc_mem_free(naptr->mctx, naptr->service);
+	if (naptr->regexp != NULL)
+		isc_mem_free(naptr->mctx, naptr->regexp);
+	dns_name_free(&naptr->replacement, naptr->mctx);
+	naptr->mctx = NULL;
 }
 
 static inline isc_result_t
@@ -290,11 +441,15 @@ additionaldata_in_naptr(dns_rdata_t *rdata, dns_additionaldatafunc_t add,
 	REQUIRE(rdata->type == 35);
 	REQUIRE(rdata->rdclass == 1);
 
-	/* order, preference */
+	/*
+	 * Order, preference.
+	 */
 	dns_rdata_toregion(rdata, &sr);
 	isc_region_consume(&sr, 4);
 	
-	/* flags */
+	/*
+	 * Flags.
+	 */
 	atype = 0;
 	flagslen = sr.base[0];
 	cp = (char *)&sr.base[1];
@@ -310,20 +465,26 @@ additionaldata_in_naptr(dns_rdata_t *rdata, dns_additionaldatafunc_t add,
 	}
 	isc_region_consume(&sr, flagslen + 1);
 
-	/* service */
+	/*
+	 * Service.
+	 */
 	isc_region_consume(&sr, sr.base[0] + 1);
 
-	/* regexp */
+	/*
+	 * Regexp.
+	 */
 	isc_region_consume(&sr, sr.base[0] + 1);
 
-	/* replacement */
+	/*
+	 * Replacement.
+	 */
 	dns_name_init(&name, NULL);
 	dns_name_fromregion(&name, &sr);
 
 	if (atype != 0)
 		return ((add)(arg, &name, atype));
 
-	return (DNS_R_SUCCESS);
+	return (ISC_R_SUCCESS);
 }
 
 static inline isc_result_t
@@ -340,21 +501,29 @@ digest_in_naptr(dns_rdata_t *rdata, dns_digestfunc_t digest, void *arg) {
 	r2 = r1;
 	length = 0;
 
-	/* order, preference */
+	/*
+	 * Order, preference.
+	 */
 	length += 4;
 	isc_region_consume(&r2, 4);
 
-	/* flags */
+	/*
+	 * Flags.
+	 */
 	n = r2.base[0] + 1;
 	length += n;
 	isc_region_consume(&r2, n);
 
-	/* service */
+	/*
+	 * Service.
+	 */
 	n = r2.base[0] + 1;
 	length += n;
 	isc_region_consume(&r2, n);
 
-	/* regexp */
+	/*
+	 * Regexp.
+	 */
 	n = r2.base[0] + 1;
 	length += n;
 	isc_region_consume(&r2, n);
@@ -364,10 +533,12 @@ digest_in_naptr(dns_rdata_t *rdata, dns_digestfunc_t digest, void *arg) {
 	 */
 	r1.length = length;
 	result = (digest)(arg, &r1);
-	if (result != DNS_R_SUCCESS)
+	if (result != ISC_R_SUCCESS)
 		return (result);
 
-	/* replacement */
+	/*
+	 * Replacement.
+	 */
 
 	dns_name_init(&name, NULL);
 	dns_name_fromregion(&name, &r2);

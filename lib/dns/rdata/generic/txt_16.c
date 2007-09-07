@@ -15,12 +15,14 @@
  * SOFTWARE.
  */
 
-/* $Id: txt_16.c,v 1.20 2000/03/16 23:40:50 bwelling Exp $ */
+/* $Id: txt_16.c,v 1.26 2000/05/22 12:38:00 marka Exp $ */
 
 /* Reviewed: Thu Mar 16 15:40:00 PST 2000 by bwelling */
 
 #ifndef RDATA_GENERIC_TXT_16_C
 #define RDATA_GENERIC_TXT_16_C
+
+#define RRTYPE_TXT_ATTRIBUTES (0)
 
 static inline isc_result_t
 fromtext_txt(dns_rdataclass_t rdclass, dns_rdatatype_t type,
@@ -45,7 +47,7 @@ fromtext_txt(dns_rdataclass_t rdclass, dns_rdatatype_t type,
 	}
 	/* Let upper layer handle eol/eof. */
 	isc_lex_ungettoken(lexer, &token);
-	return (DNS_R_SUCCESS);
+	return (ISC_R_SUCCESS);
 }
 
 static inline isc_result_t
@@ -66,7 +68,7 @@ totext_txt(dns_rdata_t *rdata, dns_rdata_textctx_t *tctx,
 			RETERR(str_totext(" ", target));
 	}
 
-	return (DNS_R_SUCCESS);
+	return (ISC_R_SUCCESS);
 }
 
 static inline isc_result_t
@@ -84,10 +86,10 @@ fromwire_txt(dns_rdataclass_t rdclass, dns_rdatatype_t type,
 
 	while (!buffer_empty(source)) {
 		result = txt_fromwire(source, target);
-		if (result != DNS_R_SUCCESS)
+		if (result != ISC_R_SUCCESS)
 			return (result);
 	}
-	return (DNS_R_SUCCESS);
+	return (ISC_R_SUCCESS);
 }
 
 static inline isc_result_t
@@ -98,13 +100,13 @@ towire_txt(dns_rdata_t *rdata, dns_compress_t *cctx, isc_buffer_t *target) {
 
 	UNUSED(cctx);
 
-	isc_buffer_available(target, &region);
+	isc_buffer_availableregion(target, &region);
 	if (region.length < rdata->length)
-		return (DNS_R_NOSPACE);
+		return (ISC_R_NOSPACE);
 
 	memcpy(region.base, rdata->data, rdata->length);
 	isc_buffer_add(target, rdata->length);
-	return (DNS_R_SUCCESS);
+	return (ISC_R_SUCCESS);
 }
 
 static inline int
@@ -125,41 +127,82 @@ static inline isc_result_t
 fromstruct_txt(dns_rdataclass_t rdclass, dns_rdatatype_t type, void *source,
 	       isc_buffer_t *target)
 {
-	UNUSED(rdclass);
-	UNUSED(source);
-	UNUSED(target);
+	dns_rdata_txt_t *txt = source;
+	isc_region_t region;
+	isc_uint8_t length;
 
 	REQUIRE(type == 16);
+	REQUIRE(source != NULL);
+	REQUIRE(txt->common.rdtype == type);
+	REQUIRE(txt->common.rdclass == rdclass);
+	REQUIRE((txt->txt == NULL && txt->txt_len == 0) ||
+		(txt->txt != NULL && txt->txt_len != 0));
 
-	return (DNS_R_NOTIMPLEMENTED);
+	region.base = txt->txt;
+	region.length = txt->txt_len;
+	while (region.length > 0) {
+		length = uint8_fromregion(&region);
+		isc_region_consume(&region, 1);
+		if (region.length <= length)
+			return (ISC_R_UNEXPECTEDEND);
+		isc_region_consume(&region, length);
+	}
+
+	return (mem_tobuffer(target, txt->txt, txt->txt_len));
 }
 
 static inline isc_result_t
 tostruct_txt(dns_rdata_t *rdata, void *target, isc_mem_t *mctx) {
-	UNUSED(target);
-	UNUSED(mctx);
+	dns_rdata_txt_t *txt = target;
+	isc_region_t r;
 
 	REQUIRE(rdata->type == 16);
+	REQUIRE(target != NULL);
 
-	return (DNS_R_NOTIMPLEMENTED);
+	txt->common.rdclass = rdata->rdclass;
+	txt->common.rdtype = rdata->type;
+	ISC_LINK_INIT(&txt->common, link);
+
+	dns_rdata_toregion(rdata, &r);
+	txt->txt_len = r.length;
+	if (txt->txt_len != 0) {
+		txt->txt = mem_maybedup(mctx, r.base, r.length);
+		if (txt->txt == NULL)
+			return (ISC_R_NOMEMORY);
+	} else
+		txt->txt = NULL;
+
+	txt->offset = 0;
+	txt->mctx = mctx;
+	return (ISC_R_SUCCESS);
 }
 
 static inline void
 freestruct_txt(void *source) {
+	dns_rdata_txt_t *txt = source;
+
 	REQUIRE(source != NULL);
-	REQUIRE(ISC_FALSE);
+	REQUIRE(txt->common.rdtype == 16);
+
+	if (txt->mctx == NULL)
+		return;
+
+	if (txt->txt != NULL)
+		isc_mem_free(txt->mctx, txt->txt);
+	txt->mctx = NULL;
 }
 
 static inline isc_result_t
 additionaldata_txt(dns_rdata_t *rdata, dns_additionaldatafunc_t add,
 		   void *arg)
 {
-	UNUSED(add);
-	UNUSED(arg);
-
 	REQUIRE(rdata->type == 16);
 
-	return (DNS_R_SUCCESS);
+	UNUSED(rdata);
+	UNUSED(add);
+	UNUSED(arg);
+	
+	return (ISC_R_SUCCESS);
 }
 
 static inline isc_result_t

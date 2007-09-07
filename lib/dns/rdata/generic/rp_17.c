@@ -15,12 +15,14 @@
  * SOFTWARE.
  */
 
-/* $Id: rp_17.c,v 1.17 2000/03/20 22:48:59 gson Exp $ */
+/* $Id: rp_17.c,v 1.24 2000/05/22 12:37:54 marka Exp $ */
 
 /* RFC 1183 */
 
 #ifndef RDATA_GENERIC_RP_17_C
 #define RDATA_GENERIC_RP_17_C
+
+#define RRTYPE_RP_ATTRIBUTES (0)
 
 static inline isc_result_t
 fromtext_rp(dns_rdataclass_t rdclass, dns_rdatatype_t type,
@@ -42,12 +44,11 @@ fromtext_rp(dns_rdataclass_t rdclass, dns_rdatatype_t type,
 		RETERR(gettoken(lexer, &token, isc_tokentype_string,
 				ISC_FALSE));
 		dns_name_init(&name, NULL);
-		buffer_fromregion(&buffer, &token.value.as_region,
-				  ISC_BUFFERTYPE_TEXT);
+		buffer_fromregion(&buffer, &token.value.as_region);
 		RETERR(dns_name_fromtext(&name, &buffer, origin,
 					 downcase, target));
 	}
-	return (DNS_R_SUCCESS);
+	return (ISC_R_SUCCESS);
 }
 
 static inline isc_result_t
@@ -95,10 +96,7 @@ fromwire_rp(dns_rdataclass_t rdclass, dns_rdatatype_t type,
         
 	REQUIRE(type == 17);
 
-	if (dns_decompress_edns(dctx) >= 1 || !dns_decompress_strict(dctx))
-		dns_decompress_setmethods(dctx, DNS_COMPRESS_ALL);
-	else
-		dns_decompress_setmethods(dctx, DNS_COMPRESS_NONE);
+	dns_decompress_setmethods(dctx, DNS_COMPRESS_NONE);
 
         dns_name_init(&rmail, NULL);
         dns_name_init(&email, NULL);
@@ -116,11 +114,7 @@ towire_rp(dns_rdata_t *rdata, dns_compress_t *cctx, isc_buffer_t *target)
 
 	REQUIRE(rdata->type == 17);
 
-	if (dns_compress_getedns(cctx) >= 1)
-		dns_compress_setmethods(cctx, DNS_COMPRESS_ALL);
-	else
-		dns_compress_setmethods(cctx, DNS_COMPRESS_NONE);
-
+	dns_compress_setmethods(cctx, DNS_COMPRESS_NONE);
 	dns_name_init(&rmail, NULL);
 	dns_name_init(&email, NULL);
 
@@ -179,43 +173,83 @@ static inline isc_result_t
 fromstruct_rp(dns_rdataclass_t rdclass, dns_rdatatype_t type, void *source,
 	      isc_buffer_t *target)
 {
-	UNUSED(rdclass);
-	UNUSED(source);
-	UNUSED(target);
+	dns_rdata_rp_t *rp = source;
+	isc_region_t region;
 
 	REQUIRE(type == 17);
+	REQUIRE(source != NULL);
+	REQUIRE(rp->common.rdtype == type);
+	REQUIRE(rp->common.rdclass == rdclass);
 
-	return (DNS_R_NOTIMPLEMENTED);
+	dns_name_toregion(&rp->mail, &region);
+	RETERR(isc_buffer_copyregion(target, &region));
+	dns_name_toregion(&rp->text, &region);
+	return (isc_buffer_copyregion(target, &region));
 }
 
 static inline isc_result_t
 tostruct_rp(dns_rdata_t *rdata, void *target, isc_mem_t *mctx)
 {
-	UNUSED(target);
-	UNUSED(mctx);
+	isc_result_t result;
+	isc_region_t region;
+	dns_rdata_rp_t *rp = target;
+	dns_name_t name;
 
 	REQUIRE(rdata->type == 17);
+	REQUIRE(target != NULL);
 
-	return (DNS_R_NOTIMPLEMENTED);
+	rp->common.rdclass = rdata->rdclass;
+	rp->common.rdtype = rdata->type;
+	ISC_LINK_INIT(&rp->common, link);
+
+	dns_name_init(&name, NULL);
+	dns_rdata_toregion(rdata, &region);
+	dns_name_fromregion(&name, &region);
+	dns_name_init(&rp->mail, NULL);
+	RETERR(name_duporclone(&name, mctx, &rp->mail));
+	isc_region_consume(&region, name_length(&name));
+	dns_name_fromregion(&name, &region);
+	dns_name_init(&rp->text, NULL);
+	result = name_duporclone(&name, mctx, &rp->text);
+	if (result != ISC_R_SUCCESS)
+		goto cleanup;
+
+	rp->mctx = mctx;
+	return (ISC_R_SUCCESS);
+
+ cleanup:
+	if (mctx != NULL)
+		dns_name_free(&rp->mail, mctx);
+	return (ISC_R_NOMEMORY);
 }
 
 static inline void
 freestruct_rp(void *source)
 {
+	dns_rdata_rp_t *rp = source;
+
 	REQUIRE(source != NULL);
-	REQUIRE(ISC_FALSE);	/*XXX*/
+	REQUIRE(rp->common.rdtype == 17);
+
+	if (rp->mctx == NULL)
+		return;
+
+	dns_name_free(&rp->mail, rp->mctx);
+	dns_name_free(&rp->text, rp->mctx);
+	rp->mctx = NULL;
 }
 
 static inline isc_result_t
 additionaldata_rp(dns_rdata_t *rdata, dns_additionaldatafunc_t add,
 		  void *arg)
 {
+	REQUIRE(rdata->type == 17);
+
+	UNUSED(rdata);
 	UNUSED(add);
 	UNUSED(arg);
 
-	REQUIRE(rdata->type == 17);
-
-	return (DNS_R_SUCCESS);
+	return (ISC_R_SUCCESS);
 }
 
 static inline isc_result_t

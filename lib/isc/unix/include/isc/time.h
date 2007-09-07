@@ -18,13 +18,8 @@
 #ifndef ISC_TIME_H
 #define ISC_TIME_H 1
 
-#include <time.h>
-
 #include <isc/lang.h>
-#include <isc/result.h>
-#include <isc/boolean.h>
-
-ISC_LANG_BEGINDECLS
+#include <isc/types.h>
 
 /***
  *** Intervals
@@ -36,12 +31,14 @@ ISC_LANG_BEGINDECLS
  *
  * The contents are exposed only to allow callers to avoid dynamic allocation.
  */
-typedef struct isc_interval {
+struct isc_interval {
 	unsigned int seconds;
 	unsigned int nanoseconds;
-} isc_interval_t;
+};
 
 extern isc_interval_t *isc_interval_zero;
+
+ISC_LANG_BEGINDECLS
 
 void
 isc_interval_set(isc_interval_t *i,
@@ -53,9 +50,8 @@ isc_interval_set(isc_interval_t *i,
  *
  * Requires:
  *
- *	't' is a valid.
- *
- *	nanoseconds < 1000000000
+ *	't' is a valid pointer.
+ *	nanoseconds < 1000000000.
  */
 
 isc_boolean_t
@@ -65,8 +61,7 @@ isc_interval_iszero(isc_interval_t *i);
  *
  * Requires:
  *
- *	't' is a valid.
- *
+ *	'i' is a valid pointer.
  */
 
 /***
@@ -80,12 +75,29 @@ isc_interval_iszero(isc_interval_t *i);
  * The contents are exposed only to allow callers to avoid dynamic allocation.
  */
 
-typedef struct isc_time {
-	time_t		seconds;
+struct isc_time {
+	unsigned int	seconds;
 	unsigned int	nanoseconds;
-} isc_time_t;
+};
 
 extern isc_time_t *isc_time_epoch;
+
+void
+isc_time_set(isc_time_t *t, unsigned int seconds, unsigned int nanoseconds);
+/*
+ * Set 't' to a particular number of seconds + nanoseconds since the epoch.
+ *
+ * Notes:
+ *	This call is equivalent to:
+ *
+ *	isc_time_settoepoch(t);
+ *	isc_interval_set(i, seconds, nanoseconds);
+ *	isc_time_add(t, i, t);
+ *
+ * Requires:
+ *	't' is a valid pointer.
+ *	nanoseconds < 1000000000.
+ */
 
 void
 isc_time_settoepoch(isc_time_t *t);
@@ -97,8 +109,7 @@ isc_time_settoepoch(isc_time_t *t);
  *
  * Requires:
  *
- *	't' is a valid.
- *
+ *	't' is a valid pointer.
  */
 
 isc_boolean_t
@@ -108,8 +119,7 @@ isc_time_isepoch(isc_time_t *t);
  *
  * Requires:
  *
- *	't' is a valid.
- *
+ *	't' is a valid pointer.
  */
 
 isc_result_t
@@ -125,6 +135,10 @@ isc_time_now(isc_time_t *t);
  *
  *	Success
  *	Unexpected error
+ *		Getting the time from the system failed.
+ *	Out of range
+ *		The time from the system is too large to be represented
+ *		in the current definition of isc_time_t.
  */
 
 isc_result_t
@@ -133,7 +147,6 @@ isc_time_nowplusinterval(isc_time_t *t, isc_interval_t *i);
  * Set *t to the current absolute time + i.
  *
  * Note:
- *
  *	This call is equivalent to:
  *
  *		isc_time_now(t);
@@ -141,12 +154,16 @@ isc_time_nowplusinterval(isc_time_t *t, isc_interval_t *i);
  *
  * Requires:
  *
- *	't' and 'i' are valid.
+ *	't' and 'i' are valid pointers.
  *
  * Returns:
  *
  *	Success
  *	Unexpected error
+ *		Getting the time from the system failed.
+ *	Out of range
+ *		The interval added to the time from the system is too large to
+ *		be represented in the current definition of isc_time_t.
  */
 
 int
@@ -156,7 +173,7 @@ isc_time_compare(isc_time_t *t1, isc_time_t *t2);
  *
  * Requires:
  *
- *	't1' and 't2' are a valid.
+ *	't1' and 't2' are valid pointers.
  *
  * Returns:
  *
@@ -165,26 +182,35 @@ isc_time_compare(isc_time_t *t1, isc_time_t *t2);
  *	1		t1 > t2
  */
 
-void
+isc_result_t
 isc_time_add(isc_time_t *t, isc_interval_t *i, isc_time_t *result);
 /*
  * Add 'i' to 't', storing the result in 'result'.
  *
  * Requires:
  *
- *	't', 'i', and 'result' are valid.
+ *	't', 'i', and 'result' are valid pointers.
+ *
+ * Returns:
+ * 	Success
+ *	Out of range
+ * 		The interval added to the time is too large to
+ *		be represented in the current definition of isc_time_t.
  */
 
-void
+isc_result_t
 isc_time_subtract(isc_time_t *t, isc_interval_t *i, isc_time_t *result);
 /*
  * Subtract 'i' from 't', storing the result in 'result'.
  *
  * Requires:
  *
- *	't', 'i', and 'result' are valid.
+ *	't', 'i', and 'result' are valid pointers.
  *
- *	t >= epoch + i			(comparing times, not pointers)
+ * Returns:
+ *	Success
+ *	Out of range
+ *		The interval is larger than the time since the epoch.
  */
 
 isc_uint64_t
@@ -194,7 +220,8 @@ isc_time_microdiff(isc_time_t *t1, isc_time_t *t2);
  * t2 is the subtrahend of t1; ie, difference = t1 - t2.
  *
  * Requires:
- *	No formal requirements are asserted.
+ *
+ *	't1' and 't2' are valid pointers.
  */
 
 isc_uint32_t
@@ -203,7 +230,31 @@ isc_time_seconds(isc_time_t *t);
  * Return the number of seconds since the epoch stored in a time structure.
  *
  * Requires:
- *	No formal requirements are asserted.
+ *
+ *	't' is a valid pointer.
+ */
+
+isc_result_t
+isc_time_secondsastimet(isc_time_t *t, time_t *secondsp);
+/*
+ * Ensure the number of seconds in an isc_time_t is representable by a time_t.
+ *
+ * Notes:
+ *	The number of seconds stored in an isc_time_t might be larger
+ *	than the number of seconds a time_t is able to handle.  Since
+ *	time_t is mostly opaque according to the ANSI/ISO standard
+ *	(essentially, all you can be sure of is that it is an arithmetic type,
+ *	not even necessarily integral), it can be tricky to ensure that
+ *	the isc_time_t is in the range a time_t can handle.  Use this
+ *	function in place of isc_time_seconds() any time you need to set a
+ *	time_t from an isc_time_t.
+ *
+ * Requires:
+ *	't' is a valid pointer.
+ *
+ * Returns:
+ *	Success
+ *	Out of range
  */
 
 isc_uint32_t
@@ -217,7 +268,7 @@ isc_time_nanoseconds(isc_time_t *t);
  *	full second.
  *
  * Requires:
- *	No formal requirements are asserted.
+ *	't' is a valid pointer.
  *
  * Ensures:
  *	The returned value is less than 1*10^9.

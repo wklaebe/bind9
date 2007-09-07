@@ -17,14 +17,11 @@
 
 #include <config.h>
 
-#include <stddef.h>
-#include <string.h>
+#include <isc/buffer.h>
+#include <isc/string.h>		/* Required for HP/UX (and others?) */
+#include <isc/util.h>
 
-#include <isc/assertions.h>
-#include <isc/error.h>
-#include <isc/types.h>
-
-#include <dns/types.h>
+#include <dns/callbacks.h>
 #include <dns/db.h>
 #include <dns/master.h>
 #include <dns/rootns.h>
@@ -84,7 +81,7 @@ dns_rootns_create(isc_mem_t *mctx, dns_rdataclass_t rdclass,
 	dns_rdatacallbacks_init(&callbacks);
 
 	len = strlen(root_ns);
-	isc_buffer_init(&source, root_ns, len, ISC_BUFFERTYPE_TEXT);
+	isc_buffer_init(&source, root_ns, len);
 	isc_buffer_add(&source, len);
 
 	result = dns_db_beginload(db, &callbacks.add,
@@ -110,7 +107,7 @@ dns_rootns_create(isc_mem_t *mctx, dns_rdataclass_t rdclass,
 					       &soacount, &nscount, &callbacks,
 					       db->mctx);
 	} else
-		result = DNS_R_NOTFOUND;
+		result = ISC_R_NOTFOUND;
 	eresult = dns_db_endload(db, &callbacks.add_private);
 	if (result == ISC_R_SUCCESS)
 		result = eresult;
@@ -118,7 +115,7 @@ dns_rootns_create(isc_mem_t *mctx, dns_rdataclass_t rdclass,
 		goto db_detach;
 
 	*target = db;
-	return (DNS_R_SUCCESS);
+	return (ISC_R_SUCCESS);
 
  db_detach:
 	dns_db_detach(&db);

@@ -30,11 +30,10 @@ typedef void * isc_threadresult_t;
 typedef void * isc_threadarg_t;
 typedef isc_threadresult_t (*isc_threadfunc_t)(isc_threadarg_t);
 
-/* XXX We could do fancier error handling... */
+isc_result_t
+isc_thread_create(isc_threadfunc_t, isc_threadarg_t, isc_thread_t *);
 
-#define isc_thread_create(s, a, tp) \
-	((pthread_create((tp), NULL, (s), (a)) == 0) ? \
-	 ISC_R_SUCCESS : ISC_R_UNEXPECTED)
+/* XXX We could do fancier error handling... */
 
 #define isc_thread_join(t, rp) \
 	((pthread_join((t), (rp)) == 0) ? \

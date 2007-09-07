@@ -27,9 +27,16 @@
  ***/
 
 /*
- * Define if this system has the <netinet6/in6.h> header file.
+ * Define if this system needs the <netinet/in6.h> header file included
+ * for full IPv6 support (pretty much only UnixWare).
  */
-@ISC_PLATFORM_HAVENETINET6IN6H@
+@ISC_PLATFORM_NEEDNETINETIN6H@
+
+/*
+ * Define if this system needs the <netinet6/in6.h> header file included
+ * to support in6_pkinfo (pretty much only BSD/OS).
+ */
+@ISC_PLATFORM_NEEDNETINET6IN6H@
 
 /*
  * If sockaddrs on this system have an sa_len field, ISC_PLATFORM_HAVESALEN
@@ -48,6 +55,12 @@
  * be defined.
  */
 @ISC_PLATFORM_NEEDIN6ADDRANY@
+
+/*
+ * If this system has in6_pktinfo, ISC_PLATFORM_HAVEIN6PKTINFO will be
+ * defined.
+ */
+@ISC_PLATFORM_HAVEIN6PKTINFO@
 
 /*
  * If this system needs inet_ntop(), ISC_PLATFORM_NEEDNTOP will be defined.

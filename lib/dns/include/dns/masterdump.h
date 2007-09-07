@@ -25,12 +25,8 @@
 #include <stdio.h>
 
 #include <isc/lang.h>
-#include <isc/mem.h>
 
 #include <dns/types.h>
-#include <dns/result.h>
-#include <dns/name.h>
-#include <dns/rdataset.h>
 
 /***
  *** Types
@@ -63,8 +59,8 @@ extern const dns_master_style_t dns_master_style_default;
 
 isc_result_t
 dns_master_dumptostream(isc_mem_t *mctx, dns_db_t *db,
-		dns_dbversion_t *version,
-		const dns_master_style_t *style, FILE *f);
+			dns_dbversion_t *version,
+			const dns_master_style_t *style, FILE *f);
 /*
  * Dump the database 'db' to the steam 'f' in RFC1035 master 
  * file format, in the style defined by 'style'
@@ -73,8 +69,8 @@ dns_master_dumptostream(isc_mem_t *mctx, dns_db_t *db,
  * Temporary dynamic memory may be allocated from 'mctx'.
  *
  * Returns:
- *	DNS_R_SUCCESS 
- *	DNS_R_NOMEMORY
+ *	ISC_R_SUCCESS 
+ *	ISC_R_NOMEMORY
  * 	Any database or rrset iterator error.
  *	Any dns_rdata_totext() error code.
  */
@@ -91,12 +87,12 @@ dns_master_dump(isc_mem_t *mctx, dns_db_t *db,
  * Temporary dynamic memory may be allocated from 'mctx'.
  *
  * Returns:
- *	DNS_R_SUCCESS 
- *	DNS_R_NOMEMORY
+ *	ISC_R_SUCCESS 
+ *	ISC_R_NOMEMORY
  * 	Any database or rrset iterator error.
  *	Any dns_rdata_totext() error code.
  */
 
 ISC_LANG_ENDDECLS
 
-#endif	/* DNS_MASTERDUMP_H */
+#endif /* DNS_MASTERDUMP_H */

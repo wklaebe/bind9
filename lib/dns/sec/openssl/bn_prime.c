@@ -109,6 +109,9 @@
  *
  */
 
+#include <config.h>
+#include "../rename.h"
+
 #include <stdio.h>
 #include <time.h>
 #include "cryptlib.h"

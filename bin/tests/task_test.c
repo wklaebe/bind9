@@ -17,25 +17,21 @@
 
 #include <config.h>
 
-#include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 
-#include <isc/assertions.h>
-#include <isc/error.h>
 #include <isc/mem.h>
 #include <isc/task.h>
-#include <isc/thread.h>
-#include <isc/result.h>
+#include <isc/time.h>
 #include <isc/timer.h>
+#include <isc/util.h>
 
 isc_mem_t *mctx = NULL;
 
 static void
-my_callback(isc_task_t *task, isc_event_t *event)
-{
+my_callback(isc_task_t *task, isc_event_t *event) {
 	int i, j;
-	char *name = event->arg;
+	char *name = event->ev_arg;
 
 	j = 0;
 	for (i = 0; i < 1000000; i++)
@@ -46,16 +42,15 @@ my_callback(isc_task_t *task, isc_event_t *event)
 
 static void
 my_shutdown(isc_task_t *task, isc_event_t *event) {
-	char *name = event->arg;
+	char *name = event->ev_arg;
 
 	printf("shutdown %s (%p)\n", name, task);
 	isc_event_free(&event);
 }
 
 static void
-my_tick(isc_task_t *task, isc_event_t *event)
-{
-	char *name = event->arg;
+my_tick(isc_task_t *task, isc_event_t *event) {
+	char *name = event->ev_arg;
 
 	printf("task %p tick %s\n", task, name);
 	isc_event_free(&event);
@@ -83,10 +78,10 @@ main(int argc, char *argv[]) {
 	RUNTIME_CHECK(isc_taskmgr_create(mctx, workers, 0, &manager) ==
 		      ISC_R_SUCCESS);
 
-	RUNTIME_CHECK(isc_task_create(manager, NULL, 0, &t1) == ISC_R_SUCCESS);
-	RUNTIME_CHECK(isc_task_create(manager, NULL, 0, &t2) == ISC_R_SUCCESS);
-	RUNTIME_CHECK(isc_task_create(manager, NULL, 0, &t3) == ISC_R_SUCCESS);
-	RUNTIME_CHECK(isc_task_create(manager, NULL, 0, &t4) == ISC_R_SUCCESS);
+	RUNTIME_CHECK(isc_task_create(manager, 0, &t1) == ISC_R_SUCCESS);
+	RUNTIME_CHECK(isc_task_create(manager, 0, &t2) == ISC_R_SUCCESS);
+	RUNTIME_CHECK(isc_task_create(manager, 0, &t3) == ISC_R_SUCCESS);
+	RUNTIME_CHECK(isc_task_create(manager, 0, &t4) == ISC_R_SUCCESS);
 
 	RUNTIME_CHECK(isc_task_onshutdown(t1, my_shutdown, "1") ==
 		      ISC_R_SUCCESS);

@@ -15,8 +15,8 @@
  * SOFTWARE.
  */
 
-#ifndef DNS_CONFIG_CONFCACHE_H
-#define DNS_CONFIG_CONFCACHE_H 1
+#ifndef DNS_CONFCACHE_H
+#define DNS_CONFCACHE_H 1
 
 /*****
  ***** Module Info
@@ -50,8 +50,7 @@
  *** Imports
  ***/
 
-#include <config.h>
-
+#include <isc/lang.h>
 #include <isc/types.h>
 
 
@@ -68,14 +67,14 @@ struct dns_c_cache
 	/* XXX need this fleshed out */
 };
 
-
-
-
 /***
  *** Functions
  ***/
 
-isc_result_t dns_c_cache_new(isc_mem_t *mem, dns_c_cache_t **cfgres);
+ISC_LANG_BEGINDECLS
+
+isc_result_t
+dns_c_cache_new(isc_mem_t *mem, dns_c_cache_t **cfgres);
 /*
  * Creates a new cache-config object.
  *
@@ -89,7 +88,8 @@ isc_result_t dns_c_cache_new(isc_mem_t *mem, dns_c_cache_t **cfgres);
  * 
  */
 
-isc_result_t dns_c_cache_delete(dns_c_cache_t **cfgres);
+isc_result_t
+dns_c_cache_delete(dns_c_cache_t **cfgres);
 /*
  * Deletes the config-cache object and its contents.
  *
@@ -102,5 +102,6 @@ isc_result_t dns_c_cache_delete(dns_c_cache_t **cfgres);
  * 
  */
 
+ISC_LANG_ENDDECLS
 
-#endif /* DNS_CONFIG_CONFCACHE_H */
+#endif /* DNS_CONFCACHE_H */

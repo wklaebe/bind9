@@ -45,10 +45,10 @@
  *** Imports.
  ***/
 
-#include <isc/lang.h>
 #include <isc/int.h>
+#include <isc/platform.h>
 
-ISC_LANG_BEGINDECLS
+#undef ISC_PLATFORM_HAVESALEN
 
 /***
  *** Types.
@@ -85,7 +85,5 @@ struct sockaddr_in6 {
 #ifdef ISC_PLATFORM_HAVESALEN
 #define SIN6_LEN 1
 #endif
-
-ISC_LANG_ENDDECLS
 
 #endif /* ISC_IPV6_H */

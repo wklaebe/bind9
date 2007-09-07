@@ -17,23 +17,18 @@
 
 #include <config.h>
 
-#include <sys/types.h>
-
-#include <isc/assertions.h>
-#include <isc/mem.h>
-#include <isc/result.h>
-#include <isc/sockaddr.h>
 #include <isc/socket.h>
+#include <isc/string.h>
 #include <isc/task.h>
 #include <isc/util.h>
 
-#include <lwres/lwres.h>
+#include <dns/view.h>
+#include <dns/log.h>
 
 #include "client.h"
 
 void
-DP(int level, char *format, ...)
-{
+DP(int level, char *format, ...) {
 	va_list args;
 
 	va_start(args, format);
@@ -44,8 +39,7 @@ DP(int level, char *format, ...)
 }
 
 void
-hexdump(char *msg, void *base, size_t len)
-{
+hexdump(char *msg, void *base, size_t len) {
 	unsigned char *p;
 	unsigned int cnt;
 	char buffer[180];
@@ -85,8 +79,7 @@ hexdump(char *msg, void *base, size_t len)
 }
 
 static void
-clientmgr_can_die(clientmgr_t *cm)
-{
+clientmgr_can_die(clientmgr_t *cm) {
 	if ((cm->flags & CLIENTMGR_FLAG_SHUTTINGDOWN) == 0)
 		return;
 
@@ -99,8 +92,7 @@ clientmgr_can_die(clientmgr_t *cm)
 }
 
 static void
-process_request(client_t *client)
-{
+process_request(client_t *client) {
 	lwres_buffer_t b;
 	isc_result_t result;
 
@@ -139,9 +131,8 @@ process_request(client_t *client)
 }
 
 void
-client_recv(isc_task_t *task, isc_event_t *ev)
-{
-	client_t *client = ev->arg;
+client_recv(isc_task_t *task, isc_event_t *ev) {
+	client_t *client = ev->ev_arg;
 	clientmgr_t *cm = client->clientmgr;
 	isc_socketevent_t *dev = (isc_socketevent_t *)ev;
 
@@ -186,8 +177,7 @@ client_recv(isc_task_t *task, isc_event_t *ev)
  * This function will start a new recv() on a socket for this client manager.
  */
 isc_result_t
-client_start_recv(clientmgr_t *cm)
-{
+client_start_recv(clientmgr_t *cm) {
 	client_t *client;
 	isc_result_t result;
 	isc_region_t r;
@@ -236,12 +226,11 @@ client_start_recv(clientmgr_t *cm)
 }
 
 void
-client_shutdown(isc_task_t *task, isc_event_t *ev)
-{
-	clientmgr_t *cm = ev->arg;
+client_shutdown(isc_task_t *task, isc_event_t *ev) {
+	clientmgr_t *cm = ev->ev_arg;
 
 	REQUIRE(task == cm->task);
-	REQUIRE(ev->type == LWRD_SHUTDOWN);
+	REQUIRE(ev->ev_type == LWRD_SHUTDOWN);
 	REQUIRE((cm->flags & CLIENTMGR_FLAG_SHUTTINGDOWN) == 0);
 
 	DP(50, "Got shutdown event, task %p", task);
@@ -266,8 +255,7 @@ client_shutdown(isc_task_t *task, isc_event_t *ev)
  * queue.
  */
 void
-client_state_idle(client_t *client)
-{
+client_state_idle(client_t *client) {
 	clientmgr_t *cm;
 
 	cm = client->clientmgr;
@@ -289,14 +277,14 @@ client_state_idle(client_t *client)
 }
 
 void
-client_send(isc_task_t *task, isc_event_t *ev)
-{
-	client_t *client = ev->arg;
+client_send(isc_task_t *task, isc_event_t *ev) {
+	client_t *client = ev->ev_arg;
 	clientmgr_t *cm = client->clientmgr;
 	isc_socketevent_t *dev = (isc_socketevent_t *)ev;
 
 	UNUSED(task);
-
+	UNUSED(dev);
+	
 	INSIST(CLIENT_ISSEND(client));
 	INSIST(client->sendbuf == dev->region.base);
 
@@ -314,8 +302,7 @@ client_send(isc_task_t *task, isc_event_t *ev)
 }
 
 void
-client_initialize(client_t *client, clientmgr_t *cmgr)
-{
+client_initialize(client_t *client, clientmgr_t *cmgr) {
 	client->clientmgr = cmgr;
 	ISC_LINK_INIT(client, link);
 	CLIENT_SETIDLE(client);
@@ -339,8 +326,7 @@ client_initialize(client_t *client, clientmgr_t *cmgr)
 }
 
 void
-client_init_aliases(client_t *client)
-{
+client_init_aliases(client_t *client) {
 	int i;
 
 	for (i = 0 ; i < LWRES_MAX_ALIASES ; i++) {
@@ -356,8 +342,7 @@ client_init_aliases(client_t *client)
 }
 
 void
-client_init_gabn(client_t *client)
-{
+client_init_gabn(client_t *client) {
 	/*
 	 * Initialize the real name and alias arrays in the reply we're
 	 * going to build up.
@@ -377,12 +362,11 @@ client_init_gabn(client_t *client)
 	 * Set up the internal buffer to point to the receive region.
 	 */
 	isc_buffer_init(&client->recv_buffer, client->buffer,
-			LWRES_RECVLENGTH, ISC_BUFFERTYPE_TEXT);
+			LWRES_RECVLENGTH);
 }
 
 void
-client_init_gnba(client_t *client)
-{
+client_init_gnba(client_t *client) {
 	/*
 	 * Initialize the real name and alias arrays in the reply we're
 	 * going to build up.
@@ -397,5 +381,5 @@ client_init_gnba(client_t *client)
 	client->gnba.baselen = 0;
 
 	isc_buffer_init(&client->recv_buffer, client->buffer,
-			LWRES_RECVLENGTH, ISC_BUFFERTYPE_TEXT);
+			LWRES_RECVLENGTH);
 }

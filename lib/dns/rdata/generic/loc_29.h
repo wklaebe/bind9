@@ -15,7 +15,28 @@
  * SOFTWARE.
  */
 
-/* $Id: loc_29.h,v 1.7 2000/03/16 02:18:16 explorer Exp $ */
+#ifndef GENERIC_LOC_29_H
+#define GENERIC_LOC_29_H 1
+
+/* $Id: loc_29.h,v 1.11 2000/05/22 12:37:39 marka Exp $ */
 
 /* RFC 1876 */
 
+typedef struct dns_rdata_loc_0 {
+	isc_uint8_t	version;	/* must be first and zero */
+	isc_uint8_t	size;
+	isc_uint8_t	horizontal;
+	isc_uint8_t	vertical;	
+	isc_uint32_t	latitude;
+	isc_uint32_t	longitude;
+	isc_uint32_t	altitude;
+} dns_rdata_loc_0_t;
+
+typedef struct dns_rdata_loc {
+	dns_rdatacommon_t	common;
+	union {
+		dns_rdata_loc_0_t v0;
+	} v;
+} dns_rdata_loc_t;
+
+#endif /* GENERIC_LOC_29_H */

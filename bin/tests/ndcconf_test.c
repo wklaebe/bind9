@@ -18,30 +18,36 @@
 #include <config.h>
 
 #include <stdlib.h>
-#include <unistd.h>
-#include <stdio.h>
-#include <errno.h>
-#include <string.h>
 
 #include <isc/mem.h>
-#include <isc/error.h>
+#include <isc/string.h>
+#include <isc/util.h>
 
 #include <dns/log.h>
 #include <dns/confndc.h>
 
 
-int main (int argc, char **argv) {
+int
+main(int argc, char **argv) {
 	dns_c_ndcctx_t *ndcctx = NULL;
 	const char *conffile;
 	isc_mem_t *mem = NULL;
 	isc_log_t *log = NULL;
 	isc_logconfig_t *logcfg = NULL;
+	const char *program = NULL;
 
+	program = strrchr(argv[0], '/');
+	if (program == NULL) {
+		program = argv[0];
+	} else {
+		program++;
+	}
+	
 	argc--;
 	argv++;
 	
 	if (argc == 0) {
-		fprintf(stderr, "usage: %s file\n", argv[0]);
+		fprintf(stderr, "usage: %s file\n", program);
 		exit (1);
 	}
 	
@@ -49,7 +55,9 @@ int main (int argc, char **argv) {
 
 	RUNTIME_CHECK(isc_mem_create(0, 0, &mem) == ISC_R_SUCCESS);
 	RUNTIME_CHECK(isc_log_create(mem, &log, &logcfg) == ISC_R_SUCCESS);
+	isc_log_setcontext(log);
 	dns_log_init(log);
+	dns_log_setcontext(log);
 	
 	RUNTIME_CHECK(isc_log_usechannel(logcfg, "default_stderr", NULL, NULL)
 		      == ISC_R_SUCCESS);
@@ -73,7 +81,4 @@ int main (int argc, char **argv) {
 
 	return (0);
 }
-	
-	
-
-	
+     

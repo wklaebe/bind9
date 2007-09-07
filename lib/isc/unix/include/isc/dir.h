@@ -15,7 +15,7 @@
  * SOFTWARE.
  */
 
-/* $Id: dir.h,v 1.5 2000/02/03 23:08:05 halley Exp $ */
+/* $Id: dir.h,v 1.7 2000/04/28 21:29:27 tale Exp $ */
 
 /* Principal Authors: DCL */
 
@@ -24,12 +24,9 @@
 
 #include <sys/types.h>
 #include <dirent.h>
-#include <limits.h>
 
 #include <isc/lang.h>
 #include <isc/result.h>
-
-ISC_LANG_BEGINDECLS
 
 #define ISC_DIR_NAMEMAX 256
 #define ISC_DIR_PATHMAX 1024
@@ -56,6 +53,8 @@ typedef struct {
 	DIR *		handle;
 } isc_dir_t;
 
+ISC_LANG_BEGINDECLS
+
 void
 isc_dir_init(isc_dir_t *dir);
 
@@ -74,6 +73,6 @@ isc_dir_close(isc_dir_t *dir);
 isc_result_t
 isc_dir_chdir(const char *dirname);
 
-ISC_LANG_BEGINDECLS
+ISC_LANG_ENDDECLS
 
 #endif /* ISC_DIR_H */

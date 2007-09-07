@@ -17,30 +17,25 @@
 
 #include <config.h>
 
-#include <errno.h>
-#include <string.h>
-#include <stdarg.h>
 #include <stdlib.h>
-#include <stddef.h>
 
 #include <isc/app.h>
-#include <isc/assertions.h>
-#include <isc/error.h>
-#include <isc/boolean.h>
 #include <isc/commandline.h>
 #include <isc/task.h>
 #include <isc/timer.h>
+#include <isc/util.h>
 
-#include <dns/dbtable.h>
-#include <dns/tsig.h>
-#include <dns/tkey.h>
-#include <dns/result.h>
+#include <dns/dispatch.h>
 
 #include <dst/result.h>
 
-#define NS_MAIN 1
+/*
+ * Defining NS_MAIN provides storage declaratons (rather than extern)
+ * for variables in named/globals.h.
+ */
+#define NS_MAIN 1		
 
-#include <named/globals.h>
+#include <named/globals.h>	/* Explicit, though named/log.h includes it. */
 #include <named/interfacemgr.h>
 #include <named/log.h>
 #include <named/omapi.h>
@@ -238,7 +233,7 @@ parse_command_line(int argc, char *argv[]) {
 }
 
 static isc_result_t
-create_managers() {
+create_managers(void) {
 	isc_result_t result;
 
 	result = isc_taskmgr_create(ns_g_mctx, ns_g_cpus, 0, &ns_g_taskmgr);
@@ -284,12 +279,22 @@ destroy_managers(void) {
 }
 
 static void
-setup() {
+setup(void) {
 	isc_result_t result;
 
 	ns_os_chroot(ns_g_chrootdir);
 
-	result = ns_log_init();
+	/*
+	 * For operating systems which have a capability mechanism, now
+	 * is the time to switch to minimal privs and change our user id.
+	 * On traditional UNIX systems, this call will be a no-op, and we
+	 * will change the user ID after reading the config file the first
+	 * time.  (We need to read the config file to know which possibly
+	 * privileged ports to bind() to.)
+	 */
+	ns_os_minprivs(ns_g_username);
+
+	result = ns_log_init(ISC_TF(ns_g_username != NULL));
 	if (result != ISC_R_SUCCESS)
 		ns_main_earlyfatal("ns_log_init() failed: %s",
 				   isc_result_totext(result));
@@ -332,7 +337,7 @@ setup() {
 }
 
 static void
-cleanup() {
+cleanup(void) {
 	destroy_managers();
 	ns_server_destroy(&ns_g_server);
 	isc_log_write(ns_g_lctx, NS_LOGCATEGORY_GENERAL, NS_LOGMODULE_MAIN,

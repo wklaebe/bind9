@@ -30,6 +30,7 @@
  *
  *		struct in_addr
  *		struct in6_addr
+ *		struct in6_pktinfo
  *		struct sockaddr
  *		struct sockaddr_in
  *		struct sockaddr_in6
@@ -64,18 +65,22 @@
 /***
  *** Imports.
  ***/
+#include <isc/lang.h>
 #include <isc/platform.h>
 
 #include <sys/types.h>
-#include <sys/socket.h>
+#include <sys/socket.h>		/* Contractual promise. */
 
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#ifdef ISC_PLATFORM_HAVENETINET6IN6H
-#include <netinet6/in6.h>
+#include <netinet/in.h>		/* Contractual promise. */
+#include <arpa/inet.h>		/* Contractual promise. */
+#ifdef ISC_PLATFORM_NEEDNETINETIN6H
+#include <netinet/in6.h>	/* Required on UnixWare. */
+#endif
+#ifdef ISC_PLATFORM_NEEDNETINET6IN6H
+#include <netinet6/in6.h>	/* Required on BSD/OS for in6_pktinfo. */
 #endif
 
-#include <isc/result.h>
+#include <isc/types.h>
 
 #ifndef AF_INET6
 #define AF_INET6 99
@@ -86,7 +91,14 @@
 #endif
 
 #ifndef ISC_PLATFORM_HAVEIPV6
-#include <isc/ipv6.h>
+#include <isc/ipv6.h>		/* Contractual promise. */
+#endif
+
+#ifndef ISC_PLATFORM_HAVEIN6PKTINFO
+struct in6_pktinfo {
+	struct in6_addr ipi6_addr;    /* src/dst IPv6 address */
+	unsigned int    ipi6_ifindex; /* send/recv interface index */
+};
 #endif
 
 /*
@@ -101,8 +113,6 @@ extern const struct in6_addr isc_net_in6addrany;
  * Ensure type in_port_t is defined.
  */
 #ifdef ISC_PLATFORM_NEEDPORTT
-#include <isc/int.h>
-
 typedef isc_uint16_t in_port_t;
 #endif
 
@@ -118,6 +128,8 @@ typedef isc_uint16_t in_port_t;
 /***
  *** Functions.
  ***/
+
+ISC_LANG_BEGINDECLS
 
 isc_result_t
 isc_net_probeipv4(void);
@@ -144,26 +156,23 @@ isc_net_probeipv6(void);
  */
 
 #ifdef ISC_PLATFORM_NEEDNTOP
-const char *isc_net_ntop(int af, const void *src, char *dst, size_t size);
+const char *
+isc_net_ntop(int af, const void *src, char *dst, size_t size);
 #define inet_ntop isc_net_ntop
 #endif
 
 #ifdef ISC_PLATFORM_NEEDPTON
-int isc_net_pton(int af, const char *src, void *dst);
+int
+isc_net_pton(int af, const char *src, void *dst);
 #define inet_pton isc_net_pton
 #endif
 
 #ifdef ISC_PLATFORM_NEEDATON
-int isc_net_aton(const char *cp, struct in_addr *addr);
+int
+isc_net_aton(const char *cp, struct in_addr *addr);
 #define inet_aton isc_net_aton
 #endif
 
-/*
- * Tell emacs to use C mode for this file.
- *
- * Local Variables:
- * mode: c
- * End:
- */
+ISC_LANG_ENDDECLS
 
 #endif /* ISC_NET_H */

@@ -16,41 +16,25 @@
  */
 
 /*
- * $Id: tkey.c,v 1.25 2000/03/17 19:50:22 bwelling Exp $
+ * $Id: tkey.c,v 1.37 2000/05/19 22:11:20 bwelling Exp $
  * Principal Author: Brian Wellington
  */
 
-
 #include <config.h>
 
-#include <stdlib.h>
-#include <string.h>
-
-#include <isc/assertions.h>
-#include <isc/buffer.h>
-#include <isc/error.h>
-#include <isc/list.h>
-#include <isc/log.h>
 #include <isc/mem.h>
-#include <isc/net.h>
-#include <isc/result.h>
-#include <isc/rwlock.h>
-#include <isc/stdtime.h>
-#include <isc/types.h>
+#include <isc/string.h>
+#include <isc/util.h>
 
 #include <dns/dnssec.h>
 #include <dns/keyvalues.h>
-#include <dns/name.h>
 #include <dns/message.h>
 #include <dns/rdata.h>
 #include <dns/rdatalist.h>
 #include <dns/rdataset.h>
-#include <dns/rdatastruct.h>
+#include <dns/result.h>
 #include <dns/tkey.h>
 #include <dns/tsig.h>
-
-#include <dst/dst.h>
-#include <dst/result.h>
 
 #define TKEY_RANDOM_AMOUNT 16
 
@@ -85,10 +69,11 @@ dns_tkeyctx_destroy(dns_tkey_ctx_t **tctx) {
 	REQUIRE(*tctx != NULL);
 
 	if ((*tctx)->dhkey != NULL)
-		dst_key_free((*tctx)->dhkey);
+		dst_key_free(&(*tctx)->dhkey);
 	if ((*tctx)->domain != NULL) {
 		dns_name_free((*tctx)->domain, (*tctx)->mctx);
-		isc_mem_put((*tctx)->mctx, (*tctx)->domain, sizeof(dns_name_t));
+		isc_mem_put((*tctx)->mctx, (*tctx)->domain,
+			    sizeof(dns_name_t));
 	}
 
 	mctx = (*tctx)->mctx;
@@ -110,9 +95,8 @@ add_rdata_to_list(dns_message_t *msg, dns_name_t *name, dns_rdata_t *rdata,
 	RETERR(dns_message_gettemprdata(msg, &newrdata));
 
 	dns_rdata_toregion(rdata, &r);
-	RETERR(isc_buffer_allocate(msg->mctx, &tmprdatabuf, r.length,
-				   ISC_BUFFERTYPE_BINARY));
-	isc_buffer_available(tmprdatabuf, &newr);
+	RETERR(isc_buffer_allocate(msg->mctx, &tmprdatabuf, r.length));
+	isc_buffer_availableregion(tmprdatabuf, &newr);
 	memcpy(newr.base, r.base, r.length);
 	dns_rdata_fromregion(newrdata, rdata->rdclass, rdata->type, &newr);
 	dns_message_takebuffer(msg, &tmprdatabuf);
@@ -120,9 +104,8 @@ add_rdata_to_list(dns_message_t *msg, dns_name_t *name, dns_rdata_t *rdata,
 	dns_name_toregion(name, &r);
 	RETERR(dns_message_gettempname(msg, &newname));
 	dns_name_init(newname, NULL);
-	RETERR(isc_buffer_allocate(msg->mctx, &tmpnamebuf, r.length,
-				   ISC_BUFFERTYPE_BINARY));
-	isc_buffer_available(tmpnamebuf, &newr);
+	RETERR(isc_buffer_allocate(msg->mctx, &tmpnamebuf, r.length));
+	isc_buffer_availableregion(tmpnamebuf, &newr);
 	memcpy(newr.base, r.base, r.length);
 	dns_name_fromregion(newname, &newr);
 	dns_message_takebuffer(msg, &tmpnamebuf);
@@ -171,26 +154,38 @@ compute_secret(isc_buffer_t *shared, isc_region_t *queryrandomness,
 	isc_buffer_t b;
 	unsigned int i;
 
-	isc_buffer_init(&b, digests, sizeof(digests), ISC_BUFFERTYPE_BINARY);
-	isc_buffer_used(shared, &r);
+	isc_buffer_init(&b, digests, sizeof(digests));
+	isc_buffer_usedregion(shared, &r);
 
-	/* MD5 ( query data | DH value ) */
-	RETERR(dst_digest(DST_SIGMODE_INIT, DST_DIGEST_MD5, &ctx, NULL, NULL));
-	RETERR(dst_digest(DST_SIGMODE_UPDATE, DST_DIGEST_MD5, &ctx,
-			  queryrandomness, NULL));
-	RETERR(dst_digest(DST_SIGMODE_UPDATE, DST_DIGEST_MD5, &ctx, &r, NULL));
-	RETERR(dst_digest(DST_SIGMODE_FINAL, DST_DIGEST_MD5, &ctx, NULL, &b));
+	/*
+	 * MD5 ( query data | DH value ).
+	 */
+	RETERR(dst_key_digest(DST_SIGMODE_INIT, DST_DIGEST_MD5, &ctx, NULL,
+			      NULL));
+	RETERR(dst_key_digest(DST_SIGMODE_UPDATE, DST_DIGEST_MD5, &ctx,
+			      queryrandomness, NULL));
+	RETERR(dst_key_digest(DST_SIGMODE_UPDATE, DST_DIGEST_MD5, &ctx, &r,
+			      NULL));
+	RETERR(dst_key_digest(DST_SIGMODE_FINAL, DST_DIGEST_MD5, &ctx, NULL,
+			      &b));
 			
-	/* MD5 ( server data | DH value ) */
-	RETERR(dst_digest(DST_SIGMODE_INIT, DST_DIGEST_MD5, &ctx, NULL, NULL));
-	RETERR(dst_digest(DST_SIGMODE_UPDATE, DST_DIGEST_MD5, &ctx,
-			  serverrandomness, NULL));
-	RETERR(dst_digest(DST_SIGMODE_UPDATE, DST_DIGEST_MD5, &ctx, &r, NULL));
-	RETERR(dst_digest(DST_SIGMODE_FINAL, DST_DIGEST_MD5, &ctx, NULL, &b));
+	/*
+	 * MD5 ( server data | DH value ).
+	 */
+	RETERR(dst_key_digest(DST_SIGMODE_INIT, DST_DIGEST_MD5, &ctx, NULL,
+			      NULL));
+	RETERR(dst_key_digest(DST_SIGMODE_UPDATE, DST_DIGEST_MD5, &ctx,
+			      serverrandomness, NULL));
+	RETERR(dst_key_digest(DST_SIGMODE_UPDATE, DST_DIGEST_MD5, &ctx, &r,
+			      NULL));
+	RETERR(dst_key_digest(DST_SIGMODE_FINAL, DST_DIGEST_MD5, &ctx, NULL,
+			      &b));
 
-	/* XOR ( DH value, MD5-1 | MD5-2) */
-	isc_buffer_available(secret, &r);
-	isc_buffer_used(shared, &r2);
+	/*
+	 * XOR ( DH value, MD5-1 | MD5-2).
+	 */
+	isc_buffer_availableregion(secret, &r);
+	isc_buffer_usedregion(shared, &r2);
 	if (r.length < sizeof(digests) || r.length < r2.length)
 		return (ISC_R_NOSPACE);
 	if (r2.length > sizeof(digests)) {
@@ -213,8 +208,8 @@ compute_secret(isc_buffer_t *shared, isc_region_t *queryrandomness,
 
 static isc_result_t
 process_dhtkey(dns_message_t *msg, dns_name_t *signer, dns_name_t *name,
-	       dns_rdata_generic_tkey_t *tkeyin, dns_tkey_ctx_t *tctx,
-	       dns_rdata_generic_tkey_t *tkeyout,
+	       dns_rdata_tkey_t *tkeyin, dns_tkey_ctx_t *tctx,
+	       dns_rdata_tkey_t *tkeyout,
 	       dns_tsig_keyring_t *ring, dns_namelist_t *namelist)
 {
 	isc_result_t result = ISC_R_SUCCESS;
@@ -228,13 +223,14 @@ process_dhtkey(dns_message_t *msg, dns_name_t *signer, dns_name_t *name,
 	isc_uint32_t ourttl;
 	unsigned char keydata[DST_KEY_MAXSIZE];
 	unsigned char namedata[1024];
-	dns_tsigkey_t *tsigkey;
 	unsigned int sharedsize;
 	isc_buffer_t randombuf, secret;
 	unsigned char *randomdata = NULL, secretdata[256];
 	isc_stdtime_t now;
 
-	/* Look for a DH KEY record that will work with ours */
+	/*
+	 * Look for a DH KEY record that will work with ours.
+	 */
 	result = dns_message_firstname(msg, DNS_SECTION_ADDITIONAL);
 	while (result == ISC_R_SUCCESS) {
 		keyname = NULL;
@@ -265,7 +261,7 @@ process_dhtkey(dns_message_t *msg, dns_name_t *signer, dns_name_t *name,
 					else
 						found_incompatible = ISC_TRUE;
 				}
-				dst_key_free(pubkey);
+				dst_key_free(&pubkey);
 				result = dns_rdataset_next(keyset);
 			}
 		}
@@ -284,25 +280,25 @@ process_dhtkey(dns_message_t *msg, dns_name_t *signer, dns_name_t *name,
 	RETERR(add_rdata_to_list(msg, keyname, &keyrdata, keyset->ttl,
 				 namelist));
 
-	isc_buffer_init(&ourkeybuf, keydata, sizeof(keydata),
-			ISC_BUFFERTYPE_BINARY);
+	isc_buffer_init(&ourkeybuf, keydata, sizeof(keydata));
 	RETERR(dst_key_todns(tctx->dhkey, &ourkeybuf));
-	isc_buffer_used(&ourkeybuf, &ourkeyr);
+	isc_buffer_usedregion(&ourkeybuf, &ourkeyr);
 	dns_rdata_fromregion(&ourkeyrdata, dns_rdataclass_any,
 			     dns_rdatatype_key, &ourkeyr);
 	isc_buffer_init(&ournamein, dst_key_name(tctx->dhkey),
-		        strlen(dst_key_name(tctx->dhkey)), ISC_BUFFERTYPE_TEXT);
+		        strlen(dst_key_name(tctx->dhkey)));
 	isc_buffer_add(&ournamein, strlen(dst_key_name(tctx->dhkey)));
-	isc_buffer_init(&ournameout, namedata, sizeof(namedata),
-			ISC_BUFFERTYPE_BINARY);
+	isc_buffer_init(&ournameout, namedata, sizeof(namedata));
 	dns_name_init(&ourname, NULL);
 	RETERR(dns_name_fromtext(&ourname, &ournamein, dns_rootname, ISC_FALSE,
 				 &ournameout));
 	ourttl = 0;
 #if 0
-	/* Not sure how to do this without a view... */
+	/*
+	 * Not sure how to do this without a view...
+	 */
 	db = NULL;
-	result = dns_dbtable_find(client->view->dbtable, &ourname, &db);
+	result = dns_dbtable_find(client->view->dbtable, &ourname, 0, &db);
 	if (result == ISC_R_SUCCESS) {
 		dns_rdataset_t set;
 		dns_fixedname_t foundname;
@@ -322,32 +318,28 @@ process_dhtkey(dns_message_t *msg, dns_name_t *signer, dns_name_t *name,
 	RETERR(add_rdata_to_list(msg, &ourname, &ourkeyrdata, ourttl,
 				 namelist));
 
-	RETERR(dst_secret_size(tctx->dhkey, &sharedsize));
-	RETERR(isc_buffer_allocate(msg->mctx, &shared, sharedsize,
-				   ISC_BUFFERTYPE_BINARY));
+	RETERR(dst_key_secretsize(tctx->dhkey, &sharedsize));
+	RETERR(isc_buffer_allocate(msg->mctx, &shared, sharedsize));
 
-	RETERR(dst_computesecret(pubkey, tctx->dhkey, shared));
+	RETERR(dst_key_computesecret(pubkey, tctx->dhkey, shared));
 
-	isc_buffer_init(&secret, secretdata, sizeof(secretdata),
-			ISC_BUFFERTYPE_BINARY);
+	isc_buffer_init(&secret, secretdata, sizeof(secretdata));
 
 	randomdata = isc_mem_get(tkeyout->mctx, TKEY_RANDOM_AMOUNT);
 	if (randomdata == NULL) {
 		result = ISC_R_NOMEMORY;
 		goto failure;
 	}
-	isc_buffer_init(&randombuf, randomdata, TKEY_RANDOM_AMOUNT,
-			ISC_BUFFERTYPE_BINARY);
+	isc_buffer_init(&randombuf, randomdata, TKEY_RANDOM_AMOUNT);
 	RETERR(dst_random_get(TKEY_RANDOM_AMOUNT, &randombuf));
 
-	isc_buffer_used(&randombuf, &r);
+	isc_buffer_usedregion(&randombuf, &r);
 	r2.base = tkeyin->key;
 	r2.length = tkeyin->keylen;
 	RETERR(compute_secret(shared, &r2, &r, &secret));
 
-	dst_key_free(pubkey);
-	isc_buffer_used(&secret, &r);
-	tsigkey = NULL;
+	dst_key_free(&pubkey);
+	isc_buffer_usedregion(&secret, &r);
 	result = dns_tsigkey_create(name, &tkeyin->algorithm, r.base, r.length,
 				    ISC_TRUE, signer, tkeyin->inception,
 				    tkeyin->expire, msg->mctx, ring, NULL);
@@ -392,8 +384,8 @@ process_dhtkey(dns_message_t *msg, dns_name_t *signer, dns_name_t *name,
 
 static isc_result_t
 process_deletetkey(dns_message_t *msg, dns_name_t *signer, dns_name_t *name,
-		   dns_rdata_generic_tkey_t *tkeyin,
-		   dns_rdata_generic_tkey_t *tkeyout,
+		   dns_rdata_tkey_t *tkeyin,
+		   dns_rdata_tkey_t *tkeyout,
 		   dns_tsig_keyring_t *ring,
 		   dns_namelist_t *namelist)
 {
@@ -435,7 +427,7 @@ dns_tkey_processquery(dns_message_t *msg, dns_tkey_ctx_t *tctx,
 		      dns_tsig_keyring_t *ring)
 {
 	isc_result_t result = ISC_R_SUCCESS;
-	dns_rdata_generic_tkey_t tkeyin, tkeyout;
+	dns_rdata_tkey_t tkeyin, tkeyout;
 	dns_name_t *qname, *name, *keyname, tempkeyname, signer;
 	dns_rdataset_t *tkeyset;
 	dns_rdata_t tkeyrdata, *rdata = NULL;
@@ -446,17 +438,23 @@ dns_tkey_processquery(dns_message_t *msg, dns_tkey_ctx_t *tctx,
 	REQUIRE(tctx != NULL);
 	REQUIRE(ring != NULL);
 
-	/* Need to do this to determine if this should be freed later */
-	memset(&tkeyin, 0, sizeof(dns_rdata_generic_tkey_t));
+	/*
+	 * Need to do this to determine if this should be freed later.
+	 */
+	memset(&tkeyin, 0, sizeof(dns_rdata_tkey_t));
 
-	/* Interpret the question section */
+	/*
+	 * Interpret the question section.
+	 */
 	result = dns_message_firstname(msg, DNS_SECTION_QUESTION);
-	INSIST(result == DNS_R_SUCCESS);
+	INSIST(result == ISC_R_SUCCESS);
 
 	qname = NULL;
 	dns_message_currentname(msg, DNS_SECTION_QUESTION, &qname);
 
-	/* Look for a TKEY record that matches the question */
+	/*
+	 * Look for a TKEY record that matches the question.
+	 */
 	tkeyset = NULL;
 	name = NULL;
 	result = dns_message_findname(msg, DNS_SECTION_ADDITIONAL, qname,
@@ -525,8 +523,7 @@ dns_tkey_processquery(dns_message_t *msg, dns_tkey_ctx_t *tctx,
 		dns_name_init(&tempkeyname, NULL);
 		keyname = &tempkeyname;
 		dns_name_init(&prefix, NULL);
-		RETERR(isc_buffer_allocate(msg->mctx, &buf, 256,
-					   ISC_BUFFERTYPE_BINARY));
+		RETERR(isc_buffer_allocate(msg->mctx, &buf, 256));
 
 		if (!dns_name_equal(qname, dns_rootname)) {
 			unsigned int n = dns_name_countlabels(qname);
@@ -540,8 +537,7 @@ dns_tkey_processquery(dns_message_t *msg, dns_tkey_ctx_t *tctx,
 			isc_buffer_t b, b2;
 			int i;
 
-			isc_buffer_init(&b, randomtext, sizeof(randomtext),
-					ISC_BUFFERTYPE_BINARY);
+			isc_buffer_init(&b, randomtext, sizeof(randomtext));
 			result = dst_random_get(sizeof(randomtext)/2, &b);
 			if (result != ISC_R_SUCCESS) {
 				dns_message_takebuffer(msg, &buf);
@@ -553,10 +549,8 @@ dns_tkey_processquery(dns_message_t *msg, dns_tkey_ctx_t *tctx,
 				randomtext[i] = hexdigits[val >> 4];
 				randomtext[i+1] = hexdigits[val & 0xF];
 			}
-			isc_buffer_init(&b, randomtext, sizeof(randomtext),
-					ISC_BUFFERTYPE_TEXT);
-			isc_buffer_init(&b2, tdata, sizeof(tdata),
-					ISC_BUFFERTYPE_BINARY);
+			isc_buffer_init(&b, randomtext, sizeof(randomtext));
+			isc_buffer_init(&b2, tdata, sizeof(tdata));
 			isc_buffer_add(&b, sizeof(randomtext));
 			result = dns_name_fromtext(&prefix, &b, NULL,
 						   ISC_FALSE, &b2);
@@ -591,7 +585,8 @@ dns_tkey_processquery(dns_message_t *msg, dns_tkey_ctx_t *tctx,
 	switch (tkeyin.mode) {
 		case DNS_TKEYMODE_DIFFIEHELLMAN:
 			RETERR(process_dhtkey(msg, &signer, keyname, &tkeyin,
-					      tctx, &tkeyout, ring, &namelist));
+					      tctx, &tkeyout, ring,
+					      &namelist));
 			tkeyout.error = dns_rcode_noerror;
 			break;
 		case DNS_TKEYMODE_DELETE:
@@ -613,11 +608,14 @@ dns_tkey_processquery(dns_message_t *msg, dns_tkey_ctx_t *tctx,
 	dns_rdata_freestruct(&tkeyin);
 
 	RETERR(dns_message_gettemprdata(msg, &rdata));
-	RETERR(isc_buffer_allocate(msg->mctx, &dynbuf, 128,
-				   ISC_BUFFERTYPE_BINARY));
+	RETERR(isc_buffer_allocate(msg->mctx, &dynbuf, 128));
 	result = dns_rdata_fromstruct(rdata, tkeyout.common.rdclass,
 				      tkeyout.common.rdtype, &tkeyout, dynbuf);
-	dns_rdata_freestruct(&tkeyout);
+	dns_name_free(&tkeyout.algorithm, msg->mctx);
+	if (tkeyout.key != NULL)
+		isc_mem_put(msg->mctx, tkeyout.key, tkeyout.keylen);
+	if (tkeyout.other != NULL)
+		isc_mem_put(msg->mctx, tkeyout.other, tkeyout.otherlen);
 	if (result != ISC_R_SUCCESS)
 		goto failure;
 
@@ -631,7 +629,7 @@ dns_tkey_processquery(dns_message_t *msg, dns_tkey_ctx_t *tctx,
 	while (name != NULL) {
 		dns_name_t *next = ISC_LIST_NEXT(name, link);
 		ISC_LIST_UNLINK(namelist, name, link);
-		dns_message_addname(msg, name, DNS_SECTION_ADDITIONAL);
+		dns_message_addname(msg, name, DNS_SECTION_ANSWER);
 		name = next;
 	}
 
@@ -649,7 +647,7 @@ dns_tkey_processquery(dns_message_t *msg, dns_tkey_ctx_t *tctx,
 
 static isc_result_t
 buildquery(dns_message_t *msg, dns_name_t *name,
-	   dns_rdata_generic_tkey_t *tkey)
+	   dns_rdata_tkey_t *tkey)
 {
 	dns_name_t *qname = NULL, *aname = NULL;
 	dns_rdataset_t *question = NULL, *tkeyset = NULL;
@@ -670,8 +668,7 @@ buildquery(dns_message_t *msg, dns_name_t *name,
 	dns_rdataset_makequestion(question, dns_rdataclass_any,
 				  dns_rdatatype_tkey);
 
-	RETERR(isc_buffer_allocate(msg->mctx, &dynbuf, 512,
-				   ISC_BUFFERTYPE_BINARY));
+	RETERR(isc_buffer_allocate(msg->mctx, &dynbuf, 512));
 	RETERR(dns_message_gettemprdata(msg, &rdata));
 	RETERR(dns_rdata_fromstruct(rdata, dns_rdataclass_any,
 				    dns_rdatatype_tkey, tkey, dynbuf));
@@ -722,7 +719,7 @@ dns_tkey_builddhquery(dns_message_t *msg, dst_key_t *key, dns_name_t *name,
 		      dns_name_t *algorithm, isc_buffer_t *nonce,
 		      isc_uint32_t lifetime)
 {
-	dns_rdata_generic_tkey_t tkey;
+	dns_rdata_tkey_t tkey;
 	dns_rdata_t *rdata = NULL;
 	isc_buffer_t src, *dynbuf = NULL;
 	isc_region_t r;
@@ -766,19 +763,16 @@ dns_tkey_builddhquery(dns_message_t *msg, dst_key_t *key, dns_name_t *name,
 		isc_mem_put(msg->mctx, r.base, 0);
 
 	RETERR(dns_message_gettemprdata(msg, &rdata));
-	RETERR(isc_buffer_allocate(msg->mctx, &dynbuf, 1024,
-                                   ISC_BUFFERTYPE_BINARY));
+	RETERR(isc_buffer_allocate(msg->mctx, &dynbuf, 1024));
 	RETERR(dst_key_todns(key, dynbuf));
-	isc_buffer_used(dynbuf, &r);
+	isc_buffer_usedregion(dynbuf, &r);
 	dns_rdata_fromregion(rdata, dns_rdataclass_any,
 			     dns_rdatatype_key, &r);
 	dns_message_takebuffer(msg, &dynbuf);
 	RETERR(dns_message_gettempname(msg, &keyname));
-	isc_buffer_init(&src, dst_key_name(key), strlen(dst_key_name(key)),
-			ISC_BUFFERTYPE_TEXT);
+	isc_buffer_init(&src, dst_key_name(key), strlen(dst_key_name(key)));
 	isc_buffer_add(&src, strlen(dst_key_name(key)));
-	RETERR(isc_buffer_allocate(msg->mctx, &dynbuf, 1024,
-                                   ISC_BUFFERTYPE_BINARY));
+	RETERR(isc_buffer_allocate(msg->mctx, &dynbuf, 1024));
 	dns_name_init(keyname, NULL);
 	RETERR(dns_name_fromtext(keyname, &src, dns_rootname, ISC_FALSE,
 				 dynbuf));
@@ -799,7 +793,7 @@ dns_tkey_builddhquery(dns_message_t *msg, dst_key_t *key, dns_name_t *name,
 
 isc_result_t
 dns_tkey_builddeletequery(dns_message_t *msg, dns_tsigkey_t *key) {
-	dns_rdata_generic_tkey_t tkey;
+	dns_rdata_tkey_t tkey;
 
 	REQUIRE(msg != NULL);
 	REQUIRE(key != NULL);
@@ -820,14 +814,16 @@ dns_tkey_builddeletequery(dns_message_t *msg, dns_tsigkey_t *key) {
 }
 
 static isc_result_t
-find_tkey(dns_message_t *msg, dns_name_t **name, dns_rdata_t *rdata) {
+find_tkey(dns_message_t *msg, dns_name_t **name, dns_rdata_t *rdata,
+	  int section)
+{
 	dns_rdataset_t *tkeyset;
 	isc_result_t result;
 
-	result = dns_message_firstname(msg, DNS_SECTION_ADDITIONAL);
+	result = dns_message_firstname(msg, section);
 	while (result == ISC_R_SUCCESS) {
 		*name = NULL;
-		dns_message_currentname(msg, DNS_SECTION_ADDITIONAL, name);
+		dns_message_currentname(msg, section, name);
 		tkeyset = NULL;
 		result = dns_message_findtype(*name, dns_rdatatype_tkey, 0,
 					      &tkeyset);
@@ -838,7 +834,7 @@ find_tkey(dns_message_t *msg, dns_name_t **name, dns_rdata_t *rdata) {
 			dns_rdataset_current(tkeyset, rdata);
 			return (ISC_R_SUCCESS);
 		}
-		result = dns_message_nextname(msg, DNS_SECTION_ADDITIONAL);
+		result = dns_message_nextname(msg, section);
 	}
 	if (result == ISC_R_NOMORE)
 		return (ISC_R_NOTFOUND);
@@ -855,8 +851,7 @@ dns_tkey_processdhresponse(dns_message_t *qmsg, dns_message_t *rmsg,
 	dns_rdataset_t *theirkeyset = NULL, *ourkeyset = NULL;
 	dns_rdata_t theirkeyrdata;
 	dst_key_t *theirkey;
-	dns_tsigkey_t *tsigkey;
-	dns_rdata_generic_tkey_t qtkey, rtkey;
+	dns_rdata_tkey_t qtkey, rtkey;
 	unsigned char keydata[1024], secretdata[256];
 	unsigned int sharedsize;
 	isc_buffer_t keysrc, keybuf, *shared = NULL, secret;
@@ -874,10 +869,11 @@ dns_tkey_processdhresponse(dns_message_t *qmsg, dns_message_t *rmsg,
 
 	if (rmsg->rcode != dns_rcode_noerror)
 		return(ISC_RESULTCLASS_DNSRCODE + rmsg->rcode);
-	RETERR(find_tkey(rmsg, &tkeyname, &rtkeyrdata));
+	RETERR(find_tkey(rmsg, &tkeyname, &rtkeyrdata, DNS_SECTION_ANSWER));
 	RETERR(dns_rdata_tostruct(&rtkeyrdata, &rtkey, rmsg->mctx));
 
-	RETERR(find_tkey(qmsg, &tempname, &qtkeyrdata));
+	RETERR(find_tkey(qmsg, &tempname, &qtkeyrdata,
+			 DNS_SECTION_ADDITIONAL));
 	RETERR(dns_rdata_tostruct(&qtkeyrdata, &qtkey, qmsg->mctx));
 
 	if (rtkey.error != dns_rcode_noerror ||
@@ -891,25 +887,23 @@ dns_tkey_processdhresponse(dns_message_t *qmsg, dns_message_t *rmsg,
 		goto failure;
 	}
 
-	isc_buffer_init(&keysrc, dst_key_name(key), strlen(dst_key_name(key)),
-			ISC_BUFFERTYPE_TEXT);
+	isc_buffer_init(&keysrc, dst_key_name(key), strlen(dst_key_name(key)));
 	isc_buffer_add(&keysrc, strlen(dst_key_name(key)));
-	isc_buffer_init(&keybuf, keydata, sizeof(keydata),
-			ISC_BUFFERTYPE_BINARY);
+	isc_buffer_init(&keybuf, keydata, sizeof(keydata));
 	dns_name_init(&keyname, NULL);
 	RETERR(dns_name_fromtext(&keyname, &keysrc, dns_rootname,
 				 ISC_FALSE, &keybuf));
 
 	ourkeyname = NULL;
 	ourkeyset = NULL;
-	RETERR(dns_message_findname(rmsg, DNS_SECTION_ADDITIONAL, &keyname,
+	RETERR(dns_message_findname(rmsg, DNS_SECTION_ANSWER, &keyname,
 				    dns_rdatatype_key, 0, &ourkeyname,
 				    &ourkeyset));
 
-	result = dns_message_firstname(rmsg, DNS_SECTION_ADDITIONAL);
+	result = dns_message_firstname(rmsg, DNS_SECTION_ANSWER);
 	while (result == ISC_R_SUCCESS) {
 		theirkeyname = NULL;
-		dns_message_currentname(rmsg, DNS_SECTION_ADDITIONAL,
+		dns_message_currentname(rmsg, DNS_SECTION_ANSWER,
 					&theirkeyname);
 		if (dns_name_equal(theirkeyname, ourkeyname))
 			goto next;
@@ -921,7 +915,7 @@ dns_tkey_processdhresponse(dns_message_t *qmsg, dns_message_t *rmsg,
 			break;
 		}
  next:
-                result = dns_message_nextname(rmsg, DNS_SECTION_ADDITIONAL);
+                result = dns_message_nextname(rmsg, DNS_SECTION_ANSWER);
         }
 
 	if (theirkeyset == NULL) {
@@ -934,14 +928,12 @@ dns_tkey_processdhresponse(dns_message_t *qmsg, dns_message_t *rmsg,
 	RETERR(dns_dnssec_keyfromrdata(theirkeyname, &theirkeyrdata,
 				       rmsg->mctx, &theirkey));
 
-	RETERR(dst_secret_size(key, &sharedsize));
-	RETERR(isc_buffer_allocate(rmsg->mctx, &shared, sharedsize,
-				   ISC_BUFFERTYPE_BINARY));
+	RETERR(dst_key_secretsize(key, &sharedsize));
+	RETERR(isc_buffer_allocate(rmsg->mctx, &shared, sharedsize));
 
-	RETERR(dst_computesecret(theirkey, key, shared));
+	RETERR(dst_key_computesecret(theirkey, key, shared));
 
-	isc_buffer_init(&secret, secretdata, sizeof(secretdata),
-			ISC_BUFFERTYPE_BINARY);
+	isc_buffer_init(&secret, secretdata, sizeof(secretdata));
 
 	r.base = rtkey.key;
 	r.length = rtkey.keylen;
@@ -955,8 +947,7 @@ dns_tkey_processdhresponse(dns_message_t *qmsg, dns_message_t *rmsg,
 	if (nonce == NULL)
 		isc_mem_put(rmsg->mctx, r2.base, 0);
 
-	isc_buffer_used(&secret, &r);
-	tsigkey = NULL;
+	isc_buffer_usedregion(&secret, &r);
 	result = dns_tsigkey_create(tkeyname, &rtkey.algorithm,
 				    r.base, r.length, ISC_TRUE,
 				    NULL, rtkey.inception, rtkey.expire,
@@ -977,7 +968,7 @@ dns_tkey_processdeleteresponse(dns_message_t *qmsg, dns_message_t *rmsg,
 {
 	dns_rdata_t qtkeyrdata, rtkeyrdata;
 	dns_name_t *tkeyname, *tempname;
-	dns_rdata_generic_tkey_t qtkey, rtkey;
+	dns_rdata_tkey_t qtkey, rtkey;
 	dns_tsigkey_t *tsigkey = NULL;
 	isc_result_t result;
 
@@ -987,10 +978,11 @@ dns_tkey_processdeleteresponse(dns_message_t *qmsg, dns_message_t *rmsg,
 	if (rmsg->rcode != dns_rcode_noerror)
 		return(ISC_RESULTCLASS_DNSRCODE + rmsg->rcode);
 
-	RETERR(find_tkey(rmsg, &tkeyname, &rtkeyrdata));
+	RETERR(find_tkey(rmsg, &tkeyname, &rtkeyrdata, DNS_SECTION_ANSWER));
 	RETERR(dns_rdata_tostruct(&rtkeyrdata, &rtkey, rmsg->mctx));
 
-	RETERR(find_tkey(qmsg, &tempname, &qtkeyrdata));
+	RETERR(find_tkey(qmsg, &tempname, &qtkeyrdata,
+			 DNS_SECTION_ADDITIONAL));
 	RETERR(dns_rdata_tostruct(&qtkeyrdata, &qtkey, qmsg->mctx));
 
 	if (rtkey.error != dns_rcode_noerror ||
@@ -1006,9 +998,13 @@ dns_tkey_processdeleteresponse(dns_message_t *qmsg, dns_message_t *rmsg,
 
 	RETERR(dns_tsigkey_find(&tsigkey, tkeyname, &rtkey.algorithm, ring));
 
-	/* Mark the key as deleted */
+	/*
+	 * Mark the key as deleted.
+	 */
 	dns_tsigkey_setdeleted(tsigkey);
-	/* Release the reference */
+	/*
+	 * Release the reference.
+	 */
 	dns_tsigkey_free(&tsigkey);
 
  failure:

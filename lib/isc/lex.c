@@ -18,16 +18,14 @@
 #include <config.h>
 
 #include <ctype.h>
-#include <limits.h>
-#include <string.h>
 #include <stdlib.h>
 
-#include <sys/types.h>
-
-#include <isc/assertions.h>
-#include <isc/boolean.h>
-#include <isc/error.h>
+#include <isc/buffer.h>
+#include <isc/file.h>
 #include <isc/lex.h>
+#include <isc/mem.h>
+#include <isc/stdio.h>
+#include <isc/string.h>
 #include <isc/util.h>
 
 typedef struct inputsource {
@@ -69,7 +67,7 @@ grow_data(isc_lex_t *lex, size_t *remainingp, char **currp, char **prevp) {
 	char *new;
 
 	new = isc_mem_get(lex->mctx, lex->max_token * 2 + 1);
-	if (lex == NULL)
+	if (new == NULL)
 		return (ISC_R_NOMEMORY);
 	memcpy(new, lex->data, lex->max_token + 1);
 	*currp = new + (*currp - lex->data);
@@ -79,7 +77,6 @@ grow_data(isc_lex_t *lex, size_t *remainingp, char **currp, char **prevp) {
 	lex->data = new;
 	*remainingp += lex->max_token;
 	lex->max_token *= 2;
-	fprintf(stderr, "max_token now %d\n", lex->max_token);
 	return (ISC_R_SUCCESS);
 }
 
@@ -215,7 +212,8 @@ new_source(isc_lex_t *lex, isc_boolean_t is_file, isc_boolean_t need_close,
 
 isc_result_t
 isc_lex_openfile(isc_lex_t *lex, const char *filename) {
-	FILE *stream;
+	isc_result_t result;
+	FILE *stream = NULL;
 
 	/*
 	 * Open 'filename' and make it the current input source for 'lex'.
@@ -223,17 +221,10 @@ isc_lex_openfile(isc_lex_t *lex, const char *filename) {
 
 	REQUIRE(VALID_LEX(lex));
 
-	/*
-	 * XXX we should really call something like isc_file_open() to
-	 * get maximally safe file opening.
-	 */
-	stream = fopen(filename, "r");
-	/*
-	 * The C standard doesn't say that errno is set by fopen(), so
-	 * we just return a generic error.
-	 */
-	if (stream == NULL)
-		return (ISC_R_FAILURE);
+	result = isc_stdio_open(filename, "r", &stream);
+	if (result != ISC_R_SUCCESS)
+		return (result);
+
 	flockfile(stream);
 	
 	return (new_source(lex, ISC_TRUE, ISC_TRUE, stream, filename));
@@ -494,7 +485,7 @@ isc_lex_gettoken(isc_lex_t *lex, unsigned int options, isc_token_t *tokenp) {
 				tokenp->type = isc_tokentype_special;
 				tokenp->value.as_char = c;
 				done = ISC_TRUE;
-			} else if (isdigit(c) &&
+			} else if (isdigit((unsigned char)c) &&
 				   (options & ISC_LEXOPT_NUMBER) != 0) {
 				lex->last_was_eol = ISC_FALSE;
 				state = lexstate_number;
@@ -513,7 +504,7 @@ isc_lex_gettoken(isc_lex_t *lex, unsigned int options, isc_token_t *tokenp) {
 			lex->last_was_eol = ISC_TRUE;
 			break;
 		case lexstate_number:
-			if (!isdigit(c)) {
+			if (c == EOF || !isdigit((unsigned char)c)) {
 				if (c == ' ' || c == '\t' || c == '\r' ||
 				    c == '\n' || c == EOF ||
 				    lex->specials[c]) {

@@ -17,9 +17,18 @@
 
 #include <config.h>
 
+#include <ctype.h>
+#include <stdio.h>		/* for sprintf */
+#include <stdlib.h>
+
 #include <isc/assertions.h>
 #include <isc/print.h>
 #include <isc/platform.h>
+#include <isc/util.h>
+
+#ifndef ISC_PLATFORM_NEEDVSNPRINTF
+#error ISC_PLATFORM_NEEDVSPRINTF needs to be defined to compile this file.
+#endif
 
 /*
  * Return length of string that would have been written if not truncated.
@@ -56,6 +65,7 @@ isc_print_vsnprintf(char *str, size_t size, const char *format, va_list ap) {
 	unsigned long long tmpui;
 	unsigned long width;
 	unsigned long precision;
+	unsigned int length;
 	char buf[1024];
 	char *cp;
 	char *save = str;
@@ -63,7 +73,6 @@ isc_print_vsnprintf(char *str, size_t size, const char *format, va_list ap) {
 	void *v;
 	char *head;
 	int count = 0;
-	int length;
 	int pad;
 	int zeropad;
 	int dot;
@@ -88,7 +97,9 @@ isc_print_vsnprintf(char *str, size_t size, const char *format, va_list ap) {
 		}
 		format++;
 
-		/* reset flags */
+		/*
+		 * Reset flags.
+		 */
 		dot = neg = space = plus = left = zero = alt = h = l = q = 0;
 		width = precision = 0;
 		head = "";
@@ -118,24 +129,28 @@ isc_print_vsnprintf(char *str, size_t size, const char *format, va_list ap) {
 				break;
 		} while (1);
 
-		/* width */
+		/*
+		 * Width.
+		 */
 		if (*format == '*') {
 			width = va_arg(ap, int);
 			format++;
-		} else if (isdigit(*format)) {
+		} else if (isdigit((unsigned char)*format)) {
 			char *e;
 			width = strtoul(format, &e, 10);
 			format = e;
 		} 
 
-		/* precision */
+		/*
+		 * Precision.
+		 */
 		if (*format == '.') {
 			format++;
 			dot = 1;
 			if (*format == '*') {
 				precision = va_arg(ap, int);
 				format++;
-			} else if (isdigit(*format)) {
+			} else if (isdigit((unsigned char)*format)) {
 				char *e;
 				precision = strtoul(format, &e, 10);
 				format = e;
@@ -226,9 +241,9 @@ isc_print_vsnprintf(char *str, size_t size, const char *format, va_list ap) {
 				if (q)
 					tmpui = va_arg(ap, unsigned long long);
 				else if (l)
-					tmpi = va_arg(ap, long int);
+					tmpui = va_arg(ap, long int);
 				else
-					tmpi = va_arg(ap, int);
+					tmpui = va_arg(ap, int);
 #ifdef ISC_PLATFORM_LONGLONGEQUALLONG
 				sprintf(buf, alt ? "%#lo" : "%lo", tmpui);
 #else
@@ -289,7 +304,9 @@ isc_print_vsnprintf(char *str, size_t size, const char *format, va_list ap) {
 					length = strlen(buf);
 					if (length < precision)
 						zeropad = precision - length;
-					if (width) {
+					else if (length < width && zero)
+						zeropad = width - length;
+					if (width != 0) {
 						pad = width - length -
 						      zeropad - strlen(head);
 						if (pad < 0)
@@ -335,7 +352,9 @@ isc_print_vsnprintf(char *str, size_t size, const char *format, va_list ap) {
 			REQUIRE(cp != NULL);
 
 			if (precision != 0) {
-				/* cp need not be NULL terminated */
+				/*
+				 * cp need not be NULL terminated.
+				 */
 				char *tp;
 				unsigned long n;
 
@@ -480,7 +499,7 @@ isc_print_vsnprintf(char *str, size_t size, const char *format, va_list ap) {
 			 */
 			if (precision > 512)
 				precision = 512;
-			sprintf(fmt, "%%%s%s.%d%s%c", alt ? "#" : "",
+			sprintf(fmt, "%%%s%s.%lu%s%c", alt ? "#" : "",
 				plus ? "+" : space ? " " : "",
 				precision, l ? "L" : "", *format);
 			switch (*format) {

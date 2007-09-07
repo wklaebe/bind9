@@ -30,7 +30,7 @@ typedef struct lwres_lwpacket lwres_lwpacket_t;
 struct lwres_lwpacket {
 	lwres_uint32_t		length;
 	lwres_uint16_t		version;
-	lwres_uint16_t		flags;
+	lwres_uint16_t		pktflags;
 	lwres_uint32_t		serial;
 	lwres_uint32_t		opcode;
 	lwres_uint32_t		result;
@@ -42,6 +42,7 @@ struct lwres_lwpacket {
 #define LWRES_LWPACKET_LENGTH		(4 * 5 + 2 * 4)
 
 #define LWRES_LWPACKETFLAG_RESPONSE	0x0001U	/* if set, pkt is a response */
+
 
 #define LWRES_LWPACKETVERSION_0		0
 
@@ -79,10 +80,12 @@ struct lwres_lwpacket {
  *
  * "authtype" is the packet level auth type used.
  * Authtypes between 0x1000 and 0xffff are application defined.  Authtypes
- * between 0x0000 and 0x0fff are reserved for library use.
+ * between 0x0000 and 0x0fff are reserved for library use.  This is currently
+ * unused and MUST be set to zero.
  *
  * "authlen" is the length of the authentication data.  See the specific
- * authtypes for more information on what is contained in this field.
+ * authtypes for more information on what is contained in this field.  This
+ * is currently unused, and MUST be set to zero.
  *
  * The remainder of the packet consists of two regions, one described by
  * "authlen" and one of "length - authlen - sizeof(lwres_lwpacket_t)".
@@ -94,9 +97,8 @@ struct lwres_lwpacket {
  *	data bytes
  */
 
-/* XXXMLG Some of this belongs here, some elsewhere.
- *
- * Initially, we will define only a few opcodes:
+/*
+ * Currently defined opcodes:
  *
  *	NOOP.  Success is always returned, with the packet contents echoed.
  *
@@ -107,14 +109,11 @@ struct lwres_lwpacket {
  *
  *	GETNAMEBYADDR.	Return the hostname for the given address.  Once
  *		again, it will return data from multiple sources.
- *
- *	GETDNSTYPE.  Return information about a given name using DNS
- *		specific structure formats.  That is, one can request MX,
- *		NS, SOA, etc. using this opcode.
  */
 
 LWRES_LANG_BEGINDECLS
 
+/* XXXMLG document */
 lwres_result_t
 lwres_lwpacket_renderheader(lwres_buffer_t *b, lwres_lwpacket_t *pkt);
 

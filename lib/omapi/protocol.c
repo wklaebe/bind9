@@ -18,14 +18,21 @@
 /*
  * Functions supporting the object management protocol.
  */
+
+#include <config.h>
+
 #include <stddef.h>		/* NULL */
 #include <stdlib.h>		/* random */
-#include <string.h>		/* memset */
 
-#include <isc/assertions.h>
-#include <isc/error.h>
+#include <isc/buffer.h>
+#include <isc/mem.h>
+#include <isc/string.h>
+#include <isc/util.h>
+
+#include <dst/result.h>
 
 #include <omapi/private.h>
+#include <omapi/result.h>
 
 /*
  * OMAPI protocol header, version 1.00
@@ -351,8 +358,8 @@ dispatch_messages(omapi_protocol_t *protocol,
 
 		if (protocol->key != NULL) {
 			protocol->verify_result =
-				dst_verify(DST_SIGMODE_INIT, protocol->key,
-					   &protocol->dstctx, NULL, NULL);
+				dst_key_verify(DST_SIGMODE_INIT, protocol->key,
+					       &protocol->dstctx, NULL, NULL);
 			protocol->dst_update = ISC_TRUE;
 		}
 
@@ -637,7 +644,6 @@ static isc_result_t
 protocol_signalhandler(omapi_object_t *h, const char *name, va_list ap) {
 	isc_result_t result;
 	omapi_protocol_t *p;
-	omapi_object_t *connection;
 	omapi_connection_t *c;
 
 	REQUIRE(h != NULL && h->type == omapi_type_protocol);
@@ -652,8 +658,6 @@ protocol_signalhandler(omapi_object_t *h, const char *name, va_list ap) {
 		return (omapi_object_passsignal(h, name, ap));
 
 	INSIST(p->outer != NULL && p->outer->type == omapi_type_connection);
-
-	connection = p->outer;
 
 	do {
 		result = dispatch_messages(p, c);
@@ -708,17 +712,16 @@ protocol_setvalue(omapi_object_t *h, omapi_string_t *name, omapi_data_t *value)
 		result = auth_makekey(p->authname, p->algorithm, &p->key);
 
 		if (result == ISC_R_SUCCESS)
-			result = dst_sig_size(p->key, &sigsize);
+			result = dst_key_sigsize(p->key, &sigsize);
 
 		if (result == ISC_R_SUCCESS)
 			result = isc_buffer_allocate(omapi_mctx,
 						     &p->signature_out,
-						     sigsize,
-						     ISC_BUFFERTYPE_GENERIC);
+						     sigsize);
 
 		if (result != ISC_R_SUCCESS) {
 			if (p->key != NULL)
-				dst_key_free(p->key);
+				dst_key_free(&p->key);
 			isc_mem_put(omapi_mctx, p->authname,
 				    strlen(p->authname) + 1);
 			p->authname = NULL;
@@ -764,7 +767,7 @@ protocol_destroy(omapi_object_t *h) {
 	}
 
 	if (p->key != NULL) {
-		dst_key_free(p->key);
+		dst_key_free(&p->key);
 		p->key = NULL;
 	}
 }

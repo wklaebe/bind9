@@ -15,5 +15,16 @@
  * SOFTWARE.
  */
 
-/* $Id: mx_15.h,v 1.17 2000/03/20 22:57:13 gson Exp $ */
+#ifndef GENERIC_MX_15_H
+#define GENERIC_MX_15_H 1
 
+/* $Id: mx_15.h,v 1.20 2000/05/08 14:36:53 tale Exp $ */
+
+typedef struct dns_rdata_mx {
+	dns_rdatacommon_t	common;
+	isc_mem_t		*mctx;
+	isc_uint16_t		pref;
+	dns_name_t		mx;
+} dns_rdata_mx_t;
+
+#endif /* GENERIC_MX_15_H */

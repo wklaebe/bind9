@@ -1,6 +1,6 @@
 /* config.h.in.  Generated automatically from configure.in by autoheader.  */
 /*
- * Copyright (C) 1999  Internet Software Consortium.
+ * Copyright (C) 1999, 2000  Internet Software Consortium.
  * 
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -45,6 +45,9 @@
 /* define if your system has sigwait() */
 #undef HAVE_SIGWAIT
 
+/* define if sigwait() is the UnixWare flavor */
+#undef HAVE_UNIXWARE_SIGWAIT
+
 /* define on Solaris to get sigwait() to work using pthreads semantics */
 #undef _POSIX_PTHREAD_SEMANTICS
 
@@ -60,14 +63,21 @@
 /* define if chroot() is available */
 #undef HAVE_CHROOT
 
+/* Shut up warnings about sputaux in stdio.h on BSD/OS pre-4.1 */
+#undef SHUTUP_SPUTAUX
+#ifdef SHUTUP_SPUTAUX
+struct __sFILE;
+extern __inline int __sputaux(int _c, struct __sFILE *_p);
+#endif
+
 /* Define if you have the <fcntl.h> header file.  */
 #undef HAVE_FCNTL_H
 
 /* Define if you have the <linux/capability.h> header file.  */
 #undef HAVE_LINUX_CAPABILITY_H
 
-/* Define if you have the <netinet6/in6.h> header file.  */
-#undef HAVE_NETINET6_IN6_H
+/* Define if you have the <linux/prctl.h> header file.  */
+#undef HAVE_LINUX_PRCTL_H
 
 /* Define if you have the <sys/sockio.h> header file.  */
 #undef HAVE_SYS_SOCKIO_H
@@ -77,9 +87,6 @@
 
 /* Define if you have the <unistd.h> header file.  */
 #undef HAVE_UNISTD_H
-
-/* Define if you have the c_r library (-lc_r).  */
-#undef HAVE_LIBC_R
 
 /* Define if you have the nsl library (-lnsl).  */
 #undef HAVE_LIBNSL

@@ -15,7 +15,7 @@
  * SOFTWARE.
  */
 
-/* $Id: opt_41.c,v 1.5 2000/03/16 22:42:10 gson Exp $ */
+/* $Id: opt_41.c,v 1.14 2000/05/22 12:37:51 marka Exp $ */
 
 /* Reviewed: Thu Mar 16 14:06:44 PST 2000 by gson */
 
@@ -23,6 +23,10 @@
 
 #ifndef RDATA_GENERIC_OPT_41_C
 #define RDATA_GENERIC_OPT_41_C
+
+#define RRTYPE_OPT_ATTRIBUTES (DNS_RDATATYPEATTR_SINGLETON | \
+			       DNS_RDATATYPEATTR_META | \
+			       DNS_RDATATYPEATTR_NOTQUESTION)
 
 static inline isc_result_t
 fromtext_opt(dns_rdataclass_t rdclass, dns_rdatatype_t type,
@@ -41,23 +45,51 @@ fromtext_opt(dns_rdataclass_t rdclass, dns_rdatatype_t type,
 	UNUSED(downcase);
 	UNUSED(target);
 
-	return (DNS_R_NOTIMPLEMENTED);
+	return (ISC_R_NOTIMPLEMENTED);
 }
 
 static inline isc_result_t
 totext_opt(dns_rdata_t *rdata, dns_rdata_textctx_t *tctx, 
 	   isc_buffer_t *target) 
 {
+	isc_region_t r;
+	isc_region_t or;
+	isc_uint16_t option;
+	isc_uint16_t length;
+	char buf[sizeof("64000 64000")];
+
 	/*
 	 * OPT records do not have a text format.
 	 */
 
 	REQUIRE(rdata->type == 41);
 
-	UNUSED(tctx);
-	UNUSED(target);
+	dns_rdata_toregion(rdata, &r);
+	while (r.length > 0) {
+		option = uint16_fromregion(&r);
+		isc_region_consume(&r, 2);
+		length = uint16_fromregion(&r);
+		isc_region_consume(&r, 2);
+		sprintf(buf, "%u %u", option, length);
+		RETERR(str_totext(buf, target));
+		INSIST(r.length >= length);
+		if (length > 0) {
+			if ((tctx->flags & DNS_STYLEFLAG_MULTILINE) != 0)
+				RETERR(str_totext(" (", target));
+			RETERR(str_totext(tctx->linebreak, target));
+			or = r;
+			or.length = length;
+			RETERR(isc_base64_totext(&or, tctx->width - 2,
+						 tctx->linebreak, target));
+			isc_region_consume(&r, length);
+			if ((tctx->flags & DNS_STYLEFLAG_MULTILINE) != 0)
+				RETERR(str_totext(" )", target));
+		}
+		if (r.length > 0)
+			RETERR(str_totext(" ", target));
+	}
 
-	return (DNS_R_NOTIMPLEMENTED);
+	return (ISC_R_SUCCESS);
 }
 
 static inline isc_result_t
@@ -67,7 +99,7 @@ fromwire_opt(dns_rdataclass_t rdclass, dns_rdatatype_t type,
 {
 	isc_region_t sregion;
 	isc_region_t tregion;
-	isc_uint16_t option, length;
+	isc_uint16_t length;
 	unsigned int total;
 
 	REQUIRE(type == 41);
@@ -76,31 +108,34 @@ fromwire_opt(dns_rdataclass_t rdclass, dns_rdatatype_t type,
 	UNUSED(dctx);
 	UNUSED(downcase);
 
-	isc_buffer_active(source, &sregion);
+	isc_buffer_activeregion(source, &sregion);
 	total = 0;
 	while (sregion.length != 0) {
 		if (sregion.length < 4)
-			return (DNS_R_UNEXPECTEDEND);
-		option = uint16_fromregion(&sregion);
+			return (ISC_R_UNEXPECTEDEND);
+		/*
+		 * Eat the 16bit option code.  There is nothing to
+		 * be done with it currently.
+		 */
 		isc_region_consume(&sregion, 2);
 		length = uint16_fromregion(&sregion);
 		isc_region_consume(&sregion, 2);
 		total += 4;
 		if (sregion.length < length)
-			return (DNS_R_UNEXPECTEDEND);
+			return (ISC_R_UNEXPECTEDEND);
 		isc_region_consume(&sregion, length);
 		total += length;
 	}
 
-	isc_buffer_active(source, &sregion);
-	isc_buffer_available(target, &tregion);
+	isc_buffer_activeregion(source, &sregion);
+	isc_buffer_availableregion(target, &tregion);
 	if (tregion.length < total)
-		return (DNS_R_NOSPACE);
+		return (ISC_R_NOSPACE);
 	memcpy(tregion.base, sregion.base, total);
 	isc_buffer_forward(source, total);
 	isc_buffer_add(target, total);
 
-	return (DNS_R_SUCCESS);
+	return (ISC_R_SUCCESS);
 }
 
 static inline isc_result_t
@@ -131,29 +166,72 @@ static inline isc_result_t
 fromstruct_opt(dns_rdataclass_t rdclass, dns_rdatatype_t type, void *source,
 	       isc_buffer_t *target)
 {
+	dns_rdata_opt_t *opt = source;
+	isc_region_t region;
+	isc_uint8_t length;
+
 	REQUIRE(type == 41);
+	REQUIRE(source != NULL);
+	REQUIRE(opt->common.rdtype == type);
+	REQUIRE(opt->common.rdclass == rdclass);
+	REQUIRE((opt->options != NULL && opt->length != 0) ||
+		(opt->options == NULL && opt->length == 0));
 
-	UNUSED(rdclass);
-	UNUSED(source);
-	UNUSED(target);
+	region.base = opt->options;
+	region.length = opt->length;
+	while (region.length >= 4) {
+		isc_region_consume(&region, 2);	/* opt */
+		length = uint16_fromregion(&region);
+		isc_region_consume(&region, 2);
+		if (region.length < length)
+			return (ISC_R_UNEXPECTEDEND);
+		isc_region_consume(&region, length);
+	}
+	if (region.length != 0)
+		return (ISC_R_UNEXPECTEDEND);
 
-	return (DNS_R_NOTIMPLEMENTED);
+	return (mem_tobuffer(target, opt->options, opt->length));
 }
 
 static inline isc_result_t
 tostruct_opt(dns_rdata_t *rdata, void *target, isc_mem_t *mctx) {
+	dns_rdata_opt_t *opt = target;
+	isc_region_t r;
 
 	REQUIRE(rdata->type == 41);
+	REQUIRE(target != NULL);
 
-	UNUSED(target);
-	UNUSED(mctx);
+	opt->common.rdclass = rdata->rdclass;
+	opt->common.rdtype = rdata->type;
+	ISC_LINK_INIT(&opt->common, link);
 
-	return (DNS_R_NOTIMPLEMENTED);
+	dns_rdata_toregion(rdata, &r);
+	opt->length = r.length;
+	if (opt->length != 0) {
+		opt->options = mem_maybedup(mctx, r.base, r.length);
+		if (opt->options == NULL)
+			return (ISC_R_NOMEMORY);
+	} else
+		opt->options = NULL;
+
+	opt->offset = 0;
+	opt->mctx = mctx;
+	return (ISC_R_SUCCESS);
 }
 
 static inline void
 freestruct_opt(void *source) {
-	UNUSED(source);
+	dns_rdata_opt_t *opt = source;
+
+	REQUIRE(source != NULL);
+	REQUIRE(opt->common.rdtype == 41);
+
+	if (opt->mctx == NULL)
+		return;
+
+	if (opt->options != NULL)
+		isc_mem_free(opt->mctx, opt->options);
+	opt->mctx = NULL;
 }
 
 static inline isc_result_t
@@ -162,10 +240,11 @@ additionaldata_opt(dns_rdata_t *rdata, dns_additionaldatafunc_t add,
 {
 	REQUIRE(rdata->type == 41);
 
+	UNUSED(rdata);
 	UNUSED(add);
 	UNUSED(arg);
 
-	return (DNS_R_SUCCESS);
+	return (ISC_R_SUCCESS);
 }
 
 static inline isc_result_t
@@ -177,10 +256,11 @@ digest_opt(dns_rdata_t *rdata, dns_digestfunc_t digest, void *arg) {
 
 	REQUIRE(rdata->type == 41);
 
+	UNUSED(rdata);
 	UNUSED(digest);
 	UNUSED(arg);
 
-	return (DNS_R_NOTIMPLEMENTED);
+	return (ISC_R_NOTIMPLEMENTED);
 }
 
 #endif	/* RDATA_GENERIC_OPT_41_C */

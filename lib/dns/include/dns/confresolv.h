@@ -15,8 +15,8 @@
  * SOFTWARE.
  */
 
-#ifndef DNS_CONFIG_CONFRESOLV_H
-#define DNS_CONFIG_CONFRESOLV_H 1
+#ifndef DNS_CONFRESOLV_H
+#define DNS_CONFRESOLV_H 1
 
 /*****
  ***** Module Info
@@ -50,8 +50,7 @@
  *** Imports
  ***/
 
-#include <config.h>
-
+#include <isc/lang.h>
 #include <isc/types.h>
 
 /***
@@ -60,21 +59,20 @@
 
 typedef struct dns_c_resolv		dns_c_resolv_t;
 
-struct dns_c_resolv
-{
+struct dns_c_resolv {
 	isc_mem_t	       *mem;
 
 	/* XXX need this fleshed out */
 };
 
-
-
-
 /***
  *** Functions
  ***/
 
-isc_result_t dns_c_resolv_new(isc_mem_t *mem, dns_c_resolv_t **cfgres);
+ISC_LANG_BEGINDECLS
+
+isc_result_t
+dns_c_resolv_new(isc_mem_t *mem, dns_c_resolv_t **cfgres);
 /*
  * Creates a new resolver-config object.
  *
@@ -88,7 +86,8 @@ isc_result_t dns_c_resolv_new(isc_mem_t *mem, dns_c_resolv_t **cfgres);
  * 
  */
 
-isc_result_t dns_c_resolv_delete(dns_c_resolv_t **cfgres);
+isc_result_t
+dns_c_resolv_delete(dns_c_resolv_t **cfgres);
 /*
  * Deletes the config-resolv object and its contents.
  *
@@ -101,5 +100,6 @@ isc_result_t dns_c_resolv_delete(dns_c_resolv_t **cfgres);
  * 
  */
 
+ISC_LANG_ENDDECLS
 
-#endif /* DNS_CONFIG_CONFRESOLV_H */
+#endif /* DNS_CONFRESOLV_H */

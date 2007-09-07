@@ -19,7 +19,7 @@
 
 #include <stddef.h>
 
-#include <isc/assertions.h>
+#include <isc/util.h>
 
 #include <dns/rdataset.h>
 #include <dns/rdatasetiter.h>
@@ -61,7 +61,7 @@ dns_rdatasetiter_next(dns_rdatasetiter_t *iterator) {
 }
 
 void
-dns_rdatasetiter_current(dns_rdatasetiter_t *iterator, 
+dns_rdatasetiter_current(dns_rdatasetiter_t *iterator,
 			 dns_rdataset_t *rdataset)
 {
 	/*
@@ -70,7 +70,7 @@ dns_rdatasetiter_current(dns_rdatasetiter_t *iterator,
 
 	REQUIRE(DNS_RDATASETITER_VALID(iterator));
 	REQUIRE(DNS_RDATASET_VALID(rdataset));
-	REQUIRE(rdataset->methods == NULL);
+	REQUIRE(! dns_rdataset_isassociated(rdataset));
 
 	iterator->methods->current(iterator, rdataset);
 }

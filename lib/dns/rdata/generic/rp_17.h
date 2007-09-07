@@ -15,7 +15,19 @@
  * SOFTWARE.
  */
 
-/* $Id: rp_17.h,v 1.10 2000/03/20 22:57:14 gson Exp $ */
+#ifndef GENERIC_RP_17_H
+#define GENERIC_RP_17_H 1
+
+/* $Id: rp_17.h,v 1.13 2000/05/08 14:36:55 tale Exp $ */
 
 /* RFC 1183 */
 
+typedef struct dns_rdata_rp {
+        dns_rdatacommon_t       common;
+        isc_mem_t               *mctx;
+        dns_name_t              mail;
+        dns_name_t              text;
+} dns_rdata_rp_t;
+
+
+#endif /* GENERIC_RP_17_H */

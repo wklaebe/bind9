@@ -48,7 +48,7 @@
  * SUCH DAMAGE.
  */
 
-/* $Id: commandline.c,v 1.3 2000/02/03 23:08:23 halley Exp $ */
+/* $Id: commandline.c,v 1.6 2000/05/08 14:37:20 tale Exp $ */
 
 /*
  * This file was adapted from the NetBSD project's source tree, RCS ID:
@@ -63,12 +63,13 @@
  * Principal ISC caretaker: DCL
  */
 
-#include <stdio.h>
-#include <string.h>
+#include <config.h>
 
-#include <isc/assertions.h>
-#include <isc/boolean.h>
+#include <stdio.h>
+
 #include <isc/commandline.h>
+#include <isc/string.h>
+#include <isc/util.h>
 
 int isc_commandline_index = 1;		/* Index into parent argv vector. */
 int isc_commandline_option;		/* Character checked for validity. */

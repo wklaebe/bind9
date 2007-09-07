@@ -6,8 +6,8 @@
    prohibited.
  */
 
-#ifndef _GLOBAL_H_
-#define _GLOBAL_H_ 1
+#ifndef DNSSAFE_GLOBAL_H
+#define DNSSAFE_GLOBAL_H 1
 
 #ifdef __cplusplus
 extern "C" {
@@ -24,7 +24,7 @@ extern "C" {
 
 #include <config.h>
 #include <isc/int.h>
-#include <sys/types.h>
+#include <sys/types.h> /* XXXMLG This should go... */
 
 /* POINTER defines a generic pointer type */
 typedef unsigned char *POINTER;
@@ -57,4 +57,5 @@ typedef isc_uint32_t UINT4;
 }
 #endif
 
-#endif /* end _GLOBAL_H_ */
+#endif /* DNSSAFE_GLOBAL_H */
+

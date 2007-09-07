@@ -15,16 +15,12 @@
  * SOFTWARE.
  */
 
-/* $Id: base64.h,v 1.4 2000/03/21 00:37:35 gson Exp $ */
+/* $Id: base64.h,v 1.6 2000/04/10 21:52:31 gson Exp $ */
 
 #ifndef ISC_BASE64_H
 #define ISC_BASE64_H 1
 
-#include <isc/buffer.h>
 #include <isc/lang.h>
-#include <isc/lex.h>
-#include <isc/region.h>
-#include <isc/result.h>
 #include <isc/types.h>
 
 ISC_LANG_BEGINDECLS

@@ -15,22 +15,24 @@
  * SOFTWARE.
  */
 
-/* $Id: dir.c,v 1.7 2000/02/03 23:08:01 halley Exp $ */
+/* $Id: dir.c,v 1.10 2000/05/11 15:09:27 tale Exp $ */
 
 /* Principal Authors: DCL */
 
-#include <stdlib.h>
-#include <string.h>
+#include <config.h>
+
 #include <errno.h>
 #include <unistd.h>
 
 #include <isc/dir.h>
-#include <isc/assertions.h>
-#include <isc/error.h>
+#include <isc/magic.h>
+#include <isc/string.h>
+#include <isc/util.h>
+
+#include "errno2result.h"
 
 #define ISC_DIR_MAGIC		0x4449522aU	/* DIR*. */
-#define VALID_DIR(dir)		((dir) != NULL && \
-				 (dir)->magic == ISC_DIR_MAGIC)
+#define VALID_DIR(dir)		ISC_MAGIC_VALID(dir, ISC_DIR_MAGIC)
 
 void
 isc_dir_init(isc_dir_t *dir) {
@@ -60,20 +62,8 @@ isc_dir_open(isc_dir_t *dir, const char *dirname) {
 	 */
 	dir->handle = opendir(dirname);
 
-	if (dir->handle == NULL) {
-		if (errno == ENOMEM)
-			result = ISC_R_NOMEMORY;
-		else if (errno == EPERM)
-			result = ISC_R_NOPERM;
-		else if (errno == ENOENT)
-			result = ISC_R_NOTFOUND;
-		else {
-			UNEXPECTED_ERROR(__FILE__, __LINE__,
-					 "opendir(%s) failed: %s",
-					 dirname, strerror(errno));
-			return (ISC_R_UNEXPECTED);
-		}
-	}
+	if (dir->handle == NULL)
+		return isc__errno2result(errno);
 
 	return (result);
 }
@@ -148,20 +138,8 @@ isc_dir_chdir(const char *dirname) {
 
 	REQUIRE(dirname != NULL);
 
-	if (chdir(dirname) < 0) {
-		if (errno == ENOENT)
-			return (ISC_R_NOTFOUND);
-		else if (errno == EACCES)
-			return (ISC_R_NOPERM);
-		else if (errno == ENOMEM)
-			return (ISC_R_NOMEMORY);
-		else {
-			UNEXPECTED_ERROR(__FILE__, __LINE__,
-					 "chdir(%s) failed: %s",
-					 dirname, strerror(errno));
-			return (ISC_R_UNEXPECTED);
-		}
-	}
+	if (chdir(dirname) < 0)
+		return (isc__errno2result(errno));
 
 	return (ISC_R_SUCCESS);
 }

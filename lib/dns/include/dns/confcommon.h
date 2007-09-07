@@ -15,8 +15,8 @@
  * SOFTWARE.
  */
 
-#ifndef DNS_CONFIG_CONFCOMMON_H
-#define DNS_CONFIG_CONFCOMMON_H 1
+#ifndef DNS_CONFCOMMON_H
+#define DNS_CONFCOMMON_H 1
 
 /*****
  ***** Module Info
@@ -53,25 +53,16 @@
  *** Imports
  ***/
 
-#include <config.h>
-
-#include <sys/types.h>
-
 #include <stdio.h>
-#include <stdarg.h>
-#include <string.h>
-#include <limits.h>
 
-#include <isc/int.h>
-#include <isc/result.h>
-#include <isc/types.h>
-#include <isc/net.h>
-#include <isc/sockaddr.h>
+#include <isc/lang.h>
 
 #include <dns/types.h>
 
-/* Constants used in the defintions of default logging channels and
-   categories */
+/*
+ * Constants used in the defintions of default logging channels and
+ * categories.
+ */
 #define DNS_C_DEFAULT_SYSLOG "default_syslog"
 #define DNS_C_DEFAULT_DEBUG "default_debug"
 #define DNS_C_DEFAULT_DEBUG_PATH "named.run"
@@ -79,28 +70,32 @@
 #define DNS_C_DEFAULT_STDERR  "default_stderr"
 #define DNS_C_STDERR_PATH " <stderr> "	/* not really a path */
 
-
-
-/* The value we use in config files if the user doesn't specify the port or 
- *   in some statements
+/*
+ * The value we use in config files if the user doesn't specify the port or 
+ * in some statements.
  */
 #define DNS_C_DEFAULTPORT	53	/* XXX this should be imported */
 
-
-/* What an 'unlimited' value for a size_spec is stored as internally */
+/*
+ * What an 'unlimited' value for a size_spec is stored as internally.
+ */
 #define DNS_C_SIZE_SPEC_UNLIM (~((isc_uint32_t) 0x0))
 
-/* What a 'default' value for a size_spec is stored as internally */
+/*
+ * What a 'default' value for a size_spec is stored as internally.
+ */
 #define DNS_C_SIZE_SPEC_DEFAULT (DNS_C_SIZE_SPEC_UNLIM - 1)
 
-/* What 'unlimited' is stored as internally for logging file versions */
-#define DNS_C_UNLIM_VERSIONS DNS_C_SIZE_SPEC_UNLIM
+/*
+ * What 'unlimited' is stored as internally for logging file versions
+ */
+#define DNS_C_UNLIM_VERSIONS	DNS_C_SIZE_SPEC_UNLIM
 
-/* The default ordering given to rrset-order statements when the type given 
-   is illegal (so parsing can continue). */
-#define DNS_DEFAULT_ORDERING dns_c_ordering_fixed
-
-
+/*
+ * The default ordering given to rrset-order statements when the type given 
+ * is illegal (so parsing can continue).
+ */
+#define DNS_DEFAULT_ORDERING 	dns_c_ordering_fixed
 
 /***
  *** Types
@@ -113,15 +108,6 @@ typedef enum {
 	dns_c_forw_noanswer,
 	dns_c_forw_nodomain
 } dns_c_forw_t;
-
-/* value of a 'check-names' method  */
-#if 0
-typedef enum {
-	dns_c_severity_ignore,
-	dns_c_severity_warn,
-	dns_c_severity_fail
-} dns_c_severity_t;
-#endif
 
 /* Value of a 'check-names' type. */
 typedef enum {
@@ -146,13 +132,6 @@ typedef enum {
 	dns_c_ordering_cyclic
 } dns_c_ordering_t;
 
-
-
-#if 0
-typedef enum {
-	dns_one_answer, dns_many_answers
-} dns_c_transferformat_t;
-#endif
 
 /* Possible zone types */
 typedef enum {
@@ -198,35 +177,13 @@ typedef enum {
 } dns_c_logseverity_t;
 
 
-#if 0					/* XXXJAB remove this */
-/* Possible logging categories. */
+/* Type of additional-data field */
 typedef enum {
-	dns_c_cat_default,
-	dns_c_cat_config,
-	dns_c_cat_parser,
-	dns_c_cat_queries,  
-	dns_c_cat_lameservers,
-	dns_c_cat_statistics,
-	dns_c_cat_panic, 
-	dns_c_cat_update,
-	dns_c_cat_ncache,
-	dns_c_cat_xferin,
-	dns_c_cat_xferout,  
-	dns_c_cat_db,
-	dns_c_cat_eventlib,
-	dns_c_cat_packet,
-	dns_c_cat_notify, 
-	dns_c_cat_cname,
-	dns_c_cat_security,
-	dns_c_cat_os,
-	dns_c_cat_insist, 
-	dns_c_cat_maint,
-	dns_c_cat_load,
-	dns_c_cat_respchecks,
-	dns_c_cat_control, 
-	dns_c_cat_none
-} dns_c_category_t;
-#endif
+	dns_c_ad_minimal,
+	dns_c_ad_maximal,
+	dns_c_ad_internal
+} dns_c_addata_t;
+
 
 /* Type of the bit sets used in various structures. Macros in confpvt.h
  * depending on this being an integer type, and some structures need more
@@ -250,10 +207,11 @@ typedef struct dns_c_zone_list		dns_c_zonelist_t;
 extern isc_boolean_t debug_mem_print;
 extern FILE *debug_mem_print_stream;	/* NULL means stderr */
 
-
 /***
  *** Functions
  ***/
+
+ISC_LANG_BEGINDECLS
 
 /* The following dns_c_xxx2string() functions convert the first argument into 
  * a string value and returns that value. If the first argument is not a
@@ -265,20 +223,29 @@ extern FILE *debug_mem_print_stream;	/* NULL means stderr */
  * dns_c_ordering2string((dns_c_ordering_t)0xffff,ISC_TRUE) returns the
  * value "UNKNOWN_ORDERING"
  */
-const char *		dns_c_ordering2string(dns_c_ordering_t ordering,
-					      isc_boolean_t printable);
-const char *		dns_c_logseverity2string(dns_c_logseverity_t level,
-					      isc_boolean_t printable);
-const char *		dns_c_facility2string(int facility,
-					      isc_boolean_t printable);
-const char *		dns_c_transformat2string(dns_transfer_format_t tform,
-						isc_boolean_t printable);
-const char *		dns_c_transport2string(dns_c_trans_t transport,
-					       isc_boolean_t printable);
-const char *		dns_c_nameseverity2string(dns_severity_t severity,
-						  isc_boolean_t printable);
-const char *		dns_c_forward2string(dns_c_forw_t forw,
-					     isc_boolean_t printable);
+const char *
+dns_c_ordering2string(dns_c_ordering_t ordering, isc_boolean_t printable);
+
+const char *
+dns_c_logseverity2string(dns_c_logseverity_t level, isc_boolean_t printable);
+
+const char *
+dns_c_facility2string(int facility, isc_boolean_t printable);
+
+const char *
+dns_c_transformat2string(dns_transfer_format_t tform, isc_boolean_t printable);
+
+const char *
+dns_c_transport2string(dns_c_trans_t transport, isc_boolean_t printable);
+
+const char *
+dns_c_nameseverity2string(dns_severity_t severity, isc_boolean_t printable);
+
+const char *
+dns_c_forward2string(dns_c_forw_t forw, isc_boolean_t printable);
+
+const char *
+dns_c_addata2string(dns_c_addata_t addata, isc_boolean_t printable);
 
 /*
  * The following dns_c_string2xxx() functions will look up the string
@@ -286,43 +253,59 @@ const char *		dns_c_forward2string(dns_c_forw_t forw,
  * through the second argument and ISC_R_SUCCESS is returned. If the string
  * doesn't match a valid value then ISC_R_FAILURE is returned.
  */
-isc_result_t		dns_c_string2ordering(char *name,
-					      dns_c_ordering_t *ordering);
-isc_result_t		dns_c_string2logseverity(const char *string,
-					      dns_c_logseverity_t *result);
-isc_result_t		dns_c_string2facility(const char *string, int *res);
+isc_result_t
+dns_c_string2ordering(char *name, dns_c_ordering_t *ordering);
 
+isc_result_t
+dns_c_string2logseverity(const char *string, dns_c_logseverity_t *result);
 
+isc_result_t
+dns_c_string2facility(const char *string, int *res);
 
-int			dns_c_isanyaddr(isc_sockaddr_t *inaddr);
-void 			dns_c_print_ipaddr(FILE *fp, isc_sockaddr_t *addr);
-isc_boolean_t		dns_c_need_quote(const char *string);
+int
+dns_c_isanyaddr(isc_sockaddr_t *inaddr);
 
-void			dns_c_printtabs(FILE *fp, int count); 
-void			dns_c_printinunits(FILE *fp, isc_uint32_t val);
+void
+dns_c_print_ipaddr(FILE *fp, isc_sockaddr_t *addr);
 
-void			dns_c_dataclass_tostream(FILE *fp,
-						 dns_rdataclass_t rclass);
-void			dns_c_datatype_tostream(FILE *fp,
-						dns_rdatatype_t rtype);
+isc_boolean_t
+dns_c_need_quote(const char *string);
 
+void
+dns_c_printtabs(FILE *fp, int count); 
 
-isc_boolean_t		dns_c_netaddrisanyaddr(isc_netaddr_t *inaddr);
-void			dns_c_netaddrprint(FILE *fp, isc_netaddr_t *inaddr);
-isc_result_t		dns_c_charptoname(isc_mem_t *mem, const char *keyval,
-					  dns_name_t **name);
-void			dns_c_peer_print(FILE *fp, int indent,
-					 dns_peer_t *peer);
-void			dns_c_peerlist_print(FILE *fp, int indent,
-					     dns_peerlist_t *peers);
-void			dns_c_ssutable_print(FILE *fp, int indent,
-					     dns_ssutable_t *ssutable);
+void
+dns_c_printinunits(FILE *fp, isc_uint32_t val);
 
+void
+dns_c_dataclass_tostream(FILE *fp, dns_rdataclass_t rclass);
 
+void
+dns_c_datatype_tostream(FILE *fp, dns_rdatatype_t rtype);
 
-isc_result_t		dns_c_checkcategory(const char *name);
-isc_result_t		dns_c_checkmodule(const char *name);
+isc_boolean_t
+dns_c_netaddrisanyaddr(isc_netaddr_t *inaddr);
 
+void
+dns_c_netaddrprint(FILE *fp, isc_netaddr_t *inaddr);
+
+isc_result_t
+dns_c_charptoname(isc_mem_t *mem, const char *keyval, dns_name_t **name);
+
+void
+dns_c_peer_print(FILE *fp, int indent, dns_peer_t *peer);
+
+void
+dns_c_peerlist_print(FILE *fp, int indent, dns_peerlist_t *peers);
+
+void
+dns_c_ssutable_print(FILE *fp, int indent, dns_ssutable_t *ssutable);
+
+isc_result_t
+dns_c_checkcategory(const char *name);
+
+isc_result_t
+dns_c_checkmodule(const char *name);
 /*
  * Checks the argument is a known category or module name.
  *
@@ -331,5 +314,6 @@ isc_result_t		dns_c_checkmodule(const char *name);
  *	ISC_R_FAILURE if it isn't.
  */
 
+ISC_LANG_ENDDECLS
 
-#endif /* DNS_CONFIG_CONFCOMMON_H */
+#endif /* DNS_CONFCOMMON_H */

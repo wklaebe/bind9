@@ -27,12 +27,17 @@ CINCLUDES =	-I${srcdir}/include -I${srcdir}/unix/include \
 CDEFINES =	
 CWARNINGS =
 
-DEPLIBS =	../../lib/dns/libdns.@A@ \
-		../../lib/omapi/libomapi.@A@ \
-		../../lib/isc/libisc.@A@
+OMAPILIBS =	../../lib/omapi/libomapi.@A@
+DNSLIBS =	../../lib/dns/libdns.@A@ @DNS_OPENSSL_LIBS@
+ISCLIBS =	../../lib/isc/libisc.@A@
 
-LIBS =		${DEPLIBS} \
-		@LIBS@
+OMAPIDEPLIBS =	../../lib/omapi/libomapi.@A@
+DNSDEPLIBS =	../../lib/dns/libdns.@A@
+ISCDEPLIBS =	../../lib/isc/libisc.@A@
+
+DEPLIBS =	${OMAPIDEPLIBS} ${DNSDEPLIBS} ${ISCDEPLIBS}
+
+LIBS =		${OMAPILIBS} ${DNSLIBS} ${ISCLIBS} @LIBS@
 
 SUBDIRS =	unix
 
@@ -51,7 +56,7 @@ SRCS =		client.c interfacemgr.c listenlist.c \
 @BIND9_MAKE_RULES@
 
 main.@O@: main.c
-	${CC} ${ALL_CFLAGS} -DVERSION=\"${VERSION}\" \
+	${LIBTOOL} ${CC} ${ALL_CFLAGS} -DVERSION=\"${VERSION}\" \
 		-DNS_LOCALSTATEDIR=\"${localstatedir}\" \
 		-DNS_SYSCONFDIR=\"${sysconfdir}\" -c ${srcdir}/main.c
 

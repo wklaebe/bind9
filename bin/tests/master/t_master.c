@@ -15,56 +15,55 @@
  * SOFTWARE.
  */
 
-#include	<config.h>
+#include <config.h>
 
-#include	<ctype.h>
-#include	<stdio.h>
-#include	<stdlib.h>
-#include	<string.h>
+#include <ctype.h>
+#include <stdlib.h>
 
-#include	<isc/mem.h>
-#include	<isc/buffer.h>
-#include	<isc/error.h>
+#include <isc/buffer.h>
+#include <isc/mem.h>
+#include <isc/string.h>		/* Required for HP/UX (and others?) */
+#include <isc/util.h>
 
-#include	<dns/master.h>
-#include	<dns/name.h>
-#include	<dns/rdataclass.h>
-#include	<dns/rdataset.h>
-#include	<dns/result.h>
-#include	<dns/types.h>
-#include	<tests/t_api.h>
+#include <dns/callbacks.h>
+#include <dns/master.h>
+#include <dns/name.h>
+#include <dns/rdataclass.h>
+#include <dns/rdataset.h>
+
+#include <tests/t_api.h>
 
 #define	BUFLEN		255
 #define	BIGBUFLEN	(64 * 1024)
 
-static isc_result_t	t1_add_callback(void *arg, dns_name_t *owner,
-					dns_rdataset_t *dataset);
-static void		t1(void);
+static isc_result_t
+t1_add_callback(void *arg, dns_name_t *owner, dns_rdataset_t *dataset);
+
+static void
+t1(void);
 
 isc_mem_t	*T1_mctx;
 char		*Tokens[T_MAXTOKS + 1];
 
 static isc_result_t
 t1_add_callback(void *arg, dns_name_t *owner, dns_rdataset_t *dataset) {
-
 	char buf[BIGBUFLEN];
 	isc_buffer_t target;
 	isc_result_t result;
 	
-	arg = arg;	/*unused*/
+	UNUSED(arg);
 
-	isc_buffer_init(&target, buf, BIGBUFLEN, ISC_BUFFERTYPE_TEXT);
+	isc_buffer_init(&target, buf, BIGBUFLEN);
 	result = dns_rdataset_totext(dataset, owner, ISC_FALSE, ISC_FALSE,
 				     &target);
-	if (result != DNS_R_SUCCESS)
+	if (result != ISC_R_SUCCESS)
 		t_info("dns_rdataset_totext: %s\n", dns_result_totext(result));
 
 	return(result);
 }
 
 static int
-test_master(char *testfile, char *origin, char *class,
-	    isc_result_t exp_result)
+test_master(char *testfile, char *origin, char *class, isc_result_t exp_result)
 {
 	int			result;
 	int			len;
@@ -91,15 +90,14 @@ test_master(char *testfile, char *origin, char *class,
 	}
 
 	len = strlen(origin);
-	isc_buffer_init(&source, origin, len,
-			ISC_BUFFERTYPE_TEXT);
+	isc_buffer_init(&source, origin, len);
 	isc_buffer_add(&source, len);
 	isc_buffer_setactive(&source, len);
-	isc_buffer_init(&target, name_buf, BUFLEN, ISC_BUFFERTYPE_BINARY);
+	isc_buffer_init(&target, name_buf, BUFLEN);
 	dns_name_init(&dns_origin, NULL);
 	dns_result = dns_name_fromtext(&dns_origin, &source, dns_rootname,
 				   ISC_FALSE, &target);
-	if (dns_result != DNS_R_SUCCESS) {
+	if (dns_result != ISC_R_SUCCESS) {
 		t_info("dns_name_fromtext failed %s\n",
 				dns_result_totext(dns_result));
 		return(T_UNRESOLVED);
@@ -112,7 +110,7 @@ test_master(char *testfile, char *origin, char *class,
 	textregion.length = strlen(class);
 
 	dns_result = dns_rdataclass_fromtext(&rdataclass, &textregion);
-	if (dns_result != DNS_R_SUCCESS) {
+	if (dns_result != ISC_R_SUCCESS) {
 		t_info("dns_rdataclass_fromtext failed %s\n",
 				dns_result_totext(dns_result));
 		return(T_UNRESOLVED);
@@ -157,36 +155,36 @@ test_master_x(char *filename) {
 
 			++line;
 
-			/* skip comment lines */
+			/*
+			 * Skip comment lines.
+			 */
 			if ((isspace(*p & 0xff)) || (*p == '#'))
 				continue;
 
-			/* name of data file, origin, zclass, expected result */
+			/*
+			 * Name of data file, origin, zclass, expected result.
+			 */
 			cnt = t_bustline(p, Tokens);
 			if (cnt == 4) {
-				result = test_master(
-						Tokens[0],
-						Tokens[1],
-						Tokens[2],
-						t_dns_result_fromtext(Tokens[3]));
-			}
-			else {
+				result = test_master(Tokens[0], Tokens[1],
+					     Tokens[2],
+					     t_dns_result_fromtext(Tokens[3]));
+			} else {
 				t_info("bad format in %s at line %d\n",
-						filename, line);
+				       filename, line);
 			}
 
-			(void) free(p);
+			(void)free(p);
 		}
-		(void) fclose(fp);
-	}
-	else {
+		(void)fclose(fp);
+	} else {
 		t_info("Missing datafile %s\n", filename);
 	}
 	return(result);
 }
 
 static char *a1 =	"dns_master_loadfile loads a valid master file and "
-			"returns DNS_R_SUCCESS";
+			"returns ISC_R_SUCCESS";
 static void
 t1() {
 	int	result;
@@ -195,8 +193,9 @@ t1() {
 	t_result(result);
 }
 
-static char *a2 =	"dns_master_loadfile returns DNS_R_UNEXPECTEDEND when the "
-			"masterfile input ends unexpectedly";
+static char *a2 = "dns_master_loadfile returns ISC_R_UNEXPECTEDEND when the "
+		  "masterfile input ends unexpectedly";
+
 static void
 t2() {
 	int	result;
@@ -240,8 +239,8 @@ t5() {
 	t_result(result);
 }
 
-static char *a6 =	"dns_master_loadfile understands KEY RR specifications "
-			"containing key material";
+static char *a6 = "dns_master_loadfile understands KEY RR specifications "
+		  "containing key material";
 
 static void
 t6() {
@@ -253,8 +252,8 @@ t6() {
 	t_result(result);
 }
 
-static char *a7 =	"dns_master_loadfile understands KEY RR specifications "
-			"containing no key material";
+static char *a7 = "dns_master_loadfile understands KEY RR specifications "
+		  "containing no key material";
 
 static void
 t7() {
@@ -267,8 +266,8 @@ t7() {
 }
 
 testspec_t	T_testlist[] = {
-	{	t1,	"DNS_R_SUCCESS"		},
-	{	t2,	"DNS_R_UNEXPECTEDEND"	},
+	{	t1,	"ISC_R_SUCCESS"		},
+	{	t2,	"ISC_R_UNEXPECTEDEND"	},
 	{	t3,	"DNS_NOOWNER"		},
 	{	t4,	"DNS_NOTTL"		},
 	{	t5,	"DNS_BADCLASS"		},

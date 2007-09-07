@@ -15,16 +15,15 @@
  * SOFTWARE.
  */
 
-/* $Id: log.c,v 1.15 2000/03/23 00:53:44 gson Exp $ */
+/* $Id: log.c,v 1.23 2000/05/09 23:31:10 gson Exp $ */
 
 /* Principal Authors: DCL */
 
-#include <isc/assertions.h>
-#include <isc/log.h>
-#include <isc/result.h>
+#include <config.h>
+
+#include <isc/util.h>
 
 #include <dns/log.h>
-#include <dns/result.h>
 
 /*
  * When adding a new category, be sure to add the appropriate
@@ -35,10 +34,11 @@ isc_logcategory_t dns_categories[] = {
 	{ "database", 	0 },
 	{ "security", 	0 },
 	{ "config",	0 },
-	{ "",		0 },
+	{ "dnssec",	0 },
 	{ "resolver",	0 },
 	{ "xfer-in",	0 },
 	{ "xfer-out",	0 },
+	{ "dispatch",	0 },
 	{ NULL, 	0 }
 };
 
@@ -48,9 +48,9 @@ isc_logcategory_t dns_categories[] = {
  */
 isc_logmodule_t dns_modules[] = {
 	{ "dns/db",	 	0 },
-	{ "dns/rbtdb", 		0 }, 
-	{ "dns/rbtdb64", 	0 }, 
-	{ "dns/rbt", 		0 }, 
+	{ "dns/rbtdb", 		0 },
+	{ "dns/rbtdb64", 	0 },
+	{ "dns/rbt", 		0 },
 	{ "dns/rdata", 		0 },
 	{ "dns/master", 	0 },
 	{ "dns/message", 	0 },
@@ -62,18 +62,27 @@ isc_logmodule_t dns_modules[] = {
 	{ "dns/adb",		0 },
 	{ "dns/xfrin",		0 },
 	{ "dns/xfrout",		0 },
-	{ "dns/acl",		0 },	
+	{ "dns/acl",		0 },
+	{ "dns/validator",	0 },
+	{ "dns/dispatch",	0 },
+	{ "dns/request",	0 },
+	{ "dns/masterdump",	0 },
 	{ NULL, 		0 }
 };
 
-isc_log_t *dns_lctx;
+isc_log_t *dns_lctx = NULL;
 
 void
 dns_log_init(isc_log_t *lctx) {
-	REQUIRE(dns_lctx == NULL);
+	REQUIRE(lctx != NULL);
 
 	isc_log_registercategories(lctx, dns_categories);
 	isc_log_registermodules(lctx, dns_modules);
+}
+
+void
+dns_log_setcontext(isc_log_t *lctx) {
+	REQUIRE(dns_lctx == NULL);
 
 	dns_lctx = lctx;
 }

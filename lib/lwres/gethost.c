@@ -15,12 +15,13 @@
  * SOFTWARE.
  */
 
+#include <config.h>
+
 #include <sys/types.h>
 #include <sys/socket.h>
 
-#include <stdio.h>
-#include <string.h>
 #include <errno.h>
+#include <string.h>
 
 #include <lwres/netdb.h>
 
@@ -84,7 +85,9 @@ lwres_sethostent(int stayopen) {
 
 void
 lwres_endhostent(void) {
-	/* empty */
+	/*
+	 * Empty.
+	 */
 }
 
 struct hostent *
@@ -137,12 +140,16 @@ lwres_gethostent_r(struct hostent *resbuf, char *buf, int buflen, int *error) {
 void
 lwres_sethostent_r(int stayopen) {
 	(void)stayopen;
-	/* empty */
+	/*
+	 * Empty.
+	 */
 }
 
 void
 lwres_endhostent_r(void) {
-	/* empty */
+	/*
+	 * Empty.
+	 */
 }
 
 static int
@@ -152,7 +159,9 @@ copytobuf(struct hostent *he, struct hostent *hptr, char *buf, int buflen) {
         int i, n;
         int nptr, len;
 
-        /* Find out the amount of space required to store the answer. */
+        /*
+	 * Find out the amount of space required to store the answer.
+	 */
         nptr = 2; /* NULL ptrs */
         len = (char *)LWRES_ALIGN(buf) - buf;
         for (i = 0; he->h_addr_list[i]; i++, nptr++) {
@@ -168,14 +177,18 @@ copytobuf(struct hostent *he, struct hostent *hptr, char *buf, int buflen) {
                 return (-1);
         }
 
-        /* copy address size and type */
+        /*
+	 * Copy address size and type.
+	 */
         hptr->h_addrtype = he->h_addrtype;
         n = hptr->h_length = he->h_length;
 
         ptr = (char **)LWRES_ALIGN(buf);
         cp = (char *)LWRES_ALIGN(buf) + nptr * sizeof(char *);
 
-        /* copy address list */
+        /*
+	 * Copy address list.
+	 */
         hptr->h_addr_list = ptr;
         for (i = 0; he->h_addr_list[i]; i++ , ptr++) {
                 memcpy(cp, he->h_addr_list[i], n);
@@ -186,13 +199,17 @@ copytobuf(struct hostent *he, struct hostent *hptr, char *buf, int buflen) {
         hptr->h_addr_list[i] = NULL;
         ptr++;
 
-        /* copy official name */
+        /*
+	 * Copy official name.
+	 */
         n = strlen(he->h_name) + 1;
         strcpy(cp, he->h_name);
         hptr->h_name = cp;
         cp += n;
 
-        /* copy aliases */
+        /*
+	 * Copy aliases.
+	 */
         hptr->h_aliases = ptr;
         for (i = 0 ; he->h_aliases[i]; i++) {
                 n = strlen(he->h_aliases[i]) + 1;

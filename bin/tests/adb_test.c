@@ -17,31 +17,23 @@
 
 #include <config.h>
 
-#include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <string.h>
 
 #include <isc/app.h>
-#include <isc/assertions.h>
 #include <isc/buffer.h>
-#include <isc/error.h>
-#include <isc/mem.h>
 #include <isc/task.h>
-#include <isc/thread.h>
 #include <isc/timer.h>
-#include <isc/result.h>
-#include <isc/sockaddr.h>
 #include <isc/socket.h>
-#include <isc/net.h>
+#include <isc/util.h>
 
 #include <dns/adb.h>
 #include <dns/cache.h>
+#include <dns/dispatch.h>
 #include <dns/db.h>
-#include <dns/master.h>
 #include <dns/log.h>
-#include <dns/name.h>
 #include <dns/rootns.h>
+#include <dns/result.h>
 
 typedef struct client client_t;
 struct client {
@@ -53,9 +45,11 @@ struct client {
 isc_mem_t *mctx;
 isc_mempool_t *cmp;
 isc_log_t *lctx;
+isc_logconfig_t *lcfg;
 isc_taskmgr_t *taskmgr;
 isc_socketmgr_t *socketmgr;
 isc_timermgr_t *timermgr;
+dns_dispatchmgr_t *dispatchmgr;
 isc_task_t *t1, *t2;
 dns_view_t *view;
 dns_db_t *rootdb;
@@ -64,20 +58,8 @@ isc_mutex_t client_lock;
 isc_stdtime_t now;
 dns_adb_t *adb;
 
-static void check_result(isc_result_t, char *, ...);
-isc_result_t ns_rootns_init(void);
-void create_managers(void);
-static void lookup_callback(isc_task_t *, isc_event_t *);
-void create_view(void);
-client_t *new_client(void);
-void free_client(client_t **);
-static inline void CLOCK(void);
-static inline void CUNLOCK(void);
-void lookup(char *);
-
 static void
-check_result(isc_result_t result, char *format, ...)
-{
+check_result(isc_result_t result, char *format, ...) {
 	va_list args;
 
 	if (result == ISC_R_SUCCESS)
@@ -90,9 +72,8 @@ check_result(isc_result_t result, char *format, ...)
 	exit(1);
 }
 
-client_t *
-new_client(void)
-{
+static client_t *
+new_client(void) {
 	client_t *client;
 
 	client = isc_mempool_get(cmp);
@@ -104,9 +85,8 @@ new_client(void)
 	return (client);
 }
 
-void
-free_client(client_t **c)
-{
+static void
+free_client(client_t **c) {
 	client_t *client;
 
 	INSIST(c != NULL);
@@ -121,27 +101,24 @@ free_client(client_t **c)
 }
 
 static inline void
-CLOCK(void)
-{
+CLOCK(void) {
 	RUNTIME_CHECK(isc_mutex_lock(&client_lock) == ISC_R_SUCCESS);
 }
 
 static inline void
-CUNLOCK(void)
-{
+CUNLOCK(void) {
 	RUNTIME_CHECK(isc_mutex_unlock(&client_lock) == ISC_R_SUCCESS);
 }
 
 static void
-lookup_callback(isc_task_t *task, isc_event_t *ev)
-{
+lookup_callback(isc_task_t *task, isc_event_t *ev) {
 	client_t *client;
 
-	client = ev->arg;
-	INSIST(client->find == ev->sender);
+	client = ev->ev_arg;
+	INSIST(client->find == ev->ev_sender);
 
 	printf("Task %p got event %p type %08x from %p, client %p\n",
-	       task, ev, ev->type, client->find, client);
+	       task, ev, ev->ev_type, client->find, client);
 
 	isc_event_free(&ev);
 
@@ -156,9 +133,8 @@ lookup_callback(isc_task_t *task, isc_event_t *ev)
 	CUNLOCK();
 }
 
-void
-create_managers(void)
-{
+static void
+create_managers(void) {
 	isc_result_t result;
 
 	taskmgr = NULL;
@@ -172,11 +148,14 @@ create_managers(void)
 	socketmgr = NULL;
 	result = isc_socketmgr_create(mctx, &socketmgr);
 	check_result(result, "isc_socketmgr_create");
+
+	dispatchmgr = NULL;
+	result = dns_dispatchmgr_create(mctx, &dispatchmgr);
+	check_result(result, "dns_dispatchmgr_create");
 }
 
-void
-create_view(void)
-{
+static void
+create_view(void) {
 	dns_cache_t *cache;
 	isc_result_t result;
 
@@ -204,7 +183,7 @@ create_view(void)
 	 * see if we are dealing with a shared dispatcher in this view.
 	 */
 	result = dns_view_createresolver(view, taskmgr, 16, socketmgr,
-					 timermgr, 0, NULL, NULL);
+					 timermgr, 0, dispatchmgr, NULL, NULL);
 	check_result(result, "dns_view_createresolver()");
 
 	rootdb = NULL;
@@ -216,9 +195,8 @@ create_view(void)
 	dns_view_freeze(view);
 }
 
-void
-lookup(char *target)
-{
+static void
+lookup(char *target) {
 	dns_name_t name;
 	unsigned char namedata[256];
 	client_t *client;
@@ -229,10 +207,9 @@ lookup(char *target)
 	INSIST(target != NULL);
 
 	client = new_client();
-	isc_buffer_init(&t, target, strlen(target), ISC_BUFFERTYPE_TEXT);
+	isc_buffer_init(&t, target, strlen(target));
 	isc_buffer_add(&t, strlen(target));
-	isc_buffer_init(&namebuf, namedata, sizeof namedata,
-			ISC_BUFFERTYPE_BINARY);
+	isc_buffer_init(&namebuf, namedata, sizeof(namedata));
 	dns_name_init(&name, NULL);
 	result = dns_name_fromtext(&name, &t, dns_rootname, ISC_FALSE,
 				   &namebuf);
@@ -262,13 +239,12 @@ lookup(char *target)
 }
 
 int
-main(int argc, char **argv)
-{
+main(int argc, char **argv) {
 	isc_result_t result;
 	isc_logdestination_t destination;
 
-	(void)argc;
-	(void)argv;
+	UNUSED(argc);
+	UNUSED(argv);
 
 	dns_result_register();
 	result = isc_app_start();
@@ -291,11 +267,11 @@ main(int argc, char **argv)
 		      == ISC_R_SUCCESS);
 	isc_mempool_setname(cmp, "adb test clients");
 
-	result = isc_log_create(mctx, &lctx);
+	result = isc_log_create(mctx, &lctx, &lcfg);
 	check_result(result, "isc_log_create()");
-
-	result = dns_log_init(lctx);
-	check_result(result, "dns_log_init()");
+	isc_log_setcontext(lctx);
+	dns_log_init(lctx);
+	dns_log_setcontext(lctx);
 
 	/*
 	 * Create and install the default channel.
@@ -304,12 +280,12 @@ main(int argc, char **argv)
 	destination.file.name = NULL;
 	destination.file.versions = ISC_LOG_ROLLNEVER;
 	destination.file.maximum_size = 0;
-	result = isc_log_createchannel(lctx, "_default",
+	result = isc_log_createchannel(lcfg, "_default",
 				       ISC_LOG_TOFILEDESC,
 				       ISC_LOG_DYNAMIC,
 				       &destination, ISC_LOG_PRINTTIME);
 	check_result(result, "isc_log_createchannel()");
-	result = isc_log_usechannel(lctx, "_default", NULL, NULL);
+	result = isc_log_usechannel(lcfg, "_default", NULL, NULL);
 	check_result(result, "isc_log_usechannel()");
 
 	/*
@@ -320,10 +296,10 @@ main(int argc, char **argv)
 	create_managers();
 
 	t1 = NULL;
-	result = isc_task_create(taskmgr, NULL, 0, &t1);
+	result = isc_task_create(taskmgr, 0, &t1);
 	check_result(result, "isc_task_create t1");
 	t2 = NULL;
-	result = isc_task_create(taskmgr, NULL, 0, &t2);
+	result = isc_task_create(taskmgr, 0, &t2);
 	check_result(result, "isc_task_create t2");
 
 	printf("task 1 = %p\n", t1);

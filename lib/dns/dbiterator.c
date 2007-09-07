@@ -17,9 +17,7 @@
 
 #include <config.h>
 
-#include <stddef.h>
-
-#include <isc/assertions.h>
+#include <isc/util.h>
 
 #include <dns/dbiterator.h>
 #include <dns/name.h>

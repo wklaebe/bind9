@@ -57,6 +57,9 @@
  * made to it will be overwritten when the script next updates this file.
  */
 
+#include <config.h>
+#include "../rename.h"
+
 #include <stdio.h>
 #include <openssl/err.h>
 #include <openssl/dsa.h>

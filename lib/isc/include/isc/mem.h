@@ -19,15 +19,10 @@
 #define ISC_MEM_H 1
 
 #include <stdio.h>
-#include <stddef.h>
 
-#include <isc/boolean.h>
 #include <isc/lang.h>
 #include <isc/mutex.h>
-#include <isc/result.h>
 #include <isc/types.h>
-
-#include <isc/ondestroy.h>
 
 ISC_LANG_BEGINDECLS
 
@@ -35,52 +30,58 @@ typedef void * (*isc_memalloc_t)(void *, size_t);
 typedef void (*isc_memfree_t)(void *, void *);
 
 #ifdef ISC_MEM_DEBUG
-#define isc_mem_get(c, s)	__isc_mem_getdebug(c, s, __FILE__, __LINE__)
-#define isc_mem_put(c, p, s)	__isc_mem_putdebug(c, p, s, __FILE__, __LINE__)
-#define isc_mem_allocate(c, s)	__isc_mem_allocatedebug(c, s, \
+#define isc_mem_get(c, s)	isc__mem_getdebug(c, s, __FILE__, __LINE__)
+#define isc_mem_put(c, p, s)	isc__mem_putdebug(c, p, s, __FILE__, __LINE__)
+#define isc_mem_allocate(c, s)	isc__mem_allocatedebug(c, s, \
 							    __FILE__, __LINE__)
-#define isc_mem_free(c, p)	__isc_mem_freedebug(c, p, __FILE__, __LINE__)
-#define isc_mem_strdup(c, p)	__isc_mem_strdupdebug(c, p, \
+#define isc_mem_free(c, p)	isc__mem_freedebug(c, p, __FILE__, __LINE__)
+#define isc_mem_strdup(c, p)	isc__mem_strdupdebug(c, p, \
 						      __FILE__, __LINE__)
-#define isc_mempool_get(c)	__isc_mempool_getdebug(c, __FILE__, __LINE__)
-#define isc_mempool_put(c, p)	__isc_mempool_putdebug(c, p, \
+#define isc_mempool_get(c)	isc__mempool_getdebug(c, __FILE__, __LINE__)
+#define isc_mempool_put(c, p)	isc__mempool_putdebug(c, p, \
 						       __FILE__, __LINE__)
 #else
-#define isc_mem_get		__isc_mem_get
-#define isc_mem_put		__isc_mem_put
-#define isc_mem_allocate	__isc_mem_allocate
-#define isc_mem_free		__isc_mem_free
-#define isc_mem_strdup		__isc_mem_strdup
-#define isc_mempool_get		__isc_mempool_get
-#define isc_mempool_put		__isc_mempool_put
+#define isc_mem_get		isc__mem_get
+#define isc_mem_put		isc__mem_put
+#define isc_mem_allocate	isc__mem_allocate
+#define isc_mem_free		isc__mem_free
+#define isc_mem_strdup		isc__mem_strdup
+#define isc_mempool_get		isc__mempool_get
+#define isc_mempool_put		isc__mempool_put
 #endif /* ISC_MEM_DEBUG */
 
 isc_result_t			isc_mem_create(size_t, size_t, isc_mem_t **);
+void				isc_mem_attach(isc_mem_t *, isc_mem_t **);
+void				isc_mem_detach(isc_mem_t **);
 void				isc_mem_destroy(isc_mem_t **);
 isc_result_t			isc_mem_ondestroy(isc_mem_t *ctx,
 						  isc_task_t *task,
 						  isc_event_t **event);
-void *				__isc_mem_get(isc_mem_t *, size_t);
-void 				__isc_mem_put(isc_mem_t *, void *, size_t);
-void *				__isc_mem_getdebug(isc_mem_t *, size_t,
-						   const char *, int);
-void 				__isc_mem_putdebug(isc_mem_t *, void *,
-						   size_t, const char *, int);
+void *				isc__mem_get(isc_mem_t *, size_t);
+void 				isc__mem_put(isc_mem_t *, void *, size_t);
+void *				isc__mem_getdebug(isc_mem_t *, size_t,
+						  const char *, int);
+void 				isc__mem_putdebug(isc_mem_t *, void *,
+						  size_t, const char *, int);
+isc_result_t			isc_mem_preallocate(isc_mem_t *);
 void 				isc_mem_stats(isc_mem_t *, FILE *);
 isc_boolean_t			isc_mem_valid(isc_mem_t *, void *);
-void *				__isc_mem_allocate(isc_mem_t *, size_t);
-void *				__isc_mem_allocatedebug(isc_mem_t *, size_t,
-							const char *, int);
-void				__isc_mem_free(isc_mem_t *, void *);
-void				__isc_mem_freedebug(isc_mem_t *, void *,
-						    const char *, int);
-char *				__isc_mem_strdup(isc_mem_t *, const char *);
-char *				__isc_mem_strdupdebug(isc_mem_t *,
-						      const char *,
-						      const char *, int);
-isc_boolean_t			isc_mem_destroy_check(isc_mem_t *, isc_boolean_t);
+void *				isc__mem_allocate(isc_mem_t *, size_t);
+void *				isc__mem_allocatedebug(isc_mem_t *, size_t,
+						       const char *, int);
+void				isc__mem_free(isc_mem_t *, void *);
+void				isc__mem_freedebug(isc_mem_t *, void *,
+						   const char *, int);
+char *				isc__mem_strdup(isc_mem_t *, const char *);
+char *				isc__mem_strdupdebug(isc_mem_t *,
+						     const char *,
+						     const char *, int);
+void				isc_mem_setdestroycheck(isc_mem_t *,
+							isc_boolean_t);
+void				isc_mem_setsplit(isc_mem_t *, isc_boolean_t);
 void				isc_mem_setquota(isc_mem_t *, size_t);
 size_t				isc_mem_getquota(isc_mem_t *);
+size_t				isc_mem_inuse(isc_mem_t *);
 
 isc_result_t			isc_mem_createx(size_t, size_t,
 						isc_memalloc_t memalloc,
@@ -94,25 +95,27 @@ isc_result_t			isc_mem_restore(isc_mem_t *);
  * Legacy.
  */
 
-#define meminit			__meminit
-#define mem_default_context	__mem_default_context
+#define meminit			isc__legacy_meminit
+#define mem_default_context	isc__legacy_mem_default_context
 #ifdef MEMCLUSTER_DEBUG
-#define memget(s)		__memget_debug(s, __FILE__, __LINE__)
-#define memput(p, s)		__memput_debug(p, s, __FILE__, __LINE__)
+#define memget(s)		isc__legacy_memget_debug(s, __FILE__, __LINE__)
+#define memput(p, s)		isc__legacy_memput_debug(p, s, \
+							 __FILE__, __LINE__)
 #else
-#define memget			__memget
-#define memput			__memput
+#define memget			isc__legacy_memget
+#define memput			isc__legacy_memput
 #endif
-#define memvalid		__memvalid
-#define memstats		__memstats
+#define memvalid		isc__legacy_memvalid
+#define memstats		isc__legacy_memstats
 
 int				meminit(size_t, size_t);
 isc_mem_t *			mem_default_context(void);
-void *				__memget(size_t);
-void 				__memput(void *, size_t);
-void *				__memget_debug(size_t, const char *, int);
-void				__memput_debug(void *, size_t, const char *,
-					       int);
+void *				isc__legacy_memget(size_t);
+void 				isc__legacy_memput(void *, size_t);
+void *				isc__legacy_memget_debug(size_t, const char *,
+							 int);
+void				isc__legacy_memput_debug(void *, size_t,
+							 const char *, int);
 int				memvalid(void *);
 void 				memstats(FILE *);
 
@@ -126,11 +129,11 @@ void 				memstats(FILE *);
  * Internal (but public) functions.  Don't call these from application
  * code.  Use isc_mempool_get() and isc_mempool_put() instead.
  */
-void *		__isc_mempool_get(isc_mempool_t *);
-void 		__isc_mempool_put(isc_mempool_t *, void *);
-void *		__isc_mempool_getdebug(isc_mempool_t *, const char *, int);
-void 		__isc_mempool_putdebug(isc_mempool_t *, void *,
-				       const char *, int);
+void *		isc__mempool_get(isc_mempool_t *);
+void 		isc__mempool_put(isc_mempool_t *, void *);
+void *		isc__mempool_getdebug(isc_mempool_t *, const char *, int);
+void 		isc__mempool_putdebug(isc_mempool_t *, void *,
+				      const char *, int);
 
 isc_result_t
 isc_mempool_create(isc_mem_t *mctx, size_t size, isc_mempool_t **mpctxp);
@@ -213,29 +216,32 @@ isc_mempool_associatelock(isc_mempool_t *mpctx, isc_mutex_t *lock);
  *	mpctx is a valid memory pool
  */
 
-unsigned int	isc_mempool_getfreemax(isc_mempool_t *mpctx);
+unsigned int
+isc_mempool_getfreemax(isc_mempool_t *mpctx);
 /*
  * Returns the maximum allowed size of the free list.
  */
 
-void		isc_mempool_setfreemax(isc_mempool_t *mpctx,
-				       unsigned int limit);
+void
+isc_mempool_setfreemax(isc_mempool_t *mpctx, unsigned int limit);
 /*
  * Sets the maximum allowed size of the free list.
  */
 
-unsigned int	isc_mempool_getfreecount(isc_mempool_t *mpctx);
+unsigned int
+isc_mempool_getfreecount(isc_mempool_t *mpctx);
 /*
  * Returns current size of the free list.
  */
 
-unsigned int	isc_mempool_getmaxalloc(isc_mempool_t *mpctx);
+unsigned int
+isc_mempool_getmaxalloc(isc_mempool_t *mpctx);
 /*
  * Returns the maximum allowed number of allocations.
  */
 
-void		isc_mempool_setmaxalloc(isc_mempool_t *mpctx,
-					unsigned int limit);
+void
+isc_mempool_setmaxalloc(isc_mempool_t *mpctx, unsigned int limit);
 /*
  * Sets the maximum allowed number of allocations.
  *
@@ -243,19 +249,21 @@ void		isc_mempool_setmaxalloc(isc_mempool_t *mpctx,
  *	limit > 0
  */
 
-unsigned int	isc_mempool_getallocated(isc_mempool_t *mpctx);
+unsigned int
+isc_mempool_getallocated(isc_mempool_t *mpctx);
 /*
  * Returns the number of items allocated from this pool.
  */
 
-unsigned int	isc_mempool_getfillcount(isc_mempool_t *mpctx);
+unsigned int
+isc_mempool_getfillcount(isc_mempool_t *mpctx);
 /*
  * Returns the number of items allocated as a block from the parent memory
  * context when the free list is empty.
  */
 
-void		isc_mempool_setfillcount(isc_mempool_t *mpctx,
-					 unsigned int limit);
+void
+isc_mempool_setfillcount(isc_mempool_t *mpctx, unsigned int limit);
 /*
  * Sets the fillcount.
  *
@@ -265,4 +273,4 @@ void		isc_mempool_setfillcount(isc_mempool_t *mpctx,
 
 ISC_LANG_ENDDECLS
 
-#endif /* MEM_H */
+#endif /* ISC_MEM_H */

@@ -20,11 +20,11 @@
 
 #include <isc/lang.h>
 
-#include <dns/result.h>
-
-ISC_LANG_BEGINDECLS
+#include <dns/types.h>
 
 #define DNS_NXT_BUFFERSIZE (256 + 16)
+
+ISC_LANG_BEGINDECLS
 
 isc_result_t
 dns_buildnxtrdata(dns_db_t *db, dns_dbversion_t *version,
@@ -48,6 +48,17 @@ dns_buildnxt(dns_db_t *db, dns_dbversion_t *version, dns_dbnode_t *node,
 	     dns_name_t *target, dns_ttl_t ttl);
 /*
  * Build a NXT record and add it to a database.
+ */
+
+isc_boolean_t
+dns_nxt_typepresent(dns_rdata_t *nxt, dns_rdatatype_t type);
+/*
+ * Determine if a type is marked as present in an NXT record.
+ *
+ * Requires:
+ *	'nxt' points to a valid rdataset of type NXT
+ *	'type' < 128
+ *
  */
 
 ISC_LANG_ENDDECLS

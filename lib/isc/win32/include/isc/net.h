@@ -64,14 +64,6 @@
  *** Defines.
  ***/
 
-/* XXXRTH  ISC_NET_ should be converted to ISC_PLATFORM_ */
-
-/*
- * If sockaddrs on this system have an sa_len field, ISC_PLATFORM_HAVESALEN
- * will be defined.
- */
-#undef ISC_PLATFORM_HAVESALEN
-
 /*
  * If this system has the IPv6 structure definitions, ISC_NET_HAVEIPV6
  * will be defined.
@@ -116,6 +108,7 @@
 
 #include <sys/types.h>
 
+#include <isc/lang.h>
 #include <isc/result.h>
 
 #ifndef AF_INET6
@@ -142,6 +135,8 @@ typedef isc_uint16_t in_port_t;
 /***
  *** Functions.
  ***/
+
+ISC_LANG_BEGINDECLS
 
 isc_result_t
 isc_net_probeipv4(void);
@@ -182,12 +177,6 @@ int isc_net_aton(const char *cp, struct in_addr *addr);
 #define inet_aton isc_net_aton
 #endif
 
-#endif /* ISC_NET_H */
+ISC_LANG_ENDDECLS
 
-/*
- * Tell emacs to use C mode for this file.
- *
- * Local Variables:
- * mode: c
- * End:
- */
+#endif /* ISC_NET_H */

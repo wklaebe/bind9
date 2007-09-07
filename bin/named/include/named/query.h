@@ -15,8 +15,8 @@
  * SOFTWARE.
  */
 
-#ifndef NS_QUERY_H
-#define NS_QUERY_H 1
+#ifndef NAMED_QUERY_H
+#define NAMED_QUERY_H 1
 
 #include <isc/types.h>
 #include <isc/buffer.h>
@@ -29,6 +29,7 @@
 typedef struct ns_dbversion {
 	dns_db_t			*db;
 	dns_dbversion_t			*version;
+	isc_boolean_t			queryok;
 	ISC_LINK(struct ns_dbversion)	link;
 } ns_dbversion_t;
 
@@ -53,6 +54,8 @@ struct ns_query {
 #define NS_QUERYATTR_NAMEBUFUSED	0x08
 #define NS_QUERYATTR_RECURSING		0x10
 #define NS_QUERYATTR_CACHEGLUEOK	0x20
+#define NS_QUERYATTR_QUERYOKVALID	0x40
+#define NS_QUERYATTR_QUERYOK		0x80
 
 isc_result_t
 ns_query_init(ns_client_t *client);
@@ -63,4 +66,4 @@ ns_query_free(ns_client_t *client);
 void
 ns_query_start(ns_client_t *client);
 
-#endif /* NS_QUERY_H */
+#endif /* NAMED_QUERY_H */

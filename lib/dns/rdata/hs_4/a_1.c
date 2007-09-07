@@ -15,16 +15,16 @@
  * SOFTWARE.
  */
 
-/* $Id: a_1.c,v 1.5 2000/03/20 22:44:35 gson Exp $ */
+/* $Id: a_1.c,v 1.13 2000/05/22 12:38:03 marka Exp $ */
 
 /* reviewed: Thu Mar 16 15:58:36 PST 2000 by brister */
 
 #ifndef RDATA_HS_4_A_1_C
 #define RDATA_HS_4_A_1_C
 
-#include <string.h>
-
 #include <isc/net.h>
+
+#define RRTYPE_A_ATTRIBUTES (0)
 
 static inline isc_result_t
 fromtext_hs_a(dns_rdataclass_t rdclass, dns_rdatatype_t type,
@@ -45,12 +45,12 @@ fromtext_hs_a(dns_rdataclass_t rdclass, dns_rdatatype_t type,
 
 	if (inet_aton(token.value.as_pointer, &addr) != 1)
 		return (DNS_R_BADDOTTEDQUAD);
-	isc_buffer_available(target, &region);
+	isc_buffer_availableregion(target, &region);
 	if (region.length < 4)
-		return (DNS_R_NOSPACE);
+		return (ISC_R_NOSPACE);
 	memcpy(region.base, &addr, 4);
 	isc_buffer_add(target, 4);
-	return (DNS_R_SUCCESS);
+	return (ISC_R_SUCCESS);
 }
 
 static inline isc_result_t
@@ -65,13 +65,13 @@ totext_hs_a(dns_rdata_t *rdata, dns_rdata_textctx_t *tctx,
 
 	UNUSED(tctx);
 
-	isc_buffer_available(target, &region);
+	isc_buffer_availableregion(target, &region);
 	if (inet_ntop(AF_INET, rdata->data,
 			  (char *)region.base, region.length) == NULL)
-		return (DNS_R_NOSPACE);
+		return (ISC_R_NOSPACE);
 
 	isc_buffer_add(target, strlen((char *)region.base));
-	return (DNS_R_SUCCESS);
+	return (ISC_R_SUCCESS);
 }
 
 static inline isc_result_t
@@ -89,17 +89,17 @@ fromwire_hs_a(dns_rdataclass_t rdclass, dns_rdatatype_t type,
 	UNUSED(downcase);
 
 
-	isc_buffer_active(source, &sregion);
-	isc_buffer_available(target, &tregion);
+	isc_buffer_activeregion(source, &sregion);
+	isc_buffer_availableregion(target, &tregion);
 	if (sregion.length < 4)
-		return (DNS_R_UNEXPECTEDEND);
+		return (ISC_R_UNEXPECTEDEND);
 	if (tregion.length < 4)
-		return (DNS_R_NOSPACE);
+		return (ISC_R_NOSPACE);
 
 	memcpy(tregion.base, sregion.base, 4);
 	isc_buffer_forward(source, 4);
 	isc_buffer_add(target, 4);
-	return (DNS_R_SUCCESS);
+	return (ISC_R_SUCCESS);
 }
 
 static inline isc_result_t
@@ -112,12 +112,12 @@ towire_hs_a(dns_rdata_t *rdata, dns_compress_t *cctx, isc_buffer_t *target)
 
 	UNUSED(cctx);
 
-	isc_buffer_available(target, &region);
+	isc_buffer_availableregion(target, &region);
 	if (region.length < rdata->length)
-		return (DNS_R_NOSPACE);
+		return (ISC_R_NOSPACE);
 	memcpy(region.base, rdata->data, rdata->length);
 	isc_buffer_add(target, 4);
-	return (DNS_R_SUCCESS);
+	return (ISC_R_SUCCESS);
 }
 
 static inline int
@@ -141,14 +141,18 @@ static inline isc_result_t
 fromstruct_hs_a(dns_rdataclass_t rdclass, dns_rdatatype_t type, void *source,
 	        isc_buffer_t *target)
 {
+	dns_rdata_hs_a_t *a = source;
+	isc_uint32_t n;
 
 	REQUIRE(type == 1);
 	REQUIRE(rdclass == 4);
+	REQUIRE(source != NULL);
+	REQUIRE(a->common.rdtype == type);
+	REQUIRE(a->common.rdclass == rdclass);
 
-	UNUSED(source);
-	UNUSED(target);
+	n = ntohl(a->in_addr.s_addr);
 
-	return (DNS_R_NOTIMPLEMENTED);
+	return (uint32_tobuffer(n, target));
 }
 
 static inline isc_result_t
@@ -171,15 +175,15 @@ tostruct_hs_a(dns_rdata_t *rdata, void *target, isc_mem_t *mctx)
 	n = uint32_fromregion(&region);
 	a->in_addr.s_addr = htonl(n);
 
-	return (DNS_R_SUCCESS);
+	return (ISC_R_SUCCESS);
 }
 
 static inline void
 freestruct_hs_a(void *source)
 {
-	REQUIRE(source != NULL);
-	REQUIRE(ISC_FALSE);	/*XXX*/
+	UNUSED(source);
 
+	REQUIRE(source != NULL);
 }
 
 static inline isc_result_t
@@ -189,10 +193,11 @@ additionaldata_hs_a(dns_rdata_t *rdata, dns_additionaldatafunc_t add,
 	REQUIRE(rdata->type == 1);
 	REQUIRE(rdata->rdclass == 4);
 
-	(void)add;
-	(void)arg;
+	UNUSED(rdata);
+	UNUSED(add);
+	UNUSED(arg);
 
-	return (DNS_R_SUCCESS);
+	return (ISC_R_SUCCESS);
 }
 
 static inline isc_result_t

@@ -15,17 +15,17 @@
  * SOFTWARE.
  */
 
-/* $Id: time.c,v 1.7 2000/03/17 17:45:05 gson Exp $ */
+/* $Id: time.c,v 1.13 2000/05/15 21:14:10 tale Exp $ */
 
 #include <config.h>
 
 #include <stdio.h>
-#include <string.h>
+#include <isc/string.h>		/* Required for HP/UX (and others?) */
 #include <time.h>
 
-#include <isc/assertions.h>
+#include <isc/region.h>
+#include <isc/util.h>
 
-#include <dns/types.h>
 #include <dns/result.h>
 #include <dns/time.h>
 
@@ -43,14 +43,14 @@ dns_time64_totext(isc_int64_t t, isc_buffer_t *target) {
 
 #define is_leap(y) ((((y) % 4) == 0 && ((y) % 100) != 0) || ((y) % 400) == 0)
 #define year_secs(y) ((is_leap(y) ? 366 : 365 ) * 86400)
-#define month_secs(m, y) ((days[m] + ((m == 1 && is_leap(y)) ? 1 : 0 )) * 86400)
+#define month_secs(m,y) ((days[m] + ((m == 1 && is_leap(y)) ? 1 : 0 )) * 86400)
 
 	tm.tm_year = 70;
 	while ((secs = year_secs(tm.tm_year + 1900)) <= t) {
 		t -= secs;
 		tm.tm_year++;
 		if (tm.tm_year + 1900 > 9999)
-			return DNS_R_RANGE;
+			return (ISC_R_RANGE);
 	}
 	tm.tm_mon = 0;
 	while ((secs = month_secs(tm.tm_mon, tm.tm_year + 1900)) <= t) {
@@ -78,15 +78,15 @@ dns_time64_totext(isc_int64_t t, isc_buffer_t *target) {
 		tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday,
 		tm.tm_hour, tm.tm_min, tm.tm_sec);
 
-	isc_buffer_available(target, &region);
+	isc_buffer_availableregion(target, &region);
 	l = strlen(buf);
 
 	if (l > region.length)
-		return (DNS_R_NOSPACE);
+		return (ISC_R_NOSPACE);
 
 	memcpy(region.base, buf, l);
 	isc_buffer_add(target, l);
-	return (DNS_R_SUCCESS);
+	return (ISC_R_SUCCESS);
 }
 
 isc_result_t
@@ -95,7 +95,9 @@ dns_time32_totext(isc_uint32_t value, isc_buffer_t *target) {
 	isc_int64_t base;
 	isc_int64_t t;
 
-	/* Find the right epoch. */
+	/*
+	 * Find the right epoch.
+	 */
 	start = time(NULL);
 	start -= 0x7fffffff;
 	base = 0;
@@ -116,7 +118,7 @@ dns_time64_fromtext(char *source, isc_int64_t *target) {
 #define RANGE(min, max, value) \
 	do { \
 		if (value < (min) || value > (max)) \
-			return (DNS_R_RANGE); \
+			return (ISC_R_RANGE); \
 	} while (0)
 
 	if (strlen(source) != 14)
@@ -131,9 +133,11 @@ dns_time64_fromtext(char *source, isc_int64_t *target) {
 		 ((month == 2 && is_leap(year)) ? 1 : 0), day);
 	RANGE(0, 23, hour);
 	RANGE(0, 59, minute);
-	RANGE(0, 60, second);	/* leap second */
+	RANGE(0, 60, second);		/* 60 == leap second. */
 
-	/* Calulate seconds since epoch. */
+	/*
+	 * Calulate seconds since epoch.
+	 */
 	value = second + (60 * minute) + (3600 * hour) + ((day - 1) * 86400);
 	for (i = 0; i < (month - 1) ; i++)
 		value += days[i] * 86400;
@@ -145,7 +149,7 @@ dns_time64_fromtext(char *source, isc_int64_t *target) {
 	}
 
 	*target = value;
-	return (DNS_R_SUCCESS);
+	return (ISC_R_SUCCESS);
 }
 
 isc_result_t
@@ -154,12 +158,12 @@ dns_time32_fromtext(char *source, isc_uint32_t *target) {
 	isc_int32_t value32;
 	isc_result_t result;
 	result = dns_time64_fromtext(source, &value64);
-	if (result != DNS_R_SUCCESS)
+	if (result != ISC_R_SUCCESS)
 		return (result);
 	value32 = (isc_uint32_t)value64;
 	if (value32 != value64)
-		return DNS_R_RANGE;
+		return (ISC_R_RANGE);
 	*target = value32;
 
-	return DNS_R_SUCCESS;
+	return (ISC_R_SUCCESS);
 }

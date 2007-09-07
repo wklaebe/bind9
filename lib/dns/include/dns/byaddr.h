@@ -46,13 +46,10 @@
  *	Drafts:	<TBS>
  */
 
-#include <isc/types.h>
 #include <isc/lang.h>
 #include <isc/event.h>
-#include <isc/netaddr.h>
 
 #include <dns/types.h>
-#include <dns/result.h>
 
 ISC_LANG_BEGINDECLS
 

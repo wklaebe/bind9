@@ -92,12 +92,8 @@
  ***/
 
 #include <isc/lang.h>
-#include <isc/lex.h>
 
 #include <dns/types.h>
-#include <dns/name.h>
-#include <dns/callbacks.h>
-#include <dns/compress.h>
 
 ISC_LANG_BEGINDECLS
 
@@ -167,9 +163,9 @@ int dns_rdata_compare(dns_rdata_t *rdata1, dns_rdata_t *rdata2);
  *	'rdata2' is a valid, non-empty rdata
  *
  * Returns:
- *	-1		'rdata1' is less than 'rdata2'
+ *	< 0		'rdata1' is less than 'rdata2'
  *	0		'rdata1' is equal to 'rdata2'
- *	1		'rdata1' is greater than 'rdata2'
+ *	> 0		'rdata1' is greater than 'rdata2'
  */
 
 /***
@@ -390,6 +386,9 @@ isc_result_t dns_rdata_fromstruct(dns_rdata_t *rdata,
  *
  *	'target' is a valid binary buffer.
  *
+ *	All structure pointers to memory blocks should be NULL if their
+ *	corresponding length values are zero.
+ *
  * Ensures:
  *	If result is success:
  *	 	If 'rdata' is not NULL, it is attached to the target.
@@ -406,6 +405,10 @@ isc_result_t dns_rdata_tostruct(dns_rdata_t *rdata, void *target,
 				isc_mem_t *mctx);
 /*
  * Convert an rdata into its C structure representation.
+ *	
+ * If 'mctx' is NULL then 'rdata' must persist while 'target' is being used.
+ *
+ * If 'mctx' is non NULL then memory will be allocated if required.
  *
  * Requires:
  *
@@ -433,6 +436,16 @@ isc_boolean_t dns_rdatatype_ismeta(dns_rdatatype_t type);
 /*
  * Return true iff the rdata type 'type' is a meta-type
  * like ANY or AXFR.
+ *
+ * Requires:
+ * 	'type' is a valid rdata type.
+ *
+ */
+
+isc_boolean_t dns_rdatatype_issingleton(dns_rdatatype_t type);
+/*
+ * Return true iff the rdata type 'type' is a singleton type,
+ * like CNAME or SOA.
  *
  * Requires:
  * 	'type' is a valid rdata type.
@@ -469,6 +482,16 @@ isc_boolean_t dns_rdatatype_iszonecutauth(dns_rdatatype_t type);
  *
  */
 
+isc_boolean_t dns_rdatatype_isknown(dns_rdatatype_t type);
+/*
+ * Return true iff the rdata type 'type' is known.
+ *
+ * Requires:
+ * 	'type' is a valid rdata type.
+ *
+ */
+
+
 isc_result_t
 dns_rdata_additionaldata(dns_rdata_t *rdata, dns_additionaldatafunc_t add,
 			 void *arg);
@@ -487,12 +510,12 @@ dns_rdata_additionaldata(dns_rdata_t *rdata, dns_additionaldatafunc_t add,
  *	If successful, then add() will have been called for each name
  *	and type subject to additional section processing.
  *
- *	If add() returns something other than DNS_R_SUCCESS, that result
+ *	If add() returns something other than ISC_R_SUCCESS, that result
  *	will be returned as the result of dns_rdata_additionaldata().
  *
  * Returns:
  *
- *	DNS_R_SUCCESS
+ *	ISC_R_SUCCESS
  *
  *	Many other results are possible if not successful.
  */
@@ -518,15 +541,68 @@ dns_rdata_digest(dns_rdata_t *rdata, dns_digestfunc_t digest, void *arg);
  *	If successful, then all of the rdata's data has been sent, in
  *	DNSSEC canonical form, to 'digest'.
  *
- *	If digest() returns something other than DNS_R_SUCCESS, that result
+ *	If digest() returns something other than ISC_R_SUCCESS, that result
  *	will be returned as the result of dns_rdata_digest().
  *
  * Returns:
  *
- *	DNS_R_SUCCESS
+ *	ISC_R_SUCCESS
  *
  *	Many other results are possible if not successful.
  */
+
+isc_boolean_t
+dns_rdatatype_questiononly(dns_rdatatype_t type);
+/*
+ * Return true iff rdata of type 'type' can only appear in the question
+ * section of a properly formatted message.
+ *
+ * Requires:
+ * 	'type' is a valid rdata type.
+ *
+ */
+
+isc_boolean_t
+dns_rdatatype_notquestion(dns_rdatatype_t type);
+/*
+ * Return true iff rdata of type 'type' can not appear in the question
+ * section of a properly formatted message.
+ *
+ * Requires:
+ * 	'type' is a valid rdata type.
+ *
+ */
+
+unsigned int
+dns_rdatatype_attributes(dns_rdatatype_t rdtype);
+/*
+ * Return attributes for the given type.
+ *
+ * Requires:
+ *	'rdtype' are known.
+ *
+ * Returns:
+ *	a bitmask consisting of the following flags.
+ */
+
+/* only one may exist for a name */
+#define DNS_RDATATYPEATTR_SINGLETON		0x00000001U
+/* requires no other data be present */
+#define DNS_RDATATYPEATTR_EXCLUSIVE		0x00000002U
+/* Is a meta type */
+#define DNS_RDATATYPEATTR_META			0x00000004U
+/* Is a DNSSEC type, like SIG or NXT */
+#define DNS_RDATATYPEATTR_DNSSEC		0x00000008U
+/* Is a zone cut authority type */
+#define DNS_RDATATYPEATTR_ZONECUTAUTH		0x00000010U
+/* Is reserved (unusable) */
+#define DNS_RDATATYPEATTR_RESERVED		0x00000020U
+/* Is an unknown type */
+#define DNS_RDATATYPEATTR_UNKNOWN		0x00000040U
+/* Is META, and can only be in a question section */
+#define DNS_RDATATYPEATTR_QUESTIONONLY		0x00000080U
+/* is META, and can NOT be in a question section */
+#define DNS_RDATATYPEATTR_NOTQUESTION		0x00000100U
 
 dns_rdatatype_t
 dns_rdata_covers(dns_rdata_t *rdata);

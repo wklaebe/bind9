@@ -56,8 +56,8 @@
  * [including the GNU Public Licence.]
  */
 
-#ifndef HEADER_STACK_H
-#define HEADER_STACK_H
+#ifndef OPENSSL_STACK_H
+#define OPENSSL_STACK_H 1
 
 #ifdef  __cplusplus
 extern "C" {
@@ -70,7 +70,7 @@ typedef struct stack_st
 	int sorted;
 
 	int num_alloc;
-	int (*comp)();
+	int (*comp)(char **, char **);
 	} STACK;
 
 
@@ -104,4 +104,5 @@ void sk_sort(STACK *st);
 }
 #endif
 
-#endif
+#endif /* OPENSSL_STACK_H */
+

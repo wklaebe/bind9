@@ -15,10 +15,12 @@
  * SOFTWARE.
  */
 
-/* $Id: unspec_103.c,v 1.12 2000/03/20 22:48:59 gson Exp $ */
+/* $Id: unspec_103.c,v 1.20 2000/05/22 12:38:01 marka Exp $ */
 
 #ifndef RDATA_GENERIC_UNSPEC_103_C
 #define RDATA_GENERIC_UNSPEC_103_C
+
+#define RRTYPE_UNSPEC_ATTRIBUTES (0)
 
 static inline isc_result_t
 fromtext_unspec(dns_rdataclass_t rdclass, dns_rdatatype_t type,
@@ -28,9 +30,9 @@ fromtext_unspec(dns_rdataclass_t rdclass, dns_rdatatype_t type,
 
 	REQUIRE(type == 103);
 
-	rdclass = rdclass;		/*unused*/
-	origin = origin;	/*unused*/
-	downcase = downcase;	/*unused*/
+	UNUSED(rdclass);
+	UNUSED(origin);
+	UNUSED(downcase);
 
 	return (atob_tobuffer(lexer, target));
 }
@@ -39,11 +41,10 @@ static inline isc_result_t
 totext_unspec(dns_rdata_t *rdata, dns_rdata_textctx_t *tctx, 
 	      isc_buffer_t *target) 
 {
-	
 
 	REQUIRE(rdata->type == 103);
 
-	tctx = tctx;	/*unused*/
+	UNUSED(tctx);
 
 	return (btoa_totext(rdata->data, rdata->length, target));
 }
@@ -57,10 +58,11 @@ fromwire_unspec(dns_rdataclass_t rdclass, dns_rdatatype_t type,
 
 	REQUIRE(type == 103);
 
-	rdclass = rdclass;		/*unused*/
-	dctx = dctx;		/*unused*/
-	downcase = downcase;	/*unused*/
-	isc_buffer_active(source, &sr);
+	UNUSED(rdclass);
+	UNUSED(dctx);
+	UNUSED(downcase);
+	
+	isc_buffer_activeregion(source, &sr);
 	isc_buffer_forward(source, sr.length);
 	return (mem_tobuffer(target, sr.base, sr.length));
 }
@@ -70,7 +72,7 @@ towire_unspec(dns_rdata_t *rdata, dns_compress_t *cctx, isc_buffer_t *target) {
 
 	REQUIRE(rdata->type == 103);
 
-	cctx = cctx;		/*unused*/
+	UNUSED(cctx);
 
 	return (mem_tobuffer(target, rdata->data, rdata->length));
 }
@@ -93,32 +95,56 @@ static inline isc_result_t
 fromstruct_unspec(dns_rdataclass_t rdclass, dns_rdatatype_t type, void *source,
 		  isc_buffer_t *target)
 {
+	dns_rdata_unspec_t *unspec = source;
 
 	REQUIRE(type == 103);
+	REQUIRE(source != NULL);
+	REQUIRE(unspec->common.rdtype == type);
+	REQUIRE(unspec->common.rdclass == rdclass);
+	REQUIRE((unspec->data != NULL && unspec->datalen != 0) ||
+		(unspec->data == NULL && unspec->datalen == 0));
 
-	rdclass = rdclass;	/*unused*/
-
-	source = source;
-	target = target;
-
-	return (DNS_R_NOTIMPLEMENTED);
+	return (mem_tobuffer(target, unspec->data, unspec->datalen));
 }
 
 static inline isc_result_t
 tostruct_unspec(dns_rdata_t *rdata, void *target, isc_mem_t *mctx) {
+	dns_rdata_unspec_t *unspec = target;
+	isc_region_t r;
 
 	REQUIRE(rdata->type == 103);
+	REQUIRE(target != NULL);
 
-	target = target;
-	mctx = mctx;
+	unspec->common.rdclass = rdata->rdclass;
+	unspec->common.rdtype = rdata->type;
+	ISC_LINK_INIT(&unspec->common, link);
 
-	return (DNS_R_NOTIMPLEMENTED);
+	dns_rdata_toregion(rdata, &r);
+	unspec->datalen = r.length;
+	if (unspec->datalen != 0) {
+		unspec->data = mem_maybedup(mctx, r.base, r.length);
+		if (unspec->data == NULL)
+			return (ISC_R_NOMEMORY);
+	} else
+		unspec->data = NULL;
+
+	unspec->mctx = mctx;
+	return (ISC_R_SUCCESS);
 }
 
 static inline void
 freestruct_unspec(void *source) {
+	dns_rdata_unspec_t *unspec = source;
+
 	REQUIRE(source != NULL);
-	REQUIRE(ISC_FALSE);	/*XXX*/
+	REQUIRE(unspec->common.rdtype == 103);
+
+	if (unspec->mctx == NULL)
+		return;
+
+	if (unspec->data != NULL)
+		isc_mem_free(unspec->mctx, unspec->data);
+	unspec->mctx = NULL;
 }
 
 static inline isc_result_t
@@ -127,10 +153,11 @@ additionaldata_unspec(dns_rdata_t *rdata, dns_additionaldatafunc_t add,
 {
 	REQUIRE(rdata->type == 103);
 
-	(void)add;
-	(void)arg;
+	UNUSED(rdata);
+	UNUSED(add);
+	UNUSED(arg);
 
-	return (DNS_R_SUCCESS);
+	return (ISC_R_SUCCESS);
 }
 
 static inline isc_result_t

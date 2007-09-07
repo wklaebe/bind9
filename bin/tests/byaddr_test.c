@@ -21,20 +21,12 @@
 
 #include <config.h>
 
-#include <stddef.h>
 #include <stdlib.h>
-#include <string.h>
 
 #include <isc/app.h>
-#include <isc/assertions.h>
-#include <isc/boolean.h>
-#include <isc/buffer.h>
 #include <isc/commandline.h>
-#include <isc/error.h>
-#include <isc/mutex.h>
-#include <isc/net.h>
+#include <isc/mem.h>
 #include <isc/netaddr.h>
-#include <isc/socket.h>
 #include <isc/task.h>
 #include <isc/timer.h>
 #include <isc/util.h>
@@ -43,11 +35,8 @@
 #include <dns/cache.h>
 #include <dns/dispatch.h>
 #include <dns/events.h>
-#include <dns/fixedname.h>
-#include <dns/name.h>
 #include <dns/resolver.h>
 #include <dns/result.h>
-#include <dns/types.h>
 #include <dns/view.h>
 
 static void
@@ -60,7 +49,7 @@ done(isc_task_t *task, isc_event_t *event) {
 	isc_result_t result;
 	isc_region_t r;
 
-	REQUIRE(event->type == DNS_EVENT_BYADDRDONE);
+	REQUIRE(event->ev_type == DNS_EVENT_BYADDRDONE);
 	bevent = (dns_byaddrevent_t *)event;
 
 	(void)task;
@@ -69,8 +58,7 @@ done(isc_task_t *task, isc_event_t *event) {
 	       isc_result_totext(bevent->result));
 
 	if (bevent->result == ISC_R_SUCCESS) {
-		isc_buffer_init(&buffer, textname, sizeof textname,
-				ISC_BUFFERTYPE_TEXT);
+		isc_buffer_init(&buffer, textname, sizeof(textname));
 		for (name = ISC_LIST_HEAD(bevent->names);
 		     name != NULL;
 		     name = ISC_LIST_NEXT(name, link)) {
@@ -81,12 +69,12 @@ done(isc_task_t *task, isc_event_t *event) {
 				       isc_result_totext(result));
 				break;
 			}
-			isc_buffer_used(&buffer, &r);
+			isc_buffer_usedregion(&buffer, &r);
 			printf("%.*s\n", (int)r.length, r.base);
 		}
 	}
 
-	byaddr = event->sender;
+	byaddr = event->ev_sender;
 	dns_byaddr_destroy(&byaddr);
 	isc_event_free(&event);
 
@@ -104,6 +92,7 @@ main(int argc, char *argv[]) {
 	dns_view_t *view;
 	int ch;
 	isc_socketmgr_t *socketmgr;
+	dns_dispatchmgr_t *dispatchmgr;
 	isc_netaddr_t na;
 	dns_byaddr_t *byaddr;
 	isc_result_t result;
@@ -138,11 +127,15 @@ main(int argc, char *argv[]) {
 	}
 
 	taskmgr = NULL;
-	RUNTIME_CHECK(isc_taskmgr_create(mctx, workers, 0, &taskmgr) ==
-		      ISC_R_SUCCESS);
+	RUNTIME_CHECK(isc_taskmgr_create(mctx, workers, 0, &taskmgr)
+		      == ISC_R_SUCCESS);
 	task = NULL;
-	RUNTIME_CHECK(isc_task_create(taskmgr, mctx, 0, &task) ==
-		      ISC_R_SUCCESS);
+	RUNTIME_CHECK(isc_task_create(taskmgr, 0, &task)
+		      == ISC_R_SUCCESS);
+
+	dispatchmgr = NULL;
+	RUNTIME_CHECK(dns_dispatchmgr_create(mctx, &dispatchmgr)
+		      == ISC_R_SUCCESS);
 
 	timermgr = NULL;
 	RUNTIME_CHECK(isc_timermgr_create(mctx, &timermgr) == ISC_R_SUCCESS);
@@ -159,8 +152,9 @@ main(int argc, char *argv[]) {
 				      &view) == ISC_R_SUCCESS);
 
 	RUNTIME_CHECK(dns_view_createresolver(view, taskmgr, 10, socketmgr,
-					      timermgr, 0, NULL, NULL) ==
-		      DNS_R_SUCCESS);
+					      timermgr, 0,
+					      dispatchmgr, NULL, NULL) ==
+		      ISC_R_SUCCESS);
 
 	{
 		struct in_addr ina;

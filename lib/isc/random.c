@@ -18,12 +18,11 @@
 #include <config.h>
 
 #include <stdlib.h>
-#include <string.h>
 
-#include <isc/assertions.h>
 #include <isc/mutex.h>
 #include <isc/once.h>
 #include <isc/random.h>
+#include <isc/string.h>
 #include <isc/util.h>
 
 static isc_once_t once = ISC_ONCE_INIT;
@@ -77,6 +76,8 @@ isc_random_seed(isc_random_t *r, isc_uint32_t seed)
 {
 	REQUIRE(ISC_RANDOM_VALID(r));
 
+	UNUSED(r);
+
 	initialize();
 
 #if 0
@@ -96,6 +97,8 @@ isc_random_get(isc_random_t *r, isc_uint32_t *val)
 	REQUIRE(ISC_RANDOM_VALID(r));
 	REQUIRE(val != NULL);
 
+	UNUSED(r);
+	
 	initialize();
 
 #if 0

@@ -15,15 +15,12 @@
  * SOFTWARE.
  */
 
-#ifndef NS_GLOBALS_H
-#define NS_GLOBALS_H 1
+#ifndef NAMED_GLOBALS_H
+#define NAMED_GLOBALS_H 1
 
-#include <isc/types.h>
 #include <isc/rwlock.h>
 #include <isc/log.h>
 #include <isc/net.h>
-
-#include <dns/types.h>
 
 #include <omapi/types.h>
 
@@ -42,6 +39,7 @@
 EXTERN isc_mem_t *		ns_g_mctx		INIT(NULL);
 EXTERN unsigned int		ns_g_cpus		INIT(1);
 EXTERN isc_taskmgr_t *		ns_g_taskmgr		INIT(NULL);
+EXTERN dns_dispatchmgr_t *	ns_g_dispatchmgr	INIT(NULL);
 /*
  * XXXRTH  We're going to want multiple timer managers eventually.  One
  *         for really short timers, another for client timers, and one
@@ -89,4 +87,4 @@ EXTERN const char *		ns_g_cachefile		INIT(NULL);
 #undef EXTERN
 #undef INIT
 
-#endif /* NS_GLOBALS_H */
+#endif /* NAMED_GLOBALS_H */

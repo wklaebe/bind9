@@ -17,11 +17,8 @@
 
 #include <config.h>
 
-#include <stddef.h>
-
-#include <isc/resultclass.h>
 #include <isc/once.h>
-#include <isc/error.h>
+#include <isc/util.h>
 
 #include <dns/result.h>
 #include <dns/lib.h>
@@ -33,7 +30,7 @@ static char *text[DNS_R_NRESULTS] = {
 	"bitstring too long",			/*  3 */
 	"empty label",				/*  4 */
 	"bad dotted quad",			/*  5 */
-	"unexpected end of input",		/*  6 */
+	"UNUSED6",				/*  6 */
 	"unknown class/type",			/*  7 */
 	"bad label type",			/*  8 */
 	"bad compression pointer",		/*  9 */
@@ -42,14 +39,14 @@ static char *text[DNS_R_NRESULTS] = {
 	"extra input text",			/* 12 */
 	"extra input data",			/* 13 */
 	"text too long",			/* 14 */
-	"out of range",				/* 15 */
+	"UNUSED15",				/* 15 */
 	"syntax error",				/* 16 */
 	"bad checksum",				/* 17 */
 	"bad IPv6 address",			/* 18 */
 	"no owner",				/* 19 */
 	"no ttl",				/* 20 */
 	"bad class",				/* 21 */
-	"unexpected token",			/* 22 */
+	"UNUSED22",				/* 22 */
 	"partial match",			/* 23 */
 	"new origin",				/* 24 */
 	"unchanged",				/* 25 */
@@ -86,6 +83,9 @@ static char *text[DNS_R_NRESULTS] = {
 	"no journal",				/* 56 */
 	"alias",				/* 57 */
 	"use TCP",				/* 58 */
+	"no valid SIG",				/* 59 */
+	"no valid NXT",				/* 60 */
+	"not insecure"				/* 61 */
 };
 
 static char *rcode_text[DNS_R_NRCODERESULTS] = {
@@ -165,28 +165,27 @@ dns_result_torcode(isc_result_t result) {
 	case ISC_R_SUCCESS:
 		rcode = dns_rcode_noerror;
 		break;
-	case ISC_R_NOSPACE:
-	case ISC_R_UNEXPECTEDEND:
 	case ISC_R_BADBASE64:
-	case DNS_R_LABELTOOLONG:
+	case ISC_R_NOSPACE:
+	case ISC_R_RANGE:
+	case ISC_R_UNEXPECTEDEND:
+	case DNS_R_BADAAAA:
 	case DNS_R_BADBITSTRING:
-	case DNS_R_BITSTRINGTOOLONG:
-	case DNS_R_UNEXPECTEDEND:
-	case DNS_R_UNKNOWN:
+	case DNS_R_BADCKSUM:
+	case DNS_R_BADCLASS:
 	case DNS_R_BADLABELTYPE:
 	case DNS_R_BADPOINTER:
-	case DNS_R_TOOMANYHOPS:
-	case DNS_R_EXTRADATA:
-	case DNS_R_TEXTTOOLONG:
-	case DNS_R_RANGE:
-	case DNS_R_SYNTAX:
-	case DNS_R_BADCKSUM:
-	case DNS_R_BADAAAA:
-	case DNS_R_BADCLASS:
 	case DNS_R_BADTTL:
-	case DNS_R_NOREDATA:
 	case DNS_R_BADZONE:
+	case DNS_R_BITSTRINGTOOLONG:
+	case DNS_R_EXTRADATA:
+	case DNS_R_LABELTOOLONG:
+	case DNS_R_NOREDATA:
+	case DNS_R_SYNTAX:
+	case DNS_R_TEXTTOOLONG:
+	case DNS_R_TOOMANYHOPS:
 	case DNS_R_TSIGERRORSET:
+	case DNS_R_UNKNOWN:
 		rcode = dns_rcode_formerr;
 		break;
 	case DNS_R_DISALLOWED:

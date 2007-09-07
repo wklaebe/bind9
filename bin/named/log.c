@@ -17,13 +17,6 @@
 
 #include <config.h>
 
-#include <isc/assertions.h>
-#include <isc/log.h>
-#include <isc/result.h>
-
-#include <dns/log.h>
-
-#include <named/globals.h>
 #include <named/log.h>
 
 /*
@@ -56,17 +49,12 @@ static isc_logmodule_t modules[] = {
 };
 
 isc_result_t
-ns_log_init(void) {
+ns_log_init(isc_boolean_t safe) {
 	isc_result_t result;
 	isc_logconfig_t *lcfg;
 
 	ns_g_categories = categories;
 	ns_g_modules = modules;
-
-	/*
-	 * XXXRTH  This is not necessarily the final default logging
-	 *         setup.
-	 */
 
 	/*
 	 * Setup a logging context.
@@ -77,9 +65,18 @@ ns_log_init(void) {
 
 	isc_log_registercategories(ns_g_lctx, ns_g_categories);
 	isc_log_registermodules(ns_g_lctx, ns_g_modules);
+	isc_log_setcontext(ns_g_lctx);
 	dns_log_init(ns_g_lctx);
+	dns_log_setcontext(ns_g_lctx);
 
-	result = ns_log_setdefaults(lcfg);
+	if (safe)
+		result = ns_log_setsafechannels(lcfg);
+	else
+		result = ns_log_setdefaultchannels(lcfg);
+	if (result != ISC_R_SUCCESS)
+		goto cleanup;
+
+	result = ns_log_setdefaultcategory(lcfg);
 	if (result != ISC_R_SUCCESS)
 		goto cleanup;
 
@@ -92,7 +89,7 @@ ns_log_init(void) {
 }
 
 isc_result_t
-ns_log_setdefaults(isc_logconfig_t *lcfg) {
+ns_log_setdefaultchannels(isc_logconfig_t *lcfg) {
 	isc_result_t result;
 	isc_logdestination_t destination;
 	
@@ -116,6 +113,46 @@ ns_log_setdefaults(isc_logconfig_t *lcfg) {
 			goto cleanup;
 	}
 
+	/*
+	 * Set the initial debug level.
+	 */
+	isc_log_setdebuglevel(ns_g_lctx, ns_g_debuglevel);
+
+	result = ISC_R_SUCCESS;
+
+ cleanup:
+	return (result);
+}
+
+isc_result_t
+ns_log_setsafechannels(isc_logconfig_t *lcfg) {
+	isc_result_t result;
+	
+	if (! ns_g_logstderr) {
+		result = isc_log_createchannel(lcfg, "default_debug",
+                                               ISC_LOG_TONULL,
+                                               ISC_LOG_DYNAMIC,
+                                               NULL, 0);
+		if (result != ISC_R_SUCCESS)
+			goto cleanup;
+	}
+
+	/*
+	 * Setting the debug level to zero should get the output
+	 * discarded a bit faster.
+	 */
+	isc_log_setdebuglevel(ns_g_lctx, 0);
+
+	result = ISC_R_SUCCESS;
+
+ cleanup:
+	return (result);
+}
+
+isc_result_t
+ns_log_setdefaultcategory(isc_logconfig_t *lcfg) {
+	isc_result_t result;
+
 	result = isc_log_usechannel(lcfg, "default_syslog",
 				    ISC_LOGCATEGORY_DEFAULT, NULL);
 	if (result != ISC_R_SUCCESS)
@@ -126,12 +163,7 @@ ns_log_setdefaults(isc_logconfig_t *lcfg) {
 	if (result != ISC_R_SUCCESS)
 		goto cleanup;
 
-	/*
-	 * Set the initial debug level.
-	 */
-	isc_log_setdebuglevel(ns_g_lctx, ns_g_debuglevel);
-
-	return (ISC_R_SUCCESS);
+	result = ISC_R_SUCCESS;
 
  cleanup:
 	return (result);

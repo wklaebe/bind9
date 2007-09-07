@@ -40,12 +40,9 @@
  *	No anticipated impact.
  */
 
-#include <isc/types.h>
 #include <isc/lang.h>
-#include <isc/result.h>
 
 #include <dns/types.h>
-#include <dns/result.h>
 
 #include <dst/dst.h>
 
@@ -147,6 +144,51 @@ dns_keytable_findkeynode(dns_keytable_t *keytable, dns_name_t *name,
  *	'name' is a valid absolute name.
  *
  *	keynodep != NULL && *keynodep == NULL
+ *
+ * Returns:
+ *
+ *	ISC_R_SUCCESS
+ *	ISC_R_NOTFOUND
+ *
+ *	Any other result indicates an error.
+ */
+
+isc_result_t 
+dns_keytable_findnextkeynode(dns_keytable_t *keytable, dns_keynode_t *keynode,
+		                             dns_keynode_t **nextnodep);
+/*
+ * Search for the next key with the same properties as 'keynode' in
+ * 'keytable'.
+ *
+ * Requires:
+ *
+ *	'keytable' is a valid keytable.
+ *
+ *	'keynode' is a valid keynode.
+ *
+ *	nextnodep != NULL && *nextnodep == NULL
+ *
+ * Returns:
+ *
+ *	ISC_R_SUCCESS
+ *	ISC_R_NOTFOUND
+ *
+ *	Any other result indicates an error.
+ */
+
+isc_result_t
+dns_keytable_finddeepestmatch(dns_keytable_t *keytable, dns_name_t *name,
+			      dns_name_t *foundname);
+/*
+ * Search for the deepest match of 'name' in 'keytable'.
+ *
+ * Requires:
+ *
+ *	'keytable' is a valid keytable.
+ *
+ *	'name' is a valid absolute name.
+ *
+ *	'foundname' is a name with a dedicated buffer.
  *
  * Returns:
  *

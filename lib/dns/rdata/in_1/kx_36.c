@@ -15,7 +15,7 @@
  * SOFTWARE.
  */
 
-/* $Id: kx_36.c,v 1.19 2000/03/20 22:44:35 gson Exp $ */
+/* $Id: kx_36.c,v 1.26 2000/05/15 21:14:32 tale Exp $ */
 
 /* Reviewed: Thu Mar 16 17:24:54 PST 2000 by explorer */
 
@@ -23,6 +23,8 @@
 
 #ifndef RDATA_GENERIC_KX_36_C
 #define RDATA_GENERIC_KX_36_C
+
+#define RRTYPE_KX_ATTRIBUTES (0)
 
 static inline isc_result_t
 fromtext_in_kx(dns_rdataclass_t rdclass, dns_rdatatype_t type,
@@ -37,12 +39,13 @@ fromtext_in_kx(dns_rdataclass_t rdclass, dns_rdatatype_t type,
 	REQUIRE(rdclass == 1);
 
 	RETERR(gettoken(lexer, &token, isc_tokentype_number, ISC_FALSE));
+	if (token.value.as_ulong > 0xffff)
+		return (ISC_R_RANGE);
 	RETERR(uint16_tobuffer(token.value.as_ulong, target));
 
 	RETERR(gettoken(lexer, &token, isc_tokentype_string, ISC_FALSE));
 	dns_name_init(&name, NULL);
-	buffer_fromregion(&buffer, &token.value.as_region,
-			  ISC_BUFFERTYPE_TEXT);
+	buffer_fromregion(&buffer, &token.value.as_region);
 	origin = (origin != NULL) ? origin : dns_rootname;
 	return (dns_name_fromtext(&name, &buffer, origin, downcase, target));
 }
@@ -88,35 +91,27 @@ fromwire_in_kx(dns_rdataclass_t rdclass, dns_rdatatype_t type,
 	REQUIRE(type == 36);
 	REQUIRE(rdclass == 1);
 
-	if (dns_decompress_edns(dctx) >= 1 || !dns_decompress_strict(dctx))
-		dns_decompress_setmethods(dctx, DNS_COMPRESS_ALL);
-	else
-		dns_decompress_setmethods(dctx, DNS_COMPRESS_NONE);
+	dns_decompress_setmethods(dctx, DNS_COMPRESS_NONE);
         
         dns_name_init(&name, NULL);
 
-	isc_buffer_active(source, &sregion);
+	isc_buffer_activeregion(source, &sregion);
 	if (sregion.length < 2)
-		return (DNS_R_UNEXPECTEDEND);
+		return (ISC_R_UNEXPECTEDEND);
 	RETERR(mem_tobuffer(target, sregion.base, 2));
 	isc_buffer_forward(source, 2);
 	return (dns_name_fromwire(&name, source, dctx, downcase, target));
 }
 
 static inline isc_result_t
-towire_in_kx(dns_rdata_t *rdata, dns_compress_t *cctx, isc_buffer_t *target)
-{
+towire_in_kx(dns_rdata_t *rdata, dns_compress_t *cctx, isc_buffer_t *target) {
 	dns_name_t name;
 	isc_region_t region;
 
 	REQUIRE(rdata->type == 36);
 	REQUIRE(rdata->rdclass == 1);
 
-	if (dns_compress_getedns(cctx) >= 1)
-		dns_compress_setmethods(cctx, DNS_COMPRESS_ALL);
-	else
-		dns_compress_setmethods(cctx, DNS_COMPRESS_NONE);
-
+	dns_compress_setmethods(cctx, DNS_COMPRESS_NONE);
 	dns_rdata_toregion(rdata, &region);
 	RETERR(mem_tobuffer(target, region.base, 2));
 	isc_region_consume(&region, 2);
@@ -128,8 +123,7 @@ towire_in_kx(dns_rdata_t *rdata, dns_compress_t *cctx, isc_buffer_t *target)
 }
 
 static inline int
-compare_in_kx(dns_rdata_t *rdata1, dns_rdata_t *rdata2)
-{
+compare_in_kx(dns_rdata_t *rdata1, dns_rdata_t *rdata2) {
 	dns_name_t name1;
 	dns_name_t name2;
 	isc_region_t region1;
@@ -179,17 +173,14 @@ fromstruct_in_kx(dns_rdataclass_t rdclass, dns_rdatatype_t type, void *source,
 }
 
 static inline isc_result_t
-tostruct_in_kx(dns_rdata_t *rdata, void *target, isc_mem_t *mctx)
-{
+tostruct_in_kx(dns_rdata_t *rdata, void *target, isc_mem_t *mctx) {
 	isc_region_t region;
 	dns_rdata_in_kx_t *kx = target;
 	dns_name_t name;
-	isc_result_t result;
 
 	REQUIRE(rdata->type == 36);
 	REQUIRE(rdata->rdclass == 1);
 	REQUIRE(target != NULL);
-	REQUIRE(mctx != NULL);
 
 	kx->common.rdclass = rdata->rdclass;
 	kx->common.rdtype = rdata->type;
@@ -202,20 +193,22 @@ tostruct_in_kx(dns_rdata_t *rdata, void *target, isc_mem_t *mctx)
 	isc_region_consume(&region, 2);
 
 	dns_name_fromregion(&name, &region);
-	kx->mctx = mctx;
 	dns_name_init(&kx->exchange, NULL);
-	result = dns_name_dup(&name, kx->mctx, &kx->exchange);
-	if (result != ISC_R_SUCCESS)
-		kx->mctx = NULL;
-	return (result);
+	RETERR(name_duporclone(&name, mctx, &kx->exchange));
+	kx->mctx = mctx;
+	return (ISC_R_SUCCESS);
 }
 
 static inline void
-freestruct_in_kx(void *source)
-{
+freestruct_in_kx(void *source) {
 	dns_rdata_in_kx_t *kx = source;
 
 	REQUIRE(source != NULL);
+	REQUIRE(kx->common.rdclass == 1);
+	REQUIRE(kx->common.rdtype == 36);
+
+	if (kx->mctx == NULL)
+		return;
 
 	dns_name_free(&kx->exchange, kx->mctx);
 	kx->mctx = NULL;
@@ -240,8 +233,7 @@ additionaldata_in_kx(dns_rdata_t *rdata, dns_additionaldatafunc_t add,
 }
 
 static inline isc_result_t
-digest_in_kx(dns_rdata_t *rdata, dns_digestfunc_t digest, void *arg)
-{
+digest_in_kx(dns_rdata_t *rdata, dns_digestfunc_t digest, void *arg) {
 	isc_region_t r1, r2;
 	dns_name_t name;
 
@@ -258,4 +250,4 @@ digest_in_kx(dns_rdata_t *rdata, dns_digestfunc_t digest, void *arg)
 	return (dns_name_digest(&name, digest, arg));
 }
 
-#endif	/* RDATA_GENERIC_KX_15_C */
+#endif	/* RDATA_GENERIC_KX_36_C */

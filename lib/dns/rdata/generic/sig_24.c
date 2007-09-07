@@ -15,7 +15,7 @@
  * SOFTWARE.
  */
 
-/* $Id: sig_24.c,v 1.30 2000/03/17 21:43:46 gson Exp $ */
+/* $Id: sig_24.c,v 1.42 2000/05/22 21:42:47 gson Exp $ */
 
 /* Reviewed: Fri Mar 17 09:05:02 PST 2000 by gson */
 
@@ -23,6 +23,8 @@
 
 #ifndef RDATA_GENERIC_SIG_24_C
 #define RDATA_GENERIC_SIG_24_C
+
+#define RRTYPE_SIG_ATTRIBUTES (DNS_RDATATYPEATTR_DNSSEC)
 
 static inline isc_result_t
 fromtext_sig(dns_rdataclass_t rdclass, dns_rdatatype_t type,
@@ -43,58 +45,75 @@ fromtext_sig(dns_rdataclass_t rdclass, dns_rdatatype_t type,
 
 	UNUSED(rdclass);
 
-	/* type covered */
+	/*
+	 * Type covered.
+	 */
 	RETERR(gettoken(lexer, &token, isc_tokentype_string, ISC_FALSE));
 	result = dns_rdatatype_fromtext(&covered, &token.value.as_textregion);
-	if (result != DNS_R_SUCCESS && result != DNS_R_NOTIMPLEMENTED) {
+	if (result != ISC_R_SUCCESS && result != ISC_R_NOTIMPLEMENTED) {
 		i = strtol(token.value.as_pointer, &e, 10);
 		if (i < 0 || i > 65535)
-			return (DNS_R_RANGE);
+			return (ISC_R_RANGE);
 		if (*e != 0)
 			return (result);
 		covered = (dns_rdatatype_t)i;
 	}
 	RETERR(uint16_tobuffer(covered, target));
 
-	/* algorithm */
+	/*
+	 * Algorithm.
+	 */
 	RETERR(gettoken(lexer, &token, isc_tokentype_string, ISC_FALSE));
 	RETERR(dns_secalg_fromtext(&c, &token.value.as_textregion));
 	RETERR(mem_tobuffer(target, &c, 1));
 
-	/* labels */
+	/*
+	 * Labels.
+	 */
 	RETERR(gettoken(lexer, &token, isc_tokentype_number, ISC_FALSE));
 	if (token.value.as_ulong > 0xff)
-		return (DNS_R_RANGE);
+		return (ISC_R_RANGE);
 	c = (unsigned char)token.value.as_ulong;
 	RETERR(mem_tobuffer(target, &c, 1));
 
-	/* original ttl */
+	/*
+	 * Original ttl.
+	 */
 	RETERR(gettoken(lexer, &token, isc_tokentype_number, ISC_FALSE));
 	RETERR(uint32_tobuffer(token.value.as_ulong, target));
 
-	/* signature expiration */
+	/*
+	 * Signature expiration.
+	 */
 	RETERR(gettoken(lexer, &token, isc_tokentype_string, ISC_FALSE));
 	RETERR(dns_time32_fromtext(token.value.as_pointer, &time_expire));
 	RETERR(uint32_tobuffer(time_expire, target));
 
-	/* time signed */
+	/*
+	 * Time signed.
+	 */
 	RETERR(gettoken(lexer, &token, isc_tokentype_string, ISC_FALSE));
 	RETERR(dns_time32_fromtext(token.value.as_pointer, &time_signed));
 	RETERR(uint32_tobuffer(time_signed, target));
 
-	/* key footprint */
+	/*
+	 * Key footprint.
+	 */
 	RETERR(gettoken(lexer, &token, isc_tokentype_number, ISC_FALSE));
 	RETERR(uint16_tobuffer(token.value.as_ulong, target));
 	
-	/* signer */
+	/*
+	 * Signer.
+	 */
 	RETERR(gettoken(lexer, &token, isc_tokentype_string, ISC_FALSE));
 	dns_name_init(&name, NULL);
-	buffer_fromregion(&buffer, &token.value.as_region,
-			  ISC_BUFFERTYPE_TEXT);
+	buffer_fromregion(&buffer, &token.value.as_region);
 	origin = (origin != NULL) ? origin : dns_rootname;
 	RETERR(dns_name_fromtext(&name, &buffer, origin, downcase, target));
 
-	/* sig */
+	/*
+	 * Sig.
+	 */
 	return (isc_base64_tobuffer(lexer, target, -1));
 }
 
@@ -117,32 +136,52 @@ totext_sig(dns_rdata_t *rdata, dns_rdata_textctx_t *tctx,
 
 	dns_rdata_toregion(rdata, &sr);
 
-	/* type covered */
+	/*
+	 * Type covered.
+	 */
 	covered = uint16_fromregion(&sr);
 	isc_region_consume(&sr, 2);
-	RETERR(dns_rdatatype_totext(covered, target));
+	/*
+	 * XXXAG We should have something like dns_rdatatype_isknown()
+	 * that does the right thing with type 0.
+	 */
+	if (dns_rdatatype_isknown(covered) && covered != 0) {
+		RETERR(dns_rdatatype_totext(covered, target));
+	} else {
+		char buf[sizeof "65535"];
+		sprintf(buf, "%u", covered);
+		RETERR(str_totext(buf, target));
+	}
 	RETERR(str_totext(" ", target));
 
-	/* algorithm */
+	/*
+	 * Algorithm.
+	 */
 	sprintf(buf, "%u", sr.base[0]);
 	isc_region_consume(&sr, 1);
 	RETERR(str_totext(buf, target));
 	RETERR(str_totext(" ", target));
 
-	/* labels */
+	/*
+	 * Labels.
+	 */
 	sprintf(buf, "%u", sr.base[0]);
 	isc_region_consume(&sr, 1);
 	RETERR(str_totext(buf, target));
 	RETERR(str_totext(" ", target));
 
-	/* ttl */
+	/*
+	 * Ttl.
+	 */
 	ttl = uint32_fromregion(&sr);
 	isc_region_consume(&sr, 4);
 	sprintf(buf, "%lu", ttl); 
 	RETERR(str_totext(buf, target));
 	RETERR(str_totext(" ", target));
 
-	/* sig exp */
+	/*
+	 * Sig exp.
+	 */
 	exp = uint32_fromregion(&sr);
 	isc_region_consume(&sr, 4);
 	RETERR(dns_time32_totext(exp, target));
@@ -151,20 +190,26 @@ totext_sig(dns_rdata_t *rdata, dns_rdata_textctx_t *tctx,
 		RETERR(str_totext(" (", target));
 	RETERR(str_totext(tctx->linebreak, target));
 
-	/* time signed */
+	/*
+	 * Time signed.
+	 */
 	when = uint32_fromregion(&sr);
 	isc_region_consume(&sr, 4);
 	RETERR(dns_time32_totext(when, target));
 	RETERR(str_totext(" ", target));
 
-	/* footprint */
+	/*
+	 * Footprint.
+	 */
 	foot = uint16_fromregion(&sr);
 	isc_region_consume(&sr, 2);
 	sprintf(buf, "%lu", foot); 
 	RETERR(str_totext(buf, target));
 	RETERR(str_totext(" ", target));
 
-	/* signer */
+	/*
+	 * Signer.
+	 */
 	dns_name_init(&name, NULL);
 	dns_name_init(&prefix, NULL);
 	dns_name_fromregion(&name, &sr);
@@ -172,14 +217,16 @@ totext_sig(dns_rdata_t *rdata, dns_rdata_textctx_t *tctx,
 	sub = name_prefix(&name, tctx->origin, &prefix);
 	RETERR(dns_name_totext(&prefix, sub, target));
 
-	/* sig */
+	/*
+	 * Sig.
+	 */
 	RETERR(str_totext(tctx->linebreak, target));
 	RETERR(isc_base64_totext(&sr, tctx->width - 2,
 				    tctx->linebreak, target));
 	if ((tctx->flags & DNS_STYLEFLAG_MULTILINE) != 0)
 		RETERR(str_totext(" )", target));
 	
-	return (DNS_R_SUCCESS);
+	return (ISC_R_SUCCESS);
 }
 
 static inline isc_result_t
@@ -192,14 +239,11 @@ fromwire_sig(dns_rdataclass_t rdclass, dns_rdatatype_t type,
 
 	REQUIRE(type == 24);
 
-	if (dns_decompress_edns(dctx) >= 1 || !dns_decompress_strict(dctx))
-		dns_decompress_setmethods(dctx, DNS_COMPRESS_ALL);
-	else
-		dns_decompress_setmethods(dctx, DNS_COMPRESS_NONE);
+	dns_decompress_setmethods(dctx, DNS_COMPRESS_NONE);
 	
 	UNUSED(rdclass);
 
-	isc_buffer_active(source, &sr);
+	isc_buffer_activeregion(source, &sr);
 	/*
 	 * type covered: 2
 	 * algorithm: 1
@@ -210,17 +254,21 @@ fromwire_sig(dns_rdataclass_t rdclass, dns_rdatatype_t type,
 	 * key footprint: 2
 	 */
 	if (sr.length < 18)
-		return (DNS_R_UNEXPECTEDEND);
+		return (ISC_R_UNEXPECTEDEND);
 
 	isc_buffer_forward(source, 18);
 	RETERR(mem_tobuffer(target, sr.base, 18));
 
-	/* signer */
+	/*
+	 * Signer.
+	 */
 	dns_name_init(&name, NULL);
 	RETERR(dns_name_fromwire(&name, source, dctx, downcase, target));
 
-	/* sig */
-	isc_buffer_active(source, &sr);
+	/*
+	 * Sig.
+	 */
+	isc_buffer_activeregion(source, &sr);
 	isc_buffer_forward(source, sr.length);
 	return (mem_tobuffer(target, sr.base, sr.length));
 }
@@ -232,11 +280,7 @@ towire_sig(dns_rdata_t *rdata, dns_compress_t *cctx, isc_buffer_t *target) {
 
 	REQUIRE(rdata->type == 24);
 
-	if (dns_compress_getedns(cctx) >= 1)
-		dns_compress_setmethods(cctx, DNS_COMPRESS_ALL);
-	else
-		dns_compress_setmethods(cctx, DNS_COMPRESS_NONE);
-
+	dns_compress_setmethods(cctx, DNS_COMPRESS_NONE);
 	dns_rdata_toregion(rdata, &sr);
 	/*
 	 * type covered: 2
@@ -250,13 +294,17 @@ towire_sig(dns_rdata_t *rdata, dns_compress_t *cctx, isc_buffer_t *target) {
 	RETERR(mem_tobuffer(target, sr.base, 18));
 	isc_region_consume(&sr, 18);
 
-	/* signer */
+	/*
+	 * Signer.
+	 */
 	dns_name_init(&name, NULL);
 	dns_name_fromregion(&name, &sr);
 	isc_region_consume(&sr, name_length(&name));        
 	RETERR(dns_name_towire(&name, cctx, target));
 
-	/* signature */
+	/*
+	 * Signature.
+	 */
 	return (mem_tobuffer(target, sr.base, sr.length));
 }
 
@@ -305,140 +353,159 @@ static inline isc_result_t
 fromstruct_sig(dns_rdataclass_t rdclass, dns_rdatatype_t type, void *source,
 	       isc_buffer_t *target)
 {
-	isc_region_t tr;
-	dns_rdata_generic_sig_t *sig;
-	dns_compress_t cctx;
+	dns_rdata_sig_t *sig = source;
 
 	REQUIRE(type == 24);
+	REQUIRE(source != NULL);
+	REQUIRE(sig->common.rdtype == type);
+	REQUIRE(sig->common.rdclass == rdclass);
+	REQUIRE((sig->signature != NULL && sig->siglen != 0) ||
+		(sig->signature == NULL && sig->siglen == 0));
 	
-	UNUSED(rdclass);
-
-	sig = (dns_rdata_generic_sig_t *) source;
-	REQUIRE(sig->mctx != NULL);
-
-	/* Type covered */
+	/*
+	 * Type covered.
+	 */
 	RETERR(uint16_tobuffer(sig->covered, target));
 
-	/* Algorithm */
+	/*
+	 * Algorithm.
+	 */
 	RETERR(uint8_tobuffer(sig->algorithm, target));
 
-	/* Labels */
+	/*
+	 * Labels.
+	 */
 	RETERR(uint8_tobuffer(sig->labels, target));
 
-	/* Original TTL */
+	/*
+	 * Original TTL.
+	 */
 	RETERR(uint32_tobuffer(sig->originalttl, target));
 
-	/* Expire time */
+	/*
+	 * Expire time.
+	 */
 	RETERR(uint32_tobuffer(sig->timeexpire, target));
 
-	/* Time signed */
+	/*
+	 * Time signed.
+	 */
 	RETERR(uint32_tobuffer(sig->timesigned, target));
 
-	/* Key ID */
+	/*
+	 * Key ID.
+	 */
 	RETERR(uint16_tobuffer(sig->keyid, target));
 
-	/* Signer name */
-	RETERR(dns_compress_init(&cctx, -1, sig->mctx));
-	dns_compress_setmethods(&cctx, DNS_COMPRESS_NONE);
-	RETERR(dns_name_towire(&sig->signer, &cctx, target));
-	dns_compress_invalidate(&cctx);
+	/*
+	 * Signer name.
+	 */
+	RETERR(name_tobuffer(&sig->signer, target));
 
-	/* Signature */
-	if (sig->siglen > 0) {
-		isc_buffer_available(target, &tr);
-		if (tr.length < sig->siglen)
-			return (DNS_R_NOSPACE);
-		memcpy(tr.base, sig->signature, sig->siglen);
-		isc_buffer_add(target, sig->siglen);
-	}
-
-	return (DNS_R_SUCCESS);
+	/*
+	 * Signature.
+	 */
+	return (mem_tobuffer(target, sig->signature, sig->siglen));
 }
 
 static inline isc_result_t
 tostruct_sig(dns_rdata_t *rdata, void *target, isc_mem_t *mctx) {
 	isc_region_t sr;
-	dns_rdata_generic_sig_t *sig;
+	dns_rdata_sig_t *sig = target;
 	dns_name_t signer;
 
 	REQUIRE(rdata->type == 24);
+	REQUIRE(target != NULL);
 	
-	sig = (dns_rdata_generic_sig_t *) target;
 	sig->common.rdclass = rdata->rdclass;
 	sig->common.rdtype = rdata->type;
 	ISC_LINK_INIT(&sig->common, link);
-	sig->mctx = mctx;
+
 	dns_rdata_toregion(rdata, &sr);
 
-	/* Type covered */
-	if (sr.length < 2)
-		return (ISC_R_UNEXPECTEDEND);
+	/*
+	 * Type covered.
+	 */
 	sig->covered = uint16_fromregion(&sr);
 	isc_region_consume(&sr, 2);
 
-	/* Algorithm */
-	if (sr.length < 1)
-		return (ISC_R_UNEXPECTEDEND);
+	/*
+	 * Algorithm.
+	 */
 	sig->algorithm = uint8_fromregion(&sr);
 	isc_region_consume(&sr, 1);
 
-	/* Labels */
-	if (sr.length < 1)
-		return (ISC_R_UNEXPECTEDEND);
+	/*
+	 * Labels.
+	 */
 	sig->labels = uint8_fromregion(&sr);
 	isc_region_consume(&sr, 1);
 
-	/* Original TTL */
-	if (sr.length < 4)
-		return (ISC_R_UNEXPECTEDEND);
+	/*
+	 * Original TTL.
+	 */
 	sig->originalttl = uint32_fromregion(&sr);
 	isc_region_consume(&sr, 4);
 
-	/* Expire time */
-	if (sr.length < 4)
-		return (ISC_R_UNEXPECTEDEND);
+	/*
+	 * Expire time.
+	 */
 	sig->timeexpire = uint32_fromregion(&sr);
 	isc_region_consume(&sr, 4);
 
-	/* Time signed */
-	if (sr.length < 4)
-		return (ISC_R_UNEXPECTEDEND);
+	/*
+	 * Time signed.
+	 */
 	sig->timesigned = uint32_fromregion(&sr);
 	isc_region_consume(&sr, 4);
 
-	/* Key ID */
-	if (sr.length < 2)
-		return (ISC_R_UNEXPECTEDEND);
+	/*
+	 * Key ID.
+	 */
 	sig->keyid = uint16_fromregion(&sr);
 	isc_region_consume(&sr, 2);
 
 	dns_name_init(&signer, NULL);
 	dns_name_fromregion(&signer, &sr);
 	dns_name_init(&sig->signer, NULL);
-	RETERR(dns_name_dup(&signer, mctx, &sig->signer));
+	RETERR(name_duporclone(&signer, mctx, &sig->signer));
 	isc_region_consume(&sr, name_length(&sig->signer));
 
-	/* Signature */
+	/*
+	 * Signature.
+	 */
 	sig->siglen = sr.length;
-	sig->signature = isc_mem_get(mctx, sig->siglen);
-	if (sig->signature == NULL)
-		return (DNS_R_NOMEMORY);
-	memcpy(sig->signature, sr.base, sig->siglen);
-	isc_region_consume(&sr, sig->siglen);
+	if (sig->siglen > 0) {
+		sig->signature = mem_maybedup(mctx, sr.base, sig->siglen);
+		if (sig->signature == NULL)
+			goto cleanup;
+	} else
+		sig->signature = NULL;
 
-	return (DNS_R_SUCCESS);
+
+	sig->mctx = mctx;
+	return (ISC_R_SUCCESS);
+
+ cleanup:
+	if (mctx != NULL)
+		dns_name_free(&sig->signer, mctx);
+	return (ISC_R_NOMEMORY);
 }
 
 static inline void
 freestruct_sig(void *source) {
-	dns_rdata_generic_sig_t *sig = (dns_rdata_generic_sig_t *) source;
+	dns_rdata_sig_t *sig = (dns_rdata_sig_t *) source;
 
 	REQUIRE(source != NULL);
 	REQUIRE(sig->common.rdtype == 24);
 
+	if (sig->mctx == NULL)
+		return;
+
 	dns_name_free(&sig->signer, sig->mctx);
 	if (sig->signature != NULL)
-		isc_mem_put(sig->mctx, sig->signature, sig->siglen);
+		isc_mem_free(sig->mctx, sig->signature);
+	sig->mctx = NULL;
 }
 
 static inline isc_result_t
@@ -447,10 +514,11 @@ additionaldata_sig(dns_rdata_t *rdata, dns_additionaldatafunc_t add,
 {
 	REQUIRE(rdata->type == 24);
 
+	UNUSED(rdata);
 	UNUSED(add);
 	UNUSED(arg);
 
-	return (DNS_R_SUCCESS);
+	return (ISC_R_SUCCESS);
 }
 
 static inline isc_result_t
@@ -458,10 +526,11 @@ digest_sig(dns_rdata_t *rdata, dns_digestfunc_t digest, void *arg) {
 
 	REQUIRE(rdata->type == 24);
 
+	UNUSED(rdata);
 	UNUSED(digest);
 	UNUSED(arg);
 
-	return (DNS_R_NOTIMPLEMENTED);
+	return (ISC_R_NOTIMPLEMENTED);
 }
 
 static inline dns_rdatatype_t

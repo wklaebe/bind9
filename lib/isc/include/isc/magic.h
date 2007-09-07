@@ -16,14 +16,23 @@
  */
 
 #ifndef ISC_MAGIC_H
-#define ISC_MAGIC_H
+#define ISC_MAGIC_H 1
 
-#include <isc/lang.h>
+typedef struct {
+	unsigned int magic;
+} isc__magic_t;
 
-ISC_LANG_BEGINDECLS
 
-#define ISC_MAGIC_VALID(a,b)	(((a) != NULL) && ((a)->magic == (b)))
+/*
+ * To use this macro the magic number MUST be the first thing in the
+ * structure, and MUST be of type "unsigned int".
+ *
+ * The intent of this is to allow magic numbers to be checked even though
+ * the object is otherwise opaque.
+ */
+#define ISC_MAGIC_VALID(a,b)	(((a) != NULL) \
+				 && (((isc__magic_t *)(a))->magic == (b)))
 
-ISC_LANG_ENDDECLS
+#define ISC_MAGIC(a, b, c, d)	((a) << 24 | (b) << 16 | (c) << 8 | (d))
 
 #endif /* ISC_MAGIC_H */

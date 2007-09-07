@@ -18,13 +18,17 @@
 /*
  * Subroutines for dealing with message objects.
  */
-#include <stddef.h>		/* NULL */
-#include <string.h>		/* memset */
 
-#include <isc/assertions.h>
-#include <isc/error.h>
+#include <config.h>
+
+#include <stddef.h>
+
+#include <isc/buffer.h>
+#include <isc/string.h>
+#include <isc/util.h>
 
 #include <omapi/private.h>
+#include <omapi/result.h>
 
 omapi_message_t *registered_messages;
 
@@ -137,7 +141,7 @@ omapi_message_send(omapi_object_t *message, omapi_object_t *protocol) {
 	omapi_connection_t *c;
 	omapi_message_t *m;
 	omapi_object_t *connection;
-	int authlen = 0;
+	unsigned int authlen = 0;
 	isc_result_t result = ISC_R_SUCCESS;
 
 	REQUIRE(message != NULL && message->type == omapi_type_message);
@@ -163,11 +167,11 @@ omapi_message_send(omapi_object_t *message, omapi_object_t *protocol) {
 	m = (omapi_message_t *)message;
 
 	if (p->key != NULL) {
-		result = dst_sign(DST_SIGMODE_INIT, p->key, &p->dstctx,
-				  NULL, NULL);
+		result = dst_key_sign(DST_SIGMODE_INIT, p->key, &p->dstctx,
+				      NULL, NULL);
 
 		if (result == ISC_R_SUCCESS)
-			result = dst_sig_size(p->key, &authlen);
+			result = dst_key_sigsize(p->key, &authlen);
 
 		p->dst_update = ISC_TRUE;
 	}
@@ -245,8 +249,8 @@ omapi_message_send(omapi_object_t *message, omapi_object_t *protocol) {
 
 		isc_buffer_clear(p->signature_out);
 
-		result = dst_sign(DST_SIGMODE_FINAL, p->key, &p->dstctx,
-				  NULL, p->signature_out);
+		result = dst_key_sign(DST_SIGMODE_FINAL, p->key, &p->dstctx,
+				      NULL, p->signature_out);
 
 		isc_buffer_region(p->signature_out, &r);
 
@@ -372,7 +376,7 @@ message_process(omapi_object_t *mo, omapi_object_t *po) {
 	if (protocol->key != NULL) {
 		if (protocol->verify_result == ISC_R_SUCCESS)
 			protocol->verify_result =
-				dst_verify(DST_SIGMODE_FINAL, protocol->key,
+				dst_key_verify(DST_SIGMODE_FINAL, protocol->key,
 					   &protocol->dstctx, NULL,
 					   &protocol->signature_in);
 

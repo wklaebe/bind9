@@ -1,5 +1,8 @@
 /* crypto/dsa/dsa_asn1.c */
 
+#include <config.h>
+#include "../rename.h"
+
 #include <stdio.h>
 #include "cryptlib.h"
 #include <openssl/dsa.h>

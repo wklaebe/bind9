@@ -17,22 +17,19 @@
 
 #include <config.h>
 
-#include <sys/types.h>
 #include <sys/stat.h>
 
 #include <ctype.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <grp.h>		/* Required for initgroups() on IRIX. */
+#include <pwd.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
-#include <errno.h>
 #include <syslog.h>
-#include <fcntl.h>
-#include <pwd.h>
-#include <grp.h>
+#include <unistd.h>
 
-#include <isc/result.h>
-#include <isc/boolean.h>
+#include <isc/string.h>
 
 #include <named/main.h>
 #include <named/os.h>
@@ -40,12 +37,25 @@
 static char *pidfile = NULL;
 #ifdef HAVE_LINUXTHREADS
 static pid_t mainpid = 0;
+static isc_boolean_t non_root_caps = ISC_FALSE;
 #endif
 
 #ifdef HAVE_LINUX_CAPABILITY_H
 
-#include <sys/syscall.h>
-#include <linux/capability.h>
+/*
+ * We define _LINUX_FS_H to prevent it from being included.  We don't need
+ * anything from it, and the files it includes cause warnings with 2.2
+ * kernels, and compilation failures (due to conflicts between <linux/string.h>
+ * and <string.h>) on 2.3 kernels.
+ */
+#define _LINUX_FS_H
+
+#include <sys/syscall.h>	/* Required for syscall(). */
+#include <linux/capability.h>	/* Required for _LINUX_CAPABILITY_VERSION. */
+
+#ifdef HAVE_LINUX_PRCTL_H
+#include <sys/prctl.h>		/* Required for prctl(). */
+#endif
 
 #ifndef SYS_capset
 #define SYS_capset __NR_capset
@@ -56,7 +66,7 @@ linux_setcaps(unsigned int caps) {
 	struct __user_cap_header_struct caphead;
 	struct __user_cap_data_struct cap;
 
-	if (getuid() != 0)
+	if (getuid() != 0 && !non_root_caps)
 		return;
 
 	memset(&caphead, 0, sizeof caphead);
@@ -75,17 +85,41 @@ linux_initialprivs(void) {
 	unsigned int caps;
 
 	/*
-	 * Drop all privileges except the abilities to bind() to privileged
-	 * ports and chroot().
+	 * We don't need most privileges, so we drop them right away.
+	 * Later on linux_minprivs() will be called, which will drop our
+	 * capabilities to the minimum needed to run the server.
 	 */
 
 	caps = 0;
+
+	/*
+	 * We need to be able to bind() to privileged ports, notably port 53!
+	 */
 	caps |= (1 << CAP_NET_BIND_SERVICE);
+
+	/*
+	 * We need chroot() initially too.
+	 */
 	caps |= (1 << CAP_SYS_CHROOT);
+
+#if defined(HAVE_LINUX_PRCTL_H) && defined(PR_SET_KEEPCAPS)
+	/*
+	 * If the kernel supports keeping capabilities after setuid(), we
+	 * also want the setuid and setgid capabilities.
+	 *
+	 * There's no point turning these on if we don't have PR_SET_KEEPCAPS,
+	 * because changing user ids only works right with linuxthreads if
+	 * we can do it early (before creating threads).
+	 */
+	caps |= (1 << CAP_SETGID);
+	caps |= (1 << CAP_SETUID);
+#endif
+
 	/*
 	 * XXX  We might want to add CAP_SYS_RESOURCE, though it's not
 	 *      clear it would work right given the way linuxthreads work.
 	 */
+
 	linux_setcaps(caps);
 }
 
@@ -94,8 +128,11 @@ linux_minprivs(void) {
 	unsigned int caps;
 
 	/*
-	 * Drop all privileges except the abilities to bind() to privileged
+	 * Drop all privileges except the ability to bind() to privileged
 	 * ports.
+	 *
+	 * It's important that we drop CAP_SYS_CHROOT.  If we didn't, it
+	 * chroot() could be used to escape from the chrooted area.
 	 */
 
 	caps = 0;
@@ -103,6 +140,23 @@ linux_minprivs(void) {
 
 	linux_setcaps(caps);
 }
+
+#if defined(HAVE_LINUX_PRCTL_H) && defined(PR_SET_KEEPCAPS)
+static void
+linux_keepcaps(void) {
+	/*
+	 * Ask the kernel to allow us to keep our capabilities after we
+	 * setuid().
+	 */
+
+	if (prctl(PR_SET_KEEPCAPS, 1, 0, 0, 0) < 0) {
+		if (errno != EINVAL)
+			ns_main_earlyfatal("prctl() failed: %s",
+					   strerror(errno));
+	} else
+		non_root_caps = ISC_TRUE;
+}
+#endif
 
 #endif	/* HAVE_LINUX_CAPABILITY_H */
 
@@ -139,7 +193,7 @@ ns_os_daemonize(void) {
 	if (pid == -1)
 		ns_main_earlyfatal("fork(): %s", strerror(errno));
 	if (pid != 0)
-                _exit(0);
+		_exit(0);
 
 	/*
 	 * We're the child.
@@ -188,13 +242,6 @@ ns_os_chroot(const char *root) {
 		if (chdir("/") < 0)
 			ns_main_earlyfatal("chdir(/): %s", strerror(errno));
 	}
-#ifdef HAVE_LINUX_CAPABILITY_H
-	/*
-	 * We must drop the chroot() capability, otherwise it could be used
-	 * to escape.
-	 */
-	linux_minprivs();
-#endif
 }
 
 void
@@ -203,6 +250,12 @@ ns_os_changeuser(const char *username) {
 
 	if (username == NULL || getuid() != 0)
 		return;
+
+#ifdef HAVE_LINUXTHREADS
+	if (!non_root_caps)
+		ns_main_earlyfatal(
+		   "-u not supported on Linux kernels older than 2.3.99-pre3");
+#endif	
 
 	if (all_digits(username))
 		pw = getpwuid((uid_t)atoi(username));
@@ -217,6 +270,21 @@ ns_os_changeuser(const char *username) {
 		ns_main_earlyfatal("setgid(): %s", strerror(errno));
 	if (setuid(pw->pw_uid) < 0)
 		ns_main_earlyfatal("setuid(): %s", strerror(errno));
+}
+
+void
+ns_os_minprivs(const char *username) {
+#ifdef HAVE_LINUX_CAPABILITY_H
+#if defined(HAVE_LINUX_PRCTL_H) && defined(PR_SET_KEEPCAPS)
+	linux_keepcaps();
+	ns_os_changeuser(username);
+#else
+	(void)username;
+#endif
+	linux_minprivs();
+#else
+	(void)username;
+#endif /* HAVE_LINUX_CAPABILITY_H */
 }
 
 static int

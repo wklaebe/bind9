@@ -17,37 +17,30 @@
 
 #include <config.h>
 
-#include <ctype.h>
-#include <sys/types.h>
+#include <sys/types.h>		/* Required for dirent.h */
+#include <sys/stat.h>
+
 #include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
-#include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
-#include <sys/stat.h>
 
 #include <unistd.h>		/* XXX */
 
-#include <isc/assertions.h>
-#include <isc/error.h>
-#include <isc/boolean.h>
-#include <isc/region.h>
+#include <isc/buffer.h>
 #include <isc/mem.h>
-#include <isc/result.h>
+#include <isc/region.h>
+#include <isc/string.h>
+#include <isc/util.h>
 
 #include <dst/dst.h>
 #include <dst/result.h>
 
 #include <tests/t_api.h>
 
-static void	t1(void);
-
-static void	t2(void);
-
 /*
- * adapted from the original dst_test.c program
+ * Adapted from the original dst_test.c program.
  */
 
 static void
@@ -81,7 +74,6 @@ cleandir(char *path) {
 	return;
 }
 
-
 static void
 use(dst_key_t *key, isc_result_t exp_result, int *nfails) {
 
@@ -91,12 +83,12 @@ use(dst_key_t *key, isc_result_t exp_result, int *nfails) {
 	isc_buffer_t databuf, sigbuf;
 	isc_region_t datareg, sigreg;
 
-	isc_buffer_init(&sigbuf, sig, sizeof(sig), ISC_BUFFERTYPE_BINARY);
-	isc_buffer_init(&databuf, data, strlen(data), ISC_BUFFERTYPE_TEXT);
+	isc_buffer_init(&sigbuf, sig, sizeof(sig));
+	isc_buffer_init(&databuf, data, strlen(data));
 	isc_buffer_add(&databuf, strlen(data));
-	isc_buffer_used(&databuf, &datareg);
+	isc_buffer_usedregion(&databuf, &datareg);
 
-	ret = dst_sign(DST_SIGMODE_ALL, key, NULL, &datareg, &sigbuf);
+	ret = dst_key_sign(DST_SIGMODE_ALL, key, NULL, &datareg, &sigbuf);
 	if (ret != exp_result) {
 		t_info("dst_sign(%d) returned (%s) expected (%s)\n",
 				dst_key_alg(key), dst_result_totext(ret),
@@ -106,8 +98,8 @@ use(dst_key_t *key, isc_result_t exp_result, int *nfails) {
 	}
 
 
-	isc_buffer_remaining(&sigbuf, &sigreg);
-	ret = dst_verify(DST_SIGMODE_ALL, key, NULL, &datareg, &sigreg);
+	isc_buffer_remainingregion(&sigbuf, &sigreg);
+	ret = dst_key_verify(DST_SIGMODE_ALL, key, NULL, &datareg, &sigreg);
 	if (ret != exp_result) {
 		t_info("dst_verify(%d) returned (%s) expected (%s)\n",
 				dst_key_alg(key), dst_result_totext(ret),
@@ -120,7 +112,7 @@ static void
 dh(char *name1, int id1, char *name2, int id2, isc_mem_t *mctx,
    isc_result_t exp_result, int *nfails, int *nprobs)
 {
-	dst_key_t	*key1, *key2;
+	dst_key_t	*key1 = NULL, *key2 = NULL;
 	isc_result_t	ret;
 	int		rval;
 	char		current[PATH_MAX + 1];
@@ -132,7 +124,7 @@ dh(char *name1, int id1, char *name2, int id2, isc_mem_t *mctx,
 	isc_buffer_t	b1, b2;
 	isc_region_t	r1, r2;
 
-	exp_result = exp_result; /* unused */
+	UNUSED(exp_result);
 
 	p = getcwd(current, PATH_MAX);;
 	if (p == NULL) {
@@ -204,8 +196,8 @@ dh(char *name1, int id1, char *name2, int id2, isc_mem_t *mctx,
 
 	cleandir(tmp);
 
-	isc_buffer_init(&b1, array1, sizeof(array1), ISC_BUFFERTYPE_BINARY);
-	ret = dst_computesecret(key1, key2, &b1);
+	isc_buffer_init(&b1, array1, sizeof(array1));
+	ret = dst_key_computesecret(key1, key2, &b1);
 	if (ret != 0) {
 		t_info("dst_computesecret() returned: %s\n",
 		       dst_result_totext(ret));
@@ -213,8 +205,8 @@ dh(char *name1, int id1, char *name2, int id2, isc_mem_t *mctx,
 		return;
 	}
 
-	isc_buffer_init(&b2, array2, sizeof(array2), ISC_BUFFERTYPE_BINARY);
-	ret = dst_computesecret(key2, key1, &b2);
+	isc_buffer_init(&b2, array2, sizeof(array2));
+	ret = dst_key_computesecret(key2, key1, &b2);
 	if (ret != 0) {
 		t_info("dst_computesecret() returned: %s\n",
 		       dst_result_totext(ret));
@@ -222,8 +214,8 @@ dh(char *name1, int id1, char *name2, int id2, isc_mem_t *mctx,
 		return;
 	}
 
-	isc_buffer_used(&b1, &r1);
-	isc_buffer_used(&b2, &r2);
+	isc_buffer_usedregion(&b1, &r1);
+	isc_buffer_usedregion(&b2, &r2);
 	if (r1.length != r2.length || memcmp(r1.base, r2.base, r1.length) != 0)
 	{
 		t_info("computed secrets don't match\n");
@@ -231,14 +223,15 @@ dh(char *name1, int id1, char *name2, int id2, isc_mem_t *mctx,
 		return;
 	}
 
-	dst_key_free(key1);
-	dst_key_free(key2);
+	dst_key_free(&key1);
+	dst_key_free(&key2);
 }
 
 static void
-io(char *name, int id, int alg, int type, isc_mem_t *mctx, isc_result_t exp_result,
-		int *nfails, int *nprobs) {
-	dst_key_t	*key;
+io(char *name, int id, int alg, int type, isc_mem_t *mctx,
+   isc_result_t exp_result, int *nfails, int *nprobs)
+{
+	dst_key_t	*key = NULL;
 	isc_result_t	ret;
 	int		rval;
 	char		current[PATH_MAX + 1];
@@ -299,24 +292,25 @@ io(char *name, int id, int alg, int type, isc_mem_t *mctx, isc_result_t exp_resu
 
 	cleandir(tmp);
 
-	dst_key_free(key);
+	dst_key_free(&key);
 }
 
 static void
 generate(int alg, isc_mem_t *mctx, int size, int *nfails) {
 	isc_result_t ret;
-	dst_key_t *key;
+	dst_key_t *key = NULL;
 
 	ret = dst_key_generate("test.", alg, size, 0, 0, 0, mctx, &key);
 	if (ret != ISC_R_SUCCESS) {
-		t_info("dst_key_generate(%d) returned: %s\n", alg, dst_result_totext(ret));
+		t_info("dst_key_generate(%d) returned: %s\n", alg,
+		       dst_result_totext(ret));
 		++*nfails;
 		return;
 	}
 
 	if (alg != DST_ALG_DH)
 		use(key, ISC_R_SUCCESS, nfails);
-	dst_key_free(key);
+	dst_key_free(&key);
 }
 
 #define	DBUFSIZ	25
@@ -330,7 +324,7 @@ get_random(int *nfails) {
 	isc_result_t ret;
 	unsigned int i;
 
-	isc_buffer_init(&databuf1, data1, sizeof(data1), ISC_BUFFERTYPE_BINARY);
+	isc_buffer_init(&databuf1, data1, sizeof(data1));
 	ret = dst_random_get(sizeof(data1), &databuf1);
 	if (ret != ISC_R_SUCCESS) {
 		t_info("random() returned: %s\n", dst_result_totext(ret));
@@ -338,7 +332,7 @@ get_random(int *nfails) {
 		return;
 	}
 
-	isc_buffer_init(&databuf2, data2, sizeof(data2), ISC_BUFFERTYPE_BINARY);
+	isc_buffer_init(&databuf2, data2, sizeof(data2));
 	ret = dst_random_get(sizeof(data2), &databuf2);
 	if (ret != ISC_R_SUCCESS) {
 		t_info("random() returned: %s\n", dst_result_totext(ret));
@@ -367,7 +361,7 @@ static char	*a1 =
 		"compute Diffie-Hellman shared secrets, "
 		"and generate random number sequences.";
 static void
-t1() {
+t1(void) {
 	isc_mem_t	*mctx;
 	int		nfails;
 	int		nprobs;
@@ -381,19 +375,23 @@ t1() {
 	mctx = NULL;
 	isc_result = isc_mem_create(0, 0, &mctx);
 	if (isc_result != ISC_R_SUCCESS) {
-		t_info("isc_mem_create failed %d\n", isc_result_totext(isc_result));
+		t_info("isc_mem_create failed %d\n",
+		       isc_result_totext(isc_result));
 		t_result(T_UNRESOLVED);
 		return;
 	}
 
-	t_info("testing use of stored keys\n");
+	t_info("testing use of stored keys [1]\n");
 	io("test.", 6204, DST_ALG_DSA, DST_TYPE_PRIVATE|DST_TYPE_PUBLIC,
 			mctx, ISC_R_SUCCESS, &nfails, &nprobs);
+	t_info("testing use of stored keys [2]\n");
 	io("test.", 54622, DST_ALG_RSA, DST_TYPE_PRIVATE|DST_TYPE_PUBLIC,
 			mctx, ISC_R_SUCCESS, &nfails, &nprobs);
 
+	t_info("testing use of stored keys [3]\n");
 	io("test.", 0, DST_ALG_DSA, DST_TYPE_PRIVATE|DST_TYPE_PUBLIC,
 			mctx, DST_R_NULLKEY, &nfails, &nprobs);
+	t_info("testing use of stored keys [4]\n");
 	io("test.", 0, DST_ALG_RSA, DST_TYPE_PRIVATE|DST_TYPE_PUBLIC,
 			mctx, DST_R_NULLKEY, &nfails, &nprobs);
 
@@ -426,7 +424,9 @@ t1() {
 
 #ifdef	NEWSIG
 
-/* write a sig in buf to file at path */
+/*
+ * Write a sig in buf to file at path.
+ */
 static int
 sig_tofile(char *path, isc_buffer_t *buf) {
 	int		rval;
@@ -441,7 +441,8 @@ sig_tofile(char *path, isc_buffer_t *buf) {
 	nprobs = 0;
 	len = buf->used - buf->current;
 
-	t_info("buf: current %d used %d len %d\n", buf->current, buf->used, len);
+	t_info("buf: current %d used %d len %d\n",
+	       buf->current, buf->used, len);
 
 	fd = open(path, O_CREAT|O_TRUNC|O_WRONLY, S_IRWXU|S_IRWXO|S_IRWXG);
 	if (fd < 0) {
@@ -497,7 +498,9 @@ sig_tofile(char *path, isc_buffer_t *buf) {
 
 #endif	/* NEWSIG */
 
-/* read sig in file at path to buf */
+/*
+ * Read sig in file at path to buf.
+ */
 static int
 sig_fromfile(char *path, isc_buffer_t *iscbuf) {
 	int		rval;
@@ -571,18 +574,17 @@ sig_fromfile(char *path, isc_buffer_t *iscbuf) {
 	return(0);
 }
 
-
 static void
 t2_sigchk(char *datapath, char *sigpath, char *keyname,
 		int id, int alg, int type,
 		isc_mem_t *mctx, char *expected_result,
-		int *nfails, int *nprobs) {
-
+		int *nfails, int *nprobs)
+{
 	int		rval;
 	int		len;
 	int		fd;
 	int		exp_res;
-	dst_key_t	*key;
+	dst_key_t	*key = NULL;
 	unsigned char	sig[T_SIGMAX];
 	unsigned char	*p;
 	unsigned char	*data;
@@ -593,7 +595,9 @@ t2_sigchk(char *datapath, char *sigpath, char *keyname,
 	isc_region_t	datareg;
 	isc_region_t	sigreg;
 
-	/* read data from file in a form usable by dst_verify */
+	/*
+	 * Read data from file in a form usable by dst_verify.
+	 */
 	rval = stat(datapath, &sb);
 	if (rval != 0) {
 		t_info("t2_sigchk: stat (%s) failed %d\n", datapath, errno);
@@ -627,7 +631,9 @@ t2_sigchk(char *datapath, char *sigpath, char *keyname,
 	} while (len);
 	(void) close(fd);
 
-	/* read key from file in a form usable by dst_verify */
+	/*
+	 * Read key from file in a form usable by dst_verify.
+	 */
 	isc_result = dst_key_fromfile(keyname, id, alg, type, mctx, &key);
 	if (isc_result != ISC_R_SUCCESS) {
 		t_info("dst_key_fromfile failed %s\n",
@@ -637,25 +643,26 @@ t2_sigchk(char *datapath, char *sigpath, char *keyname,
 		return;
 	}
 
-	isc_buffer_init(&databuf, data, sb.st_size, ISC_BUFFERTYPE_TEXT);
+	isc_buffer_init(&databuf, data, sb.st_size);
 	isc_buffer_add(&databuf, sb.st_size);
-	isc_buffer_used(&databuf, &datareg);
+	isc_buffer_usedregion(&databuf, &datareg);
 
 #ifdef	NEWSIG
 
 	/*
-	 * if we're generating a signature for the first time,
+	 * If we're generating a signature for the first time,
 	 * sign the data and save the signature to a file
 	 */
 
 	memset(sig, 0, sizeof(sig));
-	isc_buffer_init(&sigbuf, sig, sizeof(sig), ISC_BUFFERTYPE_BINARY);
+	isc_buffer_init(&sigbuf, sig, sizeof(sig));
 
 	isc_result = dst_sign(DST_SIGMODE_ALL, key, NULL, &datareg, &sigbuf);
 	if (isc_result != ISC_R_SUCCESS) {
-		t_info("dst_sign(%d) failed %s\n", dst_result_totext(isc_result));
+		t_info("dst_sign(%d) failed %s\n",
+		       dst_result_totext(isc_result));
 		(void) free(data);
-		(void) dst_key_free(key);
+		dst_key_free(&key);
 		++*nprobs;
 		return;
 	}
@@ -665,33 +672,38 @@ t2_sigchk(char *datapath, char *sigpath, char *keyname,
 		t_info("sig_tofile failed\n");
 		++*nprobs;
 		(void) free(data);
-		(void) dst_key_free(key);
+		dst_key_free(&key);
 		return;
 	}
 
 #endif	/* NEWSIG */
 
 	memset(sig, 0, sizeof(sig));
-	isc_buffer_init(&sigbuf, sig, sizeof(sig), ISC_BUFFERTYPE_BINARY);
+	isc_buffer_init(&sigbuf, sig, sizeof(sig));
 
-	/* read precomputed signature from file in a form usable by dst_verify */
+	/*
+	 * Read precomputed signature from file in a form usable by dst_verify.
+	 */
 	rval = sig_fromfile(sigpath, &sigbuf);
 	if (rval != 0) {
 		t_info("sig_fromfile failed\n");
 		(void) free(data);
-		(void) dst_key_free(key);
+		dst_key_free(&key);
 		++*nprobs;
 		return;
 	}
 
-	/* verify that the key signed the data */
-	isc_buffer_remaining(&sigbuf, &sigreg);
+	/*
+	 * Verify that the key signed the data.
+	 */
+	isc_buffer_remainingregion(&sigbuf, &sigreg);
 
 	exp_res = 0;
 	if (strstr(expected_result, "!"))
 		exp_res = 1;
 
-	isc_result = dst_verify(DST_SIGMODE_ALL, key, NULL, &datareg, &sigreg);
+	isc_result = dst_key_verify(DST_SIGMODE_ALL, key, NULL, &datareg,
+				    &sigreg);
 	if (	((exp_res == 0) && (isc_result != ISC_R_SUCCESS))	||
 		((exp_res != 0) && (isc_result == ISC_R_SUCCESS)))	{
 
@@ -702,22 +714,23 @@ t2_sigchk(char *datapath, char *sigpath, char *keyname,
 	}
 
 	(void) free(data);
-	(void) dst_key_free(key);
+	dst_key_free(&key);
 	return;
 }
 
 /*
- * the astute observer will note that t1() signs then verifies data
+ * The astute observer will note that t1() signs then verifies data
  * during the test but that t2() verifies data that has been
  * signed at some earlier time, possibly with an entire different
  * version or implementation of the DSA and RSA algorithms
  */
-
 static char	*a2 =
 		"the dst module provides the capability to "
 		"verify data signed with the RSA and DSA algorithms";
 
-/* av ==  datafile, sigpath, keyname, keyid, alg, exp_result */
+/*
+ * av ==  datafile, sigpath, keyname, keyid, alg, exp_result.
+ */
 static int
 t2_vfy(char **av) {
 	char		*datapath;
@@ -756,7 +769,8 @@ t2_vfy(char **av) {
 	mctx = NULL;
 	isc_result = isc_mem_create(0, 0, &mctx);
 	if (isc_result != ISC_R_SUCCESS) {
-		t_info("isc_mem_create failed %d\n", isc_result_totext(isc_result));
+		t_info("isc_mem_create failed %d\n",
+		       isc_result_totext(isc_result));
 		return(T_UNRESOLVED);
 	}
 
@@ -774,12 +788,12 @@ t2_vfy(char **av) {
 		result = T_FAIL;
 	else if ((nfails == 0) && (nprobs == 0))
 		result = T_PASS;
-	return(result);
 
+	return(result);
 }
 
 static void
-t2() {
+t2(void) {
 	int	result;
 	t_assert("dst", 2, T_REQUIRED, a2);
 	result = t_eval("dst_2_data", t2_vfy, 6);

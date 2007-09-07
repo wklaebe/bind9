@@ -21,36 +21,27 @@
 
 #include <config.h>
 
-#include <stddef.h>
 #include <stdlib.h>
-#include <string.h>
 
-#include <isc/assertions.h>
+#include <isc/app.h>
+#include <isc/base64.h>
 #include <isc/commandline.h>
-#include <isc/error.h>
+#include <isc/lex.h>
+#include <isc/log.h>
+#include <isc/mem.h>
+#include <isc/socket.h>
 #include <isc/task.h>
 #include <isc/timer.h>
-#include <isc/app.h>
-#include <isc/mutex.h>
-#include <isc/boolean.h>
-#include <isc/net.h>
-#include <isc/socket.h>
-#include <isc/log.h>
 #include <isc/util.h>
-#include <isc/lex.h>
-#include <isc/base64.h>
 
-#include <dns/types.h>
-#include <dns/result.h>
-#include <dns/message.h>
-#include <dns/name.h>
-#include <dns/fixedname.h>
-#include <dns/resolver.h>
-#include <dns/events.h>
-#include <dns/tsig.h>
-#include <dns/tkey.h>
 #include <dns/keyvalues.h>
+#include <dns/message.h>
+#include <dns/result.h>
+#include <dns/tkey.h>
+#include <dns/tsig.h>
 #include <dns/view.h>
+
+#include <dst/result.h>
 
 #define CHECK(str, x) { \
 	if ((x) != ISC_R_SUCCESS) { \
@@ -87,7 +78,7 @@ senddone(isc_task_t *task, isc_event_t *event) {
 	isc_socketevent_t *sevent = (isc_socketevent_t *)event;
 
 	REQUIRE(sevent != NULL);
-	REQUIRE(sevent->type == ISC_SOCKEVENT_SENDDONE);
+	REQUIRE(sevent->ev_type == ISC_SOCKEVENT_SENDDONE);
 	REQUIRE(task == task1);
 
 	printf("senddone\n");
@@ -102,7 +93,7 @@ recvdone(isc_task_t *task, isc_event_t *event) {
 	isc_result_t result;
 
 	REQUIRE(sevent != NULL);
-	REQUIRE(sevent->type == ISC_SOCKEVENT_RECVDONE);
+	REQUIRE(sevent->ev_type == ISC_SOCKEVENT_RECVDONE);
 	REQUIRE(task == task1);
 
 	printf("recvdone\n");
@@ -111,8 +102,7 @@ recvdone(isc_task_t *task, isc_event_t *event) {
 		exit(-1);
 	}
 
-	isc_buffer_init(&source, sevent->region.base, sevent->region.length,
-			ISC_BUFFERTYPE_BINARY);
+	isc_buffer_init(&source, sevent->region.base, sevent->region.length);
 	isc_buffer_add(&source, sevent->n);
 
 	response = NULL;
@@ -135,7 +125,7 @@ senddone2(isc_task_t *task, isc_event_t *event) {
 	isc_socketevent_t *sevent = (isc_socketevent_t *)event;
 
 	REQUIRE(sevent != NULL);
-	REQUIRE(sevent->type == ISC_SOCKEVENT_SENDDONE);
+	REQUIRE(sevent->ev_type == ISC_SOCKEVENT_SENDDONE);
 	REQUIRE(task == task2);
 
 	printf("senddone2\n");
@@ -150,7 +140,7 @@ recvdone2(isc_task_t *task, isc_event_t *event) {
 	isc_result_t result;
 
 	REQUIRE(sevent != NULL);
-	REQUIRE(sevent->type == ISC_SOCKEVENT_RECVDONE);
+	REQUIRE(sevent->ev_type == ISC_SOCKEVENT_RECVDONE);
 	REQUIRE(task == task2);
 
 	printf("recvdone2\n");
@@ -159,8 +149,7 @@ recvdone2(isc_task_t *task, isc_event_t *event) {
 		exit(-1);
 	}
 
-	isc_buffer_init(&source, sevent->region.base, sevent->region.length,
-			ISC_BUFFERTYPE_BINARY);
+	isc_buffer_init(&source, sevent->region.base, sevent->region.length);
 	isc_buffer_add(&source, sevent->n);
 
 	response = NULL;
@@ -197,7 +186,7 @@ buildquery(void) {
 	unsigned char keydata[3];
 
 	dns_fixedname_init(&keyname);
-	isc_buffer_init(&namestr, "tkeytest.", 9, ISC_BUFFERTYPE_TEXT);
+	isc_buffer_init(&namestr, "tkeytest.", 9);
 	isc_buffer_add(&namestr, 9);
 	result = dns_name_fromtext(dns_fixedname_name(&keyname), &namestr,
 				   NULL, ISC_FALSE, NULL);
@@ -206,16 +195,16 @@ buildquery(void) {
 	result = isc_lex_create(mctx, 1024, &lex);
 	CHECK("isc_lex_create", result);
 
-	isc_buffer_init(&keybufin, "1234", 4, ISC_BUFFERTYPE_TEXT);
+	isc_buffer_init(&keybufin, "1234", 4);
 	isc_buffer_add(&keybufin, 4);
 	result = isc_lex_openbuffer(lex, &keybufin);
 	CHECK("isc_lex_openbuffer", result);
 
-	isc_buffer_init(&keybuf, keydata, 3, ISC_BUFFERTYPE_TEXT);
+	isc_buffer_init(&keybuf, keydata, 3);
 	result = isc_base64_tobuffer(lex, &keybuf, -1);
 	CHECK("isc_base64_tobuffer", result);
 
-	isc_buffer_used(&keybuf, &r);
+	isc_buffer_usedregion(&keybuf, &r);
 
 	result = dns_tsigkey_create(dns_fixedname_name(&keyname),
 				    DNS_TSIG_HMACMD5_NAME,
@@ -223,7 +212,7 @@ buildquery(void) {
 				    NULL, 0, 0, mctx, ring, &key);
 	CHECK("dns_tsigkey_create", result);
 
-	result = isc_buffer_allocate(mctx, &nonce, 16, ISC_BUFFERTYPE_BINARY);
+	result = isc_buffer_allocate(mctx, &nonce, 16);
 	CHECK("isc_buffer_allocate", result);
 
 	result = dst_random_get(16, nonce);
@@ -239,7 +228,7 @@ buildquery(void) {
 				       DNS_TSIG_HMACMD5_NAME, nonce, 3600);
 	CHECK("dns_tkey_builddhquery", result);
 
-	isc_buffer_init(&qbuffer, qdata, sizeof(qdata), ISC_BUFFERTYPE_BINARY);
+	isc_buffer_init(&qbuffer, qdata, sizeof(qdata));
 
 	result = dns_message_renderbegin(query, &qbuffer);
 	CHECK("dns_message_renderbegin", result);
@@ -254,7 +243,7 @@ buildquery(void) {
 	result = dns_message_renderend(query);
 	CHECK("dns_message_renderend", result);
 
-	isc_buffer_used(&qbuffer, &r);
+	isc_buffer_usedregion(&qbuffer, &r);
 	result = isc_socket_sendto(s, &r, task1, senddone, NULL, &address,
 				   NULL);
 	CHECK("isc_socket_sendto", result);
@@ -279,7 +268,7 @@ buildquery2(void) {
 	result = dns_tkey_builddeletequery(query2, tsigkey);
 	CHECK("dns_tkey_builddeletequery", result);
 
-	isc_buffer_init(&qbuffer, qdata, sizeof(qdata), ISC_BUFFERTYPE_BINARY);
+	isc_buffer_init(&qbuffer, qdata, sizeof(qdata));
 
 	result = dns_message_renderbegin(query2, &qbuffer);
 	CHECK("dns_message_renderbegin", result);
@@ -294,7 +283,7 @@ buildquery2(void) {
 	result = dns_message_renderend(query2);
 	CHECK("dns_message_renderend", result);
 
-	isc_buffer_used(&qbuffer, &r);
+	isc_buffer_usedregion(&qbuffer, &r);
 	result = isc_socket_sendto(s, &r, task2, senddone2, NULL, &address,
 				   NULL);
 	CHECK("isc_socket_sendto", result);
@@ -345,10 +334,10 @@ main(int argc, char *argv[]) {
 	RUNTIME_CHECK(isc_taskmgr_create(mctx, workers, 0, &taskmgr) ==
 		      ISC_R_SUCCESS);
 	task1 = NULL;
-	RUNTIME_CHECK(isc_task_create(taskmgr, mctx, 0, &task1) ==
+	RUNTIME_CHECK(isc_task_create(taskmgr, 0, &task1) ==
 		      ISC_R_SUCCESS);
 	task2 = NULL;
-	RUNTIME_CHECK(isc_task_create(taskmgr, mctx, 0, &task2) ==
+	RUNTIME_CHECK(isc_task_create(taskmgr, 0, &task2) ==
 		      ISC_R_SUCCESS);
 	timermgr = NULL;
 	RUNTIME_CHECK(isc_timermgr_create(mctx, &timermgr) == ISC_R_SUCCESS);

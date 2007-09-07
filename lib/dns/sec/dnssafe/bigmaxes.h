@@ -6,14 +6,14 @@
    prohibited.
  */
 
-#ifndef _BIGMAXES_H_
-#define _BIGMAXES_H_ 1
+#ifndef DNSSAFE_BIGMAXES_H
+#define DNSSAFE_BIGMAXES_H 1
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#define MAX_RSA_MODULUS_BITS 1024
+#define MAX_RSA_MODULUS_BITS 2028
 
 #define BITS_TO_LEN(modulusBits) (((modulusBits) + 7) / 8)
 #define RSA_PRIME_BITS(modulusBits) (((modulusBits) + 1) / 2)
@@ -44,4 +44,5 @@ extern "C" {
 }
 #endif
 
-#endif
+#endif /* DNSSAFE_BIGMAXES_H */
+

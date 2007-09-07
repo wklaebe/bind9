@@ -45,15 +45,11 @@
  *	Drafts:	<TBS>
  */
 
-#include <isc/types.h>
 #include <isc/lang.h>
-#include <isc/event.h>
 #include <isc/socket.h>
 
 #include <dns/types.h>
-#include <dns/name.h>
 #include <dns/fixedname.h>
-#include <dns/result.h>
 
 ISC_LANG_BEGINDECLS
 
@@ -81,10 +77,11 @@ typedef struct dns_fetchevent {
 /*
  * Options that modify how a 'fetch' is done.
  */
-#define DNS_FETCHOPT_TCP		0x01		/* Use TCP. */
-#define DNS_FETCHOPT_UNSHARED		0x02		/* See below. */
-#define DNS_FETCHOPT_RECURSIVE		0x04		/* Set RD? */
-#define DNS_FETCHOPT_NOEDNS0		0x08		/* Do not use EDNS. */
+#define DNS_FETCHOPT_TCP		0x01	     /* Use TCP. */
+#define DNS_FETCHOPT_UNSHARED		0x02	     /* See below. */
+#define DNS_FETCHOPT_RECURSIVE		0x04	     /* Set RD? */
+#define DNS_FETCHOPT_NOEDNS0		0x08	     /* Do not use EDNS. */
+#define DNS_FETCHOPT_FORWARDONLY	0x10	     /* Only use forwarders. */
 
 /*
  * XXXRTH  Should this API be made semi-private?  (I.e.
@@ -97,6 +94,7 @@ dns_resolver_create(dns_view_t *view,
 		    isc_socketmgr_t *socketmgr,
 		    isc_timermgr_t *timermgr,
 		    unsigned int options,
+		    dns_dispatchmgr_t *dispatchmgr,
 		    dns_dispatch_t *dispatchv4,
 		    dns_dispatch_t *dispatchv6,
 		    dns_resolver_t **resp);
@@ -308,7 +306,6 @@ dns_resolver_createfetch(dns_resolver_t *res, dns_name_t *name,
  *
  *	Many other values are possible, all of which indicate failure.
  */
- 
 
 void
 dns_resolver_cancelfetch(dns_fetch_t *fetch);
@@ -341,6 +338,21 @@ dns_resolver_destroyfetch(dns_fetch_t **fetchp);
  *
  *	*fetchp == NULL.
  */
+
+dns_dispatchmgr_t *
+dns_resolver_dispatchmgr(dns_resolver_t *resolver);
+
+dns_dispatch_t *
+dns_resolver_dispatchv4(dns_resolver_t *resolver);
+
+dns_dispatch_t *
+dns_resolver_dispatchv6(dns_resolver_t *resolver);
+
+isc_socketmgr_t *
+dns_resolver_socketmgr(dns_resolver_t *resolver);
+
+isc_taskmgr_t *
+dns_resolver_taskmgr(dns_resolver_t *resolver);
 
 ISC_LANG_ENDDECLS
 

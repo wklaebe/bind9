@@ -1,6 +1,3 @@
-#ifndef DST_PARSE_H
-#define DST_PARSE_H
-
 /*
  * Portions Copyright (c) 1995-1998 by Trusted Information Systems, Inc.
  *
@@ -17,11 +14,12 @@
  * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
  * WITH THE USE OR PERFORMANCE OF THE SOFTWARE.
  */
-#include <isc/lang.h>
-#include <isc/mem.h>
-#include <dst/dst.h>
+#ifndef DST_DST_PARSE_H
+#define DST_DST_PARSE_H 1
 
-ISC_LANG_BEGINDECLS
+#include <isc/lang.h>
+
+#include <dst/dst.h>
 
 #define MAJOR_VERSION		1
 #define MINOR_VERSION		2
@@ -74,15 +72,18 @@ struct dst_private {
 
 typedef struct dst_private dst_private_t;
 
-void	dst_s_free_private_structure_fields(dst_private_t *priv,
-					    isc_mem_t *mctx);
-int	dst_s_parse_private_key_file(const char *name, const int alg,
-				     const isc_uint16_t id, dst_private_t *priv,
-				     isc_mem_t *mctx);
-int	dst_s_write_private_key_file(const char *name, const int alg,
-				     const isc_uint16_t id,
-				     const dst_private_t *priv);
+ISC_LANG_BEGINDECLS
+
+void
+dst_s_free_private_structure_fields(dst_private_t *priv, isc_mem_t *mctx);
+
+int
+dst_s_parse_private_key_file(dst_key_t *key, const isc_uint16_t id,
+			     dst_private_t *priv, isc_mem_t *mctx);
+
+int
+dst_s_write_private_key_file(const dst_key_t *key, const dst_private_t *priv);
 
 ISC_LANG_ENDDECLS
 
-#endif /* DST_PARSE_H */
+#endif /* DST_DST_PARSE_H */

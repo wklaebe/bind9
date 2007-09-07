@@ -21,14 +21,13 @@
 
 #include <config.h>
 
-#include <stddef.h>
-#include <string.h>
+#include <isc/buffer.h>
+#include <isc/string.h>
+#include <isc/util.h>
 
-#include <isc/assertions.h>
-#include <isc/ondestroy.h>
-
-#include <dns/db.h>
+#include <dns/callbacks.h>
 #include <dns/master.h>
+#include <dns/rdata.h>
 #include <dns/rdataset.h>
 
 /***
@@ -57,7 +56,7 @@ typedef struct {
 #include "rbtdb.h"
 #include "rbtdb64.h"
 
-impinfo_t implementations[] = {
+static impinfo_t implementations[] = {
 	{ "rbt", dns_rbtdb_create },
 	{ "rbt64", dns_rbtdb64_create },
 	{ NULL, NULL }
@@ -86,7 +85,7 @@ dns_db_create(isc_mem_t *mctx, char *db_type, dns_name_t *origin,
 			return ((impinfo->create)(mctx, origin, cache, rdclass,
 						  argc, argv, dbp));
 
-	return (DNS_R_NOTFOUND);
+	return (ISC_R_NOTFOUND);
 }
 
 void
@@ -238,7 +237,7 @@ dns_db_load(dns_db_t *db, const char *filename) {
 	dns_rdatacallbacks_init(&callbacks);
 
 	result = dns_db_beginload(db, &callbacks.add, &callbacks.add_private);
-	if (result != DNS_R_SUCCESS)
+	if (result != ISC_R_SUCCESS)
 		return (result);
 	result = dns_master_loadfile(filename, &db->origin, &db->origin,
 				     db->rdclass, age_ttl, &soacount, &nscount,
@@ -371,10 +370,11 @@ dns_db_find(dns_db_t *db, dns_name_t *name, dns_dbversion_t *version,
 	REQUIRE(nodep == NULL || (nodep != NULL && *nodep == NULL));
 	REQUIRE(dns_name_hasbuffer(foundname));
 	REQUIRE(rdataset == NULL ||
-		(DNS_RDATASET_VALID(rdataset) && rdataset->methods == NULL));
+		(DNS_RDATASET_VALID(rdataset) &&
+		 ! dns_rdataset_isassociated(rdataset)));
 	REQUIRE(sigrdataset == NULL ||
 		(DNS_RDATASET_VALID(sigrdataset) &&
-		 sigrdataset->methods == NULL));
+		 ! dns_rdataset_isassociated(sigrdataset)));
 
 	return ((db->methods->find)(db, name, version, type, options, now,
 				    nodep, foundname, rdataset, sigrdataset));
@@ -396,7 +396,7 @@ dns_db_findzonecut(dns_db_t *db, dns_name_t *name,
 	REQUIRE(dns_name_hasbuffer(foundname));
 	REQUIRE(sigrdataset == NULL ||
 		(DNS_RDATASET_VALID(sigrdataset) &&
-		 sigrdataset->methods == NULL));
+		 ! dns_rdataset_isassociated(sigrdataset)));
 
 	return ((db->methods->findzonecut)(db, name, options, now, nodep,
 					   foundname, rdataset, sigrdataset));
@@ -494,12 +494,12 @@ dns_db_findrdataset(dns_db_t *db, dns_dbnode_t *node, dns_dbversion_t *version,
 	REQUIRE(DNS_DB_VALID(db));
 	REQUIRE(node != NULL);
 	REQUIRE(DNS_RDATASET_VALID(rdataset));
-	REQUIRE(rdataset->methods == NULL);
+	REQUIRE(! dns_rdataset_isassociated(rdataset));
 	REQUIRE(covers == 0 || type == dns_rdatatype_sig);
 	REQUIRE(type != dns_rdatatype_any);
 	REQUIRE(sigrdataset == NULL ||
 		(DNS_RDATASET_VALID(sigrdataset) &&
-		 sigrdataset->methods == NULL));
+		 ! dns_rdataset_isassociated(sigrdataset)));
 
 	return ((db->methods->findrdataset)(db, node, version, type, covers,
 					    now, rdataset, sigrdataset));
@@ -536,11 +536,11 @@ dns_db_addrdataset(dns_db_t *db, dns_dbnode_t *node, dns_dbversion_t *version,
 		((db->attributes & DNS_DBATTR_CACHE) != 0 &&
 		 version == NULL && (options & DNS_DBADD_MERGE) == 0));
 	REQUIRE(DNS_RDATASET_VALID(rdataset));
-	REQUIRE(rdataset->methods != NULL);
+	REQUIRE(dns_rdataset_isassociated(rdataset));
 	REQUIRE(rdataset->rdclass == db->rdclass);
 	REQUIRE(addedrdataset == NULL ||
 		(DNS_RDATASET_VALID(addedrdataset) &&
-		 addedrdataset->methods == NULL));
+		 ! dns_rdataset_isassociated(addedrdataset)));
 
 	return ((db->methods->addrdataset)(db, node, version, now, rdataset,
 					   options, addedrdataset));
@@ -560,11 +560,11 @@ dns_db_subtractrdataset(dns_db_t *db, dns_dbnode_t *node,
 	REQUIRE(node != NULL);
 	REQUIRE((db->attributes & DNS_DBATTR_CACHE) == 0 && version != NULL);
 	REQUIRE(DNS_RDATASET_VALID(rdataset));
-	REQUIRE(rdataset->methods != NULL);
+	REQUIRE(dns_rdataset_isassociated(rdataset));
 	REQUIRE(rdataset->rdclass == db->rdclass);
 	REQUIRE(newrdataset == NULL ||
 		(DNS_RDATASET_VALID(newrdataset) &&
-		 newrdataset->methods == NULL));
+		 ! dns_rdataset_isassociated(newrdataset)));
 
 	return ((db->methods->subtractrdataset)(db, node, version, rdataset,
 						newrdataset));
@@ -585,5 +585,48 @@ dns_db_deleterdataset(dns_db_t *db, dns_dbnode_t *node,
 	REQUIRE(((db->attributes & DNS_DBATTR_CACHE) == 0 && version != NULL)||
 		((db->attributes & DNS_DBATTR_CACHE) != 0 && version == NULL));
 
-	return ((db->methods->deleterdataset)(db, node, version, type, covers));
+	return ((db->methods->deleterdataset)(db, node, version,
+					      type, covers));
+}
+
+isc_result_t
+dns_db_getsoaserial(dns_db_t *db, dns_dbversion_t *ver, isc_uint32_t *serialp)
+{
+	isc_result_t result;
+	dns_dbnode_t *node = NULL;
+	dns_rdataset_t rdataset;
+	dns_rdata_t rdata;
+	isc_buffer_t buffer;
+
+	REQUIRE(dns_db_iszone(db));
+		
+	result = dns_db_findnode(db, dns_db_origin(db), ISC_FALSE, &node);
+	if (result != ISC_R_SUCCESS)
+		return (result);
+
+	dns_rdataset_init(&rdataset);
+	result = dns_db_findrdataset(db, node, ver, dns_rdatatype_soa, 0,
+				     (isc_stdtime_t)0, &rdataset, NULL);
+ 	if (result != ISC_R_SUCCESS)
+		goto freenode;
+	
+	result = dns_rdataset_first(&rdataset);
+ 	if (result != ISC_R_SUCCESS)
+		goto freerdataset;
+	dns_rdataset_current(&rdataset, &rdata);
+
+	INSIST(rdata.length > 20);
+	isc_buffer_init(&buffer, rdata.data, rdata.length);
+	isc_buffer_add(&buffer, rdata.length);
+	isc_buffer_forward(&buffer, rdata.length - 20);
+	*serialp = isc_buffer_getuint32(&buffer);
+
+	result = ISC_R_SUCCESS;
+
+ freerdataset:
+	dns_rdataset_disassociate(&rdataset);
+	
+ freenode:
+	dns_db_detachnode(db, &node);
+	return (result);
 }

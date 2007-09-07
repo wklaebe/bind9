@@ -15,31 +15,25 @@
  * SOFTWARE.
  */
 
+/* $Id: confcommon.c,v 1.28 2000/05/15 12:36:19 brister Exp $ */
+
 #include <config.h>
 
-#include <sys/types.h>	/* XXXRTH */
-
-#include <limits.h>
-#include <syslog.h>	/* XXXRTH */
 #include <ctype.h>
-#include <string.h>
+#include <syslog.h>	/* XXXRTH */
 
-#include <isc/assertions.h>
 #include <isc/buffer.h>
-#include <isc/magic.h>
+#include <isc/mem.h>
+#include <isc/socket.h>
+#include <isc/string.h>		/* Required for HP/UX (and others?) */
+#include <isc/util.h>
 
+#include <dns/confcommon.h>
 #include <dns/name.h>
 #include <dns/peer.h>
-
-/* XXX this next include is needed by <dns/rdataclass.h>  */
-#include <dns/result.h>
-#include <dns/name.h>
 #include <dns/rdataclass.h>
 #include <dns/rdatatype.h>
 #include <dns/ssu.h>
-#include <dns/confcommon.h>
-
-
 
 /***
  *** TYPES
@@ -144,10 +138,6 @@ static const char *category_nametable[] = {
  *** DATA
  ***/
 
-isc_boolean_t debug_mem_print;
-FILE *debug_mem_print_stream;
-
-
 
 /***
  *** FUNCTIONS
@@ -161,8 +151,7 @@ static void default_cfgerror(isc_result_t result, const char *fmt,
 
 
 void
-dns_c_printinunits(FILE *fp, isc_uint32_t val)
-{
+dns_c_printinunits(FILE *fp, isc_uint32_t val) {
 	isc_uint32_t one_gig = (1024 * 1024 * 1024);
 	isc_uint32_t one_meg = (1024 * 1024);
 	isc_uint32_t one_k = 1024;
@@ -185,46 +174,41 @@ dns_c_printinunits(FILE *fp, isc_uint32_t val)
 
 
 void
-dns_c_dataclass_tostream(FILE *fp, dns_rdataclass_t rclass)
-{
+dns_c_dataclass_tostream(FILE *fp, dns_rdataclass_t rclass) {
 	char buffer[64];
 	isc_buffer_t sourceb;
 
-	isc_buffer_init(&sourceb, buffer, sizeof buffer,
-			ISC_BUFFERTYPE_GENERIC);
+	isc_buffer_init(&sourceb, buffer, sizeof(buffer));
 	
-	if (dns_rdataclass_totext(rclass, &sourceb) == DNS_R_SUCCESS) {
-		INSIST(sourceb.used + 1 < sizeof buffer);
+	if (dns_rdataclass_totext(rclass, &sourceb) == ISC_R_SUCCESS) {
+		INSIST(sourceb.used + 1 < sizeof(buffer));
 		buffer[sourceb.used] = '\0';
 		fputs(buffer, fp);
 	} else {
-		fprintf(fp, "UNKNOWN-CLASS(%d)",(int) rclass);
+		fprintf(fp, "UNKNOWN-CLASS(%d)", (int)rclass);
 	}
 }
 
 
 void
-dns_c_datatype_tostream(FILE *fp, dns_rdatatype_t rtype)
-{
+dns_c_datatype_tostream(FILE *fp, dns_rdatatype_t rtype) {
 	char buffer[64];
 	isc_buffer_t sourceb;
 
-	isc_buffer_init(&sourceb, buffer, sizeof buffer,
-			ISC_BUFFERTYPE_GENERIC);
+	isc_buffer_init(&sourceb, buffer, sizeof(buffer));
 
-	if (dns_rdatatype_totext(rtype, &sourceb) == DNS_R_SUCCESS) {
+	if (dns_rdatatype_totext(rtype, &sourceb) == ISC_R_SUCCESS) {
 		INSIST(sourceb.used + 1 < sizeof buffer);
 		buffer[sourceb.used] = '\0';
 		fputs(buffer, fp);
 	} else {
-		fprintf(fp, "UNKNOWN-RDATATYPE(%d)",(int) rtype);
+		fprintf(fp, "UNKNOWN-RDATATYPE(%d)", (int)rtype);
 	}
 }
 
 
 void
-dns_c_printtabs(FILE *fp, int count)
-{
+dns_c_printtabs(FILE *fp, int count) {
 
 	while (count > 0) {
 		fputc('\t', fp);
@@ -235,8 +219,7 @@ dns_c_printtabs(FILE *fp, int count)
 
 
 isc_result_t
-dns_c_string2ordering(char *name, dns_c_ordering_t *ordering)
-{
+dns_c_string2ordering(char *name, dns_c_ordering_t *ordering) {
 	unsigned int i;
 	isc_result_t rval = ISC_R_FAILURE;
 
@@ -353,8 +336,7 @@ dns_c_string2category(const char *string,
 
 
 const char *
-dns_c_facility2string(int facility, isc_boolean_t printable)
-{
+dns_c_facility2string(int facility, isc_boolean_t printable) {
 	int i;
 	const char *rval = NULL;
 
@@ -370,8 +352,7 @@ dns_c_facility2string(int facility, isc_boolean_t printable)
 
 
 isc_result_t
-dns_c_string2facility(const char *string, int *result)
-{
+dns_c_string2facility(const char *string, int *result) {
 	int i;
 	isc_result_t rval = ISC_R_FAILURE;
 
@@ -486,9 +467,33 @@ dns_c_forward2string(dns_c_forw_t forw,
 
 
 
-int
-dns_c_isanyaddr(isc_sockaddr_t *inaddr)
+const char *
+dns_c_addata2string(dns_c_addata_t addata,
+		    isc_boolean_t printable)
 {
+	const char *rval = NULL;
+
+	switch (addata) {
+	case dns_c_ad_internal:
+		rval = "internal";
+		break;
+
+	case dns_c_ad_minimal:
+		rval = "minimal";
+		break;
+
+	case dns_c_ad_maximal:
+		rval = "maximal";
+		break;
+	}
+
+	return (rval == NULL && printable ? "UNKNOWN_ADDITIONAL_DATA" : rval);
+}
+
+
+
+int
+dns_c_isanyaddr(isc_sockaddr_t *inaddr) {
 	int result = 0;
 
 	if (inaddr->type.sa.sa_family == AF_INET) {
@@ -508,8 +513,7 @@ dns_c_isanyaddr(isc_sockaddr_t *inaddr)
 
 	
 void
-dns_c_print_ipaddr(FILE *fp, isc_sockaddr_t *inaddr)
-{
+dns_c_print_ipaddr(FILE *fp, isc_sockaddr_t *inaddr) {
 	const char *p;
 	char tmpaddrstr[64];
 	int family = inaddr->type.sa.sa_family;
@@ -537,8 +541,7 @@ dns_c_print_ipaddr(FILE *fp, isc_sockaddr_t *inaddr)
 
 
 isc_boolean_t
-dns_c_netaddrisanyaddr(isc_netaddr_t *inaddr)
-{
+dns_c_netaddrisanyaddr(isc_netaddr_t *inaddr) {
 	isc_boolean_t result = ISC_FALSE;
 	
 	if (inaddr->family == AF_INET) {
@@ -559,8 +562,7 @@ dns_c_netaddrisanyaddr(isc_netaddr_t *inaddr)
 
 
 void
-dns_c_netaddrprint(FILE *fp, isc_netaddr_t *inaddr)
-{
+dns_c_netaddrprint(FILE *fp, isc_netaddr_t *inaddr) {
 	const char *p;
 	char tmpaddrstr[64];
 	int family = inaddr->family;
@@ -589,8 +591,7 @@ dns_c_netaddrprint(FILE *fp, isc_netaddr_t *inaddr)
 
 
 isc_boolean_t
-dns_c_need_quote(const char *string)
-{
+dns_c_need_quote(const char *string) {
 	isc_boolean_t rval = ISC_FALSE;
 
 	while (string != NULL && *string != '\0') {
@@ -608,7 +609,7 @@ dns_c_need_quote(const char *string)
 		
 void
 dns_c_peerlist_print(FILE *fp, int indent,
-		   dns_peerlist_t *servers)
+		     dns_peerlist_t *servers)
 {
 	dns_peer_t *server;
 	
@@ -629,8 +630,7 @@ dns_c_peerlist_print(FILE *fp, int indent,
 
 
 void
-dns_c_peer_print(FILE *fp, int indent, dns_peer_t *peer)
-{
+dns_c_peer_print(FILE *fp, int indent, dns_peer_t *peer) {
 	isc_boolean_t bval;
 	isc_result_t res;
 	dns_transfer_format_t tval;
@@ -680,7 +680,7 @@ dns_c_peer_print(FILE *fp, int indent, dns_peer_t *peer)
 	if (res == ISC_R_SUCCESS) {
 		REQUIRE(name != NULL);
 		dns_c_printtabs(fp, indent + 1);
-		fprintf(fp, "key { \"");
+		fprintf(fp, "keys { \"");
 		dns_name_print(peer->key, fp);
 		fprintf(fp, "\"; };\n");
 	}
@@ -693,8 +693,7 @@ dns_c_peer_print(FILE *fp, int indent, dns_peer_t *peer)
 
 
 isc_result_t
-dns_c_charptoname(isc_mem_t *mem, const char *keyval, dns_name_t **name)
-{
+dns_c_charptoname(isc_mem_t *mem, const char *keyval, dns_name_t **name) {
 	dns_name_t newkey;
 	isc_buffer_t *b1 = NULL;
 	isc_buffer_t b2;
@@ -708,13 +707,12 @@ dns_c_charptoname(isc_mem_t *mem, const char *keyval, dns_name_t **name)
 	len = strlen(keyval);
 	
 	dns_name_init(&newkey, NULL);
-	res = isc_buffer_allocate(mem, &b1, len + 2,
-				  ISC_BUFFERTYPE_BINARY);
+	res = isc_buffer_allocate(mem, &b1, len + 2);
 	REQUIRE(res == ISC_R_SUCCESS);
 	
 	dns_name_setbuffer(&newkey, b1);
 	
-	isc_buffer_init(&b2, (char *)keyval, len, ISC_BUFFERTYPE_TEXT);
+	isc_buffer_init(&b2, (char *)keyval, len);
 	isc_buffer_add(&b2, len);
 	
 	res = dns_name_fromtext(&newkey, &b2, NULL, ISC_FALSE, NULL);
@@ -734,8 +732,7 @@ dns_c_charptoname(isc_mem_t *mem, const char *keyval, dns_name_t **name)
 }
 
 void
-dns_c_ssutable_print(FILE *fp, int indent, dns_ssutable_t *ssutable)
-{
+dns_c_ssutable_print(FILE *fp, int indent, dns_ssutable_t *ssutable) {
 	dns_ssurule_t *rule = NULL;
 	dns_ssurule_t *tmprule = NULL;
 	isc_result_t res;
@@ -749,8 +746,11 @@ dns_c_ssutable_print(FILE *fp, int indent, dns_ssutable_t *ssutable)
 	}
 
 	fputc('\n', fp);
+	dns_c_printtabs(fp, indent);
+	fprintf(fp, "update-policy {\n");
+	
 	do {
-		dns_c_printtabs(fp, indent);
+		dns_c_printtabs(fp, indent + 1);
 
 		fputs ((dns_ssurule_isgrant(rule) ? "grant" : "deny"), fp);
 		fputc(' ', fp);
@@ -786,7 +786,9 @@ dns_c_ssutable_print(FILE *fp, int indent, dns_ssutable_t *ssutable)
 
 		tcount = dns_ssurule_types(rule, &types);
 		for(i = 0 ; i < tcount ; i++) {
+			fputc('\"', fp);
 			dns_c_datatype_tostream(fp, types[i]);
+			fputc('\"', fp);
 			fputc(' ', fp);
 		}
 
@@ -795,19 +797,20 @@ dns_c_ssutable_print(FILE *fp, int indent, dns_ssutable_t *ssutable)
 		rule = NULL;
 	} while (dns_ssutable_nextrule(tmprule, &rule) == ISC_R_SUCCESS);
 	fputc('\n', fp);
+	dns_c_printtabs(fp, indent);
+	fprintf(fp, "};\n");
 }
 
 
 isc_result_t
-dns_c_checkcategory(const char *name)
-{
+dns_c_checkcategory(const char *name) {
 	unsigned int i;
 
 	REQUIRE (name != NULL);
 	REQUIRE(*name != '\0');
 
 	/*
-	 * this function isn't called very often, so no need for fancy
+	 * This function isn't called very often, so no need for fancy
 	 * searches.
 	 */
 	for (i = 0 ; category_nametable[i] != NULL ; i++) {

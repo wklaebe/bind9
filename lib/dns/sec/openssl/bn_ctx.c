@@ -54,6 +54,9 @@
  *
  */
 
+#include <config.h>
+#include "../rename.h"
+
 #ifndef BN_CTX_DEBUG
 # undef NDEBUG /* avoid conflicting definitions */
 # define NDEBUG

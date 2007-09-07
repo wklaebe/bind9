@@ -15,7 +15,20 @@
  * SOFTWARE.
  */
 
-/* $Id: isdn_20.h,v 1.7 2000/03/20 22:57:12 gson Exp $ */
+#ifndef GENERIC_ISDN_20_H
+#define GENERIC_ISDN_20_H 1
+
+/* $Id: isdn_20.h,v 1.10 2000/05/04 23:50:56 explorer Exp $ */
 
 /* RFC 1183 */
 
+typedef struct dns_rdata_isdn {
+	dns_rdatacommon_t	common;
+	isc_mem_t		*mctx;
+	char			*isdn;
+	char			*subaddress;
+	isc_uint8_t		isdn_len;
+	isc_uint8_t		subaddress_len;
+} dns_rdata_isdn_t;
+
+#endif /* GENERIC_ISDN_20_H */

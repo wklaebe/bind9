@@ -19,15 +19,11 @@
 #define DNS_A6_H 1
 
 #include <isc/lang.h>
-#include <isc/types.h>
 #include <isc/stdtime.h>
 #include <isc/bitstring.h>
 #include <isc/net.h>
-#include <isc/result.h>
 
 #include <dns/types.h>
-
-ISC_LANG_BEGINDECLS
 
 typedef isc_result_t (*dns_findfunc_t)(void *arg, dns_name_t *name,
 				       dns_rdatatype_t type,
@@ -60,6 +56,8 @@ struct dns_a6context {
 	isc_bitstring_t			bitstring;
 };
 
+ISC_LANG_BEGINDECLS
+
 void
 dns_a6_init(dns_a6context_t *a6ctx, dns_findfunc_t find, dns_rrsetfunc_t rrset,
 	    dns_in6addrfunc_t address, dns_a6missingfunc_t missing, void *arg);
@@ -79,4 +77,4 @@ dns_a6_foreach(dns_a6context_t *a6ctx, dns_rdataset_t *rdataset,
 
 ISC_LANG_ENDDECLS
 
-#endif /* DNS_RESULT_H */
+#endif /* DNS_A6_H */

@@ -51,13 +51,8 @@
  *****/
 
 #include <isc/buffer.h>
-#include <isc/lang.h>
 
-#include <dns/types.h>
 #include <dns/name.h>
-#include <dns/result.h>
-
-ISC_LANG_BEGINDECLS
 
 /*****
  ***** Types
@@ -73,8 +68,7 @@ struct dns_fixedname {
 #define dns_fixedname_init(fn) \
 	do { \
 		dns_name_init(&((fn)->name), (fn)->offsets); \
-		isc_buffer_init(&((fn)->buffer), (fn)->data, 255, \
-				ISC_BUFFERTYPE_BINARY); \
+		isc_buffer_init(&((fn)->buffer), (fn)->data, 255); \
 		dns_name_setbuffer(&((fn)->name), &((fn)->buffer)); \
 	} while (0)
 
@@ -82,7 +76,5 @@ struct dns_fixedname {
 	dns_name_invalidate(&((fn)->name))
 
 #define dns_fixedname_name(fn)		(&((fn)->name))
-
-ISC_LANG_ENDDECLS
 
 #endif /* DNS_FIXEDNAME_H */

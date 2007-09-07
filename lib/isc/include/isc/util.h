@@ -18,8 +18,6 @@
 #ifndef ISC_UTIL_H
 #define ISC_UTIL_H 1
 
-#include <isc/error.h>
-
 /*
  * NOTE:
  *
@@ -59,10 +57,12 @@
 
 #ifdef ISC_UTIL_TRACEON
 #define ISC_UTIL_TRACE(a) a
-#include <stdio.h>
+#include <stdio.h>		/* Required for fprintf/stderr when tracing. */
 #else
 #define ISC_UTIL_TRACE(a)
 #endif
+
+#include <isc/result.h>		/* Contractual promise. */
 
 #define LOCK(lp) do { \
 	ISC_UTIL_TRACE(fprintf(stderr, "LOCKING %p %s %d\n", (lp), __FILE__, __LINE__)); \
@@ -110,12 +110,8 @@
 
 /*
  * List Macros.
- *
- * These are provided as a temporary measure to ease the transition
- * to the renamed list macros in <isc/list.h>.
  */
-
-#include <isc/list.h>
+#include <isc/list.h>		/* Contractual promise. */
 
 #define LIST(type)			ISC_LIST(type)
 #define INIT_LIST(type)			ISC_LIST_INIT(type)
@@ -134,5 +130,24 @@
 #define INSERTBEFORE(li, b, e, ln)	ISC_LIST_INSERTBEFORE(li, b, e, ln)
 #define INSERTAFTER(li, a, e, ln)	ISC_LIST_INSERTAFTER(li, a, e, ln)
 #define APPENDLIST(list1, list2, link)	ISC_LIST_APPENDLIST(list1, list2, link)
+
+/*
+ * Assertions
+ */
+#include <isc/assertions.h>	/* Contractual promise. */
+
+#define REQUIRE(e)			ISC_REQUIRE(e)
+#define ENSURE(e)			ISC_ENSURE(e)
+#define INSIST(e)			ISC_INSIST(e)
+#define INVARIANT(e)			ISC_INVARIANT(e)
+
+/*
+ * Errors
+ */
+#include <isc/error.h>		/* Contractual promise. */
+
+#define UNEXPECTED_ERROR		isc_error_unexpected
+#define FATAL_ERROR			isc_error_fatal
+#define RUNTIME_CHECK(cond)		ISC_ERROR_RUNTIMECHECK(cond)
 
 #endif /* ISC_UTIL_H */

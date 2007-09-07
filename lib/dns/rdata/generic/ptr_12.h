@@ -15,5 +15,15 @@
  * SOFTWARE.
  */
 
-/* $Id: ptr_12.h,v 1.15 2000/03/20 22:57:14 gson Exp $ */
+#ifndef GENERIC_PTR_12_H
+#define GENERIC_PTR_12_H 1
 
+/* $Id: ptr_12.h,v 1.18 2000/05/08 14:36:54 tale Exp $ */
+
+typedef struct dns_rdata_ptr {
+        dns_rdatacommon_t       common;
+        isc_mem_t               *mctx;
+        dns_name_t              ptr;
+} dns_rdata_ptr_t;
+
+#endif /* GENERIC_PTR_12_H */

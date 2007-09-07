@@ -17,40 +17,13 @@
 
 #include <config.h>
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <string.h>
-
-#include <isc/assertions.h>
-#include <isc/error.h>
-#include <isc/mem.h>
-#include <isc/result.h>
-#include <isc/taskpool.h>
-
-#include <dns/db.h>
-#include <dns/dbiterator.h>
-#include <dns/dbtable.h>
-#include <dns/dnssec.h>
-#include <dns/events.h>
-#include <dns/fixedname.h>
-#include <dns/journal.h>
 #include <dns/message.h>
-#include <dns/name.h>
-#include <dns/nxt.h>
-#include <dns/rdata.h>
-#include <dns/rdatalist.h>
 #include <dns/rdataset.h>
-#include <dns/rdatasetiter.h>
-#include <dns/rdatastruct.h>
 #include <dns/result.h>
-#include <dns/types.h>
 #include <dns/view.h>
 #include <dns/zone.h>
 #include <dns/zt.h>
 
-#include <named/globals.h>
-#include <named/client.h>
 #include <named/log.h>
 #include <named/notify.h>
 
@@ -91,23 +64,28 @@
  */
 #define CHECK(op) \
 	do { result = (op); 				  	 \
-	       if (result != DNS_R_SUCCESS) goto failure; 	 \
+	       if (result != ISC_R_SUCCESS) goto failure; 	 \
 	} while (0)
 
 /*
  * Fail unconditionally with result 'code', which must not
- * be DNS_R_SUCCESS.  The reason for failure presumably has
+ * be ISC_R_SUCCESS.  The reason for failure presumably has
  * been logged already.
+ *
+ * The test is there to keep the Solaris compiler from complaining
+ * about "end-of-loop code not reached".
  */
 
 #define FAIL(code) \
 	do {							\
 		result = (code);				\
-		goto failure;					\
+		if (code != ISC_R_SUCCESS) goto failure;	\
 	} while (0)
 
 /*
  * Fail unconditionally and log as a client error.
+ * The test against ISC_R_SUCCESS is there to keep the Solaris compiler
+ * from complaining about "end-of-loop code not reached".
  */
 #define FAILC(code, msg) \
 	do {							\
@@ -115,11 +93,13 @@
 		isc_log_write(NOTIFY_PROTOCOL_LOGARGS,		\
 			      "notify failed: %s (%s)",	\
 		      	      msg, isc_result_totext(code));	\
-		goto failure;					\
+		if (code != ISC_R_SUCCESS) goto failure;	\
 	} while (0)
 
 /*
  * Fail unconditionally and log as a server error.
+ * The test against ISC_R_SUCCESS is there to keep the Solaris compiler
+ * from complaining about "end-of-loop code not reached".
  */
 #define FAILS(code, msg) \
 	do {							\
@@ -127,7 +107,7 @@
 		isc_log_write(NOTIFY_PROTOCOL_LOGARGS,		\
 			      "notify error: %s: %s", 	\
 			      msg, isc_result_totext(code));	\
-		goto failure;					\
+		if (code != ISC_R_SUCCESS) goto failure;	\
 	} while (0)
 
 /**************************************************************************/
@@ -166,7 +146,7 @@ ns_notify_start(ns_client_t *client)
 	 * Interpret the question section.
 	 */
 	result = dns_message_firstname(request, DNS_SECTION_QUESTION);
-	if (result != DNS_R_SUCCESS)
+	if (result != ISC_R_SUCCESS)
 		FAILC(DNS_R_FORMERR,
 		      "notify question section empty");
 
@@ -183,12 +163,13 @@ ns_notify_start(ns_client_t *client)
 
 	/* The zone section must have exactly one name. */
 	result = dns_message_nextname(request, DNS_SECTION_ZONE);
-	if (result != DNS_R_NOMORE)
+	if (result != ISC_R_NOMORE)
 		FAILC(DNS_R_FORMERR,
 		      "notify question section contains multiple RRs");
 
-	result = dns_zt_find(client->view->zonetable, zonename, NULL, &zone);
-	if (result != DNS_R_SUCCESS)
+	result = dns_zt_find(client->view->zonetable, zonename, 0, NULL,
+			     &zone);
+	if (result != ISC_R_SUCCESS)
 		FAILC(DNS_R_REFUSED,
 		      "not authoritative for notify zone");
 
@@ -202,8 +183,11 @@ ns_notify_start(ns_client_t *client)
 		FAILC(DNS_R_REFUSED,
 		      "not authoritative for notify zone");
 	}
+	dns_zone_detach(&zone);
 	return;
 	
  failure:
+	if (zone != NULL)
+		dns_zone_detach(&zone);
 	respond(client, result);
 }

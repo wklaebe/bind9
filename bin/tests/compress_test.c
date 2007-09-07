@@ -17,23 +17,25 @@
 
 #include <config.h>
 
-#include <stdio.h>
 #include <stdlib.h>
 
-#include <isc/assertions.h>
+#include <isc/buffer.h>
 #include <isc/commandline.h>
-#include <isc/error.h>
+#include <isc/mem.h>
+#include <isc/util.h>
+
 #include <dns/compress.h>
 #include <dns/name.h>
 
 unsigned char plain1[] = "\003yyy\003foo";
 unsigned char plain2[] = "\003bar\003yyy\003foo";
 unsigned char plain3[] = "\003xxx\003bar\003foo";
-unsigned char plain[] =
-	"\003yyy\003foo\0\003bar\003yyy\003foo\0\003bar\003yyy\003foo\0\003xxx\003bar\003foo";
+unsigned char plain[] = "\003yyy\003foo\0\003bar\003yyy\003foo\0\003"
+			"bar\003yyy\003foo\0\003xxx\003bar\003foo";
 
-/* result concatenate (plain1, plain2, plain2, plain3) */
-
+/*
+ * Result concatenate (plain1, plain2, plain2, plain3).
+ */
 unsigned char bit1[] = "\101\010b";
 unsigned char bit2[] = "\101\014b\260";
 unsigned char bit3[] = "\101\020b\264";
@@ -42,8 +44,9 @@ unsigned char bit[] = "\101\010b\0\101\014b\260\0\101\014b\260\0\101\020b\264";
 int raw = 0;
 int verbose = 0;
 
-void test(unsigned int, dns_name_t *, dns_name_t *, dns_name_t *,
-          unsigned char *, unsigned int);
+void
+test(unsigned int, dns_name_t *, dns_name_t *, dns_name_t *,
+     unsigned char *, unsigned int);
 
 int
 main(int argc, char *argv[]) {
@@ -105,7 +108,7 @@ main(int argc, char *argv[]) {
 	test(DNS_COMPRESS_GLOBAL, &name1, &name2, &name3, bit, sizeof bit);
 	test(DNS_COMPRESS_ALL, &name1, &name2, &name3, bit, sizeof bit);
 
-	exit(0);
+	return (0);
 }
 
 void
@@ -128,25 +131,29 @@ test(unsigned int allowed, dns_name_t *name1, dns_name_t *name2,
 		case DNS_COMPRESS_GLOBAL14: s = "DNS_COMPRESS_GLOBAL14"; break;
 		case DNS_COMPRESS_GLOBAL16: s = "DNS_COMPRESS_GLOBAL16"; break;
 		case DNS_COMPRESS_GLOBAL: s = "DNS_COMPRESS_GLOBAL"; break;
-		case DNS_COMPRESS_ALL: s = "DNS_COMPRESS_ALL"; break;
+		/* case DNS_COMPRESS_ALL: s = "DNS_COMPRESS_ALL"; break; */
 		default: s = "UNKOWN"; break;
 		}
 		fprintf(stdout, "Allowed = %s\n", s);
 	}
 	RUNTIME_CHECK(isc_mem_create(0, 0, &mctx) == ISC_R_SUCCESS);
-	isc_buffer_init(&source, buf1, sizeof buf1, ISC_BUFFERTYPE_BINARY);
-	RUNTIME_CHECK(dns_compress_init(&cctx, -1, mctx) == DNS_R_SUCCESS);
+	isc_buffer_init(&source, buf1, sizeof(buf1));
+	RUNTIME_CHECK(dns_compress_init(&cctx, -1, mctx) == ISC_R_SUCCESS);
 
-	RUNTIME_CHECK(dns_name_towire(name1, &cctx, &source) == DNS_R_SUCCESS);
+	RUNTIME_CHECK(dns_name_towire(name1, &cctx, &source) == ISC_R_SUCCESS);
 
+	/*
 	RUNTIME_CHECK(dns_compress_localinit(&cctx, name1, &source) == 
-		      DNS_R_SUCCESS);
+		      ISC_R_SUCCESS);
+	*/
 	dns_compress_setmethods(&cctx, allowed);
-	RUNTIME_CHECK(dns_name_towire(name2, &cctx, &source) == DNS_R_SUCCESS);
-	RUNTIME_CHECK(dns_name_towire(name2, &cctx, &source) == DNS_R_SUCCESS);
-	RUNTIME_CHECK(dns_name_towire(name3, &cctx, &source) == DNS_R_SUCCESS);
+	RUNTIME_CHECK(dns_name_towire(name2, &cctx, &source) == ISC_R_SUCCESS);
+	RUNTIME_CHECK(dns_name_towire(name2, &cctx, &source) == ISC_R_SUCCESS);
+	RUNTIME_CHECK(dns_name_towire(name3, &cctx, &source) == ISC_R_SUCCESS);
 
+	/*
 	dns_compress_localinvalidate(&cctx);
+	*/
 	dns_compress_rollback(&cctx, 0);	/* testing only */
 	dns_compress_invalidate(&cctx);
 
@@ -166,21 +173,25 @@ test(unsigned int allowed, dns_name_t *name1, dns_name_t *name2,
 	}
 
 	isc_buffer_setactive(&source, source.used);
-	isc_buffer_init(&target, buf2, sizeof buf2, ISC_BUFFERTYPE_BINARY);
+	isc_buffer_init(&target, buf2, sizeof(buf2));
 	dns_decompress_init(&dctx, -1, ISC_TRUE);
 
 	dns_name_init(&name, NULL);
 	RUNTIME_CHECK(dns_name_fromwire(&name, &source, &dctx, ISC_FALSE,
-					&target) == DNS_R_SUCCESS);
+					&target) == ISC_R_SUCCESS);
 	dns_decompress_setmethods(&dctx, allowed);
+	/*
 	dns_decompress_localinit(&dctx, &name, &source);
+	*/
 	RUNTIME_CHECK(dns_name_fromwire(&name, &source, &dctx, ISC_FALSE,
-					&target) == DNS_R_SUCCESS);
+					&target) == ISC_R_SUCCESS);
 	RUNTIME_CHECK(dns_name_fromwire(&name, &source, &dctx, ISC_FALSE,
-					&target) == DNS_R_SUCCESS);
+					&target) == ISC_R_SUCCESS);
 	RUNTIME_CHECK(dns_name_fromwire(&name, &source, &dctx, ISC_FALSE,
-					&target) == DNS_R_SUCCESS);
+					&target) == ISC_R_SUCCESS);
+	/*
 	dns_decompress_localinvalidate(&dctx);
+	*/
 	dns_decompress_invalidate(&dctx);
 
 	if (raw) {

@@ -17,20 +17,15 @@
 
 #include <config.h>
 
-#include <stddef.h>
-#include <string.h>
-
-#include <isc/assertions.h>
-#include <isc/buffer.h>
-#include <isc/magic.h>
+#include <isc/mem.h>
 #include <isc/rwlock.h>
-#include <isc/result.h>
+#include <isc/string.h>		/* Required for HP/UX (and others?) */
 #include <isc/util.h>
 
 #include <dns/keytable.h>
 #include <dns/fixedname.h>
-#include <dns/name.h>
 #include <dns/rbt.h>
+#include <dns/result.h>
 
 struct dns_keytable {
 	/* Unlocked. */
@@ -57,6 +52,18 @@ struct dns_keynode {
 #define KEYNODE_MAGIC			0x4b4e6f64U	/* KNod */
 #define VALID_KEYNODE(kn)	 	ISC_MAGIC_VALID(kn, KEYNODE_MAGIC)
 
+static void
+free_keynode(void *node, void *arg) {
+	dns_keynode_t *keynode = node;
+	isc_mem_t *mctx = arg;
+
+	REQUIRE(VALID_KEYNODE(keynode));
+	dst_key_free(&keynode->key);
+	if (keynode->next != NULL)
+		free_keynode(keynode->next, mctx);
+	isc_mem_put(mctx, keynode, sizeof(dns_keynode_t));
+}
+
 isc_result_t
 dns_keytable_create(isc_mem_t *mctx, dns_keytable_t **keytablep) {
 	dns_keytable_t *keytable;
@@ -70,10 +77,10 @@ dns_keytable_create(isc_mem_t *mctx, dns_keytable_t **keytablep) {
 
 	keytable = isc_mem_get(mctx, sizeof *keytable);
 	if (keytable == NULL)
-		return (DNS_R_NOMEMORY);
+		return (ISC_R_NOMEMORY);
 
 	keytable->table = NULL;
-	result = dns_rbt_create(mctx, NULL, NULL, &keytable->table);
+	result = dns_rbt_create(mctx, free_keynode, mctx, &keytable->table);
 	if (result != ISC_R_SUCCESS)
 		goto cleanup_keytable;
 
@@ -192,7 +199,7 @@ dns_keytable_add(dns_keytable_t *keytable, dst_key_t **keyp) {
 	keyname = dst_key_name(*keyp);
 	INSIST(keyname != NULL);
 	len = strlen(keyname);
-	isc_buffer_init(&buffer, keyname, len, ISC_BUFFERTYPE_TEXT);
+	isc_buffer_init(&buffer, keyname, len);
 	isc_buffer_add(&buffer, len);
 	dns_fixedname_init(&fname);
 	result = dns_name_fromtext(dns_fixedname_name(&fname), &buffer,
@@ -217,6 +224,7 @@ dns_keytable_add(dns_keytable_t *keytable, dst_key_t **keyp) {
 		node->data = knode;
 		*keyp = NULL;
 		knode = NULL;
+		result = ISC_R_SUCCESS;
 	}
 
 	RWUNLOCK(&keytable->rwlock, isc_rwlocktype_write);
@@ -249,7 +257,7 @@ dns_keytable_findkeynode(dns_keytable_t *keytable, dns_name_t *name,
 
 	knode = NULL;
 	data = NULL;
-	result = dns_rbt_findname(keytable->table, name, NULL, &data);
+	result = dns_rbt_findname(keytable->table, name, 0, NULL, &data);
 
 	if (result == ISC_R_SUCCESS) {
 		INSIST(data != NULL);
@@ -273,9 +281,69 @@ dns_keytable_findkeynode(dns_keytable_t *keytable, dns_name_t *name,
 	return (result);
 }
 
+isc_result_t
+dns_keytable_findnextkeynode(dns_keytable_t *keytable, dns_keynode_t *keynode,
+			     dns_keynode_t **nextnodep)
+{
+	isc_result_t result;
+	dns_keynode_t *knode;
+
+	/*
+	 * Search for the next key with the same properties as 'keynode' in
+	 * 'keytable'.
+	 */
+
+	REQUIRE(VALID_KEYTABLE(keytable));
+	REQUIRE(VALID_KEYNODE(keynode));
+	REQUIRE(nextnodep != NULL && *nextnodep == NULL);
+
+	for (knode = keynode->next; knode != NULL; knode = knode->next) {
+		if (dst_key_alg(keynode->key) == dst_key_alg(knode->key) &&
+		    dst_key_id(keynode->key) == dst_key_id(knode->key))
+			break;
+	}
+	if (knode != NULL) {
+		LOCK(&keytable->lock);
+		keytable->active_nodes++;
+		UNLOCK(&keytable->lock);
+		result = ISC_R_SUCCESS;
+		*nextnodep = knode;
+	} else
+		result = ISC_R_NOTFOUND;
+
+	return (result);
+}
+
+isc_result_t
+dns_keytable_finddeepestmatch(dns_keytable_t *keytable, dns_name_t *name,
+			      dns_name_t *foundname)
+{
+	isc_result_t result;
+	void *data;
+
+	/*
+	 * Search for the deepest match in 'keytable'.
+	 */
+
+	REQUIRE(VALID_KEYTABLE(keytable));
+	REQUIRE(dns_name_isabsolute(name));
+	REQUIRE(foundname != NULL);
+
+	RWLOCK(&keytable->rwlock, isc_rwlocktype_read);
+
+	data = NULL;
+	result = dns_rbt_findname(keytable->table, name, 0, foundname, &data);
+
+	if (result == ISC_R_SUCCESS || result == DNS_R_PARTIALMATCH)
+		result = ISC_R_SUCCESS;
+
+	RWUNLOCK(&keytable->rwlock, isc_rwlocktype_read);
+
+	return (result);
+}
+
 void
-dns_keytable_detachkeynode(dns_keytable_t *keytable,
-			   dns_keynode_t **keynodep)
+dns_keytable_detachkeynode(dns_keytable_t *keytable, dns_keynode_t **keynodep)
 {
 	/*
 	 * Give back a keynode found via dns_keytable_findkeynode().
@@ -310,7 +378,7 @@ dns_keytable_issecuredomain(dns_keytable_t *keytable, dns_name_t *name,
 	RWLOCK(&keytable->rwlock, isc_rwlocktype_read);
 
 	data = NULL;
-	result = dns_rbt_findname(keytable->table, name, NULL, &data);
+	result = dns_rbt_findname(keytable->table, name, 0, NULL, &data);
 
 	if (result == ISC_R_SUCCESS || result == DNS_R_PARTIALMATCH) {
 		INSIST(data != NULL);

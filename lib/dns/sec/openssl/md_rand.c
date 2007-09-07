@@ -64,6 +64,9 @@
 # endif
 #endif
 
+#include <config.h>
+#include "../rename.h"
+
 #include <assert.h>
 #include <stdio.h>
 #include <time.h>

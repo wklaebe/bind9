@@ -18,13 +18,12 @@
 #include <config.h>
 
 #include <errno.h>
-#include <string.h>
 #include <unistd.h>
 
-#include <isc/assertions.h>
-#include <isc/error.h>
 #include <isc/net.h>
 #include <isc/once.h>
+#include <isc/string.h>
+#include <isc/util.h>
 
 #if defined(ISC_PLATFORM_HAVEIPV6) && defined(ISC_PLATFORM_NEEDIN6ADDRANY)
 const struct in6_addr isc_net_in6addrany = IN6ADDR_ANY_INIT;
@@ -67,7 +66,11 @@ static void
 initialize_action(void) {
 	ipv4_result = try_proto(PF_INET);
 #ifdef ISC_PLATFORM_HAVEIPV6
+#ifdef ISC_PLATFORM_HAVEIN6PKTINFO
 	ipv6_result = try_proto(PF_INET6);
+#else
+	ipv6_result = 0;
+#endif
 #endif
 }
 

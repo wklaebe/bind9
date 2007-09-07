@@ -52,12 +52,10 @@
  ***/
 
 #include <stdio.h>
-#include <stddef.h>
 
 #include <isc/lang.h>
-#include <isc/buffer.h>
-#include <isc/result.h>
-#include <isc/mem.h>
+#include <isc/region.h>
+#include <isc/types.h>
 
 ISC_LANG_BEGINDECLS
 
@@ -104,8 +102,6 @@ ISC_LANG_BEGINDECLS
  ***/
 
 /* Lex */
-
-typedef struct isc_lex isc_lex_t;
 
 typedef char isc_lexspecials_t[256];
 

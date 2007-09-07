@@ -15,17 +15,19 @@
  * SOFTWARE.
  */
 
-/* $Id: generic.c,v 1.11 2000/03/14 03:38:54 tale Exp $ */
+/* $Id: generic.c,v 1.13 2000/05/08 14:38:11 tale Exp $ */
 
 /* Principal Author: Ted Lemon */
 
 /*
  * Subroutines that support the generic object.
  */
-#include <stddef.h>		/* NULL */
-#include <string.h>		/* memset */
 
-#include <isc/assertions.h>
+#include <config.h>
+
+#include <isc/mem.h>
+#include <isc/string.h>
+#include <isc/util.h>
 
 #include <omapi/private.h>
 

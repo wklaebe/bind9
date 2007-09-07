@@ -18,22 +18,22 @@
 #include <config.h>
 
 #include <ctype.h>
-#include <string.h>
+#include <stdio.h>
+#include <stdlib.h>
 
-#include <isc/assertions.h>
-#include <isc/error.h>
-#include <isc/boolean.h>
-#include <isc/region.h>
 #include <isc/buffer.h>
 #include <isc/print.h>
+#include <isc/region.h>
+#include <isc/string.h>
+#include <isc/util.h>
 
 #include <dns/result.h>
 #include <dns/ttl.h>
 
 #define RETERR(x) do { \
-	isc_result_t __r = (x); \
-	if (__r != DNS_R_SUCCESS) \
-		return (__r); \
+	isc_result_t _r = (x); \
+	if (_r != ISC_R_SUCCESS) \
+		return (_r); \
 	} while (0)
 
 
@@ -54,22 +54,21 @@ ttlfmt(unsigned int t, char *s, isc_boolean_t verbose,
 			       t, s,
 			       t == 1 ? "" : "s");
 	else
-		len = snprintf(tmp, sizeof(tmp), "%u%c", t, s[0]);		
+		len = snprintf(tmp, sizeof(tmp), "%u%c", t, s[0]);
+
 	INSIST(len + 1 <= sizeof tmp);
-	isc_buffer_available(target, &region);
+	isc_buffer_availableregion(target, &region);
 	if (len > region.length)
-		return (DNS_R_NOSPACE);
+		return (ISC_R_NOSPACE);
 	memcpy(region.base, tmp, len);
 	isc_buffer_add(target, len);
-	return (DNS_R_SUCCESS);
+	return (ISC_R_SUCCESS);
 }
 
 /* Derived from bind8 ns_format_ttl(). */
 
 isc_result_t
-dns_ttl_totext(isc_uint32_t src, isc_boolean_t verbose,
-	       isc_buffer_t *target)
-{
+dns_ttl_totext(isc_uint32_t src, isc_boolean_t verbose, isc_buffer_t *target) {
 	unsigned secs, mins, hours, days, weeks, x;
 
 	secs = src % 60;   src /= 60;
@@ -110,12 +109,15 @@ dns_ttl_totext(isc_uint32_t src, isc_boolean_t verbose,
 		/*
 		 * The unit letter is the last character in the 
 		 * used region of the buffer.
+		 *
+		 * toupper() does not need its argument to be masked of cast
+		 * here because region.base is type unsigned char *.
 		 */
-		isc_buffer_used(target, &region);
+		isc_buffer_usedregion(target, &region);
 		region.base[region.length - 1] =
 			toupper(region.base[region.length - 1]);
 	}
-	return (DNS_R_SUCCESS);
+	return (ISC_R_SUCCESS);
 }
 
 isc_result_t
@@ -128,7 +130,7 @@ dns_ttl_fromtext(isc_textregion_t *source, isc_uint32_t *ttl) {
 	isc_result_t result;
 
 	result = bind_ttl(source, ttl);
-	if (result != DNS_R_SUCCESS)
+	if (result != ISC_R_SUCCESS)
 		result = DNS_R_BADTTL;
 	return (result);
 }
@@ -192,5 +194,5 @@ bind_ttl(isc_textregion_t *source, isc_uint32_t *ttl) {
 		}
 	} while (*s != 0);
 	*ttl = tmp;
-	return (DNS_R_SUCCESS);
+	return (ISC_R_SUCCESS);
 }

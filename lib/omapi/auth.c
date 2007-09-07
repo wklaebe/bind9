@@ -15,7 +15,7 @@
  * SOFTWARE.
  */
 
-/* $Id: auth.c,v 1.2 2000/03/14 20:00:37 tale Exp $ */
+/* $Id: auth.c,v 1.6 2000/05/08 14:38:08 tale Exp $ */
 
 /* Principal Author: DCL */
 
@@ -33,13 +33,16 @@
 /*
  * Subroutines for dealing with authorization.
  */
-#include <errno.h>
-#include <stddef.h>		/* NULL */
-#include <string.h>		/* memset */
 
-#include <isc/assertions.h>
-#include <isc/error.h>
+#include <config.h>
+
+#include <isc/buffer.h>
+#include <isc/mem.h>
 #include <isc/once.h>
+#include <isc/string.h>
+#include <isc/util.h>
+
+#include <dst/result.h>
 
 #include <omapi/private.h>
 
@@ -129,8 +132,7 @@ auth_makekey(const char *name, unsigned int algorithm, dst_key_t **key) {
 
 		secret_len = strlen(auth->secret);
 
-		isc_buffer_init(&secret, auth->secret, secret_len,
-				ISC_BUFFERTYPE_GENERIC);
+		isc_buffer_init(&secret, auth->secret, secret_len);
 
 		isc_buffer_add(&secret, secret_len);
 

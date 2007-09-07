@@ -61,8 +61,11 @@
 # define NDEBUG
 #endif
 
-#include <stdio.h>
+#include <config.h>
+#include "../rename.h"
+
 #include <assert.h>
+#include <stdio.h>
 #include "cryptlib.h"
 #include "bn_lcl.h"
 
@@ -430,6 +433,9 @@ BN_ULONG bn_sub_words(BN_ULONG *r, BN_ULONG *a, BN_ULONG *b, int n)
 #undef bn_mul_comba4
 #undef bn_sqr_comba8
 #undef bn_sqr_comba4
+
+#undef SEC_RENAME_H		/* force multiple inclusion */
+#include "../rename.h"
 
 /* mul_add_c(a,b,c0,c1,c2)  -- c+=a*b for three word number c=(c2,c1,c0) */
 /* mul_add_c2(a,b,c0,c1,c2) -- c+=2*a*b for three word number c=(c2,c1,c0) */

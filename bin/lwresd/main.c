@@ -17,25 +17,21 @@
 
 #include <config.h>
 
-#include <sys/types.h>
-
 #include <isc/app.h>
-#include <isc/assertions.h>
-#include <isc/event.h>
 #include <isc/mem.h>
-#include <isc/log.h>
-#include <isc/result.h>
-#include <isc/sockaddr.h>
-#include <isc/socket.h>
+#include <isc/string.h>		/* Required for HP/UX (and others?) */
 #include <isc/task.h>
+#include <isc/timer.h>
 #include <isc/util.h>
 
-#include <dns/resolver.h>
-#include <dns/rootns.h>
+#include <dns/cache.h>
+#include <dns/db.h>
+#include <dns/dispatch.h>
 #include <dns/log.h>
-
-#include <lwres/lwres.h>
-#include <lwres/result.h>
+#include <dns/resolver.h>
+#include <dns/result.h>
+#include <dns/rootns.h>
+#include <dns/view.h>
 
 #include "client.h"
 
@@ -58,12 +54,12 @@ dns_view_t *view;
 isc_taskmgr_t *taskmgr;
 isc_socketmgr_t *sockmgr;
 isc_timermgr_t *timermgr;
+dns_dispatchmgr_t *dispatchmgr;
 
 isc_sockaddrlist_t forwarders;
 
 static isc_result_t
-create_view(isc_mem_t *mctx)
-{
+create_view(isc_mem_t *mctx) {
 	dns_cache_t *cache;
 	isc_result_t result;
 	dns_db_t *rootdb;
@@ -94,7 +90,7 @@ create_view(isc_mem_t *mctx)
 	 * XXXMLG hardwired number of tasks.
 	 */
 	result = dns_view_createresolver(view, taskmgr, 16, sockmgr,
-					 timermgr, 0, NULL, NULL);
+					 timermgr, 0, dispatchmgr, NULL, NULL);
 	if (result != ISC_R_SUCCESS)
 		goto out;
 
@@ -137,20 +133,17 @@ out:
  * Wrappers around our memory management stuff, for the lwres functions.
  */
 static void *
-mem_alloc(void *arg, size_t size)
-{
+mem_alloc(void *arg, size_t size) {
 	return (isc_mem_get(arg, size));
 }
 
 static void
-mem_free(void *arg, void *mem, size_t size)
-{
+mem_free(void *arg, void *mem, size_t size) {
 	isc_mem_put(arg, mem, size);
 }
 
 static void
-parse_resolv_conf(isc_mem_t *mem)
-{
+parse_resolv_conf(isc_mem_t *mem) {
 	lwres_context_t *lwctx;
 	lwres_conf_t *lwc;
 	int lwresult;
@@ -208,8 +201,7 @@ parse_resolv_conf(isc_mem_t *mem)
 }
 
 int
-main(int argc, char **argv)
-{
+main(int argc, char **argv) {
 	isc_mem_t *mem;
 	isc_socket_t *sock;
 	isc_sockaddr_t localhost;
@@ -239,7 +231,9 @@ main(int argc, char **argv)
 	lctx = NULL;
         result = isc_log_create(mem, &lctx, &lcfg);
 	INSIST(result == ISC_R_SUCCESS);
+	isc_log_setcontext(lctx);
 	dns_log_init(lctx);
+	dns_log_setcontext(lctx);
 
 	destination.file.stream = stderr;
 	destination.file.name = NULL;
@@ -277,6 +271,13 @@ main(int argc, char **argv)
 	 */
 	timermgr = NULL;
 	result = isc_timermgr_create(mem, &timermgr);
+	INSIST(result == ISC_R_SUCCESS);
+
+	/*
+	 * Create a dispatch manager.
+	 */
+	dispatchmgr = NULL;
+	result = dns_dispatchmgr_create(mem, &dispatchmgr);
 	INSIST(result == ISC_R_SUCCESS);
 
 	/*
@@ -325,7 +326,7 @@ main(int argc, char **argv)
 			       NULL, NULL);
 		ISC_LIST_INIT(cmgr[i].idle);
 		ISC_LIST_INIT(cmgr[i].running);
-		result = isc_task_create(taskmgr, mem, 0, &cmgr[i].task);
+		result = isc_task_create(taskmgr, 0, &cmgr[i].task);
 		if (result != ISC_R_SUCCESS)
 			break;
 		isc_task_setname(cmgr[i].task, "lwresd client", &cmgr[i]);

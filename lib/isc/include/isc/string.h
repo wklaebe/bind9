@@ -15,17 +15,40 @@
  * SOFTWARE.
  */
 
+#ifndef ISC_STRING_H
+#define ISC_STRING_H 1
+
 #include <string.h>
 
+#include <isc/int.h>
 #include <isc/lang.h>
 #include <isc/platform.h>
 
 ISC_LANG_BEGINDECLS
 
-#ifdef ISC_PLATFORM_NEEDSTRSEP
+isc_uint64_t
+isc_string_touint64(char *source, char **endp, int base);
+/*
+ * Convert the string pointed to by 'source' to isc_uint64_t.
+ * 
+ * On successful conversion 'endp' points to the first character
+ * after conversion is complete.
+ * 
+ * 'base': 0 or 2..36
+ *
+ * If base is 0 the base is computed from the string type.
+ *
+ * On error 'endp' points to 'source'.
+ */
+
+
 char *
-isc_strsep(char **stringp, const char *delim); 
-#define strsep isc_strsep
+isc_string_separate(char **stringp, const char *delim); 
+
+#ifdef ISC_PLATFORM_NEEDSTRSEP
+#define strsep isc_string_separate
 #endif
 
 ISC_LANG_ENDDECLS
+
+#endif /* ISC_STRING_H */

@@ -15,6 +15,9 @@
  * SOFTWARE.
  */
 
+#ifndef DNS_CONFPARSER_H
+#define DNS_CONFPARSER_H 1
+
 /*****
  ***** Module Info
  *****/
@@ -51,15 +54,10 @@
  *** Imports
  ***/
 
-#include <config.h>
+#include <isc/lang.h>
 #include <isc/types.h>
 
 #include <dns/confctx.h>
-
-
-/***
- *** Functions
- ***/
 
 /*
  * Typedefs for the callbacks done while parsing. If the callback functions 
@@ -73,8 +71,7 @@ typedef isc_result_t (*dns_c_zonecbk_t)(dns_c_ctx_t *ctx,
 					void *uap);
 typedef isc_result_t (*dns_c_optscbk_t)(dns_c_ctx_t *ctx, void *uap);
 
-typedef struct dns_c_cbks
-{
+typedef struct dns_c_cbks {
 	dns_c_zonecbk_t	zonecbk;
 	void	       *zonecbkuap;
 
@@ -82,10 +79,15 @@ typedef struct dns_c_cbks
 	void	       *optscbkuap;
 } dns_c_cbks_t;
 
+/***
+ *** Functions
+ ***/
 
-isc_result_t dns_c_parse_namedconf(const char *filename, isc_mem_t *mem,
-				   dns_c_ctx_t **configctx,
-				   dns_c_cbks_t *callbacks);
+ISC_LANG_BEGINDECLS
+
+isc_result_t
+dns_c_parse_namedconf(const char *filename, isc_mem_t *mem,
+		      dns_c_ctx_t **configctx, dns_c_cbks_t *callbacks);
 
 /*
  * Parse a named confile file. Fills up a new config context with the config
@@ -109,3 +111,6 @@ isc_result_t dns_c_parse_namedconf(const char *filename, isc_mem_t *mem,
  *	ISC_R_FAILURE			file contains errors.
  */
 
+ISC_LANG_ENDDECLS
+
+#endif /* DNS_CONFPARSER_H */

@@ -15,12 +15,14 @@
  * SOFTWARE.
  */
 
-/* $Id: mx_15.c,v 1.26 2000/03/20 22:44:34 gson Exp $ */
+/* $Id: mx_15.c,v 1.36 2000/05/22 12:37:47 marka Exp $ */
 
 /* reviewed: Wed Mar 15 18:05:46 PST 2000 by brister */
 
 #ifndef RDATA_GENERIC_MX_15_C
 #define RDATA_GENERIC_MX_15_C
+
+#define RRTYPE_MX_ATTRIBUTES (0)
 
 static inline isc_result_t
 fromtext_mx(dns_rdataclass_t rdclass, dns_rdatatype_t type,
@@ -36,12 +38,13 @@ fromtext_mx(dns_rdataclass_t rdclass, dns_rdatatype_t type,
 	UNUSED(rdclass);
 
 	RETERR(gettoken(lexer, &token, isc_tokentype_number, ISC_FALSE));
+	if (token.value.as_ulong > 0xffff)
+		return (ISC_R_RANGE);
 	RETERR(uint16_tobuffer(token.value.as_ulong, target));
 
 	RETERR(gettoken(lexer, &token, isc_tokentype_string, ISC_FALSE));
 	dns_name_init(&name, NULL);
-	buffer_fromregion(&buffer, &token.value.as_region,
-			  ISC_BUFFERTYPE_TEXT);
+	buffer_fromregion(&buffer, &token.value.as_region);
 	origin = (origin != NULL) ? origin : dns_rootname;
 	return (dns_name_fromtext(&name, &buffer, origin, downcase, target));
 }
@@ -87,33 +90,26 @@ fromwire_mx(dns_rdataclass_t rdclass, dns_rdatatype_t type,
 
 	UNUSED(rdclass);
 
-	if (dns_decompress_edns(dctx) >= 1 || !dns_decompress_strict(dctx))
-		dns_decompress_setmethods(dctx, DNS_COMPRESS_ALL);
-	else
-		dns_decompress_setmethods(dctx, DNS_COMPRESS_GLOBAL14);
+	dns_decompress_setmethods(dctx, DNS_COMPRESS_GLOBAL14);
         
         dns_name_init(&name, NULL);
 
-	isc_buffer_active(source, &sregion);
+	isc_buffer_activeregion(source, &sregion);
 	if (sregion.length < 2)
-		return (DNS_R_UNEXPECTEDEND);
+		return (ISC_R_UNEXPECTEDEND);
 	RETERR(mem_tobuffer(target, sregion.base, 2));
 	isc_buffer_forward(source, 2);
 	return (dns_name_fromwire(&name, source, dctx, downcase, target));
 }
 
 static inline isc_result_t
-towire_mx(dns_rdata_t *rdata, dns_compress_t *cctx, isc_buffer_t *target)
-{
+towire_mx(dns_rdata_t *rdata, dns_compress_t *cctx, isc_buffer_t *target) {
 	dns_name_t name;
 	isc_region_t region;
 
 	REQUIRE(rdata->type == 15);
 
-	if (dns_compress_getedns(cctx) >= 1)
-		dns_compress_setmethods(cctx, DNS_COMPRESS_ALL);
-	else
-		dns_compress_setmethods(cctx, DNS_COMPRESS_GLOBAL14);
+	dns_compress_setmethods(cctx, DNS_COMPRESS_GLOBAL14);
 
 	dns_rdata_toregion(rdata, &region);
 	RETERR(mem_tobuffer(target, region.base, 2));
@@ -126,8 +122,7 @@ towire_mx(dns_rdata_t *rdata, dns_compress_t *cctx, isc_buffer_t *target)
 }
 
 static inline int
-compare_mx(dns_rdata_t *rdata1, dns_rdata_t *rdata2)
-{
+compare_mx(dns_rdata_t *rdata1, dns_rdata_t *rdata2) {
 	dns_name_t name1;
 	dns_name_t name2;
 	isc_region_t region1;
@@ -161,32 +156,55 @@ static inline isc_result_t
 fromstruct_mx(dns_rdataclass_t rdclass, dns_rdatatype_t type, void *source,
 	      isc_buffer_t *target)
 {
+	dns_rdata_mx_t *mx = source;
+	isc_region_t region;
+
 	REQUIRE(type == 15);
+	REQUIRE(source != NULL);
+	REQUIRE(mx->common.rdtype == type);
+	REQUIRE(mx->common.rdclass == rdclass);
 
-	UNUSED(rdclass);
-
-	UNUSED(source);
-	UNUSED(target);
-
-	return (DNS_R_NOTIMPLEMENTED);
+	RETERR(uint16_tobuffer(mx->pref, target));
+	dns_name_toregion(&mx->mx, &region);
+	return (isc_buffer_copyregion(target, &region));
 }
 
 static inline isc_result_t
-tostruct_mx(dns_rdata_t *rdata, void *target, isc_mem_t *mctx)
-{
+tostruct_mx(dns_rdata_t *rdata, void *target, isc_mem_t *mctx) {
+	isc_region_t region;
+	dns_rdata_mx_t *mx = target;
+	dns_name_t name;
+
 	REQUIRE(rdata->type == 15);
+	REQUIRE(target != NULL);
 
-	UNUSED(target);
-	UNUSED(mctx);
+	mx->common.rdclass = rdata->rdclass;
+	mx->common.rdtype = rdata->type;
+	ISC_LINK_INIT(&mx->common, link);
 
-	return (DNS_R_NOTIMPLEMENTED);
+	dns_name_init(&name, NULL);
+	dns_rdata_toregion(rdata, &region);
+	mx->pref = uint16_fromregion(&region);
+	isc_region_consume(&region, 2);
+	dns_name_fromregion(&name, &region);
+	dns_name_init(&mx->mx, NULL);
+	RETERR(name_duporclone(&name, mctx, &mx->mx));
+	mx->mctx = mctx;
+	return (ISC_R_SUCCESS);
 }
 
 static inline void
-freestruct_mx(void *source)
-{
+freestruct_mx(void *source) {
+	dns_rdata_mx_t *mx = source;
+
 	REQUIRE(source != NULL);
-	REQUIRE(ISC_FALSE);	/*XXX*/
+	REQUIRE(mx->common.rdtype == 15);
+
+	if (mx->mctx == NULL)
+		return;
+
+	dns_name_free(&mx->mx, mx->mctx);
+	mx->mctx = NULL;
 }
 
 static inline isc_result_t
@@ -207,8 +225,7 @@ additionaldata_mx(dns_rdata_t *rdata, dns_additionaldatafunc_t add,
 }
 
 static inline isc_result_t
-digest_mx(dns_rdata_t *rdata, dns_digestfunc_t digest, void *arg)
-{
+digest_mx(dns_rdata_t *rdata, dns_digestfunc_t digest, void *arg) {
 	isc_region_t r1, r2;
 	dns_name_t name;
 

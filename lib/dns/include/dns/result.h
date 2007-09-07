@@ -19,28 +19,17 @@
 #define DNS_RESULT_H 1
 
 #include <isc/lang.h>
-#include <isc/result.h>
 #include <isc/resultclass.h>
 
 #include <dns/types.h>
 
-ISC_LANG_BEGINDECLS
-
 /*
- * XXXRTH  Legacy result codes, to be eliminated before public release.
+ * Nothing in this file truly depends on <isc/result.h>, but the
+ * DNS result codes are considered to be publicly derived from
+ * the ISC result codes, so including this file buys you the ISC_R_
+ * namespace too.
  */
-#define DNS_R_SUCCESS			ISC_R_SUCCESS
-#define DNS_R_NOMEMORY			ISC_R_NOMEMORY
-#define DNS_R_NOSPACE			ISC_R_NOSPACE
-#define DNS_R_NOTIMPLEMENTED		ISC_R_NOTIMPLEMENTED
-#define DNS_R_NOMORE			ISC_R_NOMORE
-#define DNS_R_EXISTS			ISC_R_EXISTS
-#define DNS_R_NOTFOUND			ISC_R_NOTFOUND
-#define DNS_R_BADBASE64			ISC_R_BADBASE64
-#define DNS_R_TIMEDOUT			ISC_R_TIMEDOUT
-#define DNS_R_CANCELED			ISC_R_CANCELED
-#define DNS_R_UNEXPECTED		ISC_R_UNEXPECTED
-#define DNS_R_NXRDATASET		DNS_R_NXRRSET
+#include <isc/result.h>		/* Contractual promise. */
 
 /*
  * DNS library result codes
@@ -51,7 +40,7 @@ ISC_LANG_BEGINDECLS
 #define DNS_R_BITSTRINGTOOLONG		(ISC_RESULTCLASS_DNS + 3)
 #define DNS_R_EMPTYLABEL		(ISC_RESULTCLASS_DNS + 4)
 #define DNS_R_BADDOTTEDQUAD		(ISC_RESULTCLASS_DNS + 5)
-#define DNS_R_UNEXPECTEDEND		(ISC_RESULTCLASS_DNS + 6)
+/* 6 is unused */
 #define DNS_R_UNKNOWN			(ISC_RESULTCLASS_DNS + 7)
 #define DNS_R_BADLABELTYPE		(ISC_RESULTCLASS_DNS + 8)
 #define DNS_R_BADPOINTER		(ISC_RESULTCLASS_DNS + 9)
@@ -60,14 +49,14 @@ ISC_LANG_BEGINDECLS
 #define DNS_R_EXTRATOKEN		(ISC_RESULTCLASS_DNS + 12)
 #define DNS_R_EXTRADATA			(ISC_RESULTCLASS_DNS + 13)
 #define DNS_R_TEXTTOOLONG		(ISC_RESULTCLASS_DNS + 14)
-#define DNS_R_RANGE			(ISC_RESULTCLASS_DNS + 15)
+/* 15 is unused */
 #define DNS_R_SYNTAX			(ISC_RESULTCLASS_DNS + 16)
 #define DNS_R_BADCKSUM			(ISC_RESULTCLASS_DNS + 17)
 #define DNS_R_BADAAAA			(ISC_RESULTCLASS_DNS + 18)
 #define DNS_R_NOOWNER			(ISC_RESULTCLASS_DNS + 19)
 #define DNS_R_NOTTL			(ISC_RESULTCLASS_DNS + 20)
 #define DNS_R_BADCLASS			(ISC_RESULTCLASS_DNS + 21)
-#define DNS_R_UNEXPECTEDTOKEN		(ISC_RESULTCLASS_DNS + 22)
+/* 22 is unused */
 #define DNS_R_PARTIALMATCH		(ISC_RESULTCLASS_DNS + 23)
 #define DNS_R_NEWORIGIN			(ISC_RESULTCLASS_DNS + 24)
 #define DNS_R_UNCHANGED			(ISC_RESULTCLASS_DNS + 25)
@@ -104,8 +93,11 @@ ISC_LANG_BEGINDECLS
 #define DNS_R_NOJOURNAL			(ISC_RESULTCLASS_DNS + 56)
 #define DNS_R_ALIAS			(ISC_RESULTCLASS_DNS + 57)
 #define DNS_R_USETCP			(ISC_RESULTCLASS_DNS + 58)
+#define DNS_R_NOVALIDSIG		(ISC_RESULTCLASS_DNS + 59)
+#define DNS_R_NOVALIDNXT		(ISC_RESULTCLASS_DNS + 60)
+#define DNS_R_NOTINSECURE		(ISC_RESULTCLASS_DNS + 61)
 
-#define DNS_R_NRESULTS			59	/* Number of results */
+#define DNS_R_NRESULTS			62	/* Number of results */
 
 /*
  * DNS wire format rcodes
@@ -131,9 +123,16 @@ ISC_LANG_BEGINDECLS
 #define DNS_RESULT_ISRCODE(result) \
 	(ISC_RESULTCLASS_INCLASS(ISC_RESULTCLASS_DNSRCODE, (result)))
 
-char *				dns_result_totext(isc_result_t);
-void				dns_result_register(void);
-dns_rcode_t			dns_result_torcode(isc_result_t result);
+ISC_LANG_BEGINDECLS
+
+char *
+dns_result_totext(isc_result_t);
+
+void
+dns_result_register(void);
+
+dns_rcode_t
+dns_result_torcode(isc_result_t result);
 
 ISC_LANG_ENDDECLS
 

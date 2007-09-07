@@ -26,16 +26,12 @@
 
 #include <config.h>
 
-#include <string.h>
-
-#include <isc/assertions.h>
-#include <isc/boolean.h>
-#include <isc/thread.h>
-#include <isc/mutex.h>
 #include <isc/condition.h>
-#include <isc/error.h>
 #include <isc/event.h>
+#include <isc/mem.h>
+#include <isc/string.h>
 #include <isc/task.h>
+#include <isc/thread.h>
 #include <isc/util.h>
 
 #define ISC_TASK_NAMES 1
@@ -71,7 +67,6 @@ struct isc_task {
 	unsigned int			magic;
 	isc_taskmgr_t *			manager;
 	isc_mutex_t			lock;
-	isc_mem_t *			mctx;
 	/* Locked by task lock. */
 	task_state_t			state;
 	unsigned int			references;
@@ -145,11 +140,11 @@ task_finished(isc_task_t *task) {
 
 	(void)isc_mutex_destroy(&task->lock);
 	task->magic = 0;
-	isc_mem_put(task->mctx, task, sizeof *task);
+	isc_mem_put(manager->mctx, task, sizeof *task);
 }
 
 isc_result_t
-isc_task_create(isc_taskmgr_t *manager, isc_mem_t *mctx, unsigned int quantum,
+isc_task_create(isc_taskmgr_t *manager, unsigned int quantum,
 		isc_task_t **taskp)
 {
 	isc_task_t *task;
@@ -158,16 +153,13 @@ isc_task_create(isc_taskmgr_t *manager, isc_mem_t *mctx, unsigned int quantum,
 	REQUIRE(VALID_MANAGER(manager));
 	REQUIRE(taskp != NULL && *taskp == NULL);
 
-	if (mctx == NULL)
-		mctx = manager->mctx;
-	task = isc_mem_get(mctx, sizeof *task);
+	task = isc_mem_get(manager->mctx, sizeof *task);
 	if (task == NULL)
 		return (ISC_R_NOMEMORY);
 	XTRACE("create");
 	task->manager = manager;
-	task->mctx = mctx;
 	if (isc_mutex_init(&task->lock) != ISC_R_SUCCESS) {
-		isc_mem_put(mctx, task, sizeof *task);
+		isc_mem_put(manager->mctx, task, sizeof *task);
 		UNEXPECTED_ERROR(__FILE__, __LINE__,
 				 "isc_mutex_init() failed");
 		return (ISC_R_UNEXPECTED);
@@ -179,7 +171,7 @@ isc_task_create(isc_taskmgr_t *manager, isc_mem_t *mctx, unsigned int quantum,
 	task->quantum = quantum;
 	task->flags = 0;
 #ifdef ISC_TASK_NAMES
-	task->name[0] = '\0';
+	memset(task->name, 0, sizeof task->name);
 	task->tag = NULL;
 #endif
 	INIT_LINK(task, link);
@@ -197,7 +189,7 @@ isc_task_create(isc_taskmgr_t *manager, isc_mem_t *mctx, unsigned int quantum,
 
 	if (exiting) {
 		isc_mutex_destroy(&task->lock);
-		isc_mem_put(mctx, task, sizeof *task);
+		isc_mem_put(manager->mctx, task, sizeof *task);
 		return (ISC_R_SHUTTINGDOWN);
 	}
 
@@ -253,9 +245,9 @@ task_shutdown(isc_task_t *task) {
 		for (event = TAIL(task->on_shutdown);
 		     event != NULL;
 		     event = prev) {
-			prev = PREV(event, link);
-			DEQUEUE(task->on_shutdown, event, link);
-			ENQUEUE(task->events, event, link);
+			prev = PREV(event, ev_link);
+			DEQUEUE(task->on_shutdown, event, ev_link);
+			ENQUEUE(task->events, event, ev_link);
 		}
 	}
 
@@ -333,18 +325,6 @@ isc_task_detach(isc_task_t **taskp) {
 	*taskp = NULL;
 }
 
-isc_mem_t *
-isc_task_mem(isc_task_t *task) {
-
-	/*
-	 * Get the task's memory context.
-	 */
-
-	REQUIRE(VALID_TASK(task));
-	
-	return (task->mctx);
-}
-
 static inline isc_boolean_t
 task_send(isc_task_t *task, isc_event_t **eventp) {
 	isc_boolean_t was_idle = ISC_FALSE;
@@ -357,8 +337,8 @@ task_send(isc_task_t *task, isc_event_t **eventp) {
 	REQUIRE(eventp != NULL);
 	event = *eventp;
 	REQUIRE(event != NULL);
-	REQUIRE(event->sender != NULL);
-	REQUIRE(event->type > 0);
+	REQUIRE(event->ev_sender != NULL);
+	REQUIRE(event->ev_type > 0);
 	REQUIRE(task->state != task_state_done);
 
 	XTRACE("task_send");
@@ -370,7 +350,7 @@ task_send(isc_task_t *task, isc_event_t **eventp) {
 	}
 	INSIST(task->state == task_state_ready ||
 	       task->state == task_state_running);
-	ENQUEUE(task->events, event, link);
+	ENQUEUE(task->events, event, ev_link);
 	*eventp = NULL;
 
 	return (was_idle);
@@ -451,7 +431,7 @@ isc_task_sendanddetach(isc_task_t **taskp, isc_event_t **eventp) {
 	*taskp = NULL;
 }
 
-#define PURGE_OK(event)	(((event)->attributes & ISC_EVENTATTR_NOPURGE) == 0)
+#define PURGE_OK(event)	(((event)->ev_attributes & ISC_EVENTATTR_NOPURGE) == 0)
 
 static unsigned int
 dequeue_events(isc_task_t *task, void *sender, isc_eventtype_t first,
@@ -477,13 +457,13 @@ dequeue_events(isc_task_t *task, void *sender, isc_eventtype_t first,
 	LOCK(&task->lock);
 
 	for (event = HEAD(task->events); event != NULL; event = next_event) {
-		next_event = NEXT(event, link);
-		if (event->type >= first && event->type <= last &&
-		    (sender == NULL || event->sender == sender) &&
-		    (tag == NULL || event->tag == tag) &&
+		next_event = NEXT(event, ev_link);
+		if (event->ev_type >= first && event->ev_type <= last &&
+		    (sender == NULL || event->ev_sender == sender) &&
+		    (tag == NULL || event->ev_tag == tag) &&
 		    (!purging || PURGE_OK(event))) {
-			DEQUEUE(task->events, event, link);
-			ENQUEUE(*events, event, link);
+			DEQUEUE(task->events, event, ev_link);
+			ENQUEUE(*events, event, ev_link);
 			count++;
 		}
 	}
@@ -513,7 +493,7 @@ isc_task_purgerange(isc_task_t *task, void *sender, isc_eventtype_t first,
 			       ISC_TRUE);
 
 	for (event = HEAD(events); event != NULL; event = next_event) {
-		next_event = NEXT(event, link);
+		next_event = NEXT(event, ev_link);
 		isc_event_free(&event);
 	}
 
@@ -563,9 +543,9 @@ isc_task_purgeevent(isc_task_t *task, isc_event_t *event) {
 	for (curr_event = HEAD(task->events);
 	     curr_event != NULL;
 	     curr_event = next_event) {
-		next_event = NEXT(curr_event, link);
+		next_event = NEXT(curr_event, ev_link);
 		if (curr_event == event && PURGE_OK(event)) {
-			DEQUEUE(task->events, curr_event, link);
+			DEQUEUE(task->events, curr_event, ev_link);
 			break;
 		}
 	}
@@ -622,7 +602,7 @@ isc_task_onshutdown(isc_task_t *task, isc_taskaction_t action, void *arg) {
 	REQUIRE(VALID_TASK(task));
 	REQUIRE(action != NULL);
 
-	event = isc_event_allocate(task->mctx,
+	event = isc_event_allocate(task->manager->mctx,
 				   NULL,
 				   ISC_TASKEVENT_SHUTDOWN,
 				   action,
@@ -636,11 +616,11 @@ isc_task_onshutdown(isc_task_t *task, isc_taskaction_t action, void *arg) {
 		disallowed = ISC_TRUE;
 		result = ISC_R_SHUTTINGDOWN;
 	} else
-		ENQUEUE(task->on_shutdown, event, link);
+		ENQUEUE(task->on_shutdown, event, ev_link);
 	UNLOCK(&task->lock);
 
 	if (disallowed)
-		isc_mem_put(task->mctx, event, sizeof *event);
+		isc_mem_put(task->manager->mctx, event, sizeof *event);
 
 	return (result);
 }
@@ -805,15 +785,15 @@ run(void *uap) {
 			do {
 				if (!EMPTY(task->events)) {
 					event = HEAD(task->events);
-					DEQUEUE(task->events, event, link);
+					DEQUEUE(task->events, event, ev_link);
 
 					/*
 					 * Execute the event action.
 					 */
 					XTRACE("execute action");
-					if (event->action != NULL) {
+					if (event->ev_action != NULL) {
 						UNLOCK(&task->lock);
-						(event->action)(task, event);
+						(event->ev_action)(task,event);
 						LOCK(&task->lock);
 					}
 					dispatch_count++;
@@ -924,12 +904,16 @@ run(void *uap) {
 
 static void
 manager_free(isc_taskmgr_t *manager) {
+	isc_mem_t *mctx;
+
 	(void)isc_condition_destroy(&manager->work_available);
 	(void)isc_mutex_destroy(&manager->lock);
 	isc_mem_put(manager->mctx, manager->threads,
 		    manager->workers * sizeof (isc_thread_t));
 	manager->magic = 0;
-	isc_mem_put(manager->mctx, manager, sizeof *manager);
+	mctx = manager->mctx;
+	isc_mem_put(mctx, manager, sizeof *manager);
+	isc_mem_detach(&mctx);
 }
 
 isc_result_t
@@ -951,7 +935,7 @@ isc_taskmgr_create(isc_mem_t *mctx, unsigned int workers,
 	if (manager == NULL)
 		return (ISC_R_NOMEMORY);
 	manager->magic = TASK_MANAGER_MAGIC;
-	manager->mctx = mctx;
+	manager->mctx = NULL;
 	threads = isc_mem_get(mctx, workers * sizeof (isc_thread_t));
 	if (threads == NULL) {
 		isc_mem_put(mctx, manager, sizeof *manager);
@@ -981,6 +965,8 @@ isc_taskmgr_create(isc_mem_t *mctx, unsigned int workers,
 	}
 	manager->exiting = ISC_FALSE;
 	manager->workers = 0;
+
+	isc_mem_attach(mctx, &manager->mctx);
 
 	LOCK(&manager->lock);
 	/*

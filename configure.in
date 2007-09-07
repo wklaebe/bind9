@@ -13,7 +13,7 @@ dnl PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
 dnl ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
 dnl SOFTWARE.
 
-AC_REVISION($Revision: 1.107 $)
+AC_REVISION($Revision: 1.138 $)
 
 AC_PREREQ(2.13)
 
@@ -26,9 +26,6 @@ AC_PROG_MAKE_SET
 AC_PROG_RANLIB
 AC_PROG_INSTALL
 
-STD_CINCLUDES=""
-STD_CDEFINES=""
-STD_CWARNINGS=""
 AC_SUBST(STD_CINCLUDES)
 AC_SUBST(STD_CDEFINES)
 AC_SUBST(STD_CWARNINGS)
@@ -37,6 +34,16 @@ AC_PATH_PROG(AR, ar)
 ARFLAGS="cruv"
 AC_SUBST(AR)
 AC_SUBST(ARFLAGS)
+
+case "$AR" in
+	"")
+		AC_MSG_ERROR([
+ar program not found.  Please fix your PATH to include the directory in
+which ar resides, or set AR in the environment with the full path to ar.
+])
+
+		;;
+esac
 
 AC_PATH_PROGS(ETAGS, etags emacs-etags)
 AC_SUBST(ETAGS)
@@ -149,93 +156,96 @@ if test "X$CC" = "X" ; then
 fi
 
 #
-# NetBSD has two alternative pthreads implementations.  Make the 
-# user choose one by saying --with-mit-pthreads or --with-ptl2
-# if necessary.
+# If the user didn't specify where openssl is, and we didn't find or it
+# is imcompatible with our code, use our internal one.
+# XXXMLG Implement this check!
 #
+AC_MSG_CHECKING(for compatible OpenSSL library)
+
+DST_PRIVATEOPENSSL='-DDST_USE_PRIVATE_OPENSSL'
+dst_privateopenssl='openssl'
+DST_OPENSSL_INC='-I${srcdir}/../openssl/include'
+DST_OPENSSL_LIB=''
+DST_OPENSSL_OBJS='${OPENSSLOBJS}'
+AC_MSG_RESULT(using private library)
+
+AC_SUBST(DST_PRIVATEOPENSSL)
+AC_SUBST(dst_privateopenssl)
+AC_SUBST(DST_OPENSSL_INC)
+AC_SUBST(DST_OPENSSL_LIB)
+AC_SUBST(DST_OPENSSL_OBJS)
+
+#
+# This would include the system openssl path (and linker options to use
+# it as needed) if it is found.
+#
+
+DNS_OPENSSL_LIBS=""
+AC_SUBST(DNS_OPENSSL_LIBS)
+
+#
+# testing with alternate openssl libraries...  XXXMLG
+#
+# DNS_OPENSSL_LIBS="-L/usr/pkg/lib -lssl -lcrypto"
+# DST_PRIVATEOPENSSL=''
+# dst_privateopenssl=''
+# DST_OPENSSL_INC='-I/usr/pkg/include'
+# DST_OPENSSL_LIB=''
+#
+
+#
+# NetBSD has multiple pthreads implementations.  The recommended
+# one to use is "unproven-pthreads".  The older "mit-pthreads" 
+# may also work on some NetBSD versions.  The PTL2 thread
+# library does not currently work with bind9, but can be
+# chosen with the --with-ptl2 option for those who wish to
+# experiment with it.
+#
+
 case "$host" in
   *-netbsd*)
 	CC="gcc"
-	AC_MSG_CHECKING(which thread library to use)
+	AC_MSG_CHECKING(which NetBSD thread library to use)
 
-	AC_ARG_WITH(mit-pthreads, 
-	    [  --with-mit-pthreads	use the mit-pthreads thread library],
-	    use_mit_pthreads="$withval", use_mit_pthreads="no")
-	
 	AC_ARG_WITH(ptl2,
-	    [  --with-ptl2		use the ptl2 thread library],
+[  --with-ptl2		on NetBSD, use the ptl2 thread library (experimental)],
 	    use_ptl2="$withval", use_ptl2="no")
 
         : ${LOCALBASE:=/usr/pkg}
 
-        # If user did not choose a thread library explicitly,
-        # try to choose one automatically.  This will work when
-	# exactly one library is installed.
+	if test "X$use_ptl2" = "Xyes"
+	then
+		AC_MSG_RESULT(PTL2)
+		AC_MSG_WARN(
+[linking with PTL2 is highly experimental and not expected to work])
+		CC=ptlgcc
+	else
+		AC_MSG_RESULT(mit-pthreads/unproven-pthreads)
 
-	case "$use_mit_pthreads+$use_ptl2" in
-		no+no)
-			if test -d $LOCALBASE/pthreads
-			then
-				use_mit_pthreads="yes"
-			fi
-			if test -d $LOCALBASE/PTL
-			then
-				use_ptl2="yes"
-			fi
-			;;
-        esac
+		if test ! -d $LOCALBASE/pthreads
+		then
+			AC_MSG_ERROR([no thread library found.
 
-	case "$use_mit_pthreads+$use_ptl2" in
-		yes+no)
-			AC_MSG_RESULT(mit-pthreads)
-			pkg="$LOCALBASE/pthreads"
-			lib1="-L$pkg/lib -Wl,-R$pkg/lib"
-			lib2="-lpthread -lm -lgcc -lpthread"
-			LIBS="$lib1 $lib2 $LIBS"
-			CPPFLAGS="-I$pkg/include $CPPFLAGS"
-			STD_CINCLUDES="-I$pkg/include"
-			;;
-		no+yes)
-			AC_MSG_RESULT(PTL2)
-#			pkg="$LOCALBASE/PTL"
-#			LIBS="-L$LOCALBASE/lib -lPTL $LIBS"
-#			STD_CINCLUDES="-nostdinc -idirafter $pkg/include"
-			CC=ptlgcc
-			;;
-		*)
-			AC_MSG_ERROR([no thread library.
-
-Please choose a thread library using one of 
-
-   configure --with-mit-pthreads
-   configure --with-ptl2
+Please install the devel/unproven-pthreads package and rerun configure.
 ])
-			;;
-		esac
-		;;
+		fi
+
+		pkg="$LOCALBASE/pthreads"
+		lib1="-L$pkg/lib -Wl,-R$pkg/lib"
+		lib2="-lpthread -lm -lgcc -lpthread"
+		LIBS="$lib1 $lib2 $LIBS"
+		CPPFLAGS="$CPPFLAGS -I$pkg/include"
+		STD_CINCLUDES="$STD_CINCLUDES -I$pkg/include"
+	fi
+	;;
 esac
 
 AC_PROG_CC
 AC_PROG_YACC
 
 AC_HEADER_STDC
-AC_CHECK_HEADERS(fcntl.h sys/time.h unistd.h sys/sockio.h netinet6/in6.h)
 
-#
-# HAVE_NETINET6_IN6_H needs to go in platform.h.
-#
-case "$ac_cv_header_netinet6_in6_h" in
-yes)
-	ISC_PLATFORM_HAVENETINET6IN6H="#define ISC_PLATFORM_HAVENETINET6IN6H 1"
-	LWRES_PLATFORM_HAVENETINET6IN6H="#define LWRES_PLATFORM_HAVENETINET6IN6H 1"
-	;;
-no)
-	ISC_PLATFORM_HAVENETINET6IN6H="#undef ISC_PLATFORM_HAVENETINET6IN6H"
-	LWRES_PLATFORM_HAVENETINET6IN6H="#undef LWRES_PLATFORM_HAVENETINET6IN6H"
-	;;
-esac
-AC_SUBST(ISC_PLATFORM_HAVENETINET6IN6H)
-AC_SUBST(LWRES_PLATFORM_HAVENETINET6IN6H)
+AC_CHECK_HEADERS(fcntl.h sys/time.h unistd.h sys/sockio.h)
 
 AC_C_CONST
 AC_C_INLINE
@@ -259,7 +269,7 @@ AC_CHECK_LIB(c, sigwait,
 )
 
 #
-# Additional OS-specific issues related to pthreads.
+# Additional OS-specific issues related to pthreads and sigwait.
 #
 case "$host" in
         #
@@ -286,6 +296,12 @@ case "$host" in
         #
 	*-solaris*)
 		AC_DEFINE(_POSIX_PTHREAD_SEMANTICS)
+		;;
+        #
+        # UnixWare does things its own way.
+        #
+        *-UnixWare*)
+		AC_DEFINE(HAVE_UNIXWARE_SIGWAIT)
 		;;
 esac
 
@@ -328,6 +344,9 @@ if test "X$GCC" = "Xyes"; then
 		*-solaris*)
 			LIBS="$LIBS -lthread"
 			;;
+		*-ibm-aix*)
+			STD_CDEFINES="$STD_CDEFINES -D_THREAD_SAFE"
+			;;
 	esac
 else
 	case "$host" in
@@ -343,6 +362,17 @@ else
 		*-hp-hpux*)
 			CC="$CC -Ae -z +w1"
 			MKDEPPROG='cc -Ae -E -Wp,-M >/dev/null 2>>$TMP'
+			;;
+                *-sgi-irix*)
+			STD_CWARNINGS="-fullwarn -woff 1209"
+                        ;;
+		*-ibm-aix*)
+			STD_CDEFINES="$STD_CDEFINES -D_THREAD_SAFE"
+			;;
+		*-UnixWare*)
+			CC="$CC -Kthread -w"
+			MKDEPCC="$CC"
+			YACC="yacc"	# bison calls alloca, avoid on UnixWare
 			;;
 	esac
 fi
@@ -523,7 +553,7 @@ found_rt_iflist
 # GNU libtool support
 #
 AC_ARG_WITH(libtool,
-	    [  --with-libtool	use GNU libtool],
+	    [  --with-libtool	use GNU libtool (following indented options supported)],
 	    use_libtool="$withval", use_libtool="no")
 
 case $use_libtool in
@@ -576,41 +606,9 @@ case "$enable_ipv6" in
 		;;
 esac
 
-case "$found_ipv6" in
-	yes)
-		ISC_PLATFORM_HAVEIPV6="#define ISC_PLATFORM_HAVEIPV6 1"
-		LWRES_PLATFORM_HAVEIPV6="#define LWRES_PLATFORM_HAVEIPV6 1"
-		AC_MSG_CHECKING(for in6addr_any)
-		AC_TRY_COMPILE([
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/in.h>],
-		[struct in6_addr in6; in6 = in6addr_any; return (0);],
-			[AC_MSG_RESULT(yes)
-			 ISC_PLATFORM_NEEDIN6ADDRANY="#undef ISC_PLATFORM_NEEDIN6ADDRANY"],
-			[AC_MSG_RESULT(no)
-			 ISC_PLATFORM_NEEDIN6ADDRANY="#define ISC_PLATFORM_NEEDIN6ADDRANY 1"])
-		;;
-	no)
-		ISC_PLATFORM_HAVEIPV6="#undef ISC_PLATFORM_HAVEIPV6"
-		LWRES_PLATFORM_HAVEIPV6="#undef LWRES_PLATFORM_HAVEIPV6"
-		ISC_IPV6_H="ipv6.h"
-		ISC_IPV6_O="ipv6.$O"
-		ISC_ISCIPV6_O="unix/ipv6.$O"
-		ISC_IPV6_C="ipv6.c"
-		;;
-esac
-
-AC_SUBST(ISC_PLATFORM_HAVEIPV6)
-AC_SUBST(LWRES_PLATFORM_HAVEIPV6)
-AC_SUBST(ISC_PLATFORM_NEEDIN6ADDRANY)
-AC_SUBST(ISC_IPV6_H)
-AC_SUBST(ISC_IPV6_O)
-AC_SUBST(ISC_ISCIPV6_O)
-AC_SUBST(ISC_IPV6_C)
-
 #
-# IPv6 support provided via Kame
+# See whether IPv6 support is provided via a Kame add-on.
+# This is done before other IPv6 linking tests to LIBS is properly set.
 #
 AC_MSG_CHECKING(for Kame IPv6 support)
 AC_ARG_WITH(kame,
@@ -647,47 +645,166 @@ Please choose the proper path with the following command:
 		;;
 esac
 
+#
+# Whether netinet6/in6.h is needed has to be defined in isc/platform.h.
+# Including it on Kame-using platforms is very bad, though, because
+# Kame uses #error against direct inclusion.   So include it on only
+# the platform that is otherwise broken without it -- BSD/OS 4.0 through 4.1.
+# This is done before the in6_pktinfo check because that's what
+# netinet6/in6.h is needed for.
+#
+changequote({, })
+case "$host" in
+*-bsdi4.[01]*)
+	ISC_PLATFORM_NEEDNETINET6IN6H="#define ISC_PLATFORM_NEEDNETINET6IN6H 1"
+	LWRES_PLATFORM_NEEDNETINET6IN6H="#define LWRES_PLATFORM_NEEDNETINET6IN6H 1"
+	isc_netinet6in6_hack="#include <netinet6/in6.h>"
+	;;
+*)
+	ISC_PLATFORM_NEEDNETINET6IN6H="#undef ISC_PLATFORM_NEEDNETINET6IN6H"
+	LWRES_PLATFORM_NEEDNETINET6IN6H="#undef LWRES_PLATFORM_NEEDNETINET6IN6H"
+	isc_netinet6in6_hack=""
+	;;
+esac
+changequote([, ])
+
+#
+# This is similar to the netinet6/in6.h issue.
+#
+case "$host" in
+*-UnixWare*)
+	ISC_PLATFORM_NEEDNETINETIN6H="#define ISC_PLATFORM_NEEDNETINETIN6H 1"
+	LWRES_PLATFORM_NEEDNETINETIN6H="#define LWRES_PLATFORM_NEEDNETINETIN6H 1"
+	isc_netinetin6_hack="#include <netinet/in6.h>"
+	;;
+*)
+	ISC_PLATFORM_NEEDNETINETIN6H="#undef ISC_PLATFORM_NEEDNETINETIN6H"
+	LWRES_PLATFORM_NEEDNETINETIN6H="#undef LWRES_PLATFORM_NEEDNETINETIN6H"
+	isc_netinetin6_hack=""
+	;;
+esac
+
+#
+# Now delve deeper into the suitability of the IPv6 support.
+#
+case "$found_ipv6" in
+	yes)
+		ISC_PLATFORM_HAVEIPV6="#define ISC_PLATFORM_HAVEIPV6 1"
+		LWRES_PLATFORM_HAVEIPV6="#define LWRES_PLATFORM_HAVEIPV6 1"
+		AC_MSG_CHECKING(for in6addr_any)
+		AC_TRY_LINK([
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+$isc_netinetin6_hack],
+		[struct in6_addr in6; in6 = in6addr_any; return (0);],
+			[AC_MSG_RESULT(yes)
+			 ISC_PLATFORM_NEEDIN6ADDRANY="#undef ISC_PLATFORM_NEEDIN6ADDRANY"],
+			[AC_MSG_RESULT(no)
+			 ISC_PLATFORM_NEEDIN6ADDRANY="#define ISC_PLATFORM_NEEDIN6ADDRANY 1"])
+		AC_MSG_CHECKING(for in6_pktinfo)
+		AC_TRY_COMPILE([
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+$isc_netinetin6_hack
+$isc_netinet6in6_hack
+],
+		[struct in6_pktinfo xyzzy; return (0);],
+			[AC_MSG_RESULT(yes)
+			 ISC_PLATFORM_HAVEIN6PKTINFO="#define ISC_PLATFORM_HAVEIN6PKTINFO 1"],
+			[AC_MSG_RESULT(no -- disabling runtime ipv6 support)
+			 ISC_PLATFORM_HAVEIN6PKTINFO="#undef ISC_PLATFORM_HAVEIN6PKTINFO"])
+		;;
+	no)
+		ISC_PLATFORM_HAVEIPV6="#undef ISC_PLATFORM_HAVEIPV6"
+		LWRES_PLATFORM_HAVEIPV6="#undef LWRES_PLATFORM_HAVEIPV6"
+		ISC_PLATFORM_NEEDIN6ADDRANY="#undef ISC_PLATFORM_NEEDIN6ADDRANY"
+		ISC_PLATFORM_HAVEIN6PKTINFO="#undef ISC_PLATFORM_HAVEIN6PKTINFO"
+		ISC_IPV6_H="ipv6.h"
+		ISC_IPV6_O="ipv6.$O"
+		ISC_ISCIPV6_O="unix/ipv6.$O"
+		ISC_IPV6_C="ipv6.c"
+		;;
+esac
+
+AC_SUBST(ISC_PLATFORM_HAVEIPV6)
+AC_SUBST(LWRES_PLATFORM_HAVEIPV6)
+AC_SUBST(ISC_PLATFORM_NEEDNETINETIN6H)
+AC_SUBST(LWRES_PLATFORM_NEEDNETINETIN6H)
+AC_SUBST(ISC_PLATFORM_NEEDNETINET6IN6H)
+AC_SUBST(LWRES_PLATFORM_NEEDNETINET6IN6H)
+AC_SUBST(ISC_PLATFORM_NEEDIN6ADDRANY)
+AC_SUBST(ISC_PLATFORM_HAVEIN6PKTINFO)
+AC_SUBST(ISC_IPV6_H)
+AC_SUBST(ISC_IPV6_O)
+AC_SUBST(ISC_ISCIPV6_O)
+AC_SUBST(ISC_IPV6_C)
 
 #
 # Check for network functions that are often missing.  We do this
 # after the libtool checking, so we can put the right suffix on
 # the files.
 #
-AC_CHECK_FUNC(inet_ntop,
-	      [ISC_PLATFORM_NEEDNTOP="#undef ISC_PLATFORM_NEEDNTOP"],
-	      [ISC_EXTRA_OBJS="$ISC_EXTRA_OBJS inet_ntop.$O"
-	       ISC_EXTRA_SRCS="$ISC_EXTRA_SRCS inet_ntop.c"
-	       ISC_PLATFORM_NEEDNTOP="#define ISC_PLATFORM_NEEDNTOP 1"]
-)
-AC_CHECK_FUNC(inet_pton,
-	      [ISC_PLATFORM_NEEDPTON="#undef ISC_PLATFORM_NEEDPTON"],
-	      [ISC_EXTRA_OBJS="$ISC_EXTRA_OBJS inet_pton.$O"
-	       ISC_EXTRA_SRCS="$ISC_EXTRA_SRCS inet_pton.c"
-	       ISC_PLATFORM_NEEDPTON="#define ISC_PLATFORM_NEEDPTON 1"]
-)
-AC_CHECK_FUNC(inet_aton,
-	      [ISC_PLATFORM_NEEDATON="#undef ISC_PLATFORM_NEEDATON"],
-	      [ISC_EXTRA_OBJS="$ISC_EXTRA_OBJS inet_aton.$O"
-	       ISC_EXTRA_SRCS="$ISC_EXTRA_SRCS inet_aton.c"
-	       ISC_PLATFORM_NEEDATON="#define ISC_PLATFORM_NEEDATON 1"]
-)
+AC_MSG_CHECKING([for inet_ntop])
+AC_TRY_LINK([
+#include <sys/types.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>],
+        [inet_ntop(0, 0, 0, 0); return (0);],
+        [AC_MSG_RESULT(yes)
+        ISC_PLATFORM_NEEDNTOP="#undef ISC_PLATFORM_NEEDNTOP"],
+
+        [AC_MSG_RESULT(no)
+        ISC_EXTRA_OBJS="$ISC_EXTRA_OBJS inet_ntop.$O"
+        ISC_EXTRA_SRCS="$ISC_EXTRA_SRCS inet_ntop.c"
+        ISC_PLATFORM_NEEDNTOP="#define ISC_PLATFORM_NEEDNTOP 1"])
+AC_MSG_CHECKING([for inet_pton])
+AC_TRY_LINK([
+#include <sys/types.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>],
+        [inet_pton(0, 0, 0); return (0);],
+        [AC_MSG_RESULT(yes)
+        ISC_PLATFORM_NEEDPTON="#undef ISC_PLATFORM_NEEDPTON"],
+
+        [AC_MSG_RESULT(no)
+        ISC_EXTRA_OBJS="$ISC_EXTRA_OBJS inet_pton.$O"
+        ISC_EXTRA_SRCS="$ISC_EXTRA_SRCS inet_pton.c"
+        ISC_PLATFORM_NEEDPTON="#define ISC_PLATFORM_NEEDPTON 1"])
+AC_MSG_CHECKING([for inet_aton])
+AC_TRY_LINK([
+#include <sys/types.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>],
+        [struct in_addr in; inet_aton(0, &in); return (0);],
+        [AC_MSG_RESULT(yes)
+        ISC_PLATFORM_NEEDATON="#undef ISC_PLATFORM_NEEDATON"],
+
+        [AC_MSG_RESULT(no)
+        ISC_EXTRA_OBJS="$ISC_EXTRA_OBJS inet_aton.$O"
+        ISC_EXTRA_SRCS="$ISC_EXTRA_SRCS inet_aton.c"
+        ISC_PLATFORM_NEEDATON="#define ISC_PLATFORM_NEEDATON 1"])
+
+AC_SUBST(ISC_PLATFORM_NEEDNTOP)
+AC_SUBST(ISC_PLATFORM_NEEDPTON)
+AC_SUBST(ISC_PLATFORM_NEEDATON)
+
+# Check for some other useful functions that are not ever-present.
 AC_CHECK_FUNC(strsep,
 	[ISC_PLATFORM_NEEDSTRSEP="#undef ISC_PLATFORM_NEEDSTRSEP"],
-	[ISC_EXTRA_OBJS="$ISC_EXTRA_OBJS strsep.$O"
-	 ISC_EXTRA_SRCS="$ISC_EXTRA_SRCS strsep.c"
-	 ISC_PLATFORM_NEEDSTRSEP="#define ISC_PLATFORM_NEEDSTRSEP 1"])
+	[ISC_PLATFORM_NEEDSTRSEP="#define ISC_PLATFORM_NEEDSTRSEP 1"])
 AC_CHECK_FUNC(vsnprintf,
 	[ISC_PLATFORM_NEEDVSNPRINTF="#undef ISC_PLATFORM_NEEDVSNPRINTF"],
 	[ISC_EXTRA_OBJS="$ISC_EXTRA_OBJS print.$O"
 	 ISC_EXTRA_SRCS="$ISC_EXTRA_SRCS print.c"
 	 ISC_PLATFORM_NEEDVSNPRINTF="#define ISC_PLATFORM_NEEDVSNPRINTF 1"])
-AC_SUBST(ISC_PLATFORM_NEEDNTOP)
-AC_SUBST(ISC_PLATFORM_NEEDPTON)
-AC_SUBST(ISC_PLATFORM_NEEDATON)
 AC_SUBST(ISC_PLATFORM_NEEDSTRSEP)
 AC_SUBST(ISC_PLATFORM_NEEDVSNPRINTF)
+
 AC_SUBST(ISC_EXTRA_OBJS)
 AC_SUBST(ISC_EXTRA_SRCS)
+
 AC_MSG_CHECKING(for sizeof(long long int) == sizeof(long int))
 AC_TRY_RUN([main() { exit(!(sizeof(long long int) == sizeof(long int))); }],
 	[AC_MSG_RESULT(yes)
@@ -703,7 +820,19 @@ AC_SUBST(ISC_PLATFORM_LONGLONGEQUALLONG)
 #
 AC_CHECK_FUNC(chroot, AC_DEFINE(HAVE_CHROOT))
 AC_CHECK_HEADERS(linux/capability.h)
+AC_CHECK_HEADERS(linux/prctl.h)
 
+#
+# Random remaining OS-specific issues.
+#
+case "$host" in
+	*-bsdi3.1*|*-bsdi4.0*)
+                #
+                # Shut up a -Wmissing-prototypes warning from <stdio.h>.
+                #
+		AC_DEFINE(SHUTUP_SPUTAUX)
+		;;
+esac
 
 #
 # Substitutions
@@ -733,8 +862,9 @@ BIND9_INCLUDES=$BIND9_TOP_BUILDDIR/make/includes
 AC_SUBST_FILE(BIND9_MAKE_RULES)
 BIND9_MAKE_RULES=$BIND9_TOP_BUILDDIR/make/rules
 
-AC_SUBST_FILE(BIND9_VERSION)
-BIND9_VERSION=$srcdir/version
+. $srcdir/version
+BIND9_VERSION="VERSION=${MAJORVER}.${MINORVER}.${PATCHVER}${RELEASETYPE}${RELEASEVER}"
+AC_SUBST(BIND9_VERSION)
 
 AC_SUBST_FILE(LIBISC_API)
 LIBISC_API=$srcdir/lib/isc/api
@@ -794,6 +924,7 @@ AC_OUTPUT(
 	bin/named/unix/Makefile
 	bin/lwresd/Makefile
 	bin/rndc/Makefile
+	bin/dig/Makefile
 	bin/tests/Makefile
 	bin/tests/names/Makefile
 	bin/tests/master/Makefile
@@ -804,4 +935,7 @@ AC_OUTPUT(
 	bin/tests/dst/Makefile
 	bin/tests/mem/Makefile
 	bin/tests/sockaddr/Makefile
+	bin/tests/system/Makefile
+	bin/tests/headerdep_test.sh
+	bin/dnssec/Makefile
 )

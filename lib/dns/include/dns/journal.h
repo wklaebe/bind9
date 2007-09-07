@@ -30,18 +30,16 @@
  *** Imports
  ***/
 
-#include <isc/types.h>
+#include <isc/lang.h>
+#include <isc/magic.h>
 
-#include <dns/result.h>
-#include <dns/types.h>
 #include <dns/name.h>
 #include <dns/rdata.h>
+#include <dns/types.h>
 
 /***
  *** Types
  ***/
-
-ISC_LANG_BEGINDECLS
 
 /*
  * A dns_difftuple_t represents a single RR being added or deleted.
@@ -68,8 +66,7 @@ typedef enum {
 typedef struct dns_difftuple dns_difftuple_t;
 
 #define DNS_DIFFTUPLE_MAGIC	0x44494654U	/* DIFT. */
-#define DNS_DIFFTUPLE_VALID(t)	((t) != NULL && \
-				 (t)->magic == DNS_DIFFTUPLE_MAGIC)
+#define DNS_DIFFTUPLE_VALID(t)	ISC_MAGIC_VALID(t, DNS_DIFFTUPLE_MAGIC)
 
 struct dns_difftuple {
         unsigned int			magic;
@@ -90,8 +87,7 @@ struct dns_difftuple {
 typedef struct dns_diff dns_diff_t;
 
 #define DNS_DIFF_MAGIC		0x44494646U	/* DIFF. */
-#define DNS_DIFF_VALID(t)	((t) != NULL && \
-					 (t)->magic == DNS_DIFF_MAGIC)
+#define DNS_DIFF_VALID(t)	ISC_MAGIC_VALID(t, DNS_DIFF_MAGIC)
 
 struct dns_diff {
 	unsigned int			magic;
@@ -117,6 +113,8 @@ typedef struct dns_journal dns_journal_t;
 /***
  *** Functions
  ***/
+
+ISC_LANG_BEGINDECLS
 
 /**************************************************************************/
 /*
@@ -162,7 +160,8 @@ dns_difftuple_copy(dns_difftuple_t *orig, dns_difftuple_t **copyp);
  *	copyp != NULL && *copyp == NULL
  */
 
-void dns_diff_init(isc_mem_t *mctx, dns_diff_t *diff);
+void
+dns_diff_init(isc_mem_t *mctx, dns_diff_t *diff);
 /*
  * Initialize a diff.
  *
@@ -174,7 +173,8 @@ void dns_diff_init(isc_mem_t *mctx, dns_diff_t *diff);
  *    '*diff' is a valid, empty diff.
  */ 
 
-void dns_diff_clear(dns_diff_t *diff);
+void
+dns_diff_clear(dns_diff_t *diff);
 /*
  * Clear a diff, destroying all its tuples.
  *
@@ -272,9 +272,9 @@ dns_diff_print(dns_diff_t *diff, FILE *file);
  *	'file' to refer to a open file or NULL.
  *
  * Returns:
- *	DNS_R_SUCCESS
- *	DNS_R_NOMEMORY
- *	DNS_R_UNEXPECTED
+ *	ISC_R_SUCCESS
+ *	ISC_R_NOMEMORY
+ *	ISC_R_UNEXPECTED
  *	any error from dns_rdataset_totext()
  */
 	
@@ -284,7 +284,8 @@ dns_diff_print(dns_diff_t *diff, FILE *file);
  * XXX these belong in a general-purpose DNS library
  */
 
-isc_uint32_t dns_soa_getserial(dns_rdata_t *rdata);
+isc_uint32_t
+dns_soa_getserial(dns_rdata_t *rdata);
 /*
  * Extract the serial number from the rdata of a SOA record.
  *  
@@ -292,23 +293,14 @@ isc_uint32_t dns_soa_getserial(dns_rdata_t *rdata);
  *	rdata refers to the rdata of a well-formed SOA record.
  */
 
-void dns_soa_setserial(isc_uint32_t val, dns_rdata_t *rdata);
+void
+dns_soa_setserial(isc_uint32_t val, dns_rdata_t *rdata);
 /*
  * Change the serial number of a SOA record by modifying the
  * rdata in-place.
  *
  * Requires:
  *	rdata refers to the rdata of a well-formed SOA record.
- */
-
-isc_result_t
-dns_db_getsoaserial(dns_db_t *db, dns_dbversion_t *ver, isc_uint32_t *serialp);
-/*
- * Get the current SOA serial number from a zone database.
- *
- * Requires:
- *      'db' is a valid database with zone semantics.
- *      'ver' is a valid version.
  */
 
 isc_result_t
@@ -413,8 +405,10 @@ dns_journal_write_transaction(dns_journal_t *j, dns_diff_t *diff);
  * Reading transactions from journals.
  */
 
-isc_uint32_t dns_journal_first_serial(dns_journal_t *j);
-isc_uint32_t dns_journal_last_serial(dns_journal_t *j);
+isc_uint32_t
+dns_journal_first_serial(dns_journal_t *j);
+isc_uint32_t
+dns_journal_last_serial(dns_journal_t *j);
 /*
  * Get the first and last addressable serial number in the journal.
  */
@@ -427,15 +421,17 @@ dns_journal_iter_init(dns_journal_t *j,
  * from SOA serial number 'begin_serial' to 'end_serial'.
  *
  * Returns:
- *	DNS_R_SUCCESS	
- *	DNS_R_NOTFOUND	begin_serial is within the range of adressable
+ *	ISC_R_SUCCESS	
+ *	ISC_R_RANGE	begin_serial is outside the addressable range.
+ *	ISC_R_NOTFOUND	begin_serial is within the range of adressable
  *			serial numbers covered by the journal, but
  *			this particular serial number does not exist.
- *	DNS_R_RANGE	begin_serial is outside the addressable range.
  */
 
-isc_result_t dns_journal_first_rr(dns_journal_t *j);
-isc_result_t dns_journal_next_rr(dns_journal_t *j);
+isc_result_t
+dns_journal_first_rr(dns_journal_t *j);
+isc_result_t
+dns_journal_next_rr(dns_journal_t *j);
 /*
  * Position the iterator at the first/next RR in a journal
  * transaction sequence established using dns_journal_iter_init().
@@ -445,14 +441,15 @@ isc_result_t dns_journal_next_rr(dns_journal_t *j);
  *
  */
 
-void dns_journal_current_rr(dns_journal_t *j, dns_name_t **name, 
-			    isc_uint32_t *ttl, dns_rdata_t **rdata);
+void
+dns_journal_current_rr(dns_journal_t *j, dns_name_t **name, isc_uint32_t *ttl,
+		       dns_rdata_t **rdata);
 /*
  * Get the name, ttl, and rdata of the current journal RR.
  *
  * Requires:
  *      The last call to dns_journal_first_rr() or dns_journal_next_rr()
- *      returned DNS_R_SUCCESS.
+ *      returned ISC_R_SUCCESS.
  */
 
 /**************************************************************************/
@@ -475,12 +472,13 @@ dns_journal_rollforward(isc_mem_t *mctx, dns_db_t *db, const char *filename);
  *
  * Returns:
  *	DNS_R_NOJOURNAL when journal does not exist.
- *	DNS_R_NOTFOUND when current serial in not in journal.
- *	DNS_R_SUCCESS journal has been applied successfully to database.
+ *	ISC_R_NOTFOUND when current serial in not in journal.
+ *	ISC_R_SUCCESS journal has been applied successfully to database.
  *	others
  */
 
-isc_result_t dns_journal_print(isc_mem_t *mctx, const char *filename, FILE *file);
+isc_result_t
+dns_journal_print(isc_mem_t *mctx, const char *filename, FILE *file);
 /* For debugging not general use */
 
 isc_result_t

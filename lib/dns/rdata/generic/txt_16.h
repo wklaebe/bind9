@@ -15,5 +15,34 @@
  * SOFTWARE.
  */
 
-/* $Id: txt_16.h,v 1.14 2000/03/20 23:08:50 gson Exp $ */
+#ifndef GENERIC_TXT_16_H
+#define GENERIC_TXT_16_H 1
 
+/* $Id: txt_16.h,v 1.16 2000/04/29 02:01:51 tale Exp $ */
+
+
+typedef struct dns_rdata_txt_string {
+                isc_uint8_t    length;
+                unsigned char   *data;
+} dns_rdata_txt_string_t;
+
+typedef struct dns_rdata_txt {
+        dns_rdatacommon_t       common;
+        isc_mem_t               *mctx;
+        unsigned char           *txt;
+        isc_uint16_t            txt_len;
+        /* private */
+        isc_uint16_t            offset;
+} dns_rdata_txt_t;
+
+#include <isc/lang.h>
+
+ISC_LANG_BEGINDECLS
+
+isc_result_t dns_rdata_txt_first(dns_rdata_txt_t *);
+isc_result_t dns_rdata_txt_next(dns_rdata_txt_t *);
+isc_result_t dns_rdata_txt_current(dns_rdata_txt_t *, dns_rdata_txt_string_t *);
+
+ISC_LANG_ENDDECLS
+
+#endif /* GENERIC_TXT_16_H */

@@ -17,33 +17,19 @@
 
 #include <config.h>
 
-#include <ctype.h>
-#include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
-#include <isc/assertions.h>
-#include <isc/error.h>
-#include <isc/boolean.h>
-#include <isc/region.h>
+#include <isc/mem.h>
+#include <isc/string.h>
+#include <isc/util.h>
 
-#include <dns/types.h>
 #include <dns/result.h>
-#include <dns/name.h>
-#include <dns/rdata.h>
-#include <dns/rdataclass.h>
-#include <dns/rdatatype.h>
-#include <dns/rdatalist.h>
-#include <dns/rdataset.h>
-#include <dns/compress.h>
-#include <dns/message.h>
 
 #include "printmsg.h"
 
 static inline void
-CHECKRESULT(isc_result_t result, char *msg)
-{
-	if (result != DNS_R_SUCCESS) {
+CHECKRESULT(isc_result_t result, char *msg) {
+	if (result != ISC_R_SUCCESS) {
 		printf("%s: %s\n", msg, dns_result_totext(result));
 
 		exit(1);
@@ -129,7 +115,7 @@ main(int argc, char *argv[]) {
 	if (need_close)
 		fclose(f);
 
-	isc_buffer_init(&source, b, sizeof b, ISC_BUFFERTYPE_BINARY);
+	isc_buffer_init(&source, b, sizeof(b));
 	isc_buffer_add(&source, bp - b);
 
 	message = NULL;
@@ -170,9 +156,6 @@ main(int argc, char *argv[]) {
 
 	result = dns_message_rendersection(message, DNS_SECTION_ADDITIONAL, 0);
 	CHECKRESULT(result, "dns_message_rendersection(ADDITIONAL) failed");
-
-	result = dns_message_rendersection(message, DNS_SECTION_TSIG, 0);
-	CHECKRESULT(result, "dns_message_rendersection(TSIG) failed");
 
 	dns_message_renderend(message);
 

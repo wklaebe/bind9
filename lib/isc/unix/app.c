@@ -22,17 +22,16 @@
 #include <sys/types.h>
 
 #include <stddef.h>
-#include <string.h>
 #include <errno.h>
 #include <unistd.h>
 #include <signal.h>
 
 #include <isc/app.h>
-#include <isc/assertions.h>
-#include <isc/error.h>
 #include <isc/boolean.h>
 #include <isc/mutex.h>
 #include <isc/event.h>
+#include <isc/string.h>
+#include <isc/task.h>
 #include <isc/util.h>
 
 static isc_eventlist_t		on_run;
@@ -65,13 +64,13 @@ static pthread_t		main_thread;
 #ifndef HAVE_SIGWAIT
 static void
 exit_action(int arg) {
-        (void)arg;
+        UNUSED(arg);
 	want_shutdown = ISC_TRUE;
 }
 
 static void
 reload_action(int arg) {
-        (void)arg;
+        UNUSED(arg);
 	want_reload = ISC_TRUE;
 }
 #endif
@@ -210,7 +209,7 @@ isc_app_onrun(isc_mem_t *mctx, isc_task_t *task, isc_taskaction_t action,
 		goto unlock;
 	}
 	
-	ISC_LIST_APPEND(on_run, event, link);
+	ISC_LIST_APPEND(on_run, event, ev_link);
 
 	result = ISC_R_SUCCESS;
 
@@ -249,10 +248,10 @@ isc_app_run(void) {
 		for (event = ISC_LIST_HEAD(on_run);
 		     event != NULL;
 		     event = next_event) {
-			next_event = ISC_LIST_NEXT(event, link);
-			ISC_LIST_UNLINK(on_run, event, link);
-			task = event->sender;
-			event->sender = (void *)&running;
+			next_event = ISC_LIST_NEXT(event, ev_link);
+			ISC_LIST_UNLINK(on_run, event, ev_link);
+			task = event->ev_sender;
+			event->ev_sender = (void *)&running;
 			isc_task_sendanddetach(&task, &event);
 		}
 
@@ -292,6 +291,8 @@ isc_app_run(void) {
 					 strerror(errno));
 			return (ISC_R_UNEXPECTED);
 		}
+
+#ifndef HAVE_UNIXWARE_SIGWAIT
 		result = sigwait(&sset, &sig);
 		if (result == 0) {
 			if (sig == SIGINT ||
@@ -300,7 +301,19 @@ isc_app_run(void) {
 			else if (sig == SIGHUP)
 				want_reload = ISC_TRUE;
 		}
-#else
+
+#else /* Using UnixWare sigwait semantics. */
+		sig = sigwait(&sset);
+		if (sig >= 0) {
+			if (sig == SIGINT ||
+			    sig == SIGTERM)
+				want_shutdown = ISC_TRUE;
+			else if (sig == SIGHUP)
+				want_reload = ISC_TRUE;
+		}
+
+#endif /* HAVE_UNIXWARE_SIGWAIT */
+#else  /* Don't have sigwait(). */
 		/*
 		 * Listen for all signals.
 		 */
@@ -311,7 +324,7 @@ isc_app_run(void) {
 			return (ISC_R_UNEXPECTED);
 		}
 		result = sigsuspend(&sset);
-#endif
+#endif /* HAVE_SIGWAIT */
 
 		if (want_reload) {
 			want_reload = ISC_FALSE;

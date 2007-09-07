@@ -15,7 +15,7 @@
  * SOFTWARE.
  */
 
-/* $Id: isdn_20.c,v 1.14 2000/03/16 02:08:49 bwelling Exp $ */
+/* $Id: isdn_20.c,v 1.19 2000/05/22 12:37:36 marka Exp $ */
 
 /* Reviewed: Wed Mar 15 16:53:11 PST 2000 by bwelling */
 
@@ -23,6 +23,8 @@
 
 #ifndef RDATA_GENERIC_ISDN_20_C
 #define RDATA_GENERIC_ISDN_20_C
+
+#define RRTYPE_ISDN_ATTRIBUTES (0)
 
 static inline isc_result_t
 fromtext_isdn(dns_rdataclass_t rdclass, dns_rdatatype_t type,
@@ -46,7 +48,7 @@ fromtext_isdn(dns_rdataclass_t rdclass, dns_rdatatype_t type,
 	if (token.type != isc_tokentype_string &&
 	    token.type != isc_tokentype_qstring) {
 		isc_lex_ungettoken(lexer, &token);
-		return (DNS_R_SUCCESS);
+		return (ISC_R_SUCCESS);
 	}
 	return (txt_fromtext(&token.value.as_textregion, target));
 }
@@ -64,7 +66,7 @@ totext_isdn(dns_rdata_t *rdata, dns_rdata_textctx_t *tctx,
 	dns_rdata_toregion(rdata, &region);
 	RETERR(txt_totext(&region, target));
 	if (region.length == 0)
-		return (DNS_R_SUCCESS);
+		return (ISC_R_SUCCESS);
 	RETERR(str_totext(" ", target));
 	return (txt_totext(&region, target));
 }
@@ -82,7 +84,7 @@ fromwire_isdn(dns_rdataclass_t rdclass, dns_rdatatype_t type,
 
 	RETERR(txt_fromwire(source, target));
 	if (buffer_empty(source))
-		return (DNS_R_SUCCESS);
+		return (ISC_R_SUCCESS);
 	return (txt_fromwire(source, target));
 }
 
@@ -113,41 +115,89 @@ static inline isc_result_t
 fromstruct_isdn(dns_rdataclass_t rdclass, dns_rdatatype_t type, void *source,
 		isc_buffer_t *target)
 {
-	UNUSED(rdclass);
-	UNUSED(source);
-	UNUSED(target);
+	dns_rdata_isdn_t *isdn = source;
 
 	REQUIRE(type == 20);
+	REQUIRE(source != NULL);
+	REQUIRE(isdn->common.rdtype == type);
+	REQUIRE(isdn->common.rdclass == rdclass);
 
-	return (DNS_R_NOTIMPLEMENTED);
+	RETERR(uint8_tobuffer(isdn->isdn_len, target));
+	RETERR(mem_tobuffer(target, isdn->isdn, isdn->isdn_len));
+	RETERR(uint8_tobuffer(isdn->subaddress_len, target));
+	return (mem_tobuffer(target, isdn->subaddress, isdn->subaddress_len));
 }
 
 static inline isc_result_t
 tostruct_isdn(dns_rdata_t *rdata, void *target, isc_mem_t *mctx) {
-	UNUSED(target);
-	UNUSED(mctx);
+	dns_rdata_isdn_t *isdn = target;
+	isc_region_t r;
 
 	REQUIRE(rdata->type == 20);
+	REQUIRE(target != NULL);
 
-	return (DNS_R_NOTIMPLEMENTED);
+	isdn->common.rdclass = rdata->rdclass;
+	isdn->common.rdtype = rdata->type;
+	ISC_LINK_INIT(&isdn->common, link);
+
+	dns_rdata_toregion(rdata, &r);
+
+	isdn->isdn_len = uint8_fromregion(&r);
+	isc_region_consume(&r, 1);
+	if (isdn->isdn_len > 0) {
+		isdn->isdn = mem_maybedup(mctx, r.base, isdn->isdn_len);
+		if (isdn->isdn == NULL)
+			return (ISC_R_NOMEMORY);
+		isc_region_consume(&r, isdn->isdn_len);
+	} else
+		isdn->isdn = NULL;
+
+	isdn->subaddress_len = uint8_fromregion(&r);
+	isc_region_consume(&r, 1);
+	if (isdn->subaddress_len > 0) {
+		isdn->subaddress = mem_maybedup(mctx, r.base,
+						isdn->subaddress_len);
+		if (isdn->subaddress == NULL)
+			goto cleanup;
+	} else
+		isdn->subaddress = NULL;
+
+	isdn->mctx = mctx;
+	return (ISC_R_SUCCESS);
+
+ cleanup:
+	if (mctx != NULL && isdn->isdn != NULL)
+		isc_mem_free(mctx, isdn->isdn);
+	return (ISC_R_NOMEMORY);
 }
 
 static inline void
 freestruct_isdn(void *source) {
+	dns_rdata_isdn_t *isdn = source;
+
 	REQUIRE(source != NULL);
-	REQUIRE(ISC_FALSE);	/*XXX*/
+	
+	if (isdn->mctx == NULL)
+		return;
+
+	if (isdn->isdn != NULL)
+		isc_mem_free(isdn->mctx, isdn->isdn);
+	if (isdn->subaddress != NULL)
+		isc_mem_free(isdn->mctx, isdn->subaddress);
+	isdn->mctx = NULL;
 }
 
 static inline isc_result_t
 additionaldata_isdn(dns_rdata_t *rdata, dns_additionaldatafunc_t add,
 		    void *arg)
 {
+	REQUIRE(rdata->type == 20);
+
+	UNUSED(rdata);
 	UNUSED(add);
 	UNUSED(arg);
 
-	REQUIRE(rdata->type == 20);
-
-	return (DNS_R_SUCCESS);
+	return (ISC_R_SUCCESS);
 }
 
 static inline isc_result_t

@@ -58,6 +58,9 @@
 
 /* Original version from Steven Schoch <schoch@sheba.arc.nasa.gov> */
 
+#include <config.h>
+#include "../rename.h"
+
 #include <stdio.h>
 #include "cryptlib.h"
 #include <openssl/bn.h>

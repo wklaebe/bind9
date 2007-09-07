@@ -15,9 +15,13 @@
  * SOFTWARE.
  */
 
-/* $Id: commandline.h,v 1.2 2000/02/03 23:07:48 halley Exp $ */
+/* $Id: commandline.h,v 1.4 2000/04/28 22:13:14 tale Exp $ */
+
+#ifndef ISC_COMMANDLINE_H
+#define ISC_COMMANDLINE_H 1
 
 #include <isc/boolean.h>
+#include <isc/lang.h>
 
 extern int isc_commandline_index;	/* Index into parent argv vector. */
 extern int isc_commandline_option;	/* Character checked for validity. */
@@ -28,5 +32,11 @@ extern char *isc_commandline_progname;	/* For printing error messages. */
 extern isc_boolean_t isc_commandline_errprint;	/* Print error message. */
 extern isc_boolean_t isc_commandline_reset;    	/* Reset getopt. */
 
+ISC_LANG_BEGINDECLS
+
 int
 isc_commandline_parse(int argc, char * const *argv, const char *options);
+
+ISC_LANG_ENDDECLS
+
+#endif /* ISC_COMMANDLINE_H */

@@ -17,29 +17,18 @@
 
 #include <config.h>
 
-#include <errno.h>
-#include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 extern int h_errno;
 
-#include <isc/types.h>
 #include <isc/app.h>
-#include <isc/assertions.h>
-#include <isc/error.h>
 #include <isc/mem.h>
-#include <isc/net.h>
 #include <isc/netdb.h>
-#include <isc/result.h>
-#include <isc/sockaddr.h>
 #include <isc/socket.h>
+#include <isc/string.h>
 #include <isc/task.h>
+#include <isc/util.h>
 
-#include <dns/types.h>
-#include <dns/message.h>
-#include <dns/name.h>
-#include <dns/fixedname.h>
 #include <dns/rdata.h>
 #include <dns/rdatalist.h>
 #include <dns/rdataset.h>
@@ -148,7 +137,7 @@ hex_dump(isc_buffer_t *b)
 	unsigned int len;
 	isc_region_t r;
 
-	isc_buffer_remaining(b, &r);
+	isc_buffer_remainingregion(b, &r);
 
 	for (len = 0 ; len < r.length ; len++) {
 		printf("%02x ", r.base[len]);
@@ -187,13 +176,13 @@ recv_done(isc_task_t *task, isc_event_t *event) {
 	isc_buffer_t *b;
 	isc_result_t result;
 
-	REQUIRE(event->type == ISC_SOCKEVENT_RECVDONE);
+	REQUIRE(event->ev_type == ISC_SOCKEVENT_RECVDONE);
 	sevent = (isc_socketevent_t *)event;
 
-	(void)task;
+	UNUSED(task);
 
 	/*
-	 * There will be one buffer (since that is what we put on the list)
+	 * There will be one buffer (since that is what we put on the list).
 	 */
 	if (sevent->result == ISC_R_SUCCESS) {
 		b = ISC_LIST_HEAD(sevent->bufferlist);
@@ -215,7 +204,8 @@ recv_done(isc_task_t *task, isc_event_t *event) {
 
 static void
 send_done(isc_task_t *task, isc_event_t *event) {
-	(void)task;
+	UNUSED(task);
+
 	isc_event_free(&event);
 }
 
@@ -265,7 +255,7 @@ main(int argc, char *argv[]) {
 	result = isc_taskmgr_create(mctx, 1, 0, &taskmgr);
 	check_result(result, "isc_taskmgr_create()");
 	task = NULL;
-	result = isc_task_create(taskmgr, NULL, 0, &task);
+	result = isc_task_create(taskmgr, 0, &task);
 	check_result(result, "isc_task_create()");
 	socketmgr = NULL;
 	result = isc_socketmgr_create(mctx, &socketmgr);
@@ -289,8 +279,7 @@ main(int argc, char *argv[]) {
 	check_result(result, "dns_message_gettempname()");
 	dns_name_init(name, NULL);
 
-	isc_buffer_init(&namebuffer, namedata, sizeof(namedata),
-			ISC_BUFFERTYPE_BINARY);
+	isc_buffer_init(&namebuffer, namedata, sizeof(namedata));
 
 	printf("\n; <<>> sdig <<>>");
 	for (i = 1; i < argc; i++) {
@@ -321,8 +310,7 @@ main(int argc, char *argv[]) {
 			tr.base = argv[0];
 			tr.length = len;
 			if (!have_name) {
-				isc_buffer_init(&b, argv[0], len,
-						ISC_BUFFERTYPE_TEXT);
+				isc_buffer_init(&b, argv[0], len);
 				isc_buffer_add(&b, len);
 				result = dns_name_fromtext(name, &b,
 							   dns_rootname,
@@ -358,7 +346,7 @@ main(int argc, char *argv[]) {
 		message->flags |= DNS_MESSAGEFLAG_RD;
 	dns_message_addname(message, name, DNS_SECTION_QUESTION);
 
-	isc_buffer_init(&b, data, sizeof data, ISC_BUFFERTYPE_BINARY);
+	isc_buffer_init(&b, data, sizeof(data));
 	result = dns_message_renderbegin(message, &b);
 	check_result(result, "dns_message_renderbegin()");
 	if (edns0)
@@ -377,7 +365,7 @@ main(int argc, char *argv[]) {
 	check_result(result, "isc_socket_create()");
 
 	ISC_LIST_INIT(bufferlist);
-	isc_buffer_init(&b2, data2, sizeof data2, ISC_BUFFERTYPE_BINARY);
+	isc_buffer_init(&b2, data2, sizeof data2);
 	ISC_LIST_ENQUEUE(bufferlist, &b2, link);
 	result = isc_socket_recvv(sock, &bufferlist, 1, task, recv_done, NULL);
 	check_result(result, "isc_socket_recvv()");

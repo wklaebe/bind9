@@ -15,12 +15,14 @@
  * SOFTWARE.
  */
 
-/* $Id: mg_8.c,v 1.20 2000/03/16 02:00:35 brister Exp $ */
+/* $Id: mg_8.c,v 1.27 2000/05/22 12:37:43 marka Exp $ */
 
 /* reviewed: Wed Mar 15 17:49:21 PST 2000 by brister */
 
 #ifndef RDATA_GENERIC_MG_8_C
 #define RDATA_GENERIC_MG_8_C
+
+#define RRTYPE_MG_ATTRIBUTES (0)
 
 static inline isc_result_t
 fromtext_mg(dns_rdataclass_t rdclass, dns_rdatatype_t type,
@@ -38,8 +40,7 @@ fromtext_mg(dns_rdataclass_t rdclass, dns_rdatatype_t type,
 	RETERR(gettoken(lexer, &token, isc_tokentype_string, ISC_FALSE));
 
 	dns_name_init(&name, NULL);
-	buffer_fromregion(&buffer, &token.value.as_region,
-			  ISC_BUFFERTYPE_TEXT);
+	buffer_fromregion(&buffer, &token.value.as_region);
 	origin = (origin != NULL) ? origin : dns_rootname;
 	return (dns_name_fromtext(&name, &buffer, origin, downcase, target));
 }
@@ -77,10 +78,7 @@ fromwire_mg(dns_rdataclass_t rdclass, dns_rdatatype_t type,
 
 	UNUSED(rdclass);
 
-	if (dns_decompress_edns(dctx) >= 1 || !dns_decompress_strict(dctx))
-		dns_decompress_setmethods(dctx, DNS_COMPRESS_ALL);
-	else
-		dns_decompress_setmethods(dctx, DNS_COMPRESS_GLOBAL14);
+	dns_decompress_setmethods(dctx, DNS_COMPRESS_GLOBAL14);
         
         dns_name_init(&name, NULL);
         return (dns_name_fromwire(&name, source, dctx, downcase, target));
@@ -94,10 +92,7 @@ towire_mg(dns_rdata_t *rdata, dns_compress_t *cctx, isc_buffer_t *target)
 
 	REQUIRE(rdata->type == 8);
 
-	if (dns_compress_getedns(cctx) >= 1)
-		dns_compress_setmethods(cctx, DNS_COMPRESS_ALL);
-	else
-		dns_compress_setmethods(cctx, DNS_COMPRESS_GLOBAL14);
+	dns_compress_setmethods(cctx, DNS_COMPRESS_GLOBAL14);
 
 	dns_name_init(&name, NULL);
 	dns_rdata_toregion(rdata, &region);
@@ -134,34 +129,53 @@ static inline isc_result_t
 fromstruct_mg(dns_rdataclass_t rdclass, dns_rdatatype_t type, void *source,
 	      isc_buffer_t *target)
 {
+	dns_rdata_mg_t *mg = source;
+	isc_region_t region;
 
 	REQUIRE(type == 8);
+	REQUIRE(source != NULL);
+	REQUIRE(mg->common.rdtype == type);
+	REQUIRE(mg->common.rdclass == rdclass);
 
-	UNUSED(rdclass);
-
-	UNUSED(source);
-	UNUSED(target);
-
-	return (DNS_R_NOTIMPLEMENTED);
+	dns_name_toregion(&mg->mg, &region);
+	return (isc_buffer_copyregion(target, &region));
 }
 
 static inline isc_result_t
 tostruct_mg(dns_rdata_t *rdata, void *target, isc_mem_t *mctx)
 {
+	isc_region_t region;
+	dns_rdata_mg_t *mg = target;
+	dns_name_t name;
 
 	REQUIRE(rdata->type == 8);
+	REQUIRE(target != NULL);
 
-	UNUSED(target);
-	UNUSED(mctx);
+	mg->common.rdclass = rdata->rdclass;
+	mg->common.rdtype = rdata->type;
+	ISC_LINK_INIT(&mg->common, link);
 
-	return (DNS_R_NOTIMPLEMENTED);
+	dns_name_init(&name, NULL);
+	dns_rdata_toregion(rdata, &region);
+	dns_name_fromregion(&name, &region);
+	dns_name_init(&mg->mg, NULL);
+	RETERR(name_duporclone(&name, mctx, &mg->mg));
+	mg->mctx = mctx;
+	return (ISC_R_SUCCESS);
 }
 
 static inline void
 freestruct_mg(void *source)
 {
+	dns_rdata_mg_t *mg = source;
+
 	REQUIRE(source != NULL);
-	REQUIRE(ISC_FALSE);	/*XXX*/
+	REQUIRE(mg->common.rdtype == 8);
+	
+	if (mg->mctx == NULL)
+		return;
+	dns_name_free(&mg->mg, mg->mctx);
+	mg->mctx = NULL;
 }
 
 static inline isc_result_t
@@ -170,10 +184,11 @@ additionaldata_mg(dns_rdata_t *rdata, dns_additionaldatafunc_t add,
 {
 	REQUIRE(rdata->type == 8);
 
-	(void)add;
-	(void)arg;
+	UNUSED(add);
+	UNUSED(arg);
+	UNUSED(rdata);
 
-	return (DNS_R_SUCCESS);
+	return (ISC_R_SUCCESS);
 }
 
 static inline isc_result_t

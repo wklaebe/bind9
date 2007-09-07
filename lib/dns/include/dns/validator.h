@@ -45,19 +45,15 @@
  *	Drafts:	<TBS>
  */
 
-#include <isc/types.h>
 #include <isc/lang.h>
 #include <isc/event.h>
 
 #include <dns/types.h>
-#include <dns/result.h>
-
-ISC_LANG_BEGINDECLS
 
 /*
  * A dns_validatorevent_t is sent when a 'validation' completes.
  *
- * 'rdataset', 'sigrdataset', and 'message' are the values that were
+ * 'name', 'rdataset', 'sigrdataset', and 'message' are the values that were
  * supplied when dns_validator_create() was called.  They are returned to the
  * caller so that they may be freed.
  */
@@ -66,23 +62,81 @@ typedef struct dns_validatorevent {
 	dns_validator_t *		validator;
 	isc_result_t			result;
 	dns_name_t *			name;
+	dns_rdatatype_t			type;
 	dns_rdataset_t *		rdataset;
 	dns_rdataset_t *		sigrdataset;
 	dns_message_t *			message;
 } dns_validatorevent_t;
 
+ISC_LANG_BEGINDECLS
+
 isc_result_t
-dns_validator_create(dns_view_t *view, dns_name_t *name,
+dns_validator_create(dns_view_t *view, dns_name_t *name, dns_rdatatype_t type,
 		     dns_rdataset_t *rdataset, dns_rdataset_t *sigrdataset,
 		     dns_message_t *message, unsigned int options,
 		     isc_task_t *task, isc_taskaction_t action, void *arg,
 		     dns_validator_t **validatorp);
+/*
+ * Start a DNSSEC validation.
+ *
+ * This validates a response to the question given by
+ * 'name' and 'type'.
+ *
+ * To validate a positive response, the response data is
+ * given by 'rdataset' and 'sigrdataset'.  If 'sigrdataset'
+ * is NULL, the data is presumed insecure and an attempt
+ * is made to prove its insecurity by finding the appropriate
+ * null key.
+ *
+ * The complete response message may be given in 'message',
+ * to make available any authority section NXTs that may be
+ * needed for validation of a response resulting from a 
+ * wildcard expansion (though no such wildcard validation 
+ * is implemented yet).  If the complete response message
+ * is not available, 'message' is NULL.
+ *
+ * To validate a negative response, the complete negative response
+ * message is given in 'message'.  The 'rdataset', and 
+ * 'sigrdataset' arguments must be NULL, but the 'name' and 'type'
+ * arguments must be provided.
+ *
+ * The validation is performed in the context of 'view'.
+ * 'options' must be zero.
+ *
+ * When the validation finishes, a dns_validatorevent_t with
+ * the given 'action' and 'arg' are sent to 'task'.
+ * Its 'result' field will be ISC_R_SUCCESS iff the
+ * response was successfully proven to be either secure or
+ * part of a known insecure domain.
+ */
 
 void
 dns_validator_cancel(dns_validator_t *validator);
+/*
+ * Cancel a DNSSEC validation in progress.
+ *
+ * Requires:
+ *	'validator' points to a valid DNSSEC validator, which 
+ *	may or may not already have completed.
+ *
+ * Ensures:
+ *	It the validator has not already sent its completion
+ *	event, it will send it with result code ISC_R_CANCELED.
+ */
 
 void
 dns_validator_destroy(dns_validator_t **validatorp);
+/*
+ * Destroy a DNSSEC validator.
+ *
+ * Requires:
+ *	'*validatorp' points to a valid DNSSEC validator.
+ * 	The validator must have completed and sent its completion
+ * 	event.
+ *
+ * Ensures:
+ *	All resources used by the validator are freed.
+ */
 
 ISC_LANG_ENDDECLS
 

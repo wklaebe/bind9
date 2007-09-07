@@ -18,41 +18,24 @@
 #include <config.h>
 
 #include <ctype.h>
-#include <stddef.h>
 #include <stdlib.h>
-#include <string.h>
-#include <time.h>
-#include <sys/time.h>
-#include <unistd.h>
 
-#include <isc/assertions.h>
-#include <isc/error.h>
-#include <isc/boolean.h>
-#include <isc/region.h>
-#include <isc/list.h>
+#include <isc/mem.h>
+#include <isc/string.h>
 
-#include <dns/types.h>
-#include <dns/result.h>
-#include <dns/name.h>
+#include <dns/db.h>
 #include <dns/fixedname.h>
 #include <dns/rdata.h>
 #include <dns/rdataclass.h>
 #include <dns/rdatatype.h>
 #include <dns/rdatalist.h>
 #include <dns/rdataset.h>
-#include <dns/rdatasetiter.h>
-#include <dns/rdatastruct.h>
-#include <dns/compress.h>
-#include <dns/db.h>
-#include <dns/dbiterator.h>
-#include <dns/dbtable.h>
 
 #include <tests/t_api.h>
 
 static isc_result_t
 t_create(char *db_type, char *origin, char *class, char *cache,
-		isc_mem_t *mctx, dns_db_t **db) {
-
+	 isc_mem_t *mctx, dns_db_t **db) {
 	int			len;
 	isc_result_t		dns_result;
 	isc_boolean_t		iscache;
@@ -68,11 +51,11 @@ t_create(char *db_type, char *origin, char *class, char *cache,
 
 	dns_fixedname_init(&dns_origin);
 	len = strlen(origin);
-	isc_buffer_init(&origin_buffer, origin, len, ISC_BUFFERTYPE_TEXT);
+	isc_buffer_init(&origin_buffer, origin, len);
 	isc_buffer_add(&origin_buffer, len);
 	dns_result = dns_name_fromtext(dns_fixedname_name(&dns_origin),
 				&origin_buffer, NULL, ISC_FALSE, NULL);
-	if (dns_result != DNS_R_SUCCESS) {
+	if (dns_result != ISC_R_SUCCESS) {
 		t_info("dns_name_fromtext failed %s\n",
 			dns_result_totext(dns_result));
 		return(dns_result);
@@ -81,23 +64,22 @@ t_create(char *db_type, char *origin, char *class, char *cache,
 	textregion.base = class;
 	textregion.length = strlen(class);
 	dns_result = dns_rdataclass_fromtext(&rdataclass, &textregion);
-	if (dns_result != DNS_R_SUCCESS) {
+	if (dns_result != ISC_R_SUCCESS) {
 		t_info("dns_rdataclass_fromtext failed %s\n",
 				dns_result_totext(dns_result));
 		return(dns_result);
 	}
 
-	dns_result = dns_db_create(mctx, db_type, dns_fixedname_name(&dns_origin),
-				iscache, rdataclass, 0, NULL, db);
-	if (dns_result != DNS_R_SUCCESS) {
+	dns_result = dns_db_create(mctx, db_type,
+				   dns_fixedname_name(&dns_origin),
+				   iscache, rdataclass, 0, NULL, db);
+	if (dns_result != ISC_R_SUCCESS)
 		t_info("dns_db_create failed %s\n",
 			dns_result_totext(dns_result));
-	}
 
 	return(dns_result);
 
 }
-
 
 static int
 t_dns_db_load(char **av) {
@@ -155,7 +137,7 @@ t_dns_db_load(char **av) {
 	}
 
 	dns_result = t_create(db_type, origin, class, cache, mctx, &db);
-	if (dns_result != DNS_R_SUCCESS) {
+	if (dns_result != ISC_R_SUCCESS) {
 		isc_mem_destroy(&mctx);
 		return(T_UNRESOLVED);
 	}
@@ -172,11 +154,11 @@ t_dns_db_load(char **av) {
 
 	dns_fixedname_init(&dns_findname);
 	len = strlen(findname);
-	isc_buffer_init(&findname_buffer, findname, len, ISC_BUFFERTYPE_TEXT);
+	isc_buffer_init(&findname_buffer, findname, len);
 	isc_buffer_add(&findname_buffer, len);
 	dns_result = dns_name_fromtext(dns_fixedname_name(&dns_findname),
 				&findname_buffer, NULL, ISC_FALSE, NULL);
-	if (dns_result != DNS_R_SUCCESS) {
+	if (dns_result != ISC_R_SUCCESS) {
 		t_info("dns_name_fromtext failed %s\n",
 			dns_result_totext(dns_result));
 		dns_db_detach(&db);
@@ -187,7 +169,7 @@ t_dns_db_load(char **av) {
 	textregion.base = find_type;
 	textregion.length = strlen(find_type);
 	dns_result = dns_rdatatype_fromtext(&rdatatype, &textregion);
-	if (dns_result != DNS_R_SUCCESS) {
+	if (dns_result != ISC_R_SUCCESS) {
 		t_info("dns_rdatatype_fromtext %s failed %s\n",
 				find_type,
 				dns_result_totext(dns_result));
@@ -223,7 +205,7 @@ t_dns_db_load(char **av) {
 		result = T_PASS;
 	}
 
-	if (dns_result != DNS_R_NOTFOUND) {
+	if (dns_result != ISC_R_NOTFOUND) {
 		dns_db_detachnode(db, &nodep);
 		if (dns_rdataset_isassociated(&rdataset))
 			dns_rdataset_disassociate(&rdataset);
@@ -255,12 +237,9 @@ static char *a2 =
 	"dns_db_iscache(db) returns ISC_TRUE.";
 
 static int
-t_dns_db_zc_x(char *filename,
-		char *db_type, char *origin, char *class,
-		isc_boolean_t cache,
-		isc_boolean_t(*cf)(dns_db_t *),
-		isc_boolean_t exp_result) {
-
+t_dns_db_zc_x(char *filename, char *db_type, char *origin, char *class,
+	      isc_boolean_t cache, isc_boolean_t(*cf)(dns_db_t *),
+	      isc_boolean_t exp_result) {
 	int			result;
 	int			len;
 	dns_db_t		*db;
@@ -281,11 +260,11 @@ t_dns_db_zc_x(char *filename,
 
 	dns_fixedname_init(&dns_origin);
 	len = strlen(origin);
-	isc_buffer_init(&origin_buffer, origin, len, ISC_BUFFERTYPE_TEXT);
+	isc_buffer_init(&origin_buffer, origin, len);
 	isc_buffer_add(&origin_buffer, len);
 	dns_result = dns_name_fromtext(dns_fixedname_name(&dns_origin),
 				&origin_buffer, NULL, ISC_FALSE, NULL);
-	if (dns_result != DNS_R_SUCCESS) {
+	if (dns_result != ISC_R_SUCCESS) {
 		t_info("dns_name_fromtext failed %s\n",
 			dns_result_totext(dns_result));
 		return(T_UNRESOLVED);
@@ -294,7 +273,7 @@ t_dns_db_zc_x(char *filename,
 	textregion.base = class;
 	textregion.length = strlen(class);
 	dns_result = dns_rdataclass_fromtext(&rdataclass, &textregion);
-	if (dns_result != DNS_R_SUCCESS) {
+	if (dns_result != ISC_R_SUCCESS) {
 		t_info("dns_rdataclass_fromtext failed %s\n",
 				dns_result_totext(dns_result));
 		return(T_UNRESOLVED);
@@ -310,7 +289,7 @@ t_dns_db_zc_x(char *filename,
 	dns_result = dns_db_create(mctx, db_type,
 				dns_fixedname_name(&dns_origin),
 				cache, rdataclass, 0, NULL, &db);
-	if (dns_result != DNS_R_SUCCESS) {
+	if (dns_result != ISC_R_SUCCESS) {
 		t_info("dns_db_create failed %s\n",
 			dns_result_totext(dns_result));
 		isc_mem_destroy(&mctx);
@@ -318,7 +297,7 @@ t_dns_db_zc_x(char *filename,
 	}
 
 	dns_result = dns_db_load(db, filename);
-	if (dns_result == DNS_R_SUCCESS) {
+	if (dns_result == ISC_R_SUCCESS) {
 		if ((*cf)(db) == exp_result)
 			result = T_PASS;
 		else
@@ -358,8 +337,10 @@ test_dns_db_zc_x(char *filename, isc_boolean_t cache,
 
 			++line;
 
-			/* skip comment lines */
-			if ((isspace((int)*p)) || (*p == '#'))
+			/*
+			 * Skip comment lines.
+			 */
+			if ((isspace((unsigned char)*p)) || (*p == '#'))
 				continue;
 
 			cnt = t_bustline(p, tokens);
@@ -496,7 +477,7 @@ t_dns_db_origin(char **av) {
 	}
 
 	dns_result = t_create("rbt", origin, "in", "isc_true", mctx, &db);
-	if (dns_result != DNS_R_SUCCESS) {
+	if (dns_result != ISC_R_SUCCESS) {
 		t_info("t_create failed %s\n",
 			dns_result_totext(dns_result));
 		isc_mem_destroy(&mctx);
@@ -506,11 +487,11 @@ t_dns_db_origin(char **av) {
 	dns_fixedname_init(&dns_dborigin);
 
 	len = strlen(origin);
-	isc_buffer_init(&origin_buffer, origin, len, ISC_BUFFERTYPE_TEXT);
+	isc_buffer_init(&origin_buffer, origin, len);
 	isc_buffer_add(&origin_buffer, len);
 
 	dns_result = dns_db_load(db, filename);
-	if (dns_result != DNS_R_SUCCESS) {
+	if (dns_result != ISC_R_SUCCESS) {
 		t_info("dns_db_load failed %s\n",
 				dns_result_totext(dns_result));
 		dns_db_detach(&db);
@@ -520,7 +501,7 @@ t_dns_db_origin(char **av) {
 
 	dns_result = dns_name_fromtext(dns_fixedname_name(&dns_origin),
 				&origin_buffer, NULL, ISC_FALSE, NULL);
-	if (dns_result != DNS_R_SUCCESS) {
+	if (dns_result != ISC_R_SUCCESS) {
 		t_info("dns_name_fromtext failed %s\n",
 				dns_result_totext(dns_result));
 		dns_db_detach(&db);
@@ -590,7 +571,7 @@ t_dns_db_class(char **av) {
 	textregion.base = class;
 	textregion.length = strlen(class);
 	dns_result = dns_rdataclass_fromtext(&rdataclass, &textregion);
-	if (dns_result != DNS_R_SUCCESS) {
+	if (dns_result != ISC_R_SUCCESS) {
 		t_info("dns_rdataclass_fromtext failed %s\n",
 				dns_result_totext(dns_result));
 		return(T_UNRESOLVED);
@@ -604,7 +585,7 @@ t_dns_db_class(char **av) {
 	}
 
 	dns_result = t_create("rbt", ".", class, "isc_true", mctx, &db);
-	if (dns_result != DNS_R_SUCCESS) {
+	if (dns_result != ISC_R_SUCCESS) {
 		t_info("t_create failed %s\n",
 			dns_result_totext(dns_result));
 		isc_mem_destroy(&mctx);
@@ -612,7 +593,7 @@ t_dns_db_class(char **av) {
 	}
 
 	dns_result = dns_db_load(db, filename);
-	if (dns_result != DNS_R_SUCCESS) {
+	if (dns_result != ISC_R_SUCCESS) {
 		t_info("dns_db_load failed %s\n",
 				dns_result_totext(dns_result));
 		dns_db_detach(&db);
@@ -621,11 +602,10 @@ t_dns_db_class(char **av) {
 	}
 
 	db_rdataclass = dns_db_class(db);
-	if (db_rdataclass == rdataclass) {
+	if (db_rdataclass == rdataclass)
 		result = T_PASS;
-	}
 	else {
-		isc_buffer_init(&isc_buffer, buf, CLASSBUFLEN, ISC_BUFFERTYPE_TEXT);
+		isc_buffer_init(&isc_buffer, buf, CLASSBUFLEN);
 		dns_rdataclass_totext(db_rdataclass, &isc_buffer);
 		t_info("dns_db_class returned %.*s, expected %s\n",
 			isc_buffer.used, isc_buffer.base, class);
@@ -653,7 +633,6 @@ static char *a8 =
 
 static int
 t_dns_db_currentversion(char **av) {
-
 	char			*filename;
 	char			*db_type;
 	char			*origin;
@@ -700,13 +679,13 @@ t_dns_db_currentversion(char **av) {
 	}
 
 	dns_result = t_create(db_type, origin, class, cache, mctx, &db);
-	if (dns_result != DNS_R_SUCCESS) {
+	if (dns_result != ISC_R_SUCCESS) {
 		isc_mem_destroy(&mctx);
 		return(T_UNRESOLVED);
 	}
 
 	dns_result = dns_db_load(db, filename);
-	if (dns_result != DNS_R_SUCCESS) {
+	if (dns_result != ISC_R_SUCCESS) {
 		t_info("dns_db_load returned %s\n",
 				dns_result_totext(dns_result));
 		dns_db_detach(&db);
@@ -716,11 +695,11 @@ t_dns_db_currentversion(char **av) {
 
 	dns_fixedname_init(&dns_findname);
 	len = strlen(findname);
-	isc_buffer_init(&findname_buffer, findname, len, ISC_BUFFERTYPE_TEXT);
+	isc_buffer_init(&findname_buffer, findname, len);
 	isc_buffer_add(&findname_buffer, len);
 	dns_result = dns_name_fromtext(dns_fixedname_name(&dns_findname),
 				&findname_buffer, NULL, ISC_FALSE, NULL);
-	if (dns_result != DNS_R_SUCCESS) {
+	if (dns_result != ISC_R_SUCCESS) {
 		t_info("dns_name_fromtext failed %s\n",
 			dns_result_totext(dns_result));
 		dns_db_detach(&db);
@@ -731,7 +710,7 @@ t_dns_db_currentversion(char **av) {
 	textregion.base = findtype;
 	textregion.length = strlen(findtype);
 	dns_result = dns_rdatatype_fromtext(&rdatatype, &textregion);
-	if (dns_result != DNS_R_SUCCESS) {
+	if (dns_result != ISC_R_SUCCESS) {
 		t_info("dns_rdatatype_fromtext %s failed %s\n",
 				findtype,
 				dns_result_totext(dns_result));
@@ -760,7 +739,7 @@ t_dns_db_currentversion(char **av) {
 			dns_fixedname_name(&dns_foundname),
 			&rdataset, NULL);
 
-	if (dns_result != DNS_R_SUCCESS) {
+	if (dns_result != ISC_R_SUCCESS) {
 		t_info("unable to find %s using current version\n", findname);
 		dns_db_closeversion(db, &cversionp, ISC_FALSE);
 		dns_db_detach(&db);
@@ -779,7 +758,7 @@ t_dns_db_currentversion(char **av) {
 
 	nversionp = NULL;
 	dns_result = dns_db_newversion(db, &nversionp);
-	if (dns_result != DNS_R_SUCCESS) {
+	if (dns_result != ISC_R_SUCCESS) {
 		t_info("dns_db_newversion failed %s\n",
 				dns_result_totext(dns_result));
 		dns_db_detachnode(db, &nodep);
@@ -792,7 +771,7 @@ t_dns_db_currentversion(char **av) {
 
 	/* delete the found rdataset in the new version */
 	dns_result = dns_db_deleterdataset(db, nodep, nversionp, rdatatype, 0);
-	if (dns_result != DNS_R_SUCCESS) {
+	if (dns_result != ISC_R_SUCCESS) {
 		t_info("dns_db_deleterdataset failed %s\n",
 				dns_result_totext(dns_result));
 		dns_rdataset_disassociate(&rdataset);
@@ -820,8 +799,9 @@ t_dns_db_currentversion(char **av) {
 			dns_fixedname_name(&dns_foundname),
 			&rdataset, NULL);
 
-	if ((dns_result != DNS_R_NOTFOUND) && (dns_result != DNS_R_NXDOMAIN)) {
-		t_info("unexpectedly found %s using current version\n", findname);
+	if ((dns_result != ISC_R_NOTFOUND) && (dns_result != DNS_R_NXDOMAIN)) {
+		t_info("unexpectedly found %s using current version\n",
+		       findname);
 		dns_db_closeversion(db, &cversionp, ISC_FALSE);
 		dns_db_closeversion(db, &nversionp, ISC_FALSE);
 		dns_db_detach(&db);
@@ -844,7 +824,7 @@ t_dns_db_currentversion(char **av) {
 			&rdataset, NULL);
 
 	/* and expect it to succeed */
-	if (dns_result == DNS_R_SUCCESS) {
+	if (dns_result == ISC_R_SUCCESS) {
 		result = T_PASS;
 	}
 	else {
@@ -870,15 +850,14 @@ t8() {
 	int	result;
 
 	t_assert("dns_db_currentversion", 8, T_REQUIRED, a8);
-	result = t_eval("dns_db_currentversion_data", t_dns_db_currentversion, 7);
+	result = t_eval("dns_db_currentversion_data",
+			t_dns_db_currentversion, 7);
 	t_result(result);
 }
-
 
 static char *a9 =
 	"A call to dns_db_newversion() opens a new version for "
 	"reading and writing.";
-
 
 static int
 t_dns_db_newversion(char **av) {
@@ -940,13 +919,13 @@ t_dns_db_newversion(char **av) {
 	}
 
 	dns_result = t_create(db_type, origin, class, cache, mctx, &db);
-	if (dns_result != DNS_R_SUCCESS) {
+	if (dns_result != ISC_R_SUCCESS) {
 		isc_mem_destroy(&mctx);
 		return(T_UNRESOLVED);
 	}
 
 	dns_result = dns_db_load(db, filename);
-	if (dns_result != DNS_R_SUCCESS) {
+	if (dns_result != ISC_R_SUCCESS) {
 		t_info("dns_db_load returned %s\n",
 				dns_result_totext(dns_result));
 		dns_db_detach(&db);
@@ -960,11 +939,11 @@ t_dns_db_newversion(char **av) {
 
 	dns_fixedname_init(&dns_newname);
 	len = strlen(newname);
-	isc_buffer_init(&newname_buffer, newname, len, ISC_BUFFERTYPE_TEXT);
+	isc_buffer_init(&newname_buffer, newname, len);
 	isc_buffer_add(&newname_buffer, len);
 	dns_result = dns_name_fromtext(dns_fixedname_name(&dns_newname),
 				&newname_buffer, NULL, ISC_FALSE, NULL);
-	if (dns_result != DNS_R_SUCCESS) {
+	if (dns_result != ISC_R_SUCCESS) {
 		t_info("dns_name_fromtext failed %s\n",
 			dns_result_totext(dns_result));
 		dns_db_detach(&db);
@@ -975,7 +954,7 @@ t_dns_db_newversion(char **av) {
 	nodep = NULL;
 	dns_result = dns_db_findnode(db, dns_fixedname_name(&dns_newname),
 				ISC_TRUE, &nodep);
-	if (dns_result != DNS_R_SUCCESS) {
+	if (dns_result != ISC_R_SUCCESS) {
 		t_info("dns_db_findnode failed %s\n",
 				dns_result_totext(dns_result));
 		dns_db_detach(&db);
@@ -991,7 +970,7 @@ t_dns_db_newversion(char **av) {
 	textregion.length = strlen(newtype);
 	dns_result = dns_rdatatype_fromtext(&rdatatype, &textregion);
 
-	if (dns_result != DNS_R_SUCCESS) {
+	if (dns_result != ISC_R_SUCCESS) {
 		t_info("dns_rdatatype_fromtext %s failed %s\n",
 				newtype,
 				dns_result_totext(dns_result));
@@ -1004,7 +983,7 @@ t_dns_db_newversion(char **av) {
 	textregion.base = class;
 	textregion.length = strlen(class);
 	dns_result = dns_rdataclass_fromtext(&rdataclass, &textregion);
-	if (dns_result != DNS_R_SUCCESS) {
+	if (dns_result != ISC_R_SUCCESS) {
 		t_info("dns_rdataclass_fromtext failed %s\n",
 				dns_result_totext(dns_result));
 		dns_db_detachnode(db, &nodep);
@@ -1028,7 +1007,7 @@ t_dns_db_newversion(char **av) {
 	ISC_LIST_APPEND(rdatalist.rdata, &added_rdata, link);
 
 	dns_result = dns_rdatalist_tordataset(&rdatalist, &added_rdataset);
-	if (dns_result != DNS_R_SUCCESS) {
+	if (dns_result != ISC_R_SUCCESS) {
 		t_info("dns_rdatalist_tordataset failed %s\n",
 				dns_result_totext(dns_result));
 		dns_db_detachnode(db, &nodep);
@@ -1039,7 +1018,7 @@ t_dns_db_newversion(char **av) {
 
 	nversionp = NULL;
 	dns_result = dns_db_newversion(db, &nversionp);
-	if (dns_result != DNS_R_SUCCESS) {
+	if (dns_result != ISC_R_SUCCESS) {
 		t_info("dns_db_newversion failed %s\n",
 				dns_result_totext(dns_result));
 		dns_db_detachnode(db, &nodep);
@@ -1050,7 +1029,7 @@ t_dns_db_newversion(char **av) {
 
 	dns_result = dns_db_addrdataset(db, nodep, nversionp, 0,
 				&added_rdataset, 0, NULL);
-	if (dns_result != DNS_R_SUCCESS) {
+	if (dns_result != ISC_R_SUCCESS) {
 		t_info("dns_db_addrdataset failed %s\n",
 				dns_result_totext(dns_result));
 		dns_db_closeversion(db, &nversionp, ISC_FALSE);
@@ -1086,7 +1065,7 @@ t_dns_db_newversion(char **av) {
 			&found_rdataset,
 			NULL);
 
-	if (dns_result != DNS_R_SUCCESS) {
+	if (dns_result != ISC_R_SUCCESS) {
 /* ZZZ - NXRRSET ???  reference counts ??? */
 		t_info("dns_db_find failed %s\n",
 				dns_result_totext(dns_result));
@@ -1100,7 +1079,7 @@ t_dns_db_newversion(char **av) {
 	}
 
 	dns_result = dns_rdataset_first(&found_rdataset);
-	if (dns_result != DNS_R_SUCCESS) {
+	if (dns_result != ISC_R_SUCCESS) {
 		t_info("dns_rdataset_first failed %s\n",
 				dns_result_totext(dns_result));
 		dns_db_detachnode(db, &nodep);
@@ -1134,6 +1113,7 @@ t_dns_db_newversion(char **av) {
 
 	return(result);
 }
+
 static void
 t9() {
 	int	result;
@@ -1143,16 +1123,14 @@ t9() {
 	t_result(result);
 }
 
-
 static char *a10 =
 	"When versionp points to a read-write version and commit is "
 	"ISC_TRUE, a call to dns_db_closeversion(db, versionp, commit) "
 	"causes all changes made in the version to take effect, "
-	"and returns DNS_R_SUCCESS.";
+	"and returns ISC_R_SUCCESS.";
 
 static int
 t_dns_db_closeversion_1(char **av) {
-
 	char			*filename;
 	char			*db_type;
 	char			*origin;
@@ -1218,13 +1196,13 @@ t_dns_db_closeversion_1(char **av) {
 	}
 
 	dns_result = t_create(db_type, origin, class, cache, mctx, &db);
-	if (dns_result != DNS_R_SUCCESS) {
+	if (dns_result != ISC_R_SUCCESS) {
 		isc_mem_destroy(&mctx);
 		return(T_UNRESOLVED);
 	}
 
 	dns_result = dns_db_load(db, filename);
-	if (dns_result != DNS_R_SUCCESS) {
+	if (dns_result != ISC_R_SUCCESS) {
 		t_info("dns_db_load returned %s\n",
 				dns_result_totext(dns_result));
 		dns_db_detach(&db);
@@ -1238,11 +1216,11 @@ t_dns_db_closeversion_1(char **av) {
 
 	dns_fixedname_init(&dns_existingname);
 	len = strlen(existing_name);
-	isc_buffer_init(&name_buffer, existing_name, len, ISC_BUFFERTYPE_TEXT);
+	isc_buffer_init(&name_buffer, existing_name, len);
 	isc_buffer_add(&name_buffer, len);
 	dns_result = dns_name_fromtext(dns_fixedname_name(&dns_existingname),
 			&name_buffer, NULL, ISC_FALSE, NULL);
-	if (dns_result != DNS_R_SUCCESS) {
+	if (dns_result != ISC_R_SUCCESS) {
 		t_info("dns_name_fromtext failed %s\n",
 			dns_result_totext(dns_result));
 		dns_db_detach(&db);
@@ -1253,7 +1231,7 @@ t_dns_db_closeversion_1(char **av) {
 	textregion.base = existing_type;
 	textregion.length = strlen(existing_type);
 	dns_result = dns_rdatatype_fromtext(&existing_rdatatype, &textregion);
-	if (dns_result != DNS_R_SUCCESS) {
+	if (dns_result != ISC_R_SUCCESS) {
 		t_info("dns_rdatatype_fromtext %s failed %s\n",
 				existing_type,
 				dns_result_totext(dns_result));
@@ -1266,7 +1244,7 @@ t_dns_db_closeversion_1(char **av) {
 	nodep = NULL;
 	dns_result = dns_db_findnode(db, dns_fixedname_name(&dns_existingname),
 				ISC_FALSE, &nodep);
-	if (dns_result != DNS_R_SUCCESS) {
+	if (dns_result != ISC_R_SUCCESS) {
 		t_info("dns_db_findnode %s\n",
 				dns_result_totext(dns_result));
 		dns_db_detach(&db);
@@ -1277,7 +1255,7 @@ t_dns_db_closeversion_1(char **av) {
 	/* open a new version */
 	nversionp = NULL;
 	dns_result = dns_db_newversion(db, &nversionp);
-	if (dns_result != DNS_R_SUCCESS) {
+	if (dns_result != ISC_R_SUCCESS) {
 		t_info("dns_db_newversion failed %s\n",
 				dns_result_totext(dns_result));
 		dns_db_detachnode(db, &nodep);
@@ -1287,7 +1265,7 @@ t_dns_db_closeversion_1(char **av) {
 	}
 
 	dns_result = dns_db_deleterdataset(db, nodep, nversionp, existing_rdatatype, 0);
-	if (dns_result != DNS_R_SUCCESS) {
+	if (dns_result != ISC_R_SUCCESS) {
 		t_info("dns_db_deleterdataset failed %s\n",
 				dns_result_totext(dns_result));
 		dns_db_closeversion(db, &nversionp, ISC_FALSE);
@@ -1306,11 +1284,11 @@ t_dns_db_closeversion_1(char **av) {
 
 	dns_fixedname_init(&dns_newname);
 	len = strlen(new_name);
-	isc_buffer_init(&name_buffer, new_name, len, ISC_BUFFERTYPE_TEXT);
+	isc_buffer_init(&name_buffer, new_name, len);
 	isc_buffer_add(&name_buffer, len);
 	dns_result = dns_name_fromtext(dns_fixedname_name(&dns_newname),
 				&name_buffer, NULL, ISC_FALSE, NULL);
-	if (dns_result != DNS_R_SUCCESS) {
+	if (dns_result != ISC_R_SUCCESS) {
 		t_info("dns_name_fromtext failed %s\n",
 			dns_result_totext(dns_result));
 		dns_db_closeversion(db, &nversionp, ISC_FALSE);
@@ -1321,7 +1299,7 @@ t_dns_db_closeversion_1(char **av) {
 
 	dns_result = dns_db_findnode(db, dns_fixedname_name(&dns_newname),
 				ISC_TRUE, &nodep);
-	if (dns_result != DNS_R_SUCCESS) {
+	if (dns_result != ISC_R_SUCCESS) {
 		t_info("dns_db_findnode failed %s\n",
 				dns_result_totext(dns_result));
 		dns_db_closeversion(db, &nversionp, ISC_FALSE);
@@ -1337,7 +1315,7 @@ t_dns_db_closeversion_1(char **av) {
 	textregion.base = new_type;
 	textregion.length = strlen(new_type);
 	dns_result = dns_rdatatype_fromtext(&new_rdatatype, &textregion);
-	if (dns_result != DNS_R_SUCCESS) {
+	if (dns_result != ISC_R_SUCCESS) {
 		t_info("dns_rdatatype_fromtext %s failed %s\n",
 				new_type,
 				dns_result_totext(dns_result));
@@ -1350,7 +1328,7 @@ t_dns_db_closeversion_1(char **av) {
 	textregion.base = class;
 	textregion.length = strlen(class);
 	dns_result = dns_rdataclass_fromtext(&rdataclass, &textregion);
-	if (dns_result != DNS_R_SUCCESS) {
+	if (dns_result != ISC_R_SUCCESS) {
 		t_info("dns_rdataclass_fromtext failed %s\n",
 				dns_result_totext(dns_result));
 		dns_db_detachnode(db, &nodep);
@@ -1374,7 +1352,7 @@ t_dns_db_closeversion_1(char **av) {
 	ISC_LIST_APPEND(rdatalist.rdata, &added_rdata, link);
 
 	dns_result = dns_rdatalist_tordataset(&rdatalist, &added_rdataset);
-	if (dns_result != DNS_R_SUCCESS) {
+	if (dns_result != ISC_R_SUCCESS) {
 		t_info("dns_rdatalist_tordataset failed %s\n",
 				dns_result_totext(dns_result));
 		dns_db_detachnode(db, &nodep);
@@ -1385,7 +1363,7 @@ t_dns_db_closeversion_1(char **av) {
 
 	dns_result = dns_db_addrdataset(db, nodep, nversionp, 0,
 				&added_rdataset, 0, NULL);
-	if (dns_result != DNS_R_SUCCESS) {
+	if (dns_result != ISC_R_SUCCESS) {
 		t_info("dns_db_addrdataset failed %s\n",
 				dns_result_totext(dns_result));
 		dns_db_closeversion(db, &nversionp, ISC_FALSE);
@@ -1417,7 +1395,7 @@ t_dns_db_closeversion_1(char **av) {
 			dns_fixedname_name(&dns_foundname),
 			&found_rdataset, NULL);
 
-	if (dns_result != DNS_R_SUCCESS) {
+	if (dns_result != ISC_R_SUCCESS) {
 /* ZZZ NXRRSET ??? reference counting ??? */
 		t_info("dns_db_find failed %s\n",
 				dns_result_totext(dns_result));
@@ -1431,7 +1409,7 @@ t_dns_db_closeversion_1(char **av) {
 	}
 
 	dns_result = dns_rdataset_first(&found_rdataset);
-	if (dns_result != DNS_R_SUCCESS) {
+	if (dns_result != ISC_R_SUCCESS) {
 		t_info("dns_rdataset_first failed %s\n",
 				dns_result_totext(dns_result));
 		dns_db_detachnode(db, &nodep);
@@ -1472,7 +1450,7 @@ t_dns_db_closeversion_1(char **av) {
 			&found_rdataset, NULL);
 
 
-	if ((dns_result != DNS_R_NOTFOUND) && (dns_result != DNS_R_NXDOMAIN)) {
+	if ((dns_result != ISC_R_NOTFOUND) && (dns_result != DNS_R_NXDOMAIN)) {
 		dns_rdataset_disassociate(&found_rdataset);
 		dns_db_detachnode(db, &nodep);
 		t_info("dns_db_find %s returned %s\n", existing_name,
@@ -1497,20 +1475,19 @@ t10() {
 	int	result;
 
 	t_assert("dns_db_closeversion", 10, T_REQUIRED, a10);
-	result = t_eval("dns_db_closeversion_1_data", t_dns_db_closeversion_1, 9);
+	result = t_eval("dns_db_closeversion_1_data",
+			t_dns_db_closeversion_1, 9);
 	t_result(result);
 }
-
 
 static char *a11 =
 	"When versionp points to a read-write version and commit is "
 	"ISC_FALSE, a call to dns_db_closeversion(db, versionp, commit) "
 	"causes all changes made in the version to to be rolled back, "
-	"and returns DNS_R_SUCCESS.";
+	"and returns ISC_R_SUCCESS.";
 
 static int
 t_dns_db_closeversion_2(char **av) {
-
 	char			*filename;
 	char			*db_type;
 	char			*origin;
@@ -1576,13 +1553,13 @@ t_dns_db_closeversion_2(char **av) {
 	}
 
 	dns_result = t_create(db_type, origin, class, cache, mctx, &db);
-	if (dns_result != DNS_R_SUCCESS) {
+	if (dns_result != ISC_R_SUCCESS) {
 		isc_mem_destroy(&mctx);
 		return(T_UNRESOLVED);
 	}
 
 	dns_result = dns_db_load(db, filename);
-	if (dns_result != DNS_R_SUCCESS) {
+	if (dns_result != ISC_R_SUCCESS) {
 		t_info("dns_db_load returned %s\n",
 				dns_result_totext(dns_result));
 		dns_db_detach(&db);
@@ -1596,11 +1573,11 @@ t_dns_db_closeversion_2(char **av) {
 
 	dns_fixedname_init(&dns_existingname);
 	len = strlen(existing_name);
-	isc_buffer_init(&name_buffer, existing_name, len, ISC_BUFFERTYPE_TEXT);
+	isc_buffer_init(&name_buffer, existing_name, len);
 	isc_buffer_add(&name_buffer, len);
 	dns_result = dns_name_fromtext(dns_fixedname_name(&dns_existingname),
 			&name_buffer, NULL, ISC_FALSE, NULL);
-	if (dns_result != DNS_R_SUCCESS) {
+	if (dns_result != ISC_R_SUCCESS) {
 		t_info("dns_name_fromtext failed %s\n",
 			dns_result_totext(dns_result));
 		dns_db_detach(&db);
@@ -1611,7 +1588,7 @@ t_dns_db_closeversion_2(char **av) {
 	textregion.base = existing_type;
 	textregion.length = strlen(existing_type);
 	dns_result = dns_rdatatype_fromtext(&existing_rdatatype, &textregion);
-	if (dns_result != DNS_R_SUCCESS) {
+	if (dns_result != ISC_R_SUCCESS) {
 		t_info("dns_rdatatype_fromtext %s failed %s\n",
 				existing_type,
 				dns_result_totext(dns_result));
@@ -1624,7 +1601,7 @@ t_dns_db_closeversion_2(char **av) {
 	nodep = NULL;
 	dns_result = dns_db_findnode(db, dns_fixedname_name(&dns_existingname),
 				ISC_FALSE, &nodep);
-	if (dns_result != DNS_R_SUCCESS) {
+	if (dns_result != ISC_R_SUCCESS) {
 		t_info("dns_db_findnode %s\n",
 				dns_result_totext(dns_result));
 		dns_db_detach(&db);
@@ -1635,7 +1612,7 @@ t_dns_db_closeversion_2(char **av) {
 	/* open a new version */
 	nversionp = NULL;
 	dns_result = dns_db_newversion(db, &nversionp);
-	if (dns_result != DNS_R_SUCCESS) {
+	if (dns_result != ISC_R_SUCCESS) {
 		t_info("dns_db_newversion failed %s\n",
 				dns_result_totext(dns_result));
 		dns_db_detachnode(db, &nodep);
@@ -1645,7 +1622,7 @@ t_dns_db_closeversion_2(char **av) {
 	}
 
 	dns_result = dns_db_deleterdataset(db, nodep, nversionp, existing_rdatatype, 0);
-	if (dns_result != DNS_R_SUCCESS) {
+	if (dns_result != ISC_R_SUCCESS) {
 		t_info("dns_db_deleterdataset failed %s\n",
 				dns_result_totext(dns_result));
 		dns_db_closeversion(db, &nversionp, ISC_FALSE);
@@ -1664,11 +1641,11 @@ t_dns_db_closeversion_2(char **av) {
 
 	dns_fixedname_init(&dns_newname);
 	len = strlen(new_name);
-	isc_buffer_init(&name_buffer, new_name, len, ISC_BUFFERTYPE_TEXT);
+	isc_buffer_init(&name_buffer, new_name, len);
 	isc_buffer_add(&name_buffer, len);
 	dns_result = dns_name_fromtext(dns_fixedname_name(&dns_newname),
 				&name_buffer, NULL, ISC_FALSE, NULL);
-	if (dns_result != DNS_R_SUCCESS) {
+	if (dns_result != ISC_R_SUCCESS) {
 		t_info("dns_name_fromtext failed %s\n",
 			dns_result_totext(dns_result));
 		dns_db_closeversion(db, &nversionp, ISC_FALSE);
@@ -1679,7 +1656,7 @@ t_dns_db_closeversion_2(char **av) {
 
 	dns_result = dns_db_findnode(db, dns_fixedname_name(&dns_newname),
 				ISC_TRUE, &nodep);
-	if (dns_result != DNS_R_SUCCESS) {
+	if (dns_result != ISC_R_SUCCESS) {
 		t_info("dns_db_findnode failed %s\n",
 				dns_result_totext(dns_result));
 		dns_db_closeversion(db, &nversionp, ISC_FALSE);
@@ -1691,7 +1668,7 @@ t_dns_db_closeversion_2(char **av) {
 	textregion.base = new_type;
 	textregion.length = strlen(new_type);
 	dns_result = dns_rdatatype_fromtext(&new_rdatatype, &textregion);
-	if (dns_result != DNS_R_SUCCESS) {
+	if (dns_result != ISC_R_SUCCESS) {
 		t_info("dns_rdatatype_fromtext %s failed %s\n",
 				new_type,
 				dns_result_totext(dns_result));
@@ -1704,7 +1681,7 @@ t_dns_db_closeversion_2(char **av) {
 	textregion.base = class;
 	textregion.length = strlen(class);
 	dns_result = dns_rdataclass_fromtext(&rdataclass, &textregion);
-	if (dns_result != DNS_R_SUCCESS) {
+	if (dns_result != ISC_R_SUCCESS) {
 		t_info("dns_rdataclass_fromtext failed %s\n",
 				dns_result_totext(dns_result));
 		dns_db_detachnode(db, &nodep);
@@ -1728,7 +1705,7 @@ t_dns_db_closeversion_2(char **av) {
 	ISC_LIST_APPEND(rdatalist.rdata, &added_rdata, link);
 
 	dns_result = dns_rdatalist_tordataset(&rdatalist, &added_rdataset);
-	if (dns_result != DNS_R_SUCCESS) {
+	if (dns_result != ISC_R_SUCCESS) {
 		t_info("dns_rdatalist_tordataset failed %s\n",
 				dns_result_totext(dns_result));
 		dns_db_detachnode(db, &nodep);
@@ -1739,7 +1716,7 @@ t_dns_db_closeversion_2(char **av) {
 
 	dns_result = dns_db_addrdataset(db, nodep, nversionp, 0,
 				&added_rdataset, 0, NULL);
-	if (dns_result != DNS_R_SUCCESS) {
+	if (dns_result != ISC_R_SUCCESS) {
 		t_info("dns_db_addrdataset failed %s\n",
 				dns_result_totext(dns_result));
 		dns_db_closeversion(db, &nversionp, ISC_FALSE);
@@ -1766,9 +1743,9 @@ t_dns_db_closeversion_2(char **av) {
 			dns_fixedname_name(&dns_foundname),
 			&found_rdataset, NULL);
 
-	if (	(dns_result == DNS_R_NOTFOUND)	||
+	if (	(dns_result == ISC_R_NOTFOUND)	||
 		(dns_result == DNS_R_NXDOMAIN)	||
-		(dns_result == DNS_R_NXRDATASET)) {
+		(dns_result == DNS_R_NXRRSET)) {
 
 		t_info("dns_db_find failed %s\n",
 				dns_result_totext(dns_result));
@@ -1782,7 +1759,7 @@ t_dns_db_closeversion_2(char **av) {
 	}
 
 	dns_result = dns_rdataset_first(&found_rdataset);
-	if (dns_result != DNS_R_SUCCESS) {
+	if (dns_result != ISC_R_SUCCESS) {
 		t_info("dns_rdataset_first failed %s\n",
 				dns_result_totext(dns_result));
 		dns_db_detachnode(db, &nodep);
@@ -1823,7 +1800,7 @@ t_dns_db_closeversion_2(char **av) {
 			&found_rdataset, NULL);
 
 
-	if ((dns_result != DNS_R_NOTFOUND) && (dns_result != DNS_R_NXDOMAIN)) {
+	if ((dns_result != ISC_R_NOTFOUND) && (dns_result != DNS_R_NXDOMAIN)) {
 		t_info("dns_db_find %s returned %s\n", existing_name,
 				dns_result_totext(dns_result));
 		if (dns_rdataset_isassociated(&found_rdataset))
@@ -1853,7 +1830,7 @@ t_dns_db_closeversion_2(char **av) {
 			dns_fixedname_name(&dns_foundname),
 			&found_rdataset, NULL);
 
-	if ((dns_result != DNS_R_NOTFOUND) && (dns_result != DNS_R_NXDOMAIN)) {
+	if ((dns_result != ISC_R_NOTFOUND) && (dns_result != DNS_R_NXDOMAIN)) {
 		t_info("dns_db_find %s returned %s\n", new_name,
 				dns_result_totext(dns_result));
 		dns_rdataset_disassociate(&found_rdataset);
@@ -1881,9 +1858,9 @@ t_dns_db_closeversion_2(char **av) {
 			&found_rdataset, NULL);
 
 
-	if (	(dns_result == DNS_R_NOTFOUND)	||
+	if (	(dns_result == ISC_R_NOTFOUND)	||
 		(dns_result == DNS_R_NXDOMAIN)	||
-		(dns_result == DNS_R_NXRDATASET)) {
+		(dns_result == DNS_R_NXRRSET)) {
 
 		t_info("dns_db_find %s returned %d\n", existing_name,
 				dns_result_totext(dns_result));
@@ -1911,10 +1888,10 @@ t11() {
 	int	result;
 
 	t_assert("dns_db_closeversion", 11, T_REQUIRED, a11);
-	result = t_eval("dns_db_closeversion_2_data", t_dns_db_closeversion_2, 9);
+	result = t_eval("dns_db_closeversion_2_data",
+			t_dns_db_closeversion_2, 9);
 	t_result(result);
 }
-
 
 static char *a12 =
 	"A call to dns_db_expirenode() marks as stale all records at node  "
@@ -1923,7 +1900,6 @@ static char *a12 =
 
 static int
 t_dns_db_expirenode(char **av) {
-
 	char			*filename;
 	char			*db_type;
 	char			*origin;
@@ -1974,11 +1950,11 @@ t_dns_db_expirenode(char **av) {
 
 	dns_fixedname_init(&dns_existingname);
 	len = strlen(existing_name);
-	isc_buffer_init(&name_buffer, existing_name, len, ISC_BUFFERTYPE_TEXT);
+	isc_buffer_init(&name_buffer, existing_name, len);
 	isc_buffer_add(&name_buffer, len);
 	dns_result = dns_name_fromtext(dns_fixedname_name(&dns_existingname),
 				&name_buffer, NULL, ISC_FALSE, NULL);
-	if (dns_result != DNS_R_SUCCESS) {
+	if (dns_result != ISC_R_SUCCESS) {
 		t_info("dns_name_fromtext failed %s\n",
 				dns_result_totext(dns_result));
 		return(T_UNRESOLVED);
@@ -1994,13 +1970,13 @@ t_dns_db_expirenode(char **av) {
 
 	db = NULL;
 	dns_result = t_create(db_type, origin, class, "cache", mctx, &db);
-	if (dns_result != DNS_R_SUCCESS) {
+	if (dns_result != ISC_R_SUCCESS) {
 		isc_mem_destroy(&mctx);
 		return(T_UNRESOLVED);
 	}
 
 	dns_result = dns_db_load(db, filename);
-	if (dns_result != DNS_R_SUCCESS) {
+	if (dns_result != ISC_R_SUCCESS) {
 		t_info("dns_db_load returned %s\n",
 				dns_result_totext(dns_result));
 		dns_db_detach(&db);
@@ -2015,7 +1991,7 @@ t_dns_db_expirenode(char **av) {
 			dns_fixedname_name(&dns_existingname),
 			ISC_FALSE,
 			&nodep);
-	if (dns_result != DNS_R_SUCCESS) {
+	if (dns_result != ISC_R_SUCCESS) {
 		t_info("unable to find %s\n", existing_name);
 		dns_db_detach(&db);
 		isc_mem_destroy(&mctx);
@@ -2027,7 +2003,7 @@ t_dns_db_expirenode(char **av) {
 		node_expire_time += now;
 
 	dns_result = dns_db_expirenode(db, nodep, node_expire_time);
-	if (dns_result != DNS_R_SUCCESS) {
+	if (dns_result != ISC_R_SUCCESS) {
 		t_info("dns_db_expirenode failed %s\n",
 				dns_result_totext(dns_result));
 		dns_db_detachnode(db, &nodep);
@@ -2063,9 +2039,9 @@ t_dns_db_expirenode(char **av) {
 		result = T_FAIL;
 	}
 
-	if (	(dns_result != DNS_R_NOTFOUND)	&&
+	if (	(dns_result != ISC_R_NOTFOUND)	&&
 		(dns_result != DNS_R_NXDOMAIN)	&&
-		(dns_result != DNS_R_NXRDATASET)) {
+		(dns_result != DNS_R_NXRRSET)) {
 
 		/*
 		 * don't need to disassociate the rdataset because
@@ -2090,17 +2066,14 @@ t12() {
 	t_result(result);
 }
 
-
 static char *a13 =
 	"If the node name exists, then a call to "
 	"dns_db_findnode(db, name, ISC_FALSE, nodep) initializes nodep "
-	"to point to the node and returns DNS_R_SUCCESS, otherwise "
-	"it returns DNS_R_NOTFOUND.";
-
+	"to point to the node and returns ISC_R_SUCCESS, otherwise "
+	"it returns ISC_R_NOTFOUND.";
 
 static int
 t_dns_db_findnode_1(char **av) {
-
 	char		*filename;
 	char		*db_type;
 	char		*origin;
@@ -2145,7 +2118,7 @@ t_dns_db_findnode_1(char **av) {
 	textregion.base = find_type;
 	textregion.length = strlen(find_type);
 	dns_result = dns_rdatatype_fromtext(&rdatatype, &textregion);
-	if (dns_result != DNS_R_SUCCESS) {
+	if (dns_result != ISC_R_SUCCESS) {
 		t_info("dns_rdatatype_fromtext %s failed %s\n",
 				find_type,
 				dns_result_totext(dns_result));
@@ -2160,13 +2133,13 @@ t_dns_db_findnode_1(char **av) {
 	}
 
 	dns_result = t_create(db_type, origin, class, cache, mctx, &db);
-	if (dns_result != DNS_R_SUCCESS) {
+	if (dns_result != ISC_R_SUCCESS) {
 		isc_mem_destroy(&mctx);
 		return(T_UNRESOLVED);
 	}
 
 	dns_result = dns_db_load(db, filename);
-	if (dns_result != DNS_R_SUCCESS) {
+	if (dns_result != ISC_R_SUCCESS) {
 		t_info("dns_db_load returned %s\n",
 				dns_result_totext(dns_result));
 		dns_db_detach(&db);
@@ -2178,7 +2151,7 @@ t_dns_db_findnode_1(char **av) {
 	dns_fixedname_init(&dns_name);
 
 	len = strlen(find_name);
-	isc_buffer_init(&name_buffer, find_name, len, ISC_BUFFERTYPE_TEXT);
+	isc_buffer_init(&name_buffer, find_name, len);
 	isc_buffer_add(&name_buffer, len);
 	dns_result = dns_name_fromtext(dns_fixedname_name(&dns_name),
 				&name_buffer, NULL, ISC_FALSE, NULL);
@@ -2188,7 +2161,7 @@ t_dns_db_findnode_1(char **av) {
 	if (dns_result != exp_result) {
 		t_info("dns_db_findnode failed %s\n",
 				dns_result_totext(dns_result));
-		if (dns_result == DNS_R_SUCCESS)
+		if (dns_result == ISC_R_SUCCESS)
 			dns_db_detachnode(db, &nodep);
 		dns_db_detach(&db);
 		isc_mem_destroy(&mctx);
@@ -2202,7 +2175,7 @@ t_dns_db_findnode_1(char **av) {
 	 * and expecting the search to succeed
 	 */
 
-	if (dns_result == DNS_R_SUCCESS) {
+	if (dns_result == ISC_R_SUCCESS) {
 		cversionp = NULL;
 		dns_db_currentversion(db, &cversionp);
 		dns_rdataset_init(&rdataset);
@@ -2210,7 +2183,7 @@ t_dns_db_findnode_1(char **av) {
 		dns_result = dns_db_findrdataset(db, nodep, cversionp,
 						 rdatatype, 0,
 						 0, &rdataset, NULL);
-		if (dns_result == DNS_R_SUCCESS) {
+		if (dns_result == ISC_R_SUCCESS) {
 			dns_rdataset_disassociate(&rdataset);
 			result = T_PASS;
 		}
@@ -2245,11 +2218,10 @@ static char *a14 =
 	"If the node name does not exist and create is ISC_TRUE, "
 	"then a call to dns_db_findnode(db, name, create, nodep) "
 	"creates the node, initializes nodep to point to the node, "
-	"and returns DNS_R_SUCCESS.";
+	"and returns ISC_R_SUCCESS.";
 
 static int
 t_dns_db_findnode_2(char **av) {
-
 	char			*filename;
 	char			*db_type;
 	char			*origin;
@@ -2294,13 +2266,13 @@ t_dns_db_findnode_2(char **av) {
 	}
 
 	dns_result = t_create(db_type, origin, class, cache, mctx, &db);
-	if (dns_result != DNS_R_SUCCESS) {
+	if (dns_result != ISC_R_SUCCESS) {
 		isc_mem_destroy(&mctx);
 		return(T_UNRESOLVED);
 	}
 
 	dns_result = dns_db_load(db, filename);
-	if (dns_result != DNS_R_SUCCESS) {
+	if (dns_result != ISC_R_SUCCESS) {
 		t_info("dns_db_load returned %s\n",
 				dns_result_totext(dns_result));
 		dns_db_detach(&db);
@@ -2313,16 +2285,16 @@ t_dns_db_findnode_2(char **av) {
 
 	/* make sure the name isn't there */
 	len = strlen(newname);
-	isc_buffer_init(&name_buffer, newname, len, ISC_BUFFERTYPE_TEXT);
+	isc_buffer_init(&name_buffer, newname, len);
 	isc_buffer_add(&name_buffer, len);
 	dns_result = dns_name_fromtext(dns_fixedname_name(&dns_name),
 				&name_buffer, NULL, ISC_FALSE, NULL);
 
 	dns_result = dns_db_findnode(db, dns_fixedname_name(&dns_name),
 				ISC_FALSE, &nodep);
-	if (	(dns_result != DNS_R_NOTFOUND)	&&
+	if (	(dns_result != ISC_R_NOTFOUND)	&&
 		(dns_result != DNS_R_NXDOMAIN)	&&
-		(dns_result != DNS_R_NXRDATASET)) {
+		(dns_result != DNS_R_NXRRSET)) {
 
 		t_info("dns_db_findnode %s\n",
 				dns_result_totext(dns_result));
@@ -2335,7 +2307,7 @@ t_dns_db_findnode_2(char **av) {
 	/* add it */
 	dns_result = dns_db_findnode(db, dns_fixedname_name(&dns_name),
 				ISC_TRUE, &nodep);
-	if (dns_result != DNS_R_SUCCESS) {
+	if (dns_result != ISC_R_SUCCESS) {
 		t_info("dns_db_findnode %s\n",
 				dns_result_totext(dns_result));
 		dns_db_detach(&db);
@@ -2360,7 +2332,7 @@ t_dns_db_findnode_2(char **av) {
 			&newnodep,
 			dns_fixedname_name(&dns_foundname),
 			&rdataset, NULL);
-	if ((dns_result != DNS_R_NOTFOUND) && (dns_result != DNS_R_NXDOMAIN)) {
+	if ((dns_result != ISC_R_NOTFOUND) && (dns_result != DNS_R_NXDOMAIN)) {
 		dns_db_detachnode(db, &newnodep);
 	}
 
@@ -2370,10 +2342,10 @@ t_dns_db_findnode_2(char **av) {
 		++nfails;
 	}
 
-	/* then try dns_db_findnode DNS_R_SUCCESS */
+	/* then try dns_db_findnode ISC_R_SUCCESS */
 	dns_result = dns_db_findnode(db, dns_fixedname_name(&dns_name), ISC_FALSE, &newnodep);
 	t_info("dns_db_findnode %s\n", dns_result_totext(dns_result));
-	if (dns_result == DNS_R_SUCCESS) {
+	if (dns_result == ISC_R_SUCCESS) {
 		dns_db_detachnode(db, &newnodep);
 	}
 	else {
@@ -2407,7 +2379,6 @@ t14() {
 
 static int
 t_dns_db_find_x(char **av) {
-
 	char			*dbfile;
 	char			*dbtype;
 	char			*dborigin;
@@ -2464,13 +2435,13 @@ t_dns_db_find_x(char **av) {
 	}
 
 	dns_result = t_create(dbtype, dborigin, dbclass, dbcache, mctx, &db);
-	if (dns_result != DNS_R_SUCCESS) {
+	if (dns_result != ISC_R_SUCCESS) {
 		isc_mem_destroy(&mctx);
 		return(T_UNRESOLVED);
 	}
 
 	dns_result = dns_db_load(db, dbfile);
-	if (dns_result != DNS_R_SUCCESS) {
+	if (dns_result != ISC_R_SUCCESS) {
 		t_info("dns_db_load returned %s\n",
 				dns_result_totext(dns_result));
 		dns_db_detach(&db);
@@ -2482,11 +2453,11 @@ t_dns_db_find_x(char **av) {
 
 	dns_fixedname_init(&dns_findname);
 	len = strlen(findname);
-	isc_buffer_init(&findname_buffer, findname, len, ISC_BUFFERTYPE_TEXT);
+	isc_buffer_init(&findname_buffer, findname, len);
 	isc_buffer_add(&findname_buffer, len);
 	dns_result = dns_name_fromtext(dns_fixedname_name(&dns_findname),
 				&findname_buffer, NULL, ISC_FALSE, NULL);
-	if (dns_result != DNS_R_SUCCESS) {
+	if (dns_result != ISC_R_SUCCESS) {
 		t_info("dns_name_fromtext failed %s\n",
 			dns_result_totext(dns_result));
 		dns_db_detach(&db);
@@ -2497,7 +2468,7 @@ t_dns_db_find_x(char **av) {
 	textregion.base = findtype;
 	textregion.length = strlen(findtype);
 	dns_result = dns_rdatatype_fromtext(&rdatatype, &textregion);
-	if (dns_result != DNS_R_SUCCESS) {
+	if (dns_result != ISC_R_SUCCESS) {
 		t_info("dns_rdatatype_fromtext %s failed %s\n",
 				findtype,
 				dns_result_totext(dns_result));
@@ -2535,18 +2506,20 @@ t_dns_db_find_x(char **av) {
 			&rdataset, NULL);
 
 	if (dns_result != exp_result) {
-		t_info("dns_db_find %s %s unexpectedly returned %s, expected %s\n",
-				findname, findtype, dns_result_totext(dns_result),
-				dns_result_totext(exp_result));
+		t_info("dns_db_find %s %s unexpectedly returned %s, "
+		       "expected %s\n",
+		       findname, findtype, dns_result_totext(dns_result),
+		       dns_result_totext(exp_result));
 		result = T_FAIL;
 	}
 	else {
 		result = T_PASS;
 	}
 
-	if ((dns_result != DNS_R_NOTFOUND) && (dns_result != DNS_R_NXDOMAIN)) {
+	if ((dns_result != ISC_R_NOTFOUND) && (dns_result != DNS_R_NXDOMAIN)) {
 
-		if ((dns_result != DNS_R_NXRDATASET) && (dns_result != DNS_R_ZONECUT))
+		if ((dns_result != DNS_R_NXRRSET) &&
+		    (dns_result != DNS_R_ZONECUT))
 			if (dns_rdataset_isassociated(&rdataset))
 				dns_rdataset_disassociate(&rdataset);
 		dns_db_detachnode(db, &nodep);
@@ -2562,8 +2535,8 @@ t_dns_db_find_x(char **av) {
 
 static char *a15 =
 	"A call to dns_db_find(db, name, version, type, options, now, ...)  "
-	"finds the best match for 'name' and 'type' in version 'version' of 'db'.";
-
+	"finds the best match for 'name' and 'type' in version 'version' "
+	"of 'db'.";
 
 static void
 t15() {
@@ -2581,7 +2554,6 @@ static char *a16 =
 	"dns_db_find(db, name, version, type, options, now, ...)  "
 	"returns DNS_R_GLUE.";
 
-
 static void
 t16() {
 	int	result;
@@ -2591,11 +2563,9 @@ t16() {
 	t_result(result);
 }
 
-
 static char *a17 =
 	"A call to dns_db_find() returns DNS_R_DELEGATION when the data "
 	"requested is beneath a zone cut.";
-
 
 static void
 t17() {
@@ -2606,11 +2576,9 @@ t17() {
 	t_result(result);
 }
 
-
 static char *a18 =
 	"A call to dns_db_find() returns DNS_R_ZONECUT when type is "
 	"dns_rdatatype_any and the desired node is a zone cut.";
-
 
 static void
 t18() {
@@ -2620,7 +2588,6 @@ t18() {
 	result = t_eval("dns_db_find_4_data", t_dns_db_find_x, 10);
 	t_result(result);
 }
-
 
 static char *a19 =
 	"A call to dns_db_find() returns DNS_R_DNAME when the data "
@@ -2634,7 +2601,6 @@ t19() {
 	result = t_eval("dns_db_find_5_data", t_dns_db_find_x, 10);
 	t_result(result);
 }
-
 
 static char *a20 =
 	"A call to dns_db_find() returns DNS_R_CNAME when the requested "
@@ -2663,7 +2629,7 @@ t21() {
 }
 
 static char *a22 =
-	"A call to dns_db_find() returns DNS_R_NXRDATASET when "
+	"A call to dns_db_find() returns DNS_R_NXRRSET when "
 	"the desired name exists, but the desired type does not.";
 
 static void
@@ -2675,10 +2641,9 @@ t22() {
 	t_result(result);
 }
 
-
 static char *a23 =
 	"When db is a cache database, a call to dns_db_find() "
-	"returns DNS_R_NOTFOUND when the desired name does not exist, "
+	"returns ISC_R_NOTFOUND when the desired name does not exist, "
 	"and no delegation could be found.";
 
 static void
@@ -2702,7 +2667,6 @@ t24() {
 	result = t_eval("dns_db_find_10_data", t_dns_db_find_x, 10);
 	t_result(result);
 }
-
 
 testspec_t	T_testlist[] = {
 	{	t1,		"dns_db_load"		},
@@ -2731,4 +2695,3 @@ testspec_t	T_testlist[] = {
 	{	t24,		"dns_db_find"		},
 	{	NULL,		NULL			}
 };
-

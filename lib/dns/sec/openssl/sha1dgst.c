@@ -61,6 +61,9 @@
 #undef  SHA_0
 #define SHA_1
 
+#include <config.h>
+#include "../rename.h"
+
 #include <openssl/opensslv.h>
 
 const char *SHA1_version="SHA1" OPENSSL_VERSION_PTEXT;

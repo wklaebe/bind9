@@ -15,7 +15,7 @@
  * SOFTWARE.
  */
 
-/* $Id: srv_33.c,v 1.16 2000/03/20 22:44:36 gson Exp $ */
+/* $Id: srv_33.c,v 1.25 2000/05/22 12:38:11 marka Exp $ */
 
 /* Reviewed: Fri Mar 17 13:01:00 PST 2000 by bwelling */
 
@@ -23,6 +23,8 @@
 
 #ifndef RDATA_IN_1_SRV_33_C
 #define RDATA_IN_1_SRV_33_C
+
+#define RRTYPE_SRV_ATTRIBUTES (0)
 
 static inline isc_result_t
 fromtext_in_srv(dns_rdataclass_t rdclass, dns_rdatatype_t type,
@@ -36,23 +38,36 @@ fromtext_in_srv(dns_rdataclass_t rdclass, dns_rdatatype_t type,
 	REQUIRE(type == 33);
 	REQUIRE(rdclass == 1);
 
-	/* priority */
+	/*
+	 * Priority.
+	 */
 	RETERR(gettoken(lexer, &token, isc_tokentype_number, ISC_FALSE));
+	if (token.value.as_ulong > 0xffff)
+		return (ISC_R_RANGE);
 	RETERR(uint16_tobuffer(token.value.as_ulong, target));
 
-	/* weight */
+	/*
+	 * Weight.
+	 */
 	RETERR(gettoken(lexer, &token, isc_tokentype_number, ISC_FALSE));
+	if (token.value.as_ulong > 0xffff)
+		return (ISC_R_RANGE);
 	RETERR(uint16_tobuffer(token.value.as_ulong, target));
 
-	/* port */
+	/*
+	 * Port.
+	 */
 	RETERR(gettoken(lexer, &token, isc_tokentype_number, ISC_FALSE));
+	if (token.value.as_ulong > 0xffff)
+		return (ISC_R_RANGE);
 	RETERR(uint16_tobuffer(token.value.as_ulong, target));
 
-	/* target */
+	/*
+	 * Target.
+	 */
 	RETERR(gettoken(lexer, &token, isc_tokentype_string, ISC_FALSE));
 	dns_name_init(&name, NULL);
-	buffer_fromregion(&buffer, &token.value.as_region,
-			  ISC_BUFFERTYPE_TEXT);
+	buffer_fromregion(&buffer, &token.value.as_region);
 	origin = (origin != NULL) ? origin : dns_rootname;
 	return (dns_name_fromtext(&name, &buffer, origin, downcase, target));
 }
@@ -74,7 +89,9 @@ totext_in_srv(dns_rdata_t *rdata, dns_rdata_textctx_t *tctx,
 	dns_name_init(&name, NULL);
 	dns_name_init(&prefix, NULL);
 
-	/* priority */
+	/*
+	 * Priority.
+	 */
 	dns_rdata_toregion(rdata, &region);
 	num = uint16_fromregion(&region);
 	isc_region_consume(&region, 2);
@@ -82,21 +99,27 @@ totext_in_srv(dns_rdata_t *rdata, dns_rdata_textctx_t *tctx,
 	RETERR(str_totext(buf, target));
 	RETERR(str_totext(" ", target));
 
-	/* weight */
+	/*
+	 * Weight.
+	 */
 	num = uint16_fromregion(&region);
 	isc_region_consume(&region, 2);
 	sprintf(buf, "%u", num);
 	RETERR(str_totext(buf, target));
 	RETERR(str_totext(" ", target));
 
-	/* port */
+	/*
+	 * Port.
+	 */
 	num = uint16_fromregion(&region);
 	isc_region_consume(&region, 2);
 	sprintf(buf, "%u", num);
 	RETERR(str_totext(buf, target));
 	RETERR(str_totext(" ", target));
 
-	/* target */
+	/*
+	 * Target.
+	 */
 	dns_name_fromregion(&name, &region);
 	sub = name_prefix(&name, tctx->origin, &prefix);
 	return (dns_name_totext(&prefix, sub, target));
@@ -113,21 +136,22 @@ fromwire_in_srv(dns_rdataclass_t rdclass, dns_rdatatype_t type,
 	REQUIRE(type == 33);
 	REQUIRE(rdclass == 1);
 
-	if (dns_decompress_edns(dctx) >= 1 || !dns_decompress_strict(dctx))
-		dns_decompress_setmethods(dctx, DNS_COMPRESS_ALL);
-	else
-		dns_decompress_setmethods(dctx, DNS_COMPRESS_NONE);
+	dns_decompress_setmethods(dctx, DNS_COMPRESS_NONE);
         
         dns_name_init(&name, NULL);
 
-	/* priority, weight, port */
-	isc_buffer_active(source, &sr);
+	/*
+	 * Priority, weight, port.
+	 */
+	isc_buffer_activeregion(source, &sr);
 	if (sr.length < 6)
-		return (DNS_R_UNEXPECTEDEND);
+		return (ISC_R_UNEXPECTEDEND);
 	RETERR(mem_tobuffer(target, sr.base, 6));
 	isc_buffer_forward(source, 6);
 
-	/* target */
+	/*
+	 * Target.
+	 */
 	return (dns_name_fromwire(&name, source, dctx, downcase, target));
 }
 
@@ -138,17 +162,17 @@ towire_in_srv(dns_rdata_t *rdata, dns_compress_t *cctx, isc_buffer_t *target) {
 
 	REQUIRE(rdata->type == 33);
 
-	if (dns_compress_getedns(cctx) >= 1)
-		dns_compress_setmethods(cctx, DNS_COMPRESS_ALL);
-	else
-		dns_compress_setmethods(cctx, DNS_COMPRESS_NONE);
-
-	/* priority, weight, port */
+	dns_compress_setmethods(cctx, DNS_COMPRESS_NONE);
+	/*
+	 * Priority, weight, port.
+	 */
 	dns_rdata_toregion(rdata, &sr);
 	RETERR(mem_tobuffer(target, sr.base, 6));
 	isc_region_consume(&sr, 6);
 
-	/* target */
+	/*
+	 * Target.
+	 */
 	dns_name_init(&name, NULL);
 	dns_name_fromregion(&name, &sr);
 	return (dns_name_towire(&name, cctx, target));
@@ -167,12 +191,16 @@ compare_in_srv(dns_rdata_t *rdata1, dns_rdata_t *rdata2) {
 	REQUIRE(rdata1->type == 33);
 	REQUIRE(rdata1->rdclass == 1);
 
-	/* priority, weight, port */
+	/*
+	 * Priority, weight, port.
+	 */
 	order = memcmp(rdata1->data, rdata2->data, 6);
 	if (order != 0)
 		return (order < 0 ? -1 : 1);
 
-	/* target */
+	/*
+	 * Target.
+	 */
 	dns_name_init(&name1, NULL);
 	dns_name_init(&name2, NULL);
 
@@ -192,30 +220,64 @@ static inline isc_result_t
 fromstruct_in_srv(dns_rdataclass_t rdclass, dns_rdatatype_t type, void *source,
 		  isc_buffer_t *target)
 {
-	UNUSED(source);
-	UNUSED(target);
+	dns_rdata_in_srv_t *srv = source;
+	isc_region_t region;
 
 	REQUIRE(type == 33);
 	REQUIRE(rdclass == 1);
+	REQUIRE(source != NULL);
+	REQUIRE(srv->common.rdtype == type);
+	REQUIRE(srv->common.rdclass == rdclass);
 
-	return (DNS_R_NOTIMPLEMENTED);
+	RETERR(uint16_tobuffer(srv->priority, target));
+	RETERR(uint16_tobuffer(srv->weight, target));
+	RETERR(uint16_tobuffer(srv->port, target));
+	dns_name_toregion(&srv->target, &region);
+	return (isc_buffer_copyregion(target, &region));
 }
 
 static inline isc_result_t
 tostruct_in_srv(dns_rdata_t *rdata, void *target, isc_mem_t *mctx) {
-	UNUSED(target);
-	UNUSED(mctx);
+	isc_region_t region;
+	dns_rdata_in_srv_t *srv = target;
+	dns_name_t name;
 
-	REQUIRE(rdata->type == 33);
 	REQUIRE(rdata->rdclass == 1);
+	REQUIRE(rdata->type == 33);
+	REQUIRE(target != NULL);
 
-	return (DNS_R_NOTIMPLEMENTED);
+	srv->common.rdclass = rdata->rdclass;
+	srv->common.rdtype = rdata->type;
+	ISC_LINK_INIT(&srv->common, link);
+
+	dns_name_init(&name, NULL);
+	dns_rdata_toregion(rdata, &region);
+	srv->priority = uint16_fromregion(&region);
+	isc_region_consume(&region, 2);
+	srv->weight = uint16_fromregion(&region);
+	isc_region_consume(&region, 2);
+	srv->port = uint16_fromregion(&region);
+	isc_region_consume(&region, 2);
+	dns_name_fromregion(&name, &region);
+	dns_name_init(&srv->target, NULL);
+	RETERR(name_duporclone(&name, mctx, &srv->target));
+	srv->mctx = mctx;
+	return (ISC_R_SUCCESS);
 }
 
 static inline void
 freestruct_in_srv(void *source) {
+	dns_rdata_in_srv_t *srv = source;
+
 	REQUIRE(source != NULL);
-	REQUIRE(ISC_FALSE);	/*XXX*/
+	REQUIRE(srv->common.rdclass == 1);
+	REQUIRE(srv->common.rdtype == 33);
+
+	if (srv->mctx == NULL)
+		return;
+
+	dns_name_free(&srv->target, srv->mctx);
+	srv->mctx = NULL;
 }
 
 static inline isc_result_t

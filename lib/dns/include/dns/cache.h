@@ -49,13 +49,9 @@
  ***/
 
 #include <isc/lang.h>
-#include <isc/mem.h>
-#include <isc/task.h>
-#include <isc/timer.h>
 #include <isc/stdtime.h>
 
 #include <dns/types.h>
-#include <dns/result.h>
 
 ISC_LANG_BEGINDECLS
 
@@ -87,8 +83,8 @@ dns_cache_create(isc_mem_t *mctx, isc_taskmgr_t *taskmgr,
  *
  * Returns:
  *
- *	DNS_R_SUCCESS
- *	DNS_R_NOMEMORY
+ *	ISC_R_SUCCESS
+ *	ISC_R_NOMEMORY
  */
 
 void
@@ -161,8 +157,8 @@ dns_cache_setfilename(dns_cache_t *cahce, char *filename);
  * Files that are no longer used are not unlinked automatically.
  *
  * Returns:
- *	DNS_R_SUCCESS
- *	DNS_R_NOMEMORY
+ *	ISC_R_SUCCESS
+ *	ISC_R_NOMEMORY
  *	Various file-related failures
  */
 
@@ -183,7 +179,7 @@ dns_cache_load(dns_cache_t *cache);
  *
  * Returns:
  *
- *	DNS_R_SUCCESS
+ *	ISC_R_SUCCESS
  *      Various failures depending on the database implementation type
  */
 
@@ -203,7 +199,7 @@ dns_cache_dump(dns_cache_t *cache);
  * 
  * Returns:
  *
- *	DNS_R_SUCCESS
+ *	ISC_R_SUCCESS
  *      Various failures depending on the database implementation type
  */
 
@@ -223,5 +219,4 @@ dns_cache_setcleaninginterval(dns_cache_t *cache, unsigned int interval);
 
 ISC_LANG_ENDDECLS
 
-#endif	/* DNS_CACHE_H */
-
+#endif /* DNS_CACHE_H */

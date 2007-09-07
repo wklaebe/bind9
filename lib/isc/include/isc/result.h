@@ -18,12 +18,8 @@
 #ifndef ISC_RESULT_H
 #define ISC_RESULT_H 1
 
-#include <isc/boolean.h>
 #include <isc/lang.h>
-#include <isc/list.h>
 #include <isc/types.h>
-
-ISC_LANG_BEGINDECLS
 
 #define ISC_R_SUCCESS			0
 #define ISC_R_NOMEMORY			1
@@ -46,7 +42,7 @@ ISC_LANG_BEGINDECLS
 #define ISC_R_EXISTS			18
 #define ISC_R_NOSPACE			19	/* ran out of space */
 #define ISC_R_CANCELED			20
-/* AVAILABLE CODE			21 */
+#define ISC_R_NOTBOUND			21	/* socket is not bound */
 #define ISC_R_SHUTTINGDOWN		22	/* shutting down */
 #define ISC_R_NOTFOUND			23
 #define ISC_R_UNEXPECTEDEND		24	/* unexpected end of input */
@@ -63,15 +59,24 @@ ISC_LANG_BEGINDECLS
 #define ISC_R_ALREADYRUNNING		35
 #define ISC_R_IGNORE			36
 #define ISC_R_MASKNONCONTIG             37
+#define ISC_R_FILENOTFOUND		38
+#define ISC_R_FILEEXISTS		39
+#define ISC_R_NOTCONNECTED		40	/* socket is not connected */
+#define ISC_R_RANGE			41	/* out of range */
 
-#define ISC_R_NRESULTS 			38	/* Number of results */
+#define ISC_R_NRESULTS 			42	/* Number of results */
 
-char *			isc_result_totext(isc_result_t);
-isc_result_t		isc_result_register(unsigned int base,
-					    unsigned int nresults,
-					    char **text,
-					    isc_msgcat_t *msgcat,
-					    int set);
+ISC_LANG_BEGINDECLS
+
+char *
+isc_result_totext(isc_result_t);
+/*
+ * Convert an isc_result_t into a string message describing the result.
+ */
+
+isc_result_t
+isc_result_register(unsigned int base, unsigned int nresults, char **text,
+		    isc_msgcat_t *msgcat, int set);
 
 ISC_LANG_ENDDECLS
 

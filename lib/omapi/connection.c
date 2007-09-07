@@ -15,22 +15,25 @@
  * SOFTWARE.
  */
 
-/* $Id: connection.c,v 1.17 2000/03/14 03:46:14 tale Exp $ */
+/* $Id: connection.c,v 1.27 2000/05/17 22:48:07 bwelling Exp $ */
 
 /* Principal Author: DCL */
 
 /*
  * Subroutines for dealing with connections.
  */
-#include <errno.h>
-#include <stddef.h>		/* NULL */
-#include <string.h>		/* memset */
 
-#include <isc/assertions.h>
-#include <isc/error.h>
+#include <config.h>
+
+#include <isc/buffer.h>
+#include <isc/bufferlist.h>
 #include <isc/netdb.h>
+#include <isc/string.h>		/* Required for HP/UX (and others?) */
+#include <isc/task.h>
+#include <isc/util.h>
 
 #include <omapi/private.h>
+#include <omapi/result.h>
 
 /*
  * Swiped from bin/tests/sdig.c.
@@ -249,8 +252,10 @@ connect_done(isc_task_t *task, isc_event_t *event) {
 	isc_socket_t *socket;
 	omapi_connection_t *connection;
 
-	socket = event->sender;
-	connection = event->arg;
+	UNUSED(task);
+
+	socket = event->ev_sender;
+	connection = event->ev_arg;
 	result = ((isc_socket_connev_t *)event)->result;
 
 	isc_event_free(&event);
@@ -308,8 +313,10 @@ recv_done(isc_task_t *task, isc_event_t *event) {
 	omapi_connection_t *connection;
 	unsigned int bytes_read;
 
-	socket = event->sender;
-	connection = event->arg;
+	UNUSED(task);
+	
+	socket = event->ev_sender;
+	connection = event->ev_arg;
 	socketevent = (isc_socketevent_t *)event;
 	bufferlist = socketevent->bufferlist;
 	bytes_read = socketevent->n;
@@ -394,8 +401,10 @@ send_done(isc_task_t *task, isc_event_t *event) {
 	omapi_connection_t *connection;
 	unsigned int sent_bytes;
 
-	socket = event->sender;
-	connection = event->arg;
+	UNUSED(task);
+	
+	socket = event->ev_sender;
+	connection = event->ev_arg;
 	socketevent = (isc_socketevent_t *)event;
 	sent_bytes = socketevent->n;
 	bufferlist = socketevent->bufferlist;
@@ -518,17 +527,15 @@ connect_toserver(omapi_object_t *protocol, const char *server_name, int port) {
 	/*
 	 * Prepare the task that will wait for the connection to be made.
 	 */
-	result = isc_task_create(omapi_taskmgr, NULL, 0, &task);
+	result = isc_task_create(omapi_taskmgr, 0, &task);
 	if (result != ISC_R_SUCCESS)
 		return (result);
 
-	result = isc_buffer_allocate(omapi_mctx, &ibuffer, OMAPI_BUFFER_SIZE,
-				     ISC_BUFFERTYPE_BINARY);
+	result = isc_buffer_allocate(omapi_mctx, &ibuffer, OMAPI_BUFFER_SIZE);
 	if (result != ISC_R_SUCCESS)
 		goto free_task;
 
-	result = isc_buffer_allocate(omapi_mctx, &obuffer, OMAPI_BUFFER_SIZE,
-				     ISC_BUFFERTYPE_BINARY);
+	result = isc_buffer_allocate(omapi_mctx, &obuffer, OMAPI_BUFFER_SIZE);
 	if (result != ISC_R_SUCCESS)
 		goto free_ibuffer;
 
@@ -636,8 +643,8 @@ omapi_connection_putmem(omapi_object_t *c, unsigned char *src,
 	if (protocol->dst_update) {
 		region.base = src;
 		region.length = len;
-		result = dst_sign(DST_SIGMODE_UPDATE, protocol->key,
-				  &protocol->dstctx, &region, NULL);
+		result = dst_key_sign(DST_SIGMODE_UPDATE, protocol->key,
+				      &protocol->dstctx, &region, NULL);
 		if (result != ISC_R_SUCCESS)
 			return (result);
 	}
@@ -654,8 +661,7 @@ omapi_connection_putmem(omapi_object_t *c, unsigned char *src,
 		 */
 		buffer = NULL;
 		result = isc_buffer_allocate(omapi_mctx, &buffer,
-					     OMAPI_BUFFER_SIZE,
-					     ISC_BUFFERTYPE_BINARY);
+					     OMAPI_BUFFER_SIZE);
 		if (result != ISC_R_SUCCESS)
 			return (result);
 
@@ -672,7 +678,7 @@ omapi_connection_putmem(omapi_object_t *c, unsigned char *src,
 	for (buffer = ISC_LIST_HEAD(bufferlist); len > 0;
 	     buffer = ISC_LIST_NEXT(buffer, link)) {
 
-		space_available = ISC_BUFFER_AVAILABLECOUNT(buffer);
+		space_available = isc_buffer_availablelength(buffer);
 		if (space_available > len)
 			space_available = len;
 
@@ -733,8 +739,10 @@ connection_copyout(unsigned char *dst, omapi_connection_t *connection,
 		if (protocol->dst_update &&
 		    protocol->verify_result == ISC_R_SUCCESS)
 			protocol->verify_result =
-				dst_verify(DST_SIGMODE_UPDATE, protocol->key,
-					   &protocol->dstctx, &region, NULL);
+				dst_key_verify(DST_SIGMODE_UPDATE,
+					       protocol->key,
+					       &protocol->dstctx,
+					       &region, NULL);
 
 		isc_buffer_forward(buffer, copy_bytes);
 
@@ -852,7 +860,7 @@ connection_require(omapi_connection_t *connection, unsigned int bytes) {
 		/*
 		 * Lop off any completely used buffers, except the last one.
 		 */
-		while (ISC_BUFFER_AVAILABLECOUNT(buffer) == 0 &&
+		while (isc_buffer_availablelength(buffer) == 0 &&
 		       buffer != ISC_LIST_TAIL(bufferlist)) {
 
 			ISC_LIST_UNLINK(bufferlist, buffer, link);
@@ -876,8 +884,7 @@ connection_require(omapi_connection_t *connection, unsigned int bytes) {
 
 			buffer = NULL;
 			result = isc_buffer_allocate(omapi_mctx, &buffer,
-						     OMAPI_BUFFER_SIZE,
-						     ISC_BUFFERTYPE_BINARY);
+						     OMAPI_BUFFER_SIZE);
 			if (result != ISC_R_SUCCESS)
 				return (result);
 
@@ -1019,7 +1026,7 @@ omapi_connection_putname(omapi_object_t *c, const char *name) {
 	if (result != ISC_R_SUCCESS)
 		return (result);
 
-	return (omapi_connection_putmem(c, (char *)name, len));
+	return (omapi_connection_putmem(c, (unsigned char *)name, len));
 }
 
 isc_result_t
@@ -1035,7 +1042,8 @@ omapi_connection_putstring(omapi_object_t *c, const char *string) {
 	result = omapi_connection_putuint32(c, len);
 
 	if (result == ISC_R_SUCCESS && len > 0)
-		result = omapi_connection_putmem(c, (char *)string, len);
+		result = omapi_connection_putmem(c, (unsigned char *)string,
+						 len);
 	return (result);
 }
 

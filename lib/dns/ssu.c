@@ -16,21 +16,15 @@
  */
 
 /*
- * $Id: ssu.c,v 1.7 2000/03/23 19:48:19 halley Exp $
+ * $Id: ssu.c,v 1.11 2000/05/14 02:29:23 tale Exp $
  * Principal Author: Brian Wellington
  */
 
 #include <config.h>
 
-#include <string.h>
-
-#include <isc/assertions.h>
-#include <isc/error.h>
-#include <isc/list.h>
 #include <isc/magic.h>
-#include <isc/result.h>
-#include <isc/types.h>
-#include <isc/mutex.h>
+#include <isc/mem.h>
+#include <isc/string.h>		/* Required for HP/UX (and others?) */
 #include <isc/util.h>
 
 #include <dns/name.h>
@@ -243,9 +237,9 @@ dns_ssutable_addrule(dns_ssutable_t *table, isc_boolean_t grant,
 
 static inline isc_boolean_t
 isusertype(dns_rdatatype_t type) {
-	return (type != dns_rdatatype_ns &&
-		type != dns_rdatatype_soa &&
-		type != dns_rdatatype_sig);
+	return (ISC_TF(type != dns_rdatatype_ns &&
+		       type != dns_rdatatype_soa &&
+		       type != dns_rdatatype_sig));
 }
 
 isc_boolean_t

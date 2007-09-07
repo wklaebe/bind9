@@ -15,56 +15,161 @@
  * SOFTWARE.
  */
 
+/* $Id: confview.c,v 1.28 2000/05/15 12:36:26 brister Exp $ */
+
 #include <config.h>
 
-#include <sys/types.h>
+#include <isc/mem.h>
+#include <isc/string.h>		/* Required for HP/UX (and others?) */
+#include <isc/util.h>
 
-#include <isc/assertions.h>
-#include <isc/magic.h>
-#include <isc/net.h>
-
-#include <dns/confacl.h>
-#include <dns/confzone.h>
-#include <dns/confcommon.h>
 #include <dns/confview.h>
-#include <dns/confzone.h>
 #include <dns/log.h>
+#include <dns/peer.h>
 
 #include "confpvt.h"
 
-#define CHECKNAME_PRIM_BIT                       1
-#define CHECKNAME_SEC_BIT                        2
-#define CHECKNAME_RESP_BIT                       3
-#define MULTIPLE_CNAMES_BIT                      4
-#define DIALUP_BIT                               5
-#define FETCH_GLUE_BIT                           6
-#define HAS_OLD_CLIENTS_BIT                      7
-#define HOST_STATISTICS_BIT                      8
-#define MAINTAIN_IXFR_BASE_BIT                   9
-#define NOTIFY_BIT                               11
-#define RECURSION_BIT                            12
-#define RFC2308_TYPE1_BIT                        13
-#define USE_ID_POOL_BIT                          14
-#define FAKE_IQUERY_BIT                          15
-#define USE_IXFR_BIT                             16
-#define TCP_CLIENTS_BIT                          17
-#define RECURSIVE_CLIENTS_BIT                    18
-#define CLEAN_INTERVAL_BIT                       19
-#define MAX_LOG_SIZE_IXFR_BIT                    20
-#define MAX_NCACHE_TTL_BIT                       21
-#define MAX_TRANSFER_TIME_IN_BIT                 22
-#define MAX_TRANSFER_TIME_OUT_BIT                23
-#define MAX_TRANSFER_IDLE_IN_BIT                 24
-#define MAX_TRANSFER_IDLE_OUT_BIT                25
-#define STATS_INTERVAL_BIT                       26
-#define TRANSFERS_IN_BIT                         27
-#define TRANSFERS_OUT_BIT                        28
-#define TRANSFERS_PER_NS_BIT                     29
-#define TRANSFER_FORMAT_BIT			 30
+/*
+** Due to the repetive nature of the fields in a view
+** we have here a collection of macros to used in defining
+** accessor/modifier functions for most of the fields in a view.
+** Three functions are created: set, get and unset.
+**
+** In all the macros FUNC is a character sequence that is used in
+** constructing the final function name. FIELD is the field in the view.
+ */
+
+#define SETBOOL(FUNC, FIELD) SETBYTYPE(isc_boolean_t, FUNC, FIELD)
+#define GETBOOL(FUNC, FIELD) GETBYTYPE(isc_boolean_t, FUNC, FIELD)
+#define UNSETBOOL(FUNC, FIELD) UNSETBYTYPE(isc_boolean_t, FUNC, FIELD)
+
+#define SETINT32(FUNC, FIELD) SETBYTYPE(isc_int32_t, FUNC, FIELD)
+#define GETINT32(FUNC, FIELD) GETBYTYPE(isc_int32_t, FUNC, FIELD)
+#define UNSETINT32(FUNC, FIELD) UNSETBYTYPE(isc_int32_t, FUNC, FIELD)
+
+#define SETSOCKADDR(FUNC, FIELD) SETBYTYPE(isc_sockaddr_t, FUNC, FIELD)
+#define GETSOCKADDR(FUNC, FIELD) GETBYTYPE(isc_sockaddr_t, FUNC, FIELD)
+#define UNSETSOCKADDR(FUNC, FIELD) UNSETBYTYPE(isc_sockaddr_t, FUNC, FIELD)
+
+#ifdef PVT_CONCAT
+#undef PVT_CONCAT
+#endif
+
+#define PVT_CONCAT(x,y) x ## y
+
+/*
+** The SET, GET and UNSETBYTYPE macros are all used whene the field in the
+** view is a pointer to a fundamental type that requires no special copying,
+** such as integers or booleans.
+*/
+
+#define SETBYTYPE(TYPE, FUNCNAME, FIELDNAME)				    \
+isc_result_t								    \
+PVT_CONCAT(dns_c_view_set, FUNCNAME)(dns_c_view_t *view, TYPE newval) {	    \
+	isc_boolean_t existed = ISC_FALSE;				    \
+									    \
+	REQUIRE(DNS_C_VIEW_VALID(view));				    \
+									    \
+	if (view->FIELDNAME == NULL) {					    \
+		view->FIELDNAME = isc_mem_get(view->mem, sizeof (TYPE));    \
+		if (view->FIELDNAME == NULL) {				    \
+			return (ISC_R_NOMEMORY);			    \
+		}							    \
+	} else {							    \
+		existed = ISC_TRUE;					    \
+	}								    \
+									    \
+	*view->FIELDNAME = newval;					    \
+									    \
+	return (existed ? ISC_R_EXISTS : ISC_R_SUCCESS);		    \
+}
+
+#define GETBYTYPE(TYPE, FUNCNAME, FIELDNAME)				\
+isc_result_t								\
+PVT_CONCAT(dns_c_view_get, FUNCNAME)(dns_c_view_t *view, TYPE *retval) {\
+	REQUIRE(DNS_C_VIEW_VALID(view));				\
+	REQUIRE(retval != NULL);					\
+									\
+	if (view->FIELDNAME == NULL) {					\
+		return (ISC_R_NOTFOUND);				\
+	} else {							\
+		*retval = *view->FIELDNAME;				\
+		return (ISC_R_SUCCESS);					\
+	}								\
+}
+
+#define UNSETBYTYPE(TYPE, FUNCNAME, FIELDNAME)			\
+isc_result_t							\
+PVT_CONCAT(dns_c_view_unset, FUNCNAME)(dns_c_view_t *view) {	\
+	REQUIRE(DNS_C_VIEW_VALID(view));			\
+								\
+	if (view->FIELDNAME == NULL) {				\
+		return (ISC_R_NOTFOUND);			\
+	} else {						\
+		isc_mem_put(view->mem, view->FIELDNAME,		\
+			    sizeof (view->FIELDNAME));		\
+		view->FIELDNAME = NULL;				\
+								\
+		return (ISC_R_SUCCESS);				\
+	}							\
+}
+
+/*
+** Now SET, GET and UNSET for dns_c_ipmatchlist_t fields
+*/
+
+#define SETIPMLIST(FUNCNAME, FIELDNAME)					\
+isc_result_t								\
+PVT_CONCAT(dns_c_view_set, FUNCNAME)(dns_c_view_t *view,		\
+				     dns_c_ipmatchlist_t *newval)	\
+{									\
+	REQUIRE(DNS_C_VIEW_VALID(view));				\
+	REQUIRE(DNS_C_IPMLIST_VALID(newval));				\
+									\
+	if (view->FIELDNAME != NULL) {					\
+		dns_c_ipmatchlist_detach(&view->FIELDNAME);		\
+	}								\
+									\
+	dns_c_ipmatchlist_attach(newval, &view->FIELDNAME);		\
+	return (ISC_R_SUCCESS);						\
+}
+
+
+
+#define UNSETIPMLIST(FUNCNAME, FIELDNAME)			\
+isc_result_t							\
+PVT_CONCAT(dns_c_view_unset, FUNCNAME)(dns_c_view_t *view) {	\
+	REQUIRE(DNS_C_VIEW_VALID(view));			\
+								\
+	if (view->FIELDNAME != NULL) {				\
+		dns_c_ipmatchlist_detach(&view->FIELDNAME);	\
+		return (ISC_R_SUCCESS);				\
+	} else {						\
+		return (ISC_R_NOTFOUND);			\
+	}							\
+}
+	
+
+#define GETIPMLIST(FUNCNAME, FIELDNAME)					\
+isc_result_t								\
+PVT_CONCAT(dns_c_view_get, FUNCNAME)(dns_c_view_t *view,		\
+				     dns_c_ipmatchlist_t **retval)	\
+{									\
+	REQUIRE(DNS_C_VIEW_VALID(view));				\
+	REQUIRE(retval != NULL);					\
+									\
+	*retval = NULL;							\
+									\
+	if (view->FIELDNAME != NULL) {					\
+		dns_c_ipmatchlist_attach(view->FIELDNAME, retval);	\
+		return (ISC_R_SUCCESS);					\
+	} else {							\
+		return (ISC_R_NOTFOUND);				\
+	}								\
+}
 
 isc_result_t
-dns_c_viewtable_new(isc_mem_t *mem, dns_c_viewtable_t **viewtable)
-{
+dns_c_viewtable_new(isc_mem_t *mem, dns_c_viewtable_t **viewtable) {
 	dns_c_viewtable_t *table;
 	
 	REQUIRE(viewtable != NULL);
@@ -89,8 +194,7 @@ dns_c_viewtable_new(isc_mem_t *mem, dns_c_viewtable_t **viewtable)
 
 
 isc_result_t
-dns_c_viewtable_delete(dns_c_viewtable_t **viewtable)
-{
+dns_c_viewtable_delete(dns_c_viewtable_t **viewtable) {
 	dns_c_viewtable_t *table;
 	
 	REQUIRE(viewtable != NULL);
@@ -108,9 +212,29 @@ dns_c_viewtable_delete(dns_c_viewtable_t **viewtable)
 }
 
 
+
 void
-dns_c_viewtable_addview(dns_c_viewtable_t *viewtable, dns_c_view_t *view)
+dns_c_viewtable_print(FILE *fp, int indent,
+		      dns_c_viewtable_t *table)
 {
+	dns_c_view_t *view;
+
+	REQUIRE(fp != NULL);
+	REQUIRE(indent >= 0);
+	REQUIRE(DNS_C_VIEWTABLE_VALID(table));
+
+	view = ISC_LIST_HEAD(table->views);
+	while (view != NULL) {
+		dns_c_view_print(fp, indent, view);
+		fprintf(fp, "\n");
+
+		view  = ISC_LIST_NEXT(view, next);
+	}
+}
+
+
+void
+dns_c_viewtable_addview(dns_c_viewtable_t *viewtable, dns_c_view_t *view) {
 	REQUIRE(DNS_C_VIEWTABLE_VALID(viewtable));
 	REQUIRE(DNS_C_VIEW_VALID(view));
 	
@@ -120,8 +244,7 @@ dns_c_viewtable_addview(dns_c_viewtable_t *viewtable, dns_c_view_t *view)
 
 
 void
-dns_c_viewtable_rmview(dns_c_viewtable_t *viewtable, dns_c_view_t *view)
-{
+dns_c_viewtable_rmview(dns_c_viewtable_t *viewtable, dns_c_view_t *view) {
 	REQUIRE(DNS_C_VIEWTABLE_VALID(viewtable));
 	REQUIRE(DNS_C_VIEW_VALID(view));
 	
@@ -131,8 +254,7 @@ dns_c_viewtable_rmview(dns_c_viewtable_t *viewtable, dns_c_view_t *view)
 
 
 isc_result_t
-dns_c_viewtable_clear(dns_c_viewtable_t *table)
-{
+dns_c_viewtable_clear(dns_c_viewtable_t *table) {
 	dns_c_view_t *elem;
 	dns_c_view_t *tmpelem;
 	isc_result_t r;
@@ -210,13 +332,93 @@ dns_c_viewtable_rmviewbyname(dns_c_viewtable_t *viewtable,
 }
 
 	
+isc_result_t
+dns_c_viewtable_checkviews(dns_c_viewtable_t *viewtable) {
+	dns_c_view_t *elem;
+	isc_boolean_t bbval;
+	isc_int32_t bival;
+	isc_result_t result = ISC_R_SUCCESS;
+	dns_c_rrsolist_t *boval;
+	
+	REQUIRE(DNS_C_VIEWTABLE_VALID(viewtable));
+
+	elem = ISC_LIST_HEAD(viewtable->views);
+	while (elem != NULL) {
+		if (dns_c_view_getfetchglue(elem, &bbval) != ISC_R_NOTFOUND)
+			isc_log_write(dns_lctx,DNS_LOGCATEGORY_CONFIG,
+				      DNS_LOGMODULE_CONFIG, ISC_LOG_WARNING,
+				      "view 'fetch-glue' is not yet "
+				      "implemented.");
+
+
+		if (dns_c_view_getnotify(elem, &bbval) != ISC_R_NOTFOUND)
+			isc_log_write(dns_lctx,DNS_LOGCATEGORY_CONFIG,
+				      DNS_LOGMODULE_CONFIG, ISC_LOG_WARNING,
+				      "view 'notify' is not yet "
+				      "implemented.");
+
+
+		if (dns_c_view_getrfc2308type1(elem, &bbval) != ISC_R_NOTFOUND)
+			isc_log_write(dns_lctx,DNS_LOGCATEGORY_CONFIG,
+				      DNS_LOGMODULE_CONFIG, ISC_LOG_WARNING,
+				      "view 'rfc2308-type1' is not yet "
+				      "implemented.");
+
+		if (dns_c_view_getrfc2308type1(elem, &bbval) != ISC_R_NOTFOUND)
+			isc_log_write(dns_lctx,DNS_LOGCATEGORY_CONFIG,
+				      DNS_LOGMODULE_CONFIG, ISC_LOG_WARNING,
+				      "view 'rfc2308-type1' is not yet "
+				      "implemented.");
+
+		if (dns_c_view_getmaxncachettl(elem, &bival) != ISC_R_NOTFOUND)
+			isc_log_write(dns_lctx,DNS_LOGCATEGORY_CONFIG,
+				      DNS_LOGMODULE_CONFIG, ISC_LOG_WARNING,
+				      "view 'max-ncache-ttl' is not yet "
+				      "implemented.");
+
+		if (dns_c_view_getmaxcachettl(elem, &bival) != ISC_R_NOTFOUND)
+			isc_log_write(dns_lctx,DNS_LOGCATEGORY_CONFIG,
+				      DNS_LOGMODULE_CONFIG, ISC_LOG_WARNING,
+				      "view 'max-cache-ttl' is not yet "
+				      "implemented.");
+
+		if (dns_c_view_getlamettl(elem, &bival) != ISC_R_NOTFOUND)
+			isc_log_write(dns_lctx,DNS_LOGCATEGORY_CONFIG,
+				      DNS_LOGMODULE_CONFIG, ISC_LOG_WARNING,
+				      "view 'lame-ttl' is not yet "
+				      "implemented.");
+
+		if (dns_c_view_getminroots(elem, &bival) != ISC_R_NOTFOUND)
+			isc_log_write(dns_lctx,DNS_LOGCATEGORY_CONFIG,
+				      DNS_LOGMODULE_CONFIG, ISC_LOG_WARNING,
+				      "view 'min-roots' is not yet "
+				      "implemented.");
+
+
+		if (dns_c_view_getordering(elem, &boval) != ISC_R_NOTFOUND)
+			isc_log_write(dns_lctx,DNS_LOGCATEGORY_CONFIG,
+				      DNS_LOGMODULE_CONFIG, ISC_LOG_WARNING,
+				      "view 'rrset-order' is not yet "
+				      "implemented.");
+		
+
+		elem = ISC_LIST_NEXT(elem, next);
+	}
+	
+	return (result);
+}
+
+
+/* ***************************************************************** */
+/* ***************************************************************** */
+/* ***************************************************************** */
+/* ***************************************************************** */
 
 isc_result_t
-dns_c_view_new(isc_mem_t *mem, const char *name, dns_c_view_t **newview)
+dns_c_view_new(isc_mem_t *mem, const char *name, dns_rdataclass_t viewclass,
+	       dns_c_view_t **newview)
 {
 	dns_c_view_t *view;
-	int i;
-	
 
 	REQUIRE(name != NULL);
 	REQUIRE(*name != '\0');
@@ -227,66 +429,73 @@ dns_c_view_new(isc_mem_t *mem, const char *name, dns_c_view_t **newview)
 		return (ISC_R_NOMEMORY);
 	}
 
-	/* XXXJAB not portable -- should set each field */
-	memset(view, 0x0, sizeof *view); 
-
-	memset(&view->setflags, 0x0, sizeof (view->setflags));
-	
 	view->magic = DNS_C_VIEW_MAGIC;
 	view->mem = mem;
+	view->viewclass = viewclass;
 
-	view->allowquery = NULL;
-	view->transferacl = NULL;
-	view->recursionacl = NULL;
-	view->blackhole = NULL;
-	view->sortlist = NULL;
-	view->topology = NULL;
-	view->forwarders = NULL;
-	view->listens = NULL;
-	view->ordering = NULL;
-	
-	for (i = 0 ; i < DNS_C_TRANSCOUNT ; i++) {
-		view->check_names[i] = dns_severity_fail;
-	}
-
-	view->transfer_format = dns_one_answer;
-
-	view->auth_nx_domain = ISC_FALSE;
-	view->dialup = ISC_FALSE;
-	view->fetch_glue = ISC_FALSE;
-	view->has_old_clients = ISC_FALSE;
-	view->host_statistics = ISC_FALSE;
-	view->maintain_ixfr_base = ISC_FALSE;
-	view->multiple_cnames = ISC_FALSE;
-	view->notify = ISC_FALSE;
-	view->recursion = ISC_FALSE;
-	view->rfc2308_type1 = ISC_FALSE;
-	view->use_id_pool = ISC_FALSE;
-	view->fake_iquery = ISC_FALSE;
-	view->use_ixfr = ISC_FALSE;
-
-	view->clean_interval = 0;
-	view->lamettl = 0;		/* XXX not implemented */
-	view->max_log_size_ixfr = 0;
-	view->max_ncache_ttl = 0;
-	view->max_transfer_time_in = 0;
-	view->max_transfer_time_out = 0;
-	view->max_transfer_idle_in = 0;
-	view->max_transfer_idle_out = 0;
-	view->stats_interval = 0;
-	view->transfers_in = 0;
-	view->transfers_out = 0;
-	view->transfers_per_ns = 0;
-
-	view->zonelist = NULL;
 	view->name = isc_mem_strdup(mem, name);
 	if (view->name == NULL) {
 		isc_mem_put(mem, view, sizeof *view);
 		isc_log_write(dns_lctx, DNS_LOGCATEGORY_CONFIG,
 			      DNS_LOGMODULE_CONFIG, ISC_LOG_CRITICAL,
 			      "Insufficient memory");
+		return (ISC_R_NOMEMORY);
 	}
 
+	view->zonelist = NULL;
+
+	view->forward = NULL;
+	view->forwarders = NULL;
+
+	view->allowquery = NULL;
+	view->allowupdateforwarding = NULL;
+	view->transferacl = NULL;
+	view->recursionacl = NULL;
+	view->sortlist = NULL;
+	view->topology = NULL;
+	view->matchclients = NULL;
+
+	view->ordering = NULL;
+
+	view->check_names[dns_trans_primary] = NULL;
+	view->check_names[dns_trans_secondary] = NULL;
+	view->check_names[dns_trans_response] = NULL;
+
+	view->auth_nx_domain = NULL;
+	view->recursion = NULL;
+	view->provide_ixfr = NULL;
+	view->request_ixfr = NULL;
+	view->fetch_glue = NULL;
+	view->notify = NULL;
+	view->rfc2308_type1 = NULL;
+	
+	view->transfer_source = NULL;
+	view->transfer_source_v6 = NULL;
+	view->query_source = NULL;
+	view->query_source_v6 = NULL;
+
+	view->max_transfer_time_out = NULL;
+	view->max_transfer_idle_out = NULL;
+	view->clean_interval = NULL;
+	view->min_roots = NULL;
+	view->lamettl = NULL;
+	view->max_ncache_ttl = NULL;
+	view->max_cache_ttl = NULL;
+
+	view->additional_data = NULL;
+	view->transfer_format = NULL;
+	view->keydefs = NULL;
+	view->peerlist = NULL;
+	
+#if 0
+	view->max_transfer_time_in = NULL;
+	view->max_transfer_idle_in = NULL;
+	view->transfers_per_ns = NULL;
+	view->serial_queries = NULL;
+#endif
+
+	ISC_LINK_INIT(view, next);
+	
 	*newview = view;
 
 	return (ISC_R_SUCCESS);
@@ -294,74 +503,78 @@ dns_c_view_new(isc_mem_t *mem, const char *name, dns_c_view_t **newview)
 
 
 void
-dns_c_viewtable_print(FILE *fp, int indent,
-		      dns_c_viewtable_t *table)
-{
-	dns_c_view_t *view;
-
-	REQUIRE(fp != NULL);
-	REQUIRE(indent >= 0);
-	REQUIRE(DNS_C_VIEWTABLE_VALID(table));
-
-	view = ISC_LIST_HEAD(table->views);
-	while (view != NULL) {
-		dns_c_view_print(fp, indent, view);
-		fprintf(fp, "\n");
-
-		view  = ISC_LIST_NEXT(view, next);
-	}
-}
-
-void
-dns_c_view_print(FILE *fp, int indent, dns_c_view_t *view)
-{
+dns_c_view_print(FILE *fp, int indent, dns_c_view_t *view) {
 	dns_severity_t nameseverity;
+	in_port_t port;
 
 	REQUIRE(DNS_C_VIEW_VALID(view));
 	
 	dns_c_printtabs(fp, indent);
-	fprintf(fp, "view \"%s\" {\n", view->name);
+	fprintf(fp, "view \"%s\"", view->name);
 
-	if (view->allowquery != NULL) {
-		dns_c_printtabs(fp, indent + 1);
-		fprintf(fp, "allow-query ");
-		dns_c_ipmatchlist_print(fp, indent + 2,
-					view->allowquery);
-		fprintf(fp, ";\n");
+	if (view->viewclass != dns_rdataclass_in) {
+		fputc(' ', fp);
+		dns_c_dataclass_tostream(fp, view->viewclass);
 	}
 
-	if (view->transferacl != NULL) {
-		dns_c_printtabs(fp, indent + 1);
-		fprintf(fp, "allow-transfer ");
-		dns_c_ipmatchlist_print(fp, indent + 2,
-					view->transferacl);
-		fprintf(fp, ";\n");
+	fprintf(fp, " {\n");
+
+#define PRINT_IPANDPORT(FIELD, NAME)				\
+	if (view->FIELD != NULL) {				\
+		port = isc_sockaddr_getport(view->FIELD);	\
+								\
+		dns_c_printtabs(fp, indent + 1);		\
+		fprintf(fp, NAME " address ");			\
+								\
+		dns_c_print_ipaddr(fp, view->FIELD);		\
+								\
+		if (port == 0) {				\
+			fprintf(fp, " port *");			\
+		} else {					\
+			fprintf(fp, " port %d", port);		\
+		}						\
+		fprintf(fp, " ;\n");				\
 	}
 
-	if (view->recursionacl != NULL) {
-		dns_c_printtabs(fp, indent + 1);
-		fprintf(fp, "allow-recursion ");
-		dns_c_ipmatchlist_print(fp, indent + 2,
-					view->recursionacl);
-		fprintf(fp, ";\n");
+#define	 PRINT_IP(FIELD, NAME)				\
+	if (view->FIELD != NULL) {			\
+		dns_c_printtabs(fp, indent + 1);	\
+		fprintf(fp, NAME " ");			\
+		dns_c_print_ipaddr(fp, view->FIELD);	\
+		fprintf(fp, ";\n");			\
 	}
 
-	if (view->allowupdateforwarding != NULL) {
-		dns_c_printtabs(fp, indent + 1);
-		fprintf(fp, "allow-update-forwarding ");
-		dns_c_ipmatchlist_print(fp, indent + 2,
-					view->allowupdateforwarding);
-		fprintf(fp, ";\n");
+#define PRINT_IPMLIST(FIELD, NAME)				\
+	if (view->FIELD != NULL) {				\
+		dns_c_printtabs(fp, indent + 1);		\
+		fprintf(fp, NAME " ");				\
+		dns_c_ipmatchlist_print(fp, indent + 2,		\
+					view->FIELD);	\
+		fprintf(fp, ";\n");				\
 	}
 
-	if (view->blackhole != NULL) {
-		dns_c_printtabs(fp, indent + 1);
-		fprintf(fp, "blackhole ");
-		dns_c_ipmatchlist_print(fp, indent + 2,
-					view->blackhole);
-		fprintf(fp, ";\n");
+#define PRINT_AS_BOOLEAN(FIELD, NAME)				\
+	if (view->FIELD != NULL) {				\
+		dns_c_printtabs(fp, indent + 1);		\
+		fprintf(fp, "%s %s;\n", NAME,			\
+			(*view->FIELD ? "true" : "false"));	\
 	}
 
+
+#define PRINT_INT32(FIELD, NAME)				\
+	if (view->FIELD != NULL) {				\
+		dns_c_printtabs(fp, indent + 1);		\
+		fprintf(fp, "%s %d;\n",NAME,(int)*view->FIELD);	\
+	}
+		
+#define PRINT_AS_MINUTES(FIELD, NAME)				\
+	if (view->FIELD != NULL) {				\
+		dns_c_printtabs(fp, indent + 1);		\
+		fprintf(fp, "%s %lu;\n",NAME,			\
+			(unsigned long)(*view->FIELD / 60));	\
+	}
+
+	/* XXX print forward field */
 	if (view->forwarders != NULL) {
 		dns_c_printtabs(fp, indent + 1);
 		fprintf(fp, "forwarders ");
@@ -370,74 +583,100 @@ dns_c_view_print(FILE *fp, int indent, dns_c_view_t *view)
 		fprintf(fp, ";\n");
 	}
 
-	if (view->sortlist != NULL) {
-		dns_c_printtabs(fp, indent + 1);
-		fprintf(fp, "sortlist ");
-		dns_c_ipmatchlist_print(fp, indent + 2,
-					view->sortlist);
-		fprintf(fp, ";\n");
-	}
+	PRINT_IPMLIST(allowquery, "allow-query");
+	PRINT_IPMLIST(allowupdateforwarding, "allow-update-forwarding");
+	PRINT_IPMLIST(transferacl, "alllow-transfer");
+	PRINT_IPMLIST(recursionacl, "allow-recursion");
+	PRINT_IPMLIST(sortlist, "sortlist");
+	PRINT_IPMLIST(topology, "topology");
+	PRINT_IPMLIST(matchclients, "match-clients");
 
-	if (view->topology != NULL) {
-		dns_c_printtabs(fp, indent + 1);
-		fprintf(fp, "topology ");
-		dns_c_ipmatchlist_print(fp, indent + 2,
-					view->topology);
-		fprintf(fp, ";\n");
-	}
-
-	if (view->listens != NULL) {
-		dns_c_lstnlist_print(fp, indent + 1, view->listens);
-	}
+	fprintf(fp, "\n");
 
 	if (view->ordering != NULL) {
 		dns_c_rrsolist_print(fp, indent + 1, view->ordering);
 	}
 
-	if (DNS_C_CHECKBIT(CHECKNAME_PRIM_BIT, &view->setflags)) {
-		nameseverity = view->check_names[dns_trans_primary];
+	if (view->check_names[dns_trans_primary] != NULL) {
+		nameseverity = *view->check_names[dns_trans_primary];
 		dns_c_printtabs(fp, indent + 1);
 		fprintf(fp, "check-names %s %s;\n",
-			dns_c_transport2string(dns_trans_primary,
-					       ISC_TRUE),
-			dns_c_nameseverity2string(nameseverity,
-						  ISC_TRUE));
+			dns_c_transport2string(dns_trans_primary, ISC_TRUE),
+			dns_c_nameseverity2string(nameseverity, ISC_TRUE));
 	}
 		
-	if (DNS_C_CHECKBIT(CHECKNAME_SEC_BIT, &view->setflags)) {
-		nameseverity = view->check_names[dns_trans_secondary];
+	if (view->check_names[dns_trans_secondary] != NULL) {
+		nameseverity = *view->check_names[dns_trans_secondary];
 		dns_c_printtabs(fp, indent + 1);
 		fprintf(fp, "check-names %s %s;\n",
-			dns_c_transport2string(dns_trans_secondary,
-					       ISC_TRUE),
-			dns_c_nameseverity2string(nameseverity,
-						  ISC_TRUE));
+			dns_c_transport2string(dns_trans_secondary, ISC_TRUE),
+			dns_c_nameseverity2string(nameseverity, ISC_TRUE));
 	}
 		
-	if (DNS_C_CHECKBIT(CHECKNAME_RESP_BIT, &view->setflags)) {
-		nameseverity = view->check_names[dns_trans_response];
+	if (view->check_names[dns_trans_response] != NULL) {
+		nameseverity = *view->check_names[dns_trans_response];
 		dns_c_printtabs(fp, indent + 1);
 		fprintf(fp, "check-names %s %s;\n",
-			dns_c_transport2string(dns_trans_response,
-					       ISC_TRUE),
-			dns_c_nameseverity2string(nameseverity,
-						  ISC_TRUE));
+			dns_c_transport2string(dns_trans_response, ISC_TRUE),
+			dns_c_nameseverity2string(nameseverity, ISC_TRUE));
 	}
 
 
-	if (DNS_C_CHECKBIT(TRANSFER_FORMAT_BIT, &view->setflags)) {
+	PRINT_AS_BOOLEAN(auth_nx_domain, "auth-nxdomain");
+	PRINT_AS_BOOLEAN(recursion, "recursion");
+	PRINT_AS_BOOLEAN(provide_ixfr, "provide-ixfr");
+	PRINT_AS_BOOLEAN(request_ixfr, "request-ixfr");
+	PRINT_AS_BOOLEAN(fetch_glue, "fetch-glue");
+	PRINT_AS_BOOLEAN(notify, "notify");
+	PRINT_AS_BOOLEAN(rfc2308_type1, "rfc2308-type1");
+
+
+	PRINT_IP(transfer_source, "transfer-source");
+	PRINT_IP(transfer_source_v6, "transfer-source-v6");
+	
+	PRINT_IPANDPORT(query_source, "query-source");
+	PRINT_IPANDPORT(query_source_v6, "query-source-v6");
+
+	PRINT_AS_MINUTES(max_transfer_time_out, "max-transfer-time-out");
+	PRINT_AS_MINUTES(max_transfer_idle_out, "max-transfer-idle-out");
+	PRINT_AS_MINUTES(clean_interval, "cleaning-interval");
+
+	PRINT_INT32(min_roots, "min-roots");
+	PRINT_INT32(lamettl, "lame-ttl");
+	PRINT_INT32(max_ncache_ttl, "max-ncache-ttl");
+	PRINT_INT32(max_cache_ttl, "max-cache-ttl");
+
+	if (view->additional_data != NULL) {
+		dns_c_printtabs(fp, indent + 1);
+		fprintf(fp, "additional-data %s;\n",
+			dns_c_addata2string(*view->additional_data, ISC_TRUE));
+	}
+	
+	if (view->transfer_format != NULL) {
 		dns_c_printtabs(fp, indent + 1);
 		fprintf(fp, "transfer-format %s;\n",
-			dns_c_transformat2string(view->transfer_format,
+			dns_c_transformat2string(*view->transfer_format,
 						 ISC_TRUE));
 	}
-		
-
-	fprintf(fp, "\n");
 	
 
+	if (view->keydefs != NULL) {
+		dns_c_kdeflist_print(fp, indent + 1, view->keydefs);
+	}
 
-	/* XXXJAB rest of view fields */
+	if (view->peerlist != NULL) {
+		dns_c_peerlist_print(fp, indent + 1, view->peerlist);
+	}
+
+
+#if 0	
+	PRINT_INT32(max_transfer_time_in, "max-transfer-time-in");
+	PRINT_INT32(max_transfer_idle_in, "max-transfer-idle-in");
+	PRINT_INT32(transfers_per_ns, "transfers-per-ns");
+	PRINT_INT32(serialqueries, "serial-queries");
+#endif
+	
+	fprintf(fp, "\n");
 
 	if (view->zonelist != NULL) {
 		dns_c_zonelist_print(fp, indent + 1, view->zonelist);
@@ -445,139 +684,220 @@ dns_c_view_print(FILE *fp, int indent, dns_c_view_t *view)
 
 	dns_c_printtabs(fp, indent);
 	fprintf(fp, "};\n");
+
+#undef PRINT_IPMLIST
+#undef PRINT_AS_BOOLEAN
+#undef PRINT_INT32
+#undef PRINT_IP
+#undef PRINT_IPANDPORT
+	
+}
+
+
+
+
+
+isc_result_t
+dns_c_view_delete(dns_c_view_t **viewptr) {
+	dns_c_view_t *view;
+
+#define FREEIPMLIST(FIELD)				\
+	do { if (view->FIELD != NULL) {			\
+		dns_c_ipmatchlist_detach(&view->FIELD);	\
+	} } while (0)
+
+#define FREEFIELD(FIELD)						   \
+	do { if (view->FIELD != NULL) {					   \
+		isc_mem_put(view->mem, view->FIELD, sizeof (*view->FIELD)); \
+		view->FIELD = NULL;					   \
+	} } while (0)
+	
+	REQUIRE(viewptr != NULL);
+	REQUIRE(DNS_C_VIEW_VALID(*viewptr));
+
+	view = *viewptr;
+
+	isc_mem_free(view->mem, view->name);
+	
+	if (view->zonelist != NULL) {
+		dns_c_zonelist_delete(&view->zonelist);
+	}
+
+	FREEFIELD(forward);
+
+	if (view->forwarders != NULL) {
+		dns_c_iplist_detach(&view->forwarders);
+	}
+		
+	FREEIPMLIST(allowquery);
+	FREEIPMLIST(allowupdateforwarding);
+	FREEIPMLIST(transferacl);
+	FREEIPMLIST(recursionacl);
+	FREEIPMLIST(sortlist);
+	FREEIPMLIST(topology);
+	FREEIPMLIST(matchclients);
+
+	if (view->ordering != NULL) {
+		dns_c_rrsolist_delete(&view->ordering);
+	}
+
+
+	FREEFIELD(check_names[dns_trans_primary]);
+	FREEFIELD(check_names[dns_trans_secondary]);
+	FREEFIELD(check_names[dns_trans_response]);
+
+	FREEFIELD(auth_nx_domain);
+	FREEFIELD(recursion);
+	FREEFIELD(provide_ixfr);
+	FREEFIELD(request_ixfr);
+	FREEFIELD(fetch_glue);
+	FREEFIELD(notify);
+	FREEFIELD(rfc2308_type1);
+
+	FREEFIELD(transfer_source);
+	FREEFIELD(transfer_source_v6);
+	FREEFIELD(query_source);
+	FREEFIELD(query_source_v6);
+
+	FREEFIELD(max_transfer_time_out);
+	FREEFIELD(max_transfer_idle_out);
+	FREEFIELD(clean_interval);
+	FREEFIELD(min_roots);
+	FREEFIELD(lamettl);
+	FREEFIELD(max_ncache_ttl);
+	FREEFIELD(max_cache_ttl);
+
+	FREEFIELD(additional_data);
+	FREEFIELD(transfer_format);
+
+	dns_c_view_unsetkeydefs(view);
+	dns_c_view_unsetpeerlist(view);
+
+#if 0	
+	FREEFIELD(max_transfer_time_in);
+	FREEFIELD(max_transfer_idle_in);
+	FREEFIELD(transfers_per_ns);
+	FREEFIELD(serial_queries);
+#endif
+	
+	
+	view->magic = 0;
+	isc_mem_put(view->mem, view, sizeof *view);
+	
+	return (ISC_R_SUCCESS);
+}
+
+
+isc_boolean_t
+dns_c_view_keydefinedp(dns_c_view_t *view, const char *keyname) {
+	dns_c_kdef_t *keyid;
+	isc_result_t res;
+	isc_boolean_t rval = ISC_FALSE;
+
+	REQUIRE(DNS_C_VIEW_VALID(view));
+	REQUIRE(keyname != NULL);
+	REQUIRE(*keyname != '\0');
+	
+	if (view->keydefs != NULL) {
+		res = dns_c_kdeflist_find(view->keydefs, keyname, &keyid);
+		if (res == ISC_R_SUCCESS) {
+			rval = ISC_TRUE;
+		}
+	}
+
+	return rval;
+}
+
+isc_result_t
+dns_c_view_getname(dns_c_view_t *view, const char **retval) {
+	REQUIRE(DNS_C_VIEW_VALID(view));
+	REQUIRE(retval != NULL);
+
+	*retval = view->name;
+
+	return (ISC_R_SUCCESS);
 }
 
 
 isc_result_t
-dns_c_view_setallowquery(dns_c_view_t *view,
-			 dns_c_ipmatchlist_t *ipml,
-			 isc_boolean_t deepcopy)
-{
-	isc_result_t res;
-	
+dns_c_view_getviewclass(dns_c_view_t *view, dns_rdataclass_t *retval) {
 	REQUIRE(DNS_C_VIEW_VALID(view));
-	REQUIRE(DNS_C_IPMLIST_VALID(ipml));
+	REQUIRE(retval != NULL);
 
-	if (view->allowquery != NULL) {
-		dns_c_ipmatchlist_detach(&view->allowquery);
-	}
+	*retval = view->viewclass;
 
-	if (deepcopy) {
-		res = dns_c_ipmatchlist_copy(view->mem,
-					     &view->allowquery, ipml);
-	} else {
-		view->allowquery = ipml;
-		res = ISC_R_SUCCESS;
-	}
-
-	return (res);
+	return (ISC_R_SUCCESS);
 }
-	
+
+
+
+/*
+**
+*/
+
 
 isc_result_t
-dns_c_view_setallowtransfer(dns_c_view_t *view,
-			    dns_c_ipmatchlist_t *ipml,
-			    isc_boolean_t deepcopy)
-{
+dns_c_view_addzone(dns_c_view_t *view, dns_c_zone_t *zone) {
 	isc_result_t res;
+	dns_c_zone_t *attached;
 	
 	REQUIRE(DNS_C_VIEW_VALID(view));
-	REQUIRE(DNS_C_IPMLIST_VALID(ipml));
+	REQUIRE(DNS_C_ZONE_VALID(zone));
 
-	if (view->transferacl != NULL) {
-		dns_c_ipmatchlist_detach(&view->transferacl);
-	}
-
-	if (deepcopy) {
-		res = dns_c_ipmatchlist_copy(view->mem,
-					     &view->transferacl, ipml);
-	} else {
-		view->transferacl = ipml;
-		res = ISC_R_SUCCESS;
-	}
-
-	return (res);
-}
+	dns_c_zone_attach(zone, &attached);
 	
+	if (view->zonelist == NULL) {
+		res = dns_c_zonelist_new(view->mem, &view->zonelist);
+		if (res != ISC_R_SUCCESS) {
+			return (res);
+		}
+	}
+	
+	return (dns_c_zonelist_addzone(view->zonelist, attached));
+}
+
 
 isc_result_t
-dns_c_view_setallowrecursion(dns_c_view_t *view,
-			     dns_c_ipmatchlist_t *ipml,
-			     isc_boolean_t deepcopy)
-{
-	isc_result_t res;
-	
+dns_c_view_getzonelist(dns_c_view_t *view, dns_c_zonelist_t **zonelist) {
 	REQUIRE(DNS_C_VIEW_VALID(view));
-	REQUIRE(DNS_C_IPMLIST_VALID(ipml));
+	REQUIRE(zonelist != NULL);
 
-	if (view->recursionacl != NULL) {
-		dns_c_ipmatchlist_detach(&view->recursionacl);
-	}
-
-	if (deepcopy) {
-		res = dns_c_ipmatchlist_copy(view->mem,
-					     &view->recursionacl, ipml);
-	} else {
-		view->recursionacl = ipml;
-		res = ISC_R_SUCCESS;
-	}
-
-	return (res);
-}
+	*zonelist = view->zonelist;
 	
+	if (view->zonelist == NULL) {
+		return (ISC_R_NOTFOUND);
+	} else {
+		return (ISC_R_SUCCESS);
+	}
+}
+
 
 isc_result_t
-dns_c_view_setallowupdateforwarding(dns_c_view_t *view,
-				    dns_c_ipmatchlist_t *ipml,
-				    isc_boolean_t deepcopy)
-{
-	isc_result_t res;
-	
+dns_c_view_unsetzonelist(dns_c_view_t *view) {
 	REQUIRE(DNS_C_VIEW_VALID(view));
-	REQUIRE(DNS_C_IPMLIST_VALID(ipml));
 
-	if (view->allowupdateforwarding != NULL) {
-		dns_c_ipmatchlist_detach(&view->allowupdateforwarding);
-	}
-
-	if (deepcopy) {
-		res = dns_c_ipmatchlist_copy(view->mem,
-					     &view->allowupdateforwarding,
-					     ipml);
+	if (view->zonelist == NULL) {
+		return (ISC_R_NOTFOUND);
 	} else {
-		view->allowupdateforwarding = ipml;
-		res = ISC_R_SUCCESS;
+		dns_c_zonelist_delete(&view->zonelist);
+		return (ISC_R_SUCCESS);
 	}
-
-	return (res);
 }
+
+
+/*
+**
+*/
+
+
+SETBYTYPE(dns_c_forw_t, forward, forward)
+UNSETBYTYPE(dns_c_forw_t, forward, forward)
+GETBYTYPE(dns_c_forw_t, forward, forward)
+
 	
-
-isc_result_t
-dns_c_view_setblackhole(dns_c_view_t *view,
-			dns_c_ipmatchlist_t *ipml,
-			isc_boolean_t deepcopy)
-{
-	isc_result_t res;
-	
-	REQUIRE(DNS_C_VIEW_VALID(view));
-	REQUIRE(DNS_C_IPMLIST_VALID(ipml));
-
-	if (view->blackhole != NULL) {
-		dns_c_ipmatchlist_detach(&view->blackhole);
-	}
-
-	if (deepcopy) {
-		res = dns_c_ipmatchlist_copy(view->mem,
-					     &view->blackhole, ipml);
-	} else {
-		view->blackhole = ipml;
-		res = ISC_R_SUCCESS;
-	}
-
-	return (res);
-}
-	
+/*
+**
+*/
 
 isc_result_t
 dns_c_view_setforwarders(dns_c_view_t *view,
@@ -598,128 +918,36 @@ dns_c_view_setforwarders(dns_c_view_t *view,
 	if (deepcopy) {
 		res = dns_c_iplist_copy(view->mem, &view->forwarders, ipl);
 	} else {
-		view->forwarders = ipl;
+		dns_c_iplist_attach(ipl, &view->forwarders);
 		res = ISC_R_SUCCESS;
 	}
 
 	if (res == ISC_R_SUCCESS) {
-		return (existed ? ISC_R_EXISTS : res);
+		return (existed ? ISC_R_EXISTS : ISC_R_SUCCESS);
 	} else {
 		return (res);
+	}
+}
+		
+
+
+isc_result_t
+dns_c_view_unsetforwarders(dns_c_view_t *view) {
+	REQUIRE(DNS_C_VIEW_VALID(view));
+
+	if (view->forwarders != NULL) {
+		dns_c_iplist_detach(&view->forwarders);
+		return (ISC_R_SUCCESS);
+	} else {
+		return (ISC_R_NOTFOUND);
 	}
 }
 		
 	
 
 isc_result_t
-dns_c_view_setsortlist(dns_c_view_t *view,
-		       dns_c_ipmatchlist_t *ipml,
-		       isc_boolean_t deepcopy)
-{
-	isc_result_t res;
-	
-	REQUIRE(DNS_C_VIEW_VALID(view));
-	REQUIRE(DNS_C_IPMLIST_VALID(ipml));
-
-	if (view->sortlist != NULL) {
-		dns_c_ipmatchlist_detach(&view->sortlist);
-	}
-
-	if (deepcopy) {
-		res = dns_c_ipmatchlist_copy(view->mem,
-					     &view->sortlist, ipml);
-	} else {
-		view->sortlist = ipml;
-		res = ISC_R_SUCCESS;
-	}
-
-	return (res);
-}
-	
-
-isc_result_t
-dns_c_view_settopology(dns_c_view_t *view,
-		       dns_c_ipmatchlist_t *ipml,
-		       isc_boolean_t deepcopy)
-{
-	isc_result_t res;
-	
-	REQUIRE(DNS_C_VIEW_VALID(view));
-	REQUIRE(DNS_C_IPMLIST_VALID(ipml));
-
-	if (view->topology != NULL) {
-		dns_c_ipmatchlist_detach(&view->topology);
-	}
-
-	if (deepcopy) {
-		res = dns_c_ipmatchlist_copy(view->mem,
-					     &view->topology, ipml);
-	} else {
-		view->topology = ipml;
-		res = ISC_R_SUCCESS;
-	}
-
-	return (res);
-}
-
-
-isc_result_t
-dns_c_view_getallowquery(dns_c_view_t *view, dns_c_ipmatchlist_t **ipml)
-{
-	REQUIRE(DNS_C_VIEW_VALID(view));
-	REQUIRE(ipml != NULL);
-	
-	*ipml = view->allowquery;
-
-	return (*ipml == NULL ? ISC_R_NOTFOUND : ISC_R_SUCCESS);
-}
-
-isc_result_t dns_c_view_getallowtransfer(dns_c_view_t *view,
-					 dns_c_ipmatchlist_t **ipml)
-{
-	REQUIRE(DNS_C_VIEW_VALID(view));
-	REQUIRE(ipml != NULL);
-	
-	*ipml = view->transferacl;
-
-	return (*ipml == NULL ? ISC_R_NOTFOUND : ISC_R_SUCCESS);
-}
-	
-isc_result_t dns_c_view_getallowrecursion(dns_c_view_t *view,
-					  dns_c_ipmatchlist_t **ipml)
-{
-	REQUIRE(DNS_C_VIEW_VALID(view));
-	REQUIRE(ipml != NULL);
-	
-	*ipml = view->recursionacl;
-
-	return (*ipml == NULL ? ISC_R_NOTFOUND : ISC_R_SUCCESS);
-}
-	
-isc_result_t dns_c_view_getallowupdateforwarding(dns_c_view_t *view,
-						 dns_c_ipmatchlist_t **ipml)
-{
-	REQUIRE(DNS_C_VIEW_VALID(view));
-	REQUIRE(ipml != NULL);
-	
-	*ipml = view->allowupdateforwarding;
-
-	return (*ipml == NULL ? ISC_R_NOTFOUND : ISC_R_SUCCESS);
-}
-	
-isc_result_t dns_c_view_getblackhole(dns_c_view_t *view,
-				     dns_c_ipmatchlist_t **ipml)
-{
-	REQUIRE(DNS_C_VIEW_VALID(view));
-	REQUIRE(ipml != NULL);
-	
-	*ipml = view->blackhole;
-
-	return (*ipml == NULL ? ISC_R_NOTFOUND : ISC_R_SUCCESS);
-}
-	
-isc_result_t dns_c_view_getforwarders(dns_c_view_t *view,
-				      dns_c_iplist_t **ipl)
+dns_c_view_getforwarders(dns_c_view_t *view,
+			 dns_c_iplist_t **ipl)
 {
 	REQUIRE(DNS_C_VIEW_VALID(view));
 	REQUIRE(ipl != NULL);
@@ -728,211 +956,24 @@ isc_result_t dns_c_view_getforwarders(dns_c_view_t *view,
 
 	return (*ipl == NULL ? ISC_R_NOTFOUND : ISC_R_SUCCESS);
 }
-	
-isc_result_t dns_c_view_getsortlist(dns_c_view_t *view,
-				    dns_c_ipmatchlist_t **ipml)
-{
-	REQUIRE(DNS_C_VIEW_VALID(view));
-	REQUIRE(ipml != NULL);
-	
-	*ipml = view->sortlist;
 
-	return (*ipml == NULL ? ISC_R_NOTFOUND : ISC_R_SUCCESS);
-}
-	
-isc_result_t dns_c_view_gettopology(dns_c_view_t *view,
-				    dns_c_ipmatchlist_t **ipml)
-{
-	REQUIRE(DNS_C_VIEW_VALID(view));
-	REQUIRE(ipml != NULL);
-	
-	*ipml = view->topology;
 
-	return (*ipml == NULL ? ISC_R_NOTFOUND : ISC_R_SUCCESS);
-}
-	
-
+/*
+**
+*/
 
 isc_result_t
-dns_c_view_getallowqueryexpanded(isc_mem_t *mem,
-				 dns_c_view_t *view,
-				 dns_c_acltable_t *acltable,
-				 dns_c_ipmatchlist_t **retval)
-{
-	dns_c_ipmatchlist_t *newlist;
-	isc_result_t r;
-
-	REQUIRE(DNS_C_VIEW_VALID(view));
-	REQUIRE(DNS_C_CONFACLTABLE_VALID(acltable));
-	REQUIRE(retval != NULL);
-	
-	if (view->allowquery == NULL) {
-		newlist = NULL;
-		r = ISC_R_SUCCESS;
-	} else {
-		r = dns_c_ipmatchlist_copy(mem, &newlist, view->allowquery);
-		if (r != ISC_R_SUCCESS) {
-			return (r);
-		}
-
-		r = dns_c_acl_expandacls(acltable, newlist);
-	}
-
-	*retval = newlist;
-	
-	return (r);
-}
-
-
-
-isc_result_t
-dns_c_view_delete(dns_c_view_t **viewptr)
-{
-	dns_c_view_t *view;
-	
-	REQUIRE(viewptr != NULL);
-	REQUIRE(DNS_C_VIEW_VALID(*viewptr));
-
-	view = *viewptr;
-
-	isc_mem_free(view->mem, view->name);
-	
-	if (view->allowquery != NULL)
-		dns_c_ipmatchlist_detach(&view->allowquery);
-
-	if (view->transferacl != NULL)
-		dns_c_ipmatchlist_detach(&view->transferacl);
-
-	if (view->recursionacl != NULL)
-		dns_c_ipmatchlist_detach(&view->recursionacl);
-
-	if (view->allowupdateforwarding != NULL)
-		dns_c_ipmatchlist_detach(&view->allowupdateforwarding);
-
-	if (view->blackhole != NULL)
-		dns_c_ipmatchlist_detach(&view->blackhole);
-
-	if (view->forwarders != NULL)
-		dns_c_iplist_detach(&view->forwarders);
-
-	if (view->sortlist != NULL)
-		dns_c_ipmatchlist_detach(&view->sortlist);
-
-	if (view->topology != NULL)
-		dns_c_ipmatchlist_detach(&view->topology);
-
-	if (view->listens != NULL) {
-		dns_c_lstnlist_delete(&view->listens);
-	}
-	
-	if (view->ordering != NULL) {
-		dns_c_rrsolist_delete(&view->ordering);
-	}
-		
-	if (view->zonelist != NULL) {
-		dns_c_zonelist_delete(&view->zonelist);
-	}
-
-	view->magic = 0;
-	isc_mem_put(view->mem, view, sizeof *view);
-	
-	return (ISC_R_SUCCESS);
-}
-
-	
-isc_result_t
-dns_c_view_getname(dns_c_view_t *view, const char **retval)
-{
-	REQUIRE(DNS_C_VIEW_VALID(view));
-	REQUIRE(retval != NULL);
-
-	*retval = view->name;
-
-	return (ISC_R_SUCCESS);
-}
-
-
-
-isc_result_t
-dns_c_view_addzone(dns_c_view_t *view, dns_c_zone_t *zone)
-{
-	isc_result_t res;
-	dns_c_zone_t *attached;
-	
-	REQUIRE(DNS_C_VIEW_VALID(view));
-	REQUIRE(DNS_C_ZONE_VALID(zone));
-
-	dns_c_zone_attach(zone, &attached);
-	
-	if (view->zonelist == NULL) {
-		res = dns_c_zonelist_new(view->mem, &view->zonelist);
-		if (res != ISC_R_SUCCESS) {
-			return (res);
-		}
-	}
-	
-	return (dns_c_zonelist_addzone(view->zonelist, attached));
-}
-	
-
-isc_result_t
-dns_c_view_addlisten_on(dns_c_view_t *view, in_port_t port,
-			dns_c_ipmatchlist_t *ml,
-		       isc_boolean_t copy)
-{
-	dns_c_lstnon_t *lo;
-	isc_result_t res;
-
-	REQUIRE(DNS_C_VIEW_VALID(view));
-
-	if (view->listens == NULL) {
-		res = dns_c_lstnlist_new(view->mem, &view->listens);
-		if (res != ISC_R_SUCCESS) {
-			return (res);
-		}
-	}
-
-	res = dns_c_lstnon_new(view->mem, &lo);
-	if (res != ISC_R_SUCCESS) {
-		return (res);
-	}
-	
-	lo->port = port;
-	res = dns_c_lstnon_setiml(lo, ml, copy);
-
-	ISC_LIST_APPEND(view->listens->elements, lo, next);
-
-	return (res);
-}
-
-
-
-isc_result_t
-dns_c_view_getlistenlist(dns_c_view_t *view, dns_c_lstnlist_t **ll)
-{
-	REQUIRE(DNS_C_VIEW_VALID(view));
-	REQUIRE(ll != NULL);
-
-	*ll = NULL;
-
-	if (view->listens != NULL) {
-		*ll = view->listens;
-	}
-
-	return (*ll == NULL ? ISC_R_NOTFOUND : ISC_R_SUCCESS);
-}
-
-isc_result_t dns_c_view_setrrsetorderlist(dns_c_view_t *view,
-					  isc_boolean_t copy,
-					  dns_c_rrsolist_t *olist)
+dns_c_view_setordering(dns_c_view_t *view,
+		       isc_boolean_t copy,
+		       dns_c_rrsolist_t *olist)
 {
 	isc_boolean_t existed;
 	isc_result_t res;
 
 	REQUIRE(DNS_C_VIEW_VALID(view));
 
-	existed = (view->ordering == NULL ? ISC_FALSE : ISC_TRUE);
-	
+	existed = ISC_TF(view->ordering != NULL);
+
 	if (copy) {
 		if (view->ordering == NULL) {
 			res = dns_c_rrsolist_new(view->mem,
@@ -964,48 +1005,55 @@ isc_result_t dns_c_view_setrrsetorderlist(dns_c_view_t *view,
 					  
 
 
-isc_result_t dns_c_view_getrrsetorderlist(dns_c_view_t *view,
-					  dns_c_rrsolist_t **olist)
+isc_result_t
+dns_c_view_getordering(dns_c_view_t *view,
+		       dns_c_rrsolist_t **olist)
 {
 	REQUIRE(DNS_C_VIEW_VALID(view));
 	REQUIRE(olist != NULL);
 
-	if (view->ordering != NULL) {
-		*olist = view->ordering;
-	}
+	*olist = view->ordering;
 
 	return (*olist == NULL ? ISC_R_NOTFOUND : ISC_R_SUCCESS);
 }
 
-	
 
+isc_result_t
+dns_c_view_unsetordering(dns_c_view_t *view)
+{
+	REQUIRE(DNS_C_VIEW_VALID(view));
+
+	if (view->ordering != NULL) {
+		dns_c_rrsolist_delete(&view->ordering);
+		return (ISC_R_SUCCESS);
+	} else {
+		return (ISC_R_NOTFOUND);
+	}
+}
+
+
+
+/*
+**
+**
+*/
 
 isc_result_t
 dns_c_view_setchecknames(dns_c_view_t *view,
-			 dns_c_trans_t transtype,
-			 dns_severity_t sever)
+			dns_c_trans_t transtype,
+			dns_severity_t newval)
 {
 	isc_boolean_t existed = ISC_FALSE;
+	dns_severity_t **ptr = NULL;
 	
 	REQUIRE(DNS_C_VIEW_VALID(view));
 
 	switch(transtype) {
 	case dns_trans_primary:
-		existed = DNS_C_CHECKBIT(CHECKNAME_PRIM_BIT,
-					 &view->setflags);
-		DNS_C_SETBIT(CHECKNAME_PRIM_BIT, &view->setflags);
-		break;
-
 	case dns_trans_secondary:
-		existed = DNS_C_CHECKBIT(CHECKNAME_SEC_BIT,
-					 &view->setflags);
-		DNS_C_SETBIT(CHECKNAME_SEC_BIT, &view->setflags);
-		break;
-
 	case dns_trans_response:
-		existed = DNS_C_CHECKBIT(CHECKNAME_RESP_BIT,
-					 &view->setflags);
-		DNS_C_SETBIT(CHECKNAME_RESP_BIT, &view->setflags);
+		ptr = &view->check_names[transtype];
+		existed = ISC_TF(*ptr != NULL);
 		break;
 
 	default:
@@ -1014,40 +1062,64 @@ dns_c_view_setchecknames(dns_c_view_t *view,
 			      "bad transport value: %d", transtype);
 		return (ISC_R_FAILURE);
 	}
-	
-	view->check_names[transtype] = sever;
 
+	if (!existed) {
+		*ptr = isc_mem_get(view->mem, sizeof (**ptr));
+	}
+
+	**ptr = newval;
+	
 	return (existed ? ISC_R_EXISTS : ISC_R_SUCCESS);
 }
-
 
 
 isc_result_t
 dns_c_view_getchecknames(dns_c_view_t *view,
-			 dns_c_trans_t transtype,
-			 dns_severity_t *sever)
+			dns_c_trans_t transtype,
+			dns_severity_t *retval)
 {
-	isc_boolean_t isset = ISC_FALSE;
-	isc_result_t res;
-
+	isc_result_t result;
+	dns_severity_t **ptr = NULL;	
 	REQUIRE(DNS_C_VIEW_VALID(view));
-
-	REQUIRE(sever != NULL);
 
 	switch (transtype) {
 	case dns_trans_primary:
-		isset = DNS_C_CHECKBIT(CHECKNAME_PRIM_BIT,
-				       &view->setflags);
-		break;
-
 	case dns_trans_secondary:
-		isset = DNS_C_CHECKBIT(CHECKNAME_SEC_BIT,
-				       &view->setflags);
-		break;
-
 	case dns_trans_response:
-		isset = DNS_C_CHECKBIT(CHECKNAME_RESP_BIT,
-				       &view->setflags);
+		ptr = &view->check_names[transtype];
+		break;
+		
+	default:
+		isc_log_write(dns_lctx, DNS_LOGCATEGORY_CONFIG,
+			      DNS_LOGMODULE_CONFIG, ISC_LOG_CRITICAL,
+			      "bad transport value: %d", transtype);
+		return (ISC_R_FAILURE);
+	}
+
+	if (*ptr != NULL) {
+		*retval = *view->check_names[transtype];
+		result = ISC_R_SUCCESS;
+	} else {
+		result = ISC_R_NOTFOUND;
+	}
+
+	return (result);
+}
+
+
+isc_result_t
+dns_c_view_unsetchecknames(dns_c_view_t *view,
+			  dns_c_trans_t transtype)
+{
+	dns_severity_t **ptr = NULL;
+	
+	REQUIRE(DNS_C_VIEW_VALID(view));
+
+	switch(transtype) {
+	case dns_trans_primary:
+	case dns_trans_secondary:
+	case dns_trans_response:
+		ptr = &view->check_names[transtype];
 		break;
 
 	default:
@@ -1057,49 +1129,245 @@ dns_c_view_getchecknames(dns_c_view_t *view,
 		return (ISC_R_FAILURE);
 	}
 
-	if (isset) {
-		*sever = view->check_names[transtype];
-		res = ISC_R_SUCCESS;
-	} else {
-		res = ISC_R_NOTFOUND;
-	}
-
-	return (res);
-}
-
-
-isc_result_t dns_c_view_settransferformat(dns_c_view_t *view,
-					  dns_transfer_format_t format)
-{
-	isc_boolean_t existed = ISC_FALSE;
-	
-	REQUIRE(DNS_C_VIEW_VALID(view));
-
-	existed = DNS_C_CHECKBIT(TRANSFER_FORMAT_BIT,
-				 &view->setflags);
-	DNS_C_SETBIT(TRANSFER_FORMAT_BIT, &view->setflags);
-	
-	view->transfer_format = format;
-
-	return (existed ? ISC_R_EXISTS : ISC_R_SUCCESS);
-}
-
-
-isc_result_t dns_c_view_gettransferformat(dns_c_view_t *view,
-					  dns_transfer_format_t *format)
-{
-	REQUIRE(DNS_C_VIEW_VALID(view));
-	REQUIRE(format != NULL);
-	
-
-	if (!DNS_C_CHECKBIT(TRANSFER_FORMAT_BIT, &view->setflags)) {
+	if (*ptr == NULL) {
 		return (ISC_R_NOTFOUND);
 	}
-
-	*format = view->transfer_format;
+	
+	isc_mem_put(view->mem, *ptr, sizeof (**ptr));
 
 	return (ISC_R_SUCCESS);
 }
 
-		
+
+isc_result_t
+dns_c_view_getkeydefs(dns_c_view_t *view, dns_c_kdeflist_t **retval) {
+	REQUIRE(DNS_C_VIEW_VALID(view));
+	REQUIRE(retval != NULL);
+
+	*retval = view->keydefs;
+	
+	if (view->keydefs == NULL) {
+		return (ISC_R_NOTFOUND);
+	} else {
+		return (ISC_R_SUCCESS);
+	}
+}
+
+
+isc_result_t
+dns_c_view_setkeydefs(dns_c_view_t *view, dns_c_kdeflist_t *newval) {
+	REQUIRE(DNS_C_VIEW_VALID(view));
+	REQUIRE(DNS_C_KDEFLIST_VALID(newval));
+
+	if (view->keydefs != NULL) {
+		dns_c_view_unsetkeydefs(view);
+	}
+
+	view->keydefs = newval;
+
+	return (ISC_R_SUCCESS);
+}
+
+
+isc_result_t
+dns_c_view_unsetkeydefs(dns_c_view_t *view) {
+	REQUIRE(DNS_C_VIEW_VALID(view));
+
+	if (view->keydefs != NULL) {
+		dns_c_kdeflist_delete(&view->keydefs);
+		view->keydefs = NULL;
+		return (ISC_R_SUCCESS);
+	} else {
+		return (ISC_R_NOTFOUND);
+	}
+}
+
+
+/*
+**
+*/
+
+isc_result_t
+dns_c_view_getpeerlist(dns_c_view_t *view, dns_peerlist_t **retval) {
+	REQUIRE(DNS_C_VIEW_VALID(view));
+	REQUIRE(retval != NULL);
+	
+	if (view->peerlist == NULL) {
+		*retval = NULL;
+		return (ISC_R_NOTFOUND);
+	} else {
+		dns_peerlist_attach(view->peerlist, retval);
+		return (ISC_R_SUCCESS);
+	}
+}
+
+
+isc_result_t
+dns_c_view_unsetpeerlist(dns_c_view_t *view) {
+	REQUIRE(DNS_C_VIEW_VALID(view));
+
+	if (view->peerlist != NULL) {
+		dns_peerlist_detach(&view->peerlist);
+		return (ISC_R_SUCCESS);
+	} else {
+		return (ISC_R_FAILURE);
+	}
+}
+	
+
+isc_result_t
+dns_c_view_setpeerlist(dns_c_view_t *view, dns_peerlist_t *newval) {
+	REQUIRE(DNS_C_VIEW_VALID(view));
+
+	if (view->peerlist != NULL) {
+		dns_peerlist_detach(&view->peerlist);
+	}
+
+	dns_peerlist_attach(newval, &view->peerlist);
+
+	return (ISC_R_SUCCESS);
+}
+
+GETIPMLIST(allowquery, allowquery)
+SETIPMLIST(allowquery, allowquery)
+UNSETIPMLIST(allowquery, allowquery)
+
+GETIPMLIST(allowupdateforwarding, allowupdateforwarding)
+SETIPMLIST(allowupdateforwarding, allowupdateforwarding)
+UNSETIPMLIST(allowupdateforwarding, allowupdateforwarding)
+
+GETIPMLIST(transferacl, transferacl)
+SETIPMLIST(transferacl, transferacl)
+UNSETIPMLIST(transferacl, transferacl)
+
+GETIPMLIST(recursionacl, recursionacl)
+SETIPMLIST(recursionacl, recursionacl)
+UNSETIPMLIST(recursionacl, recursionacl)
+
+GETIPMLIST(sortlist, sortlist)
+SETIPMLIST(sortlist, sortlist)
+UNSETIPMLIST(sortlist, sortlist)
+
+GETIPMLIST(topology, topology)
+SETIPMLIST(topology, topology)
+UNSETIPMLIST(topology, topology)
+
+GETIPMLIST(matchclients, matchclients)
+SETIPMLIST(matchclients, matchclients)
+UNSETIPMLIST(matchclients, matchclients)
+
+
+SETBOOL(authnxdomain, auth_nx_domain)
+GETBOOL(authnxdomain, auth_nx_domain)
+UNSETBOOL(authnxdomain, auth_nx_domain)
+
+SETBOOL(recursion, recursion)
+GETBOOL(recursion, recursion)
+UNSETBOOL(recursion, recursion)
+
+SETBOOL(provideixfr, provide_ixfr)
+GETBOOL(provideixfr, provide_ixfr)
+UNSETBOOL(provideixfr, provide_ixfr)
+
+SETBOOL(requestixfr, request_ixfr)
+GETBOOL(requestixfr, request_ixfr)
+UNSETBOOL(requestixfr, request_ixfr)
+
+SETBOOL(fetchglue, fetch_glue)
+GETBOOL(fetchglue, fetch_glue)
+UNSETBOOL(fetchglue, fetch_glue)
+
+SETBOOL(notify, notify)
+GETBOOL(notify, notify)
+UNSETBOOL(notify, notify)
+
+SETBOOL(rfc2308type1, rfc2308_type1)
+GETBOOL(rfc2308type1, rfc2308_type1)
+UNSETBOOL(rfc2308type1, rfc2308_type1)
+
+GETSOCKADDR(transfersource, transfer_source)
+SETSOCKADDR(transfersource, transfer_source)
+UNSETSOCKADDR(transfersource, transfer_source)
+
+GETSOCKADDR(transfersourcev6, transfer_source_v6)
+SETSOCKADDR(transfersourcev6, transfer_source_v6)
+UNSETSOCKADDR(transfersourcev6, transfer_source_v6)
+
+GETSOCKADDR(querysource, query_source)
+SETSOCKADDR(querysource, query_source)
+UNSETSOCKADDR(querysource, query_source)
+
+GETSOCKADDR(querysourcev6, query_source_v6)
+SETSOCKADDR(querysourcev6, query_source_v6)
+UNSETSOCKADDR(querysourcev6, query_source_v6)
+
+SETINT32(maxtransfertimeout, max_transfer_time_out)
+GETINT32(maxtransfertimeout, max_transfer_time_out)
+UNSETINT32(maxtransfertimeout, max_transfer_time_out)
+
+SETINT32(maxtransferidleout, max_transfer_idle_out)
+GETINT32(maxtransferidleout, max_transfer_idle_out)
+UNSETINT32(maxtransferidleout, max_transfer_idle_out)
+
+SETINT32(cleaninterval, clean_interval)
+GETINT32(cleaninterval, clean_interval)
+UNSETINT32(cleaninterval, clean_interval)
+
+SETINT32(minroots, min_roots)
+GETINT32(minroots, min_roots)
+UNSETINT32(minroots, min_roots)
+
+SETINT32(lamettl, lamettl)
+GETINT32(lamettl, lamettl)
+UNSETINT32(lamettl, lamettl)
+
+SETINT32(maxncachettl, max_ncache_ttl)
+GETINT32(maxncachettl, max_ncache_ttl)
+UNSETINT32(maxncachettl, max_ncache_ttl)
+
+SETINT32(maxcachettl, max_cache_ttl)
+GETINT32(maxcachettl, max_cache_ttl)
+UNSETINT32(maxcachettl, max_cache_ttl)
+
+
+GETBYTYPE(dns_c_addata_t, additionaldata, additional_data)
+SETBYTYPE(dns_c_addata_t, additionaldata, additional_data)
+UNSETBYTYPE(dns_c_addata_t, additionaldata, additional_data)
+
+GETBYTYPE(dns_transfer_format_t, transferformat, transfer_format)
+SETBYTYPE(dns_transfer_format_t, transferformat, transfer_format)
+UNSETBYTYPE(dns_transfer_format_t, transferformat, transfer_format)
+
+
+#if 0
+
+/*
+ * XXX waiting for implementation in server to turn these on.
+ */
+SETINT32(maxtransfertimein, max_transfer_time_in)
+GETINT32(maxtransfertimein, max_transfer_time_in)
+UNSETINT32(maxtransfertimein, max_transfer_time_in)
+
+SETINT32(maxtransferidlein, max_transfer_idle_in)
+GETINT32(maxtransferidlein, max_transfer_idle_in)
+UNSETINT32(maxtransferidlein, max_transfer_idle_in)
+
+SETINT32(transfersperns, transfers_per_ns)
+GETINT32(transfersperns, transfers_per_ns)
+UNSETINT32(transfersperns, transfers_per_ns)
+
+SETINT32(serialqueries, serial_queries)
+GETINT32(serialqueries, serial_queries)
+UNSETINT32(serialqueries, serial_queries)
+
+#endif
+
+
+
+
+
+
+
+
+
 

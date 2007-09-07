@@ -15,16 +15,16 @@
  * SOFTWARE.
  */
 
- /* $Id: a6_38.c,v 1.22 2000/03/20 22:44:35 gson Exp $ */
+ /* $Id: a6_38.c,v 1.32 2000/05/22 12:38:05 marka Exp $ */
 
  /* draft-ietf-ipngwg-dns-lookups-03.txt */
 
 #ifndef RDATA_IN_1_A6_28_C
 #define RDATA_IN_1_A6_28_C
 
-#include <string.h>
-
 #include <isc/net.h>
+
+#define RRTYPE_A6_ATTRIBUTES (0)
 
 static inline isc_result_t
 fromtext_in_a6(dns_rdataclass_t rdclass, dns_rdatatype_t type,
@@ -42,19 +42,27 @@ fromtext_in_a6(dns_rdataclass_t rdclass, dns_rdatatype_t type,
 	REQUIRE(type == 38);
 	REQUIRE(rdclass == 1);
 
-	/* prefix length */
+	/*
+	 * Prefix length.
+	 */
 	RETERR(gettoken(lexer, &token, isc_tokentype_number, ISC_FALSE));
 	if (token.value.as_ulong > 128)
-		return (DNS_R_RANGE);
+		return (ISC_R_RANGE);
 
 	prefixlen = (unsigned char)token.value.as_ulong;
 	RETERR(mem_tobuffer(target, &prefixlen, 1));
 
-	/* suffix */
+	/*
+	 * Suffix.
+	 */
 	if (prefixlen != 128) {
-		/* prefix 0..127 */
+		/*
+		 * Prefix 0..127.
+		 */
 		octets = prefixlen/8;
-		/* octets 0..15 */
+		/*
+		 * Octets 0..15.
+		 */
 		RETERR(gettoken(lexer, &token, isc_tokentype_string,
 				ISC_FALSE));
 		if (inet_pton(AF_INET6, token.value.as_pointer, addr) != 1)
@@ -65,12 +73,11 @@ fromtext_in_a6(dns_rdataclass_t rdclass, dns_rdatatype_t type,
 	}
 
 	if (prefixlen == 0)
-		return (DNS_R_SUCCESS);
+		return (ISC_R_SUCCESS);
 
 	RETERR(gettoken(lexer, &token, isc_tokentype_string, ISC_FALSE));
 	dns_name_init(&name, NULL);
-	buffer_fromregion(&buffer, &token.value.as_region,
-			  ISC_BUFFERTYPE_TEXT);
+	buffer_fromregion(&buffer, &token.value.as_region);
 	origin = (origin != NULL) ? origin : dns_rootname;
 	return (dns_name_fromtext(&name, &buffer, origin, downcase, target));
 }
@@ -107,17 +114,17 @@ totext_in_a6(dns_rdata_t *rdata, dns_rdata_textctx_t *tctx,
 		memcpy(&addr[octets], sr.base, 16 - octets);
 		mask = 0xff >> (prefixlen % 8);
 		addr[octets] &= mask;
-		isc_buffer_available(target, &tr);
+		isc_buffer_availableregion(target, &tr);
 		if (inet_ntop(AF_INET6, addr,
 			      (char *)tr.base, tr.length) == NULL)
-			return (DNS_R_NOSPACE);
+			return (ISC_R_NOSPACE);
 
 		isc_buffer_add(target, strlen((char *)tr.base));
 		isc_region_consume(&sr, 16 - octets);
 	}
 
 	if (prefixlen == 0)
-		return (DNS_R_SUCCESS);
+		return (ISC_R_SUCCESS);
 
 	RETERR(str_totext(" ", target));
 	dns_name_init(&name, NULL);
@@ -141,35 +148,36 @@ fromwire_in_a6(dns_rdataclass_t rdclass, dns_rdatatype_t type,
 	REQUIRE(type == 38);
 	REQUIRE(rdclass == 1);
 
-	if (dns_decompress_edns(dctx) >= 1 || !dns_decompress_strict(dctx))
-		dns_decompress_setmethods(dctx, DNS_COMPRESS_ALL);
-	else
-		dns_decompress_setmethods(dctx, DNS_COMPRESS_NONE);
+	dns_decompress_setmethods(dctx, DNS_COMPRESS_NONE);
 
-	isc_buffer_active(source, &sr);
-	/* prefix length */
+	isc_buffer_activeregion(source, &sr);
+	/*
+	 * Prefix length.
+	 */
 	if (sr.length < 1)
-		return (DNS_R_UNEXPECTEDEND);
+		return (ISC_R_UNEXPECTEDEND);
 	prefixlen = sr.base[0];
 	if (prefixlen > 128)
-		return (DNS_R_RANGE);
+		return (ISC_R_RANGE);
 	isc_region_consume(&sr, 1);
 	RETERR(mem_tobuffer(target, &prefixlen, 1));
 	isc_buffer_forward(source, 1);
 
-	/* suffix */
+	/*
+	 * Suffix.
+	 */
 	if (prefixlen != 128) {
 		octets = 16 - prefixlen / 8;
 		if (sr.length < octets)
-			return (DNS_R_UNEXPECTEDEND);
+			return (ISC_R_UNEXPECTEDEND);
 		mask = 0xff >> (prefixlen % 8);
-		sr.base[0] &= mask;	/* ensure pad bits are zero */
+		sr.base[0] &= mask;	/* Ensure pad bits are zero. */
 		RETERR(mem_tobuffer(target, sr.base, octets));
 		isc_buffer_forward(source, octets);
 	}
 
 	if (prefixlen == 0)
-		return (DNS_R_SUCCESS);
+		return (ISC_R_SUCCESS);
 
 	dns_name_init(&name, NULL);
 	return (dns_name_fromwire(&name, source, dctx, downcase, target));
@@ -185,11 +193,7 @@ towire_in_a6(dns_rdata_t *rdata, dns_compress_t *cctx, isc_buffer_t *target) {
 	REQUIRE(rdata->type == 38);
 	REQUIRE(rdata->rdclass == 1);
 
-	if (dns_compress_getedns(cctx) >= 1)
-		dns_compress_setmethods(cctx, DNS_COMPRESS_ALL);
-	else
-		dns_compress_setmethods(cctx, DNS_COMPRESS_NONE);
-
+	dns_compress_setmethods(cctx, DNS_COMPRESS_NONE);
 	dns_rdata_toregion(rdata, &sr);
 	prefixlen = sr.base[0];
 	INSIST(prefixlen <= 128);
@@ -199,7 +203,7 @@ towire_in_a6(dns_rdata_t *rdata, dns_compress_t *cctx, isc_buffer_t *target) {
 	isc_region_consume(&sr, octets);
 
 	if (prefixlen == 0)
-		return (DNS_R_SUCCESS);
+		return (ISC_R_SUCCESS);
 
 	dns_name_init(&name, NULL);
 	dns_name_fromregion(&name, &sr);
@@ -263,48 +267,104 @@ fromstruct_in_a6(dns_rdataclass_t rdclass, dns_rdatatype_t type, void *source,
 		 isc_buffer_t *target)
 {
 	dns_rdata_in_a6_t *a6 = source;
-	unsigned char prefixlen;
-	unsigned char octets;
+	isc_region_t region;
+	int octets;
+	isc_uint8_t bits;
+	isc_uint8_t first;
+	isc_uint8_t mask;
 
-	REQUIRE(type == 1);
+	REQUIRE(type == 38);
 	REQUIRE(rdclass == 1);
 	REQUIRE(source != NULL);
 	REQUIRE(a6->common.rdtype == type);
 	REQUIRE(a6->common.rdclass == rdclass);
 
 	if (a6->prefixlen > 128)
-		return (DNS_R_RANGE);
+		return (ISC_R_RANGE);
 
-	prefixlen = a6->prefixlen;
-	RETERR(mem_tobuffer(target, &prefixlen, 1));
+	RETERR(uint8_tobuffer(a6->prefixlen, target));
 
+	/* Suffix */
 	if (a6->prefixlen != 128) {
-		/* XXX fix this! */
+		octets = 16 - a6->prefixlen / 8;
+		bits = a6->prefixlen % 8;
+		if (bits != 0) {
+			mask = 0xffU >> bits;
+			first = a6->in6_addr.s6_addr[16 - octets] & mask;
+			RETERR(uint8_tobuffer(first, target));
+			octets--;
+		}
+		if (octets > 0)
+			RETERR(mem_tobuffer(target,
+					    a6->in6_addr.s6_addr + 16 - octets,
+					    octets));
 	}
 
-	octets = 16 - prefixlen / 8;
-
-	return (DNS_R_NOTIMPLEMENTED);
+	if (a6->prefixlen == 0)
+		return (ISC_R_SUCCESS);
+	dns_name_toregion(&a6->prefix, &region);
+	return (isc_buffer_copyregion(target, &region));
 }
 
 static inline isc_result_t
 tostruct_in_a6(dns_rdata_t *rdata, void *target, isc_mem_t *mctx)
 {
+	dns_rdata_in_a6_t *a6 = target;
+	unsigned char octets;
+	dns_name_t name;
+	isc_region_t r;
 
 	REQUIRE(rdata->type == 38);
 	REQUIRE(rdata->rdclass == 1);
+	REQUIRE(target != NULL);
 
-	UNUSED(target);
-	UNUSED(mctx);
+	a6->common.rdclass = rdata->rdclass;
+	a6->common.rdtype = rdata->type;
+	ISC_LINK_INIT(&a6->common, link);
 
-	return (DNS_R_NOTIMPLEMENTED);
+	dns_rdata_toregion(rdata, &r);
+
+	a6->prefixlen = uint8_fromregion(&r);
+	isc_region_consume(&r, 1);
+	memset(a6->in6_addr.s6_addr, 0, sizeof(a6->in6_addr.s6_addr));
+
+	/*
+	 * Suffix.
+	 */
+	if (a6->prefixlen != 128) {
+		octets = 16 - a6->prefixlen / 8;
+		INSIST(r.length >= octets);
+		memcpy(a6->in6_addr.s6_addr + 16 - octets, r.base, octets);
+		isc_region_consume(&r, octets);
+	}
+
+	/*
+	 * Prefix.
+	 */
+	dns_name_init(&a6->prefix, NULL);
+	if (a6->prefixlen != 0) {
+		dns_name_init(&name, NULL);
+		dns_name_fromregion(&name, &r);
+		RETERR(name_duporclone(&name, mctx, &a6->prefix));
+	}
+	a6->mctx = mctx;
+	return (ISC_R_SUCCESS);
 }
 
 static inline void
-freestruct_in_a6(void *source)
-{
+freestruct_in_a6(void *source) {
+	dns_rdata_in_a6_t *a6 = source;
+
 	REQUIRE(source != NULL);
-	REQUIRE(ISC_FALSE);	/*XXX*/
+	REQUIRE(a6->common.rdclass == 1);
+	REQUIRE(a6->common.rdtype == 38);
+
+	if (a6->mctx == NULL)
+		return;
+
+	if (dns_name_dynamic(&a6->prefix))
+		dns_name_free(&a6->prefix, a6->mctx);
+	a6->mctx = NULL;
 }
 
 static inline isc_result_t
@@ -314,15 +374,15 @@ additionaldata_in_a6(dns_rdata_t *rdata, dns_additionaldatafunc_t add,
 	REQUIRE(rdata->type == 38);
 	REQUIRE(rdata->rdclass == 1);
 
-	(void)add;
-	(void)arg;
+	UNUSED(rdata);
+	UNUSED(add);
+	UNUSED(arg);
 
-	return (DNS_R_SUCCESS);
+	return (ISC_R_SUCCESS);
 }
 
 static inline isc_result_t
-digest_in_a6(dns_rdata_t *rdata, dns_digestfunc_t digest, void *arg)
-{
+digest_in_a6(dns_rdata_t *rdata, dns_digestfunc_t digest, void *arg) {
 	isc_region_t r1, r2;
 	unsigned char prefixlen, octets;
 	isc_result_t result;
@@ -338,10 +398,10 @@ digest_in_a6(dns_rdata_t *rdata, dns_digestfunc_t digest, void *arg)
 
 	r1.length = octets;
 	result = (digest)(arg, &r1);
-	if (result != DNS_R_SUCCESS)
+	if (result != ISC_R_SUCCESS)
 		return (result);
 	if (prefixlen == 0)
-		return (DNS_R_SUCCESS);
+		return (ISC_R_SUCCESS);
 
 	isc_region_consume(&r2, octets);
 	dns_name_init(&name, NULL);

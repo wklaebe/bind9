@@ -15,7 +15,7 @@
  * SOFTWARE.
  */
 
-/* $Id: aaaa_28.c,v 1.17 2000/03/17 01:48:28 bwelling Exp $ */
+/* $Id: aaaa_28.c,v 1.24 2000/05/22 12:38:07 marka Exp $ */
 
 /* Reviewed: Thu Mar 16 16:52:50 PST 2000 by bwelling */
 
@@ -24,9 +24,9 @@
 #ifndef RDATA_IN_1_AAAA_28_C
 #define RDATA_IN_1_AAAA_28_C
 
-#include <string.h>
-
 #include <isc/net.h>
+
+#define RRTYPE_AAAA_ATTRIBUTES (0)
 
 static inline isc_result_t
 fromtext_in_aaaa(dns_rdataclass_t rdclass, dns_rdatatype_t type,
@@ -47,12 +47,12 @@ fromtext_in_aaaa(dns_rdataclass_t rdclass, dns_rdatatype_t type,
 
 	if (inet_pton(AF_INET6, token.value.as_pointer, addr) != 1)
 		return (DNS_R_BADAAAA);
-	isc_buffer_available(target, &region);
+	isc_buffer_availableregion(target, &region);
 	if (region.length < 16)
-		return (DNS_R_NOSPACE);
+		return (ISC_R_NOSPACE);
 	memcpy(region.base, addr, 16);
 	isc_buffer_add(target, 16);
-	return (DNS_R_SUCCESS);
+	return (ISC_R_SUCCESS);
 }
 
 static inline isc_result_t
@@ -67,13 +67,13 @@ totext_in_aaaa(dns_rdata_t *rdata, dns_rdata_textctx_t *tctx,
 	REQUIRE(rdata->rdclass == 1);
 	REQUIRE(rdata->length == 16);
 
-	isc_buffer_available(target, &region);
+	isc_buffer_availableregion(target, &region);
 	if (inet_ntop(AF_INET6, rdata->data,
 		      (char *)region.base, region.length) == NULL)
-		return (DNS_R_NOSPACE);
+		return (ISC_R_NOSPACE);
 
 	isc_buffer_add(target, strlen((char *)region.base));
-	return (DNS_R_SUCCESS);
+	return (ISC_R_SUCCESS);
 }
 
 static inline isc_result_t
@@ -90,17 +90,17 @@ fromwire_in_aaaa(dns_rdataclass_t rdclass, dns_rdatatype_t type,
 	REQUIRE(type == 28);
 	REQUIRE(rdclass == 1);
 
-	isc_buffer_active(source, &sregion);
-	isc_buffer_available(target, &tregion);
+	isc_buffer_activeregion(source, &sregion);
+	isc_buffer_availableregion(target, &tregion);
 	if (sregion.length < 16)
-		return (DNS_R_UNEXPECTEDEND);
+		return (ISC_R_UNEXPECTEDEND);
 	if (tregion.length < 16)
-		return (DNS_R_NOSPACE);
+		return (ISC_R_NOSPACE);
 
 	memcpy(tregion.base, sregion.base, 16);
 	isc_buffer_forward(source, 16);
 	isc_buffer_add(target, 16);
-	return (DNS_R_SUCCESS);
+	return (ISC_R_SUCCESS);
 }
 
 static inline isc_result_t
@@ -112,12 +112,12 @@ towire_in_aaaa(dns_rdata_t *rdata, dns_compress_t *cctx, isc_buffer_t *target) {
 	REQUIRE(rdata->type == 28);
 	REQUIRE(rdata->rdclass == 1);
 
-	isc_buffer_available(target, &region);
+	isc_buffer_availableregion(target, &region);
 	if (region.length < rdata->length)
-		return (DNS_R_NOSPACE);
+		return (ISC_R_NOSPACE);
 	memcpy(region.base, rdata->data, rdata->length);
 	isc_buffer_add(target, 16);
-	return (DNS_R_SUCCESS);
+	return (ISC_R_SUCCESS);
 }
 
 static inline int
@@ -139,43 +139,60 @@ static inline isc_result_t
 fromstruct_in_aaaa(dns_rdataclass_t rdclass, dns_rdatatype_t type,
 		   void *source, isc_buffer_t *target)
 {
-	UNUSED(source);
-	UNUSED(target);
+	dns_rdata_in_aaaa_t *aaaa = source;
 
-	REQUIRE(type == 1);
+	REQUIRE(type == 28);
 	REQUIRE(rdclass == 1);
+	REQUIRE(source != NULL);
+	REQUIRE(aaaa->common.rdtype == type);
+	REQUIRE(aaaa->common.rdclass == rdclass);
 
-	return (DNS_R_NOTIMPLEMENTED);
+	return (mem_tobuffer(target, aaaa->in6_addr.s6_addr, 16));
 }
 
 static inline isc_result_t
 tostruct_in_aaaa(dns_rdata_t *rdata, void *target, isc_mem_t *mctx) {
-	UNUSED(target);
-	UNUSED(mctx);
+	dns_rdata_in_aaaa_t *aaaa = target;
+	isc_region_t r;
 
 	REQUIRE(rdata->type == 28);
 	REQUIRE(rdata->rdclass == 1);
+	REQUIRE(target != NULL);
 
-	return (DNS_R_NOTIMPLEMENTED);
+	UNUSED(mctx);
+
+	aaaa->common.rdclass = rdata->rdclass;
+	aaaa->common.rdtype = rdata->type;
+	ISC_LINK_INIT(&aaaa->common, link);
+
+	dns_rdata_toregion(rdata, &r);
+	INSIST(r.length == 16);
+	memcpy(aaaa->in6_addr.s6_addr, r.base, 16);
+
+	return (ISC_R_SUCCESS);
 }
 
 static inline void
 freestruct_in_aaaa(void *source) {
+	dns_rdata_in_aaaa_t *aaaa = source;
+
 	REQUIRE(source != NULL);
-	REQUIRE(ISC_FALSE);	/*XXX*/
+	REQUIRE(aaaa->common.rdclass == 1);
+	REQUIRE(aaaa->common.rdtype == 28);
 }
 
 static inline isc_result_t
 additionaldata_in_aaaa(dns_rdata_t *rdata, dns_additionaldatafunc_t add,
 		       void *arg)
 {
-	UNUSED(add);
-	UNUSED(arg);
-
 	REQUIRE(rdata->type == 28);
 	REQUIRE(rdata->rdclass == 1);
 
-	return (DNS_R_SUCCESS);
+	UNUSED(rdata);
+	UNUSED(add);
+	UNUSED(arg);
+
+	return (ISC_R_SUCCESS);
 }
 
 static inline isc_result_t

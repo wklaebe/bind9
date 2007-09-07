@@ -17,27 +17,18 @@
 
 #include <config.h>
 
-#include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
-#include <isc/types.h>
-#include <isc/assertions.h>
-#include <isc/buffer.h>
-#include <isc/error.h>
 #include <isc/mem.h>
+#include <isc/string.h>
 
-#include <dns/types.h>
-#include <dns/name.h>
-#include <dns/fixedname.h>
 #include <dns/db.h>
 #include <dns/dbiterator.h>
-#include <dns/rdata.h>
-#include <dns/rdatalist.h>
+#include <dns/fixedname.h>
+#include <dns/nxt.h>
 #include <dns/rdataset.h>
 #include <dns/rdatasetiter.h>
 #include <dns/result.h>
-#include <dns/nxt.h>
 
 static isc_mem_t *mctx = NULL;
 
@@ -76,9 +67,9 @@ active_node(dns_db_t *db, dns_dbversion_t *version, dns_dbnode_t *node) {
 		if (!active)
 			result = dns_rdatasetiter_next(rdsiter);
 		else
-			result = DNS_R_NOMORE;
+			result = ISC_R_NOMORE;
 	}
-	if (result != DNS_R_NOMORE)
+	if (result != ISC_R_NOMORE)
 		fatal("rdataset iteration failed");
 	dns_rdatasetiter_destroy(&rdsiter);
 
@@ -143,7 +134,7 @@ nxtify(char *filename) {
 	else
 		origintext++;	/* Skip '/'. */
 	len = strlen(origintext);
-	isc_buffer_init(&b, origintext, len, ISC_BUFFERTYPE_TEXT);
+	isc_buffer_init(&b, origintext, len);
 	isc_buffer_add(&b, len);
 	result = dns_name_fromtext(name, &b, dns_rootname, ISC_FALSE, NULL);
 	check_result(result, "dns_name_fromtext()");
@@ -171,7 +162,7 @@ nxtify(char *filename) {
 					     &nextnode);
 		if (result == ISC_R_SUCCESS)
 			target = nextname;
-		else if (result == DNS_R_NOMORE)
+		else if (result == ISC_R_NOMORE)
 			target = dns_db_origin(db);
 		else {
 			target = NULL;	/* Make compiler happy. */
@@ -181,7 +172,7 @@ nxtify(char *filename) {
 		dns_db_detachnode(db, &node);
 		node = nextnode;
 	}
-	if (result != DNS_R_NOMORE)
+	if (result != ISC_R_NOMORE)
 		fatal("db iteration failed");
 	dns_dbiterator_destroy(&dbiter);
 	/*

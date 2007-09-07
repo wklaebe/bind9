@@ -61,16 +61,10 @@
 
 #include <isc/lang.h>
 #include <isc/types.h>
-#include <isc/boolean.h>
-#include <isc/bufferlist.h>
-#include <isc/result.h>
 #include <isc/event.h>
 #include <isc/eventclass.h>
-#include <isc/task.h>
 #include <isc/time.h>
 #include <isc/region.h>
-#include <isc/mem.h>
-#include <isc/net.h>
 #include <isc/sockaddr.h>
 
 ISC_LANG_BEGINDECLS
@@ -100,6 +94,7 @@ struct isc_socketevent {
 	isc_sockaddr_t		address;	/* source address */
 	isc_time_t		timestamp;	/* timestamp of packet recv */
 	struct in6_pktinfo	pktinfo;	/* ipv6 pktinfo */
+	isc_uint32_t		attributes;	/* see below */
 };
 
 typedef struct isc_socket_newconnev isc_socket_newconnev_t;
@@ -343,7 +338,7 @@ isc_socket_listen(isc_socket_t *sock, unsigned int backlog);
  *
  * Requires:
  *
- *	'socket' is a valid TCP socket.
+ *	'socket' is a valid, bound TCP socket.
  *
  * Returns:
  *
@@ -361,8 +356,8 @@ isc_socket_accept(isc_socket_t *sock,
  * event type, and is attached to the task 'task'.
  *
  * REQUIRES:
- *	'socket' is a valid TCP socket that isc_socket_listen() has been
- *	called on
+ *	'socket' is a valid TCP socket that isc_socket_listen() was called
+ *	on.
  *
  *	'task' is a valid task
  *
@@ -478,7 +473,7 @@ isc_socket_recvv(isc_socket_t *sock, isc_bufferlist_t *buflist,
  *
  * Requires:
  *
- *	'socket' is a valid socket
+ *	'socket' is a valid, bound socket.
  *
  *	For isc_socket_recv():
  *	'region' is a valid region
@@ -539,7 +534,7 @@ isc_socket_sendtov(isc_socket_t *sock, isc_bufferlist_t *buflist,
  *
  * Requires:
  *
- *	'socket' is a valid socket
+ *	'socket' is a valid, bound socket.
  *
  *	For isc_socket_send():
  *	'region' is a valid region
@@ -578,7 +573,7 @@ isc_socket_sendmark(isc_socket_t *sock,
  *
  * Requires:
  *
- *	'sock' to be a valid socket.
+ *	'socket' is a valid, bound socket.
  *
  *	'task' is a valid task, 'action' is a valid action.
  *
@@ -659,6 +654,9 @@ isc_socket_gettype(isc_socket_t *sock);
  *
  *	"sock" is a valid socket.
  */
+
+isc_boolean_t
+isc_socket_isbound(isc_socket_t *sock);
 
 ISC_LANG_ENDDECLS
 

@@ -18,19 +18,17 @@
 #ifndef ISC_REGION_H
 #define ISC_REGION_H 1
 
-#include <isc/lang.h>
+#include <isc/types.h>
 
-ISC_LANG_BEGINDECLS
-
-typedef struct isc_region {
+struct isc_region {
 	unsigned char *	base;
 	unsigned int	length;
-} isc_region_t;
+};
 
-typedef struct isc_textregion {
+struct isc_textregion {
 	char *		base;
 	unsigned int	length;
-} isc_textregion_t;
+};
 
 /*
  * The region structure is not opaque, and is usually directly manipulated.
@@ -39,22 +37,20 @@ typedef struct isc_textregion {
 
 #define isc_region_consume(r,l) \
 	do { \
-		isc_region_t *__r = (r); \
-		unsigned int __l = (l); \
-		INSIST(__r->length >= __l); \
-		__r->base += __l; \
-		__r->length -= __l; \
+		isc_region_t *_r = (r); \
+		unsigned int _l = (l); \
+		INSIST(_r->length >= _l); \
+		_r->base += _l; \
+		_r->length -= _l; \
 	} while (0)
 
 #define isc_textregion_consume(r,l) \
 	do { \
-		isc_textregion_t *__r = (r); \
-		unsigned int __l = (l); \
-		INSIST(__r->length >= __l); \
-		__r->base += __l; \
-		__r->length -= __l; \
+		isc_textregion_t *_r = (r); \
+		unsigned int _l = (l); \
+		INSIST(_r->length >= _l); \
+		_r->base += _l; \
+		_r->length -= _l; \
 	} while (0)
-
-ISC_LANG_ENDDECLS
 
 #endif /* ISC_REGION_H */

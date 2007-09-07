@@ -15,23 +15,19 @@
  * SOFTWARE.
  */
 
-#include	<config.h>
+#include <config.h>
 
-#include	<stdio.h>
-#include	<stdlib.h>
-#include	<unistd.h>
+#include <stdlib.h>
+#include <unistd.h>
 
-#include	<isc/assertions.h>
-#include	<isc/condition.h>
-#include	<isc/mutex.h>
-#include	<isc/error.h>
-#include	<isc/mem.h>
-#include	<isc/task.h>
-#include	<isc/thread.h>
-#include	<isc/result.h>
-#include	<isc/timer.h>
+#include <isc/condition.h>
+#include <isc/mem.h>
+#include <isc/task.h>
+#include <isc/time.h>
+#include <isc/timer.h>
+#include <isc/util.h>
 
-#include	<tests/t_api.h>
+#include <tests/t_api.h>
 
 void	t1(void);
 void	t2(void);
@@ -56,8 +52,7 @@ static int	t_tasks13(void);
 isc_mem_t *mctx = NULL;
 
 static void
-t1_callback(isc_task_t *task, isc_event_t *event)
-{
+t1_callback(isc_task_t *task, isc_event_t *event) {
 	int	i;
 	int	j;
 
@@ -66,7 +61,7 @@ t1_callback(isc_task_t *task, isc_event_t *event)
 	for (i = 0; i < 1000000; i++)
 		j += 100;
 
-	t_info("task %s\n", event->arg);
+	t_info("task %s\n", event->ev_arg);
 	isc_event_free(&event);
 }
 
@@ -74,15 +69,14 @@ static void
 t1_shutdown(isc_task_t *task, isc_event_t *event) {
 
 	task = task;
-	t_info("shutdown %s\n", event->arg);
+	t_info("shutdown %s\n", event->ev_arg);
 	isc_event_free(&event);
 }
 
 static void
-my_tick(isc_task_t *task, isc_event_t *event)
-{
+my_tick(isc_task_t *task, isc_event_t *event) {
 	task = task;
-	t_info("%s\n", event->arg);
+	t_info("%s\n", event->ev_arg);
 	isc_event_free(&event);
 }
 
@@ -134,25 +128,25 @@ t_tasks1() {
 		return(T_FAIL);
 	}
 
-	isc_result = isc_task_create(manager, NULL, 0, &task1);
+	isc_result = isc_task_create(manager, 0, &task1);
 	if (isc_result != ISC_R_SUCCESS) {
 		t_info("isc_task_create failed %d\n", isc_result);
 		return(T_FAIL);
 	}
 
-	isc_result = isc_task_create(manager, NULL, 0, &task2);
+	isc_result = isc_task_create(manager, 0, &task2);
 	if (isc_result != ISC_R_SUCCESS) {
 		t_info("isc_task_create failed %d\n", isc_result);
 		return(T_FAIL);
 	}
 
-	isc_result = isc_task_create(manager, NULL, 0, &task3);
+	isc_result = isc_task_create(manager, 0, &task3);
 	if (isc_result != ISC_R_SUCCESS) {
 		t_info("isc_task_create failed %d\n", isc_result);
 		return(T_FAIL);
 	}
 
-	isc_result = isc_task_create(manager, NULL, 0, &task4);
+	isc_result = isc_task_create(manager, 0, &task4);
 	if (isc_result != ISC_R_SUCCESS) {
 		t_info("isc_task_create failed %d\n", isc_result);
 		return(T_FAIL);
@@ -404,8 +398,8 @@ t2_shutdown(isc_task_t *task, isc_event_t *event) {
 
 	task = task; /* notused */
 
-	if (event->arg != NULL) {
-		isc_task_destroy((isc_task_t**) &event->arg);
+	if (event->ev_arg != NULL) {
+		isc_task_destroy((isc_task_t**) &event->ev_arg);
 	}
 	else {
 		isc_result = isc_mutex_lock(&T2_mx);
@@ -435,8 +429,7 @@ t2_shutdown(isc_task_t *task, isc_event_t *event) {
 }
 
 static void
-t2_callback(isc_task_t *task, isc_event_t *event)
-{
+t2_callback(isc_task_t *task, isc_event_t *event) {
 	isc_result_t	isc_result;
 	isc_task_t	*newtask;
 
@@ -446,13 +439,15 @@ t2_callback(isc_task_t *task, isc_event_t *event)
 		t_info("T2_ntasks %d\n", T2_ntasks);
 	}
 
-	if (event->arg) {
+	if (event->ev_arg) {
 
-		event->arg = (void* ) (((int) event->arg) - 1);
+		event->ev_arg = (void *)(((int) event->ev_arg) - 1);
 
-		/* create a new task and forward the message */
+		/*
+		 * Create a new task and forward the message.
+		 */
 		newtask = NULL;
-		isc_result = isc_task_create(T2_manager, NULL, 0, &newtask);
+		isc_result = isc_task_create(T2_manager, 0, &newtask);
 		if (isc_result != ISC_R_SUCCESS) {
 			t_info("isc_task_create failed %d\n", isc_result);
 			++T2_nfails;
@@ -460,7 +455,7 @@ t2_callback(isc_task_t *task, isc_event_t *event)
 		}
 	
 		isc_result = isc_task_onshutdown(newtask, t2_shutdown,
-							(void *) task);
+						 (void *)task);
 		if (isc_result != ISC_R_SUCCESS) {
 			t_info("isc_task_onshutdown failed %d\n",
 						isc_result);
@@ -469,16 +464,16 @@ t2_callback(isc_task_t *task, isc_event_t *event)
 		}
 	
 		isc_task_send(newtask, &event);
-	}
-	else {
-		/* time to unwind, shutdown should perc back up */
+	} else {
+		/*
+		 * Time to unwind, shutdown should perc back up.
+		 */
 		isc_task_destroy(&task);
 	}
 }
 
 static int
 t_tasks2(void) {
-
 	int			ntasks;
 	int			result;
 	char			*p;
@@ -539,7 +534,7 @@ t_tasks2(void) {
 	}
 
 	T2_event = isc_event_allocate(T2_mctx, (void *)1, 1, t2_callback,
-					(void *) ntasks, sizeof *event);
+					(void *)ntasks, sizeof *event);
 	if (T2_event == NULL) {
 		t_info("isc_event_allocate failed\n");
 		return(T_UNRESOLVED);
@@ -594,7 +589,6 @@ static	int		T3_nprobs;
 
 static void
 t3_sde1(isc_task_t *task, isc_event_t *event) {
-
 	task = task;
 
 	if (T3_nevents != T3_NEVENTS) {
@@ -603,8 +597,7 @@ t3_sde1(isc_task_t *task, isc_event_t *event) {
 	}
 	if (T3_nsdevents == 1) {
 		++T3_nsdevents;
-	}
-	else {
+	} else {
 		t_info("Shutdown events not processed in LIFO order\n");
 		++T3_nfails;
 	}
@@ -622,8 +615,7 @@ t3_sde2(isc_task_t *task, isc_event_t *event) {
 	}
 	if (T3_nsdevents == 0) {
 		++T3_nsdevents;
-	}
-	else {
+	} else {
 		t_info("Shutdown events not processed in LIFO order\n");
 		++T3_nfails;
 	}
@@ -632,7 +624,6 @@ t3_sde2(isc_task_t *task, isc_event_t *event) {
 
 static void
 t3_event1(isc_task_t *task, isc_event_t *event) {
-
 	isc_result_t	isc_result;
 
 	task = task;
@@ -640,7 +631,7 @@ t3_event1(isc_task_t *task, isc_event_t *event) {
 	isc_result = isc_mutex_lock(&T3_mx);
 	if (isc_result != ISC_R_SUCCESS) {
 		t_info("isc_mutex_lock failed %s\n",
-				isc_result_totext(isc_result));
+		       isc_result_totext(isc_result));
 		++T3_nprobs;
 	}
 	while (T3_flag != 1) {
@@ -650,7 +641,7 @@ t3_event1(isc_task_t *task, isc_event_t *event) {
 	isc_result = isc_mutex_unlock(&T3_mx);
 	if (isc_result != ISC_R_SUCCESS) {
 		t_info("isc_mutex_unlock failed %s\n",
-				isc_result_totext(isc_result));
+		       isc_result_totext(isc_result));
 		++T3_nprobs;
 	}
 	isc_event_free(&event);
@@ -658,7 +649,6 @@ t3_event1(isc_task_t *task, isc_event_t *event) {
 
 static void
 t3_event2(isc_task_t *task, isc_event_t *event) {
-
 	task = task;
 
 	++T3_nevents;
@@ -667,7 +657,6 @@ t3_event2(isc_task_t *task, isc_event_t *event) {
 
 static int
 t_tasks3() {
-
 	int		cnt;
 	int		result;
 	char		*p;
@@ -698,14 +687,14 @@ t_tasks3() {
 	isc_result = isc_mem_create(0, 0, &mctx);
 	if (isc_result != ISC_R_SUCCESS) {
 		t_info("isc_mem_create failed %s\n",
-				isc_result_totext(isc_result));
+		       isc_result_totext(isc_result));
 		return(T_UNRESOLVED);
 	}
 
 	isc_result = isc_mutex_init(&T3_mx);
 	if (isc_result != ISC_R_SUCCESS) {
 		t_info("isc_mutex_init failed %s\n",
-				isc_result_totext(isc_result));
+		       isc_result_totext(isc_result));
 		isc_mem_destroy(&mctx);
 		return(T_UNRESOLVED);
 	}
@@ -713,7 +702,7 @@ t_tasks3() {
 	isc_result = isc_condition_init(&T3_cv);
 	if (isc_result != ISC_R_SUCCESS) {
 		t_info("isc_condition_init failed %s\n",
-				isc_result_totext(isc_result));
+		       isc_result_totext(isc_result));
 		isc_mem_destroy(&mctx);
 		return(T_UNRESOLVED);
 	}
@@ -722,7 +711,7 @@ t_tasks3() {
 	isc_result = isc_taskmgr_create(mctx, workers, 0, &tmgr);
 	if (isc_result != ISC_R_SUCCESS) {
 		t_info("isc_taskmgr_create failed %s\n",
-				isc_result_totext(isc_result));
+		       isc_result_totext(isc_result));
 		isc_mem_destroy(&mctx);
 		return(T_UNRESOLVED);
 	}
@@ -730,36 +719,42 @@ t_tasks3() {
 	isc_result = isc_mutex_lock(&T3_mx);
 	if (isc_result != ISC_R_SUCCESS) {
 		t_info("isc_mutex_lock failed %s\n",
-				isc_result_totext(isc_result));
+		       isc_result_totext(isc_result));
 		isc_taskmgr_destroy(&tmgr);
 		isc_mem_destroy(&mctx);
 		return(T_UNRESOLVED);
 	}
 
 	task = NULL;
-	isc_result = isc_task_create(tmgr, mctx, 0, &task);
+	isc_result = isc_task_create(tmgr, 0, &task);
 	if (isc_result != ISC_R_SUCCESS) {
 		t_info("isc_task_create failed %s\n",
-				isc_result_totext(isc_result));
+		       isc_result_totext(isc_result));
 		isc_mutex_unlock(&T3_mx);
 		isc_taskmgr_destroy(&tmgr);
 		isc_mem_destroy(&mctx);
 		return(T_UNRESOLVED);
 	}
 
-	/* this event causes the task to wait on T3_cv */
+	/*
+	 * This event causes the task to wait on T3_cv.
+	 */
 	event = isc_event_allocate(mctx, sender, event_type, t3_event1, NULL,
 				   sizeof(*event));
 	isc_task_send(task, &event);
 
-	/* now we fill up the task's event queue with some events */
+	/*
+	 * Now we fill up the task's event queue with some events.
+	 */
 	for (cnt = 0; cnt < T3_NEVENTS; ++cnt) {
 		event = isc_event_allocate(mctx, sender, event_type,
 					   t3_event2, NULL, sizeof(*event));
 		isc_task_send(task, &event);
 	}
 
-	/* now we register two shutdown events */
+	/*
+	 * Now we register two shutdown events.
+	 */
 	isc_result = isc_task_onshutdown(task, t3_sde1, NULL);
 	if (isc_result != ISC_R_SUCCESS) {
 		t_info("isc_task_send failed %s\n",
@@ -784,7 +779,9 @@ t_tasks3() {
 
 	isc_task_shutdown(task);
 
-	/* now we free the task by signaling T3_cv */
+	/*
+	 * Now we free the task by signaling T3_cv.
+	 */
 	T3_flag = 1;
 	isc_result = isc_condition_signal(&T3_cv);
 	if (isc_result != ISC_R_SUCCESS) {
@@ -825,9 +822,10 @@ t_tasks3() {
 	return(result);
 }
 
-static char	*a3 =	"When isc_task_shutdown() is called, any shutdown events "
-			"that have been requested via prior isc_task_onshutdown() calls "
-			"are posted in LIFO order.";
+static char	*a3 =	"When isc_task_shutdown() is called, any shutdown "
+			"events that have been requested via prior "
+			"isc_task_onshutdown() calls are posted in "
+			"LIFO order.";
 void
 t3(void) {
 	int	result;
@@ -845,15 +843,14 @@ static int		T4_nfails;
 
 static void
 t4_event1(isc_task_t *task, isc_event_t *event) {
-
 	isc_result_t	isc_result;
 
-	task = task;
+	UNUSED(task);
 
 	isc_result = isc_mutex_lock(&T4_mx);
 	if (isc_result != ISC_R_SUCCESS) {
 		t_info("isc_mutex_lock failed %s\n",
-				isc_result_totext(isc_result));
+		       isc_result_totext(isc_result));
 		++T4_nprobs;
 	}
 	while (T4_flag != 1) {
@@ -863,7 +860,7 @@ t4_event1(isc_task_t *task, isc_event_t *event) {
 	isc_result = isc_mutex_unlock(&T4_mx);
 	if (isc_result != ISC_R_SUCCESS) {
 		t_info("isc_mutex_unlock failed %s\n",
-				isc_result_totext(isc_result));
+		       isc_result_totext(isc_result));
 		++T4_nprobs;
 	}
 	isc_event_free(&event);
@@ -871,10 +868,12 @@ t4_event1(isc_task_t *task, isc_event_t *event) {
 
 static void
 t4_sde(isc_task_t *task, isc_event_t *event) {
+	UNUSED(task);
 
-	task = task;
+	/*
+	 * No-op.
+	 */
 
-	/* no-op */
 	isc_event_free(&event);
 }
 
@@ -891,13 +890,12 @@ t_tasks4() {
 	isc_eventtype_t	event_type;
 	isc_event_t	*event;
 
-
 	T4_nprobs = 0;
 	T4_nfails = 0;
 	T4_flag = 0;
 
 	result = T_UNRESOLVED;
-	sender = (void *) 1;
+	sender = (void *)1;
 	event_type = 4;
 
 	workers = 2;
@@ -909,14 +907,14 @@ t_tasks4() {
 	isc_result = isc_mem_create(0, 0, &mctx);
 	if (isc_result != ISC_R_SUCCESS) {
 		t_info("isc_mem_create failed %s\n",
-				isc_result_totext(isc_result));
+		       isc_result_totext(isc_result));
 		return(T_UNRESOLVED);
 	}
 
 	isc_result = isc_mutex_init(&T4_mx);
 	if (isc_result != ISC_R_SUCCESS) {
 		t_info("isc_mutex_init failed %s\n",
-				isc_result_totext(isc_result));
+		       isc_result_totext(isc_result));
 		isc_mem_destroy(&mctx);
 		return(T_UNRESOLVED);
 	}
@@ -924,7 +922,7 @@ t_tasks4() {
 	isc_result = isc_condition_init(&T4_cv);
 	if (isc_result != ISC_R_SUCCESS) {
 		t_info("isc_condition_init failed %s\n",
-				isc_result_totext(isc_result));
+		       isc_result_totext(isc_result));
 		isc_mutex_destroy(&T4_mx);
 		isc_mem_destroy(&mctx);
 		return(T_UNRESOLVED);
@@ -934,7 +932,7 @@ t_tasks4() {
 	isc_result = isc_taskmgr_create(mctx, workers, 0, &tmgr);
 	if (isc_result != ISC_R_SUCCESS) {
 		t_info("isc_taskmgr_create failed %s\n",
-				isc_result_totext(isc_result));
+		       isc_result_totext(isc_result));
 		isc_mutex_destroy(&T4_mx);
 		isc_condition_destroy(&T4_cv);
 		isc_mem_destroy(&mctx);
@@ -944,7 +942,7 @@ t_tasks4() {
 	isc_result = isc_mutex_lock(&T4_mx);
 	if (isc_result != ISC_R_SUCCESS) {
 		t_info("isc_mutex_lock failed %s\n",
-				isc_result_totext(isc_result));
+		       isc_result_totext(isc_result));
 		isc_mutex_destroy(&T4_mx);
 		isc_condition_destroy(&T4_cv);
 		isc_taskmgr_destroy(&tmgr);
@@ -953,10 +951,10 @@ t_tasks4() {
 	}
 
 	task = NULL;
-	isc_result = isc_task_create(tmgr, mctx, 0, &task);
+	isc_result = isc_task_create(tmgr, 0, &task);
 	if (isc_result != ISC_R_SUCCESS) {
 		t_info("isc_task_create failed %s\n",
-				isc_result_totext(isc_result));
+		       isc_result_totext(isc_result));
 		isc_mutex_destroy(&T4_mx);
 		isc_condition_destroy(&T4_cv);
 		isc_taskmgr_destroy(&tmgr);
@@ -964,7 +962,9 @@ t_tasks4() {
 		return(T_UNRESOLVED);
 	}
 
-	/* this event causes the task to wait on T4_cv */
+	/*
+	 * This event causes the task to wait on T4_cv.
+	 */
 	event = isc_event_allocate(mctx, sender, event_type, t4_event1, NULL,
 				   sizeof(*event));
 	isc_task_send(task, &event);
@@ -974,11 +974,13 @@ t_tasks4() {
 	isc_result = isc_task_onshutdown(task, t4_sde, NULL);
 	if (isc_result != ISC_R_SHUTTINGDOWN) {
 		t_info("isc_task_onshutdown returned %s\n",
-				isc_result_totext(isc_result));
+		       isc_result_totext(isc_result));
 		++T4_nfails;
 	}
 
-	/* release the task */
+	/*
+	 * Release the task.
+	 */
 	T4_flag = 1;
 
 	isc_result = isc_condition_signal(&T4_cv);
@@ -1011,8 +1013,8 @@ t_tasks4() {
 	return(result);
 }
 
-static char	*a4 =	"After isc_task_shutdown() has been called, any call to "
-			"isc_task_onshutdown() will return ISC_R_SHUTTINGDOWN.";
+static char *a4 = "After isc_task_shutdown() has been called, any call to "
+		  "isc_task_onshutdown() will return ISC_R_SHUTTINGDOWN.";
 
 void
 t4() {
@@ -1032,8 +1034,7 @@ static isc_condition_t	T7_cv;
 
 static void
 t7_event1(isc_task_t *task, isc_event_t *event) {
-
-	task = task;
+	UNUSED(task);
 
 	++T7_eflag;
 
@@ -1042,15 +1043,14 @@ t7_event1(isc_task_t *task, isc_event_t *event) {
 
 static void
 t7_sde(isc_task_t *task, isc_event_t *event) {
-
 	isc_result_t	isc_result;
 
-	task = task;
+	UNUSED(task);
 
 	isc_result = isc_mutex_lock(&T7_mx);
 	if (isc_result != ISC_R_SUCCESS) {
 		t_info("isc_mutex_lock failed %s\n",
-				isc_result_totext(isc_result));
+		       isc_result_totext(isc_result));
 		++T7_nprobs;
 	}
 
@@ -1059,14 +1059,14 @@ t7_sde(isc_task_t *task, isc_event_t *event) {
 	isc_result = isc_condition_signal(&T7_cv);
 	if (isc_result != ISC_R_SUCCESS) {
 		t_info("isc_condition_signal failed %s\n",
-				isc_result_totext(isc_result));
+		       isc_result_totext(isc_result));
 		++T7_nprobs;
 	}
 
 	isc_result = isc_mutex_unlock(&T7_mx);
 	if (isc_result != ISC_R_SUCCESS) {
 		t_info("isc_mutex_unlock failed %s\n",
-				isc_result_totext(isc_result));
+		       isc_result_totext(isc_result));
 		++T7_nprobs;
 	}
 
@@ -1095,7 +1095,7 @@ t_tasks7() {
 	T7_eflag = 0;
 
 	result = T_UNRESOLVED;
-	sender = (void *) 1;
+	sender = (void *)1;
 	event_type = 7;
 
 	workers = 2;
@@ -1107,14 +1107,14 @@ t_tasks7() {
 	isc_result = isc_mem_create(0, 0, &mctx);
 	if (isc_result != ISC_R_SUCCESS) {
 		t_info("isc_mem_create failed %s\n",
-				isc_result_totext(isc_result));
+		       isc_result_totext(isc_result));
 		return(T_UNRESOLVED);
 	}
 
 	isc_result = isc_mutex_init(&T7_mx);
 	if (isc_result != ISC_R_SUCCESS) {
 		t_info("isc_mutex_init failed %s\n",
-				isc_result_totext(isc_result));
+		       isc_result_totext(isc_result));
 		isc_mem_destroy(&mctx);
 		return(T_UNRESOLVED);
 	}
@@ -1122,7 +1122,7 @@ t_tasks7() {
 	isc_result = isc_condition_init(&T7_cv);
 	if (isc_result != ISC_R_SUCCESS) {
 		t_info("isc_condition_init failed %s\n",
-				isc_result_totext(isc_result));
+		       isc_result_totext(isc_result));
 		isc_mutex_destroy(&T7_mx);
 		isc_mem_destroy(&mctx);
 		return(T_UNRESOLVED);
@@ -1132,7 +1132,7 @@ t_tasks7() {
 	isc_result = isc_taskmgr_create(mctx, workers, 0, &tmgr);
 	if (isc_result != ISC_R_SUCCESS) {
 		t_info("isc_taskmgr_create failed %s\n",
-				isc_result_totext(isc_result));
+		       isc_result_totext(isc_result));
 		isc_mutex_destroy(&T7_mx);
 		isc_condition_destroy(&T7_cv);
 		isc_mem_destroy(&mctx);
@@ -1142,7 +1142,7 @@ t_tasks7() {
 	isc_result = isc_mutex_lock(&T7_mx);
 	if (isc_result != ISC_R_SUCCESS) {
 		t_info("isc_mutex_lock failed %s\n",
-				isc_result_totext(isc_result));
+		       isc_result_totext(isc_result));
 		isc_mutex_destroy(&T7_mx);
 		isc_condition_destroy(&T7_cv);
 		isc_taskmgr_destroy(&tmgr);
@@ -1151,10 +1151,10 @@ t_tasks7() {
 	}
 
 	task = NULL;
-	isc_result = isc_task_create(tmgr, mctx, 0, &task);
+	isc_result = isc_task_create(tmgr, 0, &task);
 	if (isc_result != ISC_R_SUCCESS) {
 		t_info("isc_task_create failed %s\n",
-				isc_result_totext(isc_result));
+		       isc_result_totext(isc_result));
 		isc_mutex_destroy(&T7_mx);
 		isc_condition_destroy(&T7_cv);
 		isc_taskmgr_destroy(&tmgr);
@@ -1165,7 +1165,7 @@ t_tasks7() {
 	isc_result = isc_task_onshutdown(task, t7_sde, NULL);
 	if (isc_result != ISC_R_SUCCESS) {
 		t_info("isc_task_onshutdown returned %s\n",
-				isc_result_totext(isc_result));
+		       isc_result_totext(isc_result));
 		isc_mutex_destroy(&T7_mx);
 		isc_condition_destroy(&T7_cv);
 		isc_task_destroy(&task);
@@ -1187,7 +1187,7 @@ t_tasks7() {
 		isc_result = isc_time_nowplusinterval(&now, &interval);
 		if (isc_result != ISC_R_SUCCESS) {
 			t_info("isc_time_nowplusinterval failed %s\n",
-					isc_result_totext(isc_result));
+			       isc_result_totext(isc_result));
 			isc_mutex_destroy(&T7_mx);
 			isc_condition_destroy(&T7_cv);
 			isc_task_destroy(&task);
@@ -1199,7 +1199,7 @@ t_tasks7() {
 		isc_result = isc_condition_waituntil(&T7_cv, &T7_mx, &now);
 		if (isc_result != ISC_R_SUCCESS) {
 			t_info("isc_condition_waituntil returned %s\n",
-					isc_result_totext(isc_result));
+			       isc_result_totext(isc_result));
 			isc_mutex_destroy(&T7_mx);
 			isc_condition_destroy(&T7_cv);
 			isc_task_destroy(&task);
@@ -1212,7 +1212,7 @@ t_tasks7() {
 	isc_result = isc_mutex_unlock(&T7_mx);
 	if (isc_result != ISC_R_SUCCESS) {
 		t_info("isc_mutex_unlock failed %s\n",
-				isc_result_totext(isc_result));
+		       isc_result_totext(isc_result));
 		++T7_nprobs;
 	}
 
@@ -1269,7 +1269,6 @@ static int		T10_testrange;
 
 static void
 t10_event1(isc_task_t *task, isc_event_t *event) {
-
 	isc_result_t	isc_result;
 
 	task = task;
@@ -1277,7 +1276,7 @@ t10_event1(isc_task_t *task, isc_event_t *event) {
 	isc_result = isc_mutex_lock(&T10_mx);
 	if (isc_result != ISC_R_SUCCESS) {
 		t_info("isc_mutex_lock failed %s\n",
-				isc_result_totext(isc_result));
+		       isc_result_totext(isc_result));
 		++T10_nprobs;
 	}
 
@@ -1285,7 +1284,7 @@ t10_event1(isc_task_t *task, isc_event_t *event) {
 		isc_result = isc_condition_wait(&T10_cv, &T10_mx);
 		if (isc_result != ISC_R_SUCCESS) {
 			t_info("isc_mutex_lock failed %s\n",
-					isc_result_totext(isc_result));
+			       isc_result_totext(isc_result));
 			++T10_nprobs;
 		}
 	}
@@ -1293,7 +1292,7 @@ t10_event1(isc_task_t *task, isc_event_t *event) {
 	isc_result = isc_mutex_unlock(&T10_mx);
 	if (isc_result != ISC_R_SUCCESS) {
 		t_info("isc_mutex_unlock failed %s\n",
-				isc_result_totext(isc_result));
+		       isc_result_totext(isc_result));
 		++T10_nprobs;
 	}
 
@@ -1315,44 +1314,44 @@ t10_event2(isc_task_t *task, isc_event_t *event) {
 
 	if (T_debug) {
 		t_info("Event %p,%d,%d,%s\n",
-			event->sender,
-			(int) event->type,
-			event->tag,
-			event->attributes & ISC_EVENTATTR_NOPURGE ? "NP" : "P");
+		       event->ev_sender,
+		       (int)event->ev_type,
+		       event->ev_tag,
+		       event->ev_attributes & ISC_EVENTATTR_NOPURGE ?
+		       		"NP" : "P");
 	}
 
 	if ((T10_purge_sender == 0) ||
-	    (T10_purge_sender == event->sender)) {
+	    (T10_purge_sender == event->ev_sender)) {
 		sender_match = 1;
 	}
 	if (T10_testrange == 0) {
-		if (T10_purge_type_first == event->type) {
+		if (T10_purge_type_first == event->ev_type) {
 			type_match = 1;
 		}
-	}
-	else {
-		if ((T10_purge_type_first <= event->type) &&
-		    (event->type <= T10_purge_type_last)) {
+	} else {
+		if ((T10_purge_type_first <= event->ev_type) &&
+		    (event->ev_type <= T10_purge_type_last)) {
 			type_match = 1;
 		}
 	}
 	if ((T10_purge_tag == NULL) ||
-	    (T10_purge_tag == event->tag)) {
+	    (T10_purge_tag == event->ev_tag)) {
 		tag_match = 1;
 	}
 		
 	if (sender_match && type_match && tag_match) {
-		if (event->attributes & ISC_EVENTATTR_NOPURGE) {
+		if (event->ev_attributes & ISC_EVENTATTR_NOPURGE) {
 			t_info("event %p,%d,%d matched but was not purgable\n",
-				event->sender, (int) event->type, event->tag);
+				event->ev_sender, (int)event->ev_type,
+			       event->ev_tag);
 			++T10_eventcnt;
-		}
-		else {
+		} else {
 			t_info("*** event %p,%d,%d not purged\n",
-				event->sender, (int) event->type, event->tag);
+				event->ev_sender, (int)event->ev_type,
+			       event->ev_tag);
 		}
-	}
-	else {
+	} else {
 		++T10_eventcnt;
 	}
 	isc_event_free(&event);
@@ -1361,7 +1360,6 @@ t10_event2(isc_task_t *task, isc_event_t *event) {
 
 static void
 t10_sde(isc_task_t *task, isc_event_t *event) {
-
 	isc_result_t	isc_result;
 
 	task = task;
@@ -1369,7 +1367,7 @@ t10_sde(isc_task_t *task, isc_event_t *event) {
 	isc_result = isc_mutex_lock(&T10_mx);
 	if (isc_result != ISC_R_SUCCESS) {
 		t_info("isc_mutex_lock failed %s\n",
-				isc_result_totext(isc_result));
+		       isc_result_totext(isc_result));
 		++T10_nprobs;
 	}
 
@@ -1378,14 +1376,14 @@ t10_sde(isc_task_t *task, isc_event_t *event) {
 	isc_result = isc_condition_signal(&T10_cv);
 	if (isc_result != ISC_R_SUCCESS) {
 		t_info("isc_condition_signal failed %s\n",
-				isc_result_totext(isc_result));
+		       isc_result_totext(isc_result));
 		++T10_nprobs;
 	}
 
 	isc_result = isc_mutex_unlock(&T10_mx);
 	if (isc_result != ISC_R_SUCCESS) {
 		t_info("isc_mutex_unlock failed %s\n",
-				isc_result_totext(isc_result));
+		       isc_result_totext(isc_result));
 		++T10_nprobs;
 	}
 
@@ -1393,10 +1391,10 @@ t10_sde(isc_task_t *task, isc_event_t *event) {
 }
 
 static void
-t_taskpurge_x(	int sender, int type, int tag,
-		int purge_sender, int purge_type_first, int purge_type_last, void *purge_tag,
-		int exp_nevents, int *nfails, int *nprobs, int testrange) {
-
+t_taskpurge_x(int sender, int type, int tag, int purge_sender,
+	      int purge_type_first, int purge_type_last, void *purge_tag,
+	      int exp_nevents, int *nfails, int *nprobs, int testrange)
+{
 	char		*p;
 	isc_mem_t	*mctx;
 	isc_taskmgr_t	*tmgr;
@@ -1433,7 +1431,7 @@ t_taskpurge_x(	int sender, int type, int tag,
 	isc_result = isc_mem_create(0, 0, &mctx);
 	if (isc_result != ISC_R_SUCCESS) {
 		t_info("isc_mem_create failed %s\n",
-				isc_result_totext(isc_result));
+		       isc_result_totext(isc_result));
 		++*nprobs;
 		return;
 	}
@@ -1441,7 +1439,7 @@ t_taskpurge_x(	int sender, int type, int tag,
 	isc_result = isc_mutex_init(&T10_mx);
 	if (isc_result != ISC_R_SUCCESS) {
 		t_info("isc_mutex_init failed %s\n",
-				isc_result_totext(isc_result));
+		       isc_result_totext(isc_result));
 		isc_mem_destroy(&mctx);
 		++*nprobs;
 		return;
@@ -1450,7 +1448,7 @@ t_taskpurge_x(	int sender, int type, int tag,
 	isc_result = isc_condition_init(&T10_cv);
 	if (isc_result != ISC_R_SUCCESS) {
 		t_info("isc_condition_init failed %s\n",
-				isc_result_totext(isc_result));
+		       isc_result_totext(isc_result));
 		isc_mem_destroy(&mctx);
 		isc_mutex_destroy(&T10_mx);
 		++*nprobs;
@@ -1461,7 +1459,7 @@ t_taskpurge_x(	int sender, int type, int tag,
 	isc_result = isc_taskmgr_create(mctx, workers, 0, &tmgr);
 	if (isc_result != ISC_R_SUCCESS) {
 		t_info("isc_taskmgr_create failed %s\n",
-				isc_result_totext(isc_result));
+		       isc_result_totext(isc_result));
 		isc_mem_destroy(&mctx);
 		isc_mutex_destroy(&T10_mx);
 		isc_condition_destroy(&T10_cv);
@@ -1470,10 +1468,10 @@ t_taskpurge_x(	int sender, int type, int tag,
 	}
 
 	task = NULL;
-	isc_result = isc_task_create(tmgr, mctx, 0, &task);
+	isc_result = isc_task_create(tmgr, 0, &task);
 	if (isc_result != ISC_R_SUCCESS) {
 		t_info("isc_task_create failed %s\n",
-				isc_result_totext(isc_result));
+		       isc_result_totext(isc_result));
 		isc_taskmgr_destroy(&tmgr);
 		isc_mem_destroy(&mctx);
 		isc_mutex_destroy(&T10_mx);
@@ -1485,7 +1483,7 @@ t_taskpurge_x(	int sender, int type, int tag,
 	isc_result = isc_task_onshutdown(task, t10_sde, NULL);
 	if (isc_result != ISC_R_SUCCESS) {
 		t_info("isc_task_onshutdown returned %s\n",
-				isc_result_totext(isc_result));
+		       isc_result_totext(isc_result));
 		isc_task_destroy(&task);
 		isc_taskmgr_destroy(&tmgr);
 		isc_mem_destroy(&mctx);
@@ -1495,38 +1493,39 @@ t_taskpurge_x(	int sender, int type, int tag,
 		return;
 	}
 
-	/* block the task on T10_cv */
-	event = isc_event_allocate(	mctx,
-					(void *) 1,
-					(isc_eventtype_t) T_CONTROL,
-					t10_event1,
-					NULL,
-					sizeof(*event));
+	/*
+	 * Block the task on T10_cv.
+	 */
+	event = isc_event_allocate(mctx, (void *)1, (isc_eventtype_t)T_CONTROL,
+				   t10_event1, NULL, sizeof(*event));
 
 	isc_task_send(task, &event);
 
 	/*
-	 * fill the task's queue with some messages with varying
-	 * sender, type, tag, and purgable attribute values
+	 * Fill the task's queue with some messages with varying
+	 * sender, type, tag, and purgable attribute values.
 	 */
 
 	event_cnt = 0;
 	for (sender_cnt = 0; sender_cnt < T10_SENDERCNT; ++sender_cnt) {
 		for (type_cnt = 0; type_cnt < T10_TYPECNT; ++type_cnt) {
 			for (tag_cnt = 0; tag_cnt < T10_TAGCNT; ++tag_cnt) {
-				eventtab[event_cnt] = isc_event_allocate(
-							mctx,
-							(void *) (sender + sender_cnt),
-							(isc_eventtype_t) (type + type_cnt),
-							t10_event2,
-							NULL,
-							sizeof(*event));
+				eventtab[event_cnt] =
+					isc_event_allocate(mctx,
+					    (void *)(sender + sender_cnt),
+					    (isc_eventtype_t)(type + type_cnt),
+					    t10_event2, NULL, sizeof(*event));
 				
-				eventtab[event_cnt]->tag = (void *)((int)tag + tag_cnt);
+				eventtab[event_cnt]->ev_tag =
+					(void *)((int)tag + tag_cnt);
 
-				/* make all odd message non-purgable */
-				if ((sender_cnt % 2) && (type_cnt %2) && (tag_cnt %2))
-					eventtab[event_cnt]->attributes |= ISC_EVENTATTR_NOPURGE;
+				/*
+				 * Make all odd message non-purgable.
+				 */
+				if ((sender_cnt % 2) && (type_cnt %2) &&
+				    (tag_cnt %2))
+					eventtab[event_cnt]->ev_attributes |=
+						ISC_EVENTATTR_NOPURGE;
 				++event_cnt;
 			}
 		}
@@ -1539,39 +1538,38 @@ t_taskpurge_x(	int sender, int type, int tag,
 		t_info("%d events queued\n", cnt);
 
 	if (testrange == 0) {
-		/* we're testing isc_task_purge */
-		nevents = isc_task_purge(task,
-					(void *) purge_sender,
-					(isc_eventtype_t) purge_type_first,
+		/*
+		 * We're testing isc_task_purge.
+		 */
+		nevents = isc_task_purge(task, (void *)purge_sender,
+					(isc_eventtype_t)purge_type_first,
 					purge_tag);
 		if (nevents != exp_nevents) {
 			t_info("*** isc_task_purge returned %d, expected %d\n",
 				nevents, exp_nevents);
 			++*nfails;
-		}
-		else if (T_debug)
+		} else if (T_debug)
 			t_info("isc_task_purge returned %d\n", nevents);
-	}
-	else {
-		/* we're testing isc_task_purgerange */
-		nevents = isc_task_purgerange(task,
-					(void *) purge_sender,
-					(isc_eventtype_t) purge_type_first,
-					(isc_eventtype_t) purge_type_last,
-					purge_tag);
+	} else {
+		/*
+		 * We're testing isc_task_purgerange.
+		 */
+		nevents = isc_task_purgerange(task, (void *)purge_sender,
+					     (isc_eventtype_t)purge_type_first,
+					     (isc_eventtype_t)purge_type_last,
+					     purge_tag);
 		if (nevents != exp_nevents) {
-			t_info("*** isc_task_purgerange returned %d, expected %d\n",
-				nevents, exp_nevents);
+			t_info("*** isc_task_purgerange returned %d, "
+			       "expected %d\n", nevents, exp_nevents);
 			++*nfails;
-		}
-		else if (T_debug)
+		} else if (T_debug)
 			t_info("isc_task_purgerange returned %d\n", nevents);
 	}
 
 	isc_result = isc_mutex_lock(&T10_mx);
 	if (isc_result != ISC_R_SUCCESS) {
 		t_info("isc_mutex_lock failed %s\n",
-				isc_result_totext(isc_result));
+		       isc_result_totext(isc_result));
 		isc_task_destroy(&task);
 		isc_taskmgr_destroy(&tmgr);
 		isc_mem_destroy(&mctx);
@@ -1581,12 +1579,14 @@ t_taskpurge_x(	int sender, int type, int tag,
 		return;
 	}
 
-	/* unblock the task, allowing event processing */
+	/*
+	 * Unblock the task, allowing event processing.
+	 */
 	T10_startflag = 1;
 	isc_result = isc_condition_signal(&T10_cv);
 	if (isc_result != ISC_R_SUCCESS) {
 		t_info("isc_condition_signal failed %s\n",
-			isc_result_totext(isc_result));
+		       isc_result_totext(isc_result));
 		++*nprobs;
 	}
 
@@ -1595,12 +1595,14 @@ t_taskpurge_x(	int sender, int type, int tag,
 	interval.seconds = 5;
 	interval.nanoseconds = 0;
 
-	/* wait for shutdown processing to complete */
+	/*
+	 * Wait for shutdown processing to complete.
+	 */
 	while (T10_shutdownflag == 0) {
 		isc_result = isc_time_nowplusinterval(&now, &interval);
 		if (isc_result != ISC_R_SUCCESS) {
 			t_info("isc_time_nowplusinterval failed %s\n",
-					isc_result_totext(isc_result));
+			       isc_result_totext(isc_result));
 			isc_task_detach(&task);
 			isc_taskmgr_destroy(&tmgr);
 			isc_mem_destroy(&mctx);
@@ -1613,7 +1615,7 @@ t_taskpurge_x(	int sender, int type, int tag,
 		isc_result = isc_condition_waituntil(&T10_cv, &T10_mx, &now);
 		if (isc_result != ISC_R_SUCCESS) {
 			t_info("isc_condition_waituntil returned %s\n",
-					isc_result_totext(isc_result));
+			       isc_result_totext(isc_result));
 			isc_task_detach(&task);
 			isc_taskmgr_destroy(&tmgr);
 			isc_mem_destroy(&mctx);
@@ -1627,7 +1629,7 @@ t_taskpurge_x(	int sender, int type, int tag,
 	isc_result = isc_mutex_unlock(&T10_mx);
 	if (isc_result != ISC_R_SUCCESS) {
 		t_info("isc_mutex_unlock failed %s\n",
-				isc_result_totext(isc_result));
+		       isc_result_totext(isc_result));
 		++*nprobs;
 	}
 
@@ -1642,7 +1644,7 @@ t_taskpurge_x(	int sender, int type, int tag,
 
 	if ((T10_eventcnt + nevents) != event_cnt) {
 		t_info("*** processed %d, purged %d, total %d\n",
-			T10_eventcnt, nevents, event_cnt);
+		       T10_eventcnt, nevents, event_cnt);
 		++*nfails;
 	}
 }
@@ -1654,23 +1656,36 @@ t_tasks10() {
 	T10_nprobs = 0;
 	T10_nfails = 0;
 
-	/* try purging on a specific sender */
+	/*
+	 * Try purging on a specific sender.
+	 */
 	t_info("testing purge on 2,4,8 expecting 1\n");
-	t_taskpurge_x( 1, 4, 7, 2, 4, 4, (void *) 8, 1, &T10_nfails, &T10_nprobs, 0);
+	t_taskpurge_x(1, 4, 7, 2, 4, 4, (void *)8, 1, &T10_nfails,
+		      &T10_nprobs, 0);
 
-	/* try purging on all senders */
+	/*
+	 * Try purging on all senders.
+	 */
 	t_info("testing purge on 0,4,8 expecting 3\n");
-	t_taskpurge_x( 1, 4, 7, 0, 4, 4, (void *) 8, 3, &T10_nfails, &T10_nprobs, 0);
+	t_taskpurge_x(1, 4, 7, 0, 4, 4, (void *)8, 3, &T10_nfails,
+		      &T10_nprobs, 0);
 
-	/* try purging on all senders, specified type, all tags */
+	/*
+	 * Try purging on all senders, specified type, all tags.
+	 */
 	t_info("testing purge on 0,4,0 expecting 15\n");
-	t_taskpurge_x( 1, 4, 7, 0, 4, 4, NULL, 15, &T10_nfails, &T10_nprobs, 0);
+	t_taskpurge_x(1, 4, 7, 0, 4, 4, NULL, 15, &T10_nfails, &T10_nprobs, 0);
 
-	/* try purging on a specified tag, no such type */
+	/*
+	 * Try purging on a specified tag, no such type.
+	 */
 	t_info("testing purge on 0,99,8 expecting 0\n");
-	t_taskpurge_x( 1, 4, 7, 0, 99, 99, (void *) 8, 0, &T10_nfails, &T10_nprobs, 0);
+	t_taskpurge_x(1, 4, 7, 0, 99, 99, (void *)8, 0, &T10_nfails,
+		      &T10_nprobs, 0);
 
-	/* try purging on specified sender, type, all tags */
+	/*
+	 * Try purging on specified sender, type, all tags.
+	 */
 	t_info("testing purge on 0,5,0 expecting 5\n");
 	t_taskpurge_x( 1, 4, 7, 3, 5, 5, NULL, 5, &T10_nfails, &T10_nprobs, 0);
 
@@ -1684,10 +1699,10 @@ t_tasks10() {
 	return(result);
 }
 
-static char	*a10 =	"A call to isc_task_purge(task, sender, type, tag) purges "
-			"all events of type 'type' and with tag 'tag' not marked as "
-			"unpurgable from sender from the task's queue and returns "
-			"the number of events purged.";
+static char	*a10 =	"A call to isc_task_purge(task, sender, type, tag) "
+			"purges all events of type 'type' and with tag 'tag' "
+			"not marked as unpurgable from sender from the task's "
+			"queue and returns the number of events purged.";
 
 void
 t10(void) {
@@ -1706,10 +1721,8 @@ static int		T11_eventcnt;
 static isc_mutex_t	T11_mx;
 static isc_condition_t	T11_cv;
 
-
 static void
 t11_event1(isc_task_t *task, isc_event_t *event) {
-
 	isc_result_t	isc_result;
 
 	task = task;
@@ -1717,7 +1730,7 @@ t11_event1(isc_task_t *task, isc_event_t *event) {
 	isc_result = isc_mutex_lock(&T11_mx);
 	if (isc_result != ISC_R_SUCCESS) {
 		t_info("isc_mutex_lock failed %s\n",
-				isc_result_totext(isc_result));
+		       isc_result_totext(isc_result));
 		++T11_nprobs;
 	}
 
@@ -1725,7 +1738,7 @@ t11_event1(isc_task_t *task, isc_event_t *event) {
 		isc_result = isc_condition_wait(&T11_cv, &T11_mx);
 		if (isc_result != ISC_R_SUCCESS) {
 			t_info("isc_mutex_lock failed %s\n",
-					isc_result_totext(isc_result));
+			       isc_result_totext(isc_result));
 			++T11_nprobs;
 		}
 	}
@@ -1733,7 +1746,7 @@ t11_event1(isc_task_t *task, isc_event_t *event) {
 	isc_result = isc_mutex_unlock(&T11_mx);
 	if (isc_result != ISC_R_SUCCESS) {
 		t_info("isc_mutex_unlock failed %s\n",
-				isc_result_totext(isc_result));
+		       isc_result_totext(isc_result));
 		++T11_nprobs;
 	}
 
@@ -1742,8 +1755,8 @@ t11_event1(isc_task_t *task, isc_event_t *event) {
 
 static void
 t11_event2(isc_task_t *task, isc_event_t *event) {
+	UNUSED(task);
 
-	task = task;
 	++T11_eventcnt;
 	isc_event_free(&event);
 }
@@ -1751,15 +1764,14 @@ t11_event2(isc_task_t *task, isc_event_t *event) {
 
 static void
 t11_sde(isc_task_t *task, isc_event_t *event) {
-
 	isc_result_t	isc_result;
 
-	task = task;
+	UNUSED(task);
 
 	isc_result = isc_mutex_lock(&T11_mx);
 	if (isc_result != ISC_R_SUCCESS) {
 		t_info("isc_mutex_lock failed %s\n",
-				isc_result_totext(isc_result));
+		       isc_result_totext(isc_result));
 		++T11_nprobs;
 	}
 
@@ -1768,14 +1780,14 @@ t11_sde(isc_task_t *task, isc_event_t *event) {
 	isc_result = isc_condition_signal(&T11_cv);
 	if (isc_result != ISC_R_SUCCESS) {
 		t_info("isc_condition_signal failed %s\n",
-				isc_result_totext(isc_result));
+		       isc_result_totext(isc_result));
 		++T11_nprobs;
 	}
 
 	isc_result = isc_mutex_unlock(&T11_mx);
 	if (isc_result != ISC_R_SUCCESS) {
 		t_info("isc_mutex_unlock failed %s\n",
-				isc_result_totext(isc_result));
+		       isc_result_totext(isc_result));
 		++T11_nprobs;
 	}
 
@@ -1784,7 +1796,6 @@ t11_sde(isc_task_t *task, isc_event_t *event) {
 
 static int
 t_tasks11(int purgable) {
-
 	char		*p;
 	isc_mem_t	*mctx;
 	isc_taskmgr_t	*tmgr;
@@ -1812,14 +1823,14 @@ t_tasks11(int purgable) {
 	isc_result = isc_mem_create(0, 0, &mctx);
 	if (isc_result != ISC_R_SUCCESS) {
 		t_info("isc_mem_create failed %s\n",
-				isc_result_totext(isc_result));
+		       isc_result_totext(isc_result));
 		return(T_UNRESOLVED);
 	}
 
 	isc_result = isc_mutex_init(&T11_mx);
 	if (isc_result != ISC_R_SUCCESS) {
 		t_info("isc_mutex_init failed %s\n",
-				isc_result_totext(isc_result));
+		       isc_result_totext(isc_result));
 		isc_mem_destroy(&mctx);
 		return(T_UNRESOLVED);
 	}
@@ -1827,7 +1838,7 @@ t_tasks11(int purgable) {
 	isc_result = isc_condition_init(&T11_cv);
 	if (isc_result != ISC_R_SUCCESS) {
 		t_info("isc_condition_init failed %s\n",
-				isc_result_totext(isc_result));
+		       isc_result_totext(isc_result));
 		isc_mem_destroy(&mctx);
 		isc_mutex_destroy(&T11_mx);
 		return(T_UNRESOLVED);
@@ -1837,7 +1848,7 @@ t_tasks11(int purgable) {
 	isc_result = isc_taskmgr_create(mctx, workers, 0, &tmgr);
 	if (isc_result != ISC_R_SUCCESS) {
 		t_info("isc_taskmgr_create failed %s\n",
-				isc_result_totext(isc_result));
+		       isc_result_totext(isc_result));
 		isc_mem_destroy(&mctx);
 		isc_mutex_destroy(&T11_mx);
 		isc_condition_destroy(&T11_cv);
@@ -1845,10 +1856,10 @@ t_tasks11(int purgable) {
 	}
 
 	task = NULL;
-	isc_result = isc_task_create(tmgr, mctx, 0, &task);
+	isc_result = isc_task_create(tmgr, 0, &task);
 	if (isc_result != ISC_R_SUCCESS) {
 		t_info("isc_task_create failed %s\n",
-				isc_result_totext(isc_result));
+		       isc_result_totext(isc_result));
 		isc_taskmgr_destroy(&tmgr);
 		isc_mem_destroy(&mctx);
 		isc_mutex_destroy(&T11_mx);
@@ -1859,7 +1870,7 @@ t_tasks11(int purgable) {
 	isc_result = isc_task_onshutdown(task, t11_sde, NULL);
 	if (isc_result != ISC_R_SUCCESS) {
 		t_info("isc_task_onshutdown returned %s\n",
-				isc_result_totext(isc_result));
+		       isc_result_totext(isc_result));
 		isc_task_destroy(&task);
 		isc_taskmgr_destroy(&tmgr);
 		isc_mem_destroy(&mctx);
@@ -1868,46 +1879,42 @@ t_tasks11(int purgable) {
 		return(T_UNRESOLVED);
 	}
 
-	/* block the task on T11_cv */
-	event1 = isc_event_allocate(	mctx,
-					(void *) 1,
-					(isc_eventtype_t) 1,
-					t11_event1,
-					NULL,
-					sizeof(*event1));
+	/*
+	 * Block the task on T11_cv.
+	 */
+	event1 = isc_event_allocate(mctx, (void *)1, (isc_eventtype_t)1,
+				    t11_event1, NULL, sizeof(*event1));
 
 	isc_task_send(task, &event1);
 
-	event2 = isc_event_allocate(	mctx,
-					(void *) 1,
-					(isc_eventtype_t) 1,
-					t11_event2,
-					NULL,
-					sizeof(*event2));
+	event2 = isc_event_allocate(mctx, (void *)1, (isc_eventtype_t)1,
+				    t11_event2, NULL, sizeof(*event2));
 	event2_clone = event2;
 	if (purgable)
-		event2->attributes &= ~ISC_EVENTATTR_NOPURGE;
+		event2->ev_attributes &= ~ISC_EVENTATTR_NOPURGE;
 	else
-		event2->attributes |= ISC_EVENTATTR_NOPURGE;
+		event2->ev_attributes |= ISC_EVENTATTR_NOPURGE;
 
 	isc_task_send(task, &event2);
 
 	rval = isc_task_purgeevent(task, event2_clone);
 	if (rval != (purgable ? ISC_TRUE : ISC_FALSE)) {
 		t_info("isc_task_purgeevent returned %s, expected %s\n",
-			(rval ? "ISC_TRUE" : "ISC_FALSE"),
-			(purgable ? "ISC_TRUE" : "ISC_FALSE"));
+		       (rval ? "ISC_TRUE" : "ISC_FALSE"),
+		       (purgable ? "ISC_TRUE" : "ISC_FALSE"));
 		++T11_nfails;
 	}
 
 	isc_result = isc_mutex_lock(&T11_mx);
 	if (isc_result != ISC_R_SUCCESS) {
 		t_info("isc_mutex_lock failed %s\n",
-				isc_result_totext(isc_result));
+		       isc_result_totext(isc_result));
 		++T11_nprobs;
 	}
 
-	/* unblock the task, allowing event processing */
+	/*
+	 * Unblock the task, allowing event processing.
+	 */
 	T11_startflag = 1;
 	isc_result = isc_condition_signal(&T11_cv);
 	if (isc_result != ISC_R_SUCCESS) {
@@ -1921,19 +1928,21 @@ t_tasks11(int purgable) {
 	interval.seconds = 5;
 	interval.nanoseconds = 0;
 
-	/* wait for shutdown processing to complete */
+	/*
+	 * Wait for shutdown processing to complete.
+	 */
 	while (T11_shutdownflag == 0) {
 		isc_result = isc_time_nowplusinterval(&now, &interval);
 		if (isc_result != ISC_R_SUCCESS) {
 			t_info("isc_time_nowplusinterval failed %s\n",
-					isc_result_totext(isc_result));
+			       isc_result_totext(isc_result));
 			++T11_nprobs;
 		}
 	
 		isc_result = isc_condition_waituntil(&T11_cv, &T11_mx, &now);
 		if (isc_result != ISC_R_SUCCESS) {
 			t_info("isc_condition_waituntil returned %s\n",
-					isc_result_totext(isc_result));
+			       isc_result_totext(isc_result));
 			++T11_nprobs;
 		}
 	}
@@ -1941,7 +1950,7 @@ t_tasks11(int purgable) {
 	isc_result = isc_mutex_unlock(&T11_mx);
 	if (isc_result != ISC_R_SUCCESS) {
 		t_info("isc_mutex_unlock failed %s\n",
-				isc_result_totext(isc_result));
+		       isc_result_totext(isc_result));
 		++T11_nprobs;
 	}
 
@@ -1952,7 +1961,8 @@ t_tasks11(int purgable) {
 	isc_condition_destroy(&T11_cv);
 
 	if (T11_eventcnt != (purgable ? 0 : 1)) {
-		t_info("Event was %s purged\n", (purgable ? "not" : "unexpectedly"));
+		t_info("Event was %s purged\n",
+		       (purgable ? "not" : "unexpectedly"));
 		++T11_nfails;
 	}
 
@@ -1966,9 +1976,9 @@ t_tasks11(int purgable) {
 	return(result);
 }
 
-static char	*a11 =	"When the event is marked as purgable, a call to "
-			"isc_task_purgeevent(task, event) purges the event 'event' "
-			"from the task's queue and returns ISC_TRUE.";
+static char *a11 = "When the event is marked as purgable, a call to "
+		   "isc_task_purgeevent(task, event) purges the event 'event' "
+		   "from the task's queue and returns ISC_TRUE.";
 			
 void
 t11(void) {
@@ -1979,8 +1989,9 @@ t11(void) {
 }
 
 static char	*a12 =	"When the event is not marked as purgable, a call to "
-			"isc_task_purgeevent(task, event) does not purge the event 'event' "
-			"from the task's queue and returns ISC_FALSE.";
+			"isc_task_purgeevent(task, event) does not purge the "
+			"event 'event' from the task's queue and returns "
+			"ISC_FALSE.";
 
 static int
 t_tasks12() {
@@ -1998,10 +2009,12 @@ t12(void) {
 static int	T13_nfails;
 static int	T13_nprobs;
 
-static char	*a13 =	"A call to isc_event_purgerange(task, sender, first, last, tag) "
-			"purges all events not marked unpurgable from sender 'sender' and "
-			"of type within the range 'first' to 'last' inclusive from "
-			"the task's event queue and returns the number of tasks purged.";
+static char	*a13 =	"A call to "
+			"isc_event_purgerange(task, sender, first, last, tag) "
+			"purges all events not marked unpurgable from "
+			"sender 'sender' and of type within the range 'first' "
+			"to 'last' inclusive from the task's event queue and "
+			"returns the number of tasks purged.";
 			
 static int
 t_tasks13() {
@@ -2011,52 +2024,75 @@ t_tasks13() {
 	T13_nprobs = 0;
 
 	/*
-	 * first lets try the same cases we used in t10
+	 * First let's try the same cases we used in t10.
 	 */
 
-	/* try purging on a specific sender */
+	/*
+	 * Try purging on a specific sender.
+	 */
 	t_info("testing purge on 2,4,8 expecting 1\n");
-	t_taskpurge_x( 1, 4, 7, 2, 4, 4, (void *) 8, 1, &T13_nfails, &T13_nprobs, 1);
-
-	/* try purging on all senders */
-	t_info("testing purge on 0,4,8 expecting 3\n");
-	t_taskpurge_x( 1, 4, 7, 0, 4, 4, (void *) 8, 3, &T13_nfails, &T13_nprobs, 1);
-
-	/* try purging on all senders, specified type, all tags */
-	t_info("testing purge on 0,4,0 expecting 15\n");
-	t_taskpurge_x( 1, 4, 7, 0, 4, 4, NULL, 15, &T13_nfails, &T13_nprobs, 1);
-
-	/* try purging on a specified tag, no such type */
-	t_info("testing purge on 0,99,8 expecting 0\n");
-	t_taskpurge_x( 1, 4, 7, 0, 99, 99, (void *) 8, 0, &T13_nfails, &T13_nprobs, 1);
-
-	/* try purging on specified sender, type, all tags */
-	t_info("testing purge on 3,5,0 expecting 5\n");
-	t_taskpurge_x( 1, 4, 7, 3, 5, 5, 0, 5, &T13_nfails, &T13_nprobs, 1);
+	t_taskpurge_x(1, 4, 7, 2, 4, 4, (void *)8, 1,
+		      &T13_nfails, &T13_nprobs, 1);
 
 	/*
-	 * now lets try some ranges
+	 * Try purging on all senders.
+	 */
+	t_info("testing purge on 0,4,8 expecting 3\n");
+	t_taskpurge_x(1, 4, 7, 0, 4, 4, (void *)8, 3,
+		      &T13_nfails, &T13_nprobs, 1);
+
+	/*
+	 * Try purging on all senders, specified type, all tags.
+	 */
+	t_info("testing purge on 0,4,0 expecting 15\n");
+	t_taskpurge_x(1, 4, 7, 0, 4, 4, NULL, 15, &T13_nfails, &T13_nprobs, 1);
+
+	/*
+	 * Try purging on a specified tag, no such type.
+	 */
+	t_info("testing purge on 0,99,8 expecting 0\n");
+	t_taskpurge_x(1, 4, 7, 0, 99, 99, (void *)8, 0,
+		      &T13_nfails, &T13_nprobs, 1);
+
+	/*
+	 * Try purging on specified sender, type, all tags.
+	 */
+	t_info("testing purge on 3,5,0 expecting 5\n");
+	t_taskpurge_x(1, 4, 7, 3, 5, 5, 0, 5, &T13_nfails, &T13_nprobs, 1);
+
+	/*
+	 * Now let's try some ranges.
 	 */
 
 	t_info("testing purgerange on 2,4-5,8 expecting 2\n");
-	t_taskpurge_x( 1, 4, 7, 2, 4, 5, (void *) 8, 1, &T13_nfails, &T13_nprobs, 1);
+	t_taskpurge_x(1, 4, 7, 2, 4, 5, (void *)8, 1,
+		      &T13_nfails, &T13_nprobs, 1);
 
-	/* try purging on all senders */
+	/*
+	 * Try purging on all senders.
+	 */
 	t_info("testing purge on 0,4-5,8 expecting 5\n");
-	t_taskpurge_x( 1, 4, 7, 0, 4, 5, (void *) 8, 5, &T13_nfails, &T13_nprobs, 1);
+	t_taskpurge_x(1, 4, 7, 0, 4, 5, (void *)8, 5,
+		      &T13_nfails, &T13_nprobs, 1);
 
-	/* try purging on all senders, specified type, all tags */
+	/*
+	 * Try purging on all senders, specified type, all tags.
+	 */
 	t_info("testing purge on 0,5-6,0 expecting 28\n");
-	t_taskpurge_x( 1, 4, 7, 0, 5, 6, NULL, 28, &T13_nfails, &T13_nprobs, 1);
+	t_taskpurge_x(1, 4, 7, 0, 5, 6, NULL, 28, &T13_nfails, &T13_nprobs, 1);
 
-	/* try purging on a specified tag, no such type */
+	/*
+	 * Try purging on a specified tag, no such type.
+	 */
 	t_info("testing purge on 0,99-101,8 expecting 0\n");
-	t_taskpurge_x( 1, 4, 7, 0, 99, 101, (void *) 8, 0, &T13_nfails, &T13_nprobs, 1);
+	t_taskpurge_x(1, 4, 7, 0, 99, 101, (void *)8, 0,
+		      &T13_nfails, &T13_nprobs, 1);
 
-	/* try purging on specified sender, type, all tags */
+	/*
+	 * Try purging on specified sender, type, all tags.
+	 */
 	t_info("testing purge on 3,5-6,0 expecting 10\n");
-	t_taskpurge_x( 1, 4, 7, 3, 5, 6, NULL, 10, &T13_nfails, &T13_nprobs, 1);
-
+	t_taskpurge_x(1, 4, 7, 3, 5, 6, NULL, 10, &T13_nfails, &T13_nprobs, 1);
 
 	result = T_UNRESOLVED;
 
@@ -2065,9 +2101,8 @@ t_tasks13() {
 	else if (T13_nfails)
 		result = T_FAIL;
 
-	return(result);
+	return (result);
 }
-
 
 void
 t13(void) {

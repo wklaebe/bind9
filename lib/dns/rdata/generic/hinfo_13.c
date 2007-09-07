@@ -15,7 +15,7 @@
  * SOFTWARE.
  */
 
-/* $Id: hinfo_13.c,v 1.20 2000/03/16 22:42:32 halley Exp $ */
+/* $Id: hinfo_13.c,v 1.25 2000/05/22 12:37:34 marka Exp $ */
 
 /*
  * Reviewed: Wed Mar 15 16:47:10 PST 2000 by halley.
@@ -23,6 +23,8 @@
 
 #ifndef RDATA_GENERIC_HINFO_13_C
 #define RDATA_GENERIC_HINFO_13_C
+
+#define RRTYPE_HINFO_ATTRIBUTES (0)
 
 static inline isc_result_t
 fromtext_hinfo(dns_rdataclass_t rdclass, dns_rdatatype_t type,
@@ -43,7 +45,7 @@ fromtext_hinfo(dns_rdataclass_t rdclass, dns_rdatatype_t type,
 				ISC_FALSE));
 		RETERR(txt_fromtext(&token.value.as_textregion, target));
 	}
-	return (DNS_R_SUCCESS);
+	return (ISC_R_SUCCESS);
 }
 
 static inline isc_result_t
@@ -106,42 +108,86 @@ static inline isc_result_t
 fromstruct_hinfo(dns_rdataclass_t rdclass, dns_rdatatype_t type, void *source,
 		 isc_buffer_t *target)
 {
-	UNUSED(rdclass);
-	UNUSED(source);
-	UNUSED(target);
+	dns_rdata_hinfo_t *hinfo = source;
 
 	REQUIRE(type == 13);
+	REQUIRE(source != NULL);
+	REQUIRE(hinfo->common.rdtype == type);
+	REQUIRE(hinfo->common.rdclass == rdclass);
 
-	return (DNS_R_NOTIMPLEMENTED);
+	RETERR(uint8_tobuffer(hinfo->cpu_len, target));
+	RETERR(mem_tobuffer(target, hinfo->cpu, hinfo->cpu_len));
+	RETERR(uint8_tobuffer(hinfo->os_len, target));
+	return (mem_tobuffer(target, hinfo->os, hinfo->os_len));
 }
 
 static inline isc_result_t
 tostruct_hinfo(dns_rdata_t *rdata, void *target, isc_mem_t *mctx) {
+	dns_rdata_hinfo_t *hinfo = target;
+	isc_region_t region;
 
 	REQUIRE(rdata->type == 13);
+	REQUIRE(target != NULL);
 
-	UNUSED(target);
-	UNUSED(mctx);
+	hinfo->common.rdclass = rdata->rdclass;
+	hinfo->common.rdtype = rdata->type;
+	ISC_LINK_INIT(&hinfo->common, link);
 
-	return (DNS_R_NOTIMPLEMENTED);
+	dns_rdata_toregion(rdata, &region);
+	hinfo->cpu_len = uint8_fromregion(&region);
+	isc_region_consume(&region, 1);
+	if (hinfo->cpu_len > 0) {
+		hinfo->cpu = mem_maybedup(mctx, region.base, hinfo->cpu_len);
+		if (hinfo->cpu == NULL)
+			return (ISC_R_NOMEMORY);
+		isc_region_consume(&region, hinfo->cpu_len);
+	} else
+		hinfo->cpu = NULL;
+
+	hinfo->os_len = uint8_fromregion(&region);
+	isc_region_consume(&region, 1);
+	if (hinfo->os_len > 0) {
+		hinfo->os = mem_maybedup(mctx, region.base, hinfo->os_len);
+		if (hinfo->os == NULL)
+			goto cleanup;
+	} else
+		hinfo->os = NULL;
+	hinfo->mctx = mctx;
+	return (ISC_R_SUCCESS);
+
+ cleanup:
+	if (mctx != NULL && hinfo->cpu != NULL)
+		isc_mem_free(mctx, hinfo->cpu);
+	return (ISC_R_NOMEMORY);
 }
 
 static inline void
 freestruct_hinfo(void *source) {
+	dns_rdata_hinfo_t *hinfo = source;
+
 	REQUIRE(source != NULL);
-	REQUIRE(ISC_FALSE); /* XXX */
+
+	if (hinfo->mctx == NULL)
+		return;
+
+	if (hinfo->cpu != NULL)
+		isc_mem_free(hinfo->mctx, hinfo->cpu);
+	if (hinfo->os != NULL)
+		isc_mem_free(hinfo->mctx, hinfo->os);
+	hinfo->mctx = NULL;
 }
 
 static inline isc_result_t
 additionaldata_hinfo(dns_rdata_t *rdata, dns_additionaldatafunc_t add,
 		     void *arg)
 {
-	UNUSED(add);
-	UNUSED(arg);
-
 	REQUIRE(rdata->type == 13);
 
-	return (DNS_R_SUCCESS);
+	UNUSED(add);
+	UNUSED(arg);
+	UNUSED(rdata);
+
+	return (ISC_R_SUCCESS);
 }
 
 static inline isc_result_t

@@ -17,14 +17,14 @@
 
 #include <config.h>
 
-#include <isc/assertions.h>
 #include <isc/magic.h>
-#include <isc/rwlock.h>
-#include <isc/result.h>
+#include <isc/mem.h>
 #include <isc/util.h>
 
-#include <dns/zt.h>
+#include <dns/rbt.h>
+#include <dns/result.h>
 #include <dns/zone.h>
+#include <dns/zt.h>
 
 struct dns_zt {
 	/* Unlocked. */
@@ -34,14 +34,17 @@ struct dns_zt {
 	isc_rwlock_t		rwlock;
 	/* Locked by lock. */
 	isc_uint32_t		references;
-	dns_rbt_t		*table; 
+	dns_rbt_t		*table;
 };
 
 #define ZTMAGIC			0x5a54626cU	/* ZTbl */
 #define VALID_ZT(zt) 		ISC_MAGIC_VALID(zt, ZTMAGIC)
 
-static void auto_detach(void *, void *);
-static isc_result_t load(dns_zone_t *zone, void *uap);
+static void
+auto_detach(void *, void *);
+
+static isc_result_t
+load(dns_zone_t *zone, void *uap);
 
 isc_result_t
 dns_zt_create(isc_mem_t *mctx, dns_rdataclass_t rdclass, dns_zt_t **ztp) {
@@ -52,10 +55,10 @@ dns_zt_create(isc_mem_t *mctx, dns_rdataclass_t rdclass, dns_zt_t **ztp) {
 
 	zt = isc_mem_get(mctx, sizeof *zt);
 	if (zt == NULL)
-		return (DNS_R_NOMEMORY);
+		return (ISC_R_NOMEMORY);
 
 	zt->table = NULL;
-	result = dns_rbt_create(mctx, auto_detach, NULL, &zt->table);
+	result = dns_rbt_create(mctx, auto_detach, zt, &zt->table);
 	if (result != ISC_R_SUCCESS)
 		goto cleanup_zt;
 
@@ -125,18 +128,23 @@ dns_zt_unmount(dns_zt_t *zt, dns_zone_t *zone) {
 }
 
 isc_result_t
-dns_zt_find(dns_zt_t *zt, dns_name_t *name, dns_name_t *foundname,
-	    dns_zone_t **zonep)
+dns_zt_find(dns_zt_t *zt, dns_name_t *name, unsigned int options,
+	    dns_name_t *foundname, dns_zone_t **zonep)
 {
 	isc_result_t result;
 	dns_zone_t *dummy = NULL;
+	unsigned int rbtoptions = 0;
 
 	REQUIRE(VALID_ZT(zt));
 
+	if ((options & DNS_ZTFIND_NOEXACT) != 0)
+		rbtoptions |= DNS_RBTFIND_NOEXACT;
+
 	RWLOCK(&zt->rwlock, isc_rwlocktype_read);
 
-	result = dns_rbt_findname(zt->table, name, foundname, (void **)&dummy);
-	if (result == DNS_R_SUCCESS || result == DNS_R_PARTIALMATCH)
+	result = dns_rbt_findname(zt->table, name, rbtoptions, foundname,
+				  (void **)&dummy);
+	if (result == ISC_R_SUCCESS || result == DNS_R_PARTIALMATCH)
 		dns_zone_attach(dummy, zonep);
 
 	RWUNLOCK(&zt->rwlock, isc_rwlocktype_read);
@@ -202,10 +210,10 @@ dns_zt_print(dns_zt_t *zt) {
 
 	dns_rbtnodechain_init(&chain, zt->mctx);
 	result = dns_rbtnodechain_first(&chain, zt->table, NULL, NULL);
-	while (result == DNS_R_NEWORIGIN || result == DNS_R_SUCCESS) {
+	while (result == DNS_R_NEWORIGIN || result == ISC_R_SUCCESS) {
 		result = dns_rbtnodechain_current(&chain, NULL, NULL,
 						  &node);
-		if (result == DNS_R_SUCCESS) {
+		if (result == ISC_R_SUCCESS) {
 			zone = node->data;
 			if (zone != NULL)
 				(void)dns_zone_print(zone);
@@ -219,12 +227,16 @@ dns_zt_print(dns_zt_t *zt) {
 
 isc_result_t
 dns_zt_load(dns_zt_t *zt, isc_boolean_t stop) {
-	return (dns_zt_apply(zt, stop, load, NULL));
+	isc_result_t result;
+	RWLOCK(&zt->rwlock, isc_rwlocktype_read);
+	result = dns_zt_apply(zt, stop, load, NULL);
+	RWUNLOCK(&zt->rwlock, isc_rwlocktype_read);
+	return (result);
 }
 
 static isc_result_t
 load(dns_zone_t *zone, void *uap) {
-	uap = uap;
+	UNUSED(uap);
 	return (dns_zone_load(zone));
 }
 
@@ -240,35 +252,31 @@ dns_zt_apply(dns_zt_t *zt, isc_boolean_t stop,
 	REQUIRE(VALID_ZT(zt));
 	REQUIRE(action != NULL);
 
-	RWLOCK(&zt->rwlock, isc_rwlocktype_read);
-
 	dns_rbtnodechain_init(&chain, zt->mctx);
 	result = dns_rbtnodechain_first(&chain, zt->table, NULL, NULL);
-	if (result == DNS_R_NOTFOUND) {
+	if (result == ISC_R_NOTFOUND) {
 		/*
 		 * The tree is empty.
 		 */
-		result = DNS_R_NOMORE; 
+		result = ISC_R_NOMORE; 
 	}
-	while (result == DNS_R_NEWORIGIN || result == DNS_R_SUCCESS) {
+	while (result == DNS_R_NEWORIGIN || result == ISC_R_SUCCESS) {
 		result = dns_rbtnodechain_current(&chain, NULL, NULL,
 						  &node);
-		if (result == DNS_R_SUCCESS) {
+		if (result == ISC_R_SUCCESS) {
 			zone = node->data;
 			if (zone != NULL)
 				result = (action)(zone, uap);
-			if (result != DNS_R_SUCCESS && stop)
+			if (result != ISC_R_SUCCESS && stop)
 				goto cleanup;	/* don't break */
 		}
 		result = dns_rbtnodechain_next(&chain, NULL, NULL);
 	}
-	if (result == DNS_R_NOMORE)
-		result = DNS_R_SUCCESS;
+	if (result == ISC_R_NOMORE)
+		result = ISC_R_SUCCESS;
 
  cleanup:
 	dns_rbtnodechain_invalidate(&chain);
-
-	RWUNLOCK(&zt->rwlock, isc_rwlocktype_read);
 
 	return (result);
 }
@@ -281,7 +289,7 @@ static void
 auto_detach(void *data, void *arg) {
 	dns_zone_t *zone = data;
 
-	(void)arg;
-
+	UNUSED(arg);
+	
 	dns_zone_detach(&zone);
 }

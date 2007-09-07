@@ -15,7 +15,7 @@
  * SOFTWARE.
  */
 
-/* $Id: gpos_27.c,v 1.14 2000/03/21 23:48:20 gson Exp $ */
+/* $Id: gpos_27.c,v 1.20 2000/05/22 12:37:33 marka Exp $ */
 
 /* reviewed: Wed Mar 15 16:48:45 PST 2000 by brister */
 
@@ -23,6 +23,8 @@
 
 #ifndef RDATA_GENERIC_GPOS_27_C
 #define RDATA_GENERIC_GPOS_27_C
+
+#define RRTYPE_GPOS_ATTRIBUTES (0)
 
 static inline isc_result_t
 fromtext_gpos(dns_rdataclass_t rdclass, dns_rdatatype_t type,
@@ -43,7 +45,7 @@ fromtext_gpos(dns_rdataclass_t rdclass, dns_rdatatype_t type,
 				ISC_FALSE));
 		RETERR(txt_fromtext(&token.value.as_textregion, target));
 	}
-	return (DNS_R_SUCCESS);
+	return (ISC_R_SUCCESS);
 }
 
 static inline isc_result_t
@@ -65,7 +67,7 @@ totext_gpos(dns_rdata_t *rdata, dns_rdata_textctx_t *tctx,
 			RETERR(str_totext(" ", target));
 	}
 
-	return (DNS_R_SUCCESS);
+	return (ISC_R_SUCCESS);
 }
 
 static inline isc_result_t
@@ -83,7 +85,7 @@ fromwire_gpos(dns_rdataclass_t rdclass, dns_rdatatype_t type,
 
 	for (i = 0 ; i < 3; i++)
 		RETERR(txt_fromwire(source, target));
-	return (DNS_R_SUCCESS);
+	return (ISC_R_SUCCESS);
 }
 
 static inline isc_result_t
@@ -116,34 +118,96 @@ static inline isc_result_t
 fromstruct_gpos(dns_rdataclass_t rdclass, dns_rdatatype_t type, void *source,
 		isc_buffer_t *target)
 {
+	dns_rdata_gpos_t *gpos = source;
 
 	REQUIRE(type == 27);
+	REQUIRE(source != NULL);
+	REQUIRE(gpos->common.rdtype == type);
+	REQUIRE(gpos->common.rdclass == rdclass);
 
-	UNUSED(rdclass);
-
-	UNUSED(source);
-	UNUSED(target);
-
-	return (DNS_R_NOTIMPLEMENTED);
+	RETERR(uint8_tobuffer(gpos->long_len, target));
+	RETERR(mem_tobuffer(target, gpos->longitude, gpos->long_len));
+	RETERR(uint8_tobuffer(gpos->lat_len, target));
+	RETERR(mem_tobuffer(target, gpos->latitude, gpos->lat_len));
+	RETERR(uint8_tobuffer(gpos->alt_len, target));
+	return (mem_tobuffer(target, gpos->altitude, gpos->alt_len));
 }
 
 static inline isc_result_t
 tostruct_gpos(dns_rdata_t *rdata, void *target, isc_mem_t *mctx)
 {
+	dns_rdata_gpos_t *gpos = target;
+	isc_region_t region;
 
 	REQUIRE(rdata->type == 27);
+	REQUIRE(target != NULL);
 
-	UNUSED(target);
-	UNUSED(mctx);
+	gpos->common.rdclass = rdata->rdclass;
+	gpos->common.rdtype = rdata->type;
+	ISC_LINK_INIT(&gpos->common, link);
 
-	return (DNS_R_NOTIMPLEMENTED);
+	dns_rdata_toregion(rdata, &region);
+	gpos->long_len = uint8_fromregion(&region);
+	isc_region_consume(&region, 1);
+	if (gpos->long_len != 0) {
+		gpos->longitude = mem_maybedup(mctx, region.base,
+					       gpos->long_len);
+		if (gpos->longitude == NULL)
+			return (ISC_R_NOMEMORY);
+		isc_region_consume(&region, gpos->long_len);
+	} else
+		gpos->longitude = NULL;
+
+	gpos->lat_len = uint8_fromregion(&region);
+	isc_region_consume(&region, 1);
+	if (gpos->lat_len > 0) {
+		gpos->latitude = mem_maybedup(mctx, region.base, gpos->lat_len);
+		if (gpos->latitude == NULL)
+			goto cleanup_longitude;
+		isc_region_consume(&region, gpos->lat_len);
+	} else
+		gpos->latitude = NULL;
+
+	gpos->alt_len = uint8_fromregion(&region);
+	isc_region_consume(&region, 1);
+	if (gpos->lat_len > 0) {
+		gpos->altitude = mem_maybedup(mctx, region.base, gpos->alt_len);
+		if (gpos->altitude == NULL)
+			goto cleanup_latitude;
+	} else 
+		gpos->altitude = NULL;
+
+	gpos->mctx = mctx;
+	return (ISC_R_SUCCESS);
+
+ cleanup_latitude:
+	if (mctx != NULL && gpos->longitude != NULL)
+		isc_mem_free(mctx, gpos->longitude);
+
+ cleanup_longitude:
+	if (mctx != NULL && gpos->latitude != NULL)
+		isc_mem_free(mctx, gpos->latitude);
+	return (ISC_R_NOMEMORY);
 }
 
 static inline void
 freestruct_gpos(void *source)
 {
+	dns_rdata_gpos_t *gpos = source;
+
 	REQUIRE(source != NULL);
-	REQUIRE(ISC_FALSE);	/* XXX */
+	REQUIRE(gpos->common.rdtype == 27);
+
+	if (gpos->mctx == NULL)
+		return;
+
+	if (gpos->longitude != NULL)
+		isc_mem_free(gpos->mctx, gpos->longitude);
+	if (gpos->latitude != NULL)
+		isc_mem_free(gpos->mctx, gpos->latitude);
+	if (gpos->altitude != NULL)
+		isc_mem_free(gpos->mctx, gpos->altitude);
+	gpos->mctx = NULL;
 }
 
 static inline isc_result_t
@@ -152,10 +216,11 @@ additionaldata_gpos(dns_rdata_t *rdata, dns_additionaldatafunc_t add,
 {
 	REQUIRE(rdata->type == 27);
 
+	UNUSED(rdata);
 	UNUSED(add);
 	UNUSED(arg);
 
-	return (DNS_R_SUCCESS);
+	return (ISC_R_SUCCESS);
 }
 
 static inline isc_result_t

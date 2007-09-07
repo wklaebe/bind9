@@ -17,23 +17,20 @@
 
 #include <config.h>
 
-#include <string.h>
+#include <isc/string.h>
+#include <isc/util.h>
 
-#include <isc/assertions.h>
-
-#include <dns/types.h>
-#include <dns/name.h>
 #include <dns/db.h>
-#include <dns/dbiterator.h>
+#include <dns/nxt.h>
 #include <dns/rdata.h>
+#include <dns/rdatalist.h>
 #include <dns/rdataset.h>
 #include <dns/rdatasetiter.h>
-#include <dns/rdatalist.h>
-#include <dns/nxt.h>
+#include <dns/result.h>
 
 #define check_result(op, msg) \
 	do { result = (op); \
-		if (result != DNS_R_SUCCESS) { \
+		if (result != ISC_R_SUCCESS) { \
 			fprintf(stderr, "%s: %s\n", msg, \
 				isc_result_totext(result)); \
 			goto failure; \
@@ -42,13 +39,12 @@
 
 static void
 set_bit(unsigned char *array, unsigned int index, unsigned int bit) {
-	unsigned int byte, shift, mask;
-	
-	byte = array[index / 8];
+	unsigned int shift, mask;
+
 	shift = 7 - (index % 8);
 	mask = 1 << shift;
 
-	if (bit)
+	if (bit != 0)
 		array[index / 8] |= mask;
 	else
 		array[index / 8] &= (~mask & 0xFF);
@@ -57,11 +53,12 @@ set_bit(unsigned char *array, unsigned int index, unsigned int bit) {
 static unsigned int
 bit_isset(unsigned char *array, unsigned int index) {
 	unsigned int byte, shift, mask;
-	
+
 	byte = array[index / 8];
 	shift = 7 - (index % 8);
 	mask = 1 << shift;
-	return ((array[index / 8] & mask) != 0);
+
+	return ((byte & mask) != 0);
 }
 
 isc_result_t
@@ -88,7 +85,7 @@ dns_buildnxtrdata(dns_db_t *db, dns_dbversion_t *version,
 	dns_rdataset_init(&rdataset);
 	rdsiter = NULL;
 	result = dns_db_allrdatasets(db, node, version, 0, &rdsiter);
-	if (result != DNS_R_SUCCESS)
+	if (result != ISC_R_SUCCESS)
 		return (result);
 	for (result = dns_rdatasetiter_first(rdsiter);
 	     result == ISC_R_SUCCESS;
@@ -96,7 +93,8 @@ dns_buildnxtrdata(dns_db_t *db, dns_dbversion_t *version,
 	{
 		dns_rdatasetiter_current(rdsiter, &rdataset);
 		if (rdataset.type > 127)
-			return DNS_R_RANGE; /* XXX "rdataset type too large" */
+			/* XXX "rdataset type too large" */
+			return (ISC_R_RANGE);
 		if (rdataset.type != dns_rdatatype_nxt) {
 			if (rdataset.type > max_type)
 				max_type = rdataset.type;
@@ -105,7 +103,9 @@ dns_buildnxtrdata(dns_db_t *db, dns_dbversion_t *version,
 		dns_rdataset_disassociate(&rdataset);
 	}
 
-	/* At zone cuts, deny the existence of glue in the parent zone. */
+	/*
+	 * At zone cuts, deny the existence of glue in the parent zone.
+	 */
 	if (bit_isset(nxt_bits, dns_rdatatype_ns) &&
 	    ! bit_isset(nxt_bits, dns_rdatatype_soa)) {
 		for (i = 0; i < 128; i++) {
@@ -116,7 +116,7 @@ dns_buildnxtrdata(dns_db_t *db, dns_dbversion_t *version,
 	}
 
 	dns_rdatasetiter_destroy(&rdsiter);
-	if (result != DNS_R_NOMORE)
+	if (result != ISC_R_NOMORE)
 		return (result);
 
 	r.length += ((max_type + 7) / 8);
@@ -126,7 +126,7 @@ dns_buildnxtrdata(dns_db_t *db, dns_dbversion_t *version,
 			     dns_rdatatype_nxt,
 			     &r);
 
-	return (DNS_R_SUCCESS);
+	return (ISC_R_SUCCESS);
 }
 
 
@@ -163,4 +163,27 @@ dns_buildnxt(dns_db_t *db, dns_dbversion_t *version, dns_dbnode_t *node,
 	if (dns_rdataset_isassociated(&rdataset))
 		dns_rdataset_disassociate(&rdataset);
 	return (result);
+}
+
+isc_boolean_t
+dns_nxt_typepresent(dns_rdata_t *nxt, dns_rdatatype_t type) {
+	dns_name_t name;
+	isc_region_t r, r2;
+	unsigned char *nxt_bits;
+	int nxt_bits_length;
+
+	REQUIRE(nxt != NULL);
+	REQUIRE(nxt->type == dns_rdatatype_nxt);
+	REQUIRE(type < 128);
+
+	dns_rdata_toregion(nxt, &r);
+	dns_name_init(&name, NULL);
+	dns_name_fromregion(&name, &r);
+	dns_name_toregion(&name, &r2);
+	nxt_bits = ((unsigned char *)r.base) + r2.length;
+	nxt_bits_length = r.length - r2.length;
+	if (type >= nxt_bits_length * 8)
+		return (ISC_FALSE);
+	else
+		return (ISC_TF(bit_isset(nxt_bits, type)));
 }

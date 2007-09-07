@@ -15,40 +15,36 @@
  * SOFTWARE.
  */
 
-/* $Id: rdata.c,v 1.72 2000/03/22 17:28:57 gson Exp $ */
+/* $Id: rdata.c,v 1.93 2000/05/20 01:05:50 explorer Exp $ */
 
 #include <config.h>
-
-#include <stdarg.h>
-#include <stdio.h>
+#include <ctype.h>
 
 #include <isc/base64.h>
-#include <isc/buffer.h>
 #include <isc/lex.h>
-#include <isc/assertions.h>
-#include <isc/error.h>
-#include <isc/region.h>
+#include <isc/mem.h>
+#include <isc/string.h>
 #include <isc/util.h>
 
-#include <dns/types.h>
-#include <dns/result.h>
+#include <dns/callbacks.h>
+#include <dns/cert.h>
+#include <dns/compress.h>
+#include <dns/keyflags.h>
+#include <dns/rcode.h>
 #include <dns/rdata.h>
 #include <dns/rdataclass.h>
+#include <dns/rdatastruct.h>
 #include <dns/rdatatype.h>
-#include <dns/rcode.h>
-#include <dns/cert.h>
+#include <dns/result.h>
 #include <dns/secalg.h>
 #include <dns/secproto.h>
-#include <dns/keyflags.h>
-#include <dns/fixedname.h>
-#include <dns/rdatastruct.h>
 #include <dns/time.h>
 #include <dns/ttl.h>
 
 #define RETERR(x) do { \
-	isc_result_t __r = (x); \
-	if (__r != DNS_R_SUCCESS) \
-		return (__r); \
+	isc_result_t _r = (x); \
+	if (_r != ISC_R_SUCCESS) \
+		return (_r); \
 	} while (0)
 
 /*
@@ -63,88 +59,114 @@ typedef struct dns_rdata_textctx {
   	char *linebreak;	/* Line break string. */
 } dns_rdata_textctx_t;
 
-static isc_result_t	txt_totext(isc_region_t *source, isc_buffer_t *target);
-static isc_result_t	txt_fromtext(isc_textregion_t *source,
-				     isc_buffer_t *target);
-static isc_result_t	txt_fromwire(isc_buffer_t *source,
-				    isc_buffer_t *target);
-static isc_boolean_t	name_prefix(dns_name_t *name, dns_name_t *origin,
-				    dns_name_t *target);
-static unsigned int 	name_length(dns_name_t *name);
-static isc_result_t	str_totext(char *source, isc_buffer_t *target);
-static isc_boolean_t	buffer_empty(isc_buffer_t *source);
-static void		buffer_fromregion(isc_buffer_t *buffer,
-					  isc_region_t *region,
-					  unsigned int type);
-static isc_result_t	uint32_tobuffer(isc_uint32_t,
-					isc_buffer_t *target);
-static isc_result_t	uint16_tobuffer(isc_uint32_t,
-					isc_buffer_t *target);
-static isc_result_t	uint8_tobuffer(isc_uint32_t value,
-				       isc_buffer_t *target);
-static isc_uint32_t	uint32_fromregion(isc_region_t *region);
-static isc_uint16_t	uint16_fromregion(isc_region_t *region);
-static isc_uint8_t	uint8_fromregion(isc_region_t *region);
-static isc_result_t	gettoken(isc_lex_t *lexer, isc_token_t *token,
-				 isc_tokentype_t expect, isc_boolean_t eol);
-static isc_result_t	mem_tobuffer(isc_buffer_t *target, void *base,
-				     unsigned int length);
-static int		compare_region(isc_region_t *r1, isc_region_t *r2);
-static int		hexvalue(char value);
-static int		decvalue(char value);
-static isc_result_t	btoa_totext(unsigned char *inbuf, int inbuflen,
-				    isc_buffer_t *target);
-static isc_result_t	atob_tobuffer(isc_lex_t *lexer, isc_buffer_t *target);
-static void		default_fromtext_callback(
-					    dns_rdatacallbacks_t *callbacks,
-						  char *, ...);
+static isc_result_t
+txt_totext(isc_region_t *source, isc_buffer_t *target);
 
-static void		fromtext_error(void (*callback)(dns_rdatacallbacks_t *,
-							char *, ...),
-				       dns_rdatacallbacks_t *callbacks,
-				       char *name, int line,
-				       isc_token_t *token,
-				       isc_result_t result);
+static isc_result_t
+txt_fromtext(isc_textregion_t *source, isc_buffer_t *target);
 
-static isc_result_t	 rdata_totext(dns_rdata_t *rdata,
-				      dns_rdata_textctx_t *tctx,
-				      isc_buffer_t *target);
+static isc_result_t
+txt_fromwire(isc_buffer_t *source, isc_buffer_t *target);
+
+static isc_boolean_t
+name_prefix(dns_name_t *name, dns_name_t *origin, dns_name_t *target);
+
+static unsigned int
+name_length(dns_name_t *name);
+
+static isc_result_t
+str_totext(char *source, isc_buffer_t *target);
+
+static isc_boolean_t
+buffer_empty(isc_buffer_t *source);
+
+static void
+buffer_fromregion(isc_buffer_t *buffer, isc_region_t *region);
+
+static isc_result_t
+uint32_tobuffer(isc_uint32_t, isc_buffer_t *target);
+
+static isc_result_t
+uint16_tobuffer(isc_uint32_t, isc_buffer_t *target);
+
+static isc_result_t
+uint8_tobuffer(isc_uint32_t, isc_buffer_t *target);
+
+static isc_result_t
+name_tobuffer(dns_name_t *name, isc_buffer_t *target);
+
+static isc_uint32_t
+uint32_fromregion(isc_region_t *region);
+
+static isc_uint16_t
+uint16_fromregion(isc_region_t *region);
+
+static isc_uint8_t
+uint8_fromregion(isc_region_t *region);
+
+static isc_result_t
+gettoken(isc_lex_t *lexer, isc_token_t *token, isc_tokentype_t expect,
+	 isc_boolean_t eol);
+
+static isc_result_t
+mem_tobuffer(isc_buffer_t *target, void *base, unsigned int length);
+
+static int
+compare_region(isc_region_t *r1, isc_region_t *r2);
+
+static int
+hexvalue(char value);
+
+static int
+decvalue(char value);
+
+static isc_result_t
+btoa_totext(unsigned char *inbuf, int inbuflen, isc_buffer_t *target);
+
+static isc_result_t
+atob_tobuffer(isc_lex_t *lexer, isc_buffer_t *target);
+
+static void
+default_fromtext_callback(dns_rdatacallbacks_t *callbacks, char *, ...);
+
+static void
+fromtext_error(void (*callback)(dns_rdatacallbacks_t *, char *, ...),
+	       dns_rdatacallbacks_t *callbacks, char *name, int line,
+	       isc_token_t *token, isc_result_t result);
+
+static isc_result_t
+rdata_totext(dns_rdata_t *rdata, dns_rdata_textctx_t *tctx,
+	     isc_buffer_t *target);
+
+static inline isc_result_t
+name_duporclone(dns_name_t *source, isc_mem_t *mctx, dns_name_t *target) {
+
+	if (mctx != NULL)
+                return (dns_name_dup(source, mctx, target));
+	dns_name_clone(source, target);
+	return (ISC_R_SUCCESS);
+}
+
+static inline void *
+mem_maybedup(isc_mem_t *mctx, void *source, size_t length) {
+	void *new;
+
+	if (mctx == NULL)
+		return (source);
+	new = isc_mem_allocate(mctx, length);
+	if (new != NULL)
+		memcpy(new, source, length);
+
+	return (new);
+}
 
 static const char hexdigits[] = "0123456789abcdef";
 static const char decdigits[] = "0123456789";
-static const char octdigits[] = "01234567";
 
 #include "code.h"
 
 #define META 0x0001
 #define RESERVED 0x0002
-
-#define METATYPES \
-	{ 0, "RESERVED0", META }, \
-	{ 31, "EID", RESERVED }, \
-	{ 32, "NIMLOC", RESERVED }, \
-	{ 34, "ATMA", RESERVED }, \
-	{ 100, "UINFO", RESERVED }, \
-	{ 101, "UID", RESERVED }, \
-	{ 102, "GID", RESERVED }, \
-	{ 249, "TKEY", META }, \
-	{ 250, "TSIG", META }, \
-	{ 251, "IXFR", META }, \
-	{ 252, "AXFR", META }, \
-	{ 253, "MAILB", META }, \
-	{ 254, "MAILA", META }, \
-	{ 255, "ANY", META },
-
-/*
- * Empty classes are those without any types of their own.
- */
-#define EMPTYCLASSES \
-	{ 3, "CHAOS", 0 },
-
-#define METACLASSES \
-	{ 0, "RESERVED0", META }, \
-	{ 254, "NONE", META }, \
-	{ 255, "ANY", META },
 
 #define RCODENAMES \
 	/* standard rcodes */ \
@@ -194,16 +216,16 @@ static const char octdigits[] = "01234567";
 	{ 255,    "ALL", 0 }, \
 	{ 0, NULL, 0}
 
-static struct tbl {
+struct tbl {
 	unsigned int	value;
 	char	*name;
 	int	flags;
-} types[] = { TYPENAMES METATYPES {0, NULL, 0} },
-classes[] = { METACLASSES CLASSNAMES EMPTYCLASSES { 0, NULL, 0} },
-rcodes[] = { RCODENAMES },
-certs[] = { CERTNAMES },
-secalgs[] = { SECALGNAMES },
-secprotos[] = { SECPROTONAMES };
+};
+
+static struct tbl rcodes[] = { RCODENAMES };
+static struct tbl certs[] = { CERTNAMES };
+static struct tbl secalgs[] = { SECALGNAMES };
+static struct tbl secprotos[] = { SECPROTONAMES };
 
 static struct keyflag {
 	char *name;
@@ -328,14 +350,12 @@ dns_rdata_fromwire(dns_rdata_t *rdata, dns_rdataclass_t rdclass,
 		   dns_decompress_t *dctx, isc_boolean_t downcase,
 		   isc_buffer_t *target)
 {
-	isc_result_t result = DNS_R_NOTIMPLEMENTED;
+	isc_result_t result = ISC_R_NOTIMPLEMENTED;
 	isc_region_t region;
 	isc_buffer_t ss;
 	isc_buffer_t st;
 	isc_boolean_t use_default = ISC_FALSE;
 
-	REQUIRE(isc_buffer_type(source) == ISC_BUFFERTYPE_BINARY);
-	REQUIRE(isc_buffer_type(target) == ISC_BUFFERTYPE_BINARY);
 	REQUIRE(dctx != NULL);
 
 	ss = *source;
@@ -348,16 +368,18 @@ dns_rdata_fromwire(dns_rdata_t *rdata, dns_rdataclass_t rdclass,
 	if (use_default)
 		(void)NULL;
 
-	/* We should have consumed all of our buffer. */
-	if (result == DNS_R_SUCCESS && !buffer_empty(source))
+	/*
+	 * We should have consumed all of our buffer.
+	 */
+	if (result == ISC_R_SUCCESS && !buffer_empty(source))
 		result = DNS_R_EXTRADATA;
 
-	if (rdata && result == DNS_R_SUCCESS) {
+	if (rdata && result == ISC_R_SUCCESS) {
 		region.length = target->used - st.used;
 		dns_rdata_fromregion(rdata, rdclass, type, &region);
 	}
 
-	if (result != DNS_R_SUCCESS) {
+	if (result != ISC_R_SUCCESS) {
 		*source = ss;
 		*target = st;
 	}
@@ -368,26 +390,26 @@ isc_result_t
 dns_rdata_towire(dns_rdata_t *rdata, dns_compress_t *cctx,
 	         isc_buffer_t *target)
 {
-	isc_result_t result = DNS_R_NOTIMPLEMENTED;
+	isc_result_t result = ISC_R_NOTIMPLEMENTED;
 	isc_boolean_t use_default = ISC_FALSE;
 	isc_region_t tr;
 	isc_buffer_t st;
 
 	REQUIRE(rdata != NULL);
-	REQUIRE(isc_buffer_type(target) == ISC_BUFFERTYPE_BINARY);
+
 	st = *target;
 
 	TOWIRESWITCH
 	
 	if (use_default) {
-		isc_buffer_available(target, &tr);
+		isc_buffer_availableregion(target, &tr);
 		if (tr.length < rdata->length) 
-			return (DNS_R_NOSPACE);
+			return (ISC_R_NOSPACE);
 		memcpy(tr.base, rdata->data, rdata->length);
 		isc_buffer_add(target, rdata->length);
-		return (DNS_R_SUCCESS);
+		return (ISC_R_SUCCESS);
 	}
-	if (result != DNS_R_SUCCESS) {
+	if (result != ISC_R_SUCCESS) {
 		*target = st;
 		INSIST(target->used < 65536);
 		dns_compress_rollback(cctx, (isc_uint16_t)target->used);
@@ -401,7 +423,7 @@ dns_rdata_fromtext(dns_rdata_t *rdata, dns_rdataclass_t rdclass,
 		   dns_name_t *origin, isc_boolean_t downcase,
 		   isc_buffer_t *target, dns_rdatacallbacks_t *callbacks)
 {
-	isc_result_t result = DNS_R_NOTIMPLEMENTED;
+	isc_result_t result = ISC_R_NOTIMPLEMENTED;
 	isc_region_t region;
 	isc_buffer_t st;
 	isc_boolean_t use_default = ISC_FALSE;
@@ -413,9 +435,7 @@ dns_rdata_fromtext(dns_rdata_t *rdata, dns_rdataclass_t rdclass,
 	void (*callback)(dns_rdatacallbacks_t *, char *, ...);
 	isc_result_t iresult;
 
-	if (origin != NULL)
-		REQUIRE(dns_name_isabsolute(origin) == ISC_TRUE);
-	REQUIRE(isc_buffer_type(target) == ISC_BUFFERTYPE_BINARY);
+	REQUIRE(origin == NULL || dns_name_isabsolute(origin) == ISC_TRUE);
 
 	st = *target;
 	region.base = (unsigned char *)(target->base) + target->used;
@@ -442,19 +462,19 @@ dns_rdata_fromtext(dns_rdata_t *rdata, dns_rdataclass_t rdclass,
 		line = isc_lex_getsourceline(lexer);
 		iresult = isc_lex_gettoken(lexer, options, &token);
 		if (iresult != ISC_R_SUCCESS) {
-			if (result == DNS_R_SUCCESS) {
+			if (result == ISC_R_SUCCESS) {
 				switch (iresult) {
 				case ISC_R_NOMEMORY:
-					result = DNS_R_NOMEMORY;
+					result = ISC_R_NOMEMORY;
 					break;
 				case ISC_R_NOSPACE:
-					result = DNS_R_NOSPACE;
+					result = ISC_R_NOSPACE;
 					break;
 				default:
 					UNEXPECTED_ERROR(__FILE__, __LINE__,
 					    "isc_lex_gettoken() failed: %s",
 					    isc_result_totext(result));
-					result = DNS_R_UNEXPECTED;
+					result = ISC_R_UNEXPECTED;
 					break;
 				}
 			}
@@ -464,14 +484,14 @@ dns_rdata_fromtext(dns_rdata_t *rdata, dns_rdataclass_t rdclass,
 			break;
 		} else if (token.type != isc_tokentype_eol &&
 			   token.type != isc_tokentype_eof) {
-			if (result == DNS_R_SUCCESS)
+			if (result == ISC_R_SUCCESS)
 				result = DNS_R_EXTRATOKEN;
 			if (callback != NULL) {
 				fromtext_error(callback, callbacks, name,
 					       line, &token, result);
 				callback = NULL;
 			}
-		} else if (result != DNS_R_SUCCESS && callback != NULL) {
+		} else if (result != ISC_R_SUCCESS && callback != NULL) {
 			fromtext_error(callback, callbacks, name, line,
 				       &token, result);
 			break;
@@ -479,11 +499,11 @@ dns_rdata_fromtext(dns_rdata_t *rdata, dns_rdataclass_t rdclass,
 			break;
 	} while (1);
 
-	if (rdata != NULL && result == DNS_R_SUCCESS) {
+	if (rdata != NULL && result == ISC_R_SUCCESS) {
 		region.length = target->used - st.used;
 		dns_rdata_fromregion(rdata, rdclass, type, &region);
 	}
-	if (result != DNS_R_SUCCESS) {
+	if (result != ISC_R_SUCCESS) {
 		*target = st;
 	}
 	return (result);
@@ -493,17 +513,18 @@ static isc_result_t
 rdata_totext(dns_rdata_t *rdata, dns_rdata_textctx_t *tctx,
 	     isc_buffer_t *target)
 {
-	isc_result_t result = DNS_R_NOTIMPLEMENTED;
+	isc_result_t result = ISC_R_NOTIMPLEMENTED;
 	isc_boolean_t use_default = ISC_FALSE;
 	
 	REQUIRE(rdata != NULL);
-	REQUIRE(isc_buffer_type(target) == ISC_BUFFERTYPE_TEXT);
-	if (tctx->origin != NULL)
-		REQUIRE(dns_name_isabsolute(tctx->origin) == ISC_TRUE);
+	REQUIRE(tctx->origin == NULL ||
+		dns_name_isabsolute(tctx->origin) == ISC_TRUE);
 
-	/* Some DynDNS meta-RRs have empty rdata. */
+	/*
+	 * Some DynDNS meta-RRs have empty rdata.
+	 */
 	if (rdata->length == 0)
-		return (DNS_R_SUCCESS);
+		return (ISC_R_SUCCESS);
 
 	TOTEXTSWITCH
 
@@ -514,10 +535,11 @@ rdata_totext(dns_rdata_t *rdata, dns_rdata_textctx_t *tctx,
 }
 
 isc_result_t
-dns_rdata_totext(dns_rdata_t *rdata, dns_name_t *origin,
-		 isc_buffer_t *target)
+dns_rdata_totext(dns_rdata_t *rdata, dns_name_t *origin, isc_buffer_t *target)
 {
-	/* Set up formatting options for single-line output. */
+	/*
+	 * Set up formatting options for single-line output.
+	 */
 	dns_rdata_textctx_t tctx;
 	tctx.origin = origin;
 	tctx.flags = 0;
@@ -531,7 +553,9 @@ dns_rdata_tofmttext(dns_rdata_t *rdata, dns_name_t *origin,
 		    unsigned int flags, unsigned int width,
 		    char *linebreak, isc_buffer_t *target)
 {
-	/* Set up formatting options for formatted output. */
+	/*
+	 * Set up formatting options for formatted output.
+	 */
 	dns_rdata_textctx_t tctx;
 	tctx.origin = origin;
 	tctx.flags = flags;
@@ -550,13 +574,12 @@ dns_rdata_fromstruct(dns_rdata_t *rdata, dns_rdataclass_t rdclass,
 		     dns_rdatatype_t type, void *source,
 		     isc_buffer_t *target)
 {
-	isc_result_t result = DNS_R_NOTIMPLEMENTED;
+	isc_result_t result = ISC_R_NOTIMPLEMENTED;
 	isc_buffer_t st;
 	isc_region_t region;
 	isc_boolean_t use_default = ISC_FALSE;
 
 	REQUIRE(source != NULL);
-	REQUIRE(isc_buffer_type(target) == ISC_BUFFERTYPE_BINARY);
 
 	region.base = (unsigned char *)(target->base) + target->used;
 	st = *target;
@@ -566,18 +589,18 @@ dns_rdata_fromstruct(dns_rdata_t *rdata, dns_rdataclass_t rdclass,
 	if (use_default)
 		(void)NULL;
 
-	if (rdata != NULL && result == DNS_R_SUCCESS) {
+	if (rdata != NULL && result == ISC_R_SUCCESS) {
 		region.length = target->used - st.used;
 		dns_rdata_fromregion(rdata, rdclass, type, &region);
 	}
-	if (result != DNS_R_SUCCESS)
+	if (result != ISC_R_SUCCESS)
 		*target = st;
 	return (result);
 }
 
 isc_result_t
 dns_rdata_tostruct(dns_rdata_t *rdata, void *target, isc_mem_t *mctx) {
-	isc_result_t result = DNS_R_NOTIMPLEMENTED;
+	isc_result_t result = ISC_R_NOTIMPLEMENTED;
 	isc_boolean_t use_default = ISC_FALSE;
 
 	REQUIRE(rdata != NULL);
@@ -602,7 +625,7 @@ isc_result_t
 dns_rdata_additionaldata(dns_rdata_t *rdata, dns_additionaldatafunc_t add,
 			 void *arg)
 {
-	isc_result_t result = DNS_R_NOTIMPLEMENTED;
+	isc_result_t result = ISC_R_NOTIMPLEMENTED;
 	isc_boolean_t use_default = ISC_FALSE;
 
 	/*
@@ -623,7 +646,7 @@ dns_rdata_additionaldata(dns_rdata_t *rdata, dns_additionaldatafunc_t add,
 
 isc_result_t
 dns_rdata_digest(dns_rdata_t *rdata, dns_digestfunc_t digest, void *arg) {
-	isc_result_t result = DNS_R_NOTIMPLEMENTED;
+	isc_result_t result = ISC_R_NOTIMPLEMENTED;
 	isc_boolean_t use_default = ISC_FALSE;
 
 	/*
@@ -639,6 +662,15 @@ dns_rdata_digest(dns_rdata_t *rdata, dns_digestfunc_t digest, void *arg) {
 		(void)NULL;
 
 	return (result);
+}
+
+unsigned int
+dns_rdatatype_attributes(dns_rdatatype_t type)
+{
+	if (type > 255)
+		return (DNS_RDATATYPEATTR_UNKNOWN);
+
+	return (typeattr[type].flags);
 }
 
 #define NUMBERSIZE sizeof("037777777777") /* 2^32-1 octal + NUL */ 
@@ -665,11 +697,13 @@ dns_mnemonic_fromtext(unsigned int *valuep, isc_textregion_t *source,
 		n = strtoul(buffer, &e, 10);
 		if (*e == 0) {
 			if (n > max)
-				return (DNS_R_RANGE);
+				return (ISC_R_RANGE);
 			*valuep = n;
-			return (DNS_R_SUCCESS);
+			return (ISC_R_SUCCESS);
 		}
-		/* It was not a number after all; fall through. */
+		/*
+		 * It was not a number after all; fall through.
+		 */
 	}
 	
 	for (i = 0; table[i].name != NULL; i++) {
@@ -678,7 +712,7 @@ dns_mnemonic_fromtext(unsigned int *valuep, isc_textregion_t *source,
 		if (n == source->length &&
 		    strncasecmp(source->base, table[i].name, n) == 0) {
 			*valuep = table[i].value;
-			return (DNS_R_SUCCESS);
+			return (ISC_R_SUCCESS);
 		}
 	}
 	return (DNS_R_UNKNOWN);
@@ -700,58 +734,109 @@ dns_mnemonic_totext(unsigned int value, isc_buffer_t *target,
 	return (str_totext(buf, target));
 }
 
+
+/*
+ * This uses lots of hard coded values, but how often do we actually
+ * add classes?
+ */
 isc_result_t
 dns_rdataclass_fromtext(dns_rdataclass_t *classp, isc_textregion_t *source) {
-	int i = 0;
-	unsigned int n;
 
-	while (classes[i].name != NULL) {
-		n = strlen(classes[i].name);
-		if (n == source->length &&
-		    strncasecmp(source->base, classes[i].name, n) == 0) {
-			*classp = classes[i].value;
-			if ((classes[i].flags & RESERVED) != 0)
-				return (DNS_R_NOTIMPLEMENTED);
-			return (DNS_R_SUCCESS);
-		}
-		i++;
+#define COMPARE(string, flags, type) \
+	if (((sizeof(string) - 1) == source->length) \
+	    && (strcasecmp(source->base, string) == 0)) { \
+		*classp = type; \
+		if ((flags & RESERVED) != 0) \
+			return (ISC_R_NOTIMPLEMENTED); \
+		return (ISC_R_SUCCESS); \
 	}
+
+	switch (tolower((unsigned char)source->base[0])) {
+	case 'a':
+		COMPARE("any", META, dns_rdataclass_any);
+		break;
+	case 'c':
+		COMPARE("chaos", 0, dns_rdataclass_chaos);
+		break;
+	case 'h':
+		COMPARE("hs", 0, dns_rdataclass_hs);
+		break;
+	case 'i':
+		COMPARE("in", 0, dns_rdataclass_in);
+		break;
+	case 'n':
+		COMPARE("none", META, dns_rdataclass_none);
+		break;
+	case 'r':
+		COMPARE("reserved0", META, dns_rdataclass_reserved0);
+		break;
+	}
+
+#undef COMPARE
+
 	return (DNS_R_UNKNOWN);
 }
-
-/* XXXRTH  This should probably be a switch() */
 
 isc_result_t
 dns_rdataclass_totext(dns_rdataclass_t rdclass, isc_buffer_t *target) {
-	return (dns_mnemonic_totext(rdclass, target, classes));	
-}
+	char buf[sizeof "RDCLASS4294967296"];
 
-/* XXXRTH  Should we use a hash table here? */
+	switch (rdclass) {
+	case dns_rdataclass_any:
+		return (str_totext("ANY", target));
+	case dns_rdataclass_chaos:
+		return (str_totext("CHAOS", target));
+	case dns_rdataclass_hs:
+		return (str_totext("HS", target));
+	case dns_rdataclass_in:
+		return (str_totext("IN", target));
+	case dns_rdataclass_none:
+		return (str_totext("NONE", target));
+	case dns_rdataclass_reserved0:
+		return (str_totext("RESERVED0", target));
+	default:
+		sprintf(buf, "RDCLASS%u", rdclass);
+		return (str_totext(buf, target));
+	}
+
+}
 
 isc_result_t
 dns_rdatatype_fromtext(dns_rdatatype_t *typep, isc_textregion_t *source) {
-	int i = 0;
+	unsigned int hash;
 	unsigned int n;
+	unsigned char a, b;
 
-	while (types[i].name != NULL) {
-		n = strlen(types[i].name);
-		if (n == source->length &&
-		    strncasecmp(source->base, types[i].name, n) == 0) {
-			*typep = types[i].value;
-			if ((types[i].flags & RESERVED) != 0)
-				return (DNS_R_NOTIMPLEMENTED);
-			return (DNS_R_SUCCESS);
-		}
-		i++;
-	}
+	n = source->length;
+
+	if (n == 0)
+		return (DNS_R_UNKNOWN);
+
+	a = tolower((unsigned char)source->base[0]);
+	b = tolower((unsigned char)source->base[n - 1]);
+
+	hash = ((a + n) * b) % 256;
+
+	/*
+	 * This switch block is inlined via #define, and will use "return"
+	 * to return a result to the caller if it is a valid (known)
+	 * rdatatype name.
+	 */
+	RDATATYPE_FROMTEXT_SW(hash, source->base, typep);
+
 	return (DNS_R_UNKNOWN);
 }
 
-/* XXXRTH  This should probably be a switch() */
-
 isc_result_t
 dns_rdatatype_totext(dns_rdatatype_t type, isc_buffer_t *target) {
-	return (dns_mnemonic_totext(type, target, types));
+	char buf[sizeof "RRTYPE4294967296"];
+
+	if (type > 255) {
+		sprintf(buf, "RRTYPE%u", type);
+		return (str_totext(buf, target));
+	}
+
+	return (str_totext(typeattr[type].name, target));
 }
 
 /* XXXRTH  Should we use a hash table here? */
@@ -766,7 +851,7 @@ dns_rcode_fromtext(dns_rcode_t *rcodep, isc_textregion_t *source) {
 		if (n == source->length &&
 		    strncasecmp(source->base, rcodes[i].name, n) == 0) {
 			*rcodep = rcodes[i].value;
-			return (DNS_R_SUCCESS);
+			return (ISC_R_SUCCESS);
 		}
 		i++;
 	}
@@ -783,7 +868,7 @@ dns_cert_fromtext(dns_cert_t *certp, isc_textregion_t *source) {
 	unsigned int value;
 	RETERR(dns_mnemonic_fromtext(&value, source, certs, 0xffff));
 	*certp = value;
-	return (DNS_R_SUCCESS);
+	return (ISC_R_SUCCESS);
 }	
 
 isc_result_t
@@ -796,7 +881,7 @@ dns_secalg_fromtext(dns_secalg_t *secalgp, isc_textregion_t *source) {
 	unsigned int value;
 	RETERR(dns_mnemonic_fromtext(&value, source, secalgs, 0xff));
 	*secalgp = value;
-	return (DNS_R_SUCCESS);
+	return (ISC_R_SUCCESS);
 }
 
 isc_result_t
@@ -809,7 +894,7 @@ dns_secproto_fromtext(dns_secproto_t *secprotop, isc_textregion_t *source) {
 	unsigned int value;
 	RETERR(dns_mnemonic_fromtext(&value, source, secprotos, 0xff));
 	*secprotop = value;
-	return (DNS_R_SUCCESS);
+	return (ISC_R_SUCCESS);
 }
 
 isc_result_t
@@ -839,9 +924,9 @@ dns_keyflags_fromtext(dns_keyflags_t *flagsp, isc_textregion_t *source)
 		n = strtoul(buffer, &e, 0); /* Allow hex/octal. */
 		if (*e == 0) {
 			if (n > 0xffff)
-				return (DNS_R_RANGE);
+				return (ISC_R_RANGE);
 			*flagsp = n;
-			return (DNS_R_SUCCESS);
+			return (ISC_R_SUCCESS);
 		}
 		/* It was not a number after all; fall through. */
 	}
@@ -875,10 +960,12 @@ dns_keyflags_fromtext(dns_keyflags_t *flagsp, isc_textregion_t *source)
 			text++;	/* Skip "|" */
 	}
 	*flagsp = value;
-	return (DNS_R_SUCCESS);
+	return (ISC_R_SUCCESS);
 }
 
-/* Private function */
+/*
+ * Private function.
+ */
 
 static unsigned int
 name_length(dns_name_t *name) {
@@ -893,7 +980,7 @@ txt_totext(isc_region_t *source, isc_buffer_t *target) {
 	char *tp;
 	isc_region_t region;
 
-	isc_buffer_available(target, &region);
+	isc_buffer_availableregion(target, &region);
 	sp = source->base;
 	tp = (char *)region.base;
 	tl = region.length;
@@ -903,13 +990,13 @@ txt_totext(isc_region_t *source, isc_buffer_t *target) {
 	REQUIRE(n + 1 <= source->length);
 
 	if (tl < 1)
-		return (DNS_R_NOSPACE);
+		return (ISC_R_NOSPACE);
 	*tp++ = '"';
 	tl--;
 	while (n--) {
 		if (*sp < 0x20 || *sp > 0x7f) {
 			if (tl < 4)
-				return (DNS_R_NOSPACE);
+				return (ISC_R_NOSPACE);
 			sprintf(tp, "\\%03u", *sp++);
 			tp += 4;
 			tl -= 4;
@@ -917,22 +1004,22 @@ txt_totext(isc_region_t *source, isc_buffer_t *target) {
 		}
 		if (*sp == 0x22 || *sp == 0x3b || *sp == 0x5c) {
 			if (tl < 2)
-				return (DNS_R_NOSPACE);
+				return (ISC_R_NOSPACE);
 			*tp++ = '\\';
 			tl--;
 		}
 		if (tl < 1)
-			return (DNS_R_NOSPACE);
+			return (ISC_R_NOSPACE);
 		*tp++ = *sp++;
 		tl--;
 	}
 	if (tl < 1)
-		return (DNS_R_NOSPACE);
+		return (ISC_R_NOSPACE);
 	*tp++ = '"';
 	tl--;
 	isc_buffer_add(target, tp - (char *)region.base);
 	isc_region_consume(source, *source->base + 1);
-	return (DNS_R_SUCCESS);
+	return (ISC_R_SUCCESS);
 }
 
 static isc_result_t
@@ -945,18 +1032,22 @@ txt_fromtext(isc_textregion_t *source, isc_buffer_t *target) {
 	int d;
 	int c;
 
-	isc_buffer_available(target, &tregion);
+	isc_buffer_availableregion(target, &tregion);
 	s = source->base;
 	n = source->length;
 	t = tregion.base;
 	nrem = tregion.length;
 	escape = ISC_FALSE;
 	if (nrem < 1)
-		return (DNS_R_NOSPACE);
-	/* Length byte. */
+		return (ISC_R_NOSPACE);
+	/*
+	 * Length byte.
+	 */
 	nrem--;
 	t++;
-	/* Maximum text string length. */
+	/*
+	 * Maximum text string length.
+	 */
 	if (nrem > 255)
 		nrem = 255;
 	while (n-- != 0) {
@@ -985,7 +1076,7 @@ txt_fromtext(isc_textregion_t *source, isc_buffer_t *target) {
 		}
 		escape = ISC_FALSE;
 		if (nrem == 0) 
-			return (DNS_R_NOSPACE);
+			return (ISC_R_NOSPACE);
 		*t++ = c;
 		nrem--;
 	}
@@ -993,7 +1084,7 @@ txt_fromtext(isc_textregion_t *source, isc_buffer_t *target) {
 		return (DNS_R_SYNTAX);
 	*tregion.base = t - tregion.base - 1;
 	isc_buffer_add(target, *tregion.base + 1);
-	return (DNS_R_SUCCESS);
+	return (ISC_R_SUCCESS);
 }
 
 static isc_result_t
@@ -1002,21 +1093,21 @@ txt_fromwire(isc_buffer_t *source, isc_buffer_t *target) {
 	isc_region_t sregion;
 	isc_region_t tregion;
 
-	isc_buffer_active(source, &sregion);
+	isc_buffer_activeregion(source, &sregion);
 	if (sregion.length == 0)
-		return(DNS_R_UNEXPECTEDEND);
+		return(ISC_R_UNEXPECTEDEND);
 	n = *sregion.base + 1;
 	if (n > sregion.length)
-		return (DNS_R_UNEXPECTEDEND);
+		return (ISC_R_UNEXPECTEDEND);
 	
-	isc_buffer_available(target, &tregion);
+	isc_buffer_availableregion(target, &tregion);
 	if (n > tregion.length)
-		return (DNS_R_NOSPACE);
+		return (ISC_R_NOSPACE);
 
 	memcpy(tregion.base, sregion.base, n);
 	isc_buffer_forward(source, n);
 	isc_buffer_add(target, n);
-	return (DNS_R_SUCCESS);
+	return (ISC_R_SUCCESS);
 }
 
 static isc_boolean_t
@@ -1051,15 +1142,15 @@ str_totext(char *source, isc_buffer_t *target) {
 	unsigned int l;
 	isc_region_t region;
 
-	isc_buffer_available(target, &region);
+	isc_buffer_availableregion(target, &region);
 	l = strlen(source);
 
 	if (l > region.length)
-		return (DNS_R_NOSPACE);
+		return (ISC_R_NOSPACE);
 
 	memcpy(region.base, source, l);
 	isc_buffer_add(target, l);
-	return (DNS_R_SUCCESS);
+	return (ISC_R_SUCCESS);
 }
 
 static isc_boolean_t
@@ -1068,10 +1159,8 @@ buffer_empty(isc_buffer_t *source) {
 }
 
 static void
-buffer_fromregion(isc_buffer_t *buffer, isc_region_t *region,
-		  unsigned int type) {
-
-	isc_buffer_init(buffer, region->base, region->length, type);
+buffer_fromregion(isc_buffer_t *buffer, isc_region_t *region) {
+	isc_buffer_init(buffer, region->base, region->length);
 	isc_buffer_add(buffer, region->length);
 	isc_buffer_setactive(buffer, region->length);
 }
@@ -1080,11 +1169,11 @@ static isc_result_t
 uint32_tobuffer(isc_uint32_t value, isc_buffer_t *target) {
 	isc_region_t region;
 
-	isc_buffer_available(target, &region);
+	isc_buffer_availableregion(target, &region);
 	if (region.length < 4)
-		return (DNS_R_NOSPACE);
+		return (ISC_R_NOSPACE);
 	isc_buffer_putuint32(target, value);
-	return (DNS_R_SUCCESS);
+	return (ISC_R_SUCCESS);
 }
 
 static isc_result_t
@@ -1092,12 +1181,12 @@ uint16_tobuffer(isc_uint32_t value, isc_buffer_t *target) {
 	isc_region_t region;
 
 	if (value > 0xffff)
-		return (DNS_R_RANGE);
-	isc_buffer_available(target, &region);
+		return (ISC_R_RANGE);
+	isc_buffer_availableregion(target, &region);
 	if (region.length < 2)
-		return (DNS_R_NOSPACE);
+		return (ISC_R_NOSPACE);
 	isc_buffer_putuint16(target, (isc_uint16_t)value);
-	return (DNS_R_SUCCESS);
+	return (ISC_R_SUCCESS);
 }
 
 static isc_result_t
@@ -1105,12 +1194,19 @@ uint8_tobuffer(isc_uint32_t value, isc_buffer_t *target) {
 	isc_region_t region;
 
 	if (value > 0xff)
-		return (DNS_R_RANGE);
-	isc_buffer_available(target, &region);
+		return (ISC_R_RANGE);
+	isc_buffer_availableregion(target, &region);
 	if (region.length < 1)
-		return (DNS_R_NOSPACE);
+		return (ISC_R_NOSPACE);
 	isc_buffer_putuint8(target, (isc_uint8_t)value);
-	return (DNS_R_SUCCESS);
+	return (ISC_R_SUCCESS);
+}
+
+static isc_result_t
+name_tobuffer(dns_name_t *name, isc_buffer_t *target) {
+	isc_region_t r;
+	dns_name_toregion(name, &r);
+	return (isc_buffer_copyregion(target, &r));
 }
 
 static isc_uint32_t
@@ -1158,41 +1254,41 @@ gettoken(isc_lex_t *lexer, isc_token_t *token, isc_tokentype_t expect,
 	case ISC_R_SUCCESS:
 		break;
 	case ISC_R_NOMEMORY:
-		return (DNS_R_NOMEMORY);
+		return (ISC_R_NOMEMORY);
 	case ISC_R_NOSPACE:
-		return (DNS_R_NOSPACE);
+		return (ISC_R_NOSPACE);
 	default:
 		UNEXPECTED_ERROR(__FILE__, __LINE__,
 				 "isc_lex_gettoken() failed: %s",
 				 isc_result_totext(result));
-                return (DNS_R_UNEXPECTED);
+                return (ISC_R_UNEXPECTED);
 	}
 	if (eol && ((token->type == isc_tokentype_eol) || 
 		    (token->type == isc_tokentype_eof)))
-		return (DNS_R_SUCCESS);
+		return (ISC_R_SUCCESS);
 	if (token->type == isc_tokentype_string &&
 	    expect == isc_tokentype_qstring)
-		return (DNS_R_SUCCESS);
+		return (ISC_R_SUCCESS);
         if (token->type != expect) {
                 isc_lex_ungettoken(lexer, token);
                 if (token->type == isc_tokentype_eol ||
                     token->type == isc_tokentype_eof)
-                        return (DNS_R_UNEXPECTEDEND);
-                return (DNS_R_UNEXPECTEDTOKEN);
+                        return (ISC_R_UNEXPECTEDEND);
+                return (ISC_R_UNEXPECTEDTOKEN);
         }
-	return (DNS_R_SUCCESS);
+	return (ISC_R_SUCCESS);
 }
 
 static isc_result_t
 mem_tobuffer(isc_buffer_t *target, void *base, unsigned int length) {
 	isc_region_t tr;
 
-	isc_buffer_available(target, &tr);
+	isc_buffer_availableregion(target, &tr);
         if (length > tr.length)
-		return (DNS_R_NOSPACE);
+		return (ISC_R_NOSPACE);
 	memcpy(tr.base, base, length);
 	isc_buffer_add(target, length);
-	return (DNS_R_SUCCESS);
+	return (ISC_R_SUCCESS);
 }
 
 static int
@@ -1212,10 +1308,14 @@ compare_region(isc_region_t *r1, isc_region_t *r2) {
 static int
 hexvalue(char value) {
 	char *s;
-	if (!isascii(value & 0xff))
+	unsigned char c;
+
+	c = (unsigned char)value;
+
+	if (!isascii(c))
 		return (-1);
-	if (isupper(value & 0xff))
-		value = tolower(value);
+	if (isupper(c))
+		c = tolower(c);
 	if ((s = strchr(hexdigits, value)) == NULL)
 		return (-1);
 	return (s - hexdigits);
@@ -1224,7 +1324,12 @@ hexvalue(char value) {
 static int
 decvalue(char value) {
 	char *s;
-	if (!isascii(value&0xff))
+
+	/*
+	 * isascii() is valid for full range of int values, no need to
+	 * mask or cast.
+	 */
+	if (!isascii(value))
 		return (-1);
 	if ((s = strchr(decdigits, value)) == NULL)
 		return (-1);
@@ -1232,7 +1337,8 @@ decvalue(char value) {
 }
 
 static const char atob_digits[86] =
-"!\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstu";
+	"!\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`" \
+	"abcdefghijklmnopqrstu";
 /*
  * Subroutines to convert between 8 bit binary bytes and printable ASCII.
  * Computes the number of bytes, and three kinds of simple checksums.
@@ -1269,8 +1375,9 @@ static isc_result_t	byte_atob(int c, isc_buffer_t *target,
 static isc_result_t	putbyte(int c, isc_buffer_t *, struct state *state);
 static isc_result_t	byte_btoa(int c, isc_buffer_t *, struct state *state);
 
-/* Decode ASCII-encoded byte c into binary representation and 
- * place into *bufp, advancing bufp 
+/*
+ * Decode ASCII-encoded byte c into binary representation and 
+ * place into *bufp, advancing bufp.
  */
 static isc_result_t
 byte_atob(int c, isc_buffer_t *target, struct state *state) {
@@ -1304,10 +1411,12 @@ byte_atob(int c, isc_buffer_t *target, struct state *state) {
 		}
 	} else
 		return(DNS_R_SYNTAX);
-	return(DNS_R_SUCCESS);
+	return(ISC_R_SUCCESS);
 }
 
-/* Compute checksum info and place c into target */
+/*
+ * Compute checksum info and place c into target.
+ */
 static isc_result_t
 putbyte(int c, isc_buffer_t *target, struct state *state) {
 	isc_region_t tr;
@@ -1322,28 +1431,30 @@ putbyte(int c, isc_buffer_t *target, struct state *state) {
 		Crot <<= 1;
 	}
 	Crot += c;
-	isc_buffer_available(target, &tr);
+	isc_buffer_availableregion(target, &tr);
 	if (tr.length < 1)
-		return (DNS_R_NOSPACE);
+		return (ISC_R_NOSPACE);
 	tr.base[0] = c;
 	isc_buffer_add(target, 1);
-	return (DNS_R_SUCCESS);
+	return (ISC_R_SUCCESS);
 }
 
-/* Read the ASCII-encoded data from inbuf, of length inbuflen, and convert
-   it into T_UNSPEC (binary data) in outbuf, not to exceed outbuflen bytes;
-   outbuflen must be divisible by 4.  (Note: this is because outbuf is filled
-   in 4 bytes at a time.  If the actual data doesn't end on an even 4-byte
-   boundary, there will be no problem...it will be padded with 0 bytes, and
-   numbytes will indicate the correct number of bytes.  The main point is
-   that since the buffer is filled in 4 bytes at a time, even if there is
-   not a full 4 bytes of data at the end, there has to be room to 0-pad the
-   data, so the buffer must be of size divisible by 4).  Place the number of
-   output bytes in numbytes, and return a failure/success status  */
+/*
+ * Read the ASCII-encoded data from inbuf, of length inbuflen, and convert
+ * it into T_UNSPEC (binary data) in outbuf, not to exceed outbuflen bytes;
+ * outbuflen must be divisible by 4.  (Note: this is because outbuf is filled
+ * in 4 bytes at a time.  If the actual data doesn't end on an even 4-byte
+ * boundary, there will be no problem...it will be padded with 0 bytes, and
+ * numbytes will indicate the correct number of bytes.  The main point is
+ * that since the buffer is filled in 4 bytes at a time, even if there is
+ * not a full 4 bytes of data at the end, there has to be room to 0-pad the
+ * data, so the buffer must be of size divisible by 4).  Place the number of
+ * output bytes in numbytes, and return a failure/success status.
+ */
 
 static isc_result_t
 atob_tobuffer(isc_lex_t *lexer, isc_buffer_t *target) {
-	isc_int32_t oeor, osum, orot;
+	long oeor, osum, orot;
 	struct state statebuf, *state= &statebuf;
 	isc_token_t token;
 	char c;
@@ -1360,41 +1471,51 @@ atob_tobuffer(isc_lex_t *lexer, isc_buffer_t *target) {
 		isc_textregion_consume(&token.value.as_textregion, 1);
 	}
 
-	/* number of bytes */
+	/*
+	 * Number of bytes.
+	 */
 	RETERR(gettoken(lexer, &token, isc_tokentype_number, ISC_FALSE));
 	if ((token.value.as_ulong % 4) != 0)
 		isc_buffer_subtract(target,  4 - (token.value.as_ulong % 4));
 
-	/* checksum */
+	/*
+	 * Checksum.
+	 */
 	RETERR(gettoken(lexer, &token, isc_tokentype_string, ISC_FALSE));
-	oeor = strtoul(token.value.as_pointer, &e, 16);
+	oeor = strtol(token.value.as_pointer, &e, 16);
 	if (*e != 0)
 		return (DNS_R_SYNTAX);
 
-	/* checksum */
+	/*
+	 * Checksum.
+	 */
 	RETERR(gettoken(lexer, &token, isc_tokentype_string, ISC_FALSE));
-	osum = strtoul(token.value.as_pointer, &e, 16);
+	osum = strtol(token.value.as_pointer, &e, 16);
 	if (*e != 0)
 		return (DNS_R_SYNTAX);
 
-	/* checksum */
+	/*
+	 * Checksum.
+	 */
 	RETERR(gettoken(lexer, &token, isc_tokentype_string, ISC_FALSE));
-	orot = strtoul(token.value.as_pointer, &e, 16);
+	orot = strtol(token.value.as_pointer, &e, 16);
 	if (*e != 0)
 		return (DNS_R_SYNTAX);
 
 	if ((oeor != Ceor) || (osum != Csum) || (orot != Crot))
 		return(DNS_R_BADCKSUM);
-	return(DNS_R_SUCCESS);
+	return(ISC_R_SUCCESS);
 }
 
-/* Encode binary byte c into ASCII representation and place into *bufp,
-   advancing bufp */
+/*
+ * Encode binary byte c into ASCII representation and place into *bufp,
+ * advancing bufp.
+ */
 static isc_result_t
 byte_btoa(int c, isc_buffer_t *target, struct state *state) {
 	isc_region_t tr;
 
-	isc_buffer_available(target, &tr);
+	isc_buffer_availableregion(target, &tr);
 	Ceor ^= c;
 	Csum += c;
 	Csum += 1;
@@ -1411,7 +1532,7 @@ byte_btoa(int c, isc_buffer_t *target, struct state *state) {
 	if (bcount == 3) {
 		if (word == 0) {
 			if (tr.length < 1)
-				return (DNS_R_NOSPACE);
+				return (ISC_R_NOSPACE);
 			tr.base[0] = 'z';
 			isc_buffer_add(target, 1);
 		} else {
@@ -1419,7 +1540,9 @@ byte_btoa(int c, isc_buffer_t *target, struct state *state) {
 		    register isc_int32_t tmpword = word;
 			
 		    if (tmpword < 0) {	
-			   /* Because some don't support u_long */
+			   /*
+			    * Because some don't support u_long.
+			    */
 		    	tmp = 32;
 		    	tmpword -= (isc_int32_t)(85 * 85 * 85 * 85 * 32);
 		    }
@@ -1428,7 +1551,7 @@ byte_btoa(int c, isc_buffer_t *target, struct state *state) {
 		    	tmpword -= (isc_int32_t)(85 * 85 * 85 * 85 * 32);
 		    }
 			if (tr.length < 5)
-				return (DNS_R_NOSPACE);
+				return (ISC_R_NOSPACE);
 		    	tr.base[0] = atob_digits[(tmpword /
 					      (isc_int32_t)(85 * 85 * 85 * 85))
 						+ tmp];
@@ -1446,7 +1569,7 @@ byte_btoa(int c, isc_buffer_t *target, struct state *state) {
 	} else {
 		bcount += 1;
 	}
-	return (DNS_R_SUCCESS);
+	return (ISC_R_SUCCESS);
 }
 
 
@@ -1480,7 +1603,7 @@ static void
 default_fromtext_callback(dns_rdatacallbacks_t *callbacks, char *fmt, ...) {
 	va_list ap;
 
-	callbacks = callbacks; /*unused*/
+	UNUSED(callbacks);
 
 	va_start(ap, fmt);
 	vfprintf(stderr, fmt, ap);
@@ -1537,41 +1660,70 @@ dns_rdata_covers(dns_rdata_t *rdata) {
 	return (covers_sig(rdata));
 }
 
-static isc_boolean_t
-ismeta(unsigned int code, struct tbl *table) {
-	struct tbl *t;
-	REQUIRE(code < 65536);
-	/* XXXBEW Yes, this is a hack.  But otherwise TKEY will not work */
-	if (code == dns_rdatatype_tsig || code == dns_rdatatype_tkey)
+isc_boolean_t
+dns_rdatatype_ismeta(dns_rdatatype_t type) {
+	if ((dns_rdatatype_attributes(type) & DNS_RDATATYPEATTR_META) != 0)
 		return (ISC_TRUE);
-	for (t = table; t->name != NULL; t++) {
-		if (code == t->value)
-			return ((t->flags & META) ? ISC_TRUE : ISC_FALSE);
-	}
-	return (ISC_FALSE); /* Unknown, assume non-meta. */
+	return (ISC_FALSE);
 }
 
 isc_boolean_t
-dns_rdatatype_ismeta(dns_rdatatype_t type) {
-	return (ismeta(type, types));
-}	
+dns_rdatatype_issingleton(dns_rdatatype_t type) {
+	if ((dns_rdatatype_attributes(type) & DNS_RDATATYPEATTR_SINGLETON)
+	    != 0)
+		return (ISC_TRUE);
+	return (ISC_FALSE);
+}
+
+isc_boolean_t
+dns_rdatatype_notquestion(dns_rdatatype_t type) {
+	if ((dns_rdatatype_attributes(type) & DNS_RDATATYPEATTR_NOTQUESTION)
+	    != 0)
+		return (ISC_TRUE);
+	return (ISC_FALSE);
+}
+
+isc_boolean_t
+dns_rdatatype_questiononly(dns_rdatatype_t type) {
+	if ((dns_rdatatype_attributes(type) & DNS_RDATATYPEATTR_QUESTIONONLY)
+	    != 0)
+		return (ISC_TRUE);
+	return (ISC_FALSE);
+}
 
 isc_boolean_t
 dns_rdataclass_ismeta(dns_rdataclass_t rdclass) {
-	return (ismeta(rdclass, classes));
+	REQUIRE(rdclass < 65536);
+
+	if (rdclass == dns_rdataclass_reserved0
+	    || rdclass == dns_rdataclass_none
+	    || rdclass == dns_rdataclass_any)
+		return (ISC_TRUE);
+
+	return (ISC_FALSE);  /* Assume it is not a meta class. */
 }
 
 isc_boolean_t
 dns_rdatatype_isdnssec(dns_rdatatype_t type) {
-	return ((type == dns_rdatatype_sig ||
-		 type == dns_rdatatype_key ||
-		 type == dns_rdatatype_nxt) ?
-		ISC_TRUE : ISC_FALSE);
+	if ((dns_rdatatype_attributes(type) & DNS_RDATATYPEATTR_DNSSEC) != 0)
+		return (ISC_TRUE);
+	return (ISC_FALSE);
 }
 
 isc_boolean_t
 dns_rdatatype_iszonecutauth(dns_rdatatype_t type) {
-	return (type == dns_rdatatype_ns ||
-		dns_rdatatype_isdnssec(type) ?
-		ISC_TRUE : ISC_FALSE);
+	if ((dns_rdatatype_attributes(type)
+	     & (DNS_RDATATYPEATTR_DNSSEC | DNS_RDATATYPEATTR_ZONECUTAUTH))
+	    != 0)
+		return (ISC_TRUE);
+	return (ISC_FALSE);
 }
+
+isc_boolean_t
+dns_rdatatype_isknown(dns_rdatatype_t type) {
+	if ((dns_rdatatype_attributes(type) & DNS_RDATATYPEATTR_UNKNOWN)
+	    == 0)
+		return (ISC_TRUE);
+	return (ISC_FALSE);
+}
+

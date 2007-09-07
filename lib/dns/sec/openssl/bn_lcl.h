@@ -56,8 +56,8 @@
  * [including the GNU Public Licence.]
  */
 
-#ifndef HEADER_BN_LCL_H
-#define HEADER_BN_LCL_H
+#ifndef OPENSSL_BN_LCL_H
+#define OPENSSL_BN_LCL_H 1
 
 #include <openssl/bn.h>
 
@@ -235,17 +235,6 @@ extern "C" {
 #define OPENSSL_EXTERN extern
 #define NO_BIO
 
-OPENSSL_EXTERN int bn_limit_bits;
-OPENSSL_EXTERN int bn_limit_num;        /* (1<<bn_limit_bits) */
-/* Recursive 'low' limit */
-OPENSSL_EXTERN int bn_limit_bits_low;
-OPENSSL_EXTERN int bn_limit_num_low;    /* (1<<bn_limit_bits_low) */
-/* Do modified 'high' part calculation' */
-OPENSSL_EXTERN int bn_limit_bits_high;
-OPENSSL_EXTERN int bn_limit_num_high;   /* (1<<bn_limit_bits_high) */
-OPENSSL_EXTERN int bn_limit_bits_mont;
-OPENSSL_EXTERN int bn_limit_num_mont;   /* (1<<bn_limit_bits_mont) */
-
 BIGNUM *bn_expand2(BIGNUM *b, int bits);
 
 void bn_mul_normal(BN_ULONG *r,BN_ULONG *a,int na,BN_ULONG *b,int nb);
@@ -269,4 +258,4 @@ void bn_mul_high(BN_ULONG *r,BN_ULONG *a,BN_ULONG *b,BN_ULONG *l,int n2,
 }
 #endif
 
-#endif
+#endif /* OPENSSL_BN_LCL_H */

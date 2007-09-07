@@ -15,12 +15,14 @@
  * SOFTWARE.
  */
 
-/* $Id: md_3.c,v 1.23 2000/03/16 02:08:51 bwelling Exp $ */
+/* $Id: md_3.c,v 1.31 2000/05/22 12:37:41 marka Exp $ */
 
 /* Reviewed: Wed Mar 15 17:48:20 PST 2000 by bwelling */
 
 #ifndef RDATA_GENERIC_MD_3_C
 #define RDATA_GENERIC_MD_3_C
+
+#define RRTYPE_MD_ATTRIBUTES (0)
 
 static inline isc_result_t
 fromtext_md(dns_rdataclass_t rdclass, dns_rdatatype_t type,
@@ -38,8 +40,7 @@ fromtext_md(dns_rdataclass_t rdclass, dns_rdatatype_t type,
 	RETERR(gettoken(lexer, &token, isc_tokentype_string, ISC_FALSE));
 
 	dns_name_init(&name, NULL);
-	buffer_fromregion(&buffer, &token.value.as_region,
-			  ISC_BUFFERTYPE_TEXT);
+	buffer_fromregion(&buffer, &token.value.as_region);
 	origin = (origin != NULL) ? origin : dns_rootname;
 	return (dns_name_fromtext(&name, &buffer, origin, downcase, target));
 }
@@ -77,10 +78,7 @@ fromwire_md(dns_rdataclass_t rdclass, dns_rdatatype_t type,
 
 	REQUIRE(type == 3);
 
-	if (dns_decompress_edns(dctx) >= 1 || !dns_decompress_strict(dctx))
-		dns_decompress_setmethods(dctx, DNS_COMPRESS_ALL);
-	else
-		dns_decompress_setmethods(dctx, DNS_COMPRESS_GLOBAL14);
+	dns_decompress_setmethods(dctx, DNS_COMPRESS_GLOBAL14);
 
         dns_name_init(&name, NULL);
         return (dns_name_fromwire(&name, source, dctx, downcase, target));
@@ -93,10 +91,7 @@ towire_md(dns_rdata_t *rdata, dns_compress_t *cctx, isc_buffer_t *target) {
 
 	REQUIRE(rdata->type == 3);
 
-	if (dns_compress_getedns(cctx) >= 1)
-		dns_compress_setmethods(cctx, DNS_COMPRESS_ALL);
-	else
-		dns_compress_setmethods(cctx, DNS_COMPRESS_GLOBAL14);
+	dns_compress_setmethods(cctx, DNS_COMPRESS_GLOBAL14);
 
 	dns_name_init(&name, NULL);
 	dns_rdata_toregion(rdata, &region);
@@ -132,29 +127,52 @@ static inline isc_result_t
 fromstruct_md(dns_rdataclass_t rdclass, dns_rdatatype_t type, void *source,
 	      isc_buffer_t *target)
 {
-	UNUSED(rdclass);
-	UNUSED(source);
-	UNUSED(target);
+	dns_rdata_md_t *md = source;
+	isc_region_t region;
 
 	REQUIRE(type == 3);
+	REQUIRE(source != NULL);
+	REQUIRE(md->common.rdtype == type);
+	REQUIRE(md->common.rdclass == rdclass);
 
-	return (DNS_R_NOTIMPLEMENTED);
+	dns_name_toregion(&md->md, &region);
+	return (isc_buffer_copyregion(target, &region));
 }
 
 static inline isc_result_t
 tostruct_md(dns_rdata_t *rdata, void *target, isc_mem_t *mctx) {
-	UNUSED(target);
-	UNUSED(mctx);
+	dns_rdata_md_t *md = target;
+	isc_region_t r;
+	dns_name_t name;
 
 	REQUIRE(rdata->type == 3);
+	REQUIRE(target != NULL);
 
-	return (DNS_R_NOTIMPLEMENTED);
+	md->common.rdclass = rdata->rdclass;
+	md->common.rdtype = rdata->type;
+	ISC_LINK_INIT(&md->common, link);
+
+	dns_name_init(&name, NULL);
+	dns_rdata_toregion(rdata, &r);
+	dns_name_fromregion(&name, &r);
+	dns_name_init(&md->md, NULL);
+	RETERR(name_duporclone(&name, mctx, &md->md));
+	md->mctx = mctx;
+	return (ISC_R_SUCCESS);
 }
 
 static inline void
 freestruct_md(void *source) {
+	dns_rdata_md_t *md = source;
+
 	REQUIRE(source != NULL);
-	REQUIRE(ISC_FALSE);	/*XXX*/
+	REQUIRE(md->common.rdtype == 3);
+
+	if (md->mctx == NULL)
+		return;
+
+	dns_name_free(&md->md, md->mctx);
+	md->mctx = NULL;
 }
 
 static inline isc_result_t

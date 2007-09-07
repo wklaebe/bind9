@@ -16,7 +16,7 @@
  */
 
 /*
- * $Id: dbtable.c,v 1.13 2000/02/03 23:43:46 halley Exp $
+ * $Id: dbtable.c,v 1.18 2000/05/08 14:34:31 tale Exp $
  */
 
 /*
@@ -25,13 +25,14 @@
 
 #include <config.h>
 
-#include <isc/assertions.h>
+#include <isc/mem.h>
 #include <isc/rwlock.h>
 #include <isc/util.h>
 
 #include <dns/dbtable.h>
 #include <dns/db.h>
 #include <dns/rbt.h>
+#include <dns/result.h>
 
 struct dns_dbtable {
 	/* Unlocked. */
@@ -73,11 +74,11 @@ dns_dbtable_create(isc_mem_t *mctx, dns_rdataclass_t rdclass,
 
 	dbtable = (dns_dbtable_t *)isc_mem_get(mctx, sizeof(*dbtable));
 	if (dbtable == NULL)
-		return (DNS_R_NOMEMORY);
+		return (ISC_R_NOMEMORY);
 
 	dbtable->rbt = NULL;
 	result = dns_rbt_create(mctx, dbdetach, NULL, &dbtable->rbt);
-	if (result != DNS_R_SUCCESS)
+	if (result != ISC_R_SUCCESS)
 		goto clean1;
 
 	iresult = isc_mutex_init(&dbtable->lock);
@@ -85,7 +86,7 @@ dns_dbtable_create(isc_mem_t *mctx, dns_rdataclass_t rdclass,
 		UNEXPECTED_ERROR(__FILE__, __LINE__,
 				 "isc_lock_init() failed: %s",
 				 isc_result_totext(result));
-		result = DNS_R_UNEXPECTED;
+		result = ISC_R_UNEXPECTED;
 		goto clean2;
 	}
 
@@ -94,7 +95,7 @@ dns_dbtable_create(isc_mem_t *mctx, dns_rdataclass_t rdclass,
 		UNEXPECTED_ERROR(__FILE__, __LINE__,
 				 "isc_rwlock_init() failed: %s",
 				 isc_result_totext(result));
-		result = DNS_R_UNEXPECTED;
+		result = ISC_R_UNEXPECTED;
 		goto clean3;
 	}
 
@@ -106,7 +107,7 @@ dns_dbtable_create(isc_mem_t *mctx, dns_rdataclass_t rdclass,
 
 	*dbtablep = dbtable;
 
-	return (DNS_R_SUCCESS);
+	return (ISC_R_SUCCESS);
 
  clean3:
 	(void)isc_mutex_destroy(&dbtable->lock);
@@ -123,8 +124,7 @@ dns_dbtable_create(isc_mem_t *mctx, dns_rdataclass_t rdclass,
 static inline void
 dbtable_free(dns_dbtable_t *dbtable) {
 	/*
-	 * Caller must ensure that it is safe to
-	 * call.
+	 * Caller must ensure that it is safe to call.
 	 */
 
 	RWLOCK(&dbtable->tree_lock, isc_rwlocktype_write);
@@ -216,14 +216,15 @@ dns_dbtable_remove(dns_dbtable_t *dbtable, dns_db_t *db) {
 	 * be verified.  With the current rbt.c this is expensive to do,
 	 * because effectively two find operations are being done, but
 	 * deletion is relatively infrequent.
+	 * XXXDCL ... this could be cheaper now with dns_rbt_deletenode.
 	 */
 
 	RWLOCK(&dbtable->tree_lock, isc_rwlocktype_write);
 
-	result = dns_rbt_findname(dbtable->rbt, name, NULL,
+	result = dns_rbt_findname(dbtable->rbt, name, 0, NULL,
 				  (void **)&stored_data);
 
-	if (result == DNS_R_SUCCESS) {
+	if (result == ISC_R_SUCCESS) {
 		INSIST(stored_data == db);
 
 		dns_rbt_deletename(dbtable->rbt, name, ISC_FALSE);
@@ -270,24 +271,30 @@ dns_dbtable_removedefault(dns_dbtable_t *dbtable) {
 }
 
 isc_result_t
-dns_dbtable_find(dns_dbtable_t *dbtable, dns_name_t *name, dns_db_t **dbp) {
+dns_dbtable_find(dns_dbtable_t *dbtable, dns_name_t *name,
+		 unsigned int options, dns_db_t **dbp)
+{
 	dns_db_t *stored_data = NULL;
 	isc_result_t result;
+	unsigned int rbtoptions = 0;
 
 	REQUIRE(dbp != NULL && *dbp == NULL);
 
+	if ((options & DNS_DBTABLEFIND_NOEXACT) != 0)
+		rbtoptions |= DNS_RBTFIND_NOEXACT;
+
 	RWLOCK(&dbtable->tree_lock, isc_rwlocktype_read);
 
-	result = dns_rbt_findname(dbtable->rbt, name, NULL,
+	result = dns_rbt_findname(dbtable->rbt, name, rbtoptions, NULL,
 				  (void **)&stored_data);
 
-	if (result == DNS_R_SUCCESS || result == DNS_R_PARTIALMATCH)
+	if (result == ISC_R_SUCCESS || result == DNS_R_PARTIALMATCH)
 		dns_db_attach(stored_data, dbp);
 	else if (dbtable->default_db != NULL) {
 		dns_db_attach(dbtable->default_db, dbp);
 		result = DNS_R_PARTIALMATCH;
 	} else
-		result = DNS_R_NOTFOUND;
+		result = ISC_R_NOTFOUND;
 
 	RWUNLOCK(&dbtable->tree_lock, isc_rwlocktype_read);
 

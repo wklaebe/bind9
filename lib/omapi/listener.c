@@ -18,13 +18,17 @@
 /*
  * Subroutines that support the generic listener object.
  */
-#include <stdlib.h>		/* NULL and abort() */
-#include <string.h>		/* memset */
 
-#include <isc/assertions.h>
+#include <config.h>
+
+#include <stdlib.h>		/* NULL and abort() */
+
+#include <isc/buffer.h>
 #include <isc/bufferlist.h>
-#include <isc/error.h>
 #include <isc/mem.h>
+#include <isc/string.h>
+#include <isc/task.h>
+#include <isc/util.h>
 
 #include <omapi/private.h>
 
@@ -81,7 +85,7 @@ listener_accept(isc_task_t *task, isc_event_t *event) {
 
 	result = ((isc_socket_newconnev_t *)event)->result;
 	socket = ((isc_socket_newconnev_t *)event)->newsocket;
-	listener = (omapi_listener_t *)event->arg;
+	listener = (omapi_listener_t *)event->ev_arg;
 
 	/*
 	 * No more need for the event, once all the desired data has been
@@ -168,19 +172,17 @@ listener_accept(isc_task_t *task, isc_event_t *event) {
 	 * The new connection is good to go.  Allocate the buffers for it and
 	 * prepare its own task.
 	 */
-	if (isc_task_create(omapi_taskmgr, NULL, 0, &connection_task) !=
+	if (isc_task_create(omapi_taskmgr, 0, &connection_task) !=
 	    ISC_R_SUCCESS)
 		goto free_task;
 
 	ibuffer = NULL;
-	result = isc_buffer_allocate(omapi_mctx, &ibuffer, OMAPI_BUFFER_SIZE,
-				     ISC_BUFFERTYPE_BINARY);
+	result = isc_buffer_allocate(omapi_mctx, &ibuffer, OMAPI_BUFFER_SIZE);
 	if (result != ISC_R_SUCCESS)
 		goto free_ibuffer;
 
 	obuffer = NULL;
-	result = isc_buffer_allocate(omapi_mctx, &obuffer, OMAPI_BUFFER_SIZE,
-				     ISC_BUFFERTYPE_BINARY);
+	result = isc_buffer_allocate(omapi_mctx, &obuffer, OMAPI_BUFFER_SIZE);
 	if (result != ISC_R_SUCCESS)
 		goto free_obuffer;
 
@@ -282,7 +284,7 @@ omapi_listener_listen(omapi_object_t *caller, isc_sockaddr_t *addr,
 	REQUIRE(addr != NULL && isc_sockaddr_getport(addr) != 0);
 
 	task = NULL;
-	result = isc_task_create(omapi_taskmgr, NULL, 0, &task);
+	result = isc_task_create(omapi_taskmgr, 0, &task);
 	if (result != ISC_R_SUCCESS)
 		return (result);
 

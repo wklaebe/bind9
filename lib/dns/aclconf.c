@@ -17,22 +17,21 @@
 
 #include <config.h>
 
-#include <isc/assertions.h>
-#include <isc/mem.h>
-#include <isc/result.h>
+#include <isc/string.h>		/* Required for HP/UX (and others?) */
+#include <isc/util.h>
 
+#include <dns/acl.h>
 #include <dns/aclconf.h>
 #include <dns/fixedname.h>
 #include <dns/log.h>
-#include <dns/types.h>
 
-void dns_aclconfctx_init(dns_aclconfctx_t *ctx)
-{
+void
+dns_aclconfctx_init(dns_aclconfctx_t *ctx) {
 	ISC_LIST_INIT(ctx->named_acl_cache);
 }
 
-void dns_aclconfctx_destroy(dns_aclconfctx_t *ctx)
-{
+void
+dns_aclconfctx_destroy(dns_aclconfctx_t *ctx) {
      	dns_acl_t *dacl, *next;	
 	for (dacl = ISC_LIST_HEAD(ctx->named_acl_cache);
 	     dacl != NULL;
@@ -65,14 +64,14 @@ convert_named_acl(char *aclname, dns_c_ctx_t *cctx,
 	}
 	/* Not yet converted.  Convert now. */
 	result = dns_c_acltable_getacl(cctx->acls, aclname, &cacl);
-	if (result != DNS_R_SUCCESS) {
+	if (result != ISC_R_SUCCESS) {
 		isc_log_write(dns_lctx, DNS_LOGCATEGORY_SECURITY,
 			      DNS_LOGMODULE_ACL, ISC_LOG_WARNING,
 			      "undefined ACL '%s'", aclname);
 		return (result);
 	}
 	result = dns_acl_fromconfig(cacl->ipml, cctx, ctx, mctx, &dacl);
-	if (result != DNS_R_SUCCESS)
+	if (result != ISC_R_SUCCESS)
 		return (result);
 	dacl->name = aclname;
 	ISC_LIST_APPEND(ctx->named_acl_cache, dacl, nextincache);
@@ -88,7 +87,7 @@ convert_keyname(char *txtname, isc_mem_t *mctx, dns_name_t *dnsname) {
 	unsigned int keylen;
 
 	keylen = strlen(txtname);
-	isc_buffer_init(&buf, txtname, keylen, ISC_BUFFERTYPE_TEXT);
+	isc_buffer_init(&buf, txtname, keylen);
 	isc_buffer_add(&buf, keylen);
 	dns_fixedname_init(&fixname);
 	result = dns_name_fromtext(dns_fixedname_name(&fixname), &buf,
@@ -145,14 +144,16 @@ dns_acl_fromconfig(dns_c_ipmatchlist_t *caml,
 		case dns_c_ipmatch_key:
 			de->type = dns_aclelementtype_keyname;
 			dns_name_init(&de->u.keyname, NULL);
-			result = convert_keyname(ce->u.key, mctx, &de->u.keyname);
+			result = convert_keyname(ce->u.key, mctx,
+						 &de->u.keyname);
 			if (result != ISC_R_SUCCESS)
 				goto cleanup;
 			break;
 		case dns_c_ipmatch_indirect:
 			de->type = dns_aclelementtype_nestedacl;
-			result = dns_acl_fromconfig(ce->u.indirect.list, cctx,
-						   ctx, mctx, &de->u.nestedacl);
+			result = dns_acl_fromconfig(ce->u.indirect.list,
+						    cctx, ctx, mctx,
+						    &de->u.nestedacl);
 			if (result != ISC_R_SUCCESS)
 				goto cleanup;
 			break;
@@ -169,8 +170,9 @@ dns_acl_fromconfig(dns_c_ipmatchlist_t *caml,
 			break;
 		case dns_c_ipmatch_acl:
 			de->type = dns_aclelementtype_nestedacl;
-			result = convert_named_acl(ce->u.aclname, cctx,
-						   ctx, mctx, &de->u.nestedacl);
+			result = convert_named_acl(ce->u.aclname,
+						   cctx, ctx, mctx,
+						   &de->u.nestedacl);
 			if (result != ISC_R_SUCCESS)
 				goto cleanup;
 			break;

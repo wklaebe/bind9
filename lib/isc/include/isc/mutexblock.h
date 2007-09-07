@@ -20,7 +20,7 @@
 
 #include <isc/lang.h>
 #include <isc/mutex.h>
-#include <isc/result.h>
+#include <isc/types.h>
 
 ISC_LANG_BEGINDECLS
 

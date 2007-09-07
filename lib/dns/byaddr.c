@@ -17,27 +17,19 @@
 
 #include <config.h>
 
-#include <stdio.h>
-#include <string.h>
-
-#include <isc/assertions.h>
-#include <isc/buffer.h>
-#include <isc/error.h>
-#include <isc/event.h>
 #include <isc/mem.h>
-#include <isc/mutex.h>
-#include <isc/result.h>
+#include <isc/netaddr.h>
+#include <isc/string.h>		/* Required for HP/UX (and others?) */
 #include <isc/task.h>
 #include <isc/util.h>
 
 #include <dns/byaddr.h>
 #include <dns/db.h>
 #include <dns/events.h>
-#include <dns/fixedname.h>
-#include <dns/name.h>
 #include <dns/rdata.h>
 #include <dns/rdataset.h>
 #include <dns/resolver.h>
+#include <dns/result.h>
 #include <dns/view.h>
 
 /*
@@ -125,10 +117,10 @@ address_to_ptr_name(dns_byaddr_t *byaddr, isc_netaddr_t *address) {
 			strcpy(cp, "].ip6.int.");
 		}
 	} else
-		return (DNS_R_NOTIMPLEMENTED);
+		return (ISC_R_NOTIMPLEMENTED);
 
 	len = (unsigned int)strlen(textname);
-	isc_buffer_init(&buffer, textname, len, ISC_BUFFERTYPE_TEXT);
+	isc_buffer_init(&buffer, textname, len);
 	isc_buffer_add(&buffer, len);
 	return (dns_name_fromtext(dns_fixedname_name(&byaddr->name),
 				  &buffer, dns_rootname, ISC_FALSE, NULL));
@@ -165,7 +157,7 @@ copy_ptr_targets(dns_byaddr_t *byaddr) {
 		ISC_LIST_APPEND(byaddr->event->names, name, link);
 		result = dns_rdataset_next(&byaddr->rdataset);
 	}
-	if (result == DNS_R_NOMORE)
+	if (result == ISC_R_NOMORE)
 		result = ISC_R_SUCCESS;
 	
 	return (result);
@@ -173,10 +165,11 @@ copy_ptr_targets(dns_byaddr_t *byaddr) {
 
 static void
 fetch_done(isc_task_t *task, isc_event_t *event) {
-	dns_byaddr_t *byaddr = event->arg;
+	dns_byaddr_t *byaddr = event->ev_arg;
 	dns_fetchevent_t *fevent;
 
-	REQUIRE(event->type == DNS_EVENT_FETCHDONE);
+	UNUSED(task);
+	REQUIRE(event->ev_type == DNS_EVENT_FETCHDONE);
 	REQUIRE(VALID_BYADDR(byaddr));
 	REQUIRE(byaddr->task == task);
 	fevent = (dns_fetchevent_t *)event;
@@ -240,7 +233,7 @@ byaddr_find(dns_byaddr_t *byaddr, dns_fetchevent_t *event) {
 					       dns_rdatatype_ptr, 0, 0,
 					       ISC_FALSE, fname,
 					       &byaddr->rdataset, NULL);
-			if (result == DNS_R_NOTFOUND) {
+			if (result == ISC_R_NOTFOUND) {
 				/*
 				 * We don't know anything about the name.
 				 * Launch a fetch.
@@ -351,7 +344,7 @@ byaddr_find(dns_byaddr_t *byaddr, dns_fetchevent_t *event) {
 
 	if (send_event) {
 		byaddr->event->result = result;
-		byaddr->event->sender = byaddr;
+		byaddr->event->ev_sender = byaddr;
 		ievent = (isc_event_t *)byaddr->event;
 		byaddr->event = NULL;
 		isc_task_sendanddetach(&byaddr->task, &ievent);
@@ -367,8 +360,8 @@ bevent_destroy(isc_event_t *event) {
 	dns_name_t *name, *next_name;
 	isc_mem_t *mctx;
 
-	REQUIRE(event->type == DNS_EVENT_BYADDRDONE);
-	mctx = event->destroy_arg;
+	REQUIRE(event->ev_type == DNS_EVENT_BYADDRDONE);
+	mctx = event->ev_destroy_arg;
 	bevent = (dns_byaddrevent_t *)event;
 
 	for (name = ISC_LIST_HEAD(bevent->names);
@@ -378,7 +371,7 @@ bevent_destroy(isc_event_t *event) {
 		dns_name_free(name, mctx);
 		isc_mem_put(mctx, name, sizeof *name);
 	}
-	isc_mem_put(mctx, event, event->size);
+	isc_mem_put(mctx, event, event->ev_size);
 }
 
 isc_result_t

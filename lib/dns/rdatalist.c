@@ -15,9 +15,11 @@
  * SOFTWARE.
  */
 
+#include <config.h>
+
 #include <stddef.h>
 
-#include <isc/assertions.h>
+#include <isc/util.h>
 
 #include <dns/rdata.h>
 #include <dns/rdatalist.h>
@@ -64,7 +66,7 @@ dns_rdatalist_tordataset(dns_rdatalist_t *rdatalist,
 
 	REQUIRE(rdatalist != NULL);
 	REQUIRE(DNS_RDATASET_VALID(rdataset));
-	REQUIRE(rdataset->methods == NULL);
+	REQUIRE(! dns_rdataset_isassociated(rdataset));
 
 	rdataset->methods = &methods;
 	rdataset->rdclass = rdatalist->rdclass;
@@ -78,12 +80,12 @@ dns_rdatalist_tordataset(dns_rdatalist_t *rdatalist,
 	rdataset->private4 = NULL;
 	rdataset->private5 = NULL;
 
-	return (DNS_R_SUCCESS);
+	return (ISC_R_SUCCESS);
 }
 
 static void
 rdatalist_disassociate(dns_rdataset_t *rdataset) {
-	(void)rdataset;				/* Keep compiler quiet. */
+	UNUSED(rdataset);
 }
 
 static isc_result_t
@@ -94,9 +96,9 @@ rdatalist_first(dns_rdataset_t *rdataset) {
 	rdataset->private2 = ISC_LIST_HEAD(rdatalist->rdata);
 
 	if (rdataset->private2 == NULL)
-		return (DNS_R_NOMORE);
+		return (ISC_R_NOMORE);
 
-	return (DNS_R_SUCCESS);
+	return (ISC_R_SUCCESS);
 }
 
 static isc_result_t
@@ -105,14 +107,14 @@ rdatalist_next(dns_rdataset_t *rdataset) {
 
 	rdata = rdataset->private2;
 	if (rdata == NULL)
-		return (DNS_R_NOMORE);
+		return (ISC_R_NOMORE);
 
 	rdataset->private2 = ISC_LIST_NEXT(rdata, link);
 
 	if (rdataset->private2 == NULL)
-		return (DNS_R_NOMORE);
+		return (ISC_R_NOMORE);
 
-	return (DNS_R_SUCCESS);
+	return (ISC_R_SUCCESS);
 }
 
 static void

@@ -15,12 +15,14 @@
  * SOFTWARE.
  */
 
-/* $Id: minfo_14.c,v 1.21 2000/03/20 22:44:33 gson Exp $ */
+/* $Id: minfo_14.c,v 1.28 2000/05/22 12:37:44 marka Exp $ */
 
 /* reviewed: Wed Mar 15 17:45:32 PST 2000 by brister */
 
 #ifndef RDATA_GENERIC_MINFO_14_C
 #define RDATA_GENERIC_MINFO_14_C
+
+#define RRTYPE_MINFO_ATTRIBUTES (0)
 
 static inline isc_result_t
 fromtext_minfo(dns_rdataclass_t rdclass, dns_rdatatype_t type,
@@ -40,13 +42,12 @@ fromtext_minfo(dns_rdataclass_t rdclass, dns_rdatatype_t type,
 		RETERR(gettoken(lexer, &token, isc_tokentype_string,
 				ISC_FALSE));
 		dns_name_init(&name, NULL);
-		buffer_fromregion(&buffer, &token.value.as_region,
-				  ISC_BUFFERTYPE_TEXT);
+		buffer_fromregion(&buffer, &token.value.as_region);
 		origin = (origin != NULL) ? origin : dns_rootname;
 		RETERR(dns_name_fromtext(&name, &buffer, origin,
 					 downcase, target));
 	}
-	return (DNS_R_SUCCESS);
+	return (ISC_R_SUCCESS);
 }
 
 static inline isc_result_t
@@ -93,10 +94,7 @@ fromwire_minfo(dns_rdataclass_t rdclass, dns_rdatatype_t type,
         
 	REQUIRE(type == 14);
 
-	if (dns_decompress_edns(dctx) >= 1 || !dns_decompress_strict(dctx))
-		dns_decompress_setmethods(dctx, DNS_COMPRESS_ALL);
-	else
-		dns_decompress_setmethods(dctx, DNS_COMPRESS_GLOBAL14);
+	dns_decompress_setmethods(dctx, DNS_COMPRESS_GLOBAL14);
 
 	UNUSED(rdclass);
 
@@ -116,10 +114,7 @@ towire_minfo(dns_rdata_t *rdata, dns_compress_t *cctx, isc_buffer_t *target)
 
 	REQUIRE(rdata->type == 14);
 
-	if (dns_compress_getedns(cctx) >= 1)
-		dns_compress_setmethods(cctx, DNS_COMPRESS_ALL);
-	else
-		dns_compress_setmethods(cctx, DNS_COMPRESS_GLOBAL14);
+	dns_compress_setmethods(cctx, DNS_COMPRESS_GLOBAL14);
 
 	dns_name_init(&rmail, NULL);
 	dns_name_init(&email, NULL);
@@ -180,34 +175,70 @@ static inline isc_result_t
 fromstruct_minfo(dns_rdataclass_t rdclass, dns_rdatatype_t type, void *source,
 		 isc_buffer_t *target)
 {
+	dns_rdata_minfo_t *minfo = source;
+	isc_region_t region;
 
 	REQUIRE(type == 14);
+	REQUIRE(source != NULL);
+	REQUIRE(minfo->common.rdtype == type);
+	REQUIRE(minfo->common.rdclass == rdclass);
 
-	UNUSED(rdclass);
-
-	UNUSED(source);
-	UNUSED(target);
-
-	return (DNS_R_NOTIMPLEMENTED);
+	dns_name_toregion(&minfo->rmailbox, &region);
+	RETERR(isc_buffer_copyregion(target, &region));
+	dns_name_toregion(&minfo->emailbox, &region);
+	return (isc_buffer_copyregion(target, &region));
 }
 
 static inline isc_result_t
 tostruct_minfo(dns_rdata_t *rdata, void *target, isc_mem_t *mctx)
 {
-	
+	dns_rdata_minfo_t *minfo = target;
+	isc_region_t region;
+	dns_name_t name;
+	isc_result_t result;
+
 	REQUIRE(rdata->type == 14);
+	REQUIRE(target != NULL);
 
-	UNUSED(target);
-	UNUSED(mctx);
+	minfo->common.rdclass = rdata->rdclass;
+	minfo->common.rdtype = rdata->type;
+	ISC_LINK_INIT(&minfo->common, link);
 
-	return (DNS_R_NOTIMPLEMENTED);
+	dns_name_init(&name, NULL);
+	dns_rdata_toregion(rdata, &region);
+	dns_name_fromregion(&name, &region);
+	dns_name_init(&minfo->rmailbox, NULL);
+	RETERR(name_duporclone(&name, mctx, &minfo->rmailbox));
+	isc_region_consume(&region, name_length(&name));
+
+	dns_name_fromregion(&name, &region);
+	dns_name_init(&minfo->emailbox, NULL);
+	result = name_duporclone(&name, mctx, &minfo->emailbox);
+	if (result != ISC_R_SUCCESS)
+		goto cleanup;
+	minfo->mctx = mctx;
+	return (ISC_R_SUCCESS);
+
+ cleanup:
+	if (mctx != NULL)
+		dns_name_free(&minfo->rmailbox, mctx);
+	return (ISC_R_NOMEMORY);
 }
 
 static inline void
 freestruct_minfo(void *source)
 {
+	dns_rdata_minfo_t *minfo = source;
+
 	REQUIRE(source != NULL);
-	REQUIRE(ISC_FALSE);	/*XXX*/
+	REQUIRE(minfo->common.rdtype == 14);
+
+	if (minfo->mctx == NULL)
+		return;
+
+	dns_name_free(&minfo->rmailbox, minfo->mctx);
+	dns_name_free(&minfo->emailbox, minfo->mctx);
+	minfo->mctx = NULL;
 }
 
 static inline isc_result_t
@@ -216,10 +247,11 @@ additionaldata_minfo(dns_rdata_t *rdata, dns_additionaldatafunc_t add,
 {
 	REQUIRE(rdata->type == 14);
 
-	(void)add;
-	(void)arg;
+	UNUSED(rdata);
+	UNUSED(add);
+	UNUSED(arg);
 
-	return (DNS_R_SUCCESS);
+	return (ISC_R_SUCCESS);
 }
 
 static inline isc_result_t
@@ -235,7 +267,7 @@ digest_minfo(dns_rdata_t *rdata, dns_digestfunc_t digest, void *arg)
 	dns_name_init(&name, NULL);
 	dns_name_fromregion(&name, &r);
 	result = dns_name_digest(&name, digest, arg);
-	if (result != DNS_R_SUCCESS)
+	if (result != ISC_R_SUCCESS)
 		return (result);
 	isc_region_consume(&r, name_length(&name));
 	dns_name_init(&name, NULL);

@@ -18,22 +18,33 @@
 #include <config.h>
 
 #include <errno.h>
-#include <string.h>
 
-#include <isc/assertions.h>
 #include <isc/condition.h>
-#include <isc/error.h>
+#include <isc/string.h>
+#include <isc/time.h>
+#include <isc/util.h>
 
 isc_result_t
-isc_condition_waituntil(isc_condition_t *c, isc_mutex_t *m, isc_time_t *t)
-{
+isc_condition_waituntil(isc_condition_t *c, isc_mutex_t *m, isc_time_t *t) {
 	int presult;
+	isc_result_t result;
 	struct timespec ts;
 
 	REQUIRE(c != NULL && m != NULL && t != NULL);
 
-	ts.tv_sec = t->seconds;
-	ts.tv_nsec = t->nanoseconds;
+	/*
+	 * POSIX defines a timepsec's tv_sec as time_t.
+	 */
+	result = isc_time_secondsastimet(t, &ts.tv_sec);
+	if (result != ISC_R_SUCCESS)
+		return (result);
+
+	/*
+	 * POSIX defines a timespec's tv_nsec as long.  isc_time_nanoseconds
+	 * ensures its return value is < 1 billion, which will fit in a long.
+	 */
+	ts.tv_nsec = (long)isc_time_nanoseconds(t);
+
 	do {
 		presult = pthread_cond_timedwait(c, m, &ts);
 		if (presult == 0)

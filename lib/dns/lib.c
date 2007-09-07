@@ -17,11 +17,9 @@
 
 #include <config.h>
 
-#include <stddef.h>
-
 #include <isc/once.h>
-#include <isc/error.h>
 #include <isc/msgcat.h>
+#include <isc/util.h>
 
 #include <dns/lib.h>
 

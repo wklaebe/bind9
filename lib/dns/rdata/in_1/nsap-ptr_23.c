@@ -15,7 +15,7 @@
  * SOFTWARE.
  */
 
-/* $Id: nsap-ptr_23.c,v 1.14 2000/03/17 18:18:27 gson Exp $ */
+/* $Id: nsap-ptr_23.c,v 1.21 2000/05/22 12:38:09 marka Exp $ */
 
 /* Reviewed: Fri Mar 17 10:16:02 PST 2000 by gson */
 
@@ -23,6 +23,8 @@
 
 #ifndef RDATA_IN_1_NSAP_PTR_23_C
 #define RDATA_IN_1_NSAP_PTR_23_C
+
+#define RRTYPE_NSAP_PTR_ATTRIBUTES (0)
 
 static inline isc_result_t
 fromtext_in_nsap_ptr(dns_rdataclass_t rdclass, dns_rdatatype_t type,
@@ -39,8 +41,7 @@ fromtext_in_nsap_ptr(dns_rdataclass_t rdclass, dns_rdatatype_t type,
 	RETERR(gettoken(lexer, &token, isc_tokentype_string, ISC_FALSE));
 
 	dns_name_init(&name, NULL);
-	buffer_fromregion(&buffer, &token.value.as_region,
-			  ISC_BUFFERTYPE_TEXT);
+	buffer_fromregion(&buffer, &token.value.as_region);
 	origin = (origin != NULL) ? origin : dns_rootname;
 	return (dns_name_fromtext(&name, &buffer, origin, downcase, target));
 }
@@ -78,10 +79,7 @@ fromwire_in_nsap_ptr(dns_rdataclass_t rdclass, dns_rdatatype_t type,
 	REQUIRE(type == 23);
 	REQUIRE(rdclass == 1);
 
-	if (dns_decompress_edns(dctx) >= 1 || !dns_decompress_strict(dctx))
-		dns_decompress_setmethods(dctx, DNS_COMPRESS_ALL);
-	else
-		dns_decompress_setmethods(dctx, DNS_COMPRESS_NONE);
+	dns_decompress_setmethods(dctx, DNS_COMPRESS_NONE);
         
         dns_name_init(&name, NULL);
         return (dns_name_fromwire(&name, source, dctx, downcase, target));
@@ -97,11 +95,7 @@ towire_in_nsap_ptr(dns_rdata_t *rdata, dns_compress_t *cctx,
 	REQUIRE(rdata->type == 23);
 	REQUIRE(rdata->rdclass == 1);
 
-	if (dns_compress_getedns(cctx) >= 1)
-		dns_compress_setmethods(cctx, DNS_COMPRESS_ALL);
-	else
-		dns_compress_setmethods(cctx, DNS_COMPRESS_NONE);
-
+	dns_compress_setmethods(cctx, DNS_COMPRESS_NONE);
 	dns_name_init(&name, NULL);
 	dns_rdata_toregion(rdata, &region);
 	dns_name_fromregion(&name, &region);
@@ -137,32 +131,55 @@ static inline isc_result_t
 fromstruct_in_nsap_ptr(dns_rdataclass_t rdclass, dns_rdatatype_t type,
 		       void *source, isc_buffer_t *target)
 {
+	dns_rdata_in_nsap_ptr_t *nsap_ptr = source;
+	isc_region_t region;
 
 	REQUIRE(type == 23);
 	REQUIRE(rdclass == 1);
+	REQUIRE(source != NULL);
+	REQUIRE(nsap_ptr->common.rdtype == type);
+	REQUIRE(nsap_ptr->common.rdclass == rdclass);
 
-	UNUSED(source);
-	UNUSED(target);
-
-	return (DNS_R_NOTIMPLEMENTED);
+	dns_name_toregion(&nsap_ptr->owner, &region);
+	return (isc_buffer_copyregion(target, &region));
 }
 
 static inline isc_result_t
 tostruct_in_nsap_ptr(dns_rdata_t *rdata, void *target, isc_mem_t *mctx) {
-	
+	isc_region_t region;
+	dns_rdata_in_nsap_ptr_t *nsap_ptr = target;
+	dns_name_t name;
+
 	REQUIRE(rdata->type == 23);
 	REQUIRE(rdata->rdclass == 1);
+	REQUIRE(target != NULL);
 
-	UNUSED(target);
-	UNUSED(mctx);
+	nsap_ptr->common.rdclass = rdata->rdclass;
+	nsap_ptr->common.rdtype = rdata->type;
+	ISC_LINK_INIT(&nsap_ptr->common, link);
 
-	return (DNS_R_NOTIMPLEMENTED);
+	dns_name_init(&name, NULL);
+	dns_rdata_toregion(rdata, &region);
+	dns_name_fromregion(&name, &region);
+	dns_name_init(&nsap_ptr->owner, NULL);
+	RETERR(name_duporclone(&name, mctx, &nsap_ptr->owner));
+	nsap_ptr->mctx = mctx;
+	return (ISC_R_SUCCESS);
 }
 
 static inline void
 freestruct_in_nsap_ptr(void *source) {
+	dns_rdata_in_nsap_ptr_t *nsap_ptr = source;
+
 	REQUIRE(source != NULL);
-	REQUIRE(ISC_FALSE);
+	REQUIRE(nsap_ptr->common.rdclass == 1);
+	REQUIRE(nsap_ptr->common.rdtype == 23);
+
+	if (nsap_ptr->mctx == NULL)
+		return;
+
+	dns_name_free(&nsap_ptr->owner, nsap_ptr->mctx);
+	nsap_ptr->mctx = NULL;
 }
 
 static inline isc_result_t
@@ -172,10 +189,11 @@ additionaldata_in_nsap_ptr(dns_rdata_t *rdata, dns_additionaldatafunc_t add,
 	REQUIRE(rdata->type == 23);
 	REQUIRE(rdata->rdclass == 1);
 
+	UNUSED(rdata);
 	UNUSED(add);
 	UNUSED(arg);
 
-	return (DNS_R_SUCCESS);
+	return (ISC_R_SUCCESS);
 }
 
 static inline isc_result_t

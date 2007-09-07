@@ -72,14 +72,13 @@
  *** Imports
  ***/
 
+#include <stdio.h>
+
 #include <isc/boolean.h>
-#include <isc/buffer.h>
 #include <isc/lang.h>
+#include <isc/region.h>		/* Required for storage size of dns_label_t. */
 
 #include <dns/types.h>
-#include <dns/result.h>
-
-#include <stdio.h>
 
 ISC_LANG_BEGINDECLS
 
@@ -194,9 +193,12 @@ struct dns_name {
 	ISC_LIST(dns_rdataset_t)	list;
 };
 
+#define DNS_NAME_MAGIC			0x444E536EU	/* DNSn. */
+
 #define DNS_NAMEATTR_ABSOLUTE		0x0001
 #define DNS_NAMEATTR_READONLY		0x0002
 #define DNS_NAMEATTR_DYNAMIC		0x0004
+#define DNS_NAMEATTR_DYNOFFSETS		0x0008
 /*
  * Attributes below 0x0100 reserved for name.c usage.
  */
@@ -383,7 +385,7 @@ dns_name_fullcompare(dns_name_t *name1, dns_name_t *name2,
  *
  * Ensures:
  *
- *	*orderp is -1 if name1 < name2, 0 if name1 = name2, 1 if
+ *	*orderp is < 0 if name1 < name2, 0 if name1 = name2, > 0 if
  *	name1 > name2.
  *
  *	*nlabelsp is the number of common significant labels.
@@ -426,9 +428,9 @@ dns_name_compare(dns_name_t *name1, dns_name_t *name2);
  *	Either name1 is absolute and name2 is absolute, or neither is.
  *
  * Returns:
- *	-1		'name1' is less than 'name2'
+ *	< 0		'name1' is less than 'name2'
  *	0		'name1' is equal to 'name2'
- *	1		'name1' is greater than 'name2'
+ *	> 0		'name1' is greater than 'name2'
  */
 
 isc_boolean_t
@@ -475,9 +477,9 @@ dns_name_rdatacompare(dns_name_t *name1, dns_name_t *name2);
  *	dns_name_countlabels(name2) > 0
  *
  * Returns:
- *	-1		'name1' is less than 'name2'
+ *	< 0		'name1' is less than 'name2'
  *	0		'name1' is equal to 'name2'
- *	1		'name1' is greater than 'name2'
+ *	> 0		'name1' is greater than 'name2'
  */
 
 isc_boolean_t
@@ -708,12 +710,11 @@ isc_result_t dns_name_fromwire(dns_name_t *name,
  *
  *	'name' is a valid name.
  *
- *	'source' is a valid buffer of type ISC_BUFFERTYPE_BINARY, and the
- *	first byte of the active region should be the first byte of a DNS
- *	wire format domain name.
+ *	'source' is a valid buffer and the first byte of the active
+ *	region should be the first byte of a DNS wire format domain name.
  *
- *	'target' is a valid buffer of type ISC_BUFFERTYPE_BINARY or 
- *	'target' is NULL and 'name' has a dedicated buffer.
+ *	'target' is a valid buffer or 'target' is NULL and 'name' has
+ *	a dedicated buffer.
  *
  *	'dctx' is a valid decompression context.
  *
@@ -740,8 +741,7 @@ isc_result_t dns_name_fromwire(dns_name_t *name,
  *	Bad Form: Bad compression pointer
  *	Bad Form: Input too short
  *	Resource Limit: Too many compression pointers
- *	Resource Limit: Not enough space in buffer
- */
+ *	Resource Limit: Not enough space in buffer */
 
 isc_result_t dns_name_towire(dns_name_t *name,
 			     dns_compress_t *cctx,
@@ -761,7 +761,7 @@ isc_result_t dns_name_towire(dns_name_t *name,
  *
  *	dns_name_isabsolute(name) == TRUE
  *
- *	target is a valid buffer of type ISC_BUFFERTYPE_BINARY.
+ *	target is a valid buffer.
  *
  *	Any offsets specified in a global compression table are valid
  *	for buffer.
@@ -800,10 +800,10 @@ isc_result_t dns_name_fromtext(dns_name_t *name,
  *
  *	'name' is a valid name.
  *
- *	'source' is a valid buffer of type ISC_BUFFERTYPE_TEXT.
+ *	'source' is a valid buffer.
  *
- *	'target' is a valid buffer of type ISC_BUFFERTYPE_BINARY or 
- *	'target' is NULL and 'name' has a dedicated buffer.
+ *	'target' is a valid buffer or 'target' is NULL and 'name' has
+ *	a dedicated buffer.
  *
  * Ensures:
  *
@@ -819,16 +819,15 @@ isc_result_t dns_name_fromtext(dns_name_t *name,
  *		in target is updated.
  *
  * Result:
- *	DNS_R_SUCCESS
+ *	ISC_R_SUCCESS
  *	DNS_R_EMPTYLABEL
  *	DNS_R_LABELTOOLONG
  *	DNS_R_BADESCAPE
  *	DNS_R_BADBITSTRING
  *	DNS_R_BITSTRINGTOOLONG
  *	DNS_R_BADDOTTEDQUAD
- *	DNS_R_NOSPACE
- *	DNS_R_UNEXPECTEDEND
- */
+ *	ISC_R_NOSPACE
+ *	ISC_R_UNEXPECTEDEND */
 
 isc_result_t dns_name_totext(dns_name_t *name,
 			     isc_boolean_t omit_final_dot,
@@ -844,7 +843,7 @@ isc_result_t dns_name_totext(dns_name_t *name,
  *
  *	'name' is a valid name
  *
- *	'target' is a valid buffer of type ISC_BUFFERTYPE_TEXT
+ *	'target' is a valid buffer.
  *
  *	dns_name_countlabels(name) > 0
  *
@@ -859,8 +858,8 @@ isc_result_t dns_name_totext(dns_name_t *name,
  *		The used space in target is updated.
  *
  * Returns:
- *	DNS_R_SUCCESS
- *	DNS_R_NOSPACE
+ *	ISC_R_SUCCESS
+ *	ISC_R_NOSPACE
  */
 
 isc_result_t
@@ -879,15 +878,14 @@ dns_name_downcase(dns_name_t *source, dns_name_t *name,
  *
  *	Otherwise,
  *
- *		'target' is a valid buffer of type ISC_BUFFERTYPE_BINARY, or 
- *		'target' is NULL and 'name' has a dedicated buffer.
+ *		'target' is a valid buffer or 'target' is NULL and
+ *		'name' has a dedicated buffer.
  *
  * Returns:
- *	DNS_R_SUCCESS
- *	DNS_R_NOSPACE
+ *	ISC_R_SUCCESS
+ *	ISC_R_NOSPACE
  *
- *	Note: if source == name, then the result will always be DNS_R_SUCCESS.
- */
+ * Note: if source == name, then the result will always be ISC_R_SUCCESS.  */
 
 isc_result_t dns_name_concatenate(dns_name_t *prefix, dns_name_t *suffix,
 				  dns_name_t *name, isc_buffer_t *target);
@@ -902,8 +900,8 @@ isc_result_t dns_name_concatenate(dns_name_t *prefix, dns_name_t *suffix,
  *
  *	'name' is a valid name or NULL.
  *
- *	'target' is a valid buffer of type ISC_BUFFERTYPE_BINARY, or 
- *	'target' is NULL and 'name' has a dedicated buffer.
+ *	'target' is a valid buffer or 'target' is NULL and 'name' has
+ *	a dedicated buffer.
  *
  *	If 'prefix' is absolute, 'suffix' must be NULL or the empty name.
  *
@@ -918,9 +916,8 @@ isc_result_t dns_name_concatenate(dns_name_t *prefix, dns_name_t *suffix,
  *		The used space in target is updated.
  *
  * Returns:
- *	DNS_R_SUCCESS
- *	DNS_R_NOSPACE
- */
+ *	ISC_R_SUCCESS
+ *	ISC_R_NOSPACE */
 
 isc_result_t
 dns_name_split(dns_name_t *name,
@@ -981,8 +978,8 @@ dns_name_split(dns_name_t *name,
  *		on which one the problem was encountered with).
  *
  * Returns:
- *	DNS_R_SUCCESS	No worries.
- *	DNS_R_NOSPACE	An attempt was made to split a name on a bitlabel
+ *	ISC_R_SUCCESS	No worries.
+ *	ISC_R_NOSPACE	An attempt was made to split a name on a bitlabel
  *			boundary but either 'prefix' or 'suffix' did not
  *			have enough room to receive the split name.
  */
@@ -1034,6 +1031,24 @@ dns_name_dup(dns_name_t *source, isc_mem_t *mctx, dns_name_t *target);
  *	'mctx' is a valid memory context.
  */
 
+isc_result_t
+dns_name_dupwithoffsets(dns_name_t *source, isc_mem_t *mctx,
+			dns_name_t *target);
+/*
+ * Make 'target' a read-only dynamically allocated copy of 'source'.
+ * 'target' will also have a dynamically allocated offsets table.
+ *
+ * Requires:
+ *
+ *	'source' is a valid non-empty name.
+ *	
+ *	'target' is a valid name that is not read-only.
+ *
+ *	'target' has no offsets table.
+ *	
+ *	'mctx' is a valid memory context.
+ */
+
 void
 dns_name_free(dns_name_t *name, isc_mem_t *mctx);
 /*
@@ -1067,12 +1082,12 @@ dns_name_digest(dns_name_t *name, dns_digestfunc_t digest, void *arg);
  *	If successful, the DNSSEC canonical form of 'name' will have been
  *	sent to 'digest'.
  *
- *	If digest() returns something other than DNS_R_SUCCESS, that result
+ *	If digest() returns something other than ISC_R_SUCCESS, that result
  *	will be returned as the result of dns_name_digest().
  *
  * Returns:
  *
- *	DNS_R_SUCCESS
+ *	ISC_R_SUCCESS
  *
  *	Many other results are possible if not successful.
  *	
@@ -1109,6 +1124,73 @@ dns_name_print(dns_name_t *name, FILE *stream);
  *
  *	Any error that dns_name_totext() can return.
  */
+
+void
+dns_name_format(dns_name_t *name, char *cp, unsigned int size);
+/*
+ * Format 'name' as text appropriate for use in log messages.
+ *
+ * Store the formatted name at 'cp', writing no more than
+ * 'size' bytes.  The resulting string is guaranteed to be
+ * null terminated.
+ *
+ * The formatted name will have a terminating dot only if it is 
+ * the root.
+ *
+ * This function cannot fail, instead any errors are indicated
+ * in the returned text.
+ *
+ * Requires:
+ *
+ *	'name' is a valid name.
+ *
+ *	'cp' points a valid character array of size 'size'.
+ *
+ *	'size' > 0.
+ *
+ */
+
+/***
+ *** High Peformance Macros
+ ***/
+
+/*
+ * WARNING:  Use of these macros by applications may require recompilation
+ *           of the application in some situations where calling the function
+ *           would not.
+ *
+ * WARNING:  No assertion checking is done for these macros.
+ */
+
+#ifdef DNS_NAME_USEINLINE
+
+#define dns_name_init(n, o)		DNS_NAME_INIT(n, o)
+#define dns_name_countlabels(n)		DNS_NAME_COUNTLABELS(n)
+#define dns_name_isabsolute(n)		DNS_NAME_ISABSOLUTE(n)
+
+#define DNS_NAME_INIT(n, o) \
+do { \
+	(n)->magic = DNS_NAME_MAGIC; \
+	(n)->ndata = NULL; \
+	(n)->length = 0; \
+	(n)->labels = 0; \
+	(n)->attributes = 0; \
+	(n)->offsets = (o); \
+	(n)->buffer = NULL; \
+	ISC_LINK_INIT((n), link); \
+	ISC_LIST_INIT((n)->list); \
+} while (0)
+
+#define DNS_NAME_SETBUFFER(n, b) \
+	(n)->buffer = (b)
+
+#define DNS_NAME_ISABSOLUTE(n) \
+	(((n)->attributes & DNS_NAMEATTR_ABSOLUTE) ? ISC_TRUE : ISC_FALSE)
+
+#define DNS_NAME_COUNTLABELS(n) \
+	((n)->labels)
+
+#endif /* DNS_NAME_USEINLINE */
 
 ISC_LANG_ENDDECLS
 

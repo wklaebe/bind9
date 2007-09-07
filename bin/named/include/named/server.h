@@ -15,8 +15,8 @@
  * SOFTWARE.
  */
 
-#ifndef NS_SERVER_H
-#define NS_SERVER_H 1
+#ifndef NAMED_SERVER_H
+#define NAMED_SERVER_H 1
 
 #include <isc/log.h>
 #include <isc/sockaddr.h>
@@ -42,15 +42,9 @@ struct ns_server {
 	isc_rwlock_t		conflock;
 	
 	/* Configurable data. */
-	isc_boolean_t		recursion;
-	isc_boolean_t		auth_nxdomain;
-	dns_transfer_format_t	transfer_format;
-	dns_acl_t *		queryacl;
-	dns_acl_t *		recursionacl;
 	isc_quota_t		xfroutquota;
 	isc_quota_t		tcpquota;
 	isc_quota_t		recursionquota;
-	isc_boolean_t		provide_ixfr;
 
 	/* Not really configurable, but covered by conflock. */
 	dns_aclenv_t		aclenv;
@@ -60,12 +54,8 @@ struct ns_server {
 	ns_clientmgr_t *	clientmgr;
 	dns_viewlist_t		viewlist;
 	ns_interfacemgr_t *	interfacemgr;
-	dns_db_t *		roothints;
+	dns_db_t *		in_roothints;
 	dns_tkey_ctx_t *	tkeyctx;
-	isc_sockaddr_t		querysrc_addressv4;
-	dns_dispatch_t *	querysrc_dispatchv4;
-	isc_sockaddr_t		querysrc_addressv6;
-	dns_dispatch_t *	querysrc_dispatchv6;
 	isc_timer_t *		interface_timer;
 	
 	isc_mutex_t		reload_event_lock;
@@ -100,4 +90,4 @@ ns_server_reloadwanted(ns_server_t *server);
  */
 
 
-#endif /* NS_SERVER_H */
+#endif /* NAMED_SERVER_H */

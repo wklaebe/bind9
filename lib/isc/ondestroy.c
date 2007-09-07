@@ -17,25 +17,26 @@
 
 #include <config.h>
 
-#include <isc/assertions.h>
+#include <stddef.h>
+
+#include <isc/event.h>
+#include <isc/magic.h>
 #include <isc/ondestroy.h>
-#include <isc/result.h>
 #include <isc/task.h>
+#include <isc/util.h>
 
 #define ONDESTROY_MAGIC		0x44655374 /* DeSt */
-#define VALID_ONDESTROY(s)	(s != NULL && (s->magic == ONDESTROY_MAGIC))
+#define VALID_ONDESTROY(s)	ISC_MAGIC_VALID(s, ONDESTROY_MAGIC)
 
 void
-isc_ondestroy_init(isc_ondestroy_t *ondest)
-{
+isc_ondestroy_init(isc_ondestroy_t *ondest) {
 	ondest->magic = ONDESTROY_MAGIC;
 	ISC_LIST_INIT(ondest->events);
 }
 
-
 isc_result_t
-isc_ondestroy_register(isc_ondestroy_t *ondest,
-		       isc_task_t *task, isc_event_t **eventp)
+isc_ondestroy_register(isc_ondestroy_t *ondest, isc_task_t *task,
+		       isc_event_t **eventp)
 {
 	isc_event_t *theevent;
 	isc_task_t *thetask = NULL;
@@ -50,18 +51,15 @@ isc_ondestroy_register(isc_ondestroy_t *ondest,
 
 	isc_task_attach(task, &thetask);
 
-	theevent->sender = thetask;
+	theevent->ev_sender = thetask;
 	
-	ISC_LIST_APPEND(ondest->events, theevent, link);
+	ISC_LIST_APPEND(ondest->events, theevent, ev_link);
 
 	return (ISC_R_SUCCESS);
 }
 
-
-
 void
-isc_ondestroy_notify(isc_ondestroy_t *ondest, void *sender)
-{
+isc_ondestroy_notify(isc_ondestroy_t *ondest, void *sender) {
 	isc_event_t *eventp;
 	isc_task_t *task;
 	
@@ -69,10 +67,10 @@ isc_ondestroy_notify(isc_ondestroy_t *ondest, void *sender)
 
 	eventp = ISC_LIST_HEAD(ondest->events);
 	while (eventp != NULL) {
-		ISC_LIST_UNLINK(ondest->events, eventp, link);
+		ISC_LIST_UNLINK(ondest->events, eventp, ev_link);
 
-		task = eventp->sender;
-		eventp->sender = sender;
+		task = eventp->ev_sender;
+		eventp->ev_sender = sender;
 		
 		isc_task_sendanddetach(&task, &eventp);
 

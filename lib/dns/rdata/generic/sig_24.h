@@ -15,11 +15,14 @@
  * SOFTWARE.
  */
 
-/* $Id: sig_24.h,v 1.16 2000/03/17 17:07:10 gson Exp $ */
+#ifndef GENERIC_SIG_24_H
+#define GENERIC_SIG_24_H 1
+
+/* $Id: sig_24.h,v 1.18 2000/04/29 02:01:49 tale Exp $ */
 
 /* RFC 2535 */
 
-typedef struct dns_rdata_generic_sig_t {
+typedef struct dns_rdata_sig_t {
 	dns_rdatacommon_t	common;
 	isc_mem_t *		mctx;
 	dns_rdatatype_t		covered;
@@ -32,5 +35,7 @@ typedef struct dns_rdata_generic_sig_t {
         dns_name_t		signer;
 	isc_uint16_t		siglen;
 	unsigned char *		signature;
-} dns_rdata_generic_sig_t;
+} dns_rdata_sig_t;
 
+
+#endif /* GENERIC_SIG_24_H */

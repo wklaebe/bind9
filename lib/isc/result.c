@@ -17,17 +17,13 @@
 
 #include <config.h>
 
-#include <stddef.h>
 #include <stdlib.h>
 
-#include <isc/result.h>
-#include <isc/resultclass.h>
-#include <isc/assertions.h>
-#include <isc/error.h>
+#include <isc/lib.h>
+#include <isc/msgcat.h>
 #include <isc/mutex.h>
 #include <isc/once.h>
-#include <isc/msgcat.h>
-#include <isc/lib.h>
+#include <isc/resultclass.h>
 #include <isc/util.h>
 
 typedef struct resulttable {
@@ -61,7 +57,7 @@ static char *text[ISC_R_NRESULTS] = {
 	"already exists",			/* 18 */
 	"ran out of space",			/* 19 */
 	"operation canceled",			/* 20 */
-	"<available code 21>",			/* 21 */
+	"socket is not bound",			/* 21 */
 	"shutting down",			/* 22 */
 	"not found",				/* 23 */
 	"unexpected end of input",		/* 24 */
@@ -77,7 +73,11 @@ static char *text[ISC_R_NRESULTS] = {
 	"unexpected error",			/* 34 */
 	"already running",			/* 35 */
 	"ignore",				/* 36 */
-	"address mask not contiguous"		/* 37 */
+	"address mask not contiguous",		/* 37 */
+	"file not found",			/* 38 */
+	"file already exists",			/* 39 */
+	"socket is not connected",		/* 40 */
+	"out of range"				/* 41 */
 };
 
 #define ISC_RESULT_RESULTSET			2

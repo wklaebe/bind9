@@ -15,7 +15,7 @@
  * SOFTWARE.
  */
 
-/* $Id: wks_11.c,v 1.22 2000/03/20 19:29:44 gson Exp $ */
+/* $Id: wks_11.c,v 1.31 2000/05/22 12:38:12 marka Exp $ */
 
 /* Reviewed: Fri Mar 17 15:01:49 PST 2000 by explorer */
 
@@ -24,10 +24,11 @@
 
 #include <limits.h>
 #include <stdlib.h>
-#include <string.h>
 
 #include <isc/net.h>
 #include <isc/netdb.h>
+
+#define RRTYPE_WKS_ATTRIBUTES (0)
 
 static inline isc_result_t
 fromtext_in_wks(dns_rdataclass_t rdclass, dns_rdatatype_t type,
@@ -46,6 +47,8 @@ fromtext_in_wks(dns_rdataclass_t rdclass, dns_rdatatype_t type,
 	long maxport = -1;
 	char *ps = NULL;
 	unsigned int n;
+	char service[32];
+	int i;
 
 	UNUSED(origin);
 	UNUSED(downcase);
@@ -53,18 +56,22 @@ fromtext_in_wks(dns_rdataclass_t rdclass, dns_rdatatype_t type,
 	REQUIRE(type == 11);
 	REQUIRE(rdclass == 1);
 	
-	/* IPv4 dotted quad */
+	/*
+	 * IPv4 dotted quad.
+	 */
 	RETERR(gettoken(lexer, &token, isc_tokentype_string, ISC_FALSE));
 
-	isc_buffer_available(target, &region);
+	isc_buffer_availableregion(target, &region);
 	if (inet_aton(token.value.as_pointer, &addr) != 1)
 		return (DNS_R_BADDOTTEDQUAD);
 	if (region.length < 4)
-		return (DNS_R_NOSPACE);
+		return (ISC_R_NOSPACE);
 	memcpy(region.base, &addr, 4);
 	isc_buffer_add(target, 4);
 
-	/* protocol */
+	/*
+	 * Protocol.
+	 */
 	RETERR(gettoken(lexer, &token, isc_tokentype_string, ISC_FALSE));
 
 	proto = strtol(token.value.as_pointer, &e, 10);
@@ -73,9 +80,9 @@ fromtext_in_wks(dns_rdataclass_t rdclass, dns_rdatatype_t type,
 	else if ((pe = getprotobyname(token.value.as_pointer)) != NULL)
 		proto = pe->p_proto;
 	else
-		return (DNS_R_UNEXPECTED);
+		return (ISC_R_UNEXPECTED);
 	if (proto < 0 || proto > 0xff)
-		return (DNS_R_RANGE);
+		return (ISC_R_RANGE);
 
 	if (proto == IPPROTO_TCP)
 		ps = "tcp";
@@ -90,22 +97,37 @@ fromtext_in_wks(dns_rdataclass_t rdclass, dns_rdatatype_t type,
 				  ISC_TRUE));
 		if (token.type != isc_tokentype_string)
 			break;
+
+		/*
+		 * Lowercase the service string as some getservbyname() are
+		 * case sensitive and the database is usually in lowercase.
+		 */
+		strncpy(service, token.value.as_pointer, sizeof(service));
+		service[sizeof(service)-1] = '\0';
+		for (i = strlen(service) - 1; i >= 0; i--)
+			if (isupper(service[i]&0xff))
+				service[i] = tolower(service[i]);
+
 		port = strtol(token.value.as_pointer, &e, 10);
 		if (*e == 0)
 			;
+		else if ((se = getservbyname(service, ps)) != NULL)
+			port = ntohs(se->s_port);
 		else if ((se = getservbyname(token.value.as_pointer, ps))
 			  != NULL)
 			port = ntohs(se->s_port);
 		else
-			return (DNS_R_UNEXPECTED);
+			return (ISC_R_UNEXPECTED);
 		if (port < 0 || port > 0xffff)
-			return (DNS_R_RANGE);
+			return (ISC_R_RANGE);
 		if (port > maxport)
 			maxport = port;
 		bm[port / 8] |= (0x80 >> (port % 8));
 	} while (1);
 
-	/* Let upper layer handle eol/eof. */
+	/*
+	 * Let upper layer handle eol/eof.
+	 */
 	isc_lex_ungettoken(lexer, &token);
 
 	n = (maxport + 8) / 8;
@@ -128,9 +150,9 @@ totext_in_wks(dns_rdata_t *rdata, dns_rdata_textctx_t *tctx,
 	REQUIRE(rdata->rdclass == 1);
 
 	dns_rdata_toregion(rdata, &sr);
-	isc_buffer_available(target, &tr);
+	isc_buffer_availableregion(target, &tr);
 	if (inet_ntop(AF_INET, sr.base, (char *)tr.base, tr.length) == NULL)
-		return (DNS_R_NOSPACE);
+		return (ISC_R_NOSPACE);
 	isc_buffer_add(target, strlen((char *)tr.base));
 	isc_region_consume(&sr, 4);
 
@@ -152,7 +174,7 @@ totext_in_wks(dns_rdata_t *rdata, dns_rdata_textctx_t *tctx,
 	}
 
 	RETERR(str_totext(" )", target));
-	return (DNS_R_SUCCESS);
+	return (ISC_R_SUCCESS);
 }
 
 static inline isc_result_t
@@ -169,26 +191,25 @@ fromwire_in_wks(dns_rdataclass_t rdclass, dns_rdatatype_t type,
 	REQUIRE(type == 11);
 	REQUIRE(rdclass == 1);
 
-	isc_buffer_active(source, &sr);
-	isc_buffer_available(target, &tr);
+	isc_buffer_activeregion(source, &sr);
+	isc_buffer_availableregion(target, &tr);
 
 	if (sr.length < 5)
-		return (DNS_R_UNEXPECTEDEND);
+		return (ISC_R_UNEXPECTEDEND);
 	if (sr.length > 8 * 1024 + 5)
 		return (DNS_R_EXTRADATA);
 	if (tr.length < sr.length)
-		return (DNS_R_NOSPACE);
+		return (ISC_R_NOSPACE);
 
 	memcpy(tr.base, sr.base, sr.length);
 	isc_buffer_add(target, sr.length);
 	isc_buffer_forward(source, sr.length);
 
-	return (DNS_R_SUCCESS);
+	return (ISC_R_SUCCESS);
 }
 
 static inline isc_result_t
-towire_in_wks(dns_rdata_t *rdata, dns_compress_t *cctx, isc_buffer_t *target)
-{
+towire_in_wks(dns_rdata_t *rdata, dns_compress_t *cctx, isc_buffer_t *target) {
 	isc_region_t sr;
 
 	UNUSED(cctx);
@@ -201,8 +222,7 @@ towire_in_wks(dns_rdata_t *rdata, dns_compress_t *cctx, isc_buffer_t *target)
 }
 
 static inline int
-compare_in_wks(dns_rdata_t *rdata1, dns_rdata_t *rdata2)
-{
+compare_in_wks(dns_rdata_t *rdata1, dns_rdata_t *rdata2) {
 	isc_region_t r1;
 	isc_region_t r2;
 
@@ -220,50 +240,83 @@ static inline isc_result_t
 fromstruct_in_wks(dns_rdataclass_t rdclass, dns_rdatatype_t type, void *source,
 		  isc_buffer_t *target)
 {
-	UNUSED(source);
-	UNUSED(target);
+	dns_rdata_in_wks_t *wks = source;
+	isc_uint32_t a;
 
 	REQUIRE(type == 11);
 	REQUIRE(rdclass == 1);
+	REQUIRE(source != NULL);
+	REQUIRE(wks->common.rdtype == type);
+	REQUIRE(wks->common.rdclass == rdclass);
 
-	return (DNS_R_NOTIMPLEMENTED);
+	a = ntohl(wks->in_addr.s_addr);
+	RETERR(uint32_tobuffer(a, target));
+	RETERR(uint16_tobuffer(wks->protocol, target));
+	return (mem_tobuffer(target, wks->map, wks->map_len));
 }
 
 static inline isc_result_t
-tostruct_in_wks(dns_rdata_t *rdata, void *target, isc_mem_t *mctx)
-{
-	UNUSED(target);
-	UNUSED(mctx);
+tostruct_in_wks(dns_rdata_t *rdata, void *target, isc_mem_t *mctx) {
+	dns_rdata_in_wks_t *wks = target;
+	isc_uint32_t n;
+	isc_region_t region;
 
 	REQUIRE(rdata->type == 11);
 	REQUIRE(rdata->rdclass == 1);
 
-	return (DNS_R_NOTIMPLEMENTED);
+	wks->common.rdclass = rdata->rdclass;
+	wks->common.rdtype = rdata->type;
+	ISC_LINK_INIT(&wks->common, link);
+
+	dns_rdata_toregion(rdata, &region);
+	n = uint32_fromregion(&region);
+	wks->in_addr.s_addr = htonl(n);
+	isc_region_consume(&region, 4);
+	wks->protocol = uint16_fromregion(&region);
+	isc_region_consume(&region, 2);
+	wks->map_len = region.length;
+	if (wks->map_len > 0) {
+		wks->map = mem_maybedup(mctx, region.base, region.length);
+		if (wks->map == NULL)
+			return (ISC_R_NOMEMORY);
+	} else
+		wks->map = NULL;
+	wks->mctx = mctx;
+	return (ISC_R_SUCCESS);
 }
 
 static inline void
-freestruct_in_wks(void *source)
-{
+freestruct_in_wks(void *source) {
+	dns_rdata_in_wks_t *wks = source;
+
 	REQUIRE(source != NULL);
-	REQUIRE(ISC_FALSE);	/*XXX*/
+	REQUIRE(wks->common.rdtype == 11);
+	REQUIRE(wks->common.rdclass == 1);
+
+	if (wks->mctx == NULL)
+		return;
+
+	if (wks->map != NULL)
+		isc_mem_free(wks->mctx, wks->map);
+	wks->mctx = NULL;
 }
 
 static inline isc_result_t
 additionaldata_in_wks(dns_rdata_t *rdata, dns_additionaldatafunc_t add,
 		      void *arg)
 {
+	UNUSED(rdata);
 	UNUSED(add);
 	UNUSED(arg);
 
 	REQUIRE(rdata->type == 11);
 	REQUIRE(rdata->rdclass == 1);
 
-	return (DNS_R_SUCCESS);
+	return (ISC_R_SUCCESS);
 }
 
 static inline isc_result_t
-digest_in_wks(dns_rdata_t *rdata, dns_digestfunc_t digest, void *arg)
-{
+digest_in_wks(dns_rdata_t *rdata, dns_digestfunc_t digest, void *arg) {
 	isc_region_t r;
 
 	REQUIRE(rdata->type == 11);

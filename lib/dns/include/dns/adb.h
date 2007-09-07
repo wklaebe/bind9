@@ -16,12 +16,11 @@
  */
 
 #ifndef DNS_ADB_H
-#define DNS_ADB_H
+#define DNS_ADB_H 1
 
 /***** 
  ***** Module Info 
  *****/ 
-
 
 /*
  * DNS Address Database
@@ -73,20 +72,11 @@
  *** Imports
  ***/
 
-#include <stdio.h>
-
-#include <isc/event.h>
 #include <isc/lang.h>
-#include <isc/list.h>
 #include <isc/magic.h>
 #include <isc/mem.h>
-#include <isc/result.h>
-#include <isc/sockaddr.h>
-#include <isc/stdtime.h>
-#include <isc/task.h>
 
 #include <dns/types.h>
-#include <dns/rdataset.h>
 #include <dns/view.h>
 
 ISC_LANG_BEGINDECLS
@@ -247,6 +237,17 @@ dns_adb_create(isc_mem_t *mem, dns_view_t *view, isc_timermgr_t *tmgr,
  *
  *	ISC_R_SUCCESS	after happiness.
  *	ISC_R_NOMEMORY	after resource allocation failure.
+ */
+
+void
+dns_adb_attach(dns_adb_t *adb, dns_adb_t **adbp);
+/*
+ * Attach to an 'adb' to 'adbp'.
+ *
+ * Requires:
+ *	'adb' to be a valid dns_adb_t, created via dns_adb_create().
+ *	'adbp' to be a valid pointer to a *dns_adb_t which is initalized
+ *		to NULL.
  */
 
 void

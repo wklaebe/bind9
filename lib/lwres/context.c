@@ -17,8 +17,8 @@
 
 #include <config.h>
 
-#include <assert.h>
 #include <fcntl.h>
+#include <limits.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -29,9 +29,7 @@
 
 #include <netinet/in.h>
 
-#include <lwres/context.h>
 #include <lwres/lwres.h>
-#include <lwres/result.h>
 
 #include "context_p.h"
 #include "assert_p.h"
@@ -87,8 +85,7 @@ lwres_context_create(lwres_context_t **contextp, void *arg,
 }
 
 void
-lwres_context_destroy(lwres_context_t **contextp)
-{
+lwres_context_destroy(lwres_context_t **contextp) {
 	lwres_context_t *ctx;
 
 	REQUIRE(contextp != NULL && *contextp != NULL);
@@ -105,24 +102,21 @@ lwres_context_destroy(lwres_context_t **contextp)
 }
 
 lwres_uint32_t
-lwres_context_nextserial(lwres_context_t *ctx)
-{
+lwres_context_nextserial(lwres_context_t *ctx) {
 	REQUIRE(ctx != NULL);
 
 	return (ctx->serial++);
 }
 
 void
-lwres_context_initserial(lwres_context_t *ctx, lwres_uint32_t serial)
-{
+lwres_context_initserial(lwres_context_t *ctx, lwres_uint32_t serial) {
 	REQUIRE(ctx != NULL);
 
 	ctx->serial = serial;
 }
 
 void
-lwres_context_freemem(lwres_context_t *ctx, void *mem, size_t len)
-{
+lwres_context_freemem(lwres_context_t *ctx, void *mem, size_t len) {
 	REQUIRE(mem != NULL);
 	REQUIRE(len != 0);
 
@@ -130,16 +124,14 @@ lwres_context_freemem(lwres_context_t *ctx, void *mem, size_t len)
 }
 
 void *
-lwres_context_allocmem(lwres_context_t *ctx, size_t len)
-{
+lwres_context_allocmem(lwres_context_t *ctx, size_t len) {
 	REQUIRE(len != 0);
 
 	return (CTXMALLOC(len));
 }
 
 static void *
-lwres_malloc(void *arg, size_t len)
-{
+lwres_malloc(void *arg, size_t len) {
 	void *mem;
 
 	(void)arg;
@@ -154,8 +146,7 @@ lwres_malloc(void *arg, size_t len)
 }
 
 static void
-lwres_free(void *arg, void *mem, size_t len)
-{
+lwres_free(void *arg, void *mem, size_t len) {
 	(void)arg;
 
 	memset(mem, 0xa9, len);
@@ -163,8 +154,7 @@ lwres_free(void *arg, void *mem, size_t len)
 }
 
 static lwres_result_t
-context_connect(lwres_context_t *ctx)
-{
+context_connect(lwres_context_t *ctx) {
 	int s;
 	int ret;
 	struct sockaddr_in localhost;
@@ -199,11 +189,20 @@ lwres_context_sendrecv(lwres_context_t *ctx,
 	int ret2;
 	int flags;
 	struct sockaddr_in sin;
-	int fromlen;
+	unsigned int fromlen;
 	fd_set readfds;
 	struct timeval timeout;
 
-	timeout.tv_sec = ctx->timeout;
+
+	/*
+	 * Type of tv_sec is long, so make sure the unsigned long timeout
+	 * does not overflow it.
+	 */
+	if (ctx->timeout <= LONG_MAX)
+		timeout.tv_sec = (long)ctx->timeout;
+	else
+		timeout.tv_sec = LONG_MAX;
+
 	timeout.tv_usec = 0;
 
 	ret = sendto(ctx->sock, sendbase, sendlen, 0, NULL, 0);
@@ -238,6 +237,11 @@ lwres_context_sendrecv(lwres_context_t *ctx,
 		return (LWRES_R_TIMEOUT);
 
 	fromlen = sizeof(sin);
+	/*
+	 * Compilers that use an older prototype for recvfrom() will
+	 * warn about the type of the sixth parameter, fromlen.  It
+	 * is now standardized as unsigned, specifically as socklen_t.
+	 */
 	ret = recvfrom(ctx->sock, recvbase, recvlen, 0,
 		       (struct sockaddr *)&sin, &fromlen);
 

@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+# Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
 # Copyright (C) 2000, 2001  Internet Software Consortium.
 #
 # Permission to use, copy, modify, and distribute this software for any
@@ -15,11 +15,12 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: clean.sh,v 1.9.2.1 2004/03/09 06:10:26 marka Exp $
+# $Id: clean.sh,v 1.9.2.4 2005/10/12 00:45:05 marka Exp $
 
 #
 # Clean up after zone transfer tests.
 #
 
 rm -f ns3/example.bk dig.out.ns2 dig.out.ns3
-
+rm -f ns2/example.db.jnl
+rm -f ns3/example.bk ns3/tsigzone.bk ns3/example.bk.jnl

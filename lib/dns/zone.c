@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: zone.c,v 1.283.2.9 2001/03/01 20:58:17 bwelling Exp $ */
+/* $Id: zone.c,v 1.283.2.13 2001/05/21 17:50:00 gson Exp $ */
 
 #include <config.h>
 
@@ -175,7 +175,7 @@ struct dns_zone {
 	isc_sockaddr_t	 	notifysrc6;
 	isc_sockaddr_t	 	xfrsource4;
 	isc_sockaddr_t	 	xfrsource6;
-	dns_xfrin_ctx_t		*xfr;
+	dns_xfrin_ctx_t		*xfr;		/* task locked */
 	/* Access Control Lists */
 	dns_acl_t		*update_acl;
 	dns_acl_t		*forward_acl;
@@ -248,6 +248,7 @@ struct dns_zone {
 #define DNS_ZONEFLG_DIALNOTIFY	0x00020000U
 #define DNS_ZONEFLG_DIALREFRESH	0x00040000U
 #define DNS_ZONEFLG_SHUTDOWN	0x00080000U
+#define DNS_ZONEFLAG_NOIXFR	0x00100000U	/* IXFR failed, force AXFR */
 
 #define DNS_ZONE_OPTION(z,o) (((z)->options & (o)) != 0)
 
@@ -3518,8 +3519,9 @@ ns_query(dns_zone_t *zone, dns_rdataset_t *soardataset, dns_stub_t *stub) {
 					    ISC_FALSE);
 		if (stub->db != NULL)
 			dns_db_detach(&stub->db);
+		if (stub->zone != NULL)
+			zone_idetach(&stub->zone);
 		isc_mem_put(stub->mctx, stub, sizeof(*stub));
-		zone_idetach(&zone);
 	}
 	if (message != NULL)
 		dns_message_destroy(&message);
@@ -3564,10 +3566,13 @@ zone_shutdown(isc_task_t *task, isc_event_t *event) {
 	RWUNLOCK(&zone->zmgr->rwlock, isc_rwlocktype_write);
 
 
-	LOCK_ZONE(zone);
+	/*
+	 * In task context, no locking required.  See zone_xfrdone().
+	 */
 	if (zone->xfr != NULL)
 		dns_xfrin_shutdown(zone->xfr);
 
+	LOCK_ZONE(zone);
 	if (zone->request != NULL) {
 		dns_request_cancel(zone->request);
 	}
@@ -4608,6 +4613,11 @@ zone_xfrdone(dns_zone_t *zone, isc_result_t result) {
 
 		break;
 
+	case DNS_R_BADIXFR:
+		/* Force retry with AXFR. */
+		DNS_ZONE_SETFLAG(zone, DNS_ZONEFLAG_NOIXFR);
+		goto same_master;
+
 	default:
 		zone->curmaster++;
 	same_master:
@@ -4663,7 +4673,8 @@ zone_loaddone(void *arg, isc_result_t result) {
 	DNS_ENTER;
 
 	tresult = dns_db_endload(load->db, &load->callbacks.add_private);
-	if (result == ISC_R_SUCCESS || result == DNS_R_SEENINCLUDE)
+	if (tresult != ISC_R_SUCCESS && 
+	    (result == ISC_R_SUCCESS || result == DNS_R_SEENINCLUDE))
 		result = tresult;
 
 	LOCK_ZONE(load->zone);
@@ -4786,6 +4797,14 @@ got_transfer_quota(isc_task_t *task, isc_event_t *event) {
 			 "forced reload, requesting AXFR of "
 			 "initial version from %s", mastertext);
 		xfrtype = dns_rdatatype_axfr;
+	} else if (DNS_ZONE_FLAG(zone, DNS_ZONEFLAG_NOIXFR)) {
+		zone_log(zone, me, ISC_LOG_DEBUG(3),
+			     "retrying with AXFR from %s due to "
+			     "previous IXFR failure", mastertext);
+		xfrtype = dns_rdatatype_axfr;
+		LOCK_ZONE(zone);
+		DNS_ZONE_CLRFLAG(zone, DNS_ZONEFLAG_NOIXFR);
+		UNLOCK_ZONE(zone);
 	} else {
 		isc_boolean_t use_ixfr = ISC_TRUE;
 		if (peer != NULL &&
@@ -4852,7 +4871,6 @@ got_transfer_quota(isc_task_t *task, isc_event_t *event) {
 
 	dns_zone_detach(&zone); /* XXXAG */
 	return;
-
 }
 
 /*

@@ -1,4 +1,62 @@
 
+	--- 9.1.2rc1 released ---
+
+ 820.	[bug]		Name server address lookups failed to follow
+			A6 chains into the glue of local authoritative
+			zones.
+
+ 819.	[bug]		In certain cases, the resolver's attempts to
+			restart an address lookup at the root could cause
+			the fetch to deadlock (with itself) instead of
+			restarting. [RT #1225]
+
+ 818.	[bug]		Certain pathological responses to ANY queries could
+			cause an assertion failure. [RT #1218]
+
+ 816.	[bug]		Report potential problems with log file accessibility
+			at configuration time, since such problems can't
+			reliably be reported at the time they actually occur.
+
+ 815.	[bug]		If a log file was specified with a path separator
+			character (i.e. "/") in its name and the directory
+			did not exist, the log file's name was treated as
+			though it were the directory name. [RT #1189]
+
+ 814.	[bug]		Socket objects left over from accept() failures
+			were incorrectly destroyed, causing corruption
+			of socket manager data structures.
+
+ 813.	[bug]		File descriptors exceeding FD_SETSIZE were handled
+			badly. [RT #1192]
+
+ 812.	[bug]		dig sometimes printed incomplete IXFR responses
+			due to an uninitialized variable. [RT #1188]
+
+ 811.	[bug]		Parentheses were not quoted in zone dumps. [RT #1194]
+
+ 810.	[bug]		The signer name in SIG records was not properly
+ 			downcased when signing/verifying records. [RT #1186]
+
+ 807.	[bug]		When setting up TCP connections for incoming zone
+			transfers, the transfer-source port was not
+			ignored like it should be.
+
+ 804.	[bug]		Attempting to obtain entropy could fail in some
+ 			situations.  This would be most common on systems
+			with user-space threads. [RT #1131]
+
+ 802.	[bug]		DNSSEC key tags were computed incorrectly in almost
+ 			all cases. [RT #1146]
+
+ 801.	[bug]		nsupdate should treat lines beginning with ';' as
+ 			comments. [RT #1139]
+
+ 800.	[bug]		dnssec-signzone produced incorrect statistics for
+ 			large zones. [RT #1133]
+
+ 799.	[bug]		The ADB didn't find AAAA glue in a zone unless A6
+			glue was also present.
+
 	--- 9.1.1 released ---
 
 	--- 9.1.1rc7 released ---

@@ -1,4 +1,30 @@
 
+	--- 9.0.0rc4 released ---
+
+ 403.	[bug]		"host" did not use the search list.
+
+ 402.	[bug]		Treat undefined acls as errors, rather than
+			warning and then later throwing an assertion.
+			[RT #252]
+
+ 400.	[bug]		SIG(0) signing and verifying was done incorrectly.
+			[RT #249]
+
+ 399.	[bug]		When reloading the server with a config file
+			containing a syntax error, it could catch an
+			assertion failure trying to perform zone
+			maintenance on, or sending notifies from,
+			tentatively created zones whose views were
+			never fully configured and lacked an address
+			database and request manager.
+
+ 398.	[bug]		"dig" sometimes caught an assertion failure when
+			using TSIG, depending on the key length.
+
+ 330.	[bug]		Many debugging messages were partially formatted
+			even when debugging was turned off, causing a
+			significant decrease in query performance.
+
 	--- 9.0.0rc3 released ---
 
  396.	[doc]		There is now a man page for "nsupdate" 
@@ -53,7 +79,7 @@
  370.	[bug]		The error messages for rollforward failures were
 			overly terse.
 
- 367.   [bug]		Allow proper selection of server on nslookup command
+ 367.	[bug]		Allow proper selection of server on nslookup command
 			line.
 
  365.	[bug]		nsupdate -k leaked memory.

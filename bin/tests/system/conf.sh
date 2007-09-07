@@ -39,7 +39,7 @@ KEYSETTOOL=$TOP/bin/dnssec/dnssec-makekeyset
 SUBDIRS="dnssec glue limits lwresd notify nsupdate stub views xfer xferquota"
 
 # PERL will be an empty string if no perl interpreter was found.
-PERL=/usr/pkg/bin/perl
+PERL=/usr/local/bin/perl5
 
 export NAMED LWRESD DIG NSUPDATE KEYGEN SIGNER KEYSIGNER KEYSETTOOL PERL \
     SUBDIRS

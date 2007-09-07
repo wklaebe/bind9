@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: controlconf.c,v 1.28 2001/08/06 11:28:21 gson Exp $ */
+/* $Id: controlconf.c,v 1.28.2.4 2001/09/21 03:31:17 marka Exp $ */
 
 #include <config.h>
 
@@ -105,6 +105,7 @@ struct controllistener {
 struct ns_controls {
 	ns_server_t			*server;
 	controllistenerlist_t 		listeners;
+	isc_boolean_t			shuttingdown;
 };
 
 static void control_newconn(isc_task_t *task, isc_event_t *event);
@@ -333,6 +334,10 @@ control_recvmessage(isc_task_t *task, isc_event_t *event) {
 	listener = conn->listener;
 	secret.rstart = NULL;
 
+        /* Is the server shutting down? */
+        if (listener->controls->shuttingdown)
+                goto cleanup;
+
 	if (conn->ccmsg.result != ISC_R_SUCCESS) {
 		if (conn->ccmsg.result != ISC_R_CANCELED &&
 		    conn->ccmsg.result != ISC_R_EOF)
@@ -554,8 +559,8 @@ control_newconn(isc_task_t *task, isc_event_t *event) {
 	isc_event_free(&event);
 }
 
-void
-ns_controls_shutdown(ns_controls_t *controls) {
+static void
+controls_shutdown(ns_controls_t *controls) {
 	controllistener_t *listener;
 	controllistener_t *next;
 
@@ -571,6 +576,12 @@ ns_controls_shutdown(ns_controls_t *controls) {
 		ISC_LIST_UNLINK(controls->listeners, listener, link);
 		shutdown_listener(listener);
 	}
+}
+
+void
+ns_controls_shutdown(ns_controls_t *controls) {
+	controls_shutdown(controls);
+	controls->shuttingdown = ISC_TRUE;
 }
 
 static isc_result_t
@@ -1200,7 +1211,7 @@ ns_controls_configure(ns_controls_t *cp, cfg_obj_t *config,
 	 * were in the previous configuration (if any) that do not
 	 * remain in the current configuration.
 	 */
-	ns_controls_shutdown(cp);
+	controls_shutdown(cp);
 
 	/*
 	 * Put all of the valid listeners on the listeners list.
@@ -1219,6 +1230,7 @@ ns_controls_create(ns_server_t *server, ns_controls_t **ctrlsp) {
 		return (ISC_R_NOMEMORY);
 	controls->server = server;
 	ISC_LIST_INIT(controls->listeners);
+	controls->shuttingdown = ISC_FALSE;
 	*ctrlsp = controls;
 	return (ISC_R_SUCCESS);
 }

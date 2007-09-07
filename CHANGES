@@ -1,4 +1,32 @@
 
+	--- 9.2.0rc4 released ---
+
+1013.	[bug]		It was possible to cancel a query twice when marking
+			a server as bogus or by having a blackhole acl.
+			[RT #1776]
+
+1010.	[bug]		The server could attempt to execute a command channel
+			command after initiating server shutdown, causing
+			an assertion failure. [RT #1766]
+
+1006.	[bug]		If a KEY RR was found missing during DNSSEC validation,
+			an assertion failure could subsequently be triggered
+			in the resolver. [RT #1763]
+
+1005.	[bug]		Don't copy nonzero RCODEs from request to response.
+			[RT #1765]
+
+1004.	[port]		Deal with recvfrom() returning EHOSTDOWN. [RT #1770]
+
+1002.	[bug]		Log unknown class including file and line. [RT #1759]
+
+1001.	[bug]		win32 socket code doio_recv was not catching a
+			WSACONNRESET error when a client was timing out
+			the request and closing its socket. [RT #1745]
+
+1000.	[bug]		BIND 8 compatibility: accept "HESIOD" as an alias
+			for class "HS". [RT #1759]
+
 	--- 9.2.0rc3 released ---
 
  990.	[bug]		The rndc-confgen man page was not installed.

@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: logconf.c,v 1.30 2001/05/28 05:16:57 marka Exp $ */
+/* $Id: logconf.c,v 1.30.2.2 2001/09/28 18:35:02 bwelling Exp $ */
 
 #include <config.h>
 
@@ -134,7 +134,7 @@ channel_fromconf(cfg_obj_t *channel, isc_logconfig_t *lctx) {
 		cfg_obj_t *sizeobj = cfg_tuple_get(fileobj, "size");
 		cfg_obj_t *versionsobj = cfg_tuple_get(fileobj, "versions");
 		isc_int32_t versions = ISC_LOG_ROLLNEVER;
-		isc_offset_t size = ISC_OFFSET_MAXIMUM;
+		isc_offset_t size = 0;
 
 		type = ISC_LOG_TOFILE;
 		
@@ -267,12 +267,12 @@ ns_log_configure(isc_logconfig_t *logconf, cfg_obj_t *logstmt) {
 		CHECK(category_fromconf(category, logconf));
 		if (!default_set) {
 			cfg_obj_t *catname = cfg_tuple_get(category, "name");
-			if (strcmp(cfg_obj_asstring(catname), "default"))
+			if (strcmp(cfg_obj_asstring(catname), "default") == 0)
 				default_set = ISC_TRUE;
 		}
 		if (!unmatched_set) {
 			cfg_obj_t *catname = cfg_tuple_get(category, "name");
-			if (strcmp(cfg_obj_asstring(catname), "unmatched"))
+			if (strcmp(cfg_obj_asstring(catname), "unmatched") == 0)
 				unmatched_set = ISC_TRUE;
 		}
 	}

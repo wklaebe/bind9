@@ -1,4 +1,30 @@
 
+	--- 9.2.0rc5 released ---
+
+1021.	[bug]		On Win32, log message timestamps were one month
+			later than they should have been, and the server
+			would exhibit unspecified behavior in December.
+
+1020.	[bug]		IXFR log messages did not distinguish between
+			true IXFRs, AXFR-style IXFRs, and mere version
+			polls. [RT #1811]
+
+1019.	[bug]		The value of the lame-ttl option was limited to 18000
+			seconds, not 1800 seconds as documented. [RT #1803]
+
+1018.	[bug]		The default log channel was not always initialized
+			correctly. [RT #1813]
+
+1017.	[bug]		When specifying TSIG keys to dig and nsupdate using
+			the -k option, they must be HMAC-MD5 keys.  [RT #1810]
+
+1016.	[bug]		Slave zones with no backup file were re-transferred
+			on every server reload.
+
+1015.	[bug]		Log channels that had a "versions" option but no
+			"size" option failed to create numbered log
+			files. [RT #1783]
+ 
 	--- 9.2.0rc4 released ---
 
 1013.	[bug]		It was possible to cancel a query twice when marking
@@ -18,7 +44,8 @@
 
 1004.	[port]		Deal with recvfrom() returning EHOSTDOWN. [RT #1770]
 
-1002.	[bug]		Log unknown class including file and line. [RT #1759]
+1002.	[bug]		When reporting an unknown class name in named.conf,
+			including the file name and line number. [RT #1759]
 
 1001.	[bug]		win32 socket code doio_recv was not catching a
 			WSACONNRESET error when a client was timing out
@@ -1448,7 +1475,7 @@
 			reload.	 [RT #410]
 	
  528.	[func]		The ISC_LIST_XXXX macros now perform sanity checks
-			on their arguements.  ISC_LIST_XXXXUNSAFE can be use
+			on their arguments.  ISC_LIST_XXXXUNSAFE can be use
 			to skip the checks however use with caution.
 
  527.	[func]		New function dns_rdata_clone().
@@ -2459,7 +2486,7 @@
  242.	[cleanup]	fixed incorrect warning about auth-nxdomain usage.
 
  241.	[cleanup]	nscount and soacount have been removed from the
-			dns_master_*() arguement lists.
+			dns_master_*() argument lists.
 
  240.	[func]		databases now come in three flavours: zone, cache
 			and stub.
@@ -2675,10 +2702,10 @@
  188.	[func]		Log a warning message when an incoming zone transfer
 			contains out-of-zone data.
 
- 187.	[func]		isc_ratelimter_enqueue() has an additional arguement
+ 187.	[func]		isc_ratelimter_enqueue() has an additional argument
 			'task'.
 
- 186.	[func]		dns_request_getresponse() has an additional arguement
+ 186.	[func]		dns_request_getresponse() has an additional argument
 			'preserve_order'.
 
  185.	[bug]		Fixed up handling of ISC_MEMCLUSTER_LEGACY.  Several

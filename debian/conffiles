@@ -1,0 +1,11 @@
+/etc/init.d/bind9
+/etc/bind/named.conf
+/etc/bind/named.conf.local
+/etc/bind/named.conf.options
+/etc/bind/db.0
+/etc/bind/db.127
+/etc/bind/db.255
+/etc/bind/db.local
+/etc/bind/db.root
+/etc/bind/db.empty
+/etc/bind/zones.rfc1918

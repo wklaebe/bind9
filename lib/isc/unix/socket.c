@@ -1344,7 +1344,7 @@ isc_socket_create(isc_socketmgr_t *manager, int pf, isc_sockettype_t type,
 {
 	isc_socket_t *sock = NULL;
 	isc_result_t ret;
-#if defined(USE_CMSG) || defined(SO_BSDCOMPAT)
+#if defined(USE_CMSG) || (defined(SO_BSDCOMPAT) && 0)
 	int on = 1;
 #endif
 	char strbuf[ISC_STRERRORSIZE];
@@ -1429,7 +1429,7 @@ isc_socket_create(isc_socketmgr_t *manager, int pf, isc_sockettype_t type,
 		return (ISC_R_UNEXPECTED);
 	}
 
-#ifdef SO_BSDCOMPAT
+#if defined(SO_BSDCOMPAT) && 0
 	if (setsockopt(sock->fd, SOL_SOCKET, SO_BSDCOMPAT,
 		       (void *)&on, sizeof(on)) < 0) {
 		isc__strerror(errno, strbuf, sizeof(strbuf));

@@ -2,7 +2,7 @@
  * Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
- * Permission to use, copy, modify, and distribute this software for any
+ * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: server.c,v 1.485 2007/05/15 02:38:34 marka Exp $ */
+/* $Id: server.c,v 1.489 2007/07/09 02:12:42 marka Exp $ */
 
 /*! \file */
 
@@ -1543,20 +1543,19 @@ configure_view(dns_view_t *view, const cfg_obj_t *config,
 		view->additionalfromcache = ISC_TRUE;
 	}
 
+	/*
+	 * Set "allow-query-cache", "allow-query-cache-on",
+	 * "allow-recursion", and "allow-recursion-on" acls if
+	 * configured in named.conf.
+	 */
 	CHECK(configure_view_acl(vconfig, config, "allow-query-cache",
 				 actx, ns_g_mctx, &view->queryacl));
-	if (view->queryacl == NULL)
-		CHECK(configure_view_acl(NULL, ns_g_defaults,
-					 "allow-query-cache", actx,
-					 ns_g_mctx, &view->queryacl));
-
 	CHECK(configure_view_acl(vconfig, config, "allow-query-cache-on",
 				 actx, ns_g_mctx, &view->queryonacl));
 	if (view->queryonacl == NULL)
-		CHECK(configure_view_acl(NULL, ns_g_defaults,
+		CHECK(configure_view_acl(NULL, ns_g_config,
 					 "allow-query-cache-on", actx,
 					 ns_g_mctx, &view->queryonacl));
-
 	if (strcmp(view->name, "_bind") != 0) {
 		CHECK(configure_view_acl(vconfig, config, "allow-recursion",
 					 actx, ns_g_mctx,
@@ -1567,19 +1566,37 @@ configure_view(dns_view_t *view, const cfg_obj_t *config,
 	}
 
 	/*
-	 * Set default "allow-recursion" and "allow-recursion-on" acls.
+	 * "allow-query-cache" inherits from "allow-recursion" if set,
+	 * otherwise from "allow-query" if set.
+	 * "allow-recursion" inherits from "allow-query-cache" if set,
+	 * otherwise from "allow-query" if set.
+	 */
+	if (view->queryacl == NULL && view->recursionacl != NULL)
+		dns_acl_attach(view->recursionacl, &view->queryacl);
+	if (view->queryacl == NULL)
+		CHECK(configure_view_acl(vconfig, config, "allow-query",
+					 actx, ns_g_mctx, &view->queryacl));
+	if (view->recursionacl == NULL && view->queryacl != NULL)
+		dns_acl_attach(view->queryacl, &view->recursionacl);
+
+	/*
+	 * Set default "allow-recursion", "allow-recursion-on" and
+	 * "allow-query-cache" acls.
 	 */
 	if (view->recursionacl == NULL && view->recursion)
-		CHECK(configure_view_acl(NULL, ns_g_defaults,
+		CHECK(configure_view_acl(NULL, ns_g_config,
 					 "allow-recursion",
 					 actx, ns_g_mctx,
 					 &view->recursionacl));
-
 	if (view->recursiononacl == NULL && view->recursion)
-		CHECK(configure_view_acl(NULL, ns_g_defaults,
+		CHECK(configure_view_acl(NULL, ns_g_config,
 					 "allow-recursion-on",
 					 actx, ns_g_mctx,
 					 &view->recursiononacl));
+	if (view->queryacl == NULL)
+		CHECK(configure_view_acl(NULL, ns_g_config,
+					 "allow-query-cache", actx,
+					 ns_g_mctx, &view->queryacl));
 
 	CHECK(configure_view_acl(vconfig, config, "sortlist",
 				 actx, ns_g_mctx, &view->sortlist));
@@ -4960,7 +4977,7 @@ ns_server_flushname(ns_server_t *server, char *args) {
 				      NS_LOGMODULE_SERVER, ISC_LOG_ERROR,
 				      "flushing name '%s' in cache view '%s' "
 				      "failed: view not found", target,
-				      view->name);
+				      viewname);
 		result = ISC_R_FAILURE;
 	}
 	isc_task_endexclusive(server->task);	

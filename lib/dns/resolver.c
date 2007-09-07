@@ -2,7 +2,7 @@
  * Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
- * Permission to use, copy, modify, and distribute this software for any
+ * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: resolver.c,v 1.347 2007/05/21 02:03:22 marka Exp $ */
+/* $Id: resolver.c,v 1.349 2007/06/18 23:47:41 tbox Exp $ */
 
 /*! \file */
 
@@ -823,6 +823,15 @@ fctx_sendevents(fetchctx_t *fctx, isc_result_t result) {
 		       fctx->type == dns_rdatatype_any ||
 		       fctx->type == dns_rdatatype_rrsig ||
 		       fctx->type == dns_rdatatype_sig);
+		
+		/*
+		 * Negative results must be indicated in event->result.
+		 */
+		if (dns_rdataset_isassociated(event->rdataset) &&
+		    event->rdataset->type == dns_rdatatype_none) {
+			INSIST(event->result == DNS_R_NCACHENXDOMAIN ||
+			       event->result == DNS_R_NCACHENXRRSET);
+		}
 
 		isc_task_sendanddetach(&task, ISC_EVENT_PTR(&event));
 		count++;

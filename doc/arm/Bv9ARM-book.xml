@@ -5,7 +5,7 @@
  - Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
  - Copyright (C) 2000-2003  Internet Software Consortium.
  -
- - Permission to use, copy, modify, and distribute this software for any
+ - Permission to use, copy, modify, and/or distribute this software for any
  - purpose with or without fee is hereby granted, provided that the above
  - copyright notice and this permission notice appear in all copies.
  -
@@ -18,7 +18,7 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<!-- File: $Id: Bv9ARM-book.xml,v 1.325 2007/05/21 02:03:22 marka Exp $ -->
+<!-- File: $Id: Bv9ARM-book.xml,v 1.331 2007/07/09 02:14:39 marka Exp $ -->
 <book xmlns:xi="http://www.w3.org/2001/XInclude">
   <title>BIND 9 Administrator Reference Manual</title>
 
@@ -600,7 +600,7 @@
         traffic.
         Additionally, if additional section caching
         (<xref linkend="acache"/>) is enabled,
-        the <command>max-acache-size</command> can be used to
+        the <command>max-acache-size</command> option can be used to
         limit the amount
         of memory used by the mechanism.
         It is still good practice to have enough memory to load
@@ -741,8 +741,8 @@ zone "eng.example.com" {
 
       <para>
         A primitive form of load balancing can be achieved in
-        the <acronym>DNS</acronym> by using multiple A records for
-        one name.
+        the <acronym>DNS</acronym> by using multiple records
+	(such as multiple A records) for one name.
       </para>
 
       <para>
@@ -2427,7 +2427,7 @@ allow-update { key host1-host2. ;};
 	<para>
 	  To enable <command>named</command> to validate answers from
 	  other servers both <command>dnssec-enable</command> and
-	  <command>dnssec-validate</command> must be set and some
+	  <command>dnssec-validation</command> must be set and some
 	  <command>trusted-keys</command> must be configured
 	  into <filename>named.conf</filename>.
         </para>
@@ -4283,26 +4283,27 @@ category notify { null; };
 		      DNS due to timeouts.  This is often due to
 		      the remote servers not being RFC 1034 compliant
 		      (not always returning FORMERR or similar to
-		      EDNS queries and other extension to the DNS
-		      when they are not understood).  i.e. this is
+		      EDNS queries and other extensions to the DNS
+		      when they are not understood).  In other words, this is
 		      targeted at servers that fail to respond to
 		      DNS queries that they don't understand.
 		    </para>
 		    <para>
-		      Note: the log message can be also due to
+		      Note: the log message can also be due to
 		      packet loss.  Before reporting servers for
-		      non RFC 1034 compliance they should be re-tested
-		      to determine the nature of of the non-compliance.
-		      This testing should prevent / reduce the
-		      number of false positive reports.
+		      non-RFC 1034 compliance they should be re-tested
+		      to determine the nature of the non-compliance.
+		      This testing should prevent or reduce the
+		      number of false-positive reports.
 		    </para>
 		    <para>
 		      Note: eventually named will have to stop
 		      treating such timeouts as due to RFC 1034 non
 		      compliance and start treating it as plain
-		      packet loss as falsely classifying packet
+		      packet loss.  Falsely classifying packet
 		      loss as due to RFC 1034 non compliance impacts
-		      on DNSSEC validation.
+		      on DNSSEC validation which requires EDNS for
+		      the DNSSEC records to be returned.
 		    </para>
 		  </entry>
 		</row>
@@ -4424,6 +4425,7 @@ category notify { null; };
     <optional> dump-file <replaceable>path_name</replaceable>; </optional>
     <optional> memstatistics-file <replaceable>path_name</replaceable>; </optional>
     <optional> pid-file <replaceable>path_name</replaceable>; </optional>
+    <optional> recursing-file <replaceable>path_name</replaceable>; </optional>
     <optional> statistics-file <replaceable>path_name</replaceable>; </optional>
     <optional> zone-statistics <replaceable>yes_or_no</replaceable>; </optional>
     <optional> auth-nxdomain <replaceable>yes_or_no</replaceable>; </optional>
@@ -4734,6 +4736,18 @@ category notify { null; };
                 is a keyword, not a filename, and therefore is not enclosed
                 in
                 double quotes.
+              </para>
+            </listitem>
+          </varlistentry>
+
+          <varlistentry>
+            <term><command>recursing-file</command></term>
+            <listitem>
+              <para>
+                The pathname of the file the server dumps
+                the queries that are currently recursing when instructed
+                to do so with <command>rndc recursing</command>.
+                If not specified, the default is <filename>named.recursing</filename>.
               </para>
             </listitem>
           </varlistentry>
@@ -5942,17 +5956,12 @@ options {
 	      <listitem>
 		<para>
 		  Specifies which hosts are allowed to get answers
-		  from the cache. The default is the builtin acls
-		  <command>localnets</command> and
-		  <command>localhost</command>.
-
-		  <!-- The way to set query access to the cache is now via allow-query-cache. This differs from earlier versions which used allow-query. -->
-		</para>
-		<para>
-		  The way to set query access to the cache is now via
-		  <command>allow-query-cache</command>.
-		  This differs from earlier versions which used 
-		  <command>allow-query</command>.
+		  from the cache.  If <command>allow-query-cache</command>
+		  is not set then <command>allow-recursion</command>
+		  is used if set, otherwise <command>allow-query</command>
+		  is used if set, otherwise the default
+		  (<command>localnets;</command>
+		  <command>localhost;</command>) is used.
 		</para>
 	      </listitem>
 	    </varlistentry>
@@ -5973,16 +5982,16 @@ options {
             <varlistentry>
               <term><command>allow-recursion</command></term>
               <listitem>
-                <para>
+		<para>
 		  Specifies which hosts are allowed to make recursive
-		  queries through this server. If not specified,
-		  the default is to allow recursive queries from
-		  the builtin acls <command>localnets</command> and
-		  <command>localhost</command>.
-		  Note that disallowing recursive queries for a
-		  host does not prevent the host from retrieving
-		  data that is already in the server's cache.
-                </para>
+		  queries through this server. If
+		  <command>allow-recursion</command> is not set
+		  then <command>allow-query-cache</command> is
+		  used if set, otherwise <command>allow-query</command>
+		  is used if set, otherwise the default
+		  (<command>localnets;</command>
+		  <command>localhost;</command>) is used.
+		</para>
               </listitem>
             </varlistentry>
 
@@ -7667,6 +7676,32 @@ query-source-v6 address * port *;
                     </para>
                   </entry>
                 </row>
+                <row rowsep="0">
+                  <entry colname="1">
+                    <para><command>duplicate</command></para>
+                  </entry>
+                  <entry colname="2">
+                    <para>
+                      The number of queries which the server attempted to
+		      recurse but discover a existing query with the same
+		      IP address, port, query id, name, type and class
+		      already being processed.
+                    </para>
+                  </entry>
+                </row>
+                <row rowsep="0">
+                  <entry colname="1">
+                    <para><command>dropped</command></para>
+                  </entry>
+                  <entry colname="2">
+                    <para>
+		      The number of queries for which the server
+		      discovered a excessive number of existing
+		      recursive queries for the same name, type and
+		      class and were subsequently dropped.
+		    </para>
+		  </entry>
+		</row>
               </tbody>
             </tgroup>
           </informaltable>

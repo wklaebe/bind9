@@ -2,7 +2,7 @@
  * Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
- * Permission to use, copy, modify, and distribute this software for any
+ * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rbtdb.c,v 1.244 2007/03/14 05:57:10 marka Exp $ */
+/* $Id: rbtdb.c,v 1.246 2007/06/19 06:19:29 marka Exp $ */
 
 /*! \file */
 
@@ -3323,7 +3323,8 @@ find_coveringnsec(rbtdb_search_t *search, dns_dbnode_t **nodep,
 					header_prev = header;
 				continue;
 			}
-			if (NONEXISTENT(header) || NXDOMAIN(header)) {
+			if (NONEXISTENT(header) ||
+			    RBTDB_RDATATYPE_BASE(header->type) == 0) {
 				header_prev = header;
 				continue;
 			}
@@ -3349,7 +3350,7 @@ find_coveringnsec(rbtdb_search_t *search, dns_dbnode_t **nodep,
 			result = DNS_R_COVERINGNSEC;
 		} else if (!empty_node) {
 			result = ISC_R_NOTFOUND;
-		}else
+		} else
 			result = dns_rbtnodechain_prev(&search->chain, NULL,
 						       NULL);
  unlock_node:

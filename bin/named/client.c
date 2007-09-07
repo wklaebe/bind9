@@ -2,7 +2,7 @@
  * Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
- * Permission to use, copy, modify, and distribute this software for any
+ * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: client.c,v 1.246 2007/05/15 21:54:08 marka Exp $ */
+/* $Id: client.c,v 1.248 2007/06/26 02:52:15 marka Exp $ */
 
 #include <config.h>
 
@@ -1438,6 +1438,14 @@ client_request(isc_task_t *task, isc_event_t *event) {
 			goto cleanup;
 		}
 	}
+
+	/*
+	 * Hash the incoming request here as it is after
+	 * dns_dispatch_importrecv().
+	 */
+	dns_dispatch_hash(&client->now, sizeof(client->now));
+	dns_dispatch_hash(isc_buffer_base(buffer),
+			  isc_buffer_usedlength(buffer));
 
 	/*
 	 * It's a request.  Parse it.

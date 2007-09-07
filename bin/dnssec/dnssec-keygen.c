@@ -1,6 +1,19 @@
 /*
  * Portions Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
  * Portions Copyright (C) 1999-2003  Internet Software Consortium.
+ *
+ * Permission to use, copy, modify, and/or distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND ISC AND NETWORK ASSOCIATES DISCLAIMS
+ * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS.  IN NO EVENT SHALL ISC BE LIABLE
+ * FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR
+ * IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ *
  * Portions Copyright (C) 1995-2000 by Network Associates, Inc.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -16,7 +29,7 @@
  * IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dnssec-keygen.c,v 1.76 2007/05/21 02:47:25 marka Exp $ */
+/* $Id: dnssec-keygen.c,v 1.78 2007/06/18 23:47:17 tbox Exp $ */
 
 /*! \file */
 
@@ -61,7 +74,7 @@ dsa_size_ok(int size) {
 static void
 usage(void) {
 	fprintf(stderr, "Usage:\n");
-	fprintf(stderr, "    %s -a alg -b bits -n type [options] name\n\n",
+	fprintf(stderr, "    %s -a alg -b bits [-n type] [options] name\n\n",
 		program);
 	fprintf(stderr, "Version: %s\n", VERSION);
 	fprintf(stderr, "Required options:\n");
@@ -78,6 +91,7 @@ usage(void) {
 	fprintf(stderr, "        HMAC-SHA384:\t[1..384]\n");
 	fprintf(stderr, "        HMAC-SHA512:\t[1..512]\n");
 	fprintf(stderr, "    -n nametype: ZONE | HOST | ENTITY | USER | OTHER\n");
+	fprintf(stderr, "        (DNSKEY generation defaults to ZONE\n");
 	fprintf(stderr, "    name: owner of the key\n");
 	fprintf(stderr, "Other options:\n");
 	fprintf(stderr, "    -c <class> (default: IN)\n");
@@ -363,11 +377,13 @@ main(int argc, char **argv) {
 	if (alg != DNS_KEYALG_DH && generator != 0)
 		fatal("specified DH generator for a non-DH key");
 
-	if (nametype == NULL)
-		fatal("no nametype specified");
-	if (strcasecmp(nametype, "zone") == 0)
+	if (nametype == NULL) {
+		if ((options & DST_TYPE_KEY) != 0) /* KEY / HMAC */
+			fatal("no nametype specified");
+		flags |= DNS_KEYOWNER_ZONE;	/* DNSKEY */
+	} else if (strcasecmp(nametype, "zone") == 0)
 		flags |= DNS_KEYOWNER_ZONE;
-	else if ((options & DST_TYPE_KEY) != 0)	{ /* KEY */
+	else if ((options & DST_TYPE_KEY) != 0)	{ /* KEY / HMAC */
 		if (strcasecmp(nametype, "host") == 0 ||
 			 strcasecmp(nametype, "entity") == 0)
 			flags |= DNS_KEYOWNER_ENTITY;
@@ -380,7 +396,7 @@ main(int argc, char **argv) {
 
 	rdclass = strtoclass(classname);
 
-	if ((options & DST_TYPE_KEY) != 0)  /* KEY */
+	if ((options & DST_TYPE_KEY) != 0)  /* KEY / HMAC */
 		flags |= signatory;
 	else if ((flags & DNS_KEYOWNER_ZONE) != 0) /* DNSKEY */
 		flags |= ksk;

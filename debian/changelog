@@ -1,3 +1,11 @@
+bind9 (1:9.3.1-2) unstable; urgency=low
+
+  * Getting good reports from experimental, uploading to sid.
+    Release team, please consider this package for sarge.  Thanks.
+  * correct pidfile name in init.d/lwresd.  Closes: #298100
+
+ -- LaMont Jones <lamont@debian.org>  Sat, 19 Mar 2005 17:46:31 -0700
+
 bind9 (1:9.3.1-1) experimental; urgency=low
 
   * Build with gcc-3.4 on powerpc, to work around #292958.

@@ -28,7 +28,7 @@ case "$1" in
     stop)
 	echo -n "Stopping domain name service: $NAME"
 	start-stop-daemon --stop --quiet  \
-	    --pidfile /var/run/$NAME.pid --exec $DAEMON
+	    --pidfile /var/run/bind/run/$NAME.pid --exec $DAEMON
 	echo "."	
     ;;
 

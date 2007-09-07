@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: server.c,v 1.334 2001/07/16 18:33:30 gson Exp $ */
+/* $Id: server.c,v 1.336 2001/07/26 20:42:40 bwelling Exp $ */
 
 #include <config.h>
 
@@ -728,10 +728,22 @@ configure_view(dns_view_t *view, cfg_obj_t *config, cfg_obj_t *vconfig,
 	dns_aclenv_copy(&view->aclenv, &ns_g_server->aclenv);
 
 	/*
-	 * Configure the "match-clients" ACL.
+	 * Configure the "match-clients" and "match-destinations" ACL.
 	 */
 	CHECK(configure_view_acl(vconfig, config, "match-clients", actx,
 				 ns_g_mctx, &view->matchclients));
+	CHECK(configure_view_acl(vconfig, config, "match-destinations", actx,
+				 ns_g_mctx, &view->matchdestinations));
+
+	/*
+	 * Configure the "match-recursive-only" option.
+	 */
+	obj = NULL;
+	(void) ns_config_get(maps, "match-recursive-only", &obj);
+	if (obj != NULL && cfg_obj_asboolean(obj))
+		view->matchrecursiveonly = ISC_TRUE;
+	else
+		view->matchrecursiveonly = ISC_FALSE;
 
 	/*
 	 * Configure other configurable data.
@@ -1270,8 +1282,15 @@ configure_zone(cfg_obj_t *config, cfg_obj_t *zconfig, cfg_obj_t *vconfig,
 			goto cleanup;
 		}
 		if (dns_name_equal(origin, dns_rootname)) {
-			result = configure_hints(view,
-						 cfg_obj_asstring(fileobj));
+			char *hintsfile = cfg_obj_asstring(fileobj);
+			result = configure_hints(view, hintsfile);
+			if (result != ISC_R_SUCCESS)
+				isc_log_write(ns_g_lctx, NS_LOGCATEGORY_GENERAL,
+					      NS_LOGMODULE_SERVER,
+					      ISC_LOG_ERROR,
+					      "could not configure root hints "
+					      "from '%s': %s", hintsfile,
+					      isc_result_totext(result));
 		} else {
 			isc_log_write(ns_g_lctx, NS_LOGCATEGORY_GENERAL,
 				      NS_LOGMODULE_SERVER, ISC_LOG_WARNING,
@@ -1279,6 +1298,7 @@ configure_zone(cfg_obj_t *config, cfg_obj_t *zconfig, cfg_obj_t *vconfig,
 				      zname);
 			result = ISC_R_SUCCESS;
 		}
+		/* Skip ordinary zone processing. */
 		goto cleanup;
 	}
 

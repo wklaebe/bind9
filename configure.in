@@ -18,7 +18,7 @@ AC_DIVERT_PUSH(AC_DIVERSION_NOTICE)dnl
 esyscmd([sed "s/^/# /" COPYRIGHT])dnl
 AC_DIVERT_POP()dnl
 
-AC_REVISION($Revision: 1.282 $)
+AC_REVISION($Revision: 1.285 $)
 
 AC_INIT(lib/dns/name.c)
 AC_PREREQ(2.13)
@@ -1410,6 +1410,8 @@ AC_SUBST(ISC_PLATFORM_RLIMITTYPE)
 #
 AC_SUBST(ISC_PLATFORM_USEDECLSPEC)
 ISC_PLATFORM_USEDECLSPEC="#undef ISC_PLATFORM_USEDECLSPEC"
+AC_SUBST(LWRES_PLATFORM_USEDECLSPEC)
+LWRES_PLATFORM_USEDECLSPEC="#undef LWRES_PLATFORM_USEDECLSPEC"
 
 #
 # Random remaining OS-specific issues involving compiler warnings.
@@ -1426,7 +1428,7 @@ case "$host" in
 		hack_shutup_sigwait=yes
 		hack_shutup_sputaux=yes
 		;;
-	*-bsdi4.1*)
+	[*-bsdi4[12]*])
 		hack_shutup_stdargcast=yes
 		;;
 	*-solaris2.8)
@@ -1692,6 +1694,7 @@ AC_OUTPUT(
 	doc/arm/nominum-docbook-html.dsl
 	doc/arm/nominum-docbook-print.dsl
 	doc/arm/validate.sh
+	doc/misc/Makefile
 	docutil/docbook2man-wrapper.sh
 	isc-config.sh
 )

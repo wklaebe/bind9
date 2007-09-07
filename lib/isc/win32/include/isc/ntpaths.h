@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: ntpaths.h,v 1.3 2001/07/09 21:34:44 gson Exp $ */
+/* $Id: ntpaths.h,v 1.10 2001/07/28 02:50:39 mayer Exp $ */
 
 /*
  * Windows-specific path definitions
@@ -26,6 +26,8 @@
 #ifndef ISC_NTPATHS_H
 #define ISC_NTPATHS_H
 
+#include <isc/lang.h>
+
 /*
  * Index of paths needed
  */
@@ -35,13 +37,33 @@ enum NtPaths {
 	RESOLV_CONF_PATH,
 	RNDC_CONF_PATH,
 	NAMED_PID_PATH,
-	LWRESD_PID_PATH
+	LWRESD_PID_PATH,
+	NAMED_KEY_PATH,
+	LOCAL_STATE_DIR,
+	SYS_CONF_DIR
 };
+
+/*
+ * Define macros to get the path of the config files
+ */
+#define NAMED_CONFFILE isc_ntpaths_get(NAMED_CONF_PATH)
+#define RNDC_CONFFILE isc_ntpaths_get(RNDC_CONF_PATH)
+#define RNDC_AUTOCONFFILE isc_ntpaths_get(NAMED_KEY_PATH)
+
+/*
+ * Information about where the files are on disk
+ */
+#define NS_LOCALSTATEDIR	"/dns/bin"
+#define NS_SYSCONFDIR		"/dns/etc"
+
+ISC_LANG_BEGINDECLS
 
 void
 isc_ntpaths_init(void);
 
 char *
 isc_ntpaths_get(int);
+
+ISC_LANG_ENDDECLS
 
 #endif /* ISC_NTPATHS_H */

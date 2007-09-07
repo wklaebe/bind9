@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: resolver.c,v 1.284.18.48 2006/07/22 01:20:53 marka Exp $ */
+/* $Id: resolver.c,v 1.284.18.51 2006/08/31 03:57:05 marka Exp $ */
 
 /*! \file */
 
@@ -779,7 +779,8 @@ fctx_sendevents(fetchctx_t *fctx, isc_result_t result) {
 		INSIST(result != ISC_R_SUCCESS ||
 		       dns_rdataset_isassociated(event->rdataset) ||
 		       fctx->type == dns_rdatatype_any ||
-		       fctx->type == dns_rdatatype_rrsig);
+		       fctx->type == dns_rdatatype_rrsig ||
+		       fctx->type == dns_rdatatype_sig);
 
 		isc_task_sendanddetach(&task, ISC_EVENT_PTR(&event));
 		count++;
@@ -3387,7 +3388,8 @@ validated(isc_task_t *task, isc_event_t *event) {
 	if (hevent != NULL) {
 		if (!negative && !chaining &&
 		    (fctx->type == dns_rdatatype_any ||
-		     fctx->type == dns_rdatatype_rrsig)) {
+		     fctx->type == dns_rdatatype_rrsig ||
+		     fctx->type == dns_rdatatype_sig)) {
 			/*
 			 * Don't bind rdatasets; the caller
 			 * will iterate the node.
@@ -3508,7 +3510,8 @@ validated(isc_task_t *task, isc_event_t *event) {
 	if (!ISC_LIST_EMPTY(fctx->validators)) {
 		INSIST(!negative);
 		INSIST(fctx->type == dns_rdatatype_any ||
-		       fctx->type == dns_rdatatype_rrsig);
+		       fctx->type == dns_rdatatype_rrsig ||
+		       fctx->type == dns_rdatatype_sig);
 		/*
 		 * Don't send a response yet - we have
 		 * more rdatasets that still need to
@@ -3662,14 +3665,15 @@ cache_name(fetchctx_t *fctx, dns_name_t *name, dns_adbaddrinfo_t *addrinfo,
 				return (result);
 			anodep = &event->node;
 			/*
-			 * If this is an ANY or SIG query, we're not going
-			 * to return any rdatasets, unless we encountered
+			 * If this is an ANY, SIG or RRSIG query, we're not
+			 * going to return any rdatasets, unless we encountered
 			 * a CNAME or DNAME as "the answer".  In this case,
 			 * we're going to return DNS_R_CNAME or DNS_R_DNAME
 			 * and we must set up the rdatasets.
 			 */
 			if ((fctx->type != dns_rdatatype_any &&
-			    fctx->type != dns_rdatatype_rrsig) ||
+			     fctx->type != dns_rdatatype_rrsig &&
+			     fctx->type != dns_rdatatype_sig) ||
 			    (name->attributes & DNS_NAMEATTR_CHAINING) != 0) {
 				ardataset = event->rdataset;
 				asigrdataset = event->sigrdataset;
@@ -3728,7 +3732,7 @@ cache_name(fetchctx_t *fctx, dns_name_t *name, dns_adbaddrinfo_t *addrinfo,
 		 */
 		if (secure_domain && rdataset->trust != dns_trust_glue) {
 			/*
-			 * SIGs are validated as part of validating the
+			 * RRSIGs are validated as part of validating the
 			 * type they cover.
 			 */
 			if (rdataset->type == dns_rdatatype_rrsig)
@@ -3798,7 +3802,8 @@ cache_name(fetchctx_t *fctx, dns_name_t *name, dns_adbaddrinfo_t *addrinfo,
 
 			if (ANSWER(rdataset) && need_validation) {
 				if (fctx->type != dns_rdatatype_any &&
-				    fctx->type != dns_rdatatype_rrsig) {
+				    fctx->type != dns_rdatatype_rrsig &&
+				    fctx->type != dns_rdatatype_sig) {
 					/*
 					 * This is The Answer.  We will
 					 * validate it, but first we cache
@@ -5593,7 +5598,7 @@ resquery_response(isc_task_t *task, isc_event_t *event) {
 	    is_lame(fctx)) {
 		log_lame(fctx, query->addrinfo);
 		result = dns_adb_marklame(fctx->adb, query->addrinfo,
-					  &fctx->domain, fctx->type,
+					  &fctx->name, fctx->type,
 					  now + fctx->res->lame_ttl);
 		if (result != ISC_R_SUCCESS)
 			isc_log_write(dns_lctx, DNS_LOGCATEGORY_RESOLVER,
@@ -6007,6 +6012,8 @@ spillattimer_countdown(isc_task_t *task, isc_event_t *event) {
 		isc_log_write(dns_lctx, DNS_LOGCATEGORY_RESOLVER,
 			      DNS_LOGMODULE_RESOLVER, ISC_LOG_NOTICE,
 			      "clients-per-query decreased to %u", count);
+
+	isc_event_free(&event);
 }
 
 isc_result_t

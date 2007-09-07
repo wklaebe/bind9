@@ -1,4 +1,69 @@
 
+	--- 9.4.0b2 released ---
+
+2081.	[port]		libbind: minor 64-bit portability fix in memcluster.c.
+			[RT #16360]
+
+2080.	[port]		libbind: res_init.c did not compile on older versions
+			of Solaris. [RT #16363]
+
+2079.	[bug]		The lame cache was not handling multiple types
+			correctly. [RT #16361]
+
+2078.	[bug]		dnssec-checkzone output style "default" was badly
+			named.  It is now called "relative". [RT #16326]
+
+2077.	[bug]		'dnssec-signzone -O raw' wasn't outputing the
+			complete signed zone. [RT #16326]
+
+2076.	[bug]		Several files were missing #include <config.h>
+			causing build failures on OSF. [RT #16341]
+
+2075.	[bug]		The spillat timer event hander could leak memory.
+			[RT #16357]
+
+2074.	[bug]		dns_request_createvia2(), dns_request_createvia3(),
+			dns_request_createraw2() and dns_request_createraw3()
+			failed to send multiple UDP requests. [RT #16349]
+
+2073.	[bug]		Incorrect semantics check for update policy "wildcard".
+			[RT #16353]
+
+2072.	[bug]		We were not generating valid HMAC SHA digests.
+			[RT #16320]
+
+2071.	[port]		Test whether gcc accepts -fno-strict-aliasing.
+			[RT #16324]
+
+2070.	[bug]		The remote address was not always displayed when
+			reporting dispatch failures. [RT #16315]
+
+2069.	[bug]		Cross compiling was not working. [RT #16330]
+
+2068.	[cleanup]	Lower incremental tuning message to debug 1.
+			[RT #16319]
+
+2067.	[bug]		'rndc' could close the socket too early triggering
+			a INSIST under Windows. [RT #16317]
+
+2066.	[security]	Handle SIG queries gracefully. [RT #16300]
+
+2065.	[bug]		libbind: probe for HPUX prototypes for
+			endprotoent_r() and endservent_r().  [RT 16313]
+
+2064.	[bug]		libbind: silence AIX compiler warnings. [RT #16218]
+
+2063.	[bug]		Change #1955 introduced a bug which caused the first
+			'rndc flush' call to not free memory. [RT #16244]
+
+2062.	[bug]		'dig +nssearch' was reusing a buffer before it had
+			been returned by the socket code. [RT #16307]
+
+2061.	[bug]		Accept expired wildcard message reversed. [RT #16296]
+
+2060.	[bug]		Enabling DLZ support could leave views partially
+			configured. [RT #16295]
+
 	--- 9.4.0b1 released ---
 
 2059.	[bug]		Search into cache rbtdb could trigger an INSIST

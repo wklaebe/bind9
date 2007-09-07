@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,9 +15,11 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: portlist.c,v 1.6.18.3 2005/07/12 01:22:21 marka Exp $ */
+/* $Id: portlist.c,v 1.6.18.5 2006/08/25 05:25:51 marka Exp $ */
 
 /*! \file */
+
+#include <config.h>
 
 #include <stdlib.h>
 

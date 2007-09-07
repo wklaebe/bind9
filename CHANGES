@@ -1,6 +1,28 @@
+
+	--- 9.2.3rc3 released ---
+
+1510.	[func]		New view option "root-delegation-only".  Apply
+			delegation-only check to all TLDs and root.
+			Note there are some TLDs that are NOT delegation
+			only (e.g. DE and MUSEUM) these can be excluded
+			from the checks by using exclude.
+
+			root-delegation-only exclude { "DE"; "MUSEUM"; };
+
+1509.	[bug]		Hint zones should accept delegation-only.  Forward
+			zone should not accept delegation-only.
+
+1508.	[bug]		Don't apply delegation-only checks to answers from
+			forwarders.
+
+1507.	[bug]		Handle BIND 8 style returns to NS queries to parents
+			when making delegation-only checks.
+
+1506.	[bug]		Wrong return type for dns_view_isdelegationonly().
+
 	--- 9.2.3rc2 released ---
 
-1505.	[bug]		Uninitaliased rdataset is sdb. [RT #8750]
+1505.	[bug]		Uninitialised rdataset in sdb. [RT #8750]
 
 1504.	[func]		New zone type "delegation-only".
 

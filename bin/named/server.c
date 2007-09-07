@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: server.c,v 1.339.2.16 2003/09/17 05:20:00 marka Exp $ */
+/* $Id: server.c,v 1.339.2.18 2003/09/19 13:40:42 marka Exp $ */
 
 #include <config.h>
 
@@ -866,6 +866,35 @@ configure_view(dns_view_t *view, cfg_obj_t *config, cfg_obj_t *vconfig,
 	if (view->maxncachettl > 7 * 24 * 3600)
 		view->maxncachettl = 7 * 24 * 3600;
 
+	obj = NULL;
+	result = ns_config_get(maps, "root-delegation-only", &obj);
+	if (result == ISC_R_SUCCESS) {
+		dns_view_setrootdelonly(view, ISC_TRUE);
+		if (!cfg_obj_isvoid(obj)) {
+			dns_fixedname_t fixed;
+			dns_name_t *name;
+			isc_buffer_t b;
+			char *str;
+			cfg_obj_t *exclude;
+
+			dns_fixedname_init(&fixed);
+			name = dns_fixedname_name(&fixed);
+			for (element = cfg_list_first(obj);
+			     element != NULL;
+			     element = cfg_list_next(element)) {
+				exclude = cfg_listelt_value(element);
+				str = cfg_obj_asstring(exclude);
+				isc_buffer_init(&b, str, strlen(str));
+				isc_buffer_add(&b, strlen(str));
+				CHECK(dns_name_fromtext(name, &b, dns_rootname,
+							ISC_FALSE, NULL));
+				CHECK(dns_view_excludedelegationonly(view,
+								     name));
+			}
+		}
+	} else
+		dns_view_setrootdelonly(view, ISC_FALSE);
+
 	result = ISC_R_SUCCESS;
 
  cleanup:
@@ -973,7 +1002,7 @@ create_version_zone(cfg_obj_t **maps, dns_zonemgr_t *zmgr, dns_view_t *view) {
 	CHECK(dns_zone_replacedb(zone, db, ISC_FALSE));
 
 	CHECK(dns_view_addzone(view, zone));
-
+			
 	result = ISC_R_SUCCESS;
 
  cleanup:
@@ -1266,6 +1295,7 @@ configure_zone(cfg_obj_t *config, cfg_obj_t *zconfig, cfg_obj_t *vconfig,
 	cfg_obj_t *forwardtype = NULL;
 	cfg_obj_t *only = NULL;
 	isc_result_t result;
+	isc_result_t tresult;
 	isc_buffer_t buffer;
 	dns_fixedname_t fixorigin;
 	dns_name_t *origin;
@@ -1331,14 +1361,25 @@ configure_zone(cfg_obj_t *config, cfg_obj_t *zconfig, cfg_obj_t *vconfig,
 		}
 		if (dns_name_equal(origin, dns_rootname)) {
 			char *hintsfile = cfg_obj_asstring(fileobj);
+
 			result = configure_hints(view, hintsfile);
-			if (result != ISC_R_SUCCESS)
+			if (result != ISC_R_SUCCESS) {
 				isc_log_write(ns_g_lctx, NS_LOGCATEGORY_GENERAL,
 					      NS_LOGMODULE_SERVER,
 					      ISC_LOG_ERROR,
 					      "could not configure root hints "
 					      "from '%s': %s", hintsfile,
 					      isc_result_totext(result));
+				goto cleanup;
+			}
+			/*
+			 * Hint zones may also refer to delegation only points.
+			 */
+			only = NULL;
+			tresult = cfg_map_get(zoptions, "delegation-only",
+					      &only);
+			if (tresult == ISC_R_SUCCESS && cfg_obj_asboolean(only))
+				CHECK(dns_view_adddelegationonly(view, origin));
 		} else {
 			isc_log_write(ns_g_lctx, NS_LOGCATEGORY_GENERAL,
 				      NS_LOGMODULE_SERVER, ISC_LOG_WARNING,

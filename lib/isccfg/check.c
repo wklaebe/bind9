@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: check.c,v 1.14.2.19 2003/09/17 05:20:04 marka Exp $ */
+/* $Id: check.c,v 1.14.2.21 2003/09/19 13:41:36 marka Exp $ */
 
 #include <config.h>
 
@@ -61,6 +61,7 @@ static isc_result_t
 check_options(cfg_obj_t *options, isc_log_t *logctx) {
 	isc_result_t result = ISC_R_SUCCESS;
 	unsigned int i;
+	cfg_obj_t *obj;
 
 	static intervaltable intervals[] = {
 	{ "cleaning-interval", 60 },
@@ -90,6 +91,40 @@ check_options(cfg_obj_t *options, isc_log_t *logctx) {
 				    "%s '%d' is out of range",
 				    intervals[i].name, val);
 			result = ISC_R_RANGE;
+		}
+	}
+
+	obj = NULL;
+	(void)cfg_map_get(options, "root-delegation-only", &obj);
+	if (obj != NULL) {
+		if (!cfg_obj_isvoid(obj)) {
+			cfg_listelt_t *element;
+			cfg_obj_t *exclude;
+			char *str;
+			dns_fixedname_t fixed;
+			dns_name_t *name;
+			isc_buffer_t b;
+			isc_result_t tresult;
+
+			dns_fixedname_init(&fixed);
+			name = dns_fixedname_name(&fixed);
+			for (element = cfg_list_first(obj);
+			     element != NULL;
+			     element = cfg_list_next(element)) {
+				exclude = cfg_listelt_value(element);
+				str = cfg_obj_asstring(exclude);
+				isc_buffer_init(&b, str, strlen(str));
+				isc_buffer_add(&b, strlen(str));
+				tresult = dns_name_fromtext(name, &b,
+							   dns_rootname,
+                                                           ISC_FALSE, NULL);
+				if (tresult != ISC_R_SUCCESS) {
+					cfg_obj_log(obj, logctx, ISC_LOG_ERROR,
+						    "bad domain name '%s'",
+						    str);
+					result = tresult;
+				}
+			}
 		}
 	}
 	return (result);
@@ -131,7 +166,7 @@ check_zoneconf(cfg_obj_t *zconfig, isc_symtab_t *symtab, isc_log_t *logctx,
 	{ "notify", MASTERZONE | SLAVEZONE },
 	{ "also-notify", MASTERZONE | SLAVEZONE },
 	{ "dialup", MASTERZONE | SLAVEZONE | STUBZONE },
-	{ "delegation-only", STUBZONE | FORWARDZONE},
+	{ "delegation-only", HINTZONE | STUBZONE },
 	{ "forward", MASTERZONE | SLAVEZONE | STUBZONE | FORWARDZONE},
 	{ "forwarders", MASTERZONE | SLAVEZONE | STUBZONE | FORWARDZONE},
 	{ "maintain-ixfr-base", MASTERZONE | SLAVEZONE },

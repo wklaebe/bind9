@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: journal.c,v 1.77.2.3 2004/09/16 04:55:37 marka Exp $ */
+/* $Id: journal.c,v 1.77.2.5 2005/11/04 00:16:32 marka Exp $ */
 
 #include <config.h>
 
@@ -1569,7 +1569,7 @@ read_one_rr(dns_journal_t *j) {
 	/*
 	 * Read an RR.
 	 */
-	result = journal_read_rrhdr(j, &rrhdr);
+	CHECK(journal_read_rrhdr(j, &rrhdr));
 	/*
 	 * Perform a sanity check on the journal RR size.
 	 * The smallest possible RR has a 1-byte owner name

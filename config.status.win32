@@ -155,6 +155,7 @@ s%@LN_S@%%g
 s%@LIBTOOL@%%g
 s%@O@%obj%g
 s%@A@%lib%g
+s%@SA@%lib%g
 s%@ISC_NET_HAVEIPV6@%#undef ISC_NET_HAVEIPV6%g
 s%@ISC_IPV6_H@%%g
 s%@ISC_IPV6_O@%%g

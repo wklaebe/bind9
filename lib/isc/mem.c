@@ -97,6 +97,7 @@ struct stats {
 
 struct isc_mem {
 	unsigned int		magic;
+	isc_ondestroy_t		ondestroy;
 	isc_mutex_t		lock;
 	isc_memalloc_t		memalloc;
 	isc_memfree_t		memfree;
@@ -165,6 +166,8 @@ quantize(size_t size) {
 	 * byte boundaries.
 	 */
 
+	if (size == 0)
+		return (ALIGNMENT_SIZE);
 	temp = size + (ALIGNMENT_SIZE - 1);
 	return (temp - temp % ALIGNMENT_SIZE); 
 }
@@ -248,6 +251,7 @@ isc_mem_createx(size_t init_max_size, size_t target_size,
 	ctx->quota = 0;
 	ctx->total = 0;
 	ctx->magic = MEM_MAGIC;
+	isc_ondestroy_init(&ctx->ondestroy);
 	ISC_LIST_INIT(ctx->pools);
 
 	*ctxp = ctx;
@@ -267,6 +271,7 @@ void
 isc_mem_destroy(isc_mem_t **ctxp) {
 	unsigned int i;
 	isc_mem_t *ctx;
+	isc_ondestroy_t ondest;
 
 	REQUIRE(ctxp != NULL);
 	ctx = *ctxp;
@@ -294,11 +299,27 @@ isc_mem_destroy(isc_mem_t **ctxp) {
 	(ctx->memfree)(ctx->arg, ctx->stats);
 	(ctx->memfree)(ctx->arg, ctx->basic_table);
 
+	ondest = ctx->ondestroy;
+
 	(void)isc_mutex_destroy(&ctx->lock);
 	(ctx->memfree)(ctx->arg, ctx);
 
+	isc_ondestroy_notify(&ondest, ctx);
+
 	*ctxp = NULL;
 }
+
+isc_result_t
+isc_mem_ondestroy(isc_mem_t *ctx, isc_task_t *task, isc_event_t **event) {
+	isc_result_t res;
+	
+	LOCK(&ctx->lock);
+	res = isc_ondestroy_register(&ctx->ondestroy, task, event);
+	UNLOCK(&ctx->lock);
+
+	return (res);
+}
+
 
 isc_result_t
 isc_mem_restore(isc_mem_t *ctx) {
@@ -380,7 +401,6 @@ __isc_mem_get(isc_mem_t *ctx, size_t size)
 {
 	void *ret;
 
-	REQUIRE(size > 0);
 	REQUIRE(VALID_CONTEXT(ctx));
 
 	LOCK(&ctx->lock);
@@ -388,6 +408,19 @@ __isc_mem_get(isc_mem_t *ctx, size_t size)
 	UNLOCK(&ctx->lock);
 
 	return (ret);
+}
+
+static inline void
+check_overrun(void *mem, size_t size, size_t new_size) {
+	unsigned char *cp;
+
+	cp = (unsigned char *)mem;
+	cp += size;
+	while (size < new_size) {
+		INSIST(*cp == 0xbe);
+		cp++;
+		size++;
+	}
 }
 
 static inline void *
@@ -481,7 +514,6 @@ mem_getunlocked(isc_mem_t *ctx, size_t size)
 void
 __isc_mem_put(isc_mem_t *ctx, void *mem, size_t size)
 {
-	REQUIRE(size > 0);
 	REQUIRE(VALID_CONTEXT(ctx));
 
 	LOCK(&ctx->lock);
@@ -508,6 +540,9 @@ mem_putunlocked(isc_mem_t *ctx, void *mem, size_t size)
 	}
 
 #if ISC_MEM_FILL
+#if ISC_MEM_CHECKOVERRUN
+	check_overrun(mem, size, new_size);
+#endif
 	memset(mem, 0xde, new_size); /* Mnemonic for "dead". */
 #endif
 
@@ -549,8 +584,7 @@ __isc_mem_putdebug(isc_mem_t *ctx, void *ptr, size_t size, const char *file,
  * Print the stats[] on the stream "out" with suitable formatting.
  */
 void
-isc_mem_stats(isc_mem_t *ctx, FILE *out)
-{
+isc_mem_stats(isc_mem_t *ctx, FILE *out) {
 	size_t i;
 	const struct stats *s;
 	const isc_mempool_t *pool;
@@ -559,7 +593,7 @@ isc_mem_stats(isc_mem_t *ctx, FILE *out)
 	LOCK(&ctx->lock);
 
 	if (ctx->freelists != NULL) {
-		for (i = 1; i <= ctx->max_size; i++) {
+		for (i = 0; i <= ctx->max_size; i++) {
 			s = &ctx->stats[i];
 
 			if (s->totalgets == 0 && s->gets == 0)
@@ -617,27 +651,51 @@ isc_mem_valid(isc_mem_t *ctx, void *ptr) {
 }
 
 /*
- * Replacements for malloc() and free().
+ * Replacements for malloc() and free() -- they implicitly remember the
+ * size of the object allocated (with some additional overhead).
  */
 
 void *
-isc_mem_allocate(isc_mem_t *ctx, size_t size) {
+__isc_mem_allocate(isc_mem_t *ctx, size_t size) {
 	size_info *si;
 
 	size += ALIGNMENT_SIZE;
-	si = isc_mem_get(ctx, size);
+	si = __isc_mem_get(ctx, size);
 	if (si == NULL)
 		return (NULL);
 	si->u.size = size;
 	return (&si[1]);
 }
 
+void *
+__isc_mem_allocatedebug(isc_mem_t *ctx, size_t size, const char *file,
+			int line) {
+	size_info *si;
+
+	si = __isc_mem_allocate(ctx, size);
+	if (si == NULL)
+		return (NULL);
+	fprintf(stderr, "%s:%d: mem_get(%p, %lu) -> %p\n", file, line,
+		ctx, (unsigned long)si[-1].u.size, si);
+	return (si);
+}
+
 void
-isc_mem_free(isc_mem_t *ctx, void *ptr) {
+__isc_mem_free(isc_mem_t *ctx, void *ptr) {
 	size_info *si;
 
 	si = &(((size_info *)ptr)[-1]);
-	isc_mem_put(ctx, si, si->u.size);
+	__isc_mem_put(ctx, si, si->u.size);
+}
+
+void
+__isc_mem_freedebug(isc_mem_t *ctx, void *ptr, const char *file, int line) {
+	size_info *si;
+
+	si = &(((size_info *)ptr)[-1]);
+	fprintf(stderr, "%s:%d: mem_put(%p, %p, %lu)\n", file, line, 
+		ctx, ptr, (unsigned long)si->u.size);
+	__isc_mem_put(ctx, si, si->u.size);
 }
 
 /*
@@ -645,17 +703,30 @@ isc_mem_free(isc_mem_t *ctx, void *ptr) {
  */
 
 char *
-isc_mem_strdup(isc_mem_t *mctx, const char *s) {
+__isc_mem_strdup(isc_mem_t *mctx, const char *s) {
 	size_t len;
 	char *ns;
 
 	len = strlen(s);
-	ns = isc_mem_allocate(mctx, len + 1);
+	ns = __isc_mem_allocate(mctx, len + 1);
 	if (ns == NULL)
 		return (NULL);
 	strncpy(ns, s, len + 1);
 	
 	return (ns);
+}
+
+char *
+__isc_mem_strdupdebug(isc_mem_t *mctx, const char *s, const char *file,
+		      int line) {
+	char *ptr;
+	size_info *si;
+
+	ptr = __isc_mem_strdup(mctx, s);
+	si = &(((size_info *)ptr)[-1]);
+	fprintf(stderr, "%s:%d: mem_get(%p, %lu) -> %p\n", file, line,
+		mctx, (unsigned long)si->u.size, ptr);
+	return (ptr);
 }
 
 isc_boolean_t

@@ -313,6 +313,7 @@ static void
 free_rbtdb(dns_rbtdb_t *rbtdb) {
 	unsigned int i;
 	isc_region_t r;
+	isc_ondestroy_t ondest;
 
 	REQUIRE(EMPTY(rbtdb->open_versions));
 	REQUIRE(rbtdb->future_version == NULL);
@@ -332,7 +333,9 @@ free_rbtdb(dns_rbtdb_t *rbtdb) {
 	isc_mutex_destroy(&rbtdb->lock);
 	rbtdb->common.magic = 0;
 	rbtdb->common.impmagic = 0;
+	ondest = rbtdb->common.ondest;
 	isc_mem_put(rbtdb->common.mctx, rbtdb, sizeof *rbtdb);
+	isc_ondestroy_notify(&ondest, rbtdb);
 }
 
 static inline void
@@ -594,10 +597,9 @@ clean_zone_node(dns_rbtdb_t *rbtdb, dns_rbtnode_t *node,
 		top_next = current->next;
 
 		/*
-		 * Find the first rdataset less than the least serial, if
-		 * any.  On the way down, clean up any instances of multiple
-		 * rdatasets with the same serial number, or that have the
-		 * IGNORE attribute.
+		 * First, we clean up any instances of multiple rdatasets
+		 * with the same serial number, or that have the IGNORE
+		 * attribute.
 		 */
 		dparent = current;
 		for (dcurrent = current->down;
@@ -605,8 +607,6 @@ clean_zone_node(dns_rbtdb_t *rbtdb, dns_rbtnode_t *node,
 		     dcurrent = down_next) {
 			down_next = dcurrent->down;
 			INSIST(dcurrent->serial <= dparent->serial);
-			if (dcurrent->serial < least_serial)
-				break;
 			if (dcurrent->serial == dparent->serial ||
 			    IGNORE(dcurrent)) {
 				if (down_next != NULL)
@@ -618,21 +618,7 @@ clean_zone_node(dns_rbtdb_t *rbtdb, dns_rbtnode_t *node,
 		}
 
 		/*
-		 * If there is a such an rdataset, delete it and any older
-		 * versions.
-		 */
-		if (dcurrent != NULL) {
-			do {
-				down_next = dcurrent->down;
-				INSIST(dcurrent->serial <= least_serial);
-				free_rdataset(mctx, dcurrent);
-				dcurrent = down_next;
-			} while (dcurrent != NULL);
-			dparent->down = NULL;
-		}
-
-		/*
-		 * We've eliminated all IGNORE datasets with the possible
+		 * We've now eliminated all IGNORE datasets with the possible
 		 * exception of current, which we now check.
 		 */
 		if (IGNORE(current)) {
@@ -664,10 +650,38 @@ clean_zone_node(dns_rbtdb_t *rbtdb, dns_rbtnode_t *node,
 		}
 
 		/*
+		 * We now try to find the first down node less than the
+		 * least serial.
+		 */
+		dparent = current;
+		for (dcurrent = current->down;
+		     dcurrent != NULL;
+		     dcurrent = down_next) {
+			down_next = dcurrent->down;
+			if (dcurrent->serial < least_serial)
+				break;
+			dparent = dcurrent;
+		}
+
+		/*
+		 * If there is a such an rdataset, delete it and any older
+		 * versions.
+		 */
+		if (dcurrent != NULL) {
+			do {
+				down_next = dcurrent->down;
+				INSIST(dcurrent->serial <= least_serial);
+				free_rdataset(mctx, dcurrent);
+				dcurrent = down_next;
+			} while (dcurrent != NULL);
+			dparent->down = NULL;
+		}
+
+		/*
 		 * Note.  The serial number of 'current' might be less than
 		 * least_serial too, but we cannot delete it because it is
 		 * the most recent version, unless it is a NONEXISTENT
-		 * rdataset or is IGNOREd.
+		 * rdataset.
 		 */
 		if (current->down != NULL) {
 			still_dirty = ISC_TRUE;
@@ -3121,6 +3135,10 @@ add(dns_rbtdb_t *rbtdb, dns_rbtnode_t *rbtnode, rbtdb_version_t *rbtversion,
 		topheader_prev = topheader;
 	}
 
+	/*
+	 * XXXRTH  Need to check for CNAME and other data.
+	 */
+
  find_header:
 	/*
 	 * If header isn't NULL, we've found the right type.  There may be
@@ -3441,7 +3459,7 @@ subtractrdataset(dns_db_t *db, dns_dbnode_t *node, dns_dbversion_t *version,
 				goto unlock;
 			}
 			newheader->ttl = 0;
-			newheader->type = rdataset->type;
+			newheader->type = topheader->type;
 			newheader->attributes = RDATASET_ATTR_NONEXISTENT;
 			newheader->trust = 0;
 			newheader->serial = rbtversion->serial;
@@ -3484,7 +3502,7 @@ subtractrdataset(dns_db_t *db, dns_dbnode_t *node, dns_dbversion_t *version,
 
 static isc_result_t
 deleterdataset(dns_db_t *db, dns_dbnode_t *node, dns_dbversion_t *version,
-	       dns_rdatatype_t type)
+	       dns_rdatatype_t type, dns_rdatatype_t covers)
 {
 	dns_rbtdb_t *rbtdb = (dns_rbtdb_t *)db;
 	dns_rbtnode_t *rbtnode = (dns_rbtnode_t *)node;
@@ -3494,14 +3512,16 @@ deleterdataset(dns_db_t *db, dns_dbnode_t *node, dns_dbversion_t *version,
 
 	REQUIRE(VALID_RBTDB(rbtdb));
 
-	if (type == dns_rdatatype_any || type == dns_rdatatype_sig)
+	if (type == dns_rdatatype_any)
+		return (DNS_R_NOTIMPLEMENTED);
+	if (type == dns_rdatatype_sig && covers == 0)
 		return (DNS_R_NOTIMPLEMENTED);
 
 	newheader = isc_mem_get(rbtdb->common.mctx, sizeof *newheader);
 	if (newheader == NULL)
 		return (DNS_R_NOMEMORY);
 	newheader->ttl = 0;
-	newheader->type = RBTDB_RDATATYPE_VALUE(type, 0);
+	newheader->type = RBTDB_RDATATYPE_VALUE(type, covers);
 	newheader->attributes = RDATASET_ATTR_NONEXISTENT;
 	newheader->trust = 0;
 	if (rbtversion != NULL)
@@ -3922,6 +3942,8 @@ dns_rbtdb_create
 	rbtdb->future_version = NULL;
 	ISC_LIST_INIT(rbtdb->open_versions);
 
+	isc_ondestroy_init(&rbtdb->common.ondest);
+	
 	rbtdb->common.magic = DNS_DB_MAGIC;
 	rbtdb->common.impmagic = RBTDB_MAGIC;
 

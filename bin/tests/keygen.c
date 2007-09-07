@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THE SOFTWARE.
  */
 
- /* $Id: keygen.c,v 1.7 1999/10/29 12:56:51 marka Exp $ */
+/* $Id: keygen.c,v 1.10 2000/03/23 19:03:32 bwelling Exp $ */
 
 #include <config.h>
 
@@ -28,6 +28,7 @@
 #include <isc/commandline.h>
 #include <isc/error.h>
 #include <isc/mem.h>
+#include <isc/result.h>
 #include <dns/keyvalues.h>
 #include <dst/dst.h>
 #include <dst/result.h>
@@ -46,7 +47,7 @@ main(int argc, char **argv) {
 	isc_mem_t	*mctx = NULL;
 	int		ch, rsa_exp = 0, generator = 0, param = 0;
 	int		protocol = -1, size = -1;
-	dst_result_t	ret;
+	isc_result_t	ret;
 
 	RUNTIME_CHECK(isc_mem_create(0, 0, &mctx) == ISC_R_SUCCESS);
 
@@ -79,10 +80,11 @@ main(int argc, char **argv) {
 			break;
 		case 'p':
 			if (isc_commandline_argument != NULL &&
-			    isdigit(isc_commandline_argument[0] & 0xff))
+			    isdigit(isc_commandline_argument[0] & 0xff)) {
 				protocol = atoi(isc_commandline_argument);
 				if (protocol < 0 || protocol > 255)
 					die("-p value is not [0..15]");
+			}
 			else
 				die("-p not followed by a number [0..255]");
 			break;
@@ -235,6 +237,7 @@ main(int argc, char **argv) {
 	}
 	printf(" key for %s\n\n", name);
 
+	dst_result_register();
 	ret = dst_key_generate(name, alg, size, param, flags, protocol, mctx,
 			       &key);
 

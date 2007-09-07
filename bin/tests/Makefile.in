@@ -40,7 +40,7 @@ LIBS =		@LIBS@
 SUBDIRS = db dst master mem names rbt sockaddr tasks timers
 
 # Alphabetically
-TARGETS =	sdig signer
+TARGETS =	keygen sdig signer
 XTARGETS =	adb_test \
 		compress_test \
 		db_test \
@@ -49,15 +49,16 @@ XTARGETS =	adb_test \
 		gxba_test \
 		gxbn_test \
 		inter_test \
-		keygen \
 		lex_test \
 		lfsr_test \
 		log_test \
 		lwres_test \
+		lwres_conftest \
 		master_test \
 		mempool_test \
 		name_test \
 		nconf_test \
+		ndcconf_test \
 		nxtify \
 		omapi_test \
 		ratelimiter_test \
@@ -89,11 +90,13 @@ SRCS =		adb_test.c \
 		lex_test.c \
 		lfsr_test.c \
 		log_test.c \
+		lwres_conftest.c \
 		lwres_test.c \
 		master_test.c \
 		mempool_test.c \
 		name_test.c \
 		nconf_test.c \
+		ndcconf_test.c \
 		nxtify.c \
 		omapi_test.c \
 		printmsg.c \
@@ -115,6 +118,8 @@ SRCS =		adb_test.c \
 		zone2_test.c
 
 @BIND9_MAKE_RULES@
+
+all_tests: ${XTARGETS}
 
 adb_test: adb_test.@O@ ${ISCDEPLIBS} ${DNSDEPLIBS}
 	${LIBTOOL} ${CC} ${CFLAGS} -o $@ adb_test.@O@ \
@@ -164,9 +169,9 @@ name_test: name_test.@O@ ${ISCDEPLIBS} ${DNSDEPLIBS}
 	${LIBTOOL} ${CC} ${CFLAGS} -o $@ name_test.@O@ \
 		${DNSLIBS} ${ISCLIBS} ${LIBS}
 
-omapi_test: omapi_test.@O@ ${ISCDEPLIBS} ${OMAPIDEPLIBS}
+omapi_test: omapi_test.@O@ ${ISCDEPLIBS} ${DNSDEPLIBS} ${OMAPIDEPLIBS}
 	${LIBTOOL} ${CC} ${CFLAGS} -o $@ omapi_test.@O@ \
-		${OMAPILIBS} ${ISCLIBS} ${LIBS}
+		${OMAPILIBS} ${DNSLIBS} ${ISCLIBS} ${LIBS}
 
 sock_test: sock_test.@O@ ${ISCDEPLIBS}
 	${LIBTOOL} ${CC} ${CFLAGS} -o $@ sock_test.@O@ \
@@ -228,8 +233,8 @@ serial_test: serial_test.@O@ ${ISCDEPLIBS}
 	${LIBTOOL} ${CC} ${CFLAGS} -o $@ serial_test.@O@ \
 		${ISCLIBS} ${LIBS}
 
-zone2_test: zone2_test.o ${ISCDEPLIBS} ${DNSDEPLIBS}
-	${LIBTOOL} ${CC} ${CFLAGS} -o $@ zone2_test.o \
+zone2_test: zone2_test.@O@ ${ISCDEPLIBS} ${DNSDEPLIBS}
+	${LIBTOOL} ${CC} ${CFLAGS} -o $@ zone2_test.@O@ \
 		${DNSLIBS} ${ISCLIBS} ${LIBS}
 
 zone_test: zone_test.@O@ ${ISCDEPLIBS} ${DNSDEPLIBS}
@@ -248,6 +253,10 @@ nconf_test: nconf_test.@O@ ${ISCDEPLIBS} ${DNSDEPLIBS}
 	${LIBTOOL} ${CC} ${CFLAGS} -o $@ nconf_test.@O@ \
 		${DNSLIBS} ${ISCLIBS} ${LIBS}
 
+ndcconf_test: ndcconf_test.@O@ ${ISCDEPLIBS} ${DNSDEPLIBS}
+	${LIBTOOL} ${CC} ${CFLAGS} -o $@ ndcconf_test.@O@ \
+		${DNSLIBS} ${ISCLIBS} ${LIBS}
+
 tkey_test: tkey_test.@O@ ${ISCDEPLIBS} ${DNSDEPLIBS}
 	${LIBTOOL} ${CC} ${CFLAGS} -o $@ tkey_test.@O@ \
 		${DNSLIBS} ${ISCLIBS} ${LIBS}
@@ -255,6 +264,10 @@ tkey_test: tkey_test.@O@ ${ISCDEPLIBS} ${DNSDEPLIBS}
 inter_test: inter_test.@O@ ${ISCDEPLIBS}
 	${LIBTOOL} ${CC} ${CFLAGS} -o $@ inter_test.@O@ \
 		${ISCLIBS} ${LIBS}
+
+lwres_conftest: lwres_conftest.@O@ ${ISCDEPLIBS} ${LWRESDEPLIBS}
+	${LIBTOOL} ${CC} ${CFLAGS} -o $@ lwres_conftest.@O@ \
+		${LWRESLIBS} ${ISCLIBS} ${LIBS}
 
 lwres_test: lwres_test.@O@ ${ISCDEPLIBS} ${LWRESDEPLIBS}
 	${LIBTOOL} ${CC} ${CFLAGS} -o $@ lwres_test.@O@ \
@@ -269,7 +282,7 @@ gxba_test: gxba_test.@O@ ${LWRESDEPLIBS}
 		${LWRESLIBS} ${ISCLIBS} ${LIBS}
 
 clean distclean::
-	rm -f ${TARGETS}
+	rm -f ${TARGETS} ${XTARGETS}
 	rm -f t_journal
 
 test:

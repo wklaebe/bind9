@@ -52,8 +52,8 @@
 #define STACK_SIZE_BIT			14
 #define CORE_SIZE_BIT			15
 #define FILES_BIT			16
-#define QUERY_SOURCE_ADDR_BIT		17
-#define QUERY_SOURCE_PORT_BIT		18
+#define QUERY_SOURCE_BIT		17
+#define QUERY_SOURCE_V6_BIT		18
 #define FAKE_IQUERY_BIT			19
 #define RECURSION_BIT			20
 #define FETCH_GLUE_BIT			21
@@ -77,6 +77,9 @@
 #define TCP_CLIENTS_BIT			39
 #define RECURSIVE_CLIENTS_BIT		40
 #define TRANSFER_SOURCE_BIT		41
+#define TRANSFER_SOURCE_V6_BIT		42
+#define REQUEST_IXFR_BIT		43
+#define PROVIDE_IXFR_BIT		44
 
 
 static isc_result_t cfg_set_iplist(dns_c_options_t *options,
@@ -166,7 +169,7 @@ dns_c_checkconfig(dns_c_ctx_t *ctx)
 	if ((dns_c_ctx_getauthnxdomain(ctx, &bval)) == ISC_R_NOTFOUND) {
 		isc_log_write(dns_lctx,DNS_LOGCATEGORY_CONFIG,
 			      DNS_LOGMODULE_CONFIG, ISC_LOG_WARNING,
-			      "the default for auth-nxdomain is now ``no''");
+			      "the default for auth-nxdomain is now 'no'");
 	}
 
 
@@ -266,6 +269,9 @@ dns_c_checkconfig(dns_c_ctx_t *ctx)
 			      "rfc2308-type-1 is not yet implemented.");
 	}
 
+	/* XXX need to check all zones and views for
+	 * 'allow-update-forwarding' (not yet implemented)
+	 */
 
 
 	/*
@@ -315,7 +321,7 @@ dns_c_ctx_new(isc_mem_t *mem, dns_c_ctx_t **ctx)
 	cfg->acls = NULL;
 	cfg->options = NULL;
 	cfg->zlist = NULL;
-	cfg->servers = NULL;
+	cfg->peers = NULL;
 	cfg->acls = NULL;
 	cfg->keydefs = NULL;
 	cfg->trusted_keys = NULL;
@@ -373,8 +379,8 @@ dns_c_ctx_delete(dns_c_ctx_t **cfg)
 	if (c->controls != NULL)
 		dns_c_ctrllist_delete(&c->controls);
 	
-	if (c->servers != NULL)
-		dns_c_srvlist_delete(&c->servers);
+	if (c->peers != NULL)
+		dns_peerlist_detach(&c->peers);
 	
 	if (c->acls != NULL)
 		dns_c_acltable_delete(&c->acls);
@@ -542,8 +548,8 @@ dns_c_ctx_print(FILE *fp, int indent, dns_c_ctx_t *cfg)
 	}
 	
 
-	if (cfg->servers != NULL) {
-		dns_c_srvlist_print(fp, indent, cfg->servers);
+	if (cfg->peers != NULL) {
+		dns_c_peerlist_print(fp, indent, cfg->peers);
 		fprintf(fp, "\n");
 	}
 }
@@ -758,7 +764,7 @@ dns_c_ctx_addnullchannel(dns_c_ctx_t *cfg, const char *name,
 
 
 isc_result_t
-dns_c_ctx_addcategory(dns_c_ctx_t *cfg, dns_c_category_t category,
+dns_c_ctx_addcategory(dns_c_ctx_t *cfg, const char *catname,
 		      dns_c_logcat_t **newcat)
 {
 	dns_c_logcat_t *newc;
@@ -768,7 +774,7 @@ dns_c_ctx_addcategory(dns_c_ctx_t *cfg, dns_c_category_t category,
 	REQUIRE(newcat != NULL);
 	REQUIRE(cfg->logging != NULL);
 
-	res = dns_c_logcat_new(cfg->mem, category, &newc);
+	res = dns_c_logcat_new(cfg->mem, catname, &newc);
 	if (res != ISC_R_SUCCESS) {
 		return (res);
 	}
@@ -807,7 +813,7 @@ dns_c_ctx_channeldefinedp(dns_c_ctx_t *cfg, const char *name)
 
 	REQUIRE(DNS_C_CONFCTX_VALID(cfg));
 	REQUIRE(name != NULL);
-	REQUIRE(strlen(name) > 0);
+	REQUIRE(*name != '\0');
 
 	res = dns_c_logginglist_chanbyname(cfg->logging, name, &chan);
 
@@ -1669,6 +1675,46 @@ dns_c_ctx_setrfc2308type1(dns_c_ctx_t *cfg, isc_boolean_t newval)
 
 
 isc_result_t
+dns_c_ctx_setrequestixfr(dns_c_ctx_t *cfg, isc_boolean_t newval)
+{
+	isc_result_t res;
+	
+	REQUIRE(DNS_C_CONFCTX_VALID(cfg));
+
+	res = make_options(cfg);
+	if (res != ISC_R_SUCCESS) {
+		return (res);
+	}
+	
+	return (cfg_set_boolean(cfg->options,
+				&cfg->options->request_ixfr,
+				newval,
+				&cfg->options->setflags1,
+				REQUEST_IXFR_BIT));
+}
+
+
+isc_result_t
+dns_c_ctx_setprovideixfr(dns_c_ctx_t *cfg, isc_boolean_t newval)
+{
+	isc_result_t res;
+	
+	REQUIRE(DNS_C_CONFCTX_VALID(cfg));
+
+	res = make_options(cfg);
+	if (res != ISC_R_SUCCESS) {
+		return (res);
+	}
+	
+	return (cfg_set_boolean(cfg->options,
+				&cfg->options->provide_ixfr,
+				newval,
+				&cfg->options->setflags1,
+				PROVIDE_IXFR_BIT));
+}
+
+
+isc_result_t
 dns_c_ctx_setdialup(dns_c_ctx_t *cfg, isc_boolean_t newval)
 {
 	isc_result_t res;
@@ -1689,46 +1735,48 @@ dns_c_ctx_setdialup(dns_c_ctx_t *cfg, isc_boolean_t newval)
 
 
 isc_result_t
-dns_c_ctx_setquerysourceaddr(dns_c_ctx_t *cfg, isc_sockaddr_t addr)
+dns_c_ctx_setquerysource(dns_c_ctx_t *cfg, isc_sockaddr_t addr)
 {
 	isc_boolean_t existed;
 	isc_result_t res;
 	
 	REQUIRE(DNS_C_CONFCTX_VALID(cfg));
+	REQUIRE(addr.type.sa.sa_family == AF_INET); /* XXX too strong? */
 
 	res = make_options(cfg);
 	if (res != ISC_R_SUCCESS) {
 		return (res);
 	}
 	
-	existed = DNS_C_CHECKBIT(QUERY_SOURCE_ADDR_BIT,
+	existed = DNS_C_CHECKBIT(QUERY_SOURCE_BIT,
 				 &cfg->options->setflags1);
-	DNS_C_SETBIT(QUERY_SOURCE_ADDR_BIT, &cfg->options->setflags1);
+	DNS_C_SETBIT(QUERY_SOURCE_BIT, &cfg->options->setflags1);
 	
-	cfg->options->query_source_addr = addr;
+	cfg->options->query_source = addr;
 
 	return (existed ? ISC_R_EXISTS : ISC_R_SUCCESS);
 }
 
 
 isc_result_t
-dns_c_ctx_setquerysourceport(dns_c_ctx_t *cfg, in_port_t port)
+dns_c_ctx_setquerysourcev6(dns_c_ctx_t *cfg, isc_sockaddr_t addr)
 {
 	isc_boolean_t existed;
 	isc_result_t res;
 	
 	REQUIRE(DNS_C_CONFCTX_VALID(cfg));
-
+	REQUIRE(addr.type.sa.sa_family == AF_INET6);	/* XXX too strong? */
+	
 	res = make_options(cfg);
 	if (res != ISC_R_SUCCESS) {
 		return (res);
 	}
 	
-	existed = DNS_C_CHECKBIT(QUERY_SOURCE_PORT_BIT,
+	existed = DNS_C_CHECKBIT(QUERY_SOURCE_V6_BIT,
 				 &cfg->options->setflags1);
-	DNS_C_SETBIT(QUERY_SOURCE_PORT_BIT, &cfg->options->setflags1);
+	DNS_C_SETBIT(QUERY_SOURCE_V6_BIT, &cfg->options->setflags1);
 	
-	cfg->options->query_source_port = port;
+	cfg->options->query_source_v6 = addr;
 
 	return (existed ? ISC_R_EXISTS : ISC_R_SUCCESS);
 }
@@ -2931,6 +2979,44 @@ dns_c_ctx_getrfc2308type1(dns_c_ctx_t *cfg, isc_boolean_t *retval)
 
 
 isc_result_t
+dns_c_ctx_getrequestixfr(dns_c_ctx_t *cfg, isc_boolean_t *retval)
+{
+	REQUIRE(DNS_C_CONFCTX_VALID(cfg));
+	REQUIRE(retval != NULL);
+
+	if (cfg->options == NULL) {
+		return (ISC_R_NOTFOUND);
+	}
+	
+	
+	return (cfg_get_boolean(cfg->options, 
+				&cfg->options->request_ixfr,
+				retval,
+				&cfg->options->setflags1,
+				REQUEST_IXFR_BIT));
+}
+
+
+isc_result_t
+dns_c_ctx_getprovideixfr(dns_c_ctx_t *cfg, isc_boolean_t *retval)
+{
+	REQUIRE(DNS_C_CONFCTX_VALID(cfg));
+	REQUIRE(retval != NULL);
+
+	if (cfg->options == NULL) {
+		return (ISC_R_NOTFOUND);
+	}
+	
+	
+	return (cfg_get_boolean(cfg->options, 
+				&cfg->options->provide_ixfr,
+				retval,
+				&cfg->options->setflags1,
+				PROVIDE_IXFR_BIT));
+}
+
+
+isc_result_t
 dns_c_ctx_getdialup(dns_c_ctx_t *cfg, isc_boolean_t *retval)
 {
 	REQUIRE(DNS_C_CONFCTX_VALID(cfg));
@@ -2950,7 +3036,7 @@ dns_c_ctx_getdialup(dns_c_ctx_t *cfg, isc_boolean_t *retval)
 
 
 isc_result_t
-dns_c_ctx_getquerysourceaddr(dns_c_ctx_t *cfg, isc_sockaddr_t *addr)
+dns_c_ctx_getquerysource(dns_c_ctx_t *cfg, isc_sockaddr_t *addr)
 {
 	isc_result_t res;
 
@@ -2962,8 +3048,8 @@ dns_c_ctx_getquerysourceaddr(dns_c_ctx_t *cfg, isc_sockaddr_t *addr)
 	
 	REQUIRE(addr != NULL);
 
-	if (DNS_C_CHECKBIT(QUERY_SOURCE_ADDR_BIT, &cfg->options->setflags1)) {
-		*addr = cfg->options->query_source_addr;
+	if (DNS_C_CHECKBIT(QUERY_SOURCE_BIT, &cfg->options->setflags1)) {
+		*addr = cfg->options->query_source;
 		res = ISC_R_SUCCESS;
 	} else {
 		res = ISC_R_NOTFOUND;
@@ -2974,22 +3060,26 @@ dns_c_ctx_getquerysourceaddr(dns_c_ctx_t *cfg, isc_sockaddr_t *addr)
 
 
 isc_result_t
-dns_c_ctx_getquerysourceport(dns_c_ctx_t *cfg, in_port_t *port)
+dns_c_ctx_getquerysourcev6(dns_c_ctx_t *cfg, isc_sockaddr_t *addr)
 {
+	isc_result_t res;
+
 	REQUIRE(DNS_C_CONFCTX_VALID(cfg));
 
 	if (cfg->options == NULL) {
 		return (ISC_R_NOTFOUND);
 	}
 	
-	REQUIRE(port != NULL);
+	REQUIRE(addr != NULL);
 
-	if (DNS_C_CHECKBIT(QUERY_SOURCE_PORT_BIT, &cfg->options->setflags1)) {
-		*port = cfg->options->query_source_port;
-		return (ISC_R_SUCCESS);
+	if (DNS_C_CHECKBIT(QUERY_SOURCE_V6_BIT, &cfg->options->setflags1)) {
+		*addr = cfg->options->query_source_v6;
+		res = ISC_R_SUCCESS;
 	} else {
-		return (ISC_R_NOTFOUND);
+		res = ISC_R_NOTFOUND;
 	}
+
+	return (res);
 }
 
 
@@ -3196,10 +3286,10 @@ dns_c_ctx_getforward(dns_c_ctx_t *cfg, dns_c_forw_t *forw)
 	REQUIRE(forw != NULL);
 
 	if (DNS_C_CHECKBIT(FORWARD_BIT, &cfg->options->setflags1)) {
-		return (ISC_R_NOTFOUND);
-	} else {
 		*forw = cfg->options->forward;
 		res = ISC_R_SUCCESS;
+	} else {
+		return (ISC_R_NOTFOUND);
 	}
 
 	return (res);
@@ -3309,6 +3399,8 @@ dns_c_ctx_optionsnew(isc_mem_t *mem, dns_c_options_t **options)
 	opts->multiple_cnames = ISC_FALSE;
 	opts->use_id_pool = ISC_FALSE;
 	opts->rfc2308_type1 = ISC_FALSE;
+	opts->request_ixfr = ISC_FALSE;
+	opts->provide_ixfr = ISC_FALSE;
 	opts->dialup = ISC_FALSE;
 
 	opts->tcp_clients = 0;
@@ -3474,6 +3566,7 @@ void
 dns_c_ctx_optionsprint(FILE *fp, int indent, dns_c_options_t *options)
 {
 	dns_severity_t nameseverity;
+	in_port_t port;
 	
 	REQUIRE(fp != NULL);
 
@@ -3612,6 +3705,10 @@ dns_c_ctx_optionsprint(FILE *fp, int indent, dns_c_options_t *options)
 			 "use-id-pool", setflags1);
 	PRINT_AS_BOOLEAN(rfc2308_type1, RFC2308_TYPE1_BIT,
 			 "rfc2308-type1", setflags1);
+	PRINT_AS_BOOLEAN(request_ixfr, REQUEST_IXFR_BIT,
+			 "request-ixfr", setflags1);
+	PRINT_AS_BOOLEAN(provide_ixfr, PROVIDE_IXFR_BIT,
+			 "provide-ixfr", setflags1);
 	PRINT_AS_BOOLEAN(dialup, DIALUP_BIT,
 			 "dialup", setflags1);
 
@@ -3630,25 +3727,35 @@ dns_c_ctx_optionsprint(FILE *fp, int indent, dns_c_options_t *options)
 	}
 	
 	
-	if (DNS_C_CHECKBIT(QUERY_SOURCE_PORT_BIT, &options->setflags1) ||
-	    DNS_C_CHECKBIT(QUERY_SOURCE_ADDR_BIT, &options->setflags1)) {
+	if (DNS_C_CHECKBIT(QUERY_SOURCE_BIT, &options->setflags1)) {
+		port = isc_sockaddr_getport(&options->query_source);
+
 		dns_c_printtabs(fp, indent + 1);
-		fprintf(fp, "query-source ");
+		fprintf(fp, "query-source address ");
 
-		if (DNS_C_CHECKBIT(QUERY_SOURCE_ADDR_BIT,
-				   &options->setflags1)) {
-			fprintf(fp, "address ");
-			dns_c_print_ipaddr(fp, &options->query_source_addr);
+		dns_c_print_ipaddr(fp, &options->query_source);
+
+		if (port == 0) {
+			fprintf(fp, " port *");
+		} else {
+			fprintf(fp, " port %d", port);
 		}
+		fprintf(fp, " ;\n");
+	}
 
-		if (DNS_C_CHECKBIT(QUERY_SOURCE_PORT_BIT,
-				   &options->setflags1)) {
-			if (options->query_source_port == 0) {
-				fprintf(fp, " port *");
-			} else {
-				fprintf(fp, " port %d",
-					options->query_source_port);
-			}
+
+	if (DNS_C_CHECKBIT(QUERY_SOURCE_V6_BIT, &options->setflags1)) {
+		port = isc_sockaddr_getport(&options->query_source_v6);
+
+		dns_c_printtabs(fp, indent + 1);
+		fprintf(fp, "query-source-v6 address ");
+
+		dns_c_print_ipaddr(fp, &options->query_source_v6);
+
+		if (port == 0) {
+			fprintf(fp, " port *");
+		} else {
+			fprintf(fp, " port %d", port);
 		}
 		fprintf(fp, " ;\n");
 	}
@@ -3754,6 +3861,14 @@ dns_c_ctx_optionsprint(FILE *fp, int indent, dns_c_options_t *options)
 	}
 	
 
+	if (DNS_C_CHECKBIT(TRANSFER_SOURCE_V6_BIT, &options->setflags1)) {
+		dns_c_printtabs(fp, indent + 1);
+		fprintf(fp, "transfer-source-v6 ");
+		dns_c_print_ipaddr(fp, &options->transfer_source_v6);
+		fprintf(fp, ";\n");
+	}
+	
+
 	dns_c_printtabs(fp, indent);
 	fprintf(fp,"};\n");
 }
@@ -3768,7 +3883,7 @@ dns_c_ctx_keydefinedp(dns_c_ctx_t *ctx, const char *keyname)
 
 	REQUIRE(DNS_C_CONFCTX_VALID(ctx));
 	REQUIRE(keyname != NULL);
-	REQUIRE(strlen(keyname) > 0);
+	REQUIRE(*keyname != '\0');
 	
 	if (ctx->keydefs != NULL) {
 		res = dns_c_kdeflist_find(ctx->keydefs, keyname, &keyid);
@@ -3857,6 +3972,54 @@ dns_c_ctx_gettransfersource(dns_c_ctx_t *cfg, isc_sockaddr_t *retval)
 
 	if (DNS_C_CHECKBIT(TRANSFER_SOURCE_BIT, &cfg->options->setflags1)) {
 		*retval = cfg->options->transfer_source;
+		res = ISC_R_SUCCESS;
+	} else {
+		res = ISC_R_NOTFOUND;
+	}
+
+	return (res);
+}
+	
+
+isc_result_t
+dns_c_ctx_settransfersourcev6(dns_c_ctx_t *cfg, isc_sockaddr_t newval)
+{
+	isc_boolean_t existed;
+	isc_result_t res;
+	
+	REQUIRE(DNS_C_CONFCTX_VALID(cfg));
+	REQUIRE(newval.type.sa.sa_family == AF_INET6);	/* XXX too strong? */
+
+	res = make_options(cfg);
+	if (res != ISC_R_SUCCESS) {
+		return (res);
+	}
+	
+	existed = DNS_C_CHECKBIT(TRANSFER_SOURCE_V6_BIT,
+				 &cfg->options->setflags1);
+	DNS_C_SETBIT(TRANSFER_SOURCE_V6_BIT, &cfg->options->setflags1);
+	
+	cfg->options->transfer_source_v6 = newval;
+
+	return (existed ? ISC_R_EXISTS : ISC_R_SUCCESS);
+}
+
+
+isc_result_t
+dns_c_ctx_gettransfersourcev6(dns_c_ctx_t *cfg, isc_sockaddr_t *retval)
+{
+	isc_result_t res;
+
+	REQUIRE(DNS_C_CONFCTX_VALID(cfg));
+
+	if (cfg->options == NULL) {
+		return (ISC_R_NOTFOUND);
+	}
+	
+	REQUIRE(retval != NULL);
+
+	if (DNS_C_CHECKBIT(TRANSFER_SOURCE_V6_BIT, &cfg->options->setflags1)) {
+		*retval = cfg->options->transfer_source_v6;
 		res = ISC_R_SUCCESS;
 	} else {
 		res = ISC_R_NOTFOUND;
@@ -4207,95 +4370,13 @@ cfg_get_uint32(dns_c_options_t *options,
 static isc_result_t
 acl_init(dns_c_ctx_t *cfg)
 {
-	dns_c_ipmatchelement_t *ime;
-	dns_c_ipmatchlist_t *iml;
-	isc_sockaddr_t addr;
-	dns_c_acl_t *acl;
 	isc_result_t r;
-	static struct in_addr zeroaddr;
 
 	REQUIRE(DNS_C_CONFCTX_VALID(cfg));
-
-	isc_sockaddr_fromin(&addr, &zeroaddr, 0);
 
 	r = dns_c_acltable_new(cfg->mem, &cfg->acls);
 	if (r != ISC_R_SUCCESS) return (r);
 
-
-	/*
-	 * The ANY acl.
-	 */
-	r = dns_c_acl_new(cfg->acls, "any", ISC_TRUE, &acl);
-	if (r != ISC_R_SUCCESS) return (r);
-	
-	r = dns_c_ipmatchpattern_new(cfg->mem, &ime, addr, 0);
-	if (r != ISC_R_SUCCESS) return (r);
-	
-	r = dns_c_ipmatchlist_new(cfg->mem, &iml);
-	if (r != ISC_R_SUCCESS) return (r);
-	
-	ISC_LIST_APPEND(iml->elements, ime, next);
-
-	dns_c_acl_setipml(acl, iml, ISC_FALSE);
-	iml = NULL;
-	
-
-	/*
-	 * The NONE acl
-	 */
-
-	r = dns_c_acl_new(cfg->acls, "none", ISC_TRUE, &acl);
-	if (r != ISC_R_SUCCESS) return (r);
-	
-	r = dns_c_ipmatchpattern_new(cfg->mem, &ime, addr, 0);
-	if (r != ISC_R_SUCCESS) return (r);
-
-	dns_c_ipmatch_negate(ime);
-
-	r = dns_c_ipmatchlist_new(cfg->mem, &iml);
-	if (r != ISC_R_SUCCESS) return (r);
-	
-	ISC_LIST_APPEND(iml->elements, ime, next);
-	
-	dns_c_acl_setipml(acl, iml, ISC_FALSE);
-	iml = NULL;
-	
-
-	/*
-	 * The LOCALHOST acl
-	 */
-	r = dns_c_acl_new(cfg->acls, "localhost", ISC_TRUE, &acl);
-	if (r != ISC_R_SUCCESS) return (r);
-	
-	r = dns_c_ipmatchlocalhost_new(cfg->mem, &ime);
-	if (r != ISC_R_SUCCESS) return (r);
-
-	r = dns_c_ipmatchlist_new(cfg->mem, &iml);
-	if (r != ISC_R_SUCCESS) return (r);
-	
-	ISC_LIST_APPEND(iml->elements, ime, next);
-
-	dns_c_acl_setipml(acl, iml, ISC_FALSE);
-	iml = NULL;
-	
-	
-	/*
-	 * The LOCALNETS acl
-	 */
-	r = dns_c_acl_new(cfg->acls, "localnets", ISC_TRUE, &acl);
-	if (r != ISC_R_SUCCESS) return (r);
-	
-	r = dns_c_ipmatchlocalnets_new(cfg->mem, &ime);
-	if (r != ISC_R_SUCCESS) return (r);
-	
-	r = dns_c_ipmatchlist_new(cfg->mem, &iml);
-	if (r != ISC_R_SUCCESS) return (r);
-	
-	ISC_LIST_APPEND(iml->elements, ime, next);
-
-	dns_c_acl_setipml(acl, iml, ISC_FALSE);
-	iml = NULL;
-	
 	return (ISC_R_SUCCESS);
 }
 
@@ -4305,8 +4386,10 @@ static isc_result_t
 logging_init (dns_c_ctx_t *cfg)
 {
 	isc_result_t res;
+#if 0
 	dns_c_logcat_t *cat;
 	dns_c_logchan_t *chan;
+#endif
 	
 	REQUIRE(DNS_C_CONFCTX_VALID(cfg));
 	REQUIRE(cfg->logging == NULL);
@@ -4316,6 +4399,7 @@ logging_init (dns_c_ctx_t *cfg)
 		return (res);
 	}
 
+#if 0
 	/* default_syslog channel */
 	chan = NULL;
 	res = dns_c_ctx_addsyslogchannel(cfg, DNS_C_DEFAULT_SYSLOG,
@@ -4359,7 +4443,7 @@ logging_init (dns_c_ctx_t *cfg)
 
 	/* default category */
 	cat = NULL;
-	res = dns_c_ctx_addcategory(cfg, dns_c_cat_default, &cat);
+	res = dns_c_ctx_addcategory(cfg, "default", &cat);
 	if (res != ISC_R_SUCCESS) {
 		return (res);
 	}
@@ -4370,7 +4454,7 @@ logging_init (dns_c_ctx_t *cfg)
 
 	/* panic category */
 	cat = NULL;
-	res = dns_c_ctx_addcategory(cfg, dns_c_cat_panic, &cat);
+	res = dns_c_ctx_addcategory(cfg, "panic", &cat);
 	if (res != ISC_R_SUCCESS) {
 		return (res);
 	}
@@ -4381,7 +4465,7 @@ logging_init (dns_c_ctx_t *cfg)
 	
 	/* eventlib category */
 	cat = NULL;
-	res = dns_c_ctx_addcategory(cfg, dns_c_cat_eventlib, &cat);
+	res = dns_c_ctx_addcategory(cfg, "eventlib", &cat);
 	if (res != ISC_R_SUCCESS) {
 		return (res);
 	}
@@ -4391,13 +4475,13 @@ logging_init (dns_c_ctx_t *cfg)
 
 	/* packet category */
 	cat = NULL;
-	res = dns_c_ctx_addcategory(cfg, dns_c_cat_packet, &cat);
+	res = dns_c_ctx_addcategory(cfg, "packet", &cat);
 	if (res != ISC_R_SUCCESS) {
 		return (res);
 	}
 	dns_c_logcat_setpredef(cat, ISC_TRUE);
 	dns_c_logcat_addname(cat, DNS_C_DEFAULT_DEBUG);
-	
+#endif
 	return (ISC_R_SUCCESS);
 }
 

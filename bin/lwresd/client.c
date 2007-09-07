@@ -333,6 +333,7 @@ client_initialize(client_t *client, clientmgr_t *cmgr)
 
 	client->options = 0;
 	client->byaddr = NULL;
+	client->addrinfo = NULL;
 
 	ISC_LIST_APPEND(cmgr->idle, client, link);
 }
@@ -349,7 +350,8 @@ client_init_aliases(client_t *client)
 	for (i = 0 ; i < LWRES_MAX_ADDRS ; i++) {
 		client->addrs[i].family = 0;
 		client->addrs[i].length = 0;
-		client->addrs[i].address = NULL;
+		memset(client->addrs[i].address, 0, LWRES_ADDR_MAXLEN);
+		LWRES_LINK_INIT(&client->addrs[i], link);
 	}
 }
 
@@ -367,7 +369,7 @@ client_init_gabn(client_t *client)
 	client->gabn.aliases = client->aliases;
 	client->gabn.realnamelen = 0;
 	client->gabn.aliaslen = client->aliaslen;
-	client->gabn.addrs = client->addrs;
+	LWRES_LIST_INIT(client->gabn.addrs);
 	client->gabn.base = NULL;
 	client->gabn.baselen = 0;
 

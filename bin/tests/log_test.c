@@ -15,7 +15,7 @@
  * SOFTWARE.
  */
 
-/* $Id: log_test.c,v 1.7 2000/02/03 23:03:46 halley Exp $ */
+/* $Id: log_test.c,v 1.11 2000/03/04 03:05:17 tale Exp $ */
 
 /* Principal Authors: DCL */
 
@@ -44,22 +44,18 @@ char usage[] = "Usage: %s [-m] [-s syslog_logfile] [-r file_versions]\n";
 			progname, isc_result_totext(result)); \
 	}
 
-#define CHECK_DNS(expr) result = expr; \
-	if (result != DNS_R_SUCCESS) { \
-		fprintf(stderr, "%s: " #expr "%s: exiting\n", \
-			progname, dns_result_totext(result)); \
-	}
-
-	
 int
 main (int argc, char **argv) {
 	char *progname, *syslog_file, *message;
-	int ch, i, file_versions;
+	int ch, i, file_versions, stderr_line;
 	isc_boolean_t show_final_mem = ISC_FALSE;
 	isc_log_t *lctx;
+	isc_logconfig_t *lcfg;
 	isc_mem_t *mctx;
 	isc_result_t result;
 	isc_logdestination_t destination;
+	isc_logcategory_t *category;
+	isc_logmodule_t *module;
 
 	progname = strrchr(*argv, '/');
 	if (progname != NULL)
@@ -84,7 +80,7 @@ main (int argc, char **argv) {
 			    file_versions != ISC_LOG_ROLLNEVER &&
 			    file_versions != ISC_LOG_ROLLINFINITE) {
 				fprintf(stderr, "%s: file rotations must be "
-					"%d (ISC_LOG_ROLLNEVER), "
+					"%d (ISC_LOG_ROLLNEVER),\n\t"
 					"%d (ISC_LOG_ROLLINFINITE) "
 					"or > 0\n", progname,
 					ISC_LOG_ROLLNEVER,
@@ -106,15 +102,38 @@ main (int argc, char **argv) {
 		exit(1);
 	}
 
-	fprintf(stderr, "==> stderr begin\n");
+	fprintf(stderr, "EXPECT:\n%s%d%s%s%s",
+		"8 lines to stderr (first 4 numbered, #3 repeated)\n",
+		file_versions == 0 || file_versions == ISC_LOG_ROLLNEVER ? 1 :
+		file_versions > 0 ? file_versions + 1 : FILE_VERSIONS + 1,
+		" /tmp/test_log files, and\n",
+		"2 lines to syslog\n",
+		"lines ending with exclamation marks are errors\n\n");
+
 	isc_log_opensyslog(progname, LOG_PID, LOG_DAEMON);
 
 	mctx = NULL;
 	lctx = NULL;
 
 	CHECK_ISC(isc_mem_create(0, 0, &mctx));
-	CHECK_ISC(isc_log_create(mctx, &lctx));
-	CHECK_DNS(dns_log_init(lctx));
+	CHECK_ISC(isc_log_create(mctx, &lctx, &lcfg));
+
+	dns_log_init(lctx);
+
+	/*
+	 * Test isc_log_categorybyname and isc_log_modulebyname.
+	 */
+	category = isc_log_categorybyname(lctx, "dns_parser");
+	if (category != NULL)
+		fprintf(stderr, "%s category found.\n", category->name);
+	else
+		fprintf(stderr, "dns_parser category not found!\n");
+
+	module = isc_log_modulebyname(lctx, "xyzzy");
+	if (module != NULL)
+		fprintf(stderr, "%s module found! (error)\n", module->name);
+	else
+		fprintf(stderr, "xyzzy module not found. (expected)\n");
 
 	/*
 	 * Create a file channel to test file opening, size limiting and
@@ -125,7 +144,7 @@ main (int argc, char **argv) {
 	destination.file.maximum_size = 1;
 	destination.file.versions = file_versions;
 
-	CHECK_ISC(isc_log_createchannel(lctx, "file_test", ISC_LOG_TOFILE,
+	CHECK_ISC(isc_log_createchannel(lcfg, "file_test", ISC_LOG_TOFILE,
 					ISC_LOG_INFO, &destination,
 					ISC_LOG_PRINTTIME|
 					ISC_LOG_PRINTLEVEL|
@@ -137,57 +156,64 @@ main (int argc, char **argv) {
 	 */
 	destination.file.stream = stderr;
 
-	CHECK_ISC(isc_log_createchannel(lctx, "debug_test", ISC_LOG_TOFILEDESC,
+	CHECK_ISC(isc_log_createchannel(lcfg, "debug_test", ISC_LOG_TOFILEDESC,
 					ISC_LOG_DYNAMIC, &destination,
 					ISC_LOG_PRINTTIME|
-					ISC_LOG_PRINTLEVEL));
+					ISC_LOG_PRINTLEVEL|
+					ISC_LOG_DEBUGONLY));
 
 	/*
 	 * Test the usability of the four predefined logging channels.
 	 */
-	CHECK_ISC(isc_log_usechannel(lctx, "default_syslog",
+	CHECK_ISC(isc_log_usechannel(lcfg, "default_syslog",
 				     DNS_LOGCATEGORY_DATABASE,
 				     DNS_LOGMODULE_CACHE));
-	CHECK_ISC(isc_log_usechannel(lctx, "default_stderr",
+	CHECK_ISC(isc_log_usechannel(lcfg, "default_stderr",
 				     DNS_LOGCATEGORY_DATABASE,
 				     DNS_LOGMODULE_CACHE));
-	CHECK_ISC(isc_log_usechannel(lctx, "default_debug",
+	CHECK_ISC(isc_log_usechannel(lcfg, "default_debug",
 				     DNS_LOGCATEGORY_DATABASE,
 				     DNS_LOGMODULE_CACHE));
-	CHECK_ISC(isc_log_usechannel(lctx, "null",
+	CHECK_ISC(isc_log_usechannel(lcfg, "null",
 				     DNS_LOGCATEGORY_DATABASE,
 				     NULL));
 
 	/*
 	 * Use the custom channels.
 	 */
-	CHECK_ISC(isc_log_usechannel(lctx, "file_test",
+	CHECK_ISC(isc_log_usechannel(lcfg, "file_test",
 				     DNS_LOGCATEGORY_GENERAL,
 				     DNS_LOGMODULE_DB));
 
-	CHECK_ISC(isc_log_usechannel(lctx, "debug_test",
+	CHECK_ISC(isc_log_usechannel(lcfg, "debug_test",
 				     DNS_LOGCATEGORY_GENERAL,
 				     DNS_LOGMODULE_RBTDB));
+
+	fprintf(stderr, "\n==> stderr begin\n");
 
 	/*
 	 * Write to the internal default by testing both a category for which
 	 * no channel has been specified and a category which was specified
 	 * but not with the named module.
 	 */
+	stderr_line = 1;
+
 	isc_log_write(lctx, DNS_LOGCATEGORY_SECURITY, DNS_LOGMODULE_RBT,
-		      ISC_LOG_CRITICAL, "%s",
-		      "Unspecified category and unspecified module to stderr");
+		      ISC_LOG_CRITICAL, "%s (%d)",
+		      "Unspecified category and unspecified module to stderr",
+		      stderr_line++);
 	isc_log_write(lctx, DNS_LOGCATEGORY_GENERAL, DNS_LOGMODULE_RBT,
-		      ISC_LOG_CRITICAL, "%s",
-		      "Specified category and unspecified module to stderr");
+		      ISC_LOG_CRITICAL, "%s (%d)",
+		      "Specified category and unspecified module to stderr",
+		      stderr_line++);
 
 	/*
 	 * Write to default_syslog, default_stderr and default_debug.
 	 */
 	isc_log_write(lctx, DNS_LOGCATEGORY_DATABASE, DNS_LOGMODULE_CACHE,
-		      ISC_LOG_WARNING, "%s%s",
-		      "Using the predefined channels to send ",
-		      "to syslog+stderr+stderr");
+		      ISC_LOG_WARNING, "%s (%d twice)",
+		      "Using the predefined channels to syslog+stderr",
+		      stderr_line++);
 
 	/*
 	 * Write to predefined null channel.
@@ -199,7 +225,7 @@ main (int argc, char **argv) {
 	 * Reset the internal default to use syslog instead of stderr,
 	 * and test it.
 	 */
-	CHECK_ISC(isc_log_usechannel(lctx, "default_syslog",
+	CHECK_ISC(isc_log_usechannel(lcfg, "default_syslog",
 				     ISC_LOGCATEGORY_DEFAULT,
 				     NULL));
 	isc_log_write(lctx, DNS_LOGCATEGORY_SECURITY, DNS_LOGMODULE_RBT,
@@ -211,8 +237,13 @@ main (int argc, char **argv) {
 	 */
 	if (file_versions >= 0 || file_versions == ISC_LOG_ROLLINFINITE) {
 
-		if (file_versions == ISC_LOG_ROLLINFINITE)
-			file_versions = FILE_VERSIONS; /* Whatever. */
+		/*
+		 * If file_versions is 0 or ISC_LOG_ROLLINFINITE, write
+		 * the "should not appear" and "should be in file" messages
+		 * to ensure they get rolled.
+		 */
+		if (file_versions <= 0)
+			file_versions = FILE_VERSIONS;
 
 		else
 			isc_log_write(lctx, DNS_LOGCATEGORY_GENERAL,
@@ -250,10 +281,15 @@ main (int argc, char **argv) {
 	/*
 	 * Write debugging messages to a dynamic debugging channel.
 	 */
+	isc_log_write(lctx, DNS_LOGCATEGORY_GENERAL, DNS_LOGMODULE_RBTDB,
+		      ISC_LOG_CRITICAL, "This critical message should "
+		      "not appear because the debug level is 0!");
+
 	isc_log_setdebuglevel(lctx, 3);
 
 	isc_log_write(lctx, DNS_LOGCATEGORY_GENERAL, DNS_LOGMODULE_RBTDB,
-		      ISC_LOG_DEBUG(1), "Dynamic debugging to stderr");
+		      ISC_LOG_DEBUG(1), "%s (%d)",
+		      "Dynamic debugging to stderr", stderr_line++);
 	isc_log_write(lctx, DNS_LOGCATEGORY_GENERAL, DNS_LOGMODULE_RBTDB,
 		      ISC_LOG_DEBUG(5),
 		      "This debug level is too high and should not appear!");
@@ -261,15 +297,15 @@ main (int argc, char **argv) {
 	/*
 	 * Test out the duplicate filtering using the debug_test channel.
 	 */
-	isc_log_setduplicateinterval(lctx, 10);
+	isc_log_setduplicateinterval(lcfg, 10);
 	message = "This message should appear only once on stderr";
 
 	isc_log_write1(lctx, DNS_LOGCATEGORY_GENERAL, DNS_LOGMODULE_RBTDB,
-		       ISC_LOG_CRITICAL, message);
+		       ISC_LOG_CRITICAL, "%s", message, stderr_line++);
 	isc_log_write1(lctx, DNS_LOGCATEGORY_GENERAL, DNS_LOGMODULE_RBTDB,
 		       ISC_LOG_CRITICAL, message);
 
-	isc_log_setduplicateinterval(lctx, 1);
+	isc_log_setduplicateinterval(lcfg, 1);
 	message = "This message should appear twice on stderr";
 	
 	isc_log_write1(lctx, DNS_LOGCATEGORY_GENERAL, DNS_LOGMODULE_RBTDB,

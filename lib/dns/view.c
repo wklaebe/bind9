@@ -33,6 +33,8 @@
 #include <dns/db.h>
 #include <dns/events.h>
 #include <dns/fixedname.h>
+#include <dns/keytable.h>
+#include <dns/peer.h>
 #include <dns/rbt.h>
 #include <dns/rdataset.h>
 #include <dns/resolver.h>
@@ -95,13 +97,22 @@ dns_view_create(isc_mem_t *mctx, dns_rdataclass_t rdclass,
 		goto cleanup_rwlock;
 	}
 	view->secroots = NULL;
-	result = dns_rbt_create(mctx, NULL, NULL, &view->secroots);
+	result = dns_keytable_create(mctx, &view->secroots);
 	if (result != ISC_R_SUCCESS) {
 		UNEXPECTED_ERROR(__FILE__, __LINE__,
-				 "dns_rbt_create() failed: %s",
+				 "dns_keytable_create() failed: %s",
 				 isc_result_totext(result));
 		result = ISC_R_UNEXPECTED;
 		goto cleanup_zt;
+	}
+	view->trustedkeys = NULL;
+	result = dns_keytable_create(mctx, &view->trustedkeys);
+	if (result != ISC_R_SUCCESS) {
+		UNEXPECTED_ERROR(__FILE__, __LINE__,
+				 "dns_keytable_create() failed: %s",
+				 isc_result_totext(result));
+		result = ISC_R_UNEXPECTED;
+		goto cleanup_secroots;
 	}
 
 	view->cache = NULL;
@@ -119,7 +130,11 @@ dns_view_create(isc_mem_t *mctx, dns_rdataclass_t rdclass,
 	view->dynamickeys = NULL;
 	result = dns_tsigkeyring_create(view->mctx, &view->dynamickeys);
 	if (result != DNS_R_SUCCESS)
-		goto cleanup_zt;
+		goto cleanup_trustedkeys;
+	view->peers = NULL;
+	result = dns_peerlist_new(view->mctx, &view->peers);
+	if (result != DNS_R_SUCCESS)
+		goto cleanup_dynkeys;
 	ISC_LINK_INIT(view, link);
 	ISC_EVENT_INIT(&view->resevent, sizeof view->resevent, 0, NULL,
 		       DNS_EVENT_VIEWRESSHUTDOWN, resolver_shutdown,
@@ -133,6 +148,15 @@ dns_view_create(isc_mem_t *mctx, dns_rdataclass_t rdclass,
 
 	return (ISC_R_SUCCESS);
 
+ cleanup_dynkeys:
+	dns_tsigkeyring_destroy(&view->dynamickeys);	
+
+ cleanup_trustedkeys:
+	dns_keytable_detach(&view->trustedkeys);
+
+ cleanup_secroots:
+	dns_keytable_detach(&view->secroots);
+	
  cleanup_zt:
 	dns_zt_detach(&view->zonetable);
 
@@ -179,6 +203,8 @@ destroy(dns_view_t *view) {
 	REQUIRE(RESSHUTDOWN(view));
 	REQUIRE(ADBSHUTDOWN(view));
 
+	if (view->peers != NULL)
+		dns_peerlist_detach(&view->peers);
 	if (view->dynamickeys != NULL)	
 		dns_tsigkeyring_destroy(&view->dynamickeys);
 	if (view->statickeys != NULL)	
@@ -196,7 +222,8 @@ destroy(dns_view_t *view) {
 	if (view->cache != NULL)
 		dns_cache_detach(&view->cache);
 	dns_zt_detach(&view->zonetable);
-	dns_rbt_destroy(&view->secroots);
+	dns_keytable_detach(&view->trustedkeys);
+	dns_keytable_detach(&view->secroots);
 	isc_mutex_destroy(&view->lock);
 	isc_mem_free(view->mctx, view->name);
 	isc_mem_put(view->mctx, view, sizeof *view);
@@ -397,6 +424,7 @@ dns_view_addzone(dns_view_t *view, dns_zone_t *zone) {
 	REQUIRE(!view->frozen);
 
 	result = dns_zt_mount(view->zonetable, zone);
+	dns_zone_setview(zone, view);
 
 	return (result);
 }
@@ -606,14 +634,24 @@ dns_view_simplefind(dns_view_t *view, dns_name_t *name, dns_rdatatype_t type,
 	result = dns_view_find(view, name, type, now, options, use_hints,
 			       dns_fixedname_name(&foundname),
 			       rdataset, sigrdataset);
-	if (result != ISC_R_SUCCESS &&
-	    result != DNS_R_GLUE &&
-	    result != DNS_R_HINT &&
-	    result != DNS_R_NCACHENXDOMAIN &&
-	    result != DNS_R_NCACHENXRRSET &&
-	    result != DNS_R_NXDOMAIN &&
-	    result != DNS_R_NXRRSET &&
-	    result != DNS_R_NOTFOUND) {
+	if (result == DNS_R_NXDOMAIN) {
+		/*
+		 * The rdataset and sigrdataset of the relevant NXT record
+		 * may be returned, but the caller cannot use them because
+		 * foundname is not returned by this simplified API.  We
+		 * disassociate them here to prevent any misuse by the caller.
+		 */
+		if (rdataset->methods != NULL)
+			dns_rdataset_disassociate(rdataset);
+		if (sigrdataset != NULL && sigrdataset->methods != NULL)
+			dns_rdataset_disassociate(sigrdataset);
+	} else if (result != ISC_R_SUCCESS &&
+		   result != DNS_R_GLUE &&
+		   result != DNS_R_HINT &&
+		   result != DNS_R_NCACHENXDOMAIN &&
+		   result != DNS_R_NCACHENXRRSET &&
+		   result != DNS_R_NXRRSET &&
+		   result != DNS_R_NOTFOUND) {
 		if (rdataset->methods != NULL)
 			dns_rdataset_disassociate(rdataset);
 		if (sigrdataset != NULL && sigrdataset->methods != NULL)

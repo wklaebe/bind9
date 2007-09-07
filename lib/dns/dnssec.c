@@ -16,7 +16,7 @@
  */
 
 /*
- * $Id: dnssec.c,v 1.18 2000/02/04 18:19:48 bwelling Exp $
+ * $Id: dnssec.c,v 1.24 2000/03/13 19:27:33 bwelling Exp $
  * Principal Author: Brian Wellington
  */
 
@@ -32,7 +32,6 @@
 #include <isc/list.h>
 #include <isc/net.h>
 #include <isc/result.h>
-#include <isc/rwlock.h>
 #include <isc/stdtime.h>
 #include <isc/types.h>
 
@@ -50,9 +49,6 @@
 #include <dst/dst.h>
 #include <dst/result.h>
 
-#define TRUSTED_KEY_MAGIC	0x54525354	/* TRST */
-#define VALID_TRUSTED_KEY(x)	((x) != NULL && (x)->magic == TRUSTED_KEY_MAGIC)
-
 #define is_response(msg) (msg->flags & DNS_MESSAGEFLAG_QR)
 
 #define RETERR(x) do { \
@@ -62,16 +58,6 @@
 	} while (0)
 
 
-typedef struct dns_trusted_key dns_trusted_key_t;
-
-struct dns_trusted_key {
-        unsigned int                    magic;          /* Magic number. */
-        isc_mem_t                       *mctx;
-        dst_key_t                       *key;           /* Key */
-        dns_name_t                      name;           /* Key name */
-        ISC_LINK(dns_trusted_key_t)     link;
-};
-
 #define TYPE_SIGN 0
 #define TYPE_VERIFY 1
 
@@ -80,11 +66,6 @@ typedef struct digestctx {
 	dst_context_t context;
 	isc_uint8_t type;
 } digestctx_t;
-
-/* XXXBEW If an unsorted list isn't good enough, this can be updated */
-static ISC_LIST(dns_trusted_key_t) trusted_keys;
-static isc_rwlock_t trusted_key_lock;
-
 
 static isc_result_t digest_callback(void *arg, isc_region_t *data);
 static isc_result_t keyname_to_name(char *keyname, isc_mem_t *mctx,
@@ -174,37 +155,6 @@ rdataset_to_sortedarray(dns_rdataset_t *set, isc_mem_t *mctx,
 }
 
 isc_result_t
-dns_dnssec_add_trusted_key(dst_key_t *key, isc_mem_t *mctx) {
-	dns_trusted_key_t *tkey;
-	isc_result_t ret;
-
-	REQUIRE(key != NULL);
-	REQUIRE(mctx != NULL);
-
-	tkey = isc_mem_get(mctx, sizeof(dns_trusted_key_t));
-	if (tkey == NULL)
-		return (ISC_R_NOMEMORY);
-
-	ret = keyname_to_name(dst_key_name(key), mctx, &tkey->name);
-	if (ret != ISC_R_SUCCESS)
-		goto cleanup;
-
-	tkey->mctx = mctx;
-	ISC_LINK_INIT(tkey, link);
-	isc_rwlock_lock(&trusted_key_lock, isc_rwlocktype_write);
-	ISC_LIST_APPEND(trusted_keys, tkey, link);
-	isc_rwlock_unlock(&trusted_key_lock, isc_rwlocktype_write);
-
-	tkey->mctx = mctx;
-	tkey->magic = TRUSTED_KEY_MAGIC;
-	return (ISC_R_SUCCESS);
-
-cleanup:
-	isc_mem_put(mctx, tkey, sizeof(dns_trusted_key_t));
-	return (ret);
-}
-
-isc_result_t
 dns_dnssec_keyfromrdata(dns_name_t *name, dns_rdata_t *rdata, isc_mem_t *mctx,
 			dst_key_t **key)
 {
@@ -278,7 +228,7 @@ dns_dnssec_sign(dns_name_t *name, dns_rdataset_t *set, dst_key_t *key,
 
 	sig.covered = set->type;
 	sig.algorithm = dst_key_alg(key);
-	sig.labels = dns_name_countlabels(name) - 1;
+	sig.labels = dns_name_depth(name) - 1;
 	if (dns_name_iswildcard(name))
 		sig.labels--;
 	sig.originalttl = set->ttl;
@@ -385,7 +335,7 @@ dns_dnssec_verify(dns_name_t *name, dns_rdataset_t *set, dst_key_t *key,
 		  isc_mem_t *mctx, dns_rdata_t *sigrdata)
 {
 	dns_rdata_generic_sig_t sig;
-	dns_name_t newname;
+	dns_fixedname_t fnewname;
 	isc_region_t r;
 	isc_buffer_t envbuf;
 	dns_rdata_t *rdatas;
@@ -432,11 +382,15 @@ dns_dnssec_verify(dns_name_t *name, dns_rdataset_t *set, dst_key_t *key,
 			 key, &ctx, &r, NULL);
 
 	/* if the name is an expanded wildcard, use the wildcard name */
-	dns_name_init(&newname, NULL);
-	labels = dns_name_countlabels(name) - 1;
-	dns_name_getlabelsequence(name, labels - sig.labels, sig.labels + 1,
-				  &newname);
-	dns_name_toregion(&newname, &r);
+	labels = dns_name_depth(name) - 1;
+	if (labels - sig.labels > 0) {
+		dns_fixedname_init(&fnewname);
+		dns_name_splitatdepth(name, sig.labels + 1, NULL,
+				      dns_fixedname_name(&fnewname));
+		dns_name_toregion(dns_fixedname_name(&fnewname), &r);
+	}
+	else
+		dns_name_toregion(name, &r);
 
 	/* create an envelope for each rdata: <name|type|class|ttl> */
 	isc_buffer_init(&envbuf, data, sizeof(data), ISC_BUFFERTYPE_BINARY);
@@ -502,33 +456,6 @@ cleanup_struct:
 	return (ret);
 }
 
-isc_result_t
-dns_dnssec_init() {
-	isc_result_t ret;
-
-        ret = isc_rwlock_init(&trusted_key_lock, 0, 0);
-        if (ret != ISC_R_SUCCESS) {
-                UNEXPECTED_ERROR(__FILE__, __LINE__,
-                                 "isc_rwlock_init() failed: %s",
-                                 isc_result_totext(ret));
-                return (DNS_R_UNEXPECTED);
-        }
-	
-	ISC_LIST_INIT(trusted_keys);
-
-	return (ISC_R_SUCCESS);
-}
-
-void
-dns_dnssec_destroy() {
-	while (!ISC_LIST_EMPTY(trusted_keys)) {
-		dns_trusted_key_t *key = ISC_LIST_HEAD(trusted_keys);
-		isc_mem_t *mctx = key->mctx;
-		dns_name_free(&key->name, mctx);
-		isc_mem_put(mctx, key, sizeof(dns_trusted_key_t));
-	}
-}
-
 #define is_zone_key(key) ((dst_key_flags(key) & DNS_KEYFLAG_OWNERMASK) \
 			  == DNS_KEYOWNER_ZONE)
 
@@ -550,7 +477,7 @@ dns_dnssec_findzonekeys(dns_db_t *db, dns_dbversion_t *ver,
 	dns_rdataset_t rdataset;
 	dns_rdata_t rdata;
 	isc_result_t result;
-	dst_key_t *pubkey;
+	dst_key_t *pubkey = NULL;
 	unsigned int count = 0;
 
 	*nkeys = 0;
@@ -636,7 +563,7 @@ dns_dnssec_signmessage(dns_message_t *msg, dst_key_t *key) {
 	memset(&sig, 0, sizeof(dns_rdata_generic_sig_t));
 
 	sig.mctx = mctx;
-	sig.common.rdclass = dns_rdataclass_in; /**/
+	sig.common.rdclass = dns_rdataclass_any;
 	sig.common.rdtype = dns_rdatatype_sig;
 	ISC_LINK_INIT(&sig.common, link);
 
@@ -682,7 +609,7 @@ dns_dnssec_signmessage(dns_message_t *msg, dst_key_t *key) {
 	 * dns_rdata_fromstruct.  Since siglen is 0, the digested data
 	 * is identical to dns format with the last 2 bytes removed.
 	 */
-	RETERR(dns_rdata_fromstruct(NULL, dns_rdataclass_in /**/,
+	RETERR(dns_rdata_fromstruct(NULL, dns_rdataclass_any,
 				    dns_rdatatype_sig, &sig, &databuf));
 	isc_buffer_used(&databuf, &r);
 	r.length -= 2;
@@ -705,7 +632,7 @@ dns_dnssec_signmessage(dns_message_t *msg, dst_key_t *key) {
 	dynbuf = NULL;
 	RETERR(isc_buffer_allocate(msg->mctx, &dynbuf, 1024,
 				   ISC_BUFFERTYPE_BINARY));
-	RETERR(dns_rdata_fromstruct(rdata, dns_rdataclass_in /**/,
+	RETERR(dns_rdata_fromstruct(rdata, dns_rdataclass_any,
 				    dns_rdatatype_sig, &sig, dynbuf));
 
 	dns_rdata_freestruct(&sig);
@@ -720,7 +647,7 @@ dns_dnssec_signmessage(dns_message_t *msg, dst_key_t *key) {
 
 	datalist = NULL;
 	RETERR(dns_message_gettemprdatalist(msg, &datalist));
-	datalist->rdclass = dns_rdataclass_in /**/;
+	datalist->rdclass = dns_rdataclass_any;
 	datalist->type = dns_rdatatype_sig;
 	datalist->covers = 0;
 	datalist->ttl = 0;
@@ -847,7 +774,7 @@ dns_dnssec_verifymessage(dns_message_t *msg, dst_key_t *key) {
 		goto failure;
 	}
 
-	msg->verified_sig0 = 1;
+	msg->verified_sig = 1;
 
 	dns_rdata_freestruct(&sig);
 
@@ -856,6 +783,8 @@ dns_dnssec_verifymessage(dns_message_t *msg, dst_key_t *key) {
 failure:
 	if (signeedsfree)
 		dns_rdata_freestruct(&sig);
+
+	msg->verify_attempted = 1;
 
 	return (result);
 }

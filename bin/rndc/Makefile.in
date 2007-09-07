@@ -21,13 +21,14 @@ top_srcdir =	@top_srcdir@
 
 @BIND9_INCLUDES@
 
-CINCLUDES =	-I../named/include \
-		${ISC_INCLUDES} ${OMAPI_INCLUDES}
+CINCLUDES =	-I${top_srcdir}/bin/named/include \
+		${ISC_INCLUDES} ${DNS_INCLUDES} ${OMAPI_INCLUDES}
 
 CDEFINES =	
 CWARNINGS =
 
 DEPLIBS =	../../lib/omapi/libomapi.@A@ \
+		../../lib/dns/libdns.@A@ \
 		../../lib/isc/libisc.@A@
 
 LIBS =		${DEPLIBS} \
@@ -42,7 +43,7 @@ SRCS =		rndc.c
 @BIND9_MAKE_RULES@
 
 rndc: ${OBJS} ${DEPLIBS}
-	${LIBTOOL} ${CC} -o $@ ${OBJS} ${LIBS}
+	${LIBTOOL} ${CC} ${CFLAGS} -o $@ ${OBJS} ${LIBS}
 
 clean distclean::
 	rm -f ${TARGETS}

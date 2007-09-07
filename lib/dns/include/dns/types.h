@@ -49,12 +49,14 @@ typedef struct dns_decompress			dns_decompress_t;
 typedef isc_uint8_t				dns_secalg_t;
 typedef isc_uint8_t				dns_secproto_t;
 typedef isc_uint16_t				dns_keyflags_t;
+typedef isc_uint16_t				dns_keytag_t;
 typedef isc_uint16_t				dns_rdataclass_t;
 typedef isc_uint16_t				dns_rdatatype_t;
 typedef isc_uint16_t				dns_rcode_t;
 typedef isc_uint16_t				dns_opcode_t;
 typedef isc_uint16_t				dns_cert_t;
 typedef isc_uint32_t				dns_ttl_t;
+typedef isc_uint64_t				dns_bitset_t;
 typedef struct dns_rdata			dns_rdata_t;
 typedef struct dns_rdatalist			dns_rdatalist_t;
 typedef struct dns_signature			dns_signature_t;
@@ -91,7 +93,18 @@ typedef struct dns_zt				dns_zt_t;
 typedef struct dns_cache			dns_cache_t;
 typedef struct dns_aclelement 			dns_aclelement_t;
 typedef struct dns_acl 				dns_acl_t;
+typedef struct dns_aclenv			dns_aclenv_t;
 typedef struct dns_byaddr			dns_byaddr_t;
+typedef struct dns_ssutable			dns_ssutable_t;
+typedef struct dns_ssurule			dns_ssurule_t;
+typedef struct dns_validator			dns_validator_t;
+typedef struct dns_keytable			dns_keytable_t;
+typedef struct dns_keynode			dns_keynode_t;
+typedef struct dns_peer				dns_peer_t;
+typedef struct dns_peerlist			dns_peerlist_t;
+typedef struct dns_xfrinlist			dns_xfrinlist_t;
+typedef struct dns_requestmgr			dns_requestmgr_t;
+typedef struct dns_request			dns_request_t;
 
 typedef enum {
 	dns_labeltype_ordinary = 0,
@@ -222,6 +235,20 @@ typedef isc_result_t
 
 typedef void
 (*dns_xfrindone_t)(dns_zone_t *, isc_result_t);
+
+
+#ifndef DNS_SETBIT
+
+/* XXXJAB there must be a better file for these. */
+
+#define DNS_SETBIT(bit, bitset) \
+     (*(bitset) |= ((dns_bitset_t)1 << (bit)))
+#define DNS_CLEARBIT(bit, bitset) \
+     (*(bitset) &= ~((dns_bitset_t)1 << (bit)))
+#define DNS_CHECKBIT(bit, bitset) \
+     ISC_TF((*(bitset) & ((dns_bitset_t)1 << (bit))) == ((dns_bitset_t)1 << (bit)))
+
+#endif
 
 ISC_LANG_ENDDECLS
 

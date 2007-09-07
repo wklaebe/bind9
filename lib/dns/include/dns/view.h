@@ -83,7 +83,8 @@ struct dns_view {
 	dns_cache_t *			cache;
 	dns_db_t *			cachedb;
 	dns_db_t *			hints;
-	dns_rbt_t *			secroots;
+	dns_keytable_t *		secroots;
+	dns_keytable_t *		trustedkeys;
 	isc_mutex_t			lock;
 	isc_rwlock_t			conflock;
 	isc_boolean_t			frozen;
@@ -93,6 +94,7 @@ struct dns_view {
 	/* Configurable data, locked by conflock. */
 	dns_tsig_keyring_t *		statickeys;
 	dns_tsig_keyring_t *		dynamickeys;
+	dns_peerlist_t *		peers;
 	/* Locked by lock. */
 	unsigned int			references;
 	unsigned int			attributes;

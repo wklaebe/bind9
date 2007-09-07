@@ -15,7 +15,7 @@
  * SOFTWARE.
  */
 
- /* $Id: zone.c,v 1.77 2000/02/03 23:44:03 halley Exp $ */
+/* $Id: zone.c,v 1.88 2000/03/21 00:17:15 marka Exp $ */
 
 #include <config.h>
 
@@ -26,7 +26,6 @@
 #include <isc/magic.h>
 #include <isc/mktemplate.h>
 #include <isc/print.h>
-#include <isc/quota.h>
 #include <isc/serial.h>
 #include <isc/taskpool.h>
 #include <isc/timer.h>
@@ -37,6 +36,7 @@
 #include <dns/db.h>
 #include <dns/dbiterator.h>
 #include <dns/dispatch.h>
+#include <dns/events.h>
 #include <dns/journal.h>
 #include <dns/log.h>
 #include <dns/master.h>
@@ -48,6 +48,7 @@
 #include <dns/rdatasetiter.h>
 #include <dns/rdatastruct.h>
 #include <dns/resolver.h>
+#include <dns/ssu.h>
 #include <dns/xfrin.h>
 #include <dns/zone.h>
 #include <dns/zt.h>
@@ -112,7 +113,9 @@ struct dns_zone {
 	dns_zonemgr_t		*zmgr;
 	ISC_LINK(dns_zone_t)	link;		/* Used by zmgr. */
 	isc_timer_t		*timer;
-	unsigned int		references;
+	unsigned int		erefs;
+	unsigned int		irefs;
+	isc_boolean_t		shuttingdown;
 	dns_name_t		origin;
 	char 			*database;
 	char			*journal;
@@ -161,6 +164,9 @@ struct dns_zone {
 	isc_uint32_t		idlein;
 	isc_uint32_t		idleout;
 	isc_boolean_t		diff_on_reload;
+	isc_event_t		ctlevent;
+	dns_ssutable_t		*ssutable;
+	dns_view_t		*view;
 };
 
 #define DNS_ZONE_FLAG(z,f) (((z)->flags & (f)) != 0)
@@ -192,8 +198,12 @@ struct dns_zonemgr {
 	isc_rwlock_t		conflock;
 	/* Locked by rwlock. */
 	ISC_LIST(dns_zone_t)	zones;
-	/* Maximum locked by conflock. */
-	isc_quota_t		transfersin;
+	/* Locked by conflock. */
+	int			transfersin;
+	int			transfersperns;
+	isc_boolean_t		requestixfr;
+	/* Contains its own lock. */
+	dns_xfrinlist_t		transferlist;
 };
 
 static isc_result_t zone_settimer(dns_zone_t *, isc_stdtime_t);
@@ -215,6 +225,12 @@ static void releasezone(dns_zonemgr_t *zmgr, dns_zone_t *zone);
 static void xfrin_start_temporary_kludge(dns_zone_t *zone);
 static void xfrdone(dns_zone_t *zone, isc_result_t result);
 static void zone_shutdown(isc_task_t *, isc_event_t *);
+
+#if 0
+/* ondestroy example */
+static void dns_zonemgr_dbdestroyed(isc_task_t *task, isc_event_t *event);
+#endif
+
 #ifdef notyet
 static void refresh_callback(isc_task_t *, isc_event_t *);
 static void soa_query(dns_zone_t *, isc_taskaction_t);
@@ -235,8 +251,8 @@ static void record_serial(void);
 		isc_result_t r; \
 		r = dns_zone_tostr(zone, zone->mctx, &s); \
 		if (r == DNS_R_SUCCESS) { \
-			printf("%p: %s: references = %d\n", zone, s, \
-			       zone->references); \
+			printf("%p: %s: erefs = %d\n", zone, s, \
+			       zone->erefs); \
 			isc_mem_free(zone->mctx, s); \
 		} \
 	} while (0)
@@ -281,7 +297,9 @@ dns_zone_create(dns_zone_t **zonep, isc_mem_t *mctx) {
 	zone->top = NULL;
 	zone->zmgr = NULL;
 	ISC_LINK_INIT(zone, link);
-	zone->references = 1;		/* Implicit attach. */
+	zone->erefs = 1;		/* Implicit attach. */
+	zone->irefs = 0;
+	zone->shuttingdown = ISC_FALSE;
 	dns_name_init(&zone->origin, NULL);
 	zone->database = NULL;
 	zone->journalsize = -1;
@@ -329,10 +347,12 @@ dns_zone_create(dns_zone_t **zonep, isc_mem_t *mctx) {
 	zone->maxxfrin = MAX_XFER_TIME;
 	zone->maxxfrout = MAX_XFER_TIME;
 	zone->diff_on_reload = ISC_FALSE;
+	zone->ssutable = NULL;
+	zone->view = NULL;
 	zone->magic = ZONE_MAGIC;
-#if 0
-	PRINT_ZONE_REF(zone);
-#endif
+	ISC_EVENT_INIT(&zone->ctlevent, sizeof(zone->ctlevent), 0, NULL,
+		       DNS_EVENT_ZONECONTROL, zone_shutdown, zone, zone,
+		       NULL, NULL);
 	*zonep = zone;
 	return (DNS_R_SUCCESS);
 }
@@ -342,7 +362,7 @@ zone_free(dns_zone_t *zone) {
 
 	REQUIRE(DNS_ZONE_VALID(zone));
 	LOCK(&zone->lock);
-	REQUIRE(zone->references == 0);
+	REQUIRE(zone->erefs == 0);
 	zone->flags |= DNS_ZONE_F_EXITING;
 	UNLOCK(&zone->lock);
 
@@ -389,6 +409,8 @@ zone_free(dns_zone_t *zone) {
 		dns_acl_detach(&zone->xfr_acl);
 	if (dns_name_dynamic(&zone->origin))
 		dns_name_free(&zone->origin, zone->mctx);
+	if (zone->ssutable != NULL)
+		dns_ssutable_detach(&zone->ssutable);
 
 	/* last stuff */
 	isc_mutex_destroy(&zone->lock);
@@ -451,6 +473,16 @@ dns_zone_setdbtype(dns_zone_t *zone, char *db_type) {
 	UNLOCK(&zone->lock);
 	return (result);
 }
+
+void dns_zone_setview(dns_zone_t *zone, dns_view_t *view) {
+	zone->view = view;
+}
+     
+
+dns_view_t *dns_zone_getview(dns_zone_t *zone) {
+	return (zone->view);
+}
+     
 
 isc_result_t
 dns_zone_setorigin(dns_zone_t *zone, dns_name_t *origin) {
@@ -745,6 +777,20 @@ dns_zone_load(dns_zone_t *zone) {
 		result = DNS_R_UNEXPECTED;
 		goto cleanup;
 	}
+
+
+#if 0
+	/* destroy notification example. */
+	{
+		isc_event_t *e = isc_event_allocate(zone->mctx, NULL,
+						    DNS_EVENT_DBDESTROYED,
+						    dns_zonemgr_dbdestroyed,
+						    zone,
+						    sizeof(isc_event_t));
+		dns_db_ondestroy(db, zone->task, &e);
+	}
+#endif	
+
 	if (zone->top != NULL) {
 		result = replacedb(zone, db, ISC_FALSE);
 		if (result != ISC_R_SUCCESS)
@@ -1214,20 +1260,77 @@ dns_zone_checkglue(dns_zone_t *zone) {
 	 */
 }
 
+static void
+exit_check(dns_zone_t *zone)
+{
+	if (zone->irefs == 0 && zone->shuttingdown == ISC_TRUE)
+		zone_free(zone);
+}
+
 void
 dns_zone_attach(dns_zone_t *source, dns_zone_t **target) {
 	REQUIRE(DNS_ZONE_VALID(source));
 	REQUIRE(target != NULL && *target == NULL);
-
 	LOCK(&source->lock);
-	REQUIRE(source->references > 0);
-	source->references++;
-#if 0
-	PRINT_ZONE_REF(source);
-#endif
-	INSIST(source->references != 0xffffffffU);
+	REQUIRE(source->erefs > 0);
+	source->erefs++;
+	INSIST(source->erefs != 0xffffffffU);
 	UNLOCK(&source->lock);
 	*target = source;
+}
+
+void
+dns_zone_detach(dns_zone_t **zonep) {
+	dns_zone_t *zone;
+	isc_boolean_t free_now = ISC_FALSE;
+	REQUIRE(zonep != NULL && DNS_ZONE_VALID(*zonep));
+	zone = *zonep;
+	LOCK(&zone->lock);
+	REQUIRE(zone->erefs > 0);
+	zone->erefs--;
+	if (zone->erefs == 0) {
+		if (zone->task != NULL) {
+			/*
+			 * This zone is being managed.  Post
+			 * its control event and let it clean
+			 * up synchronously in the context of
+			 * its task.
+			 */
+			isc_event_t *ev = &zone->ctlevent;
+			isc_task_send(zone->task, &ev);
+		} else {
+			/*
+			 * This zone is not being managed; it has
+			 * no task and can have no outstanding
+			 * events.  Free it immediately.
+			 */
+			free_now = ISC_TRUE;
+		}
+	}
+	UNLOCK(&zone->lock);
+	if (free_now)
+		zone_free(zone);
+	*zonep = NULL;
+}
+
+void
+dns_zone_iattach(dns_zone_t *source, dns_zone_t **target) {
+	REQUIRE(DNS_ZONE_VALID(source));
+	REQUIRE(target != NULL && *target == NULL);
+	source->irefs++;
+	INSIST(source->irefs != 0xffffffffU);
+	*target = source;
+}
+
+void
+dns_zone_idetach(dns_zone_t **zonep) {
+	dns_zone_t *zone;
+	REQUIRE(zonep != NULL && DNS_ZONE_VALID(*zonep));
+	zone = *zonep;
+	REQUIRE(zone->irefs > 0);
+	zone->irefs--;
+	*zonep = NULL;
+	exit_check(zone);
 }
 
 void
@@ -1239,7 +1342,12 @@ dns_zone_print(dns_zone_t *zone) {
 
 isc_mem_t *
 dns_zone_getmctx(dns_zone_t *zone) {
-	return zone->mctx;
+	return (zone->mctx);
+}
+
+dns_zonemgr_t *
+dns_zone_getmgr(dns_zone_t *zone) {
+	return (zone->zmgr);
 }
 
 static isc_result_t
@@ -1268,25 +1376,6 @@ dns_zone_tostr(dns_zone_t *zone, isc_mem_t *mctx, char **s) {
 	}
 	*s = isc_mem_strdup(mctx, outbuf);
 	return ((*s == NULL) ? DNS_R_NOMEMORY : DNS_R_SUCCESS);
-}
-
-void
-dns_zone_detach(dns_zone_t **zonep) {
-	dns_zone_t *zone;
-
-	REQUIRE(zonep != NULL && DNS_ZONE_VALID(*zonep));
-
-	zone = *zonep;
-	LOCK(&zone->lock);
-	REQUIRE(zone->references > 0);
-	zone->references--;
-#if 0
-	PRINT_ZONE_REF(zone);
-#endif
-	UNLOCK(&zone->lock);
-	if (zone->references == 0)
-		zone_free(zone);
-	*zonep = NULL;
 }
 
 void
@@ -2147,15 +2236,22 @@ soa_query(dns_zone_t *zone, isc_taskaction_t callback) {
 }
 #endif
 
+/*
+ * Handle the control event.  Note that although this event causes the zone
+ * to shut down, it is not a shutdown event in the sense of the task library.
+ */
 static void
 zone_shutdown(isc_task_t *task, isc_event_t *event) {
 	dns_zone_t *zone = (dns_zone_t *) event->arg;
-	isc_event_free(&event);
 	UNUSED(task);
 	REQUIRE(DNS_ZONE_VALID(zone));
+	INSIST(event->type == DNS_EVENT_ZONECONTROL);
+	INSIST(zone->erefs == 0);
 	zone_log(zone, "zone_shutdown", ISC_LOG_DEBUG(3), "shutting down");
+	zone->shuttingdown = ISC_TRUE;
 	if (zone->xfr != NULL)
 		dns_xfrin_shutdown(zone->xfr);
+	exit_check(zone);
 }
 
 static void
@@ -2933,16 +3029,15 @@ xfrdone(dns_zone_t *zone, isc_result_t result) {
 	INSIST((zone->flags & DNS_ZONE_F_REFRESH) != 0);
 	zone->flags &= ~DNS_ZONE_F_REFRESH;
 
+	isc_stdtime_get(&now);
 	switch (result) {
 	case DNS_R_UPTODATE:
 	case DNS_R_SUCCESS:
-		isc_stdtime_get(&now);
 		if (DNS_ZONE_FLAG(zone, DNS_ZONE_F_NEEDREFRESH)) {
 			zone->flags &= ~DNS_ZONE_F_NEEDREFRESH;
 			zone->refreshtime = now;
 		} else
 			zone->refreshtime = now + zone->refresh;
-		zone_settimer(zone, now);
 		break;
 
 	default:
@@ -2955,6 +3050,7 @@ xfrdone(dns_zone_t *zone, isc_result_t result) {
 		}
 		break;
 	}
+	zone_settimer(zone, now);
 	UNLOCK(&zone->lock);
 
 	/*
@@ -2974,6 +3070,21 @@ xfrdone(dns_zone_t *zone, isc_result_t result) {
 		xfrin_start_temporary_kludge(zone);
 }
 
+void
+dns_zone_getssutable(dns_zone_t *zone, dns_ssutable_t **table) {
+	REQUIRE(DNS_ZONE_VALID(zone));
+	REQUIRE(table != NULL);
+	REQUIRE(*table == NULL);
+	*table = zone->ssutable;
+}
+
+void
+dns_zone_setssutable(dns_zone_t *zone, dns_ssutable_t *table) {
+	REQUIRE(DNS_ZONE_VALID(zone));
+	REQUIRE(table != NULL);
+	zone->ssutable = table;
+}
+
 /***
  ***	Zone manager. 
  ***/
@@ -2981,18 +3092,20 @@ xfrdone(dns_zone_t *zone, isc_result_t result) {
 static void
 xfrin_start_temporary_kludge(dns_zone_t *zone) {
 	isc_result_t result;
-	isc_sockaddr_t sa;
+	isc_sockaddr_t master;
 	in_port_t port;
 
 	if (zone->masterscnt < 1)
 		return;
+
+	master = zone->masters[zone->curmaster];
+	
 	port = zone->masterport; 
 	if (port == 0)
 		port = 53; /* XXX is this the right place? */
-	isc_sockaddr_fromin(&sa,
-			    &zone->masters[zone->curmaster].type.sin.sin_addr,
-			    port);
-	result = dns_xfrin_create(zone, &sa, zone->mctx,
+	isc_sockaddr_setport(&master, port);
+
+	result = dns_xfrin_create(zone, &master, zone->mctx,
 				  zone->zmgr->timermgr, zone->zmgr->socketmgr,
 				  zone->task,
 				  xfrdone, &zone->xfr);
@@ -3035,10 +3148,13 @@ dns_zonemgr_create(isc_mem_t *mctx, isc_taskmgr_t *taskmgr,
 		goto free_rwlock;
 	}
 
-	result = isc_quota_init(&zmgr->transfersin, 10);
+	zmgr->transfersin = 10;
+	zmgr->transfersperns = 2;
+	
+	result = dns_xfrinlist_init(&zmgr->transferlist);
 	if (result != ISC_R_SUCCESS) {
 		UNEXPECTED_ERROR(__FILE__, __LINE__,
-				 "isc_quota_init() failed: %s",
+				 "dns_transferlist_init() failed: %s",
 				 isc_result_totext(result));
 		result = DNS_R_UNEXPECTED;
 		goto free_conflock;
@@ -3048,7 +3164,7 @@ dns_zonemgr_create(isc_mem_t *mctx, isc_taskmgr_t *taskmgr,
 	result = isc_taskpool_create(taskmgr, mctx, 
 				     8 /* XXX */, 0, &zmgr->zonetasks);
 	if (result != ISC_R_SUCCESS)
-		goto free_transfersin;
+		goto free_transferlist;
 
 	/* Create a single task for queueing of SOA queries. */
 	result = isc_task_create(taskmgr, mctx, 1, &zmgr->task);
@@ -3059,10 +3175,10 @@ dns_zonemgr_create(isc_mem_t *mctx, isc_taskmgr_t *taskmgr,
 	*zmgrp = zmgr;
 	return (ISC_R_SUCCESS);
 
+ free_transferlist:
+	dns_xfrinlist_destroy(&zmgr->transferlist);
  free_taskpool:
 	isc_taskpool_destroy(&zmgr->zonetasks);	
- free_transfersin:
-	isc_quota_destroy(&zmgr->transfersin);
  free_conflock:
 	isc_rwlock_destroy(&zmgr->conflock);
  free_rwlock:
@@ -3096,18 +3212,11 @@ dns_zonemgr_managezone(dns_zonemgr_t *zmgr, dns_zone_t *zone) {
 	if (result != ISC_R_SUCCESS)
 		goto cleanup_task;
 
-	result = isc_task_onshutdown(zone->task, zone_shutdown, zone);
-	if (result != ISC_R_SUCCESS)
-		goto cleanup_timer;
-	
 	zone->zmgr = zmgr;
 	ISC_LIST_APPEND(zmgr->zones, zone, link);
 
 	goto unlock;
 
- cleanup_timer:
-	isc_timer_detach(&zone->timer);
-	
  cleanup_task:
 	if (zone->task != NULL)
 		isc_task_detach(&zone->task);
@@ -3197,11 +3306,52 @@ dns_zonemgr_unlockconf(dns_zonemgr_t *zmgr, isc_rwlocktype_t type) {
 
 void
 dns_zonemgr_settransfersin(dns_zonemgr_t *zmgr, int value) {
-	zmgr->transfersin.max = value;
+	zmgr->transfersin = value;
 }
 
 int
 dns_zonemgr_getttransfersin(dns_zonemgr_t *zmgr) {
-	return (zmgr->transfersin.max);
+	return (zmgr->transfersin);
 }
 
+void
+dns_zonemgr_settransfersperns(dns_zonemgr_t *zmgr, int value) {
+	zmgr->transfersperns = value;
+}
+
+int
+dns_zonemgr_getttransfersperns(dns_zonemgr_t *zmgr) {
+	return (zmgr->transfersperns);
+}
+
+dns_xfrinlist_t	*
+dns_zonemgr_gettransferlist(dns_zonemgr_t *zmgr) {
+	return (&zmgr->transferlist);
+}
+
+void
+dns_zonemgr_setrequestixfr(dns_zonemgr_t *zmgr, isc_boolean_t value) {
+	zmgr->requestixfr = value;
+}
+
+isc_boolean_t
+dns_zonemgr_getrequestixfr(dns_zonemgr_t *zmgr) {
+	return (zmgr->requestixfr);
+}
+
+#if 0
+/* hook for ondestroy notifcation from a database. */
+
+static void
+dns_zonemgr_dbdestroyed(isc_task_t *task, isc_event_t *event) {
+	dns_db_t *db = event->sender;
+	UNUSED(task);
+
+	isc_event_free(&event);
+	
+	isc_log_write(dns_lctx, DNS_LOGCATEGORY_GENERAL,
+		      DNS_LOGMODULE_ZONE, ISC_LOG_INFO,
+		      "database (%p) destroyed", (void*) db);
+}
+
+#endif

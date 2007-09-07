@@ -96,7 +96,6 @@ ISC_LANG_BEGINDECLS
 
 #define DNS_LABELTYPE_GLOBALCOMP16	0x40
 #define DNS_LABELTYPE_BITSTRING		0x41
-#define DNS_LABELTYPE_LOCALCOMP		0x42
 
 /***
  *** Properties
@@ -323,6 +322,20 @@ isc_boolean_t dns_name_iswildcard(dns_name_t *name);
  *	FALSE		The least significant label of 'name' is not '*'.
  */
 
+isc_boolean_t dns_name_requiresedns(dns_name_t *name);
+/*
+ * Does 'name' require EDNS for transmission?
+ *
+ * Requires:
+ *	'name' is a valid name
+ *
+ *	dns_name_countlabels(name) > 0
+ *
+ * Returns:
+ *	TRUE		The name requires EDNS to be transmitted.
+ *	FALSE		The name does not require EDNS to be transmitted.
+ */
+
 unsigned int dns_name_hash(dns_name_t *name, isc_boolean_t case_sensitive);
 /*
  * Provide a hash value for 'name'.
@@ -530,6 +543,25 @@ dns_name_matcheswildcard(dns_name_t *name, dns_name_t *wname);
  *	FALSE		'name' does not match the wildcard specified in 'wname'
  */
 
+unsigned int
+dns_name_depth(dns_name_t *name);
+/*
+ * The depth of 'name'.
+ *
+ * Notes:
+ *	The "depth" of a name represents how far down the DNS tree of trees
+ *	the name is.  For each wire-encoding label in name, the depth is
+ *	increased by 1 for an ordinary label, and by the number of bits in
+ *	a bitstring label.
+ *
+ *	Depth is used when creating or validating DNSSEC signatures.
+ *
+ * Requires:
+ *	'name' is a valid name
+ *
+ * Returns:
+ *	The depth of 'name'.
+ */
 
 /***
  *** Labels
@@ -542,7 +574,7 @@ unsigned int dns_name_countlabels(dns_name_t *name);
  * Notes:
  *	In this case, as in other places, a 'label' is an ordinary label
  *	or a bitstring label.  The term is not meant to refer to individual
- *	bit labels.
+ *	bit labels.  For that purpose, use dns_name_depth().
  *
  * Requires:
  *	'name' is a valid name
@@ -937,9 +969,8 @@ dns_name_split(dns_name_t *name,
  * Ensures:
  *
  *	On success:
- *		If 'prefix' is not NULL it will contain the least significcant
- *		labels and bits.  dns_name_countlabels(name) - suffixlabels
- *		will be equal to dns_name_countlabels(prefix).
+ *		If 'prefix' is not NULL it will contain the least significant
+ *		labels and bits.
  *
  *		If 'suffix' is not NULL it will contain the most significant
  *		labels and bits.  dns_name_countlabels(suffix) will be
@@ -954,6 +985,39 @@ dns_name_split(dns_name_t *name,
  *	DNS_R_NOSPACE	An attempt was made to split a name on a bitlabel
  *			boundary but either 'prefix' or 'suffix' did not
  *			have enough room to receive the split name.
+ */
+
+isc_result_t
+dns_name_splitatdepth(dns_name_t *name, unsigned int depth,
+		      dns_name_t *prefix, dns_name_t *suffix);
+/*
+ * Split 'name' into two pieces at a certain depth.
+ *
+ * Requires:
+ *	'name' is a valid non-empty name.
+ *
+ *	depth > 0
+ *
+ *	depth <= dns_name_depth(name)
+ *
+ *	The preconditions of dns_name_split() apply to 'prefix' and 'suffix'.
+ *
+ * Ensures:
+ *
+ *	On success:
+ *		If 'prefix' is not NULL it will contain the least significant
+ *		labels and bits.
+ *
+ *		If 'suffix' is not NULL it will contain the most significant
+ *		labels and bits.  dns_name_countlabels(suffix) will be
+ *		equal to suffixlabels.
+ *
+ *	On failure:
+ *		Either 'prefix' or 'suffix' is invalidated (depending
+ *		on which one the problem was encountered with).
+ *
+ * Returns:
+ *	The possible result codes are the same as those of dns_name_split().
  */
 
 isc_result_t

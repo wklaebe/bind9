@@ -15,7 +15,7 @@
  * SOFTWARE.
  */
 
- /* $Id: rdata.c,v 1.69 2000/02/03 23:43:57 halley Exp $ */
+/* $Id: rdata.c,v 1.72 2000/03/22 17:28:57 gson Exp $ */
 
 #include <config.h>
 
@@ -452,7 +452,7 @@ dns_rdata_fromtext(dns_rdata_t *rdata, dns_rdataclass_t rdclass,
 					break;
 				default:
 					UNEXPECTED_ERROR(__FILE__, __LINE__,
-					    "isc_lex_gettoken() failed: %s\n",
+					    "isc_lex_gettoken() failed: %s",
 					    isc_result_totext(result));
 					result = DNS_R_UNEXPECTED;
 					break;
@@ -1163,7 +1163,7 @@ gettoken(isc_lex_t *lexer, isc_token_t *token, isc_tokentype_t expect,
 		return (DNS_R_NOSPACE);
 	default:
 		UNEXPECTED_ERROR(__FILE__, __LINE__,
-				 "isc_lex_gettoken() failed: %s\n",
+				 "isc_lex_gettoken() failed: %s",
 				 isc_result_totext(result));
                 return (DNS_R_UNEXPECTED);
 	}
@@ -1498,36 +1498,36 @@ fromtext_error(void (*callback)(dns_rdatacallbacks_t *, char *, ...),
 	if (token != NULL) {
 		switch (token->type) {
 		case isc_tokentype_eol:
-			(*callback)(callbacks, "%s: %s:%d: near eol: %s\n",
+			(*callback)(callbacks, "%s: %s:%d: near eol: %s",
 				    "dns_rdata_fromtext", name, line,
 				    dns_result_totext(result));
 			break;
 		case isc_tokentype_eof:
-			(*callback)(callbacks, "%s: %s:%d: near eof: %s\n",
+			(*callback)(callbacks, "%s: %s:%d: near eof: %s",
 				    "dns_rdata_fromtext", name, line,
 				    dns_result_totext(result));
 			break;
 		case isc_tokentype_number:
-			(*callback)(callbacks, "%s: %s:%d: near %lu: %s\n",
+			(*callback)(callbacks, "%s: %s:%d: near %lu: %s",
 				    "dns_rdata_fromtext", name, line,
 				    token->value.as_ulong,
 				    dns_result_totext(result));
 			break;
 		case isc_tokentype_string:
 		case isc_tokentype_qstring:
-			(*callback)(callbacks, "%s: %s:%d: near \"%s\": %s\n",
+			(*callback)(callbacks, "%s: %s:%d: near '%s': %s",
 				    "dns_rdata_fromtext", name, line,
 				    (char *)token->value.as_pointer,
 				    dns_result_totext(result));
 			break;
 		default:
-			(*callback)(callbacks, "%s: %s:%d: %s\n",
+			(*callback)(callbacks, "%s: %s:%d: %s",
 				    "dns_rdata_fromtext", name, line,
 				    dns_result_totext(result));
 			break;
 		}
 	} else {
-		(*callback)(callbacks, "dns_rdata_fromtext: %s:%d: %s\n",
+		(*callback)(callbacks, "dns_rdata_fromtext: %s:%d: %s",
 			    name, line, dns_result_totext(result));
 	}
 }

@@ -15,12 +15,15 @@
  * SOFTWARE.
  */
 
- /* $Id: tsig_250.c,v 1.22 2000/02/03 23:43:20 halley Exp $ */
+/* $Id: tsig_250.c,v 1.25 2000/03/20 22:44:33 gson Exp $ */
 
- /* draft-ietf-dnsind-tsig-07.txt */
+/* Reviewed: Thu Mar 16 13:39:43 PST 2000 by gson */
+
+/* draft-ietf-dnsext-tsig-00.txt */
 
 #ifndef RDATA_ANY_255_TSIG_250_C
 #define RDATA_ANY_255_TSIG_250_C
+
 #include <isc/str.h>
 
 static inline isc_result_t
@@ -51,9 +54,9 @@ fromtext_any_tsig(dns_rdataclass_t rdclass, dns_rdatatype_t type,
 	if (*e != 0)
 		return (DNS_R_SYNTAX);
 	if ((sigtime >> 48) != 0)
-		return(DNS_R_RANGE);
+		return (DNS_R_RANGE);
 	RETERR(uint16_tobuffer((isc_uint16_t)(sigtime >> 32), target));
-	RETERR(uint32_tobuffer((isc_uint32_t)(sigtime & 0xffffffff), target));
+	RETERR(uint32_tobuffer((isc_uint32_t)(sigtime & 0xffffffffU), target));
 
 	/* Fudge */
 	RETERR(gettoken(lexer, &token, isc_tokentype_number, ISC_FALSE));
@@ -267,7 +270,7 @@ compare_any_tsig(dns_rdata_t *rdata1, dns_rdata_t *rdata2) {
 	isc_region_t r2;
 	dns_name_t name1;
 	dns_name_t name2;
-	int result;
+	int order;
 
 	REQUIRE(rdata1->type == rdata2->type);
 	REQUIRE(rdata1->rdclass == rdata2->rdclass);
@@ -280,9 +283,9 @@ compare_any_tsig(dns_rdata_t *rdata1, dns_rdata_t *rdata2) {
 	dns_name_init(&name2, NULL);
 	dns_name_fromregion(&name1, &r1);
 	dns_name_fromregion(&name2, &r2);
-	result = dns_name_rdatacompare(&name1, &name2);
-	if (result != 0)
-		return (result);
+	order = dns_name_rdatacompare(&name1, &name2);
+	if (order != 0)
+		return (order);
 	isc_region_consume(&r1, name_length(&name1));
 	isc_region_consume(&r2, name_length(&name2));
 	return (compare_region(&r1, &r2));
@@ -299,9 +302,6 @@ fromstruct_any_tsig(dns_rdataclass_t rdclass, dns_rdatatype_t type,
 	REQUIRE(type == 250);
 	REQUIRE(rdclass == 255);
 	
-	source = source;
-	target = target;
-
 	tsig = (dns_rdata_any_tsig_t *) source;
 	REQUIRE(tsig->mctx != NULL);
 
@@ -316,8 +316,8 @@ fromstruct_any_tsig(dns_rdataclass_t rdclass, dns_rdatatype_t type,
 		return (DNS_R_NOSPACE);
 
 	/* Time Signed: 48 bits */
-	RETERR(uint16_tobuffer((isc_uint16_t)(tsig->timesigned >> 32),target));
-	RETERR(uint32_tobuffer((isc_uint32_t)(tsig->timesigned & 0xffffffff),
+	RETERR(uint16_tobuffer((isc_uint16_t)(tsig->timesigned >> 32), target));
+	RETERR(uint32_tobuffer((isc_uint32_t)(tsig->timesigned & 0xffffffffU),
 			       target));
 
 	/* Fudge */
@@ -369,9 +369,6 @@ tostruct_any_tsig(dns_rdata_t *rdata, void *target, isc_mem_t *mctx) {
 	REQUIRE(rdata->type == 250);
 	REQUIRE(rdata->rdclass == 255);
 	
-	target = target;
-	mctx = mctx;
-
 	tsig = (dns_rdata_any_tsig_t *) target;
 	tsig->common.rdclass = rdata->rdclass;
 	tsig->common.rdtype = rdata->type;
@@ -409,17 +406,13 @@ tostruct_any_tsig(dns_rdata_t *rdata, void *target, isc_mem_t *mctx) {
 	isc_region_consume(&sr, 2);
 
 	/* Signature */
-	if (tsig->siglen > 0) {
-		if (sr.length < tsig->siglen)
-			return (ISC_R_UNEXPECTEDEND);
-		tsig->signature = isc_mem_get(mctx, tsig->siglen);
-		if (tsig->signature == NULL)
-			return (DNS_R_NOMEMORY);
-		memcpy(tsig->signature, sr.base, tsig->siglen);
-		isc_region_consume(&sr, tsig->siglen);
-	}
-	else
-		tsig->signature = NULL;
+	if (sr.length < tsig->siglen)
+		return (ISC_R_UNEXPECTEDEND);
+	tsig->signature = isc_mem_get(mctx, tsig->siglen);
+	if (tsig->signature == NULL)
+		return (DNS_R_NOMEMORY);
+	memcpy(tsig->signature, sr.base, tsig->siglen);
+	isc_region_consume(&sr, tsig->siglen);
 
 	/* Original ID */
 	if (sr.length < 2)
@@ -440,17 +433,13 @@ tostruct_any_tsig(dns_rdata_t *rdata, void *target, isc_mem_t *mctx) {
 	isc_region_consume(&sr, 2);
 
 	/* Other */
-	if (tsig->otherlen > 0) {
-		if (sr.length < tsig->otherlen)
-			return (ISC_R_UNEXPECTEDEND);
-		tsig->other = isc_mem_get(mctx, tsig->otherlen);
-		if (tsig->other == NULL)
-			return (DNS_R_NOMEMORY);
-		memcpy(tsig->other, sr.base, tsig->otherlen);
-		isc_region_consume(&sr, tsig->otherlen);
-	}
-	else
-		tsig->other = NULL;
+	if (sr.length < tsig->otherlen)
+		return (ISC_R_UNEXPECTEDEND);
+	tsig->other = isc_mem_get(mctx, tsig->otherlen);
+	if (tsig->other == NULL)
+		return (DNS_R_NOMEMORY);
+	memcpy(tsig->other, sr.base, tsig->otherlen);
+	isc_region_consume(&sr, tsig->otherlen);
 
 	return (DNS_R_SUCCESS);
 }
@@ -464,9 +453,9 @@ freestruct_any_tsig(void *source) {
 	REQUIRE(tsig->common.rdtype == 250);
 
 	dns_name_free(&tsig->algorithm, tsig->mctx);	
-	if (tsig->siglen > 0)
+	if (tsig->signature != NULL)
 		isc_mem_put(tsig->mctx, tsig->signature, tsig->siglen);
-	if (tsig->otherlen > 0)
+	if (tsig->other != NULL)
 		isc_mem_put(tsig->mctx, tsig->other, tsig->otherlen);
 }
 
@@ -477,8 +466,8 @@ additionaldata_any_tsig(dns_rdata_t *rdata, dns_additionaldatafunc_t add,
 	REQUIRE(rdata->type == 250);
 	REQUIRE(rdata->rdclass == 255);
 
-	(void)add;
-	(void)arg;
+	UNUSED(add);
+	UNUSED(arg);
 
 	return (DNS_R_SUCCESS);
 }
@@ -489,11 +478,10 @@ digest_any_tsig(dns_rdata_t *rdata, dns_digestfunc_t digest, void *arg) {
 	REQUIRE(rdata->type == 250);
 	REQUIRE(rdata->rdclass == 255);
 
-	(void)digest;
-	(void)arg;
+	UNUSED(digest);
+	UNUSED(arg);
 
 	return (DNS_R_NOTIMPLEMENTED);
 }
-
 
 #endif	/* RDATA_ANY_255_TSIG_250_C */

@@ -15,7 +15,7 @@
  * SOFTWARE.
  */
 
- /* $Id: xfrin.c,v 1.46 2000/02/03 23:44:03 halley Exp $ */
+/* $Id: xfrin.c,v 1.54 2000/03/20 21:07:48 gson Exp $ */
 
 #include <config.h>
 
@@ -34,6 +34,7 @@
 #include <isc/timer.h>
 #include <isc/net.h>
 #include <isc/print.h>
+#include <isc/util.h>
 
 #include <dns/db.h>
 #include <dns/dbiterator.h>
@@ -43,6 +44,7 @@
 #include <dns/log.h>
 #include <dns/message.h>
 #include <dns/name.h>
+#include <dns/peer.h>
 #include <dns/rdata.h>
 #include <dns/rdatalist.h>
 #include <dns/rdataset.h>
@@ -159,6 +161,9 @@ struct dns_xfrin_ctx {
 		dns_journal_t 	*journal;
 		
 	} ixfr;
+
+	ISC_LINK(dns_xfrin_ctx_t) link;
+	dns_xfrinlist_t	*transferlist;
 };
 
 /**************************************************************************/
@@ -425,9 +430,13 @@ xfr_rr(dns_xfrin_ctx_t *xfr,
 		 * if it begins with two SOAs, it is an IXFR.
 		 */
 		if (rdata->type == dns_rdatatype_soa) {
+			xfrin_log(xfr, ISC_LOG_DEBUG(3),
+				  "got incremental response");
 			CHECK(ixfr_init(xfr));
 			xfr->state = XFRST_IXFR_DELSOA;
 		} else {
+			xfrin_log(xfr, ISC_LOG_DEBUG(3),
+				  "got nonincremental response");
 			CHECK(axfr_init(xfr));
 			xfr->state = XFRST_AXFR;
 		}
@@ -496,16 +505,30 @@ dns_xfrin_create(dns_zone_t *zone, isc_sockaddr_t *masteraddr,
 		 dns_xfrindone_t done, dns_xfrin_ctx_t **xfrp)
 {
 	dns_name_t *zonename;
-	dns_xfrin_ctx_t *xfr;
+	dns_xfrin_ctx_t *xfr, *x;
 	isc_result_t result;
 	dns_db_t *db = NULL;
 	dns_rdatatype_t xfrtype;
 	dns_tsigkey_t *key = NULL;
+	isc_netaddr_t masterip;
+	dns_peer_t *peer = NULL;
+	int maxtransfersin, maxtransfersperns;
+	int nxfrsin, nxfrsperns;
+	dns_xfrinlist_t *transferlist;
+		
 	REQUIRE(xfrp != NULL && *xfrp == NULL);
 
 	zonename = dns_zone_getorigin(zone);
 
 	xfrin_log1(ISC_LOG_INFO, zonename, masteraddr, "starting");
+
+	/*
+	 * Find any configured information about the server we are about
+	 * to transfer from.
+	 */
+	isc_netaddr_fromsockaddr(&masterip, masteraddr);
+	(void) dns_peerlist_peerbyaddr(dns_zone_getview(zone)->peers,
+				       &masterip, &peer);
 
 	result = dns_zone_getdb(zone, &db);
 	if (result == DNS_R_NOTLOADED)
@@ -513,26 +536,97 @@ dns_xfrin_create(dns_zone_t *zone, isc_sockaddr_t *masteraddr,
 	else
 		CHECK(result);
 
+	/*
+	 * Decide whether we should request IXFR or AXFR.
+	 */
 	if (db == NULL) {
 		xfrin_log1(ISC_LOG_DEBUG(3), zonename, masteraddr,
 			   "no database exists yet, "
 			   "requesting AXFR of initial version");
 		xfrtype = dns_rdatatype_axfr;
 	} else {
-		xfrin_log1(ISC_LOG_DEBUG(3), zonename, masteraddr,
-			  "database exists, trying IXFR");
-		xfrtype = dns_rdatatype_ixfr;
+		isc_boolean_t use_ixfr = ISC_TRUE;
+		if (peer != NULL &&
+		    dns_peer_getrequestixfr(peer, &use_ixfr) == ISC_R_SUCCESS) {
+			; /* Using peer setting */ 
+		} else {
+			use_ixfr = dns_zonemgr_getrequestixfr(dns_zone_getmgr(zone));
+		}
+		if (use_ixfr == ISC_FALSE) {
+			xfrin_log1(ISC_LOG_DEBUG(3), zonename, masteraddr,
+				   "IXFR disabled, requesting AXFR");
+			xfrtype = dns_rdatatype_axfr;			
+		} else {
+			xfrin_log1(ISC_LOG_DEBUG(3), zonename, masteraddr,
+				   "requesting IXFR");
+			xfrtype = dns_rdatatype_ixfr;
+		}
 	}
 
-	CHECK(xfrin_create(mctx,
-			   zone,
-			   db,
-			   task,
-			   timermgr,
-			   socketmgr,
-			   zonename,
-			   dns_zone_getclass(zone), xfrtype,
-			   masteraddr, key, &xfr));
+	/*
+	 * Determine the maximum number of simultaneous transfers
+	 * allowed for this server, then count the number of 
+	 * transfers already in progress and fail if the quota
+	 * is already full.
+	 * 
+	 * Count the number of transfers that are in progress from
+	 * this master.  We linearly scan a list of all transfers;
+	 * if this turns out to be too slow, we could hash on the
+	 * master address.
+	 *
+	 * Note that we must keep the transfer list locked for an
+	 * awkwardly long time because the scanning of the list
+	 * and the creation of a new entry must be done atomically,
+	 * and we don't want to create the transfer object until we
+	 * know there is quota available.
+	 */
+	maxtransfersin = 
+	    dns_zonemgr_getttransfersin(dns_zone_getmgr(zone));
+	maxtransfersperns =
+	    dns_zonemgr_getttransfersperns(dns_zone_getmgr(zone));
+	if (peer != NULL) {
+		(void) dns_peer_gettransfers(peer, &maxtransfersperns);
+	}
+	
+	transferlist = dns_zonemgr_gettransferlist(dns_zone_getmgr(zone));
+	LOCK(&transferlist->lock);
+	nxfrsin = nxfrsperns = 0;
+	for (x = ISC_LIST_HEAD(transferlist->transfers);
+	     x != NULL;
+	     x = ISC_LIST_NEXT(x, link))
+	{
+		isc_netaddr_t xip;
+		isc_netaddr_fromsockaddr(&xip, &x->masteraddr);
+		nxfrsin++;
+		if (isc_netaddr_equal(&xip, &masterip))
+			nxfrsperns++;
+	}
+	
+	if (nxfrsin >= maxtransfersin || nxfrsperns >= maxtransfersperns) {
+		result = ISC_R_QUOTA;
+		xfrin_log1(ISC_LOG_INFO, zonename, masteraddr,
+			   "deferred: %s", isc_result_totext(result));
+		goto unlock;
+	}
+
+	result = xfrin_create(mctx,
+			      zone,
+			      db,
+			      task,
+			      timermgr,
+			      socketmgr,
+			      zonename,
+			      dns_zone_getclass(zone), xfrtype,
+			      masteraddr, key, &xfr);
+	if (result != ISC_R_SUCCESS)
+		goto unlock;
+
+	xfr->transferlist = transferlist;
+	ISC_LIST_APPEND(transferlist->transfers, xfr, link);
+	
+ unlock:
+	UNLOCK(&transferlist->lock);
+	CHECK(result);
 
 	CHECK(xfrin_start(xfr));
 
@@ -610,7 +704,7 @@ xfrin_create(isc_mem_t *mctx,
 	xfr->mctx = mctx;
 	xfr->refcount = 0;
 	xfr->zone = NULL;
-	dns_zone_attach(zone, &xfr->zone);
+	dns_zone_iattach(zone, &xfr->zone);
 	xfr->task = NULL;
 	isc_task_attach(task, &xfr->task);
 	xfr->timer = NULL;
@@ -658,6 +752,9 @@ xfrin_create(isc_mem_t *mctx,
 
 	xfr->axfr.add_func = NULL;
 	xfr->axfr.add_private = NULL;
+
+	ISC_LINK_INIT(xfr, link);
+	xfr->transferlist = NULL;
 
 	CHECK(dns_name_dup(zonename, mctx, &xfr->name));
 	
@@ -1102,6 +1199,13 @@ maybe_free(dns_xfrin_ctx_t *xfr) {
 
 	xfrin_log(xfr, ISC_LOG_INFO, "end of transfer");
 
+	if (xfr->transferlist != NULL) {
+		LOCK(&xfr->transferlist->lock);
+		ISC_LIST_UNLINK(xfr->transferlist->transfers, xfr, link);
+		UNLOCK(&xfr->transferlist->lock);
+		xfr->transferlist = NULL;
+	}
+			    
 	if (xfr->socket != NULL)
 		isc_socket_detach(&xfr->socket);
 
@@ -1137,7 +1241,7 @@ maybe_free(dns_xfrin_ctx_t *xfr) {
 		dns_db_detach(&xfr->db);
 
 	if (xfr->zone != NULL)
-		dns_zone_detach(&xfr->zone);
+		dns_zone_idetach(&xfr->zone);
 		
 	isc_mem_put(xfr->mctx, xfr, sizeof(*xfr));
 }
@@ -1183,7 +1287,7 @@ xfrin_logv(int level, dns_name_t *zonename, isc_sockaddr_t *masteraddr,
 		      masterbuf.base, msgmem);
 }
 
-/* Logging function for use when a xfin_ctx_t has not yet been created. */
+/* Logging function for use when a xfrin_ctx_t has not yet been created. */
 
 static void
 xfrin_log1(int level, dns_name_t *zonename, isc_sockaddr_t *masteraddr, 
@@ -1195,7 +1299,7 @@ xfrin_log1(int level, dns_name_t *zonename, isc_sockaddr_t *masteraddr,
 	va_end(ap);
 }
 
-/* Logging function for use when there is a xfin_ctx_t. */
+/* Logging function for use when there is a xfrin_ctx_t. */
 
 static void
 xfrin_log(dns_xfrin_ctx_t *xfr, unsigned int level, const char *fmt, ...)
@@ -1204,4 +1308,13 @@ xfrin_log(dns_xfrin_ctx_t *xfr, unsigned int level, const char *fmt, ...)
 	va_start(ap, fmt);
 	xfrin_logv(level, &xfr->name, &xfr->masteraddr, fmt, ap);
 	va_end(ap);
+}
+
+isc_result_t dns_xfrinlist_init(dns_xfrinlist_t *list) {
+	ISC_LIST_INIT(list->transfers);
+	return (isc_mutex_init(&list->lock));
+}
+
+void dns_xfrinlist_destroy(dns_xfrinlist_t *list) {
+	isc_mutex_destroy(&list->lock);
 }

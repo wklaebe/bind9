@@ -19,6 +19,8 @@ top_srcdir =	@top_srcdir@
 
 @BIND9_VERSION@
 
+@LIBLWRES_API@
+
 @BIND9_INCLUDES@
 
 CINCLUDES =	-I. -I./include -I${srcdir}/include ${ISC_INCLUDES}
@@ -28,13 +30,15 @@ CWARNINGS =
 # Alphabetically
 OBJS =		context.@O@ gai_strerror.@O@ getaddrinfo.@O@ gethost.@O@ \
 		getipnode.@O@ getnameinfo.@O@ getnet.@O@ herror.@O@ \
-		lwbuffer.@O@ lwpacket.@O@ lwresutil.@O@ lwres_gabn.@O@ \
+		lwbuffer.@O@ lwconfig.@O@ lwpacket.@O@ lwresutil.@O@ \
+		lwres_gabn.@O@ \
 		lwres_gnba.@O@ lwres_noop.@O@ \
 		lwinetaton.@O@ lwinetpton.@O@ lwinetntop.@O@
 
 # Alphabetically
 SRCS =		context.c gai_strerror.c getaddrinfo.c gethost.c getipnode.c \
 		getnameinfo.c getnet.c herror.c lwbuffer.c lwpacket.c \
+		lwconfig.c \
 		lwresutil.c lwres_gabn.c lwres_gnba.c lwres_noop.c \
 		lwinetaton.c lwinetpton.c lwinetntop.c
 
@@ -53,26 +57,26 @@ version.@O@: version.c
 		-DLIBAGE=${LIBAGE} \
 		-c ${srcdir}/version.c
 
-liblwres.@A@: ${OBJS}
-	${AR} ${ARFLAGS} $@ ${OBJS}
+liblwres.@SA@: ${OBJS} version.@O@
+	${AR} ${ARFLAGS} $@ ${OBJS} version.@O@
 	${RANLIB} $@
 
-liblwres.la: ${OBJS}
+liblwres.la: ${OBJS} version.@O@
 	${LIBTOOL} --mode=link \
 		${CC} ${ALL_CFLAGS} -o liblwres.la -rpath ${libdir} \
 		-version-info ${LIBINTERFACE}:${LIBREVISION}:${LIBAGE} \
-		${OBJS} ${LIBS}
+		${OBJS} version.@O@ ${LIBS}
 
 timestamp: liblwres.@A@
 	touch timestamp
 
 installdirs:
-	if [ ! -d ${libdir} ]; then \
-		mkdir ${libdir}; \
+	if [ ! -d ${DESTDIR}${libdir} ]; then \
+		mkdir ${DESTDIR}${libdir}; \
 	fi
 
 install:: timestamp installdirs
-	${LIBTOOL} ${INSTALL_DATA} liblwres.@A@ ${libdir}
+	${LIBTOOL} ${INSTALL_DATA} liblwres.@A@ ${DESTDIR}${libdir}
 
 clean distclean::
 	rm -f liblwres.@A@ liblwres.la timestamp

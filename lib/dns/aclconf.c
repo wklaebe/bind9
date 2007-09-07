@@ -68,7 +68,7 @@ convert_named_acl(char *aclname, dns_c_ctx_t *cctx,
 	if (result != DNS_R_SUCCESS) {
 		isc_log_write(dns_lctx, DNS_LOGCATEGORY_SECURITY,
 			      DNS_LOGMODULE_ACL, ISC_LOG_WARNING,
-			      "undefined ACL \"%s\"", aclname);
+			      "undefined ACL '%s'", aclname);
 		return (result);
 	}
 	result = dns_acl_fromconfig(cacl->ipml, cctx, ctx, mctx, &dacl);
@@ -137,7 +137,8 @@ dns_acl_fromconfig(dns_c_ipmatchlist_t *caml,
 		switch (ce->type) {
 		case dns_c_ipmatch_pattern:
 			de->type = dns_aclelementtype_ipprefix;
-			de->u.ip_prefix.address = ce->u.direct.address;
+			isc_netaddr_fromsockaddr(&de->u.ip_prefix.address,
+						 &ce->u.direct.address);
 			/* XXX "mask" is a misnomer */
 			de->u.ip_prefix.prefixlen = ce->u.direct.mask;
 			break;
@@ -158,6 +159,11 @@ dns_acl_fromconfig(dns_c_ipmatchlist_t *caml,
 		case dns_c_ipmatch_localhost:
 			de->type = dns_aclelementtype_localhost;
 			break;
+
+		case dns_c_ipmatch_any:
+			de->type = dns_aclelementtype_any;
+			break;
+
 		case dns_c_ipmatch_localnets:
 			de->type = dns_aclelementtype_localnets;			
 			break;

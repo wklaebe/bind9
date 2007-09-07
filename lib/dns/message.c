@@ -312,7 +312,8 @@ msginit(dns_message_t *m)
 	m->header_ok = 0;
 	m->question_ok = 0;
 	m->tcp_continuation = 0;
-	m->verified_sig0 = 0;
+	m->verified_sig = 0;
+	m->verify_attempted = 0;
 }
 
 static inline void
@@ -507,7 +508,7 @@ dns_message_create(isc_mem_t *mctx, unsigned int intent, dns_message_t **msgp)
 
 	m = isc_mem_get(mctx, sizeof(dns_message_t));
 	if (m == NULL)
-		return(DNS_R_NOMEMORY);
+		return (DNS_R_NOMEMORY);
 
 	/*
 	 * No allocations until further notice.  Just initialize all lists
@@ -707,9 +708,9 @@ getname(dns_name_t *name, isc_buffer_t *source, dns_message_t *msg,
 }
 
 static isc_result_t
-getrdata(dns_name_t *name, isc_buffer_t *source, dns_message_t *msg,
-	 dns_decompress_t *dctx, dns_rdataclass_t rdclass,
-	 dns_rdatatype_t rdtype, unsigned int rdatalen, dns_rdata_t *rdata)
+getrdata(isc_buffer_t *source, dns_message_t *msg, dns_decompress_t *dctx,
+	 dns_rdataclass_t rdclass, dns_rdatatype_t rdtype,
+	 unsigned int rdatalen, dns_rdata_t *rdata)
 {
 	isc_buffer_t *scratch;
 	isc_result_t result;
@@ -728,13 +729,12 @@ getrdata(dns_name_t *name, isc_buffer_t *source, dns_message_t *msg,
 		rdata->length = 0;
 		rdata->rdclass = rdclass;
 		rdata->type = rdtype;
-		return DNS_R_SUCCESS;
+		return (DNS_R_SUCCESS);
 	}
-	    
+
 	scratch = currentbuffer(msg);
 
 	isc_buffer_setactive(source, rdatalen);
-	dns_decompress_localinit(dctx, name, source);
 
 	/*
 	 * First try:  use current buffer.
@@ -745,6 +745,7 @@ getrdata(dns_name_t *name, isc_buffer_t *source, dns_message_t *msg,
 	 */
 	tries = 0;
 	trysize = 0;
+	/* XXX possibly change this to a while (tries < 2) loop */
 	for (;;) {
 		result = dns_rdata_fromwire(rdata, rdclass, rdtype,
 					    source, dctx, ISC_FALSE,
@@ -861,7 +862,6 @@ getquestions(isc_buffer_t *source, dns_message_t *msg, dns_decompress_t *dctx)
 		if (msg->state == DNS_SECTION_ANY) {
 			msg->state = DNS_SECTION_QUESTION;
 			msg->rdclass = rdclass;
-			msg->state = DNS_SECTION_QUESTION;
 		} else if (msg->rdclass != rdclass) {
 			result = DNS_R_FORMERR;
 			goto cleanup;
@@ -1086,12 +1086,11 @@ getsection(isc_buffer_t *source, dns_message_t *msg, dns_decompress_t *dctx,
 				attributes = DNS_NAMEATTR_DNAME;
 				skip_name_search = ISC_TRUE;
 			}
-			result = getrdata(name, source, msg, dctx,
-					  msg->rdclass, rdtype,
-					  rdatalen, rdata);
+			result = getrdata(source, msg, dctx, msg->rdclass,
+					  rdtype, rdatalen, rdata);
 		} else
-			result = getrdata(name, source, msg, dctx,
-					  rdclass, rdtype, rdatalen, rdata);
+			result = getrdata(source, msg, dctx, rdclass,
+					  rdtype, rdatalen, rdata);
 		if (result != DNS_R_SUCCESS)
 			goto cleanup;
 		rdata->rdclass = rdclass;
@@ -1654,6 +1653,7 @@ dns_message_renderend(dns_message_t *msg)
 	}
 
 	if (msg->tsigkey != NULL) {
+		REQUIRE(msg->tsig == NULL);
 		result = dns_tsig_sign(msg);
 		if (result != DNS_R_SUCCESS)
 			return (result);
@@ -1682,6 +1682,37 @@ dns_message_renderend(dns_message_t *msg)
 	msg->need_cctx_cleanup = 0;
 
 	return (DNS_R_SUCCESS);
+}
+
+void
+dns_message_renderreset(dns_message_t *msg)
+{
+	unsigned int i;
+	dns_name_t *name;
+	dns_rdataset_t *rds;
+
+	/*
+	 * Reset the message so that it may be rendered again.
+	 */
+
+	REQUIRE(DNS_MESSAGE_VALID(msg));
+	REQUIRE(msg->from_to_wire == DNS_MESSAGE_INTENTRENDER);
+
+	msg->buffer = NULL;
+
+	for (i = 0; i < DNS_SECTION_MAX; i++) {
+		msg->cursors[i] = NULL;
+		msg->counts[i] = 0;
+		for (name = ISC_LIST_HEAD(msg->sections[i]);
+		     name != NULL;
+		     name = ISC_LIST_NEXT(name, link)) {
+			for (rds = ISC_LIST_HEAD(name->list);
+			     rds != NULL;
+			     rds = ISC_LIST_NEXT(rds, link)) {
+				rds->attributes &= ~DNS_RDATASETATTR_RENDERED;
+			}
+		}
+	}
 }
 
 isc_result_t
@@ -2094,6 +2125,8 @@ dns_message_signer(dns_message_t *msg, dns_name_t *signer) {
 		dns_name_t *sig0name;
 		dns_rdata_generic_sig_t sig;
 
+		if (msg->verify_attempted == 0)
+			result = DNS_R_NOTVERIFIEDYET;
 		result = dns_message_firstname(msg, DNS_SECTION_SIG0);
 		if (result != ISC_R_SUCCESS)
 			return (ISC_R_NOTFOUND);
@@ -2111,19 +2144,19 @@ dns_message_signer(dns_message_t *msg, dns_name_t *signer) {
 		if (result != ISC_R_SUCCESS)
 			return (result);
 		
-		if (msg->sig0status != dns_rcode_noerror)
-			result = DNS_R_SIGINVALID;
-		else if (msg->verified_sig0 == 0)
-			result = DNS_R_NOTVERIFIEDYET;
-		else
+		if (msg->verified_sig && msg->sig0status != dns_rcode_noerror)
 			result = ISC_R_SUCCESS;
+		else
+			result = DNS_R_SIGINVALID;
 		dns_name_toregion(&sig.signer, &r);
 		dns_name_fromregion(signer, &r);
 		dns_rdata_freestruct(&sig);
 	}
 	else {
 		dns_name_t *identity;
-		if (msg->tsigstatus != dns_rcode_noerror)
+		if (msg->verify_attempted == 0)
+			result = DNS_R_NOTVERIFIEDYET;
+		else if (msg->tsigstatus != dns_rcode_noerror)
 			result = DNS_R_TSIGVERIFYFAILURE;
 		else if (msg->tsig->error != dns_rcode_noerror)
 			result = DNS_R_TSIGERRORSET;
@@ -2157,5 +2190,5 @@ dns_message_checksig(dns_message_t *msg, dns_view_t *view) {
 	isc_buffer_init(&b, msg->saved->base, msg->saved->length,
 			ISC_BUFFERTYPE_BINARY);
 	isc_buffer_add(&b, msg->saved->length);
-	return dns_view_checksig(view, &b, msg);
+	return (dns_view_checksig(view, &b, msg));
 }

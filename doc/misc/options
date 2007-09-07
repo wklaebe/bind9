@@ -9,8 +9,8 @@ Legend:
 
   No        Not implemented, may be implemented in a later release.
 
-  Obsolete  Obsolete, not applicable to BIND 9, or just evil.  Will not be
-            implemented.
+  Obsolete  Obsolete, not applicable to BIND 9, or just evil.  
+            Will not be implemented.
 
   *         New in BIND 9.
 
@@ -21,9 +21,10 @@ Legend:
   %         The default value has changed since BIND 8.
 
   @	    Semantics of certain pathological address match lists, in
-	    particular those involving double negation, have changed.  The new
-	    semantics are generally safer.  The predefined ACLs "localhost" 
-	    and "localnets" are not yet supported.
+	    particular those involving double negation, have changed.  
+	    The new semantics are generally safer.  IPv6 addresses
+            are supported, but the predefined ACLs "localhost" and 
+            "localnets" match IPv4 addresses only.
 
   #         BIND 9 accepts both LF and CRLF as end-of-line markers.
 
@@ -58,7 +59,8 @@ options {
   [ allow-recursion { address_match_list }; ]		    Yes@
   [ blackhole { address_match_list }; ]			    No
   [ listen-on [ port ip_port ] { address_match_list }; ]    Yes@ (IPv4 only)
-  [ query-source .... ]                                     Yes (IPv4 only)
+  [ query-source .... ]                                     Yes
+  [ query-source-v6 .... ]                                  Yes*
   [ lame-ttl number; ]					    No
   [ max-transfer-time-in number; ]			    Yes
   [ max-transfer-idle-in number; ]			    Yes*
@@ -68,11 +70,14 @@ options {
   [ min-roots number; ]					    No
   [ serial-queries number; ]				    No
   [ transfer-format ( one-answer | many-answers ); ]	    Yes
-  [ transfers-in  number; ]				    No
+  [ transfers-in  number; ]				    Yes
   [ transfers-out number; ]				    Yes
-  [ transfers-per-ns number; ]				    No
-  [ transfer-source ip_addr; ]				    Yes (IPv4 only)
-  [ maintain-ixfr-base yes_or_no; ]			    Obsolete+
+  [ transfers-per-ns number; ]				    Yes
+  [ transfer-source ip_addr; ]				    Yes
+  [ transfer-source-v6 ip_addr; ]			    Yes*
+  [ request-ixfr yes_or_no; ]				    Yes*
+  [ provide-ixfr yes_or_no; ]				    Yes*
+  [ maintain-ixfr-base yes_or_no; ]			    Obsolete
   [ max-ixfr-log-size number; ]				    No
   [ coresize size_spec ; ]				    No
   [ datasize size_spec ; ]				    No
@@ -80,7 +85,7 @@ options {
   [ stacksize size_spec ; ]				    No
   [ cleaning-interval number; ]				    Yes
   [ heartbeat-interval number; ]			    No
-  [ interface-interval number; ]			    No
+  [ interface-interval number; ]			    Yes
   [ statistics-interval number; ]			    No
   [ topology { address_match_list }; ]			    No
   [ sortlist { address_match_list }; ]			    No
@@ -89,17 +94,25 @@ options {
   [ tcp-clients number; ]				    Yes*
 };
 
-acl { }						            Yes@
+acl 						            Yes@
 
 include                                                     Yes
 
 key							    Yes
 
-logging						            No
+logging						            Yes
 
 controls                                                    No
 
-server                                                      No
+server ip_addr {
+  [ bogus yes_or_no; ]					    No
+  [ request-ixfr yes_or_no; ]				    Yes*
+  [ provide-ixfr yes_or_no; ]				    Yes*
+  [ support-ixfr yes_or_no; ]				    Obsolete
+  [ transfers number; ]					    Yes
+  [ transfer-format ( one-answer | many-answers ); ]	    Yes
+  [ keys { key_id [key_id ... ] }; ]                        Yes
+};
 
 trusted-keys                                                No
 
@@ -113,6 +126,8 @@ zone domain_name [ ( in | hs | hesiod | chaos ) ] {
   [ allow-query { address_match_list }; ]		    Yes@
   [ allow-transfer { address_match_list }; ]		    Yes@
   [ dialup yes_or_no; ]					    No
+  [ max-transfer-time-out number; ]			    Yes*
+  [ max-transfer-idle-out number; ]			    Yes*
   [ notify yes_or_no; ]					    No
   [ also-notify { ip_addr; [ ip_addr; ... ] };		    No
   [ ixfr-base  path_name; ]				    Obsolete
@@ -121,7 +136,7 @@ zone domain_name [ ( in | hs | hesiod | chaos ) ] {
 
 zone domain_name [ ( in | hs | hesiod | chaos ) ] { 	    
   type stub;						    No
-}
+};
 
 zone domain_name [ ( in | hs | hesiod | chaos ) ] { 	    
   type slave;						    Yes
@@ -131,10 +146,12 @@ zone domain_name [ ( in | hs | hesiod | chaos ) ] {
   [ forward ( only | first ); ]				    No
   [ forwarders { [ ip_addr ; [ ip_addr ; ... ] ] }; ]	    No
   [ check-names ( warn | fail | ignore ); ]		    No
-  [ allow-update { address_match_list }; ]		    Yes+
-  [ allow-query { address_match_list }; ]		    Yes+
-  [ allow-transfer { address_match_list }; ]		    Yes+
-  [ transfer-source ip_addr; ]				    Yes (IPv4 only)
+  [ allow-update { address_match_list }; ]		    Obsolete
+  [ allow-update-forwarding { address_match_list }; ]	    No*
+  [ allow-query { address_match_list }; ]		    Yes@
+  [ allow-transfer { address_match_list }; ]		    Yes@
+  [ transfer-source ip_addr; ]				    Yes
+  [ transfer-source-v6 ip_addr; ]			    Yes*
   [ dialup yes_or_no; ]					    No
   [ max-transfer-time-in number; ]			    Yes
   [ max-transfer-idle-in number; ]			    Yes*

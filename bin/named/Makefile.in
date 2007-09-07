@@ -39,30 +39,32 @@ SUBDIRS =	unix
 TARGETS =	named
 
 OBJS =		client.@O@ interfacemgr.@O@ listenlist.@O@ \
-		log.@O@ main.@O@ notify.@O@ omapi.@O@ \
+		log.@O@ logconf.@O@ main.@O@ notify.@O@ omapi.@O@ \
 		query.@O@ server.@O@ update.@O@ xfrout.@O@
 
 UOBJS =		unix/os.@O@
 
 SRCS =		client.c interfacemgr.c listenlist.c \
-		log.c main.c notify.c omapi.c \
+		log.c logconf.c main.c notify.c omapi.c \
 		query.c server.c update.c xfrout.c
 
 @BIND9_MAKE_RULES@
 
 main.@O@: main.c
-	${CC} ${ALL_CFLAGS} -DVERSION=\"${VERSION}\" -c ${srcdir}/main.c
+	${CC} ${ALL_CFLAGS} -DVERSION=\"${VERSION}\" \
+		-DNS_LOCALSTATEDIR=\"${localstatedir}\" \
+		-DNS_SYSCONFDIR=\"${sysconfdir}\" -c ${srcdir}/main.c
 
 named: ${OBJS} ${UOBJS} ${DEPLIBS}
-	${LIBTOOL} ${CC} -o $@ ${OBJS} ${UOBJS} ${LIBS}
+	${LIBTOOL} ${CC} ${CFLAGS} -o $@ ${OBJS} ${UOBJS} ${LIBS}
 
 clean distclean::
 	rm -f ${TARGETS}
 
 installdirs:
-	if [ ! -d ${sbindir} ]; then \
-		mkdir ${sbindir}; \
+	if [ ! -d ${DESTDIR}${sbindir} ]; then \
+		mkdir ${DESTDIR}${sbindir}; \
 	fi
 
 install:: named installdirs
-	${LIBTOOL} ${INSTALL_PROGRAM} named ${sbindir}
+	${LIBTOOL} ${INSTALL_PROGRAM} named ${DESTDIR}${sbindir}

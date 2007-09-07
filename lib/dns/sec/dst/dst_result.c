@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1998, 1999  Internet Software Consortium.
+ * Copyright (C) 1999, 2000  Internet Software Consortium.
  * 
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -17,7 +17,7 @@
 
 /*
  * Principal Author: Brian Wellington
- * $Id: dst_result.c,v 1.3 1999/09/27 16:55:44 bwelling Exp $
+ * $Id: dst_result.c,v 1.5 2000/03/23 19:48:24 halley Exp $
  */
 
 #include <config.h>
@@ -75,7 +75,7 @@ initialize(void) {
 }
 
 char *
-dst_result_totext(dst_result_t result) {
+dst_result_totext(isc_result_t result) {
 	initialize();
 
 	return (isc_result_totext(result));

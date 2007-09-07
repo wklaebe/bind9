@@ -93,13 +93,13 @@ setup_addresses(client_t *client, dns_adbfind_t *find, unsigned int at)
 		case AF_INET:
 			sin = &ai->sockaddr->type.sin;
 			addr->family = LWRES_ADDRTYPE_V4;
-			addr->address = (unsigned char *)&sin->sin_addr;
+			memcpy(addr->address, &sin->sin_addr, 4);
 			addr->length = 4;
 			break;
 		case AF_INET6:
 			sin6 = &ai->sockaddr->type.sin6;
 			addr->family = LWRES_ADDRTYPE_V6;
-			addr->address = (unsigned char *)&sin6->sin6_addr;
+			memcpy(addr->address, &sin6->sin6_addr, 16);
 			addr->length = 16;
 			break;
 		default:
@@ -110,6 +110,8 @@ setup_addresses(client_t *client, dns_adbfind_t *find, unsigned int at)
 		   addr->address, addr->family, addr->length);
 
 		client->gabn.naddrs++;
+		REQUIRE(!LWRES_LINK_LINKED(addr, link));
+		LWRES_LIST_APPEND(client->gabn.addrs, addr, link);
 
 	next:
 		ai = ISC_LIST_NEXT(ai, publink);
@@ -122,10 +124,11 @@ generate_reply(client_t *client)
 	isc_result_t result;
 	int lwres;
 	isc_region_t r;
-	lwres_buffer_t b;
+	lwres_buffer_t lwb;
 	clientmgr_t *cm;
 
 	cm = client->clientmgr;
+	lwb.base = NULL;
 
 	DP(50, "Generating gabn reply for client %p", client);
 
@@ -150,6 +153,7 @@ generate_reply(client_t *client)
 	 * Run through the finds we have and wire them up to the gabn
 	 * structure.
 	 */
+	LWRES_LIST_INIT(client->gabn.addrs);
 	if (client->v4find != NULL)
 		setup_addresses(client, client->v4find, DNS_ADBFIND_INET);
 	if (client->v6find != NULL)
@@ -161,18 +165,22 @@ generate_reply(client_t *client)
 	client->pkt.recvlength = LWRES_RECVLENGTH;
 	client->pkt.authtype = 0; /* XXXMLG */
 	client->pkt.authlength = 0;
-	client->pkt.result = LWRES_R_SUCCESS;
 
-	lwres_buffer_init(&b, client->buffer, LWRES_RECVLENGTH);
+	/*
+	 * If there are no addresses and no aliases, return failure.
+	 */
+	if (client->gabn.naddrs == 0 && client->gabn.naliases == 0)
+		client->pkt.result = LWRES_R_NOTFOUND;
+	else
+		client->pkt.result = LWRES_R_SUCCESS;
+
 	lwres = lwres_gabnresponse_render(cm->lwctx, &client->gabn,
-					  &client->pkt, &b);
+					  &client->pkt, &lwb);
 	if (lwres != LWRES_R_SUCCESS)
 		goto out;
 
-	hexdump("Sending to client", b.base, b.used);
-
-	r.base = b.base;
-	r.length = b.used;
+	r.base = lwb.base;
+	r.length = lwb.used;
 	client->sendbuf = r.base;
 	client->sendlength = r.length;
 	result = isc_socket_sendto(cm->sock, &r, cm->task, client_send, client,
@@ -186,10 +194,16 @@ generate_reply(client_t *client)
 	 * All done!
 	 */
 	cleanup_gabn(client);
+
 	return;
 
  out:
 	cleanup_gabn(client);
+
+	if (lwb.base != NULL)
+		lwres_context_freemem(client->clientmgr->lwctx,
+				      lwb.base, lwb.length);
+
 	error_pkt_send(client, LWRES_R_FAILURE);
 }
 
@@ -342,6 +356,7 @@ start_find(client_t *client)
 	 */
 	options = 0;
 	options |= DNS_ADBFIND_WANTEVENT;
+	options |= DNS_ADBFIND_RETURNLAME;
 
 	/*
 	 * Set the bits up here to mark that we want this address family
@@ -526,6 +541,4 @@ process_gabn(client_t *client, lwres_buffer_t *b)
 		lwres_gabnrequest_free(client->clientmgr->lwctx, &req);
 
 	error_pkt_send(client, LWRES_R_FAILURE);
-
-	return;
 }

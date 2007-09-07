@@ -24,6 +24,7 @@
 #include <isc/quota.h>
 
 #include <dns/types.h>
+#include <dns/acl.h>
 
 #define NS_EVENTCLASS		ISC_EVENTCLASS(0x4E43)
 #define NS_EVENT_RELOAD		(NS_EVENTCLASS + 0)
@@ -46,10 +47,13 @@ struct ns_server {
 	dns_transfer_format_t	transfer_format;
 	dns_acl_t *		queryacl;
 	dns_acl_t *		recursionacl;
-	dns_acl_t *		transferacl;
 	isc_quota_t		xfroutquota;
 	isc_quota_t		tcpquota;
 	isc_quota_t		recursionquota;
+	isc_boolean_t		provide_ixfr;
+
+	/* Not really configurable, but covered by conflock. */
+	dns_aclenv_t		aclenv;
 
 	/* Server data structures. */
 	dns_zonemgr_t *		zonemgr;
@@ -58,9 +62,12 @@ struct ns_server {
 	ns_interfacemgr_t *	interfacemgr;
 	dns_db_t *		roothints;
 	dns_tkey_ctx_t *	tkeyctx;
-	isc_sockaddr_t		querysrc_address;
-	dns_dispatch_t *	querysrc_dispatch;
-
+	isc_sockaddr_t		querysrc_addressv4;
+	dns_dispatch_t *	querysrc_dispatchv4;
+	isc_sockaddr_t		querysrc_addressv6;
+	dns_dispatch_t *	querysrc_dispatchv6;
+	isc_timer_t *		interface_timer;
+	
 	isc_mutex_t		reload_event_lock;
 	isc_event_t *		reload_event;
 };

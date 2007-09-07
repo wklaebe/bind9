@@ -46,15 +46,17 @@
 #include <dns/rdatasetiter.h>
 #include <dns/rdatastruct.h>
 #include <dns/result.h>
+#include <dns/ssu.h>
 #include <dns/types.h>
 #include <dns/view.h>
 #include <dns/zone.h>
 #include <dns/zt.h>
 
-#include <named/globals.h>
 #include <named/client.h>
-#include <named/update.h>
+#include <named/globals.h>
 #include <named/log.h>
+#include <named/server.h>
+#include <named/update.h>
 
 /*
  * This module implements dynamic update as in RFC2136.
@@ -594,6 +596,43 @@ name_exists(dns_db_t *db, dns_dbversion_t *ver, dns_name_t *name,
 	result = foreach_rrset(db, ver, name,
 			       name_exists_action, NULL);
 	RETURN_EXISTENCE_FLAG;
+}
+
+typedef struct {
+	dns_name_t *name, *signer;
+	dns_ssutable_t *table;
+} ssu_check_t;
+
+static isc_result_t
+ssu_checkrule(void *data, dns_rdataset_t *rrset) /*ARGSUSED*/
+{
+	ssu_check_t *ssuinfo = data;
+	isc_boolean_t result;
+
+	/*
+	 * If we're deleting all records, it's ok to delete SIG and NXT even
+	 * if we're normally not allowed to.
+	 */
+	if (rrset->type == dns_rdatatype_sig ||
+	    rrset->type == dns_rdatatype_nxt)
+		return (ISC_TRUE);
+	result = dns_ssutable_checkrules(ssuinfo->table, ssuinfo->signer,
+					 ssuinfo->name, rrset->type);
+	return (result == ISC_TRUE ? ISC_R_SUCCESS : ISC_R_FAILURE);
+}
+
+static isc_boolean_t
+ssu_checkall(dns_db_t *db, dns_dbversion_t *ver, dns_name_t *name,
+	     dns_ssutable_t *ssutable, dns_name_t *signer)
+{
+	isc_result_t result;
+	ssu_check_t ssuinfo;
+
+	ssuinfo.name = name;
+	ssuinfo.table = ssutable;
+	ssuinfo.signer = signer;
+	result = foreach_rrset(db, ver, name, ssu_checkrule, &ssuinfo);
+	return (ISC_TF(result == ISC_R_SUCCESS));
 }
 
 /**************************************************************************/
@@ -1702,14 +1741,19 @@ send_update_event(ns_client_t *client, dns_zone_t *zone) {
 	isc_result_t result = DNS_R_SUCCESS;
 	update_event_t *event = NULL;
 	isc_task_t *zonetask = NULL;
+	ns_client_t *evclient;
 	
 	event = (update_event_t *)
 		isc_event_allocate(client->mctx, client, DNS_EVENT_UPDATE,
-				   update_action, client, sizeof(*event));
+				   update_action, NULL, sizeof(*event));
 	if (event == NULL)
 		FAIL(DNS_R_NOMEMORY);
 	event->zone = zone;
 	event->result = DNS_R_SUCCESS;
+
+	evclient = NULL;
+	ns_client_attach(client, &evclient);
+	event->arg = evclient;
 
 	dns_zone_gettask(zone, &zonetask);
 	isc_task_send(zonetask, (isc_event_t **) &event);
@@ -1723,21 +1767,12 @@ send_update_event(ns_client_t *client, dns_zone_t *zone) {
 static void
 respond(ns_client_t *client, isc_result_t result) {
 	isc_result_t msg_result;
-	dns_message_t *response = NULL;
 
-	msg_result = dns_message_create(client->mctx, DNS_MESSAGE_INTENTRENDER,
-					&response);
+	msg_result = dns_message_reply(client->message, ISC_TRUE);
 	if (msg_result != DNS_R_SUCCESS)
 		goto msg_failure;
-	
-	response->id = client->message->id;
-	response->rcode = dns_result_torcode(result);
-	response->flags = client->message->flags;
-	response->flags |= DNS_MESSAGEFLAG_QR;
-	response->opcode = client->message->opcode;
+	client->message->rcode = dns_result_torcode(result);
 
-	dns_message_destroy(&client->message);
-	client->message = response;
 	ns_client_send(client);
 	return;
 	
@@ -1834,6 +1869,7 @@ update_action(isc_task_t *task, isc_event_t *event)
 	dns_message_t *request = client->message;
 	dns_rdataclass_t zoneclass;
 	dns_name_t *zonename;
+	dns_ssutable_t *ssutable = NULL;
 		
 	INSIST(event->type == DNS_EVENT_UPDATE);
 
@@ -1843,6 +1879,7 @@ update_action(isc_task_t *task, isc_event_t *event)
 	CHECK(dns_zone_getdb(zone, &db));
 	zonename = dns_db_origin(db);
 	zoneclass = dns_db_class(db);
+	dns_zone_getssutable(zone, &ssutable);
 	dns_db_currentversion(db, &oldver);
 	CHECK(dns_db_newversion(db, &ver));
 	
@@ -1943,10 +1980,14 @@ update_action(isc_task_t *task, isc_event_t *event)
 	 * Check Requestor's Permissions.  It seems a bit silly to do this
 	 * only after prerequisite testing, but that is what RFC2136 says.
 	 */
-	CHECK(dns_acl_checkrequest(client->signer,
-				   ns_client_getsockaddr(client),
-				   "update", dns_zone_getupdateacl(zone),
-				   NULL, ISC_FALSE));
+	if (ssutable == NULL)
+		CHECK(ns_client_checkacl(client, "update",
+					 dns_zone_getupdateacl(zone),
+					 ISC_FALSE));
+	else if (client->signer == NULL) {
+		/* This gets us a free log message. */
+		CHECK(ns_client_checkacl(client, "update", NULL, ISC_FALSE));
+	}
 
 	/* Perform the Update Section Prescan. */
 
@@ -2001,6 +2042,22 @@ update_action(isc_task_t *task, isc_event_t *event)
 			FAILC(DNS_R_REFUSED,
 			      "explicit NXT updates are not allowed "
 			      "in secure zones");
+		}
+
+		if (ssutable != NULL && client->signer != NULL) {
+			if (rdata.type != dns_rdatatype_any) {
+				if (!dns_ssutable_checkrules(ssutable,
+							     client->signer,
+							     name, rdata.type))
+					FAILC(DNS_R_REFUSED,
+					      "rejected by secure update");
+			}
+			else {
+				if (!ssu_checkall(db, ver, name, ssutable,
+						  client->signer))
+					FAILC(DNS_R_REFUSED,
+					      "rejected by secure update");
+			}
 		}
 	}
 	if (result != DNS_R_NOMORE)
@@ -2253,5 +2310,6 @@ updatedone_action(isc_task_t *task, isc_event_t *event)
 	INSIST(task == client->task);
 
 	respond(client, uev->result);
+	ns_client_detach(&client);
 	isc_event_free(&event);
 }

@@ -15,7 +15,7 @@
  * SOFTWARE.
  */
 
-/* $Id: object.c,v 1.12 2000/02/03 23:14:33 halley Exp $ */
+/* $Id: object.c,v 1.14 2000/03/18 00:34:53 tale Exp $ */
 
 /* Principal Author: Ted Lemon */
 
@@ -152,7 +152,7 @@ omapi_object_dereference(omapi_object_t **h) {
 	if ((*h)->refcnt ==
 	    inner_reference + outer_reference + handle_reference + 1) {
 		/*
-		 * If refcnt is 1, then inner_reference + outer_reference +
+		 * If refcnt is > 1, then inner_reference + outer_reference +
 		 * handle_reference is > 0, so there are list references to
 		 * chase.
 		 */
@@ -163,29 +163,34 @@ omapi_object_dereference(omapi_object_t **h) {
 			 */
 			extra_references = 0;
 
-			for (p = (*h)->inner;
-			     p != NULL && extra_references == 0;
-			     p = p->inner) {
-				extra_references += p->refcnt - 1;
-				if (p->inner != NULL)
-					--extra_references;
-				if (p->handle != 0)
-					--extra_references;
-			}
+			if (inner_reference != 0)
+				for (p = (*h)->inner;
+				     p != NULL && extra_references == 0;
+				     p = p->inner) {
+					extra_references += p->refcnt - 1;
+					if (p->inner != NULL)
+						--extra_references;
+					if (p->handle != 0)
+						--extra_references;
+				}
 
-			for (p = (*h)->outer;
-			     p != NULL && extra_references == 0;
-			     p = p->outer) {
-				extra_references += p->refcnt - 1;
-				if (p->outer != NULL)
-					--extra_references;
-				if (p->handle != 0)
-					--extra_references;
-			}
+			if (outer_reference != 0)
+				for (p = (*h)->outer;
+				     p != NULL && extra_references == 0;
+				     p = p->outer) {
+					extra_references += p->refcnt - 1;
+					if (p->outer != NULL)
+						--extra_references;
+					if (p->handle != 0)
+						--extra_references;
+				}
 		} else
 			extra_references = 0;
 
 		if (extra_references == 0) {
+			isc_taskaction_t action = (*h)->destroy_action;
+			void *arg = (*h)->destroy_arg;
+
 			if (inner_reference != 0)
 				OBJECT_DEREF(&(*h)->inner);
 			if (outer_reference != 0)
@@ -194,6 +199,18 @@ omapi_object_dereference(omapi_object_t **h) {
 				(*((*h)->type->destroy))(*h);
 			(*h)->refcnt = 0;
 			isc_mem_put(omapi_mctx, *h, (*h)->object_size);
+
+			if (action != NULL) {
+				isc_event_t *event;
+
+				event = isc_event_allocate(omapi_mctx, *h,
+						       OMAPI_EVENT_OBJECTFREED,
+						       action, arg,
+						       sizeof(isc_event_t));
+				if (event != NULL)
+					isc_task_send(omapi_task, &event);
+			}
+
 		} else
 			(*h)->refcnt--;
 			

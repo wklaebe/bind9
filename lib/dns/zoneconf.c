@@ -26,6 +26,7 @@
 #include <dns/types.h>
 #include <dns/zone.h>
 #include <dns/zoneconf.h>
+#include <dns/ssu.h>
 
 /* XXX copied from zone.c */
 #define MAX_XFER_TIME (2*3600)	/* Documented default is 2 hours. */
@@ -39,6 +40,7 @@ static isc_result_t
 configure_zone_acl(dns_c_zone_t *czone, dns_c_ctx_t *cctx,
 		   dns_aclconfctx_t *aclconfctx, dns_zone_t *zone,
 		   isc_result_t (*getcacl)(dns_c_zone_t *, dns_c_ipmatchlist_t **),
+		   isc_result_t (*getdefaultcacl)(dns_c_ctx_t *, dns_c_ipmatchlist_t **),
 		   void (*setzacl)(dns_zone_t *, dns_acl_t *),
 		   void (*clearzacl)(dns_zone_t *))
 {
@@ -46,6 +48,9 @@ configure_zone_acl(dns_c_zone_t *czone, dns_c_ctx_t *cctx,
 	dns_c_ipmatchlist_t *cacl;
 	dns_acl_t *dacl = NULL;
 	result = (*getcacl)(czone, &cacl);
+	if (result == ISC_R_NOTFOUND && getdefaultcacl != NULL) {
+		result = (*getdefaultcacl)(cctx, &cacl);		
+	}
 	if (result == ISC_R_SUCCESS) {
 		result = dns_acl_fromconfig(cacl, cctx, aclconfctx,
 					   dns_zone_getmctx(zone), &dacl);
@@ -98,10 +103,12 @@ dns_zone_configure(dns_c_ctx_t *cctx, dns_aclconfctx_t *ac,
 	isc_int32_t maxxfr;
 	in_port_t port;
 	struct in_addr in4addr_any;
-	isc_sockaddr_t sockaddr_any4;
+	isc_sockaddr_t sockaddr_any4, sockaddr_any6;
+	dns_ssutable_t *ssutable;
 
 	in4addr_any.s_addr = htonl(INADDR_ANY);
 	isc_sockaddr_fromin(&sockaddr_any4, &in4addr_any, 0);
+	isc_sockaddr_fromin6(&sockaddr_any6, &in6addr_any, 0);
 
 	dns_zone_setclass(zone, czone->zclass);
 
@@ -129,6 +136,7 @@ dns_zone_configure(dns_c_ctx_t *cctx, dns_aclconfctx_t *ac,
 #endif
 		result = configure_zone_acl(czone, cctx, ac, zone,
 					    dns_c_zone_getallowupd,
+					    NULL,
 					    dns_zone_setupdateacl,
 					    dns_zone_clearupdateacl);
 		if (result != DNS_R_SUCCESS)
@@ -136,13 +144,7 @@ dns_zone_configure(dns_c_ctx_t *cctx, dns_aclconfctx_t *ac,
 
 		result = configure_zone_acl(czone, cctx, ac, zone,
 					    dns_c_zone_getallowquery,
-					    dns_zone_setqueryacl,
-					    dns_zone_clearqueryacl);
-		if (result != DNS_R_SUCCESS)
-			return (result);
-
-		result = configure_zone_acl(czone, cctx, ac, zone,
-					    dns_c_zone_getallowquery,
+					    dns_c_ctx_getqueryacl,
 					    dns_zone_setqueryacl,
 					    dns_zone_clearqueryacl);
 		if (result != DNS_R_SUCCESS)
@@ -150,6 +152,7 @@ dns_zone_configure(dns_c_ctx_t *cctx, dns_aclconfctx_t *ac,
 
 		result = configure_zone_acl(czone, cctx, ac, zone,
 					    dns_c_zone_getallowtransfer,
+					    dns_c_ctx_gettransferacl,
 					    dns_zone_setxfracl,
 					    dns_zone_clearxfracl);
 		if (result != DNS_R_SUCCESS)
@@ -194,6 +197,14 @@ dns_zone_configure(dns_c_ctx_t *cctx, dns_aclconfctx_t *ac,
 		}
 		dns_zone_setidleout(zone, maxxfr);
 
+		ssutable = NULL;
+		result = dns_c_zone_getssuauth(czone, &ssutable);
+		if (result == ISC_R_SUCCESS) {
+			dns_ssutable_t *newssutable = NULL;
+			dns_ssutable_attach(ssutable, &newssutable);
+			dns_zone_setssutable(zone, newssutable);
+		}
+
 		break;
 		
 		
@@ -225,6 +236,7 @@ dns_zone_configure(dns_c_ctx_t *cctx, dns_aclconfctx_t *ac,
 #endif
 		result = configure_zone_acl(czone, cctx, ac, zone,
 					    dns_c_zone_getallowquery,
+					    dns_c_ctx_getqueryacl,					    
 					    dns_zone_setqueryacl,
 					    dns_zone_clearqueryacl);
 		if (result != DNS_R_SUCCESS)
@@ -271,6 +283,15 @@ dns_zone_configure(dns_c_ctx_t *cctx, dns_aclconfctx_t *ac,
 			}
 		}
 		dns_zone_setxfrsource4(zone, &sockaddr);
+
+		result = dns_c_zone_gettransfersourcev6(czone, &sockaddr);
+		if (result != ISC_R_SUCCESS) {
+			result = dns_c_ctx_gettransfersourcev6(cctx, &sockaddr);
+			if (result != ISC_R_SUCCESS) {
+				sockaddr = sockaddr_any6;
+			}
+		}
+		dns_zone_setxfrsource6(zone, &sockaddr);
 
 		result = dns_c_zone_getmaxtranstimeout(czone, &maxxfr);
 		if (result != ISC_R_SUCCESS) {
@@ -306,7 +327,8 @@ dns_zone_configure(dns_c_ctx_t *cctx, dns_aclconfctx_t *ac,
 			dns_zone_setchecknames(zone, dns_c_severity_warn);
 #endif
 		result = configure_zone_acl(czone, cctx, ac, zone,
-					    dns_c_zone_getallowquery,
+       				    dns_c_zone_getallowquery,
+					    dns_c_ctx_getqueryacl,					    
 					    dns_zone_setqueryacl,
 					    dns_zone_clearqueryacl);
 		if (result != DNS_R_SUCCESS)
@@ -352,6 +374,15 @@ dns_zone_configure(dns_c_ctx_t *cctx, dns_aclconfctx_t *ac,
 			}
 		}
 		dns_zone_setxfrsource4(zone, &sockaddr);
+
+		result = dns_c_zone_gettransfersourcev6(czone, &sockaddr);
+		if (result != ISC_R_SUCCESS) {
+			result = dns_c_ctx_gettransfersourcev6(cctx, &sockaddr);
+			if (result != ISC_R_SUCCESS) {
+				sockaddr = sockaddr_any6;
+			}
+		}
+		dns_zone_setxfrsource6(zone, &sockaddr);
 
 	case dns_c_zone_hint:
 		dns_zone_settype(zone, dns_zone_hint);

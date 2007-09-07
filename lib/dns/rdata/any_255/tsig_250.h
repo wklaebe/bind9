@@ -15,9 +15,9 @@
  * SOFTWARE.
  */
 
- /* $Id: tsig_250.h,v 1.13 2000/02/03 23:43:20 halley Exp $ */
+/* $Id: tsig_250.h,v 1.15 2000/03/16 23:13:02 gson Exp $ */
 
- /* draft-ietf-dnsind-tsig-10.txt */
+/* draft-ietf-dnsext-tsig-00.txt */
 
 typedef struct dns_rdata_any_tsig {
 	dns_rdatacommon_t	common;

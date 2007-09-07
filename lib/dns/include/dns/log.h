@@ -15,7 +15,7 @@
  * SOFTWARE.
  */
 
-/* $Id: log.h,v 1.11 2000/02/03 23:40:57 halley Exp $ */
+/* $Id: log.h,v 1.13 2000/03/23 00:53:45 gson Exp $ */
 
 /* Principal Authors: DCL */
 
@@ -32,14 +32,17 @@ extern isc_log_t *dns_lctx;
 extern isc_logcategory_t dns_categories[];
 extern isc_logmodule_t dns_modules[];
 
-#define DNS_LOGCATEGORY_GENERAL		(&dns_categories[0])
+#define DNS_LOGCATEGORY_NOTIFY		(&dns_categories[0])
 #define DNS_LOGCATEGORY_DATABASE	(&dns_categories[1])
 #define DNS_LOGCATEGORY_SECURITY	(&dns_categories[2])
 #define DNS_LOGCATEGORY_CONFIG		(&dns_categories[3])
-#define DNS_LOGCATEGORY_PARSER		(&dns_categories[4])
+/* Unused slot */
 #define DNS_LOGCATEGORY_RESOLVER	(&dns_categories[5])
 #define DNS_LOGCATEGORY_XFER_IN		(&dns_categories[6])
 #define DNS_LOGCATEGORY_XFER_OUT	(&dns_categories[7])
+
+/* Backwards compatibility. */
+#define DNS_LOGCATEGORY_GENERAL		ISC_LOGCATEGORY_GENERAL
 
 #define DNS_LOGMODULE_DB		(&dns_modules[0])
 #define DNS_LOGMODULE_RBTDB		(&dns_modules[1])
@@ -58,7 +61,7 @@ extern isc_logmodule_t dns_modules[];
 #define DNS_LOGMODULE_XFER_OUT		(&dns_modules[14])
 #define DNS_LOGMODULE_ACL		(&dns_modules[15])
 
-isc_result_t
+void
 dns_log_init(isc_log_t *lctx);
 /*
  * Make the libdns.a categories and modules available for use with the
@@ -70,20 +73,8 @@ dns_log_init(isc_log_t *lctx);
  *	dns_log_init() is called only once.
  *
  * Ensures:
- *	ISC_R_SUCCESS
- *		The catgories and modules defined above are available for
- *		use by isc_log_usechannnel() and isc_log_write().
- *
- *	ISC_R_NOMEMORY
- *		The catgories and modules defined above are not available for
- *		use by isc_log_usechannnel() and isc_log_write(), and no
- *		additional memory is being used because of the call to
- *		dns_log_init().
- *		
- *
- * Returns:
- *	ISC_R_SUCCESS	Success
- *	ISC_R_NOMEMORY	Resource limit: Out of memory
+ * 	The catgories and modules defined above are available for
+ * 	use by isc_log_usechannnel() and isc_log_write().
  */
 
 ISC_LANG_ENDDECLS

@@ -15,7 +15,7 @@
  * SOFTWARE.
  */
 
-/* $Id: data.c,v 1.8 2000/02/03 23:14:30 halley Exp $ */
+/* $Id: data.c,v 1.10 2000/03/14 03:37:48 tale Exp $ */
 
 /* Principal Author: Ted Lemon */
 
@@ -72,7 +72,7 @@ omapi_data_create(omapi_data_t **t, omapi_datatype_t type, ...) {
 		break;
 	default:
                 UNEXPECTED_ERROR(__FILE__, __LINE__,
-                                 "unknown type in omapi_data_create: %d\n",
+                                 "unknown type in omapi_data_create: %d",
 				 type);
                 return (ISC_R_UNEXPECTED);
 	}
@@ -191,4 +191,21 @@ omapi_data_getint(omapi_data_t *t) {
 	memcpy(&stored_value, t->u.buffer.value, sizeof(stored_value));
 
 	return (ntohl(stored_value));
+}
+
+char *
+omapi_data_strdup(isc_mem_t *mctx, omapi_data_t *t) {
+	char *s;
+
+	REQUIRE(mctx != NULL && t != NULL);
+	REQUIRE(t->type == omapi_datatype_string ||
+		t->type == omapi_datatype_data);
+
+	s = isc_mem_get(mctx, t->u.buffer.len + 1);
+	if (s != NULL) {
+		memcpy(s, t->u.buffer.value, t->u.buffer.len);
+		s[t->u.buffer.len] = '\0';
+	}
+
+	return (s);
 }

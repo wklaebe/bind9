@@ -15,7 +15,9 @@
  * SOFTWARE.
  */
 
- /* $Id: mg_8.c,v 1.18 2000/02/03 23:43:02 halley Exp $ */
+/* $Id: mg_8.c,v 1.20 2000/03/16 02:00:35 brister Exp $ */
+
+/* reviewed: Wed Mar 15 17:49:21 PST 2000 by brister */
 
 #ifndef RDATA_GENERIC_MG_8_C
 #define RDATA_GENERIC_MG_8_C
@@ -31,7 +33,7 @@ fromtext_mg(dns_rdataclass_t rdclass, dns_rdatatype_t type,
 
 	REQUIRE(type == 8);
 
-	rdclass = rdclass;	/*unused*/
+	UNUSED(rdclass);
 	
 	RETERR(gettoken(lexer, &token, isc_tokentype_string, ISC_FALSE));
 
@@ -73,7 +75,7 @@ fromwire_mg(dns_rdataclass_t rdclass, dns_rdatatype_t type,
 
 	REQUIRE(type == 8);
 
-	rdclass = rdclass;	/*unused*/
+	UNUSED(rdclass);
 
 	if (dns_decompress_edns(dctx) >= 1 || !dns_decompress_strict(dctx))
 		dns_decompress_setmethods(dctx, DNS_COMPRESS_ALL);
@@ -85,7 +87,8 @@ fromwire_mg(dns_rdataclass_t rdclass, dns_rdatatype_t type,
 }
 
 static inline isc_result_t
-towire_mg(dns_rdata_t *rdata, dns_compress_t *cctx, isc_buffer_t *target) {
+towire_mg(dns_rdata_t *rdata, dns_compress_t *cctx, isc_buffer_t *target)
+{
 	dns_name_t name;
 	isc_region_t region;
 
@@ -104,7 +107,8 @@ towire_mg(dns_rdata_t *rdata, dns_compress_t *cctx, isc_buffer_t *target) {
 }
 
 static inline int
-compare_mg(dns_rdata_t *rdata1, dns_rdata_t *rdata2) {
+compare_mg(dns_rdata_t *rdata1, dns_rdata_t *rdata2)
+{
 	dns_name_t name1;
 	dns_name_t name2;
 	isc_region_t region1;
@@ -133,27 +137,29 @@ fromstruct_mg(dns_rdataclass_t rdclass, dns_rdatatype_t type, void *source,
 
 	REQUIRE(type == 8);
 
-	rdclass = rdclass;	/*unused*/
+	UNUSED(rdclass);
 
-	source = source;
-	target = target;
+	UNUSED(source);
+	UNUSED(target);
 
 	return (DNS_R_NOTIMPLEMENTED);
 }
 
 static inline isc_result_t
-tostruct_mg(dns_rdata_t *rdata, void *target, isc_mem_t *mctx) {
+tostruct_mg(dns_rdata_t *rdata, void *target, isc_mem_t *mctx)
+{
 
 	REQUIRE(rdata->type == 8);
 
-	target = target;
-	mctx = mctx;
+	UNUSED(target);
+	UNUSED(mctx);
 
 	return (DNS_R_NOTIMPLEMENTED);
 }
 
 static inline void
-freestruct_mg(void *source) {
+freestruct_mg(void *source)
+{
 	REQUIRE(source != NULL);
 	REQUIRE(ISC_FALSE);	/*XXX*/
 }
@@ -171,7 +177,8 @@ additionaldata_mg(dns_rdata_t *rdata, dns_additionaldatafunc_t add,
 }
 
 static inline isc_result_t
-digest_mg(dns_rdata_t *rdata, dns_digestfunc_t digest, void *arg) {
+digest_mg(dns_rdata_t *rdata, dns_digestfunc_t digest, void *arg)
+{
 	isc_region_t r;
 	dns_name_t name;
 

@@ -31,13 +31,10 @@
  * #define to <named/log.h>.
  */
 static isc_logcategory_t categories[] = {
-	{ "general",	 		0 },
+	{ "",		 		0 },
 	{ "client",	 		0 },
 	{ "network",	 		0 },
 	{ "update",	 		0 },
-	{ "xfer-in",	 		0 },
-	{ "xfer-out",	 		0 },
-	{ "notify",	 		0 },
 	{ NULL, 			0 }
 };
 
@@ -61,8 +58,7 @@ static isc_logmodule_t modules[] = {
 isc_result_t
 ns_log_init(void) {
 	isc_result_t result;
-	isc_logdestination_t destination;
-	unsigned int flags;
+	isc_logconfig_t *lcfg;
 
 	ns_g_categories = categories;
 	ns_g_modules = modules;
@@ -75,42 +71,58 @@ ns_log_init(void) {
 	/*
 	 * Setup a logging context.
 	 */
-	result = isc_log_create(ns_g_mctx, &ns_g_lctx);
+	result = isc_log_create(ns_g_mctx, &ns_g_lctx, &lcfg);
 	if (result != ISC_R_SUCCESS)
 		return (result);
-	result = isc_log_registercategories(ns_g_lctx, ns_g_categories);
-	if (result != ISC_R_SUCCESS)
-		goto cleanup;
+
+	isc_log_registercategories(ns_g_lctx, ns_g_categories);
 	isc_log_registermodules(ns_g_lctx, ns_g_modules);
-	result = dns_log_init(ns_g_lctx);
+	dns_log_init(ns_g_lctx);
+
+	result = ns_log_setdefaults(lcfg);
 	if (result != ISC_R_SUCCESS)
 		goto cleanup;
 
+	return (ISC_R_SUCCESS);
+
+ cleanup:
+	isc_log_destroy(&ns_g_lctx);
+
+	return (result);
+}
+
+isc_result_t
+ns_log_setdefaults(isc_logconfig_t *lcfg) {
+	isc_result_t result;
+	isc_logdestination_t destination;
+	
 	/*
-	 * Create and install the default channel.
+	 * By default, the logging library makes "default_debug" log to
+	 * stderr.  In BIND, we want to override this and log to named.run
+	 * instead, unless the the -g option was given.
 	 */
-	if (ns_g_foreground) {
-		destination.file.stream = stderr;
-		destination.file.name = NULL;
+	if (! ns_g_logstderr) {
+		destination.file.stream = NULL;
+		destination.file.name = "named.run";
 		destination.file.versions = ISC_LOG_ROLLNEVER;
 		destination.file.maximum_size = 0;
-		flags = ISC_LOG_PRINTTIME;
-		result = isc_log_createchannel(ns_g_lctx, "_default",
-					       ISC_LOG_TOFILEDESC,
-					       ISC_LOG_DYNAMIC,
-					       &destination, flags);
-	} else {
-		destination.facility = LOG_DAEMON;
-		flags = ISC_LOG_PRINTTIME;
-		result = isc_log_createchannel(ns_g_lctx, "_default",
-					       ISC_LOG_TOSYSLOG,
-					       ISC_LOG_DYNAMIC,
-					       &destination, flags);
+		result = isc_log_createchannel(lcfg, "default_debug",
+                                               ISC_LOG_TOFILE,
+                                               ISC_LOG_DYNAMIC,
+                                               &destination,
+                                               ISC_LOG_PRINTTIME|
+					       ISC_LOG_DEBUGONLY);
+		if (result != ISC_R_SUCCESS)
+			goto cleanup;
 	}
-	
+
+	result = isc_log_usechannel(lcfg, "default_syslog",
+				    ISC_LOGCATEGORY_DEFAULT, NULL);
 	if (result != ISC_R_SUCCESS)
 		goto cleanup;
-	result = isc_log_usechannel(ns_g_lctx, "_default", NULL, NULL);
+
+	result = isc_log_usechannel(lcfg, "default_debug",
+				    ISC_LOGCATEGORY_DEFAULT, NULL);
 	if (result != ISC_R_SUCCESS)
 		goto cleanup;
 
@@ -122,8 +134,6 @@ ns_log_init(void) {
 	return (ISC_R_SUCCESS);
 
  cleanup:
-	isc_log_destroy(&ns_g_lctx);
-
 	return (result);
 }
 

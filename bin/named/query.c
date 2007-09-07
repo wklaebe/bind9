@@ -183,8 +183,7 @@ query_reset(ns_client_t *client, isc_boolean_t everything) {
 }
 
 static void
-query_next(ns_client_t *client, isc_result_t result) {
-	(void)result;
+query_next(ns_client_t *client) {
 	query_reset(client, ISC_FALSE);
 }
 
@@ -902,8 +901,11 @@ query_addadditional(void *arg, dns_name_t *name, dns_rdatatype_t qtype) {
 				rdataset = query_newrdataset(client);
 				if (rdataset == NULL || sigrdataset == NULL)
 					goto addname;
-			} else
+			} else {
 				dns_rdataset_disassociate(rdataset);
+				if (sigrdataset->methods != NULL)
+					dns_rdataset_disassociate(sigrdataset);
+			}
 		}
 		result = dns_db_findrdataset(db, node, version,
 					     dns_rdatatype_a6, 0,
@@ -1678,11 +1680,10 @@ query_resume(isc_task_t *task, isc_event_t *event) {
 		query_putrdataset(client, &devent->rdataset);
 		query_putrdataset(client, &devent->sigrdataset);
 		isc_event_free(&event);
+		ns_client_next(client, ISC_R_CANCELED);
 		/* This may destroy the client. */
-		ns_client_unwait(client);
+		ns_client_detach(&client);
 	} else {
-		ns_client_unwait(client);
-
 		RWLOCK(&ns_g_server->conflock, isc_rwlocktype_read);
 		dns_zonemgr_lockconf(ns_g_server->zonemgr, isc_rwlocktype_read);
 		dns_view_attach(client->view, &client->lockview);
@@ -1759,7 +1760,6 @@ query_recurse(ns_client_t *client, dns_rdatatype_t qtype, dns_name_t *qdomain,
 		 * is shutting down will not be destroyed until all the
 		 * events have been received.
 		 */
-		ns_client_wait(client);
 	} else {
 		query_putrdataset(client, &rdataset);
 		query_putrdataset(client, &sigrdataset);
@@ -1798,6 +1798,7 @@ query_find(ns_client_t *client, dns_fetchevent_t *event) {
 	dns_fixedname_t fixed;
 	dns_dbversion_t *version;
 	dns_zone_t *zone;
+	dns_acl_t *queryacl;
 
 	CTRACE("query_find");
 
@@ -1923,18 +1924,16 @@ query_find(ns_client_t *client, dns_fetchevent_t *event) {
 	} else
 		version = NULL;
 
+	queryacl = NULL;
+	if (is_zone)
+		queryacl = dns_zone_getqueryacl(zone);
+	if (queryacl == NULL)
+		queryacl = ns_g_server->queryacl;
 	/*
 	 * Check the query against the "allow-query" AMLs.
 	 * XXX there should also be a per-view one.
 	 */
-	result = dns_acl_checkrequest(client->signer,
-				      ns_client_getsockaddr(client),
-				      "query",
-				      (is_zone ?
-					       dns_zone_getqueryacl(zone) :
-					       ns_g_server->queryacl),
-				      ns_g_server->queryacl,
-				      ISC_TRUE);
+	result = ns_client_checkacl(client, "query", queryacl, ISC_TRUE);
 	if (result != DNS_R_SUCCESS) {
 		QUERY_ERROR(result);
 		goto cleanup;
@@ -2039,7 +2038,8 @@ query_find(ns_client_t *client, dns_fetchevent_t *event) {
 		 */
 		INSIST(!is_zone);
 		INSIST(client->view->hints != NULL);
-		dns_db_detach(&db);
+		if (db != NULL)
+			dns_db_detach(&db);
 		dns_db_attach(client->view->hints, &db);
 		result = dns_db_find(db, dns_rootname, NULL, dns_rdatatype_ns,
 				     0, client->now, &node, fname,
@@ -2597,9 +2597,10 @@ query_find(ns_client_t *client, dns_fetchevent_t *event) {
 		goto restart;
 	}
 
-	if (eresult != ISC_R_SUCCESS && !PARTIALANSWER(client))
+	if (eresult != ISC_R_SUCCESS && !PARTIALANSWER(client)) {
 		ns_client_error(client, eresult);
-	else if (!RECURSING(client)) {
+		ns_client_detach(&client);
+	} else if (!RECURSING(client)) {
 		/*
 		 * We are done.  Make a final tweak to the AA bit if the
 		 * auth-nxdomain config option says so, then send the
@@ -2610,6 +2611,7 @@ query_find(ns_client_t *client, dns_fetchevent_t *event) {
 			client->message->flags |= DNS_MESSAGEFLAG_AA;
 		
 		ns_client_send(client);
+		ns_client_detach(&client);		
 	}
 	CTRACE("query_find: done");
 }
@@ -2672,7 +2674,8 @@ ns_query_start(ns_client_t *client) {
 	dns_message_t *message = client->message;
 	dns_rdataset_t *rdataset;
 	isc_boolean_t set_ra = ISC_TRUE;
-
+	ns_client_t *qclient;
+	
 	CTRACE("ns_query_start");
 
 	/*
@@ -2802,5 +2805,7 @@ ns_query_start(ns_client_t *client) {
 	 */
 	message->flags |= DNS_MESSAGEFLAG_AD;
 
-	query_find(client, NULL);
+	qclient = NULL;
+	ns_client_attach(client, &qclient);
+	query_find(qclient, NULL);
 }

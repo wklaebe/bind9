@@ -29,7 +29,72 @@
 #include "context_p.h"
 #include "assert_p.h"
 
-int
+static void
+lwres_sortlist(lwres_context_t *ctx, lwres_addrlist_t *inlist,
+	       lwres_addrlist_t *outlist)
+{
+	unsigned int i, x;
+	lwres_conf_t *confdata;
+	unsigned char mask[LWRES_ADDR_MAXLEN];
+	unsigned char sortaddr[LWRES_ADDR_MAXLEN];
+	unsigned char listaddr[LWRES_ADDR_MAXLEN];
+	unsigned int length;
+	lwres_addr_t *addr;
+	lwres_addr_t *nextaddr;
+
+	confdata = &ctx->confdata;
+
+	/*
+	 * If there is no sortlist, we're done.
+	 */
+	if (confdata->sortlistnxt == 0) {
+		*outlist = *inlist;
+		return;
+	}
+
+	LWRES_LIST_INIT(*outlist);
+
+	for (i = 0 ; i < confdata->sortlistnxt ; i++) {
+		length = confdata->sortlist[i].addr.length;
+		INSIST(length == confdata->sortlist[i].mask.length);
+		memcpy(mask, confdata->sortlist[i].mask.address, length);
+		memcpy(sortaddr, confdata->sortlist[i].addr.address, length);
+		for (x = 0 ; x < length ; x++)
+			sortaddr[x] &= mask[x];
+
+		addr = LWRES_LIST_HEAD(*inlist);
+		while (addr != NULL) {
+			nextaddr = LWRES_LIST_NEXT(addr, link);
+
+			if (addr->family != confdata->sortlist[i].addr.family)
+				goto next;
+
+			memcpy(listaddr, addr->address, length);
+			for (x = 0 ; x < length ; x++)
+				listaddr[x] &= mask[x];
+
+			if (memcmp(listaddr, sortaddr, length) == 0) {
+				LWRES_LIST_UNLINK(*inlist, addr, link);
+				LWRES_LIST_APPEND(*outlist, addr, link);
+			}
+
+		next:
+			addr = nextaddr;
+		}
+	}
+
+	/*
+	 * Get everything that doesn't match any sortlist lines.
+	 */
+	addr = LWRES_LIST_HEAD(*inlist);
+	while (addr != NULL) {
+		LWRES_LIST_UNLINK(*inlist, addr, link);
+		LWRES_LIST_APPEND(*outlist, addr, link);
+		addr = LWRES_LIST_HEAD(*inlist);
+	}
+}
+
+lwres_result_t
 lwres_gabnrequest_render(lwres_context_t *ctx, lwres_gabnrequest_t *req,
 			 lwres_lwpacket_t *pkt, lwres_buffer_t *b)
 {
@@ -91,7 +156,7 @@ lwres_gabnrequest_render(lwres_context_t *ctx, lwres_gabnrequest_t *req,
 	return (LWRES_R_SUCCESS);
 }
 
-int
+lwres_result_t
 lwres_gabnresponse_render(lwres_context_t *ctx, lwres_gabnresponse_t *req,
 			  lwres_lwpacket_t *pkt, lwres_buffer_t *b)
 {
@@ -100,6 +165,7 @@ lwres_gabnresponse_render(lwres_context_t *ctx, lwres_gabnresponse_t *req,
 	int ret;
 	size_t payload_length;
 	lwres_uint16_t datalen;
+	lwres_addr_t *addr;
 	int x;
 
 	REQUIRE(ctx != NULL);
@@ -108,17 +174,22 @@ lwres_gabnresponse_render(lwres_context_t *ctx, lwres_gabnresponse_t *req,
 	REQUIRE(b != NULL);
 
 	/* naliases, naddrs */
-	payload_length = sizeof(lwres_uint16_t) * 2;
+	payload_length = 2 * 2;
 	/* real name encoding */
 	payload_length += 2 + req->realnamelen + 1;
 	/* each alias */
 	for (x = 0 ; x < req->naliases ; x++)
 		payload_length += 2 + req->aliaslen[x] + 1;
 	/* each address */
-	for (x = 0 ; x < req->naddrs ; x++) {
-		payload_length += sizeof(lwres_uint32_t) + sizeof(lwres_uint16_t);
-		payload_length += req->addrs[x].length;
+	x = 0;
+	addr = LWRES_LIST_HEAD(req->addrs);
+	while (addr != NULL) {
+		payload_length += 4 + 2;
+		payload_length += addr->length;
+		addr = LWRES_LIST_NEXT(addr, link);
+		x++;
 	}
+	INSIST(x == req->naddrs);
 
 	buflen = LWRES_LWPACKET_LENGTH + payload_length;
 	buf = CTXMALLOC(buflen);
@@ -163,14 +234,14 @@ lwres_gabnresponse_render(lwres_context_t *ctx, lwres_gabnresponse_t *req,
 	}
 
 	/* encode the addresses */
-	for (x = 0 ; x < req->naddrs ; x++) {
-		datalen = req->addrs[x].length + sizeof(lwres_uint16_t)
-			+ sizeof(lwres_uint32_t);
+	addr = LWRES_LIST_HEAD(req->addrs);
+	while (addr != NULL) {
+		datalen = addr->length + 2 + 4;
 		INSIST(SPACE_OK(b, datalen));
-		lwres_buffer_putuint32(b, req->addrs[x].family);
-		lwres_buffer_putuint16(b, req->addrs[x].length);
-		lwres_buffer_putmem(b, req->addrs[x].address,
-				    req->addrs[x].length);
+		lwres_buffer_putuint32(b, addr->family);
+		lwres_buffer_putuint16(b, addr->length);
+		lwres_buffer_putmem(b, addr->address, addr->length);
+		addr = LWRES_LIST_NEXT(addr, link);
 	}
 
 	INSIST(LWRES_BUFFER_AVAILABLECOUNT(b) == 0);
@@ -179,7 +250,7 @@ lwres_gabnresponse_render(lwres_context_t *ctx, lwres_gabnresponse_t *req,
 	return (LWRES_R_SUCCESS);
 }
 
-int
+lwres_result_t
 lwres_gabnrequest_parse(lwres_context_t *ctx, lwres_buffer_t *b,
 			lwres_lwpacket_t *pkt, lwres_gabnrequest_t **structp)
 {
@@ -224,15 +295,17 @@ lwres_gabnrequest_parse(lwres_context_t *ctx, lwres_buffer_t *b,
 	return (LWRES_R_SUCCESS);
 }
 
-int
+lwres_result_t
 lwres_gabnresponse_parse(lwres_context_t *ctx, lwres_buffer_t *b,
 			lwres_lwpacket_t *pkt, lwres_gabnresponse_t **structp)
 {
-	int ret;
-	unsigned int x;
-	lwres_uint16_t naliases;
-	lwres_uint16_t naddrs;
-	lwres_gabnresponse_t *gabn;
+	lwres_result_t			ret;
+	unsigned int			x;
+	lwres_uint16_t			naliases;
+	lwres_uint16_t			naddrs;
+	lwres_gabnresponse_t	       *gabn;
+	lwres_addrlist_t		addrlist;
+	lwres_addr_t		       *addr;
 
 	REQUIRE(ctx != NULL);
 	REQUIRE(pkt != NULL);
@@ -257,7 +330,7 @@ lwres_gabnresponse_parse(lwres_context_t *ctx, lwres_buffer_t *b,
 		return (LWRES_R_NOMEMORY);
 	gabn->aliases = NULL;
 	gabn->aliaslen = NULL;
-	gabn->addrs = NULL;
+	LWRES_LIST_INIT(gabn->addrs);
 	gabn->base = NULL;
 
 	gabn->naliases = naliases;
@@ -277,12 +350,15 @@ lwres_gabnresponse_parse(lwres_context_t *ctx, lwres_buffer_t *b,
 		}
 	}
 
-	if (naddrs > 0) {
-		gabn->addrs = CTXMALLOC(sizeof(lwres_addr_t) * naddrs);
-		if (gabn->addrs == NULL) {
+	LWRES_LIST_INIT(addrlist);
+	for (x = 0 ; x < naddrs ; x++) {
+		addr = CTXMALLOC(sizeof(lwres_addr_t));
+		if (addr == NULL) {
 			ret = LWRES_R_NOMEMORY;
 			goto out;
 		}
+		LWRES_LINK_INIT(addr, link);
+		LWRES_LIST_APPEND(addrlist, addr, link);
 	}
 
 	/*
@@ -303,18 +379,28 @@ lwres_gabnresponse_parse(lwres_context_t *ctx, lwres_buffer_t *b,
 	}
 
 	/*
-	 * Pull off the addresses.
+	 * Pull off the addresses.  We already strung the linked list
+	 * up above.
 	 */
+	addr = LWRES_LIST_HEAD(addrlist);
 	for (x = 0 ; x < gabn->naddrs ; x++) {
-		ret = lwres_addr_parse(b, &gabn->addrs[x]);
+		INSIST(addr != NULL);
+		ret = lwres_addr_parse(b, addr);
 		if (ret != LWRES_R_SUCCESS)
 			goto out;
+		addr = LWRES_LIST_NEXT(addr, link);
 	}
 
 	if (LWRES_BUFFER_REMAINING(b) != 0) {
 		ret = LWRES_R_TRAILINGDATA;
 		goto out;
 	}
+
+	/*
+	 * Do the sortlist thing here.  After this is done, "addrlist"
+	 * must NOT be used again, since it will be very very bogus.
+	 */
+	lwres_sortlist(ctx, &addrlist, &gabn->addrs);
 
 	*structp = gabn;
 	return (LWRES_R_SUCCESS);
@@ -326,8 +412,12 @@ lwres_gabnresponse_parse(lwres_context_t *ctx, lwres_buffer_t *b,
 		if (gabn->aliaslen != NULL)
 			CTXFREE(gabn->aliaslen,
 				sizeof(lwres_uint16_t) * naliases);
-		if (gabn->addrs != NULL)
-			CTXFREE(gabn->addrs, sizeof(lwres_addr_t) * naddrs);
+		addr = LWRES_LIST_HEAD(addrlist);
+		while (addr != NULL) {
+			LWRES_LIST_UNLINK(addrlist, addr, link);
+			CTXFREE(addr, sizeof(lwres_addr_t));
+			addr = LWRES_LIST_HEAD(addrlist);
+		}
 		CTXFREE(gabn, sizeof(lwres_gabnresponse_t));
 	}
 
@@ -352,6 +442,7 @@ void
 lwres_gabnresponse_free(lwres_context_t *ctx, lwres_gabnresponse_t **structp)
 {
 	lwres_gabnresponse_t *gabn;
+	lwres_addr_t *addr;
 
 	REQUIRE(ctx != NULL);
 	REQUIRE(structp != NULL && *structp != NULL);
@@ -363,8 +454,12 @@ lwres_gabnresponse_free(lwres_context_t *ctx, lwres_gabnresponse_t **structp)
 		CTXFREE(gabn->aliases, sizeof(char *) * gabn->naliases);
 		CTXFREE(gabn->aliaslen, sizeof(lwres_uint16_t) * gabn->naliases);
 	}
-	if (gabn->naddrs > 0)
-		CTXFREE(gabn->addrs, sizeof(lwres_addr_t) * gabn->naddrs);
+	addr = LWRES_LIST_HEAD(gabn->addrs);
+	while (addr != NULL) {
+		LWRES_LIST_UNLINK(gabn->addrs, addr, link);
+		CTXFREE(addr, sizeof(lwres_addr_t));
+		addr = LWRES_LIST_HEAD(gabn->addrs);
+	}
 	if (gabn->base != NULL)
 		CTXFREE(gabn->base, gabn->baselen);
 	CTXFREE(gabn, sizeof(lwres_gabnresponse_t));

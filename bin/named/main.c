@@ -120,7 +120,7 @@ library_fatal_error(char *file, int line, char *format, va_list args) {
 
 		isc_log_write(ns_g_lctx, NS_LOGCATEGORY_GENERAL,
 			      NS_LOGMODULE_MAIN, ISC_LOG_CRITICAL,
-			      "%s:%d: fatal error", file, line);
+			      "%s:%d: fatal error:", file, line);
 		isc_log_vwrite(ns_g_lctx, NS_LOGCATEGORY_GENERAL,
 			       NS_LOGMODULE_MAIN, ISC_LOG_CRITICAL,
 			       format, args);
@@ -140,11 +140,32 @@ library_fatal_error(char *file, int line, char *format, va_list args) {
 }
 
 static void
+library_unexpected_error(char *file, int line, char *format, va_list args) {
+	/*
+	 * Handle isc_error_unexpected() calls from our libraries.
+	 */
+
+	if (ns_g_lctx != NULL) {
+		isc_log_write(ns_g_lctx, NS_LOGCATEGORY_GENERAL,
+			      NS_LOGMODULE_MAIN, ISC_LOG_ERROR,
+			      "%s:%d: unexpected error:", file, line);
+		isc_log_vwrite(ns_g_lctx, NS_LOGCATEGORY_GENERAL,
+			       NS_LOGMODULE_MAIN, ISC_LOG_ERROR,
+			       format, args);
+	} else {
+		fprintf(stderr, "%s:%d: fatal error: ", file, line);
+		vfprintf(stderr, format, args);
+		fprintf(stderr, "\n");
+		fflush(stderr);
+	}
+}
+
+static void
 usage(void) {
 	fprintf(stderr,
-		"usage: named [[-c cachefile] ...] [[-z zonefile] ...]\n");
-	fprintf(stderr,
-		"             [-p port] [-s] [-N number of cpus]\n");
+		"usage: named [-c conffile] [-d debuglevel] "
+		"[-f|-g] [-n number_of_cpus]\n"
+		"             [-p port] [-s] [-t chrootdir] [-u username]\n");
 }
 
 static void 
@@ -154,10 +175,9 @@ parse_command_line(int argc, char *argv[]) {
 
 	isc_commandline_errprint = ISC_FALSE;
 	while ((ch = isc_commandline_parse(argc, argv,
-					   "b:c:d:fN:p:st:u:x:")) !=
+					   "c:d:fgn:N:p:st:u:x:")) !=
 	       -1) {
 		switch (ch) {
-		case 'b':
 		case 'c':
 			ns_g_conffile = isc_commandline_argument;
 			break;
@@ -167,7 +187,12 @@ parse_command_line(int argc, char *argv[]) {
 		case 'f':
 			ns_g_foreground = ISC_TRUE;
 			break;
-		case 'N':
+		case 'g':
+			ns_g_foreground = ISC_TRUE;
+			ns_g_logstderr = ISC_TRUE;
+			break;
+		case 'N': /* Deprecated. */
+		case 'n':
 			ns_g_cpus = atoi(isc_commandline_argument);
 			if (ns_g_cpus == 0)
 				ns_g_cpus = 1;
@@ -175,7 +200,7 @@ parse_command_line(int argc, char *argv[]) {
 		case 'p':
 			port = atoi(isc_commandline_argument);
 			if (port < 1 || port > 65535)
-				ns_main_earlyfatal("port \"%s\" out of range",
+				ns_main_earlyfatal("port '%s' out of range",
 						   isc_commandline_argument);
 			ns_g_port = port;
 			break;
@@ -195,7 +220,8 @@ parse_command_line(int argc, char *argv[]) {
 			ns_g_cachefile = isc_commandline_argument;
 			break;
 		case '?':
-			ns_main_earlyfatal("unknown option `-%c'",
+			usage();
+			ns_main_earlyfatal("unknown option '-%c'",
 					   isc_commandline_option);
 		default:
 			ns_main_earlyfatal("parsing options returned %d", ch);
@@ -205,7 +231,7 @@ parse_command_line(int argc, char *argv[]) {
 	argc -= isc_commandline_index;
 	argv += isc_commandline_index;
 
-	if (argc > 1) {
+	if (argc > 0) {
 		usage();
 		ns_main_earlyfatal("extra command line arguments");
 	}
@@ -218,7 +244,7 @@ create_managers() {
 	result = isc_taskmgr_create(ns_g_mctx, ns_g_cpus, 0, &ns_g_taskmgr);
 	if (result != ISC_R_SUCCESS) {
 		UNEXPECTED_ERROR(__FILE__, __LINE__,
-				 "ns_taskmgr_create() failed: %s\n",
+				 "ns_taskmgr_create() failed: %s",
 				 isc_result_totext(result));
 		return (ISC_R_UNEXPECTED);
 	}
@@ -226,7 +252,7 @@ create_managers() {
 	result = isc_timermgr_create(ns_g_mctx, &ns_g_timermgr);
 	if (result != ISC_R_SUCCESS) {
 		UNEXPECTED_ERROR(__FILE__, __LINE__,
-				 "ns_timermgr_create() failed: %s\n",
+				 "ns_timermgr_create() failed: %s",
 				 isc_result_totext(result));
 		return (ISC_R_UNEXPECTED);
 	}
@@ -234,7 +260,7 @@ create_managers() {
 	result = isc_socketmgr_create(ns_g_mctx, &ns_g_socketmgr);
 	if (result != ISC_R_SUCCESS) {
 		UNEXPECTED_ERROR(__FILE__, __LINE__,
-				 "isc_socketmgr_create() failed: %s\n",
+				 "isc_socketmgr_create() failed: %s",
 				 isc_result_totext(result));
 		return (ISC_R_UNEXPECTED);
 	}
@@ -244,17 +270,17 @@ create_managers() {
 
 static void
 destroy_managers(void) {
+	if (ns_g_omapimgr != NULL)
+		omapi_listener_shutdown(ns_g_omapimgr);
+	else
+		omapi_lib_destroy();
+
 	/*
 	 * isc_taskmgr_destroy() will  block until all tasks have exited,
 	 */
 	isc_taskmgr_destroy(&ns_g_taskmgr);
 	isc_timermgr_destroy(&ns_g_timermgr);
 	isc_socketmgr_destroy(&ns_g_socketmgr);
-
-	if (ns_g_omapimgr != NULL) {
-		omapi_listener_shutdown(ns_g_omapimgr);
-		omapi_object_dereference(&ns_g_omapimgr);
-	}
 }
 
 static void
@@ -288,7 +314,7 @@ setup() {
 
 	ns_server_create(ns_g_mctx, &ns_g_server);
 
-	result = omapi_lib_init(ns_g_mctx);
+	result = ns_omapi_init();
 	if (result != ISC_R_SUCCESS)
 		ns_main_earlyfatal("omapi_lib_init() failed: %s",
 				   isc_result_totext(result));
@@ -308,7 +334,6 @@ setup() {
 static void
 cleanup() {
 	destroy_managers();
-	omapi_lib_destroy();
 	ns_server_destroy(&ns_g_server);
 	isc_log_write(ns_g_lctx, NS_LOGCATEGORY_GENERAL, NS_LOGMODULE_MAIN,
 		      ISC_LOG_NOTICE, "exiting");
@@ -322,6 +347,7 @@ main(int argc, char *argv[]) {
 	program_name = argv[0];
 	isc_assertion_setcallback(assertion_failed);
 	isc_error_setfatal(library_fatal_error);
+	isc_error_setunexpected(library_unexpected_error);
 
 	ns_os_init();
 

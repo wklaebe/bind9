@@ -36,9 +36,9 @@ CONFOBJS =	config/confacl.@O@ config/confcache.@O@ config/confcommon.@O@ \
 		config/confctl.@O@ config/confctx.@O@ \
 		config/confip.@O@ config/confkeys.@O@ \
 		config/conflog.@O@ config/conflsn.@O@ \
-		config/confparser.@O@ config/confresolv.@O@ \
-		config/confrrset.@O@ \
-		config/confserv.@O@ config/confview.@O@ config/confzone.@O@
+		config/confndc.@O@ config/confparser.@O@ \
+		config/confresolv.@O@ config/confrrset.@O@ \
+		config/confview.@O@ config/confzone.@O@
 
 DSTOBJS =	sec/dst/bsafe_link.@O@ sec/dst/dst_api.@O@ \
 		sec/dst/dst_parse.@O@ sec/dst/hmac_link.@O@ \
@@ -47,7 +47,7 @@ DSTOBJS =	sec/dst/bsafe_link.@O@ sec/dst/dst_api.@O@ \
 		sec/dst/dst_support.@O@ sec/dst/dst_lib.@O@
 
 OPENSSLOBJS =	sec/openssl/bn_add.@O@ sec/openssl/bn_asm.@O@ \
-		sec/openssl/bn_comba.@O@ sec/openssl/bn_div.@O@ \
+		sec/openssl/bn_ctx.@O@ sec/openssl/bn_div.@O@ \
 		sec/openssl/bn_err.@O@ sec/openssl/bn_exp.@O@ \
 		sec/openssl/bn_exp2.@O@ sec/openssl/bn_gcd.@O@ \
 		sec/openssl/bn_lib.@O@ sec/openssl/bn_mont.@O@ \
@@ -60,9 +60,11 @@ OPENSSLOBJS =	sec/openssl/bn_add.@O@ sec/openssl/bn_asm.@O@ \
 		sec/openssl/dh_key.@O@  sec/openssl/dh_lib.@O@ \
 		sec/openssl/dsa_asn1.@O@ sec/openssl/dsa_err.@O@ \
 		sec/openssl/dsa_gen.@O@ sec/openssl/dsa_key.@O@ \
-		sec/openssl/dsa_lib.@O@ sec/openssl/dsa_sign.@O@ \
-		sec/openssl/dsa_vrf.@O@ sec/openssl/err.@O@ \
+		sec/openssl/dsa_lib.@O@  sec/openssl/dsa_ossl.@O@ \
+		sec/openssl/dsa_sign.@O@ sec/openssl/dsa_vrf.@O@ \
+		sec/openssl/err.@O@ sec/openssl/ex_data.@O@ \
 		sec/openssl/lhash.@O@ sec/openssl/md_rand.@O@ \
+		sec/openssl/mem_dbg.@O@ \
 		sec/openssl/md5_dgst.@O@ sec/openssl/mem.@O@ \
 		sec/openssl/rand_lib.@O@ sec/openssl/sha1_one.@O@ \
 		sec/openssl/sha1dgst.@O@ sec/openssl/stack.@O@ \
@@ -117,14 +119,14 @@ DNSSAFEOBJS =	sec/dnssafe/ahchdig.@O@ sec/dnssafe/ahchencr.@O@ \
 OBJS =		a6.@O@ acl.@O@ aclconf.@O@ adb.@O@ byaddr.@O@ \
 		cache.@O@ callbacks.@O@ compress.@O@ \
 		db.@O@ dbiterator.@O@ dbtable.@O@ dispatch.@O@ dnssec.@O@ \
-		journal.@O@ lib.@O@ log.@O@ \
+		journal.@O@ keytable.@O@ lib.@O@ log.@O@ \
 		master.@O@ masterdump.@O@ message.@O@ \
-		name.@O@ ncache.@O@ nxt.@O@ \
+		name.@O@ ncache.@O@ nxt.@O@ peer.@O@ \
 		rbt.@O@ rbtdb.@O@ rbtdb64.@O@ rdata.@O@ rdatalist.@O@ \
-		rdataset.@O@ rdatasetiter.@O@ rdataslab.@O@ resolver.@O@ \
-		result.@O@ rootns.@O@ \
+		rdataset.@O@ rdatasetiter.@O@ rdataslab.@O@ request.@O@ \
+		resolver.@O@ result.@O@ rootns.@O@ ssu.@O@ \
 		tcpmsg.@O@ time.@O@ tkey.@O@ tkeyconf.@O@ \
-		tsig.@O@ tsigconf.@O@ ttl.@O@ \
+		tsig.@O@ tsigconf.@O@ ttl.@O@ validator.@O@ \
 		version.@O@ view.@O@ xfrin.@O@ zone.@O@ zoneconf.@O@ zt.@O@ \
 		${DSTOBJS} ${OPENSSLOBJS} ${DNSSAFEOBJS} ${CONFOBJS}
 
@@ -132,14 +134,14 @@ OBJS =		a6.@O@ acl.@O@ aclconf.@O@ adb.@O@ byaddr.@O@ \
 SRCS =		a6.c acl.c aclconf.c adb.c byaddr.c \
 		cache.c callbacks.c compress.c \
 		db.c dbiterator.c dbtable.c dispatch.c dnssec.c \
-		journal.c lib.c log.c \
+		journal.c keytable.c lib.c log.c \
 		master.c masterdump.c message.c \
-		name.c ncache.c nxt.c \
+		name.c ncache.c nxt.c peer.c \
 		rbt.c rbtdb.c rbtdb64.c rdata.c rdatalist.c \
-		rdataset.c rdatasetiter.c rdataslab.c resolver.c \
-		result.c rootns.c \
+		rdataset.c rdatasetiter.c rdataslab.c request.c \
+		resolver.c result.c rootns.c ssu.c \
 		tcpmsg.c time.c tkey.c tkeyconf.c \
-		tsig.c tsigconf.c ttl.c \
+		tsig.c tsigconf.c ttl.c validator.c \
 		version.c view.c xfrin.c zone.c zoneconf.c zt.c
 
 SUBDIRS =	include sec config
@@ -156,7 +158,7 @@ version.@O@: version.c
 		-DLIBAGE=${LIBAGE} \
 		-c ${srcdir}/version.c
 
-libdns.@A@: ${OBJS}
+libdns.@SA@: ${OBJS}
 	${AR} ${ARFLAGS} $@ ${OBJS}
 	${RANLIB} $@
 
@@ -170,12 +172,12 @@ timestamp: libdns.@A@
 	touch timestamp
 
 installdirs:
-	if [ ! -d ${libdir} ]; then \
-		mkdir ${libdir} ; \
+	if [ ! -d ${DESTDIR}${libdir} ]; then \
+		mkdir ${DESTDIR}${libdir} ; \
 	fi
 
 install:: timestamp installdirs
-	${LIBTOOL} ${INSTALL_DATA} libdns.@A@ ${libdir}
+	${LIBTOOL} ${INSTALL_DATA} libdns.@A@ ${DESTDIR}${libdir}
 
 clean distclean::
 	rm -f libdns.@A@ timestamp

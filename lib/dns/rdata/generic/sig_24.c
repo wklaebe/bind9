@@ -15,9 +15,11 @@
  * SOFTWARE.
  */
 
- /* $Id: sig_24.c,v 1.27 2000/02/03 23:43:06 halley Exp $ */
+/* $Id: sig_24.c,v 1.30 2000/03/17 21:43:46 gson Exp $ */
 
- /* RFC 2065 */
+/* Reviewed: Fri Mar 17 09:05:02 PST 2000 by gson */
+
+/* RFC 2535 */
 
 #ifndef RDATA_GENERIC_SIG_24_C
 #define RDATA_GENERIC_SIG_24_C
@@ -31,7 +33,6 @@ fromtext_sig(dns_rdataclass_t rdclass, dns_rdatatype_t type,
 	unsigned char c; 
 	long i;
 	dns_rdatatype_t covered;
-	isc_textregion_t *tsr;
 	char *e;
 	isc_result_t result;
 	dns_name_t name;
@@ -40,14 +41,11 @@ fromtext_sig(dns_rdataclass_t rdclass, dns_rdatatype_t type,
 
 	REQUIRE(type == 24);
 
-	rdclass = rdclass;		/*unused*/
-	origin = origin;	/*unused*/
-	downcase = downcase;	/*unused*/
+	UNUSED(rdclass);
 
 	/* type covered */
 	RETERR(gettoken(lexer, &token, isc_tokentype_string, ISC_FALSE));
-	tsr = &token.value.as_textregion;
-	result = dns_rdatatype_fromtext(&covered, tsr);
+	result = dns_rdatatype_fromtext(&covered, &token.value.as_textregion);
 	if (result != DNS_R_SUCCESS && result != DNS_R_NOTIMPLEMENTED) {
 		i = strtol(token.value.as_pointer, &e, 10);
 		if (i < 0 || i > 65535)
@@ -117,8 +115,6 @@ totext_sig(dns_rdata_t *rdata, dns_rdata_textctx_t *tctx,
 
 	REQUIRE(rdata->type == 24);
 
-	tctx = tctx;	/*unused*/
-
 	dns_rdata_toregion(rdata, &sr);
 
 	/* type covered */
@@ -183,7 +179,7 @@ totext_sig(dns_rdata_t *rdata, dns_rdata_textctx_t *tctx,
 	if ((tctx->flags & DNS_STYLEFLAG_MULTILINE) != 0)
 		RETERR(str_totext(" )", target));
 	
-	return DNS_R_SUCCESS;
+	return (DNS_R_SUCCESS);
 }
 
 static inline isc_result_t
@@ -201,7 +197,7 @@ fromwire_sig(dns_rdataclass_t rdclass, dns_rdatatype_t type,
 	else
 		dns_decompress_setmethods(dctx, DNS_COMPRESS_NONE);
 	
-	rdclass = rdclass;	/*unused*/
+	UNUSED(rdclass);
 
 	isc_buffer_active(source, &sr);
 	/*
@@ -226,7 +222,7 @@ fromwire_sig(dns_rdataclass_t rdclass, dns_rdatatype_t type,
 	/* sig */
 	isc_buffer_active(source, &sr);
 	isc_buffer_forward(source, sr.length);
-	return(mem_tobuffer(target, sr.base, sr.length));
+	return (mem_tobuffer(target, sr.base, sr.length));
 }
 
 static inline isc_result_t
@@ -270,7 +266,7 @@ compare_sig(dns_rdata_t *rdata1, dns_rdata_t *rdata2) {
 	isc_region_t r2;
 	dns_name_t name1;
 	dns_name_t name2;
-	int result;
+	int order;
 
 	REQUIRE(rdata1->type == rdata2->type);
 	REQUIRE(rdata1->rdclass == rdata2->rdclass);
@@ -283,9 +279,9 @@ compare_sig(dns_rdata_t *rdata1, dns_rdata_t *rdata2) {
 	INSIST(r2.length > 18);
 	r1.length = 18;
 	r2.length = 18;
-	result = compare_region(&r1, &r2);
-	if (result != 0)
-		return (result);
+	order = compare_region(&r1, &r2);
+	if (order != 0)
+		return (order);
 
 	dns_name_init(&name1, NULL);
 	dns_name_init(&name2, NULL);
@@ -295,9 +291,10 @@ compare_sig(dns_rdata_t *rdata1, dns_rdata_t *rdata2) {
 	isc_region_consume(&r2, 18);
 	dns_name_fromregion(&name1, &r1);
 	dns_name_fromregion(&name2, &r2);
-	result = dns_name_rdatacompare(&name1, &name2);
-	if (result != 0)
-		return (result);
+	order = dns_name_rdatacompare(&name1, &name2);
+	if (order != 0)
+		return (order);
+
 	isc_region_consume(&r1, name_length(&name1));
 	isc_region_consume(&r2, name_length(&name2));
 
@@ -314,10 +311,7 @@ fromstruct_sig(dns_rdataclass_t rdclass, dns_rdatatype_t type, void *source,
 
 	REQUIRE(type == 24);
 	
-	rdclass = rdclass;	/*unused*/
-
-	source = source;
-	target = target;
+	UNUSED(rdclass);
 
 	sig = (dns_rdata_generic_sig_t *) source;
 	REQUIRE(sig->mctx != NULL);
@@ -369,9 +363,6 @@ tostruct_sig(dns_rdata_t *rdata, void *target, isc_mem_t *mctx) {
 
 	REQUIRE(rdata->type == 24);
 	
-	target = target;
-	mctx = mctx;
-
 	sig = (dns_rdata_generic_sig_t *) target;
 	sig->common.rdclass = rdata->rdclass;
 	sig->common.rdtype = rdata->type;
@@ -429,15 +420,11 @@ tostruct_sig(dns_rdata_t *rdata, void *target, isc_mem_t *mctx) {
 
 	/* Signature */
 	sig->siglen = sr.length;
-	if (sig->siglen > 0) {
-		sig->signature = isc_mem_get(mctx, sig->siglen);
-		if (sig->signature == NULL)
-			return (DNS_R_NOMEMORY);
-		memcpy(sig->signature, sr.base, sig->siglen);
-		isc_region_consume(&sr, sig->siglen);
-	}
-	else
-		sig->signature = NULL;
+	sig->signature = isc_mem_get(mctx, sig->siglen);
+	if (sig->signature == NULL)
+		return (DNS_R_NOMEMORY);
+	memcpy(sig->signature, sr.base, sig->siglen);
+	isc_region_consume(&sr, sig->siglen);
 
 	return (DNS_R_SUCCESS);
 }
@@ -450,7 +437,7 @@ freestruct_sig(void *source) {
 	REQUIRE(sig->common.rdtype == 24);
 
 	dns_name_free(&sig->signer, sig->mctx);
-	if (sig->siglen > 0)
+	if (sig->signature != NULL)
 		isc_mem_put(sig->mctx, sig->signature, sig->siglen);
 }
 
@@ -460,8 +447,8 @@ additionaldata_sig(dns_rdata_t *rdata, dns_additionaldatafunc_t add,
 {
 	REQUIRE(rdata->type == 24);
 
-	(void)add;
-	(void)arg;
+	UNUSED(add);
+	UNUSED(arg);
 
 	return (DNS_R_SUCCESS);
 }
@@ -471,8 +458,8 @@ digest_sig(dns_rdata_t *rdata, dns_digestfunc_t digest, void *arg) {
 
 	REQUIRE(rdata->type == 24);
 
-	(void)digest;
-	(void)arg;
+	UNUSED(digest);
+	UNUSED(arg);
 
 	return (DNS_R_NOTIMPLEMENTED);
 }

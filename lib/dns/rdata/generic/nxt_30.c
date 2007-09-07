@@ -15,9 +15,11 @@
  * SOFTWARE.
  */
 
- /* $Id: nxt_30.c,v 1.20 2000/02/03 23:43:04 halley Exp $ */
+/* $Id: nxt_30.c,v 1.23 2000/03/20 22:48:58 gson Exp $ */
 
- /* RFC 2065 */
+/* reviewed: Wed Mar 15 18:21:15 PST 2000 by brister */
+
+/* RFC 2065 */
 
 #ifndef RDATA_GENERIC_NXT_30_C
 #define RDATA_GENERIC_NXT_30_C
@@ -39,7 +41,7 @@ fromtext_nxt(dns_rdataclass_t rdclass, dns_rdatatype_t type,
 
 	REQUIRE(type == 30);
 
-	rdclass = rdclass;	/*unused*/
+	UNUSED(rdclass);
 	
 	/* next domain */
 	RETERR(gettoken(lexer, &token, isc_tokentype_string, ISC_FALSE));
@@ -134,7 +136,7 @@ fromwire_nxt(dns_rdataclass_t rdclass, dns_rdatatype_t type,
 
 	REQUIRE(type == 30);
 
-	rdclass = rdclass;	/*unused*/
+	UNUSED(rdclass);
 
 	if (dns_decompress_edns(dctx) >= 1 || !dns_decompress_strict(dctx))
 		dns_decompress_setmethods(dctx, DNS_COMPRESS_ALL);
@@ -154,7 +156,8 @@ fromwire_nxt(dns_rdataclass_t rdclass, dns_rdatatype_t type,
 }
 
 static inline isc_result_t
-towire_nxt(dns_rdata_t *rdata, dns_compress_t *cctx, isc_buffer_t *target) {
+towire_nxt(dns_rdata_t *rdata, dns_compress_t *cctx, isc_buffer_t *target)
+{
 	isc_region_t sr;
 	dns_name_t name;
 
@@ -180,7 +183,7 @@ compare_nxt(dns_rdata_t *rdata1, dns_rdata_t *rdata2) {
 	isc_region_t r2;
 	dns_name_t name1;
 	dns_name_t name2;
-	int result;
+	int order;
 
 	REQUIRE(rdata1->type == rdata2->type);
 	REQUIRE(rdata1->rdclass == rdata2->rdclass);
@@ -192,9 +195,9 @@ compare_nxt(dns_rdata_t *rdata1, dns_rdata_t *rdata2) {
 	dns_rdata_toregion(rdata2, &r2);
 	dns_name_fromregion(&name1, &r1);
 	dns_name_fromregion(&name2, &r2);
-	result = dns_name_rdatacompare(&name1, &name2);
-	if (result != 0)
-		return (result);
+	order = dns_name_rdatacompare(&name1, &name2);
+	if (order != 0)
+		return (order);
 
 	return (compare_region(&r1, &r2));
 }
@@ -206,10 +209,10 @@ fromstruct_nxt(dns_rdataclass_t rdclass, dns_rdatatype_t type, void *source,
 
 	REQUIRE(type == 30);
 
-	rdclass = rdclass; 	/*unused*/
+	UNUSED(rdclass);
 
-	source = source;
-	target = target;
+	UNUSED(source);
+	UNUSED(target);
 
 	return (DNS_R_NOTIMPLEMENTED);
 }
@@ -219,8 +222,8 @@ tostruct_nxt(dns_rdata_t *rdata, void *target, isc_mem_t *mctx) {
 
 	REQUIRE(rdata->type == 30);
 
-	target = target;
-	mctx = mctx;
+	UNUSED(target);
+	UNUSED(mctx);
 
 	return (DNS_R_NOTIMPLEMENTED);
 }

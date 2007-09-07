@@ -77,16 +77,18 @@
  ***/
 
 typedef ISC_LIST(ns_client_t) client_list_t;
-     
+
 struct ns_client {
 	unsigned int			magic;
 	isc_mem_t *			mctx;
 	ns_clientmgr_t *		manager;
-	isc_boolean_t			shuttingdown;
+	int				state;
+	int				newstate;
+	isc_boolean_t			disconnect;
 	int				naccepts;
 	int				nreads;
 	int				nsends;
-	int				nwaiting;
+	int				references;
 	unsigned int			attributes;
 	isc_task_t *			task;
 	dns_view_t *			view;
@@ -103,8 +105,8 @@ struct ns_client {
 	unsigned char *			sendbuf;
 	dns_rdataset_t *		opt;
 	isc_uint16_t			udpsize;
-	void				(*next)(ns_client_t *, isc_result_t);
-	void				(*shutdown)(void *arg);
+	void				(*next)(ns_client_t *);
+	void				(*shutdown)(void *arg, isc_result_t result);
 	void 				*shutdown_arg;
 	ns_query_t			query;
 	isc_stdtime_t			requesttime;
@@ -115,6 +117,8 @@ struct ns_client {
 	isc_quota_t			*tcpquota;
 	isc_quota_t			*recursionquota;
 	ns_interface_t			*interface;
+	isc_sockaddr_t			peeraddr;
+	struct in6_pktinfo		pktinfo;
 	ISC_LINK(ns_client_t)		link;
 	client_list_t			*list;	/* The list 'link' is part of,
 					   or NULL if not on any list. */
@@ -126,6 +130,7 @@ struct ns_client {
 
 #define NS_CLIENTATTR_TCP		0x01
 #define NS_CLIENTATTR_RA		0x02 /* Client gets recusive service */
+#define NS_CLIENTATTR_PKTINFO		0x04 /* pktinfo is valid */
 
 /***
  *** Functions
@@ -165,16 +170,15 @@ ns_client_shuttingdown(ns_client_t *client);
  */
 
 void
-ns_client_wait(ns_client_t *client);
+ns_client_attach(ns_client_t *source, ns_client_t **target);
 /*
- * Increment reference count.  The client object will
- * not be destroyed while the reference count is nonzero.
+ * Attach '*targetp' to 'source'.
  */
 
 void
-ns_client_unwait(ns_client_t *client);
+ns_client_detach(ns_client_t **clientp);
 /*
- * Decrement reference count.
+ * Detach '*clientp' from its client.
  */
 
 isc_result_t
@@ -214,5 +218,36 @@ ns_client_getsockaddr(ns_client_t *client);
  * Get the socket address of the client whose request is
  * currently being processed.
  */
+
+isc_result_t
+ns_client_checkacl(ns_client_t  *client,
+		   const char *opname, dns_acl_t *acl,
+		   isc_boolean_t default_allow);
+/*
+ * Convenience function for client request ACL checking.
+ *
+ * Check the current client request against 'acl'.  If 'acl'
+ * is NULL, allow the request iff 'default_allow' is ISC_TRUE.
+ * Log the outcome of the check if deemed appropriate.
+ * Log messages will refer to the request as an 'opname' request.
+ *
+ * Notes:
+ *	This is appropriate for checking allow-update, 
+ * 	allow-query, allow-transfer, etc.  It is not appropriate
+ * 	for checking the blackhole list because we treat positive
+ * 	matches as "allow" and negative matches as "deny"; in
+ *	the case of the blackhole list this would be backwards.
+ *
+ * Requires:
+ *	'client' points to a valid client.
+ *	'opname' points to a null-terminated string.
+ *	'acl' points to a valid ACL, or is NULL.
+ *
+ * Returns:
+ *	ISC_R_SUCCESS	if the request should be allowed
+ * 	ISC_R_REFUSED	if the request should be denied
+ *	No other return values are possible.
+ */
+
 
 #endif /* NS_CLIENT_H */

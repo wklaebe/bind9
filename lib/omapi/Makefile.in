@@ -25,20 +25,21 @@ top_srcdir =	@top_srcdir@
 
 CINCLUDES =	-I./include \
 		-I${srcdir}/include \
+		${DNS_INCLUDES} \
 		${ISC_INCLUDES}
 
 CDEFINES =
 CWARNINGS =
 
 # Alphabetically
-OBJS =		connection.@O@ data.@O@ generic.@O@ handle.@O@ lib.@O@ \
-		listener.@O@ message.@O@ object.@O@ protocol.@O@ result.@O@ \
-		string.@O@ value.@O@ version.@O@
+OBJS =		auth.@O@ connection.@O@ data.@O@ generic.@O@ handle.@O@ \
+		lib.@O@ listener.@O@ message.@O@ object.@O@ protocol.@O@ \
+		result.@O@ string.@O@ value.@O@ version.@O@
 
 # Alphabetically
-SRCS =		connection.c data.c generic.c handle.c lib.c \
-		listener.c message.c object.c protocol.c result.c \
-		string.c value.c version.c
+SRCS =		auth.c connection.c data.c generic.c handle.c \
+		lib.c listener.c message.c object.c protocol.c \
+		result.c string.c value.c version.c
 
 LIBS =		@LIBS@
 
@@ -55,13 +56,13 @@ version.@O@: version.c
 		-DLIBAGE=${LIBAGE} \
 		-c ${srcdir}/version.c
 
-libomapi.@A@: ${OBJS}
+libomapi.@SA@: ${OBJS}
 	${AR} ${ARFLAGS} $@ ${OBJS}
 	${RANLIB} $@
 
 libomapi.la: ${OBJS}
 	${LIBTOOL} --mode=link \
-		${CC} ${ALL_CFLAGS} -o libisc.la -rpath ${libdir} \
+		${CC} ${ALL_CFLAGS} -o libomapi.la -rpath ${libdir} \
 		-version-info ${LIBINTERFACE}:${LIBREVISION}:${LIBAGE} \
 		${OBJS} ${LIBS}
 
@@ -69,12 +70,12 @@ timestamp: libomapi.@A@
 	touch timestamp
 
 installdirs:
-	if [ ! -d ${libdir} ]; then \
-		mkdir ${libdir}; \
+	if [ ! -d ${DESTDIR}${libdir} ]; then \
+		mkdir ${DESTDIR}${libdir}; \
 	fi
 
 install:: timestamp installdirs
-	${LIBTOOL} ${INSTALL_DATA} libomapi.@A@ ${libdir}
+	${LIBTOOL} ${INSTALL_DATA} libomapi.@A@ ${DESTDIR}${libdir}
 
 clean distclean::
 	rm -f libomapi.@A@ libomapi.la timestamp

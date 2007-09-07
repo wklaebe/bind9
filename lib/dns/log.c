@@ -15,7 +15,7 @@
  * SOFTWARE.
  */
 
-/* $Id: log.c,v 1.13 2000/02/03 23:43:49 halley Exp $ */
+/* $Id: log.c,v 1.15 2000/03/23 00:53:44 gson Exp $ */
 
 /* Principal Authors: DCL */
 
@@ -31,15 +31,15 @@
  * #define to <dns/log.h>.
  */
 isc_logcategory_t dns_categories[] = {
-	{ "dns_general", 	0 },
-	{ "dns_database", 	0 },
-	{ "dns_security", 	0 },
-	{ "dns_config",		0 },
-	{ "dns_parser",		0 },
-	{ "dns_resolver",	0 },
-	{ "dns_xfer_in",	0 },
-	{ "dns_xfer_out",	0 },
-	{ NULL, 		0 }
+	{ "notify", 	0 },
+	{ "database", 	0 },
+	{ "security", 	0 },
+	{ "config",	0 },
+	{ "",		0 },
+	{ "resolver",	0 },
+	{ "xfer-in",	0 },
+	{ "xfer-out",	0 },
+	{ NULL, 	0 }
 };
 
 /*
@@ -68,18 +68,12 @@ isc_logmodule_t dns_modules[] = {
 
 isc_log_t *dns_lctx;
 
-isc_result_t
+void
 dns_log_init(isc_log_t *lctx) {
-	isc_result_t result;
-
 	REQUIRE(dns_lctx == NULL);
 
-	result = isc_log_registercategories(lctx, dns_categories);
+	isc_log_registercategories(lctx, dns_categories);
+	isc_log_registermodules(lctx, dns_modules);
 
-	if (result == ISC_R_SUCCESS) {
-		isc_log_registermodules(lctx, dns_modules);
-		dns_lctx = lctx;
-	}
-
-	return (result);
+	dns_lctx = lctx;
 }

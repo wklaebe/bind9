@@ -30,6 +30,9 @@
 #include <isc/region.h>
 #include <isc/result.h>
 #include <isc/sockaddr.h>
+#include <isc/task.h>
+
+#include <dns/acl.h>
 
 #include <omapi/types.h>
 
@@ -56,8 +59,11 @@ ISC_LANG_BEGINDECLS
 	omapi_objecttype_t *	type; \
 	size_t			object_size; \
 	int 			refcnt; \
+	isc_result_t		waitresult; \
 	omapi_handle_t 		handle; \
-	omapi_object_t 		*outer, *inner
+	omapi_object_t 		*outer, *inner; \
+	isc_taskaction_t	destroy_action; \
+	void *			destroy_arg
 
 /*
  * This is the most basic OMAPI object, used as the handle for all
@@ -74,9 +80,31 @@ struct omapi_object {
 #define OMAPI_FORCE_DISCONNECT	ISC_TRUE
 #define OMAPI_CLEAN_DISCONNECT	ISC_FALSE
 
+/*
+ * For use with omapi_auth_*.  Will be powers of 2 when there is ever
+ * more than one authentication algorithm available.
+ */
+#define OMAPI_AUTH_HMACMD5	1
+
+#define OMAPI_EVENT_OBJECTFREED	(ISC_EVENTCLASS_OMAPI + 1)
+
 /*****
  ***** Function Prototypes.
  *****/
+
+/*
+ * Public functions defined in auth.c.
+ */
+isc_result_t
+omapi_auth_register(const char *name, const char *secret,
+		    unsigned int algorithms);
+
+void
+omapi_auth_deregister(const char *name);
+
+isc_result_t
+omapi_auth_use(omapi_object_t *manager, const char *name,
+	       unsigned int algorithm);
 
 /*
  * Public functions defined in protocol.c.
@@ -89,7 +117,9 @@ void
 omapi_protocol_disconnect(omapi_object_t *handle, isc_boolean_t force);
 
 isc_result_t
-omapi_protocol_listen(omapi_object_t *mgr, isc_sockaddr_t *addr, int backlog);
+omapi_protocol_listen(omapi_object_t *mgr, isc_sockaddr_t *addr,
+		      dns_acl_t *acl, int backlog,
+		      isc_taskaction_t destroy_action, void *destroy_arg);
 
 /*
  * Public functions defined in connection.c.
@@ -123,7 +153,9 @@ omapi_connection_puthandle(omapi_object_t *connection, omapi_object_t *object);
  * Public functions defined in listen.c.
  */
 isc_result_t
-omapi_listener_listen(omapi_object_t *mgr, isc_sockaddr_t *addr, int backlog);
+omapi_listener_listen(omapi_object_t *mgr, isc_sockaddr_t *addr,
+		      dns_acl_t *acl, int backlog,
+		      isc_taskaction_t destroy_action, void *destroy_arg);
 
 void
 omapi_listener_shutdown(omapi_object_t *mgr);
@@ -147,7 +179,8 @@ omapi_message_send(omapi_object_t *message, omapi_object_t *protocol);
  * Public functions defined in lib.c.
  */
 isc_result_t
-omapi_lib_init(isc_mem_t *mctx);
+omapi_lib_init(isc_mem_t *mctx, isc_taskmgr_t *taskmgr,
+	       isc_socketmgr_t *socketmgr);
 
 void
 omapi_lib_destroy(void);
@@ -252,6 +285,9 @@ omapi_data_strcmp(omapi_data_t *string_type, const char *string);
 
 int
 omapi_data_getint(omapi_data_t *data);
+
+char *
+omapi_data_strdup(isc_mem_t *mctx, omapi_data_t *t);
 
 /*
  * Public functions defined in string.c.

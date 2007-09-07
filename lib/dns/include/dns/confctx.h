@@ -55,6 +55,7 @@
 #include <isc/int.h>
 #include <isc/list.h>
 
+#include <dns/peer.h>
 #include <dns/confcommon.h>
 #include <dns/confip.h>
 #include <dns/confzone.h>
@@ -64,7 +65,6 @@
 #include <dns/conflsn.h>
 #include <dns/confrrset.h>
 #include <dns/confctl.h>
-#include <dns/confserv.h>
 #include <dns/confview.h>
 #include <dns/confcache.h>
 #include <dns/confresolv.h>
@@ -101,7 +101,7 @@ struct dns_c_ctx
 	dns_c_cache_t	       *cache;
 	dns_c_resolv_t	       *resolver;
 	dns_c_ctrllist_t       *controls;
-	dns_c_srvlist_t	       *servers;
+	dns_peerlist_t	       *peers;
 	dns_c_acltable_t       *acls;
 	dns_c_kdeflist_t       *keydefs;
 	dns_c_zonelist_t       *zlist;
@@ -177,10 +177,13 @@ struct dns_c_options
 	isc_boolean_t		use_id_pool;
 	isc_boolean_t		dialup;
 	isc_boolean_t		rfc2308_type1;
+	isc_boolean_t		request_ixfr;
+	isc_boolean_t		provide_ixfr;
 	
 	isc_sockaddr_t		transfer_source;
-	isc_sockaddr_t		query_source_addr;
-	in_port_t		query_source_port;
+	isc_sockaddr_t		transfer_source_v6;
+	isc_sockaddr_t		query_source;
+	isc_sockaddr_t		query_source_v6;
 
 	dns_c_iplist_t	       *also_notify;
 
@@ -257,7 +260,7 @@ isc_result_t	dns_c_ctx_addsyslogchannel(dns_c_ctx_t *cfg,
 isc_result_t	dns_c_ctx_addnullchannel(dns_c_ctx_t *cfg, const char *name,
 					 dns_c_logchan_t **chan);
 isc_result_t	dns_c_ctx_addcategory(dns_c_ctx_t *cfg,
-				      dns_c_category_t category,
+				      const char *catname,
 				      dns_c_logcat_t **newcat);
 isc_result_t	dns_c_ctx_currchannel(dns_c_ctx_t *cfg,
 				      dns_c_logchan_t **channel);
@@ -366,16 +369,23 @@ isc_result_t	dns_c_ctx_setuseidpool(dns_c_ctx_t *cfg,
 				       isc_boolean_t newval);
 isc_result_t	dns_c_ctx_setrfc2308type1(dns_c_ctx_t *cfg,
 					  isc_boolean_t newval);
+isc_result_t	dns_c_ctx_setrequestixfr(dns_c_ctx_t *cfg,
+                                         isc_boolean_t newval);
+isc_result_t	dns_c_ctx_setprovideixfr(dns_c_ctx_t *cfg,
+                                         isc_boolean_t newval);
 isc_result_t	dns_c_ctx_setdialup(dns_c_ctx_t *cfg, isc_boolean_t newval);
 isc_result_t	dns_c_ctx_setalsonotify(dns_c_ctx_t *ctx,
 					dns_c_iplist_t *newval,
 					isc_boolean_t deepcopy);
 isc_result_t	dns_c_ctx_settransfersource(dns_c_ctx_t *ctx,
 					    isc_sockaddr_t newval);
+isc_result_t	dns_c_ctx_settransfersourcev6(dns_c_ctx_t *ctx,
+					      isc_sockaddr_t newval);
 
-isc_result_t	dns_c_ctx_setquerysourceaddr(dns_c_ctx_t *cfg,
-					     isc_sockaddr_t addr);
-isc_result_t	dns_c_ctx_setquerysourceport(dns_c_ctx_t *cfg, in_port_t port);
+isc_result_t	dns_c_ctx_setquerysource(dns_c_ctx_t *cfg,
+					 isc_sockaddr_t addr);
+isc_result_t	dns_c_ctx_setquerysourcev6(dns_c_ctx_t *cfg,
+					   isc_sockaddr_t addr);
 isc_result_t	dns_c_ctx_setchecknames(dns_c_ctx_t *cfg,
 					dns_c_trans_t transtype,
 					dns_severity_t sever);
@@ -505,16 +515,22 @@ isc_result_t	dns_c_ctx_getuseidpool(dns_c_ctx_t *cfg,
 				       isc_boolean_t *retval);
 isc_result_t	dns_c_ctx_getrfc2308type1(dns_c_ctx_t *cfg,
 					  isc_boolean_t *retval);
+isc_result_t	dns_c_ctx_getrequestixfr(dns_c_ctx_t *cfg,
+                                         isc_boolean_t *retval);
+isc_result_t	dns_c_ctx_getprovideixfr(dns_c_ctx_t *cfg,
+                                         isc_boolean_t *retval);
 isc_result_t	dns_c_ctx_getdialup(dns_c_ctx_t *cfg, isc_boolean_t *retval);
 isc_result_t	dns_c_ctx_getalsonotify(dns_c_ctx_t *ctx,
 					dns_c_iplist_t **ret);
 isc_result_t	dns_c_ctx_gettransfersource(dns_c_ctx_t *ctx,
 					    isc_sockaddr_t *retval);
+isc_result_t	dns_c_ctx_gettransfersourcev6(dns_c_ctx_t *ctx,
+					      isc_sockaddr_t *retval);
 
-isc_result_t	dns_c_ctx_getquerysourceaddr(dns_c_ctx_t *cfg,
-					     isc_sockaddr_t *addr);
-isc_result_t	dns_c_ctx_getquerysourceport(dns_c_ctx_t *cfg,
-					     in_port_t *port);
+isc_result_t	dns_c_ctx_getquerysource(dns_c_ctx_t *cfg,
+					 isc_sockaddr_t *addr);
+isc_result_t	dns_c_ctx_getquerysourcev6(dns_c_ctx_t *cfg,
+					   isc_sockaddr_t *addr);
 isc_result_t	dns_c_ctx_getchecknames(dns_c_ctx_t *cfg,
 					dns_c_trans_t transtype,
 					dns_severity_t *sever);

@@ -15,7 +15,7 @@
  * SOFTWARE.
  */
 
-/* $Id: confctx.c,v 1.70.2.3 2000/07/26 16:32:50 gson Exp $ */
+/* $Id: confctx.c,v 1.70.2.5 2000/09/13 23:13:23 explorer Exp $ */
 
 #include <config.h>
 
@@ -245,8 +245,16 @@ dns_c_checkconfig(dns_c_ctx_t *cfg)
 			      DNS_LOGMODULE_CONFIG, ISC_LOG_WARNING,
 			      "option 'dump-file' is not yet implemented");
 	}
-	
-		
+
+
+	if (dns_c_ctx_getstatsfilename(cfg, &cpval) != ISC_R_NOTFOUND) {
+		isc_log_write(dns_lctx,DNS_LOGCATEGORY_CONFIG,
+			      DNS_LOGMODULE_CONFIG, ISC_LOG_WARNING,
+			      "option 'statistics-file' is not yet "
+			      "implemented");
+	}
+
+
 	if (dns_c_ctx_getmemstatsfilename(cfg, &cpval) != ISC_R_NOTFOUND) {
 		isc_log_write(dns_lctx,DNS_LOGCATEGORY_CONFIG,
 			      DNS_LOGMODULE_CONFIG, ISC_LOG_WARNING,
@@ -255,7 +263,7 @@ dns_c_checkconfig(dns_c_ctx_t *cfg)
 	}
 	
 
-	if (dns_c_ctx_getauthnxdomain(cfg, &bval) != ISC_R_NOTFOUND) {
+	if (dns_c_ctx_getauthnxdomain(cfg, &bval) == ISC_R_NOTFOUND) {
 		isc_log_write(dns_lctx,DNS_LOGCATEGORY_CONFIG,
 			      DNS_LOGMODULE_CONFIG, ISC_LOG_WARNING,
 			      "the default for the 'auth-nxdomain' option "
@@ -376,7 +384,14 @@ dns_c_checkconfig(dns_c_ctx_t *cfg)
 			      "option 'serial-queries' is not yet "
 			      "implemented");
 	}
-	
+
+
+	if (dns_c_ctx_getmaintainixfrbase(cfg, &uintval) != ISC_R_NOTFOUND) {
+		isc_log_write(dns_lctx, DNS_LOGCATEGORY_CONFIG,
+			      DNS_LOGMODULE_CONFIG, ISC_LOG_WARNING,
+			      "option 'maintain-ixfr-base' is obsolete");
+	}
+
 
 	if (dns_c_ctx_getmaxlogsizeixfr(cfg, &uintval) != ISC_R_NOTFOUND) {
 		isc_log_write(dns_lctx,DNS_LOGCATEGORY_CONFIG,

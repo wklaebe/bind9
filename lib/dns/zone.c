@@ -15,7 +15,7 @@
  * SOFTWARE.
  */
 
-/* $Id: zone.c,v 1.152.2.8 2000/08/25 17:30:39 gson Exp $ */
+/* $Id: zone.c,v 1.152.2.11 2000/09/11 19:27:49 explorer Exp $ */
 
 #include <config.h>
 
@@ -1424,6 +1424,9 @@ zone_expire(dns_zone_t *zone) {
 	/*
 	 * 'zone' locked by caller.
 	 */
+
+	zone_log(zone, "zone_expire", ISC_LOG_WARNING, "expired");
+	
 	if (DNS_ZONE_FLAG(zone, DNS_ZONEFLG_NEEDDUMP)) {
 		result = zone_dump(zone);
 		if (result != ISC_R_SUCCESS)
@@ -1495,58 +1498,25 @@ static isc_result_t
 zone_dump(dns_zone_t *zone) {
 	isc_result_t result;
 	dns_dbversion_t *version = NULL;
-	dns_db_t *db = NULL;
-	char *buf;
-	int buflen;
-	FILE *f = NULL;
-	int n;
 	
 	/*
 	 * 'zone' locked by caller.
 	 */
 	REQUIRE(DNS_ZONE_VALID(zone));
 
-	buflen = strlen(zone->dbname) + 20;
-	buf = isc_mem_get(zone->mctx, buflen);
-	if (buf == NULL)
-	    return (ISC_R_NOMEMORY);
+	dns_db_currentversion(zone->db, &version);
 
-	result = isc_file_mktemplate(zone->dbname, buf, buflen);
+	result = dns_master_dump(zone->mctx, zone->db, version,
+				 &dns_master_style_default,
+				 zone->dbname);
+
+	dns_db_closeversion(zone->db, &version, ISC_FALSE);
+
 	if (result != ISC_R_SUCCESS)
-		goto cleanup;
+		return (result);
 
-	result = isc_file_openunique(buf, &f);
-	if (result != ISC_R_SUCCESS)
-		goto cleanup;
-
-	dns_db_attach(zone->db, &db);
-	dns_db_currentversion(db, &version);
-	result = dns_master_dumptostream(zone->mctx, db, version,
-					 &dns_master_style_default, f);
-	dns_db_closeversion(db, &version, ISC_FALSE);
-	dns_db_detach(&db);
-	n = fflush(f);
-	if (n != 0 && result == ISC_R_SUCCESS)
-		result = ISC_R_UNEXPECTED;
-	n = ferror(f);
-	if (n != 0 && result == ISC_R_SUCCESS)
-		result = ISC_R_UNEXPECTED;
-	n = fclose(f);
-	if (n != 0 && result == ISC_R_SUCCESS)
-		result = ISC_R_UNEXPECTED;
-	if (result == ISC_R_SUCCESS) {
-		n = rename(buf, zone->dbname);
-		if (n == -1) {
-			(void)remove(buf);
-			result = ISC_R_UNEXPECTED;
-		} else {
-			zone->flags &= ~DNS_ZONEFLG_NEEDDUMP;
-		}
-	} else
-		(void)remove(buf);
- cleanup:
-	isc_mem_put(zone->mctx, buf, buflen);
-	return (result);
+	zone->flags &= ~DNS_ZONEFLG_NEEDDUMP;
+	return (ISC_R_SUCCESS);
 }
 
 isc_result_t
@@ -1779,7 +1749,8 @@ notify_send_toaddr(isc_task_t *task, isc_event_t *event) {
 	dns_zone_iattach(notify->zone, &zone);
 	if ((event->ev_attributes & ISC_EVENTATTR_CANCELED) != 0 ||
 	    DNS_ZONE_FLAG(notify->zone, DNS_ZONEFLG_EXITING) ||
-	    zone->view->requestmgr == NULL) {
+	    zone->view->requestmgr == NULL ||
+	    zone->db == NULL) {
 		result = ISC_R_CANCELED;
 		goto cleanup;
 	}
@@ -3000,7 +2971,7 @@ notify_createmessage(dns_zone_t *zone, dns_message_t **messagep)
 	result = dns_message_create(zone->mctx, DNS_MESSAGE_INTENTRENDER,
 				    &message);
 	if (result != ISC_R_SUCCESS)
-		goto fail;
+		return (result);
 
 	message->opcode = dns_opcode_notify;
 	message->flags |= DNS_MESSAGEFLAG_AA;
@@ -3036,23 +3007,23 @@ notify_createmessage(dns_zone_t *zone, dns_message_t **messagep)
 
 	result = dns_message_gettempname(message, &tempname);
 	if (result != ISC_R_SUCCESS)
-		goto done;
+		goto soa_cleanup;
 	result = dns_message_gettemprdata(message, &temprdata);
 	if (result != ISC_R_SUCCESS)
-		goto done;
+		goto soa_cleanup;
 	result = dns_message_gettemprdataset(message, &temprdataset);
 	if (result != ISC_R_SUCCESS)
-		goto done;
+		goto soa_cleanup;
 	result = dns_message_gettemprdatalist(message, &temprdatalist);
 	if (result != ISC_R_SUCCESS)
-		goto done;
+		goto soa_cleanup;
 
 	dns_name_init(tempname, NULL);
 	dns_name_clone(&zone->origin, tempname);
 	dns_db_currentversion(zone->db, &version);
         result = dns_db_findnode(zone->db, tempname, ISC_FALSE, &node);
 	if (result != ISC_R_SUCCESS)
-		goto done;
+		goto soa_cleanup;
 
 	dns_rdataset_init(&rdataset);
 	result = dns_db_findrdataset(zone->db, node, version,
@@ -3060,16 +3031,16 @@ notify_createmessage(dns_zone_t *zone, dns_message_t **messagep)
 				     dns_rdatatype_none, 0, &rdataset,
 				     NULL);
 	if (result != ISC_R_SUCCESS)
-		goto done;
+		goto soa_cleanup;
 	result = dns_rdataset_first(&rdataset);
 	if (result != ISC_R_SUCCESS)
-		goto done;
+		goto soa_cleanup;
 	dns_rdata_init(&rdata);
 	dns_rdataset_current(&rdataset, &rdata);
 	dns_rdata_toregion(&rdata, &r);
 	result = isc_buffer_allocate(zone->mctx, &b, r.length);
 	if (result != ISC_R_SUCCESS)
-		goto done;
+		goto soa_cleanup;
 	isc_buffer_putmem(b, r.base, r.length);
 	isc_buffer_usedregion(b, &r);
 	dns_rdata_init(temprdata);
@@ -3078,7 +3049,7 @@ notify_createmessage(dns_zone_t *zone, dns_message_t **messagep)
 	result = dns_rdataset_next(&rdataset);
 	dns_rdataset_disassociate(&rdataset);
 	if (result != ISC_R_NOMORE)
-		goto done;
+		goto soa_cleanup;
 	temprdatalist->rdclass = rdata.rdclass;
 	temprdatalist->type = rdata.type;
 	temprdatalist->covers = 0;
@@ -3089,7 +3060,7 @@ notify_createmessage(dns_zone_t *zone, dns_message_t **messagep)
 	dns_rdataset_init(temprdataset);
 	result = dns_rdatalist_tordataset(temprdatalist, temprdataset);
 	if (result != ISC_R_SUCCESS)
-		goto done;
+		goto soa_cleanup;
 
 	ISC_LIST_APPEND(tempname->list, temprdataset, link);
 	dns_message_addname(message, tempname, DNS_SECTION_ANSWER);
@@ -3098,12 +3069,7 @@ notify_createmessage(dns_zone_t *zone, dns_message_t **messagep)
 	temprdata = NULL;
 	tempname = NULL;
 
- done:
-	*messagep = message;
-	message = NULL;
-	result = ISC_R_SUCCESS;
-
- cleanup:
+ soa_cleanup:
 	if (node != NULL)
 		dns_db_detachnode(zone->db, &node);
 	if (version != NULL)
@@ -3116,10 +3082,18 @@ notify_createmessage(dns_zone_t *zone, dns_message_t **messagep)
 		dns_message_puttemprdataset(message, &temprdataset);
 	if (temprdatalist != NULL)
 		dns_message_puttemprdatalist(message, &temprdatalist);
+
+ done:
+	*messagep = message;
+	return (ISC_R_SUCCESS);
+
+ cleanup:
+	if (tempname != NULL)
+		dns_message_puttempname(message, &tempname);
+	if (temprdataset != NULL)
+		dns_message_puttemprdataset(message, &temprdataset);
 	if (message != NULL)
 		dns_message_destroy(&message);
-
- fail:
 	return (result);
 }
 

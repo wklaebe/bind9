@@ -15,7 +15,7 @@
  * SOFTWARE.
  */
 
-/* $Id: master.c,v 1.54.2.4 2000/08/02 21:22:27 gson Exp $ */
+/* $Id: master.c,v 1.54.2.6 2000/09/12 21:18:12 gson Exp $ */
 
 #include <config.h>
 
@@ -646,8 +646,16 @@ load(isc_lex_t *lex, dns_name_t *top, dns_name_t *origin,
 
 		result = dns_rdatatype_fromtext(&type,
 						&token.value.as_textregion);
-		if (result != ISC_R_SUCCESS)
+               if (result != ISC_R_SUCCESS) {
+                       (*callbacks->warn)(callbacks,
+                                          "%s: %s:%lu: unknown RR type '%.*s'",
+                                          "dns_master_load",
+                                          isc_lex_getsourcename(lex),
+                                          isc_lex_getsourceline(lex),
+					  token.value.as_textregion.length,
+					  token.value.as_textregion.base);
 			goto cleanup;
+               }
 
 		/*
 		 * If the class specified does not match the zone's class

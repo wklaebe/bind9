@@ -15,7 +15,7 @@
  * SOFTWARE.
  */
 
-/* $Id: message.c,v 1.131.2.6 2000/08/07 22:07:09 gson Exp $ */
+/* $Id: message.c,v 1.131.2.8 2000/09/11 17:56:07 gson Exp $ */
 
 /***
  *** Imports
@@ -587,6 +587,8 @@ spacefortsig(dns_tsigkey_t *key, int otherlen) {
 	 *	2 bytes for the type
 	 *	2 bytes for the class
 	 *	4 bytes for the ttl
+	 *	2 bytes for the rdlength
+	 *	n2 bytes for the algorithm name
 	 *	6 bytes for the time signed
 	 *	2 bytes for the fudge
 	 *	2 bytes for the MAC size
@@ -596,7 +598,7 @@ spacefortsig(dns_tsigkey_t *key, int otherlen) {
 	 *	2 bytes for the other data length
 	 *	y bytes for the other data (at most)
 	 * ---------------------------------
-	 *     30 + n1 + n2 + x + y bytes
+	 *     26 + n1 + n2 + x + y bytes
 	 */
 
 	dns_name_toregion(&key->name, &r1);
@@ -608,7 +610,7 @@ spacefortsig(dns_tsigkey_t *key, int otherlen) {
 		if (result != ISC_R_SUCCESS)
 			x = 0;
 	}
-	return (24 + r1.length + r2.length + x + otherlen);
+	return (26 + r1.length + r2.length + x + otherlen);
 }
 
 isc_result_t
@@ -2205,7 +2207,7 @@ dns_message_reply(dns_message_t *msg, isc_boolean_t want_question_section) {
 	 * This saves the query TSIG status, if the query was signed, and
 	 * reserves space in the reply for the TSIG.
 	 */
-	if (msg->querytsig != NULL) {
+	if (msg->tsigkey != NULL) {
 		unsigned int otherlen = 0;
 		msg->querytsigstatus = msg->tsigstatus;
 		msg->tsigstatus = dns_rcode_noerror;

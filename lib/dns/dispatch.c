@@ -15,7 +15,7 @@
  * SOFTWARE.
  */
 
-/* $Id: dispatch.c,v 1.57.2.1 2000/08/22 01:45:14 bwelling Exp $ */
+/* $Id: dispatch.c,v 1.57.2.4 2000/09/08 22:16:49 gson Exp $ */
 
 #include <config.h>
 
@@ -530,14 +530,14 @@ udp_recv(isc_task_t *task, isc_event_t *ev_in) {
 			return;
 		}
 
-		dispatch_log(disp, LVL(10),
-			     "odd socket result in udp_recv():  %s\n",
-			     ev->result);
-
 		/*
 		 * otherwise, on strange error, log it and restart.
 		 * XXXMLG
 		 */
+		dispatch_log(disp, ISC_LOG_ERROR,
+			     "odd socket result in udp_recv(): %s",
+			     isc_result_totext(ev->result));
+
 		goto restart;
 	}
 
@@ -640,11 +640,8 @@ udp_recv(isc_task_t *task, isc_event_t *ev_in) {
 /*
  * General flow:
  *
- * If I/O result == CANCELED, free the buffer and notify everyone as
- * the various queues drain.
- *
- * If I/O is error (not canceled and not success) log it, free the buffer,
- * and restart.
+ * If I/O result == CANCELED, EOF, or error, free the buffer
+ * and notify everyone as the various queues drain.
  *
  * If query:
  *	if no listeners: free the buffer, restart.
@@ -697,18 +694,29 @@ tcp_recv(isc_task_t *task, isc_event_t *ev_in) {
 		tcpmsg->result = ISC_R_CANCELED;
 	}
 
-	switch (tcpmsg->result) {
-	case ISC_R_SUCCESS:
-		break;
+	if (tcpmsg->result != ISC_R_SUCCESS) {
+		switch (tcpmsg->result) {
+		case ISC_R_CANCELED:
+			break;
+			
+		case ISC_R_EOF:
+			dispatch_log(disp, LVL(90), "shutting down on EOF");
+			disp->shutdown_why = ISC_R_EOF;
+			disp->shutting_down = 1;
+			do_cancel(disp, NULL);
+			break;
 
-	case ISC_R_EOF:
-		dispatch_log(disp, LVL(90), "shutting down on EOF");
-		disp->shutdown_why = ISC_R_EOF;
-		disp->shutting_down = 1;
-		do_cancel(disp, NULL);
-		/* FALLTHROUGH */
+		default:
+			dispatch_log(disp, ISC_LOG_ERROR,
+				     "shutting down due to TCP "
+				     "receive error: %s",
+				     isc_result_totext(tcpmsg->result));
+			disp->shutdown_why = ISC_R_EOF;
+			disp->shutting_down = 1;
+			do_cancel(disp, NULL);
+			break;
+		}
 
-	case ISC_R_CANCELED:
 		/*
 		 * The event is statically allocated in the tcpmsg	
 		 * structure, and destroy_disp() frees the tcpmsg, so we must
@@ -730,15 +738,7 @@ tcp_recv(isc_task_t *task, isc_event_t *ev_in) {
 			if (killit)
 				destroy_mgr(&mgr);
 		}
-
 		return;
-
-	default:
-		/*
-		 * otherwise, on strange error, log it and restart.
-		 * XXXMLG
-		 */
-		goto restart;
 	}
 
 	dispatch_log(disp, LVL(90), "result %d, length == %d, addr = %p",

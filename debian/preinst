@@ -14,4 +14,5 @@ EOF
         exit 1
 fi
 
+#DEBHELPER#
 exit 0

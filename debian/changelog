@@ -1,10 +1,14 @@
-bind9 (1:9.3.2-2.1) unstable; urgency=low
+bind9 (1:9.3.2-P1-1) unstable; urgency=high
 
-  * NMU.
-  * Drop explicit build dependency on gcc-3.4 / g++-3.4 on powerpc.
-    Closes: #342957, #385853.
+  * New upstream, fixes CVE-2006-4095 and CVE-2006-4096.
+    Closes: #386237, #386245
+  * Drop gcc-3.4 [powerpc] dependency.  Closes: #342957, #372203
+  * Add -fno-strict-aliasing for type-punned pointer aliasing issues
+    Closes: #386224
+  * Use getent in postinst instead of chown/chgrp.  Closes: #386091, #239665
+  * Drop redundant update-rc.d calls.  Closes: #356914
 
- -- Matthias Klose <doko@debian.org>  Sun,  3 Sep 2006 19:39:37 +0200
+ -- LaMont Jones <lamont@debian.org>  Wed,  6 Sep 2006 08:07:13 -0600
 
 bind9 (1:9.3.2-2) unstable; urgency=low
 

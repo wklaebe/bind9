@@ -6,13 +6,10 @@ if [ "$1" = configure ]; then
     lastversion="$2";
 
     # lets give them a bind user/group in all cases.
-    # I wish there was an easier way to tell if it's there..
-    touch /var/run/bind9.$$
-    chgrp bind /var/run/bind9.$$ >/dev/null 2>&1 || addgroup --system bind
-    chown bind /var/run/bind9.$$ >/dev/null 2>&1 ||
+    getent group bind >/dev/null 2>&1 || addgroup --system bind
+    getent passwd bind >/dev/null 2>&1 ||
 	adduser --system --home /var/cache/bind --no-create-home \
 		--disabled-password --ingroup bind bind
-    rm -f /var/run/bind9.$$
 
     if [ ! -s /etc/bind/rndc.key ]; then
 	rndc-confgen -r /dev/urandom -a
@@ -55,10 +52,6 @@ if [ "$1" = configure ]; then
 	chgrp bind /etc/bind/named.conf*
 	chmod g+r /etc/bind/rndc.key /etc/bind/named.conf*
 	chmod g+rwx /var/run/bind/run /var/cache/bind
-    fi
-
-    if [ -x /etc/init.d/bind9 ]; then
-	update-rc.d bind9 defaults 15 85 >/dev/null
     fi
 
 fi

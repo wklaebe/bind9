@@ -1,0 +1,13 @@
+#!/bin/sh
+
+set -e
+
+if [ "$1" = configure ]; then
+	for i in `dpkg-divert --list dnsutils | awk '{ print $3 }'`
+	do
+		rm -f $i.bind
+		dpkg-divert --remove $i
+	done
+fi
+
+#DEBHELPER#

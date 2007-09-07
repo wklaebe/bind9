@@ -60,7 +60,7 @@
  *    jurisdiction and venue of Tokyo District Court of Japan.
  */
 
-/* $Id: winserv.h,v 1.1 2000/12/07 00:52:20 tale Exp $ */
+/* $Id: winserv.h,v 1.6 2000/07/04 03:52:29 ishisone Exp $ */
 
 #ifndef WINSERV_H
 #define WINSERV_H 1

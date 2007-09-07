@@ -1,5 +1,5 @@
 /* include/config.h.in.  Generated automatically from configure.in by autoheader.  */
-/* $Id: config.h.in,v 1.1 2000/12/07 00:52:21 tale Exp $ */
+/* $Id: config.h.in,v 1.16 2000/11/17 06:51:36 ishisone Exp $ */
 /*
  * Copyright (c) 2000 Japan Network Information Center.  All rights reserved.
  *  

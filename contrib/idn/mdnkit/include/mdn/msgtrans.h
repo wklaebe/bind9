@@ -1,4 +1,4 @@
-/* $Id: msgtrans.h,v 1.1 2000/12/07 00:52:22 tale Exp $ */
+/* $Id: msgtrans.h,v 1.11 2000/11/21 02:09:04 ishisone Exp $ */
 /*
  * Copyright (c) 2000 Japan Network Information Center.  All rights reserved.
  *  

@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: confview.c,v 1.66.2.1 2001/01/09 22:44:54 bwelling Exp $ */
+/* $Id: confview.c,v 1.66.2.3 2001/01/22 20:12:35 bwelling Exp $ */
 
 #include <config.h>
 
@@ -220,7 +220,6 @@ PVT_CONCAT(dns_c_view_set, FUNC)(dns_c_view_t *view, const char *newval)     \
 									     \
 	REQUIRE(DNS_C_VIEW_VALID(view));				     \
 	REQUIRE(newval != NULL);					     \
-	REQUIRE(*newval != '\0');					     \
 									     \
 	if (newval != NULL) {						     \
 		p = isc_mem_strdup(view->mem, newval);			     \
@@ -395,7 +394,6 @@ dns_c_viewtable_viewbyname(dns_c_viewtable_t *viewtable,
 	REQUIRE(DNS_C_VIEWTABLE_VALID(viewtable));
 	REQUIRE(retval != NULL);
 	REQUIRE(viewname != NULL);
-	REQUIRE(*viewname != '\0');
 
 	elem = ISC_LIST_HEAD(viewtable->views);
 	while (elem != NULL) {
@@ -503,7 +501,6 @@ dns_c_view_new(isc_mem_t *mem, const char *name, dns_rdataclass_t viewclass,
 	dns_c_view_t *view;
 
 	REQUIRE(name != NULL);
-	REQUIRE(*name != '\0');
 	REQUIRE(newview != NULL);
 
 	view = isc_mem_get(mem, sizeof *view);
@@ -1022,7 +1019,6 @@ dns_c_view_keydefinedp(dns_c_view_t *view, const char *keyname) {
 
 	REQUIRE(DNS_C_VIEW_VALID(view));
 	REQUIRE(keyname != NULL);
-	REQUIRE(*keyname != '\0');
 
 	if (view->keydefs != NULL) {
 		res = dns_c_kdeflist_find(view->keydefs, keyname, &keyid);
@@ -1176,11 +1172,12 @@ dns_c_view_getforwarders(dns_c_view_t *view,
 	REQUIRE(DNS_C_VIEW_VALID(view));
 	REQUIRE(ipl != NULL);
 
-	*ipl = view->forwarders;
+	if (view->forwarders == NULL)
+		return (ISC_R_NOTFOUND);
 
-	return (*ipl == NULL ? ISC_R_NOTFOUND : ISC_R_SUCCESS);
+	dns_c_iplist_attach(view->forwarders, ipl);
+	return (ISC_R_SUCCESS);
 }
-
 
 
 /*

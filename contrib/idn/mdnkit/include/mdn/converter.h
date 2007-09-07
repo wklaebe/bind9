@@ -1,4 +1,4 @@
-/* $Id: converter.h,v 1.1 2000/12/07 00:52:21 tale Exp $ */
+/* $Id: converter.h,v 1.13 2000/08/02 02:06:40 ishisone Exp $ */
 /*
  * Copyright (c) 2000 Japan Network Information Center.  All rights reserved.
  *  

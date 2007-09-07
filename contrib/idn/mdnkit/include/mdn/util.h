@@ -1,4 +1,4 @@
-/* $Id: util.h,v 1.1 2000/12/07 00:52:23 tale Exp $ */
+/* $Id: util.h,v 1.2 2000/11/14 00:15:35 ishisone Exp $ */
 /*
  * Copyright (c) 2000 Japan Network Information Center.  All rights reserved.
  *  

@@ -60,7 +60,7 @@
  *    jurisdiction and venue of Tokyo District Court of Japan.
  */
 
-/* $Id: proxycnf.h,v 1.1 2000/12/07 00:52:19 tale Exp $ */
+/* $Id: proxycnf.h,v 1.9 2000/11/17 05:42:09 ishisone Exp $ */
 
 #ifndef PROXYCNF_H
 #define PROXYCNF_H 1

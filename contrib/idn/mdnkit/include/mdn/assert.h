@@ -1,4 +1,4 @@
-/* $Id: assert.h,v 1.1 2000/12/07 00:52:21 tale Exp $ */
+/* $Id: assert.h,v 1.5 2000/07/04 03:52:31 ishisone Exp $ */
 /*
  * Copyright (c) 2000 Japan Network Information Center.  All rights reserved.
  *  

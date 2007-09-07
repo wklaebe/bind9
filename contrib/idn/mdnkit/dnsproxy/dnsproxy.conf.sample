@@ -1,4 +1,4 @@
-# $Id: dnsproxy.conf.sample,v 1.1 2000/12/07 00:52:18 tale Exp $
+# $Id: dnsproxy.conf.sample,v 1.6 2000/11/22 06:57:30 ishisone Exp $
 #
 # Sample dnsproxy configuration file 'dnsproxy.conf'.
 #

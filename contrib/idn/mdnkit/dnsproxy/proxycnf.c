@@ -61,7 +61,7 @@
  */
 
 #ifndef lint
-static char *rcsid = "$Id: proxycnf.c,v 1.1 2000/12/07 00:52:19 tale Exp $";
+static char *rcsid = "$Id: proxycnf.c,v 1.16 2000/11/17 05:46:23 ishisone Exp $";
 #endif
 
 #include <config.h>

@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dispatch.c,v 1.78.2.1 2001/01/09 22:43:33 bwelling Exp $ */
+/* $Id: dispatch.c,v 1.78.2.3 2001/02/07 18:50:37 gson Exp $ */
 
 #include <config.h>
 
@@ -334,6 +334,7 @@ linear_next(dns_qid_t *qid, dns_dispentry_t *resp) {
 		return (ret);
 
 	bucket = resp->bucket;
+	bucket++;
 	while (bucket < qid->qid_nbuckets) {
 		ret = ISC_LIST_HEAD(qid->qid_table[bucket]);
 		if (ret != NULL)
@@ -2208,7 +2209,7 @@ do_next_response(dns_dispatch_t *disp, dns_dispentry_t *resp) {
 		return;
 	}
 
-	ISC_LIST_UNLINK(disp->rq_events, ev, ev_link);
+	ISC_LIST_UNLINK(resp->items, ev, ev_link);
 
 	ISC_EVENT_INIT(ev, sizeof(*ev), 0, NULL, DNS_EVENT_DISPATCH,
 		       resp->action, resp->arg, resp, NULL, NULL);

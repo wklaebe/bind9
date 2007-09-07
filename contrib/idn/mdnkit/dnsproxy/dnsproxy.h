@@ -60,7 +60,7 @@
  *    jurisdiction and venue of Tokyo District Court of Japan.
  */
 
-/* $Id: dnsproxy.h,v 1.1 2000/12/07 00:52:19 tale Exp $ */
+/* $Id: dnsproxy.h,v 1.13 2000/11/17 05:57:56 ishisone Exp $ */
 
 #ifndef DNSPROXY_H
 #define DNSPROXY_H 1

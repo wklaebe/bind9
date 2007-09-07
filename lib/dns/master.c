@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: master.c,v 1.88.2.4 2001/01/16 17:43:55 gson Exp $ */
+/* $Id: master.c,v 1.88.2.7 2001/01/31 18:06:29 gson Exp $ */
 
 #include <config.h>
 
@@ -83,7 +83,7 @@
 typedef ISC_LIST(dns_rdatalist_t) rdatalist_head_t;
 
 /*
- * Master file loading state that persists across $INCLUDEs.
+ * Master file load state.
  */
 
 struct dns_loadctx {
@@ -560,7 +560,7 @@ generate(dns_loadctx_t *ctx, char *range, char *lhs, char *gtype, char *rhs) {
 	isc_buffer_init(&target, target_mem, target_size);
 
 	n = sscanf(range, "%u-%u/%u", &start, &stop, &step);
-	if (n < 2 || stop < stop) {
+	if (n < 2 || stop < start) {
 	       (*callbacks->warn)(callbacks,
 				  "%s: %s:%lu: invalid range '%s'",
 				  "$GENERATE",
@@ -614,7 +614,7 @@ generate(dns_loadctx_t *ctx, char *range, char *lhs, char *gtype, char *rhs) {
 
 	ISC_LIST_INIT(rdatalist.rdata);
 	ISC_LINK_INIT(&rdatalist, link);
-	for (i = start; i < stop; i += step) {
+	for (i = start; i <= stop; i += step) {
 		result = genname(lhs, i, lhsbuf, DNS_MASTER_BUFSZ);
 		if (result != ISC_R_SUCCESS)
 			goto error_cleanup;
@@ -769,6 +769,7 @@ load(dns_loadctx_t **ctxp) {
 				CTX_COPYVAR(ctx, *ctxp, seen_include);
 				dns_loadctx_detach(&ctx);
 				ctx = *ctxp;
+				read_till_eol = ISC_TRUE;
 				continue;
 			}
 			done = ISC_TRUE;
@@ -872,7 +873,6 @@ load(dns_loadctx_t **ctxp) {
 				 * to domain name processing code and do
 				 * the actual inclusion later.
 				 */
-				read_till_eol = ISC_TRUE;
 				finish_include = ISC_TRUE;
 			} else if (strcasecmp(token.value.as_pointer,
 					      "$DATE") == 0) {

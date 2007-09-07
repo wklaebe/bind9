@@ -2,7 +2,7 @@
 <!DOCTYPE book PUBLIC "-//OASIS//DTD DocBook XML V4.0//EN"
                "http://www.oasis-open.org/docbook/xml/4.0/docbookx.dtd">
 
-<!-- File: $Id: Bv9ARM-book.xml,v 1.72.2.5 2001/01/17 02:45:14 bwelling Exp $ -->
+<!-- File: $Id: Bv9ARM-book.xml,v 1.72.2.9 2001/02/06 16:51:24 gson Exp $ -->
 
 <book>
 
@@ -360,22 +360,25 @@ systems:</para>
         <simpara>Compaq Digital/Tru64 UNIX 4.0D</simpara>
       </listitem>
       <listitem>
+        <simpara>Compaq Digital/Tru64 UNIX 5 (with IPv6 EAK)</simpara>
+      </listitem>
+      <listitem>
         <simpara>HP HP-UX 11</simpara>
       </listitem>
       <listitem>
         <simpara>IRIX64 6.5</simpara>
       </listitem>
       <listitem>
-        <simpara>Red Hat Linux 6.0, 6.1</simpara>
+        <simpara>Sun Solaris 2.6, 7, 8</simpara>
       </listitem>
       <listitem>
-        <simpara>Sun Solaris 2.6, 7, 8 (beta)</simpara>
+        <simpara>NetBSD 1.5 (with unproven-pthreads 0.17)</simpara>
       </listitem>
       <listitem>
-        <simpara>FreeBSD 3.4-STABLE</simpara>
+        <simpara>FreeBSD 3.4-STABLE, 3.5, 4.0, 4.1</simpara>
       </listitem>
       <listitem>
-        <simpara>NetBSD-current with "unproven" pthreads</simpara>
+        <simpara>Red Hat Linux 6.0, 6.1, 6.2, 7.0</simpara>
       </listitem>
     </itemizedlist>
   </sect1>
@@ -862,15 +865,26 @@ reload the database. </para></entry>
     the server using an online zone key. Update authorization is based
     on transaction signatures and an explicit server policy.</para>
 
-    <para>The zone files of dynamic zones must not be edited by hand.
+    <para>The zone files of dynamic zones cannot normally be edited by hand.
     The zone file on disk at any given time may not contain the latest
-    changes performed by dynamic update. The zone file is written to
-    disk only periodically, and changes that have occurred since the
+    changes performed by dynamic update. The zone file is only
+    written to disk only occasionally, and when shutting down the server using
+    <command>rndc stop</command>.  Changes that have occurred since the
     zone file was last written to disk are stored only in the zone's
-    journal (<filename>.jnl</filename>) file. <acronym>BIND</acronym> 9 currently does
-    not update the zone file when it exits as <acronym>BIND</acronym> 8 does, so editing
-    the zone file manually is unsafe even when the server has been
-    shut down. </para>
+    journal (<filename>.jnl</filename>) file.</para>
+
+    <para>If you have to make changes to a dynamic zone
+    manually, the following procedure will work: Shut down
+    the server using <command>rndc stop</command> (sending a signal
+    or using <command>rndc halt</command> is <emphasis>not</emphasis>
+    sufficient). Wait for the server to exit,
+    then <emphasis>remove</emphasis> the zone's 
+    <filename>.jnl</filename> file, edit the zone file,
+    and restart the server.  Removing the <filename>.jnl</filename>
+    file is necessary because the manual edits will not be
+    present in the journal, rendering it inconsistent with the
+    contents of the zone file.</para>
+
   </sect1>
   <sect1 id="incremental_zone_transfers">
     <title>Incremental Zone Transfers (IXFR)</title>
@@ -3214,8 +3228,8 @@ connections that the server will accept. The default is <literal>100</literal>.<
 </row>
 </tbody>
 </tgroup></informaltable>
-        <note>
-<para>Resource limits are not yet implemented in <acronym>BIND</acronym> 9.</para></note></sect3>
+</sect3>
+
 <sect3><title>Periodic Task Intervals</title>
 <informaltable colsep = "0" rowsep = "0"><tgroup cols = "2"
     colsep = "0" rowsep = "0" tgroupstyle = "4Level-table">
@@ -3361,8 +3375,7 @@ to other queries will not be sorted.</para>
            { localnets; };
 };
 </programlisting>
-<note><simpara>The <command>sortlist</command> option
-is not yet implemented in <acronym>BIND</acronym> 9.</simpara></note>
+
 </sect3>
 <sect3 id="rrset_ordering"><title id="rrset_ordering_title">RRset Ordering</title>
 <para>When multiple records are returned in an answer it may be

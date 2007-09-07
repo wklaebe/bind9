@@ -16,7 +16,7 @@
  */
 
 #ifndef lint
-static const char rcsid[] = "$Id: ns_name.c,v 1.1 2000/12/07 00:52:29 tale Exp $";
+static const char rcsid[] = "$Id: ns_name.c,v 1.5 2000/10/11 13:17:36 ishisone Exp $";
 #endif
 
 #include <sys/types.h>

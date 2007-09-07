@@ -1,4 +1,4 @@
-/* $Id: resconf.h,v 1.1 2000/12/07 00:52:23 tale Exp $ */
+/* $Id: resconf.h,v 1.4 2000/08/23 05:53:23 ishisone Exp $ */
 /*
  * Copyright (c) 2000 Japan Network Information Center.  All rights reserved.
  *  

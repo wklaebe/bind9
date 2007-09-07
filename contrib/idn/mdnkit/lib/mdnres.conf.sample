@@ -1,4 +1,4 @@
-# $Id: mdnres.conf.sample,v 1.1 2000/12/07 00:52:24 tale Exp $
+# $Id: mdnres.conf.sample,v 1.6 2000/11/22 06:57:31 ishisone Exp $
 #
 # A sample file for mDNkit's resolver configuration file (mdnres.conf)
 #

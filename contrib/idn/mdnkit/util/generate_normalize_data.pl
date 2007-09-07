@@ -1,5 +1,5 @@
 #! /usr/local/bin/perl -w
-# $Id: generate_normalize_data.pl,v 1.1 2000/12/07 00:52:29 tale Exp $
+# $Id: generate_normalize_data.pl,v 1.4 2000/09/27 02:55:40 ishisone Exp $
 #
 # Copyright (c) 2000 Japan Network Information Center.  All rights reserved.
 #  
@@ -360,7 +360,7 @@ my $compose_bits = 11;
 my $casemap_bits = 11;
 my $context_secsize = 512;
 
-(my $myid = '$Id: generate_normalize_data.pl,v 1.1 2000/12/07 00:52:29 tale Exp $') =~ s/\$([^\$]+)\$/\$-$1-\$/;
+(my $myid = '$Id: generate_normalize_data.pl,v 1.4 2000/09/27 02:55:40 ishisone Exp $') =~ s/\$([^\$]+)\$/\$-$1-\$/;
 
 my $unicodedatafile = shift or usage();
 my $exclusionfile = shift or usage();

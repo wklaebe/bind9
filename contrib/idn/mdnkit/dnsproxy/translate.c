@@ -57,7 +57,7 @@
  */
 
 #ifndef lint
-static char *rcsid = "$Id: translate.c,v 1.1 2000/12/07 00:52:20 tale Exp $";
+static char *rcsid = "$Id: translate.c,v 1.22 2000/11/21 02:09:02 ishisone Exp $";
 #endif
 
 #include <config.h>

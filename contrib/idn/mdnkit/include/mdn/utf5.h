@@ -1,4 +1,4 @@
-/* $Id: utf5.h,v 1.1 2000/12/07 00:52:23 tale Exp $ */
+/* $Id: utf5.h,v 1.7 2000/07/04 03:52:33 ishisone Exp $ */
 /*
  * Copyright (c) 2000 Japan Network Information Center.  All rights reserved.
  *  

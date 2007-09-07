@@ -61,7 +61,7 @@
  */
 
 #ifndef lint
-static char *rcsid = "$Id: unxmain.c,v 1.1 2000/12/07 00:52:20 tale Exp $";
+static char *rcsid = "$Id: unxmain.c,v 1.16 2000/11/17 05:46:23 ishisone Exp $";
 #endif
 
 #ifdef	UNIX

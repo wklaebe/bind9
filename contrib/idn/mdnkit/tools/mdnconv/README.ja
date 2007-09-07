@@ -114,4 +114,4 @@ named.conf やゾーンファイルはローカルエンコーディングで書かれたものを
 		mdnconv -in $(LOCALCODE) -out UTF-8 $< > $@
 
 
-; $Id: README.ja,v 1.1 2000/12/07 00:52:28 tale Exp $
+; $Id: README.ja,v 1.2 2000/06/12 04:23:57 ishisone Exp $

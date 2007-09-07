@@ -78,7 +78,7 @@
  */
 
 #ifndef lint
-static char *rcsid = "$Id: winmain.c,v 1.1 2000/12/07 00:52:20 tale Exp $";
+static char *rcsid = "$Id: winmain.c,v 1.10 2000/07/04 03:52:29 ishisone Exp $";
 #endif
 
 #ifdef  WIN32

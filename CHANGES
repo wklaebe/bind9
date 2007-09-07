@@ -1,4 +1,26 @@
 
+	--- 9.2.3 released ---
+
+1525.	[bug]		dns_cache_create() could trigger a REQUIRE
+			failure in isc_mem_put() during error cleanup.
+
+1524.	[port]		AIX needs to be able to resolve all symbols when
+			creating shared libraries (--with-libtool).
+
+1523.	[bug]		Fix race condition in rbtdb. [RT# 9189]
+
+1522.	[bug]		dns_db_findnode() relax the requirements on 'name'.
+			[RT# 9286]
+
+1518.   [bug]           dns_nxt_buildrdata(), and hence dns_nxt_build(),
+			contained a off-by-one error when working out the
+			number of octets in the bitmap.
+
+1514.	[bug]		named: isc_hash_destroy() was being called too early.
+			[RT #9160]
+
+1513.	[doc]		Add "US" to root-delegation-only exclude list.
+
 	--- 9.2.3rc4 released ---
 
 1512.	[bug]		Extend the delegation-only logging to return query
@@ -12,10 +34,12 @@
 1510.	[func]		New view option "root-delegation-only".  Apply
 			delegation-only check to all TLDs and root.
 			Note there are some TLDs that are NOT delegation
-			only (e.g. DE, LV and MUSEUM) these can be excluded
+			only (e.g. DE, LV, US and MUSEUM) these can be excluded
 			from the checks by using exclude.
 
-			root-delegation-only exclude { "DE"; "LV: "MUSEUM"; };
+			root-delegation-only exclude {
+				"DE"; "LV"; "US"; "MUSEUM";
+			};
 
 1509.	[bug]		Hint zones should accept delegation-only.  Forward
 			zone should not accept delegation-only.

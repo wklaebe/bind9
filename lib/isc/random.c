@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1999-2001  Internet Software Consortium.
+ * Copyright (C) 1999-2001, 2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -15,13 +15,18 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: random.c,v 1.15.2.2 2003/08/05 03:09:52 marka Exp $ */
+/* $Id: random.c,v 1.15.2.4 2003/10/09 07:32:49 marka Exp $ */
 
 #include <config.h>
 
 #include <stdlib.h>
-#include <unistd.h>
 #include <time.h>		/* Required for time(). */
+#ifdef HAVE_SYS_TYPES_H
+#include <sys/types.h>
+#endif
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif
 
 #include <isc/mutex.h>
 #include <isc/once.h>

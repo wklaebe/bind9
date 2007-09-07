@@ -1,3 +1,9 @@
+bind9 (1:9.3.1-1) experimental; urgency=low
+
+  * Build with gcc-3.4 on powerpc, to work around #292958.
+
+ -- LaMont Jones <lamont@debian.org>  Sat, 19 Mar 2005 11:40:06 -0700
+
 bind9 (1:9.3.1-0) experimental; urgency=low
 
   * New upstream version.

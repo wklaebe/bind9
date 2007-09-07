@@ -1,4 +1,54 @@
 
+	--- 9.3.0beta4 released ---
+
+1640.	[bug]		win32: isc_socket_cancel(ISC_SOCKCANCEL_ACCEPT) was
+			incorrectly closing the socket.  [RT #11291]
+
+1639.	[func]		Initial dlv system test.
+
+1638.	[bug]		"ixfr-from-differences" could generate a REQUIRE
+			failure if the journal open failed. [RT #11347]
+			
+1637.	[bug]		Node reference leak on error in addnoqname().
+
+1636.	[bug]		The dump done callback could get ISC_R_SUCCESS even if
+			a error had occured.  The database version no longer
+			matched the version of the database that was dumped.
+
+1635.	[bug]		Memory leak on error in query_addds().
+
+1634.	[bug]		named didn't supply a useful error message when it
+			detected duplicate views.  [RT #11208]
+
+1633.	[bug]		named should return NOTIMP to update requests to a
+			slaves without a allow-update-forwarding acl specified.
+			[RT #11331]
+
+1632.	[bug]		nsupdate failed to send prerequisite only UPDATE
+			messages. [RT #11288]
+
+1631.	[bug]		dns_journal_compact() could sometimes corrupt the
+			journal. [RT #11124]
+
+1630.	[contrib]	queryperf: add support for IPv6 transport.
+
+1629.	[func]		dig now supports IPv6 scoped addresses with the
+			extended format in the local-server part. [RT #8753]
+
+1628.	[bug]		Typo in Compaq Trucluster support. [RT# 11264]
+
+1627.	[bug]		win32: sockets were not being closed when the
+			last external reference was removed. [RT# 11179]
+
+1626.	[bug]		--enable-getifaddrs was broken. [RT#11259]
+
+1625.	[bug]		named failed to load/transfer RFC2535 signed zones
+			which contained CNAMES. [RT# 11237]
+
+1606.	[bug]	 	DLV insecurity proof was failing.
+
+1605.	[func]		New dns_db_find() option DNS_DBFIND_COVERINGNSEC.
+
 	--- 9.3.0beta3 released ---
 
 1624.	[bug]		zonemgr_putio() call should be locked. [RT# 11163]

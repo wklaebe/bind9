@@ -1,4 +1,15 @@
 
+	--- 9.2.7rc2 released ---
+
+2081.	[port]		libbind: minor 64-bit portability fix in memcluster.c.
+			[RT #16360]
+
+2080.	[port]		libbind: res_init.c did not compile on older versions
+			of Solaris. [RT #16363]
+
+2076.	[bug]		Several files were missing #include <config.h>
+			causing build failures on OSF. [RT #16341]
+
 	--- 9.2.7rc1 released ---
 
 2071.	[port]		Test whether gcc accepts -fno-strict-aliasing.

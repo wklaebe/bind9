@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: zone.c,v 1.333.2.33 2004/06/04 02:41:39 marka Exp $ */
+/* $Id: zone.c,v 1.333.2.36 2004/11/22 23:53:11 marka Exp $ */
 
 #include <config.h>
 
@@ -1389,7 +1389,7 @@ zone_count_ns_rr(dns_db_t *db, dns_dbnode_t *node, dns_dbversion_t *version,
 		result = ISC_R_SUCCESS;
 		goto invalidate_rdataset;
 	}
-	else if (result != ISC_R_SUCCESS)
+	if (result != ISC_R_SUCCESS)
 		goto invalidate_rdataset;
 
 	count = 0;
@@ -1425,6 +1425,22 @@ zone_load_soa_rr(dns_db_t *db, dns_dbnode_t *node, dns_dbversion_t *version,
 	dns_rdataset_init(&rdataset);
 	result = dns_db_findrdataset(db, node, version, dns_rdatatype_soa,
 				     dns_rdatatype_none, 0, &rdataset, NULL);
+	if (result == ISC_R_NOTFOUND) {
+		if (soacount != NULL)
+			*soacount = 0;
+		if (serial != NULL)
+			*serial = 0;
+		if (refresh != NULL)
+			*refresh = 0;
+		if (retry != NULL)
+			*retry = 0;
+		if (expire != NULL)
+			*expire = 0;
+		if (minimum != NULL)
+			*minimum = 0;
+		result = ISC_R_SUCCESS;
+		goto invalidate_rdataset;
+	}
 	if (result != ISC_R_SUCCESS)
 		goto invalidate_rdataset;
 
@@ -2064,7 +2080,6 @@ zone_expire(dns_zone_t *zone) {
 	zone->refresh = DNS_ZONE_DEFAULTREFRESH;
 	zone->retry = DNS_ZONE_DEFAULTRETRY;
 	DNS_ZONE_CLRFLAG(zone, DNS_ZONEFLG_HAVETIMERS);
-	DNS_ZONE_CLRFLAG(zone, DNS_ZONEFLG_NEEDDUMP);
 	zone_unload(zone);
 }
 
@@ -2315,6 +2330,7 @@ zone_unload(dns_zone_t *zone) {
 
 	dns_db_detach(&zone->db);
 	DNS_ZONE_CLRFLAG(zone, DNS_ZONEFLG_LOADED);
+	DNS_ZONE_CLRFLAG(zone, DNS_ZONEFLG_NEEDDUMP);
 }
 
 void
@@ -3325,7 +3341,12 @@ refresh_callback(isc_task_t *task, isc_event_t *event) {
 			result = ISC_R_FAILURE;
 			if (zone->journal != NULL)
 				result = isc_file_settime(zone->journal, &now);
-			if (result != ISC_R_SUCCESS)
+			if (result == ISC_R_SUCCESS &&
+			    !DNS_ZONE_FLAG(zone, DNS_ZONEFLG_NEEDDUMP) &&
+			    !DNS_ZONE_FLAG(zone, DNS_ZONEFLG_DUMPING)) {
+				result = isc_file_settime(zone->masterfile,
+							  &now);
+			} else if (result != ISC_R_SUCCESS)
 				result = isc_file_settime(zone->masterfile,
 							  &now);
 			if (result != ISC_R_SUCCESS)
@@ -4692,12 +4713,35 @@ static isc_result_t
 zone_replacedb(dns_zone_t *zone, dns_db_t *db, isc_boolean_t dump) {
 	dns_dbversion_t *ver;
 	isc_result_t result;
+	unsigned int soacount = 0;
+	unsigned int nscount = 0;
 
 	/*
 	 * 'zone' locked by caller.
 	 */
 	REQUIRE(DNS_ZONE_VALID(zone));
 	REQUIRE(LOCKED_ZONE(zone));
+
+	result = zone_get_from_db(db, &zone->origin, &nscount, &soacount,
+				  NULL, NULL, NULL, NULL, NULL);
+	if (result == ISC_R_SUCCESS) {
+		if (soacount != 1) {
+			dns_zone_log(zone, ISC_LOG_ERROR,
+				     "has %d SOA records", soacount);
+			result = DNS_R_BADZONE;
+		}
+		if (nscount == 0) {
+			dns_zone_log(zone, ISC_LOG_ERROR, "has no NS records");
+			result = DNS_R_BADZONE;
+		}
+		if (result != ISC_R_SUCCESS)
+			return (result);
+	} else {
+		dns_zone_log(zone, ISC_LOG_ERROR,
+			    "retrieving SOA and NS records failed: %s",
+			    dns_result_totext(result));
+		return (result);
+	}
 
 	ver = NULL;
 	dns_db_currentversion(db, &ver);
@@ -4822,10 +4866,19 @@ zone_xfrdone(dns_zone_t *zone, isc_result_t result) {
 					     "transferred zone "
 					     "has %d SOA record%s", soacount,
 					     (soacount != 0) ? "s" : "");
-			if (nscount == 0)
+			if (nscount == 0) {
 				dns_zone_log(zone, ISC_LOG_ERROR,
 					     "transferred zone "
 					     "has no NS records");
+				if (DNS_ZONE_FLAG(zone,
+						  DNS_ZONEFLG_HAVETIMERS)) {
+					zone->refresh = DNS_ZONE_DEFAULTREFRESH;
+					zone->retry = DNS_ZONE_DEFAULTRETRY;
+				}
+				DNS_ZONE_CLRFLAG(zone, DNS_ZONEFLG_HAVETIMERS);
+				zone_unload(zone);
+				goto next_master;
+			}
 			zone->serial = serial;
 			zone->refresh = RANGE(refresh, zone->minrefresh,
 					      zone->maxrefresh);
@@ -4890,6 +4943,7 @@ zone_xfrdone(dns_zone_t *zone, isc_result_t result) {
 		goto same_master;
 
 	default:
+	next_master:
 		zone->curmaster++;
 	same_master:
 		if (zone->curmaster >= zone->masterscnt)

@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: server.c,v 1.339.2.29 2004/05/14 01:04:46 marka Exp $ */
+/* $Id: server.c,v 1.339.2.32 2004/11/30 00:32:56 marka Exp $ */
 
 #include <config.h>
 
@@ -990,7 +990,14 @@ create_version_zone(cfg_obj_t **maps, dns_zonemgr_t *zmgr, dns_view_t *view) {
 	isc_region_t r;
 	size_t len;
 	dns_rdata_t rdata = DNS_RDATA_INIT;
-	static unsigned char origindata[] = "\007version\004bind";
+	static const unsigned char origindata[] = "\007version\004bind";
+	static const unsigned char soadata[] = "\007version\004bind\0"
+					 "\012hostmaster\007version\004bind\0"
+					 "\0\0\0\001"	/* serial */
+					 "\0\0\0\0"	/* refresh */
+					 "\0\0\0\0"	/* retry */
+					 "\0\0\0\0"	/* expire */
+					 "\0\0\0\0";	/* minimum */
 	dns_name_t origin;
 	cfg_obj_t *obj = NULL;
 	dns_acl_t *acl = NULL;
@@ -998,7 +1005,7 @@ create_version_zone(cfg_obj_t **maps, dns_zonemgr_t *zmgr, dns_view_t *view) {
 	dns_diff_init(ns_g_mctx, &diff);
 
 	dns_name_init(&origin, NULL);
-	r.base = origindata;
+	DE_CONST(origindata, r.base);
 	r.length = sizeof(origindata);
 	dns_name_fromregion(&origin, &r);
 
@@ -1010,10 +1017,6 @@ create_version_zone(cfg_obj_t **maps, dns_zonemgr_t *zmgr, dns_view_t *view) {
 		len = 255; /* Silently truncate. */
 	buf[0] = len;
 	memcpy(buf + 1, versiontext, len);
-
-	r.base = buf;
-	r.length = 1 + len;
-	dns_rdata_fromregion(&rdata, dns_rdataclass_ch, dns_rdatatype_txt, &r);
 
 	CHECK(dns_zone_create(&zone, ns_g_mctx));
 	CHECK(dns_zone_setorigin(zone, &origin));
@@ -1032,9 +1035,35 @@ create_version_zone(cfg_obj_t **maps, dns_zonemgr_t *zmgr, dns_view_t *view) {
 
 	CHECK(dns_db_newversion(db, &dbver));
 
+	/* SOA record. */
+	tuple = NULL;
+	DE_CONST(soadata, r.base);
+	r.length = sizeof(soadata) - 1;
+	dns_rdata_fromregion(&rdata, dns_rdataclass_ch, dns_rdatatype_soa, &r);
 	CHECK(dns_difftuple_create(ns_g_mctx, DNS_DIFFOP_ADD, &origin,
 				   0, &rdata, &tuple));
 	dns_diff_append(&diff, &tuple);
+	dns_rdata_reset(&rdata);
+
+	/* NS record. */
+	tuple = NULL;
+	DE_CONST(origindata, r.base);
+	r.length = sizeof(origindata);
+	dns_rdata_fromregion(&rdata, dns_rdataclass_ch, dns_rdatatype_ns, &r);
+	CHECK(dns_difftuple_create(ns_g_mctx, DNS_DIFFOP_ADD, &origin,
+				   0, &rdata, &tuple));
+	dns_diff_append(&diff, &tuple);
+	dns_rdata_reset(&rdata);
+
+	/* TXT record. */
+	tuple = NULL;
+	r.base = buf;
+	r.length = 1 + len;
+	dns_rdata_fromregion(&rdata, dns_rdataclass_ch, dns_rdatatype_txt, &r);
+	CHECK(dns_difftuple_create(ns_g_mctx, DNS_DIFFOP_ADD, &origin,
+				   0, &rdata, &tuple));
+	dns_diff_append(&diff, &tuple);
+
 	CHECK(dns_diff_apply(&diff, db, dbver));
 
 	dns_db_closeversion(db, &dbver, ISC_TRUE);
@@ -1073,7 +1102,14 @@ create_authors_zone(cfg_obj_t *options, dns_zonemgr_t *zmgr, dns_view_t *view)
 	isc_region_t r;
 	isc_region_t cr;
 	dns_rdata_t rdata = DNS_RDATA_INIT;
-	static const char origindata[] = "\007authors\004bind";
+	static const unsigned char origindata[] = "\007authors\004bind";
+	static const unsigned char soadata[] = "\007authors\004bind\0"
+					 "\012hostmaster\007authors\004bind\0"
+					 "\0\0\0\001"	/* serial */
+					 "\0\0\0\0"	/* refresh */
+					 "\0\0\0\0"	/* retry */
+					 "\0\0\0\0"	/* expire */
+					 "\0\0\0\0";	/* minimum */
 	dns_name_t origin;
 	int i;
 	static const char *authors[] = {
@@ -1125,10 +1161,31 @@ create_authors_zone(cfg_obj_t *options, dns_zonemgr_t *zmgr, dns_view_t *view)
 
 	CHECK(dns_db_newversion(db, &dbver));
 
+	/* SOA record. */
+	tuple = NULL;
+	DE_CONST(soadata, r.base);
+	r.length = sizeof(soadata) - 1;
+	dns_rdata_fromregion(&rdata, dns_rdataclass_ch, dns_rdatatype_soa, &r);
+	CHECK(dns_difftuple_create(ns_g_mctx, DNS_DIFFOP_ADD, &origin,
+				   0, &rdata, &tuple));
+	dns_diff_append(&diff, &tuple);
+	dns_rdata_reset(&rdata);
+
+	/* NS record. */
+	tuple = NULL;
+	DE_CONST(origindata, r.base);
+	r.length = sizeof(origindata);
+	dns_rdata_fromregion(&rdata, dns_rdataclass_ch, dns_rdatatype_ns, &r);
+	CHECK(dns_difftuple_create(ns_g_mctx, DNS_DIFFOP_ADD, &origin,
+				   0, &rdata, &tuple));
+	dns_diff_append(&diff, &tuple);
+	dns_rdata_reset(&rdata);
+
+	/* TXT records. */
 	for (i = 0; authors[i] != NULL; i++) {
 		DE_CONST(authors[i], cr.base);
 		cr.length = strlen(authors[i]);
-		INSIST(cr.length == ((const unsigned char *)cr.base)[0] + 1U);
+		INSIST(cr.length == cr.base[0] + 1U);
 		dns_rdata_fromregion(&rdata, dns_rdataclass_ch,
 				     dns_rdatatype_txt, &cr);
 		tuple = NULL;
@@ -2287,7 +2344,7 @@ run_server(isc_task_t *task, isc_event_t *event) {
 	isc_result_t result;
 	ns_server_t *server = (ns_server_t *)event->ev_arg;
 
-	UNUSED(task);
+	INSIST(task == server->task);
 
 	isc_event_free(&event);
 
@@ -2325,11 +2382,11 @@ run_server(isc_task_t *task, isc_event_t *event) {
 
 	isc_hash_init();
 
-	CHECKFATAL(load_zones(server, ISC_FALSE),
-		   "loading zones");
+	CHECKFATAL(load_zones(server, ISC_FALSE), "loading zones");
 
+	ns_os_started();
 	isc_log_write(ns_g_lctx, NS_LOGCATEGORY_GENERAL, NS_LOGMODULE_SERVER,
-		      ISC_LOG_INFO, "running");
+		      ISC_LOG_NOTICE, "running");
 }
 
 void 
@@ -2648,8 +2705,7 @@ loadconfig(ns_server_t *server) {
 	start_reserved_dispatches(server);
 	result = load_configuration(ns_g_lwresdonly ?
 				    lwresd_g_conffile : ns_g_conffile,
-				    server,
-				    ISC_FALSE);
+				    server, ISC_FALSE);
 	if (result == ISC_R_SUCCESS)
 		end_reserved_dispatches(server, ISC_FALSE);
 	else

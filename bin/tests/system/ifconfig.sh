@@ -15,7 +15,7 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: ifconfig.sh,v 1.35.2.9 2004/03/09 06:09:41 marka Exp $
+# $Id: ifconfig.sh,v 1.35.2.12 2004/10/05 03:18:53 marka Exp $
 
 #
 # Set up interface aliases for bind9 system tests.
@@ -54,7 +54,7 @@ case "$1" in
 		    *-sun-solaris2.[6-7])
 			ifconfig lo0:$int 10.53.0.$ns netmask 0xffffffff up
 			;;
-		    *-*-solaris2.8)
+		    *-*-solaris2.[8-9]|*-*-solaris2.10)
     			ifconfig lo0:$int plumb
 			ifconfig lo0:$int 10.53.0.$ns up
 			;;
@@ -79,7 +79,7 @@ case "$1" in
 		    *-*-sysv5uw[7-8]*)
 			ifconfig lo0 10.53.0.$ns alias netmask 0xffffffff
 			;;
-		    *-ibm-aix4.*)
+		    *-ibm-aix4.*|*-ibm-aix5.*)
 			ifconfig lo0 alias 10.53.0.$ns
 			;;
 		    hpux)
@@ -88,7 +88,7 @@ case "$1" in
 		    *-sco3.2v*)
 			ifconfig lo0 alias 10.53.0.$ns
 			;;
-		    *-darwin5*)
+		    *-darwin*)
 			ifconfig lo0 alias 10.53.0.$ns
 			;;
 	            *)
@@ -114,7 +114,7 @@ case "$1" in
 		    *-sun-solaris2.[6-7])
 			ifconfig lo0:$int 10.53.0.$ns down
 			;;
-		    *-*-solaris2.8)
+		    *-*-solaris2.[8-9]|*-*-solaris2.10)
 			ifconfig lo0:$int 10.53.0.$ns down
 			ifconfig lo0:$int 10.53.0.$ns unplumb
 			;;
@@ -139,7 +139,7 @@ case "$1" in
 		    *-*-sysv5uw[7-8]*)
 			ifconfig lo0 -alias 10.53.0.$ns
 			;;
-		    *-ibm-aix4.*)
+		    *-ibm-aix4.*|*-ibm-aix5.*)
 			ifconfig lo0 delete 10.53.0.$ns
 			;;
 		    hpux)
@@ -148,7 +148,7 @@ case "$1" in
 		    *-sco3.2v*)
 			ifconfig lo0 -alias 10.53.0.$ns
 			;;
-		    *darwin5*)
+		    *darwin*)
 			ifconfig lo0 -alias 10.53.0.$ns
 			;;
 	            *)

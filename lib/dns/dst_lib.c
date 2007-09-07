@@ -15,25 +15,51 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: lib.h,v 1.6.2.1 2004/03/09 06:11:43 marka Exp $ */
-
-#ifndef DST_LIB_H
-#define DST_LIB_H 1
-
-#include <isc/types.h>
-#include <isc/lang.h>
-
-ISC_LANG_BEGINDECLS
-
-extern isc_msgcat_t *dst_msgcat;
-
-void
-dst_lib_initmsgcat(void);
 /*
- * Initialize the DST library's message catalog, dst_msgcat, if it
- * has not already been initialized.
+ * Principal Author: Brian Wellington
+ * $Id: dst_lib.c,v 1.1.2.1 2004/12/09 03:18:14 marka Exp $
  */
 
-ISC_LANG_ENDDECLS
+#include <config.h>
 
-#endif /* DST_LIB_H */
+#include <stddef.h>
+
+#include <isc/once.h>
+#include <isc/msgcat.h>
+#include <isc/util.h>
+
+#include <dst/lib.h>
+
+/***
+ *** Globals
+ ***/
+
+isc_msgcat_t *			dst_msgcat = NULL;
+
+
+/***
+ *** Private
+ ***/
+
+static isc_once_t		msgcat_once = ISC_ONCE_INIT;
+
+
+/***
+ *** Functions
+ ***/
+
+static void
+open_msgcat(void) {
+	isc_msgcat_open("libdst.cat", &dst_msgcat);
+}
+
+void
+dst_lib_initmsgcat(void) {
+
+	/*
+	 * Initialize the DST library's message catalog, dst_msgcat, if it
+	 * has not already been initialized.
+	 */
+
+	RUNTIME_CHECK(isc_once_do(&msgcat_once, open_msgcat) == ISC_R_SUCCESS);
+}

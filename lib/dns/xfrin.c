@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: xfrin.c,v 1.124.2.5 2004/03/09 06:11:11 marka Exp $ */
+/* $Id: xfrin.c,v 1.124.2.7 2004/10/13 22:28:04 marka Exp $ */
 
 #include <config.h>
 
@@ -519,11 +519,12 @@ xfr_rr(dns_xfrin_ctx_t *xfr, dns_name_t *name, isc_uint32_t ttl,
 	case XFRST_IXFR_ADD:
 		if (rdata->type == dns_rdatatype_soa) {
 			isc_uint32_t soa_serial = dns_soa_getserial(rdata);
-			CHECK(ixfr_commit(xfr));
 			if (soa_serial == xfr->end_serial) {
+				CHECK(ixfr_commit(xfr));
 				xfr->state = XFRST_END;
 				break;
 			} else {
+				CHECK(ixfr_commit(xfr));
 				xfr->state = XFRST_IXFR_DELSOA;
 				goto redo;
 			}
@@ -907,9 +908,10 @@ tuple2msgname(dns_difftuple_t *tuple, dns_message_t *msg, dns_name_t **target)
 
  failure:
 
-	if (rds != NULL)
+	if (rds != NULL) {
 		dns_rdataset_disassociate(rds);
 		dns_message_puttemprdataset(msg, &rds);
+	}
 	if (rdl != NULL) {
 		ISC_LIST_UNLINK(rdl->rdata, rdata, link);
 		dns_message_puttemprdatalist(msg, &rdl);

@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
- * Copyright (C) 2000, 2001  Internet Software Consortium.
+ * Copyright (C) 1999-2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -15,42 +15,25 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: gssapi.h,v 1.3.2.1 2004/03/09 06:11:43 marka Exp $ */
+/* $Id: lib.h,v 1.1.2.1 2004/12/09 03:18:23 marka Exp $ */
 
-#ifndef DST_GSSAPI_H
-#define DST_GSSAPI_H 1
-
-#include <isc/lang.h>
+#ifndef DST_LIB_H
+#define DST_LIB_H 1
 
 #include <isc/types.h>
+#include <isc/lang.h>
 
 ISC_LANG_BEGINDECLS
 
-/***
- *** Types
- ***/
+extern isc_msgcat_t *dst_msgcat;
 
-/***
- *** Functions
- ***/
-
-isc_result_t
-dst_gssapi_acquirecred(dns_name_t *name, isc_boolean_t initiate, void **cred);
-
-isc_result_t
-dst_gssapi_initctx(dns_name_t *name, void *cred,
-		   isc_region_t *intoken, isc_buffer_t *outtoken,
-		   void **context);
-
-isc_result_t
-dst_gssapi_acceptctx(dns_name_t *name, void *cred,
-		     isc_region_t *intoken, isc_buffer_t *outtoken,
-		     void **context);
-
+void
+dst_lib_initmsgcat(void);
 /*
- * XXX
+ * Initialize the DST library's message catalog, dst_msgcat, if it
+ * has not already been initialized.
  */
 
 ISC_LANG_ENDDECLS
 
-#endif /* DST_GSSAPI_H */
+#endif /* DST_LIB_H */

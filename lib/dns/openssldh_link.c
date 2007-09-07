@@ -18,7 +18,7 @@
 
 /*
  * Principal Author: Brian Wellington
- * $Id: openssldh_link.c,v 1.38.2.4 2004/03/16 12:45:41 marka Exp $
+ * $Id: openssldh_link.c,v 1.1.2.1 2004/12/09 03:18:18 marka Exp $
  */
 
 #ifdef OPENSSL

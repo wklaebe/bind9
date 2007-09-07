@@ -17,7 +17,7 @@
 
 /*
  * Principal Author: Brian Wellington
- * $Id: dst_result.c,v 1.18.2.2 2004/03/09 06:11:40 marka Exp $
+ * $Id: dst_result.c,v 1.1.2.1 2004/12/09 03:18:16 marka Exp $
  */
 
 #include <config.h>

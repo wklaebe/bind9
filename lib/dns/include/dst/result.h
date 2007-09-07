@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: result.h,v 1.20.2.1 2004/03/09 06:11:43 marka Exp $ */
+/* $Id: result.h,v 1.1.2.1 2004/12/09 03:18:24 marka Exp $ */
 
 #ifndef DST_RESULT_H
 #define DST_RESULT_H 1

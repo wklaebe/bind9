@@ -16,7 +16,7 @@
  * IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dst_parse.h,v 1.19.2.1 2004/03/09 06:11:40 marka Exp $ */
+/* $Id: dst_parse.h,v 1.1.2.1 2004/12/09 03:18:15 marka Exp $ */
 
 #ifndef DST_DST_PARSE_H
 #define DST_DST_PARSE_H 1

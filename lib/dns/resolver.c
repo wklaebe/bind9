@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: resolver.c,v 1.218.2.34 2004/07/03 00:56:55 marka Exp $ */
+/* $Id: resolver.c,v 1.218.2.39 2005/01/19 23:59:15 marka Exp $ */
 
 #include <config.h>
 
@@ -476,7 +476,7 @@ fctx_cancelquery(resquery_t **queryp, dns_dispatchevent_t **deventp,
 			 */
 			INSIST(no_response);
 			rtt = query->addrinfo->srtt +
-				(100000 * fctx->restarts);
+				(200000 * fctx->restarts);
 			if (rtt > 10000000)
 				rtt = 10000000;
 			/*
@@ -659,6 +659,9 @@ static void
 resquery_senddone(isc_task_t *task, isc_event_t *event) {
 	isc_socketevent_t *sevent = (isc_socketevent_t *)event;
 	resquery_t *query = event->ev_arg;
+	isc_boolean_t retry = ISC_FALSE;
+	isc_result_t result;
+	fetchctx_t *fctx;
 
 	REQUIRE(event->ev_type == ISC_SOCKEVENT_SENDDONE);
 
@@ -677,6 +680,7 @@ resquery_senddone(isc_task_t *task, isc_event_t *event) {
 	INSIST(RESQUERY_SENDING(query));
 
 	query->sends--;
+	fctx = query->fctx;
 
 	if (RESQUERY_CANCELED(query)) {
 		if (query->sends == 0) {
@@ -688,10 +692,43 @@ resquery_senddone(isc_task_t *task, isc_event_t *event) {
 				isc_socket_detach(&query->tcpsocket);
 			resquery_destroy(&query);
 		}
-	} else if (sevent->result != ISC_R_SUCCESS)
-		fctx_cancelquery(&query, NULL, NULL, ISC_FALSE);
+	} else 
+		switch (sevent->result) {
+		case ISC_R_SUCCESS:
+			break;
+
+		case ISC_R_HOSTUNREACH:
+		case ISC_R_NETUNREACH:
+		case ISC_R_NOPERM:
+		case ISC_R_ADDRNOTAVAIL:
+		case ISC_R_CONNREFUSED:
+
+			/*
+			 * No route to remote.
+			 */
+			fctx_cancelquery(&query, NULL, NULL, ISC_TRUE);
+			retry = ISC_TRUE;
+			break;
+
+		default:
+			fctx_cancelquery(&query, NULL, NULL, ISC_FALSE);
+			break;
+		}
 
 	isc_event_free(&event);
+
+	if (retry) {
+		/*
+		 * Behave as if the idle timer has expired.  For TCP
+		 * this may not actually reflect the latest timer.
+		 */
+		fctx->attributes &= ~FCTX_ATTR_ADDRWAIT;
+		result = fctx_stopidletimer(fctx);
+		if (result != ISC_R_SUCCESS)
+			fctx_done(fctx, result);
+		else
+			fctx_try(fctx);
+	}
 }
 
 static inline isc_result_t
@@ -1202,7 +1239,10 @@ static void
 resquery_connected(isc_task_t *task, isc_event_t *event) {
 	isc_socketevent_t *sevent = (isc_socketevent_t *)event;
 	resquery_t *query = event->ev_arg;
+	isc_boolean_t retry = ISC_FALSE;
 	isc_result_t result;
+	unsigned int attrs;
+	fetchctx_t *fctx;
 
 	REQUIRE(event->ev_type == ISC_SOCKEVENT_CONNECT);
 	REQUIRE(VALID_QUERY(query));
@@ -1220,6 +1260,7 @@ resquery_connected(isc_task_t *task, isc_event_t *event) {
 	 */
 
 	query->connects--;
+	fctx = query->fctx;
 
 	if (RESQUERY_CANCELED(query)) {
 		/*
@@ -1229,9 +1270,8 @@ resquery_connected(isc_task_t *task, isc_event_t *event) {
 		isc_socket_detach(&query->tcpsocket);
 		resquery_destroy(&query);
 	} else {
-		if (sevent->result == ISC_R_SUCCESS) {
-			unsigned int attrs;
-
+		switch (sevent->result) {
+		case ISC_R_SUCCESS:
 			/*
 			 * We are connected.  Create a dispatcher and
 			 * send the query.
@@ -1264,21 +1304,47 @@ resquery_connected(isc_task_t *task, isc_event_t *event) {
 				result = resquery_send(query);
 
 			if (result != ISC_R_SUCCESS) {
-				fetchctx_t *fctx = query->fctx;
 				fctx_cancelquery(&query, NULL, NULL,
 						 ISC_FALSE);
 				fctx_done(fctx, result);
 			}
-		} else {
+			break;
+
+		case ISC_R_NETUNREACH:
+		case ISC_R_HOSTUNREACH:
+		case ISC_R_CONNREFUSED:
+		case ISC_R_NOPERM:
+		case ISC_R_ADDRNOTAVAIL:
+			/*
+			 * No route to remote.
+			 */
+			isc_socket_detach(&query->tcpsocket);
+			fctx_cancelquery(&query, NULL, NULL, ISC_TRUE);
+			retry = ISC_TRUE;
+			break;
+
+		default:
 			isc_socket_detach(&query->tcpsocket);
 			fctx_cancelquery(&query, NULL, NULL, ISC_FALSE);
+			break;
 		}
 	}
 
 	isc_event_free(&event);
+	
+	if (retry) {
+		/*
+		 * Behave as if the idle timer has expired.  For TCP
+		 * connections this may not actually reflect the latest timer.
+		 */
+		fctx->attributes &= ~FCTX_ATTR_ADDRWAIT;
+		result = fctx_stopidletimer(fctx);
+		if (result != ISC_R_SUCCESS)
+			fctx_done(fctx, result);
+		else
+			fctx_try(fctx);
+	}
 }
-
-
 
 static void
 fctx_finddone(isc_task_t *task, isc_event_t *event) {
@@ -3577,6 +3643,9 @@ noanswer_response(fetchctx_t *fctx, dns_name_t *oqname) {
 		name = NULL;
 		dns_message_currentname(message, DNS_SECTION_AUTHORITY, &name);
 		if (dns_name_issubdomain(name, &fctx->domain)) {
+			/*
+			 * Look for NS/SOA RRset first.
+			 */
 			for (rdataset = ISC_LIST_HEAD(name->list);
 			     rdataset != NULL;
 			     rdataset = ISC_LIST_NEXT(rdataset, link)) {
@@ -3603,17 +3672,9 @@ noanswer_response(fetchctx_t *fctx, dns_name_t *oqname) {
 					rdataset->trust = dns_trust_glue;
 					ns_rdataset = rdataset;
 				}
-			}
-			for (rdataset = ISC_LIST_HEAD(name->list);
-			     rdataset != NULL;
-			     rdataset = ISC_LIST_NEXT(rdataset, link)) {
-				type = rdataset->type;
-				if (type == dns_rdatatype_sig)
-					type = rdataset->covers;
-				if (type == dns_rdatatype_soa ||
-					   type == dns_rdatatype_nxt) {
+				if (type == dns_rdatatype_soa) {
 					/*
-					 * SOA, SIG SOA, NXT, or SIG NXT.
+					 * SOA or SIG SOA.
 					 *
 					 * Only one SOA is allowed.
 					 */
@@ -3624,29 +3685,55 @@ noanswer_response(fetchctx_t *fctx, dns_name_t *oqname) {
 							return (DNS_R_FORMERR);
 						soa_name = name;
 					}
-					if (ns_name == NULL) {
-						negative_response = ISC_TRUE;
-						name->attributes |=
-							DNS_NAMEATTR_NCACHE;
-						rdataset->attributes |=
-							DNS_RDATASETATTR_NCACHE;
-					} else {
-						name->attributes |=
-							DNS_NAMEATTR_CACHE;
-						rdataset->attributes |=
-							DNS_RDATASETATTR_CACHE;
-					}
+					name->attributes |=
+						DNS_NAMEATTR_NCACHE;
+					rdataset->attributes |=
+						DNS_RDATASETATTR_NCACHE;
 					if (aa)
 						rdataset->trust =
 						    dns_trust_authauthority;
 					else
 						rdataset->trust =
 							dns_trust_additional;
-					/*
-					 * No additional data needs to be
-					 * marked.
-					 */
 				}
+			}
+			/*
+			 * A negative response has a SOA record (Type 2) 
+			 * and a optional NS RRset (Type 1) or it has neither
+			 * a SOA or a NS RRset (Type 3, handled above) or
+			 * rcode is NXDOMAIN (handled above) in which case
+			 * the NS RRset is allowed (Type 4).
+			 */
+			if (soa_name != NULL)
+				negative_response = ISC_TRUE;
+			for (rdataset = ISC_LIST_HEAD(name->list);
+			     rdataset != NULL;
+			     rdataset = ISC_LIST_NEXT(rdataset, link)) {
+				type = rdataset->type;
+				if (type == dns_rdatatype_sig)
+					type = rdataset->covers;
+				if (type != dns_rdatatype_nxt)
+					continue;
+				/*
+				 * NXT or SIG NXT.
+				 */
+
+				if (negative_response) {
+					name->attributes |=
+						DNS_NAMEATTR_NCACHE;
+					rdataset->attributes |=
+						DNS_RDATASETATTR_NCACHE;
+				} else {
+					name->attributes |=
+						DNS_NAMEATTR_CACHE;
+					rdataset->attributes |=
+						DNS_RDATASETATTR_CACHE;
+				}
+				if (aa)
+					rdataset->trust =
+					    dns_trust_authauthority;
+				else
+					rdataset->trust = dns_trust_additional;
 			}
 		}
 		result = dns_message_nextname(message, DNS_SECTION_AUTHORITY);
@@ -4485,6 +4572,11 @@ resquery_response(isc_task_t *task, isc_event_t *event) {
 			     "from %s",
 			     domainbuf, namebuf, typebuf, classbuf, addrbuf);
 	}
+
+	/*
+	 * Clear cache bits.
+	 */
+	fctx->attributes &= ~(FCTX_ATTR_WANTNCACHE | FCTX_ATTR_WANTCACHE);
 
 	/*
 	 * Did we get any answers?

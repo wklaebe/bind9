@@ -16,7 +16,7 @@
  */
 
 /*
- * $Id: gssapi_link.c,v 1.7.2.1 2004/03/09 06:11:41 marka Exp $
+ * $Id: gssapi_link.c,v 1.1.2.1 2004/12/09 03:18:17 marka Exp $
  */
 
 #ifdef GSSAPI

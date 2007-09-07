@@ -16,7 +16,7 @@
  * IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: openssldsa_link.c,v 1.4.2.2 2004/03/09 06:11:42 marka Exp $ */
+/* $Id: openssldsa_link.c,v 1.1.2.1 2004/12/09 03:18:19 marka Exp $ */
 
 #ifdef OPENSSL
 

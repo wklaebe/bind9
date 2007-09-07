@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
- * Copyright (C) 1999-2001  Internet Software Consortium.
+ * Copyright (C) 2000, 2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -15,51 +15,42 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/*
- * Principal Author: Brian Wellington
- * $Id: dst_lib.c,v 1.8.2.1 2004/03/09 06:11:40 marka Exp $
- */
+/* $Id: gssapi.h,v 1.1.2.1 2004/12/09 03:18:23 marka Exp $ */
 
-#include <config.h>
+#ifndef DST_GSSAPI_H
+#define DST_GSSAPI_H 1
 
-#include <stddef.h>
+#include <isc/lang.h>
 
-#include <isc/once.h>
-#include <isc/msgcat.h>
-#include <isc/util.h>
+#include <isc/types.h>
 
-#include <dst/lib.h>
+ISC_LANG_BEGINDECLS
 
 /***
- *** Globals
+ *** Types
  ***/
-
-isc_msgcat_t *			dst_msgcat = NULL;
-
-
-/***
- *** Private
- ***/
-
-static isc_once_t		msgcat_once = ISC_ONCE_INIT;
-
 
 /***
  *** Functions
  ***/
 
-static void
-open_msgcat(void) {
-	isc_msgcat_open("libdst.cat", &dst_msgcat);
-}
+isc_result_t
+dst_gssapi_acquirecred(dns_name_t *name, isc_boolean_t initiate, void **cred);
 
-void
-dst_lib_initmsgcat(void) {
+isc_result_t
+dst_gssapi_initctx(dns_name_t *name, void *cred,
+		   isc_region_t *intoken, isc_buffer_t *outtoken,
+		   void **context);
 
-	/*
-	 * Initialize the DST library's message catalog, dst_msgcat, if it
-	 * has not already been initialized.
-	 */
+isc_result_t
+dst_gssapi_acceptctx(dns_name_t *name, void *cred,
+		     isc_region_t *intoken, isc_buffer_t *outtoken,
+		     void **context);
 
-	RUNTIME_CHECK(isc_once_do(&msgcat_once, open_msgcat) == ISC_R_SUCCESS);
-}
+/*
+ * XXX
+ */
+
+ISC_LANG_ENDDECLS
+
+#endif /* DST_GSSAPI_H */

@@ -18,7 +18,7 @@
 
 /*
  * Principal Author: Brian Wellington
- * $Id: dst_parse.c,v 1.31.2.3 2004/03/09 06:11:40 marka Exp $
+ * $Id: dst_parse.c,v 1.1.2.1 2004/12/09 03:18:14 marka Exp $
  */
 
 #include <config.h>

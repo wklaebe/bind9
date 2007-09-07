@@ -1,4 +1,37 @@
 
+	--- 9.3.0rc3 released ---
+
+1696.	[bug]		dnssec-signzone failed to clean out nodes that
+			consisted of only NSEC and RRSIG records.
+			[RT #12154]
+
+1695.	[bug]		DS records when forwarding require special handling.
+			[RT #12133]
+
+1694.	[bug]		Report if the builtin views of "_default" / "_bind"
+			are defined in named.conf. [RT #12023]
+
+1693.	[bug]		max-journal-size was not effective for master zones
+			with ixfr-from-differences set. [RT# 12024]
+
+1692.	[bug]		Don't set -I, -L and -R flags when libcrypto is in
+			/usr/lib. [RT #11971]
+
+1691.	[bug]		sdb's attachversion was not complete. [RT #11990]
+
+1690.	[bug]		Delay detaching view from the client until UPDATE
+			processing completes when shutting down. [RT #11714]
+
+1689.	[bug]		DNS_NAME_TOREGION() and DNS_NAME_SPLIT() macros
+			contained gratuitous semicolons. [RT #11707]
+
+1688.	[bug]		LDFLAGS was not supported.
+
+1687.	[bug]		Race condition in dispatch. [RT #10272]
+
+1686.	[bug]		Named sent a extraneous NOTIFY when it received a
+			redundant UPDATE request. [RT #11943]
+
 	--- 9.3.0rc2 released ---
 
 1685.	[bug]		Change #1679 loop tests weren't quite right.

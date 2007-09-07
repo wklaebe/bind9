@@ -1,4 +1,157 @@
 
+	--- 9.0.1rc1 released ---
+
+ 526.	[bug]		nsupdate incorrectly refused to add RRs with a TTL
+			of 0.
+
+ 523.	[doc]		The source to the Administrator Reference Manual is
+			now an XML file using the DocBook DTD, and is included
+			in the distribution.  The plain text version of the
+			ARM is temporarily unavailable while we figure out
+			how to generate readable plain text from the XML.
+
+ 520.	[bug]		Upgraded libtool to 1.3.5, which makes shared
+			library builds almost work on AIX (and possibly 
+			others).
+
+ 519.	[bug]		dns_name_split() would improperly split some bitstring
+			labels, zeroing a few of the least signficant bits in
+			the prefix part.  When such an improperly created
+			prefix was returned to the RBT database, the bogus
+			label was dutifully stored, corrupting the tree.
+			[RT #369]
+
+ 518.	[bug]		The resolver did not realize that a DNAME which was
+			"the answer" to the client's query was "the answer",
+			and such queries would fail. [RT #399]
+
+ 517.	[bug]		The resolver's DNAME code would trigger an assertion
+			if there was more than one DNAME in the chain.
+			[RT #399]
+
+ 516.	[bug]		Cache lookups which had a NULL node pointer, e.g.
+			those by dns_view_find(), and which would match a
+			DNAME, would trigger an INSIST(!search.need_cleanup)
+			assertion. [RT #399]
+
+ 515.	[bug]		The ssu table was not being attached / detached
+			by dns_zone_[sg]etssutable. [RT#397]
+
+ 511.	[bug]		The message code could throw an assertion on an
+			out of memory failure. [RT #392]
+
+ 510.	[bug]		Remove spurious view notify warning. [RT #376]
+
+ 505.	[bug]		nsupdate was printing "unknown result code". [RT #373]
+
+ 502.	[func]		On a SERVFAIL reply, DiG will now try the next server
+			in the list, unless the +fail option is specified.
+
+ 501.	[bug]		Incorrect port numbers were being displayed by
+			nslookup.  [RT #352]
+
+ 500.	[func]		Nearly useless +details option removed from DiG.
+
+ 499.	[func]		In DiG, specifying a class with -c or type with -t
+			changes command-line parsing so that classes and
+			types are only recognized if following -c or -t.
+			This allows hosts with the same name as a class or
+			type to be looked up.
+
+ 498.	[doc]		There is now a man page for "dig" 
+			in doc/man/bin/dig.1.
+
+ 495.	[bug]		nsupdate was unable to handle large records. [RT #368]
+
+ 491.	[bug]		nsupdate would segfault when sending certain
+			prerequisites with empty RDATA. [RT #356]
+
+ 488.	[bug]		Locks weren't properly destroyed in some cases.
+
+ 486.	[bug]		nslookup: "set all" and "server" commands showed
+			the incorrect port number if a port other than 53
+			was specified. [RT #352]
+
+ 485.	[func]		When dig had more than one server to query, it would
+			send all of the messages at the same time.  Add
+			rate limiting of the transmitted messages.
+
+ 483.	[bug]		nslookup: "set all" showed a "search" option but it 
+			was not settable.
+
+ 482.	[bug]		nslookup: a plain "server" or "lserver" should be
+			treated as a lookup.
+
+ 481.	[bug]		nslookup:get_next_command() stack size could exceed
+			per thread limit.
+
+ 480.	[bug]		strtok() is not thread safe. [RT #349]
+
+ 476.	[bug]		A zone could expire while a zone transfer was in
+			progress triggering a INSIST failure. [RT #329]
+
+ 475.	[bug]		query_getzonedb() sometimes returned a non-null version
+			on failure.  This caused assertion failures when
+			generating query responses where names subject to
+			additional section processing pointed to a zone
+			to which access had been denied by means of the
+			allow-query option. [RT #336]
+
+ 474.	[bug]		The mnemonic of the CHAOS class is CH according to
+			RFC1035, but it was printed and read only as CHAOS.
+			We now accept both forms as input, and print it
+			as CH. [RT #305]
+
+ 473.	[bug]		nsupdate overran the end of the list of name servers
+			when no servers could be reached, typically causing 
+			it to print the error message "dns_request_create:
+			not implemented".
+
+ 472.	[bug]		Off-by-one error caused isc_time_add() to sometimes
+			produce invalid time values.
+
+ 471.	[bug]		nsupdate didn't compile on HP/UX 10.20
+
+ 463.	[bug]		nsupdate sent malformed SOA queries to the second
+			and subsequent name servers in resolv.conf if the
+			query sent to the first one failed.
+
+ 459.	[bug]		Nslookup processed the "set" command incorrectly.
+
+ 458.	[bug]		Nslookup didn't properly check class and type values.
+			[RT #305]
+
+ 457.	[bug]		Dig/host/hslookup didn't properly handle connect
+			timeouts in certain situations, causing an 
+			unnecessary warning message to be printed.
+
+ 447.	[bug]		Dig didn't properly retry in TCP mode after
+			a truncated reply.  [RT #277]
+
+ 403.	[bug]		"host" did not use the search list.
+
+ 395.	[bug]		nslookup printed incorrect RR type mnemonics
+			for RRs of type >= 21 [RT #237].
+
+ 388.	[func]		dig and host can now do reverse ipv6 lookups.
+
+ 387.	[func]		Add dns_byaddr_createptrname(), which converts
+			an address into the name used by a PTR query.
+
+ 379.	[func]		New library function isc_sockaddr_anyofpf().
+
+ 347.	[bug]		Don't crash if an argument is left off options in dig.
+
+ 346.	[func]		Add support for .digrc config file, in the
+			user's current directory
+
+ 345.	[bug]		Large-scale changes/cleanups to dig:
+			* Significantly improve structure handling
+			* Don't pre-load entire batch files
+			* Add name/rr counting/limiting
+			* Fix SIGINT handling
+			* Shorten timeouts to match v8's behavior
+
 	--- 9.0.0 released ---
 
  463.	[bug]		nsupdate sent malformed SOA queries to the second

@@ -15,7 +15,7 @@
  * SOFTWARE.
  */
 
-/* $Id: message.c,v 1.131.2.8 2000/09/11 17:56:07 gson Exp $ */
+/* $Id: message.c,v 1.131.2.10 2000/10/20 21:44:09 gson Exp $ */
 
 /***
  *** Imports
@@ -704,8 +704,10 @@ dns_message_create(isc_mem_t *mctx, unsigned int intent, dns_message_t **msgp)
 	if (msgblock != NULL)
 		msgblock_free(mctx, msgblock, sizeof(dns_rdata_t));
 	dynbuf = ISC_LIST_HEAD(m->scratchpad);
-	if (dynbuf != NULL)
+	if (dynbuf != NULL) {
+		ISC_LIST_UNLINK(m->scratchpad, dynbuf, link);
 		isc_buffer_free(&dynbuf);
+	}
 	if (m->namepool != NULL)
 		isc_mempool_destroy(&m->namepool);
 	if (m->rdspool != NULL)
@@ -2743,7 +2745,8 @@ dns_message_sectiontotext(dns_message_t *msg, dns_section_t section,
 		}
 		result = dns_message_nextname(msg, section);
 	} while (result == ISC_R_SUCCESS);
-	if ((flags & DNS_MESSAGETEXTFLAG_NOHEADERS) == 0)
+	if ((flags & DNS_MESSAGETEXTFLAG_NOHEADERS) == 0 &&
+	    (flags & DNS_MESSAGETEXTFLAG_NOCOMMENTS) == 0)
 		ADD_STRING(target, "\n");
 	if (result == ISC_R_NOMORE)
 		result = ISC_R_SUCCESS;
@@ -2792,7 +2795,9 @@ dns_message_pseudosectiontotext(dns_message_t *msg,
 			ADD_STRING(target, ";; TSIG PSEUDOSECTION:\n");
 		result = dns_rdataset_totext(ps, name, omit_final_dot,
 					     ISC_FALSE, target);
-		ADD_STRING(target, "\n");
+		if ((flags & DNS_MESSAGETEXTFLAG_NOHEADERS) == 0 &&
+		    (flags & DNS_MESSAGETEXTFLAG_NOCOMMENTS) == 0)
+			ADD_STRING(target, "\n");
 		return (result);
 	case DNS_PSEUDOSECTION_SIG0:
 		ps = dns_message_getsig0(msg, &name);
@@ -2802,7 +2807,8 @@ dns_message_pseudosectiontotext(dns_message_t *msg,
 			ADD_STRING(target, ";; SIG0 PSEUDOSECTION:\n");
 		result = dns_rdataset_totext(ps, name, omit_final_dot,
 					     ISC_FALSE, target);
-		if ((flags & DNS_MESSAGETEXTFLAG_NOHEADERS) == 0)
+		if ((flags & DNS_MESSAGETEXTFLAG_NOHEADERS) == 0 &&
+		    (flags & DNS_MESSAGETEXTFLAG_NOCOMMENTS) == 0)
 			ADD_STRING(target, "\n");
 		return (result);
 	}

@@ -15,7 +15,7 @@
  * SOFTWARE.
  */
 
-/* $Id: rdata.c,v 1.101.2.2 2000/09/05 22:14:12 explorer Exp $ */
+/* $Id: rdata.c,v 1.101.2.4 2000/09/26 21:40:55 bwelling Exp $ */
 
 #include <config.h>
 #include <ctype.h>
@@ -443,6 +443,12 @@ dns_rdata_towire(dns_rdata_t *rdata, dns_compress_t *cctx,
 
 	REQUIRE(rdata != NULL);
 
+	/*
+	 * Some DynDNS meta-RRs have empty rdata.
+	 */
+	if (rdata->length == 0)
+		return (ISC_R_SUCCESS);
+
 	st = *target;
 
 	TOWIRESWITCH
@@ -813,6 +819,12 @@ dns_rdataclass_fromtext(dns_rdataclass_t *classp, isc_textregion_t *source) {
 		COMPARE("any", META, dns_rdataclass_any);
 		break;
 	case 'c':
+		/*
+		 * RFC1035 says the mnemonic for the CHAOS class is CH,
+		 * but historical BIND practice is to call it CHAOS.
+		 * We will accept both forms, but only generate CH.
+		 */
+		COMPARE("ch", 0, dns_rdataclass_chaos);
 		COMPARE("chaos", 0, dns_rdataclass_chaos);
 		break;
 	case 'h':
@@ -842,7 +854,7 @@ dns_rdataclass_totext(dns_rdataclass_t rdclass, isc_buffer_t *target) {
 	case dns_rdataclass_any:
 		return (str_totext("ANY", target));
 	case dns_rdataclass_chaos:
-		return (str_totext("CHAOS", target));
+		return (str_totext("CH", target));
 	case dns_rdataclass_hs:
 		return (str_totext("HS", target));
 	case dns_rdataclass_in:

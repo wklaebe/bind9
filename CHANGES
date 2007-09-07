@@ -1,4 +1,74 @@
 
+	--- 9.2.0rc9 released ---
+
+1107.	[bug]		nsupdate could catch an assertion failure if an
+			invalid domain name was given as the argument to
+			the "zone" command.
+
+1106.	[bug]		After seeing an out of range TTL, nsupdate would
+			treat all TTLs as out of range. [RT #2001]
+
+1104.	[bug]		Invalid arguments to the transfer-format option
+			could cause an assertion failure. [RT #1995]
+
+1103.	[port]		OpenUNIX 8 support (ifconfig.sh).  [RT #1970]
+
+1102.	[doc]		Note that query logging is enabled by directing the
+			queries category to a channel.
+
+1101.	[bug]		Array bounds read error in lwres_gai_strerror.
+
+1100.	[bug]		libbind: DNSSEC key ids were computed incorrectly.
+
+1099.	[cleanup]	libbind: defining REPORT_ERRORS in lib/bind/dst caused
+			compile time errors.
+
+1098.	[bug]		libbind: HMAC-MD5 key files are now mode 0600.
+
+1093.	[doc]		libbind: miscellaneous nroff fixes.
+
+1092.	[bug]		libbind: get*by*() failed to check if res_init() had
+			been called.
+
+1091.	[bug]		libbind: misplaced va_end().
+
+1090.	[bug]		libbind: dns_ho.c:add_hostent() was not returning
+			the amount of memory consumed resulting in garbage
+			address being returned.  Alignment calculations were   
+			wasting space.  We weren't suppressing duplicate
+			addresses.
+
+1088.	[port]		libbind: MPE/iX C.70 (incomplete)
+
+1087.	[bug]		libbind: struct __res_state too large on 64 bit arch.
+
+1086.	[port]		libbind: sunos: old sprintf.
+
+1085.	[port]		libbind: solaris: sys_nerr and sys_errlist do not
+			exist when compiling in 64 bit mode.
+
+1084.	[cleanup]	libbind: gai_strerror() rewritten.
+
+1083.	[bug]		The default control channel listened on the
+			wildcard adress, not the loopback as documented.
+			[RT #1975]
+
+1082.	[bug]		The -g option to named incorrectly caused logging
+			to be sent to syslog in addition to stderr.
+			[RT #1974]
+
+1078.	[bug]		We failed to correct bad tv_usec values in one case.
+			[RT #1966]
+
+1076.	[bug]		A badly defined global key could trigger an assertion
+			on load/reload if views were used. [RT #1947]
+
+1075.	[bug]		Out-of-range network prefix lengths were not
+			reported. [RT #1954]
+
+1074.	[bug]		Running out of memory in dump_rdataset() could
+			cause an assertion failure. [RT #1946]
+
 	--- 9.2.0rc8 released ---
 
 1068.	[bug]		errno could be overwritten by catgets(). [RT #1921]

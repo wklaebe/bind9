@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: nsupdate.c,v 1.103.2.4 2001/10/15 20:25:57 gson Exp $ */
+/* $Id: nsupdate.c,v 1.103.2.6 2001/11/06 21:50:35 bwelling Exp $ */
 
 #include <config.h>
 
@@ -1089,6 +1089,7 @@ evaluate_zone(char *cmdline) {
 	result = dns_name_fromtext(userzone, &b, dns_rootname, ISC_FALSE,
 				   NULL);
 	if (result != ISC_R_SUCCESS) {
+		userzone = NULL; /* Lest it point to an invalid name */
 		fprintf(stderr, "could not parse zone name\n");
 		return (STATUS_SYNTAX);
 	}
@@ -1146,6 +1147,7 @@ update_addordelete(char *cmdline, isc_boolean_t isdelete) {
 			goto doneparsing;
 		}
 	}
+	errno = 0;
 	ttl = strtol(word, &endp, 0);
 	if (*endp != '\0') {
 		if (isdelete) {
@@ -1159,7 +1161,9 @@ update_addordelete(char *cmdline, isc_boolean_t isdelete) {
 
 	if (isdelete)
 		ttl = 0;
-	else if (ttl < 0 || ttl > TTL_MAX || errno == ERANGE) {
+	else if (ttl < 0 || ttl > TTL_MAX ||
+		 (ttl == LONG_MAX && errno == ERANGE))
+	{
 		/*
 		 * The errno test is needed to catch when strtol()
 		 * overflows on a platform where sizeof(int) ==

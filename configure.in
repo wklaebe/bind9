@@ -18,7 +18,7 @@ AC_DIVERT_PUSH(AC_DIVERSION_NOTICE)dnl
 esyscmd([sed "s/^/# /" COPYRIGHT])dnl
 AC_DIVERT_POP()dnl
 
-AC_REVISION($Revision: 1.257 $)
+AC_REVISION($Revision: 1.262 $)
 
 AC_INIT(lib/dns/name.c)
 AC_PREREQ(2.13)
@@ -203,7 +203,17 @@ AC_C_INLINE
 # is reported to not support "static inline" (RT #1212).
 #
 AC_MSG_CHECKING(for static inline breakage)
-AC_TRY_COMPILE(, [} static inline foo() {],
+AC_TRY_COMPILE(, [
+		foo1();
+	}
+
+	static inline int foo1() {
+		return 0;
+	}
+
+	static inline int foo2() {
+		return foo1();
+	],
 	[AC_MSG_RESULT(no)],
 	[AC_MSG_RESULT(yes)
          AC_DEFINE(inline, )])
@@ -378,6 +388,9 @@ case "$use_randomdev" in
 	yes)
 		AC_MSG_ERROR([--with-randomdev must specify a path])
 		;;
+	no)
+		AC_MSG_RESULT(disabled)
+		;;
 	*)
 		AC_DEFINE_UNQUOTED(PATH_RANDOMDEV, "$use_randomdev")
 		AC_MSG_RESULT(using "$use_randomdev")
@@ -407,7 +420,12 @@ case $host in
 	use_threads=true ;;
 *-ibm-aix*)
 	use_threads=true ;;
-*-UnixWare*)
+*-hp-hpux*)
+	use_threads=true ;;
+*-sgi-irix*)
+	use_threads=true ;;
+*-sco-sysv*uw*)
+        # UnixWare
 	use_threads=false ;;
 *-netbsd*)
 	# Socket I/O optimizations introduced in 9.2 expose a
@@ -567,7 +585,7 @@ then
 		#
 		# UnixWare does things its own way.
 		#
-		*-UnixWare*)
+		*-sco-sysv*uw*)
 			AC_DEFINE(HAVE_UNIXWARE_SIGWAIT)
 			;;
 	esac
@@ -608,7 +626,7 @@ then
 		*-ibm-aix*)
 			STD_CDEFINES="$STD_CDEFINES -D_THREAD_SAFE"
 			;;
-		*-UnixWare*)
+		*-sco-sysv*uw*)
 			CC="$CC -Kthread"
 			CCOPT="$CCOPT -Kthread"
 			;;
@@ -698,7 +716,8 @@ else
 	*-solaris*)
 		MKDEPCFLAGS="-xM"
 		;;
-	*-UnixWare*)
+	*-sco-sysv*uw*)
+                # UnixWare
 		CC="$CC -w"
 		;;
 	esac
@@ -909,7 +928,8 @@ changequote([, ])
 # This is similar to the netinet6/in6.h issue.
 #
 case "$host" in
-*-UnixWare*)
+*-sco-sysv*uw*)
+        # UnixWare
 	ISC_PLATFORM_NEEDNETINETIN6H="#define ISC_PLATFORM_NEEDNETINETIN6H 1"
 	LWRES_PLATFORM_NEEDNETINETIN6H="#define LWRES_PLATFORM_NEEDNETINETIN6H 1"
         ISC_PLATFORM_FIXIN6ISADDR="#define ISC_PLATFORM_FIXIN6ISADDR 1"
@@ -1611,6 +1631,7 @@ AC_OUTPUT(
 	doc/arm/nominum-docbook-html.dsl
 	doc/arm/nominum-docbook-print.dsl
 	doc/arm/validate.sh
+	docutil/docbook2man-wrapper.sh
 	isc-config.sh
 )
 chmod a+x isc-config.sh

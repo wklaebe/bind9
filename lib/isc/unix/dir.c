@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dir.c,v 1.16 2001/01/29 03:17:44 marka Exp $ */
+/* $Id: dir.c,v 1.18 2001/06/08 23:50:31 tale Exp $ */
 
 /* Principal Authors: DCL */
 
@@ -35,7 +35,7 @@
 
 #include "errno2result.h"
 
-#define ISC_DIR_MAGIC		0x4449522aU	/* DIR*. */
+#define ISC_DIR_MAGIC		ISC_MAGIC('D', 'I', 'R', '*')
 #define VALID_DIR(dir)		ISC_MAGIC_VALID(dir, ISC_DIR_MAGIC)
 
 void
@@ -153,6 +153,34 @@ isc_dir_chroot(const char *dirname) {
 		return (isc__errno2result(errno));
 
 	return (ISC_R_SUCCESS);
+}
+
+isc_result_t
+isc_dir_current(char *dirname, size_t length, isc_boolean_t end_sep) {
+	char *cwd;
+	isc_result_t result = ISC_R_SUCCESS;
+
+	/*
+	 * XXXDCL Could automatically allocate memory if dirname == NULL.
+	 */
+	REQUIRE(dirname != NULL);
+	REQUIRE(length > 0);
+
+	cwd = getcwd(dirname, length);
+
+	if (cwd == NULL) {
+		if (errno == ERANGE)
+			result = ISC_R_NOSPACE;
+		else
+			result = isc__errno2result(errno);
+	} else if (end_sep) {
+		if (strlen(dirname) + 1 == length)
+			result = ISC_R_NOSPACE;
+		else if (dirname[1] != '\0')
+			strcat(dirname, "/");
+	}
+
+	return (result);
 }
 
 isc_result_t

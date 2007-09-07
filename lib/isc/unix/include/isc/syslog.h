@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: syslog.h,v 1.1.2.1 2001/06/01 01:12:10 bwelling Exp $ */
+/* $Id: syslog.h,v 1.2 2001/06/01 01:11:28 bwelling Exp $ */
 
 #ifndef ISC_SYSLOG_H
 #define ISC_SYSLOG_H 1

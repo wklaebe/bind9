@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: xfrin.c,v 1.119 2001/05/31 10:38:01 tale Exp $ */
+/* $Id: xfrin.c,v 1.123 2001/06/07 20:11:30 gson Exp $ */
 
 #include <config.h>
 
@@ -166,7 +166,7 @@ struct dns_xfrin_ctx {
 	} ixfr;
 };
 
-#define XFRIN_MAGIC		  0x58667269U		/* XfrI. */
+#define XFRIN_MAGIC		  ISC_MAGIC('X', 'f', 'r', 'I')
 #define VALID_XFRIN(x)		  ISC_MAGIC_VALID(x, XFRIN_MAGIC)
 
 /**************************************************************************/
@@ -528,6 +528,13 @@ xfr_rr(dns_xfrin_ctx_t *xfr, dns_name_t *name, isc_uint32_t ttl,
 		break;
 
 	case XFRST_AXFR:
+		/*
+		 * Old BINDs sent cross class A records for non IN classes.
+		 */
+		if (rdata->type == dns_rdatatype_a &&
+		    rdata->rdclass != xfr->rdclass &&
+		    xfr->rdclass != dns_rdataclass_in)
+			break;
 		CHECK(axfr_putdata(xfr, DNS_DIFFOP_ADD, name, ttl, rdata));
 		if (rdata->type == dns_rdatatype_soa) {
 			CHECK(axfr_commit(xfr));
@@ -1114,6 +1121,7 @@ xfrin_recv_done(isc_task_t *task, isc_event_t *ev) {
 			FAIL(result);
 		xfrin_log(xfr, ISC_LOG_DEBUG(3), "got %s, retrying with AXFR",
 		       isc_result_totext(result));
+ try_axfr:
 		dns_message_destroy(&msg);
 		xfrin_reset(xfr);
 		xfr->reqtype = dns_rdatatype_soa;
@@ -1121,6 +1129,21 @@ xfrin_recv_done(isc_task_t *task, isc_event_t *ev) {
 		xfrin_start(xfr);
 		return;
 	}
+
+	/*
+	 * Does the server know about IXFR?  If it doesn't we will get
+	 * a message with a empty answer section or a potentially a CNAME /
+	 * DNAME, the later is handled by xfr_rr() which will return FORMERR
+	 * if the first RR in the answer section is not a SOA record.
+	 */
+	if (xfr->reqtype == dns_rdatatype_ixfr &&
+	    xfr->state == XFRST_INITIALSOA &&
+	    msg->counts[DNS_SECTION_ANSWER] == 0) {
+		xfrin_log(xfr, ISC_LOG_DEBUG(3),
+			  "empty answer section, retrying with AXFR");
+		goto try_axfr;
+	}
+
 
 	result = dns_message_checksig(msg, dns_zone_getview(xfr->zone));
 	if (result != ISC_R_SUCCESS) {

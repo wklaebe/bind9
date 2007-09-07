@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: client.c,v 1.169 2001/05/28 05:16:54 marka Exp $ */
+/* $Id: client.c,v 1.171 2001/06/05 09:02:10 marka Exp $ */
 
 #include <config.h>
 
@@ -97,9 +97,8 @@ struct ns_clientmgr {
 	client_list_t 			inactive;	/* To be recycled */
 };
 
-#define MANAGER_MAGIC			0x4E53436DU	/* NSCm */
-#define VALID_MANAGER(m)		((m) != NULL && \
-					 (m)->magic == MANAGER_MAGIC)
+#define MANAGER_MAGIC			ISC_MAGIC('N', 'S', 'C', 'm')
+#define VALID_MANAGER(m)		ISC_MAGIC_VALID(m, MANAGER_MAGIC)
 
 /*
  * Client object states.  Ordering is significant: higher-numbered
@@ -854,7 +853,8 @@ ns_client_send(ns_client_t *client) {
 	if (result != ISC_R_SUCCESS)
 		goto done;
 	result = dns_message_rendersection(client->message,
-					   DNS_SECTION_ANSWER, 0);
+					   DNS_SECTION_ANSWER,
+					   DNS_MESSAGERENDER_PARTIAL);
 	if (result == ISC_R_NOSPACE) {
 		client->message->flags |= DNS_MESSAGEFLAG_TC;
 		goto renderend;
@@ -862,7 +862,8 @@ ns_client_send(ns_client_t *client) {
 	if (result != ISC_R_SUCCESS)
 		goto done;
 	result = dns_message_rendersection(client->message,
-					   DNS_SECTION_AUTHORITY, 0);
+					   DNS_SECTION_AUTHORITY,
+					   DNS_MESSAGERENDER_PARTIAL);
 	if (result == ISC_R_NOSPACE) {
 		client->message->flags |= DNS_MESSAGEFLAG_TC;
 		goto renderend;

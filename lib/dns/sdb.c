@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: sdb.c,v 1.32 2001/05/29 18:34:24 bwelling Exp $ */
+/* $Id: sdb.c,v 1.34 2001/06/06 22:03:58 bwelling Exp $ */
 
 #include <config.h>
 
@@ -98,7 +98,12 @@ typedef struct sdb_rdatasetiter {
 	dns_rdatalist_t			*current;
 } sdb_rdatasetiter_t;
 
-#define SDB_MAGIC		0x5344422d	/* SDB- */
+#define SDB_MAGIC		ISC_MAGIC('S', 'D', 'B', '-')
+
+/*
+ * Note that "impmagic" is not the first four bytes of the struct, so
+ * ISC_MAGIC_VALID cannot be used.
+ */
 #define VALID_SDB(sdb)		((sdb) != NULL && \
 				 (sdb)->common.impmagic == SDB_MAGIC)
 

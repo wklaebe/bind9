@@ -1,9 +1,16 @@
 /*
- * Copyright (C) 2001 Jeff McNeil <jeffmcneil@mindspring.com>
+ * Copyright (C) 2001 Jeff McNeil <jeff@snapcase.g-rock.net>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
+ * 
+ * Change Log
+ *
+ * Tue May  1 19:19:54 EDT 2001 - Jeff McNeil
+ * Update to objectClass code, and add_to_rr_list function
+ * (I need to rename that) to support the dNSZone schema,
+ * ditched dNSDomain2 schema support. Version 0.3-ALPHA
  */
 
 #include <errno.h>
@@ -29,10 +36,16 @@
 
 #include <ldap.h>
 
-#define DNS_OBJECT 5
+#define DNS_OBJECT 6
 #define DNS_TOP	   2
 
-#define VERSION    "0.2-ALPHA"
+#define VERSION    "0.4-ALPHA"
+
+#define NO_SPEC 0 
+#define WI_SPEC  1
+
+/* Global Zone Pointer */
+char *gbl_zone = NULL;
 
 typedef struct LDAP_INFO
 {
@@ -62,7 +75,7 @@ char **hostname_to_dn_list (char *hostname, char *zone, unsigned int flags);
 int get_attr_list_size (char **tmp);
 
 /* Get a DN */
-char *build_dn_from_dc_list (char **dc_list, unsigned int ttl);
+char *build_dn_from_dc_list (char **dc_list, unsigned int ttl, int flag);
 
 /* Add to RR list */
 void add_to_rr_list (char *dn, char *name, char *type, char *data,
@@ -81,7 +94,7 @@ ldap_info *ldap_info_base = NULL;
 char *argzone, *ldapbase, *binddn, *bindpw = NULL;
 char *ldapsystem = "localhost";
 static char *objectClasses[] =
-  { "top", "domain", "dNSDomain", "dNSDomain2", NULL };
+  { "top", "dNSZone", NULL };
 static char *topObjectClasses[] = { "top", NULL };
 LDAP *conn;
 unsigned int debug = 0;
@@ -147,6 +160,8 @@ main (int *argc, char **argv)
 	  break;
 	case 'z':
 	  argzone = strdup (optarg);
+	  // We wipe argzone all to hell when we parse it for the DN */
+	  gbl_zone = strdup(argzone);
 	  break;
 	case 'f':
 	  zonefile = strdup (optarg);
@@ -250,7 +265,8 @@ main (int *argc, char **argv)
 	printf ("Creating base zone DN %s\n", argzone);
 
       dc_list = hostname_to_dn_list (argzone, argzone, DNS_TOP);
-      basedn = build_dn_from_dc_list (dc_list, 0);
+      basedn = build_dn_from_dc_list (dc_list, 0, NO_SPEC);
+
       for (ctmp = &basedn[strlen (basedn)]; ctmp >= &basedn[0]; ctmp--)
 	{
 	  if ((*ctmp == ',') || (ctmp == &basedn[0]))
@@ -312,7 +328,7 @@ isc_result_check (isc_result_t res, char *errorstr)
 {
   if (res != ISC_R_SUCCESS)
     {
-      fprintf (stderr, "%s: %s\n", errorstr, isc_result_totext (res));
+      fprintf (stderr, " %s: %s\n", errorstr, isc_result_totext (res));
       exit (-1);
     }
 }
@@ -350,7 +366,7 @@ generate_ldap (dns_name_t * dnsname, dns_rdata_t * rdata, unsigned int ttl)
 
   dc_list = hostname_to_dn_list (name, argzone, DNS_OBJECT);
   len = (get_attr_list_size (dc_list) - 2);
-  dn = build_dn_from_dc_list (dc_list, ttl);
+  dn = build_dn_from_dc_list (dc_list, ttl, WI_SPEC);
 
   if (debug)
     printf ("Adding %s (%s %s) to run queue list.\n", dn, type, data);
@@ -444,11 +460,13 @@ add_to_rr_list (char *dn, char *name, char *type,
 	  return;
 	}
 
-
-
       tmp->attrs[1]->mod_op = LDAP_MOD_ADD;
-      tmp->attrs[1]->mod_type = "dc";
+      tmp->attrs[1]->mod_type = "relativeDomainName";
       tmp->attrs[1]->mod_values = (char **) calloc (sizeof (char *), 2);
+
+      if (tmp->attrs[1]->mod_values == (char **)NULL)
+	       exit(-1);
+
       tmp->attrs[1]->mod_values[0] = strdup (name);
       tmp->attrs[1]->mod_values[2] = NULL;
 
@@ -457,18 +475,31 @@ add_to_rr_list (char *dn, char *name, char *type,
       tmp->attrs[2]->mod_op = LDAP_MOD_ADD;
       tmp->attrs[2]->mod_type = strdup (ldap_type_buffer);
       tmp->attrs[2]->mod_values = (char **) calloc (sizeof (char *), 2);
+
+       if (tmp->attrs[2]->mod_values == (char **)NULL)
+	       exit(-1);
+
       tmp->attrs[2]->mod_values[0] = strdup (data);
       tmp->attrs[2]->mod_values[1] = NULL;
 
       tmp->attrs[3]->mod_op = LDAP_MOD_ADD;
       tmp->attrs[3]->mod_type = "dNSTTL";
       tmp->attrs[3]->mod_values = (char **) calloc (sizeof (char *), 2);
+
+      if (tmp->attrs[3]->mod_values == (char **)NULL)
+	      exit(-1);
+
       sprintf (charttl, "%d", ttl);
       tmp->attrs[3]->mod_values[0] = strdup (charttl);
       tmp->attrs[3]->mod_values[1] = NULL;
 
+      tmp->attrs[4]->mod_op = LDAP_MOD_ADD;
+      tmp->attrs[4]->mod_type = "zoneName";
+      tmp->attrs[4]->mod_values = (char **)calloc(sizeof(char *), 2);
+      tmp->attrs[4]->mod_values[0] = gbl_zone;
+      tmp->attrs[4]->mod_values[1] = NULL;
 
-      tmp->attrs[4] = NULL;
+      tmp->attrs[5] = NULL;
       tmp->attrcnt = flags;
       tmp->next = ldap_info_base;
       ldap_info_base = tmp;
@@ -590,7 +621,7 @@ hostname_to_dn_list (char *hostname, char *zone, unsigned int flags)
  * exception of "@"/SOA. */
 
 char *
-build_dn_from_dc_list (char **dc_list, unsigned int ttl)
+build_dn_from_dc_list (char **dc_list, unsigned int ttl, int flag)
 {
   int size;
   int x;
@@ -602,10 +633,20 @@ build_dn_from_dc_list (char **dc_list, unsigned int ttl)
   size = get_attr_list_size (dc_list);
   for (x = size - 2; x > 0; x--)
     {
-      if (x == (size - 2) && (strncmp (dc_list[x], "@", 1)) && (ttl))
-	sprintf (tmp, "dc=%s + dNSTTL=%d,", dc_list[x], ttl);
+    if (flag == WI_SPEC)
+    {
+      if (x == (size - 2) && (strncmp (dc_list[x], "@", 1) == 0) && (ttl))
+	sprintf (tmp, "relativeDomainName=%s + dNSTTL=%d,", dc_list[x], ttl);
+      else if (x == (size - 2))
+	      sprintf(tmp, "relativeDomainName=%s,",dc_list[x]);
       else
-	sprintf (tmp, "dc=%s,", dc_list[x]);
+	      sprintf(tmp,"dc=%s,", dc_list[x]);
+    }
+    else
+    {
+	    sprintf(tmp, "dc=%s,", dc_list[x]);
+    }
+
 
       strncat (dn, tmp, sizeof (dn) - strlen (dn));
     }
@@ -613,6 +654,7 @@ build_dn_from_dc_list (char **dc_list, unsigned int ttl)
   sprintf (tmp, "dc=%s", dc_list[0]);
   strncat (dn, tmp, sizeof (dn) - strlen (dn));
 
+	    fflush(NULL);
   return dn;
 }
 
@@ -640,6 +682,8 @@ ldap_result_check (char *msg, char *dn, int err)
 {
   if ((err != LDAP_SUCCESS) && (err != LDAP_ALREADY_EXISTS))
     {
+      fprintf(stderr, "Error while adding %s (%s):\n",
+		      dn, msg);
       ldap_perror (conn, dn);
       ldap_unbind_s (conn);
       exit (-1);

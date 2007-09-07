@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: mem.c,v 1.90 2001/02/20 22:03:36 gson Exp $ */
+/* $Id: mem.c,v 1.93 2001/06/11 20:27:16 gson Exp $ */
 
 #include <config.h>
 
@@ -25,6 +25,7 @@
 
 #include <limits.h>
 
+#include <isc/magic.h>
 #include <isc/mem.h>
 #include <isc/msgs.h>
 #include <isc/ondestroy.h>
@@ -100,8 +101,8 @@ struct stats {
 #endif /* ISC_MEM_USE_INTERNAL_MALLOC */
 };
 
-#define MEM_MAGIC		0x4D656d43U	/* MemC. */
-#define VALID_CONTEXT(c)	((c) != NULL && (c)->magic == MEM_MAGIC)
+#define MEM_MAGIC		ISC_MAGIC('M', 'e', 'm', 'C')
+#define VALID_CONTEXT(c)	ISC_MAGIC_VALID(c, MEM_MAGIC)
 
 struct isc_mem {
 	unsigned int		magic;
@@ -138,10 +139,12 @@ struct isc_mem {
 #if ISC_MEM_TRACKLINES
 	ISC_LIST(debuglink_t)	debuglist;
 #endif
+
+	unsigned int		memalloc_failures;
 };
 
-#define MEMPOOL_MAGIC		0x4D454d70U	/* MEMp. */
-#define VALID_MEMPOOL(c)	((c) != NULL && (c)->magic == MEMPOOL_MAGIC)
+#define MEMPOOL_MAGIC		ISC_MAGIC('M', 'E', 'M', 'p')
+#define VALID_MEMPOOL(c)	ISC_MAGIC_VALID(c, MEMPOOL_MAGIC)
 
 struct isc_mempool {
 	/* always unlocked */
@@ -330,8 +333,10 @@ more_basic_blocks(isc_mem_t *ctx) {
 		table_size = ctx->basic_table_size + TABLE_INCREMENT;
 		table = (ctx->memalloc)(ctx->arg,
 					table_size * sizeof (unsigned char *));
-		if (table == NULL)
+		if (table == NULL) {
+			ctx->memalloc_failures++;
 			return (ISC_FALSE);
+		}
 		if (ctx->basic_table_size != 0) {
 			memcpy(table, ctx->basic_table,
 			       ctx->basic_table_size *
@@ -343,8 +348,10 @@ more_basic_blocks(isc_mem_t *ctx) {
 	}
 
 	new = (ctx->memalloc)(ctx->arg, NUM_BASIC_BLOCKS * ctx->mem_target);
-	if (new == NULL)
+	if (new == NULL) {
+		ctx->memalloc_failures++;
 		return (ISC_FALSE);
+	}
 	ctx->total += increment;
 	ctx->basic_table[ctx->basic_table_count] = new;
 	ctx->basic_table_count++;
@@ -448,19 +455,20 @@ mem_getunlocked(isc_mem_t *ctx, size_t size) {
 			goto done;
 		}
 		ret = (ctx->memalloc)(ctx->arg, size);
-		if (ret != NULL) {
-			ctx->total += size;
-			ctx->inuse += size;
-			ctx->stats[ctx->max_size].gets++;
-			ctx->stats[ctx->max_size].totalgets++;
-			/*
-			 * If we don't set new_size to size, then the
-			 * ISC_MEM_FILL code might write over bytes we
-			 * don't own.
-			 */
-			new_size = size;
+		if (ret == NULL) {
+			ctx->memalloc_failures++;
+			goto done;
 		}
-		goto done;
+		ctx->total += size;
+		ctx->inuse += size;
+		ctx->stats[ctx->max_size].gets++;
+		ctx->stats[ctx->max_size].totalgets++;
+		/*
+		 * If we don't set new_size to size, then the
+		 * ISC_MEM_FILL code might write over bytes we
+		 * don't own.
+		 */
+		new_size = size;
 	}
 
 	/*
@@ -572,6 +580,8 @@ mem_get(isc_mem_t *ctx, size_t size) {
 #endif
 
 	ret = (ctx->memalloc)(ctx->arg, size);
+	if (ret == NULL)
+		ctx->memalloc_failures++;	
 
 #if ISC_MEM_FILL
 	if (ret != NULL)
@@ -748,6 +758,8 @@ isc_mem_createx(size_t init_max_size, size_t target_size,
 #if ISC_MEM_TRACKLINES
 	ISC_LIST_INIT(ctx->debuglist);
 #endif
+
+	ctx->memalloc_failures = 0;
 
 	*ctxp = ctx;
 	return (ISC_R_SUCCESS);
@@ -1000,9 +1012,18 @@ isc__mem_put(isc_mem_t *ctx, void *ptr, size_t size FLARG)
 #endif /* ISC_MEM_USE_INTERNAL_MALLOC */
 
 	DELETE_TRACE(ctx, ptr, size, file, line);
-	if (ctx->hi_called && ctx->inuse < ctx->lo_water) {
+
+	/*
+	 * The check against ctx->lo_water == 0 is for the condition
+	 * when the context was pushed over hi_water but then had
+	 * isc_mem_setwater() called with 0 for hi_water and lo_water.
+	 */
+	if (ctx->hi_called && 
+	    (ctx->inuse < ctx->lo_water || ctx->lo_water == 0)) {
 		ctx->hi_called = ISC_FALSE;
-		call_water = ISC_TRUE;
+
+		if (ctx->water != NULL)
+			call_water = ISC_TRUE;
 	}
 	UNLOCK(&ctx->lock);
 
@@ -1271,12 +1292,7 @@ isc_mem_setwater(isc_mem_t *ctx, isc_mem_water_t water, void *water_arg,
                  size_t hiwater, size_t lowater)
 {
 	REQUIRE(VALID_CONTEXT(ctx));
-
-	if (water != NULL) {
-		REQUIRE(hiwater > lowater);
-		REQUIRE(hiwater > 0);
-		REQUIRE(lowater > 0);
-	}
+	REQUIRE(hiwater >= lowater);
 
 	LOCK(&ctx->lock);
 	if (water == NULL) {

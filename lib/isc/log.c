@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: log.c,v 1.64 2001/05/29 22:35:54 bwelling Exp $ */
+/* $Id: log.c,v 1.67 2001/06/10 17:06:45 tale Exp $ */
 
 /* Principal Authors: DCL */
 
@@ -40,9 +40,10 @@
 #include <isc/time.h>
 #include <isc/util.h>
 
-#define LCTX_MAGIC		0x4C637478U	/* Lctx. */
+#define LCTX_MAGIC		ISC_MAGIC('L', 'c', 't', 'x')
 #define VALID_CONTEXT(lctx)	ISC_MAGIC_VALID(lctx, LCTX_MAGIC)
-#define LCFG_MAGIC		0x4C636667U	/* Lcfg. */
+
+#define LCFG_MAGIC		ISC_MAGIC('L', 'c', 'f', 'g')
 #define VALID_CONFIG(lcfg)	ISC_MAGIC_VALID(lcfg, LCFG_MAGIC)
 
 /*
@@ -338,7 +339,7 @@ isc_logconfig_create(isc_log_t *lctx, isc_logconfig_t **lcfgp) {
 		lcfg->magic = LCFG_MAGIC;
 
 	} else
-		return (ISC_R_NOMEMORY);
+		result = ISC_R_NOMEMORY;
 
 	/*
 	 * Create the default channels:
@@ -363,13 +364,14 @@ isc_logconfig_create(isc_log_t *lctx, isc_logconfig_t **lcfgp) {
 					       ISC_LOG_PRINTTIME);
 	}
 
-	/*
-	 * Set the default category's channel to default_stderr, which
-	 * is at the head of the channels list because it was just created.
-	 */
-	default_channel.channel = ISC_LIST_HEAD(lcfg->channels);
-
 	if (result == ISC_R_SUCCESS) {
+		/*
+		 * Set the default category's channel to default_stderr,
+		 * which is at the head of the channels list because it was
+		 * just created.
+		 */
+		default_channel.channel = ISC_LIST_HEAD(lcfg->channels);
+
 		destination.file.stream = stderr;
 		destination.file.name = NULL;
 		destination.file.versions = ISC_LOG_ROLLNEVER;
@@ -930,9 +932,24 @@ isc_log_setcontext(isc_log_t *lctx) {
 
 void
 isc_log_setdebuglevel(isc_log_t *lctx, unsigned int level) {
+	isc_logchannel_t *channel;
+
 	REQUIRE(VALID_CONTEXT(lctx));
 
 	lctx->debug_level = level;
+	/*
+	 * Close ISC_LOG_DEBUGONLY channels if level is zero.
+	 */
+	if (lctx->debug_level == 0)
+		for (channel = ISC_LIST_HEAD(lctx->logconfig->channels);
+		     channel != NULL;
+		     channel = ISC_LIST_NEXT(channel, link))
+			if (channel->type == ISC_LOG_TOFILE &&
+			    (channel->flags & ISC_LOG_DEBUGONLY) != 0 &&
+			    FILE_STREAM(channel) != NULL) {
+				(void)fclose(FILE_STREAM(channel));
+				FILE_STREAM(channel) = NULL;
+			}
 }
 
 unsigned int

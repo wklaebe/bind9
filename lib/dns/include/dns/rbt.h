@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rbt.h,v 1.53 2001/03/08 01:08:39 tale Exp $ */
+/* $Id: rbt.h,v 1.55 2001/06/01 03:07:54 halley Exp $ */
 
 #ifndef DNS_RBT_H
 #define DNS_RBT_H 1

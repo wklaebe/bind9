@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: zonekey.h,v 1.2.2.1 2001/06/01 01:10:03 bwelling Exp $ */
+/* $Id: zonekey.h,v 1.3 2001/06/01 01:09:10 bwelling Exp $ */
 
 #ifndef DNS_ZONEKEY_H
 #define DNS_ZONEKEY_H 1

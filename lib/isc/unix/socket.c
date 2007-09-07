@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: socket.c,v 1.200 2001/05/14 23:58:33 gson Exp $ */
+/* $Id: socket.c,v 1.202 2001/06/07 00:21:53 bwelling Exp $ */
 
 #include <config.h>
 
@@ -99,8 +99,8 @@
 
 typedef isc_event_t intev_t;
 
-#define SOCKET_MAGIC		0x494f696fU	/* IOio */
-#define VALID_SOCKET(t)		((t) != NULL && (t)->magic == SOCKET_MAGIC)
+#define SOCKET_MAGIC		ISC_MAGIC('I', 'O', 'i', 'o')
+#define VALID_SOCKET(t)		ISC_MAGIC_VALID(t, SOCKET_MAGIC)
 
 /*
  * IPv6 control information.  If the socket is an IPv6 socket we want
@@ -199,9 +199,9 @@ struct isc_socket {
 #endif
 };
 
-#define SOCKET_MANAGER_MAGIC	0x494f6d67U	/* IOmg */
-#define VALID_MANAGER(m)	((m) != NULL && \
-				 (m)->magic == SOCKET_MANAGER_MAGIC)
+#define SOCKET_MANAGER_MAGIC	ISC_MAGIC('I', 'O', 'm', 'g')
+#define VALID_MANAGER(m)	ISC_MAGIC_VALID(m, SOCKET_MANAGER_MAGIC)
+
 struct isc_socketmgr {
 	/* Not locked. */
 	unsigned int		magic;
@@ -888,7 +888,8 @@ doio_recv(isc_socket_t *sock, isc_socketevent_t *dev) {
 				   isc_msgcat, ISC_MSGSET_SOCKET,
 				   ISC_MSG_DOIORECV, 
 				  "doio_recv: recvmsg(%d) %d bytes, err %d/%s",
-				   sock->fd, cc, recv_errno, strerror(recv_errno));
+				   sock->fd, cc, recv_errno,
+				   strerror(recv_errno));
 
 #define SOFT_OR_HARD(_system, _isc) \
 	if (recv_errno == _system) { \
@@ -1013,24 +1014,26 @@ doio_send(isc_socket_t *sock, isc_socketevent_t *dev) {
 	char *cmsg = NULL;
 #endif
 	int attempts = 0;
+	int send_errno;
 
 	build_msghdr_send(sock, dev, &msghdr, cmsg, iov, &write_count);
 
  resend:
 	cc = sendmsg(sock->fd, &msghdr, 0);
+	send_errno = errno;
 
 	/*
 	 * Check for error or block condition.
 	 */
 	if (cc < 0) {
-		if (errno == EINTR && ++attempts < NRETRIES)
+		if (send_errno == EINTR && ++attempts < NRETRIES)
 			goto resend;
 
-		if (SOFT_ERROR(errno))
+		if (SOFT_ERROR(send_errno))
 			return (DOIO_SOFT);
 
 #define SOFT_OR_HARD(_system, _isc) \
-	if (errno == _system) { \
+	if (send_errno == _system) { \
 		if (sock->connected) { \
 			dev->result = _isc; \
 			return (DOIO_HARD); \
@@ -1038,7 +1041,7 @@ doio_send(isc_socket_t *sock, isc_socketevent_t *dev) {
 		return (DOIO_SOFT); \
 	}
 #define ALWAYS_HARD(_system, _isc) \
-	if (errno == _system) { \
+	if (send_errno == _system) { \
 		dev->result = _isc; \
 		return (DOIO_HARD); \
 	}
@@ -1071,8 +1074,8 @@ doio_send(isc_socket_t *sock, isc_socketevent_t *dev) {
 		isc_sockaddr_format(&dev->address, addrbuf, sizeof(addrbuf));
 		UNEXPECTED_ERROR(__FILE__, __LINE__,
 				 "internal_send: %s: %s",
-				 addrbuf, strerror(errno));
-		dev->result = ISC_R_UNEXPECTED;
+				 addrbuf, strerror(send_errno));
+		dev->result = isc__errno2result(send_errno);
 		return (DOIO_HARD);
 	}
 

@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: file.h,v 1.20 2001/06/08 21:53:48 tale Exp $ */
+/* $Id: file.h,v 1.24 2001/07/16 18:33:00 gson Exp $ */
 
 #ifndef ISC_FILE_H
 #define ISC_FILE_H 1
@@ -185,6 +185,13 @@ isc_file_iscurrentdir(const char *filename);
  * Return ISC_TRUE iff the given file name is the current directory (".").
  */
 
+isc_boolean_t
+isc_file_ischdiridempotent(const char *filename);
+/*
+ * Return ISC_TRUE if calling chdir(filename) multiple times will give
+ * the same result as calling it once.
+ */
+
 const char *
 isc_file_basename(const char *filename);
 /*
@@ -220,6 +227,12 @@ isc_result_t
 isc_file_renameunique(const char *file, char *templet);
 /*
  * Rename 'file' using 'templet' as a template for the new file name.
+ */
+
+isc_result_t
+isc_file_absolutepath(const char *filename, char *path, size_t pathlen);
+/*
+ * Given a file name, return the fully qualified path to the file.
  */
 
 /*

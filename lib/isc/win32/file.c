@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2000  Internet Software Consortium.
+ * Copyright (C) 2000, 2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: file.c,v 1.15 2001/07/12 05:58:26 mayer Exp $ */
+/* $Id: file.c,v 1.20 2001/07/17 20:29:26 gson Exp $ */
 
 #include <config.h>
 
@@ -389,9 +389,9 @@ isc_file_isabsolute(const char *filename) {
 	 */
 	if ((filename[0] == '\\') && (filename[1] == '\\'))
 		return (ISC_TRUE);
-	if (isalpha(filename[0]) != 0 && filename[1] == ':' && filename[2] == '\\')
+	if (isalpha(filename[0]) && filename[1] == ':' && filename[2] == '\\')
 		return (ISC_TRUE);
-	if (isalpha(filename[0]) != 0 && filename[1] == ':' && filename[2] == '/')
+	if (isalpha(filename[0]) && filename[1] == ':' && filename[2] == '/')
 		return (ISC_TRUE);
 	return (ISC_FALSE);
 }
@@ -400,6 +400,21 @@ isc_boolean_t
 isc_file_iscurrentdir(const char *filename) {
 	REQUIRE(filename != NULL);
 	return (ISC_TF(filename[0] == '.' && filename[1] == '\0'));
+}
+
+isc_boolean_t
+isc_file_ischdiridempotent(const char *filename) {
+	REQUIRE(filename != NULL);
+
+	if (isc_file_isabsolute(filename))
+		return (ISC_TRUE);
+	if (filename[0] == '\\')
+		return (ISC_TRUE);
+	if (filename[0] == '/')
+		return (ISC_TRUE);
+	if (isc_file_iscurrentdir(filename))
+		return (ISC_TRUE);
+	return (ISC_FALSE);
 }
 
 const char *
@@ -452,5 +467,24 @@ isc_file_progname(const char *filename, char *progname, size_t namelen) {
 
 	strncpy(progname, s, len);
 	progname[len] = '\0';
+	return (ISC_R_SUCCESS);
+}
+
+isc_result_t
+isc_file_absolutepath(const char *filename, char *path, size_t pathlen) {
+	char *ptrname;
+	DWORD retval;
+
+	REQUIRE(filename != NULL);
+	REQUIRE(path != NULL);
+
+	retval = GetFullPathName(filename, pathlen, path, &ptrname);
+
+	/* Something went wrong in getting the path */
+	if (retval == 0)
+		return (ISC_R_NOTFOUND);
+	/* Caller needs to provide a larger buffer to contain the string */
+	if (retval >= pathlen)
+		return (ISC_R_NOSPACE);
 	return (ISC_R_SUCCESS);
 }

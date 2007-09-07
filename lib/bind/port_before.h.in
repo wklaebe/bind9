@@ -35,6 +35,7 @@ struct timezone;        /* silence warning */
 @NET_R_OK@
 @NET_R_RETURN@
 @NET_R_SET_RESULT@
+@NET_R_SETANSWER@
 @NET_R_SET_RETURN@
 
 @GROUP_R_RETURN@
@@ -57,6 +58,7 @@ struct timezone;        /* silence warning */
 @HOST_R_ERRNO@
 @HOST_R_OK@
 @HOST_R_RETURN@
+@HOST_R_SETANSWER@
 @HOST_R_SET_RESULT@
 @HOST_R_SET_RETURN@
 @HOSTENT_DATA@
@@ -82,6 +84,7 @@ struct timezone;        /* silence warning */
 @PROTO_R_END_RETURN@
 @PROTO_R_ENT_ARGS@
 @PROTO_R_OK@
+@PROTO_R_SETANSWER@
 @PROTO_R_RETURN@
 @PROTO_R_SET_RESULT@
 @PROTO_R_SET_RETURN@
@@ -106,6 +109,7 @@ struct timezone;        /* silence warning */
 @SERV_R_END_RETURN@
 @SERV_R_ENT_ARGS@
 @SERV_R_OK@
+@SERV_R_SETANSWER@
 @SERV_R_RETURN@
 @SERV_R_SET_RESULT@
 @SERV_R_SET_RETURN@

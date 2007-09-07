@@ -1,4 +1,9 @@
 
+	--- 9.0.1 released ---
+
+ 547.	[bug]		dnssafe doesn't correctly handle RSA keys longer
+			than 2000 bits.  Disable support for long keys.
+
 	--- 9.0.1rc2 released ---
 
  527.	[bug]		When a hint zone was configured, the spurious warning

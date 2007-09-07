@@ -1,4 +1,21 @@
 
+	--- 9.3.3rc2 released ---
+
+2081.	[port]		libbind: minor 64-bit portability fix in memcluster.c.
+			[RT #16360]
+
+2080.	[port]		libbind: res_init.c did not compile on older versions
+			of Solaris. [RT #16363]
+
+2076.	[bug]		Several files were missing #include <config.h>
+			causing build failures on OSF. [RT #16341]
+
+2074.	[bug]		dns_request_createvia2(), dns_request_createvia3(),
+			dns_request_createraw2() and dns_request_createraw3()
+			failed to send multiple UDP requests. [RT #16349]
+
+2066.	[security]	Handle SIG queries gracefully. [RT #16300]
+
 	--- 9.3.3rc1 released ---
 
 2071.	[port]		Test whether gcc accepts -fno-strict-aliasing.

@@ -1,4 +1,22 @@
 
+	--- 9.3.3 released ---
+
+2107.	[bug]		dighost.c: more cleanup of buffers. [RT #16499]
+
+2104.	[port]		Fix Solaris SMF error message.
+
+2103.	[port]		Add /usr/sfw to list of locations for OpenSSL
+			under Solaris.
+
+2102.	[port]		Silence solaris 10 warnings.
+
+2101.	[bug]		OpenSSL version checks were not quite right.
+			[RT #16476]
+
+2100.	[port]		win32: copy libeay32.dll to Build\Debug.
+
+2099.	[port]		win32: more manifiest issues.
+
 	--- 9.3.3rc3 released ---
 
 2096.	[bug]		libbind: handle applications that fail to detect

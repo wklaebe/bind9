@@ -1,4 +1,18 @@
 
+	--- 9.4.0rc2 released ---
+
+2127.	[port]		Improved OpenSSL 0.9.8 support. [RT #16563]
+
+2126.	[security]	Serialise validation of type ANY responses. [RT #16555]
+
+2125.	[bug]		dns_zone_getzeronosoattl() REQUIRE failure if DLZ
+			was defined. [RT #16574]
+
+2124.	[security]	It was possible to dereference a freed fetch
+			context. [RT #16584]
+
+2120.	[doc]		Fix markup on nsupdate man page. [RT #16556]
+
 	--- 9.4.0rc1 released ---
 
 2118.	[bug]		Handle response with long chains of domain name

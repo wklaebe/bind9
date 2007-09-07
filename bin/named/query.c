@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: query.c,v 1.257.18.34 2006/12/07 04:38:39 marka Exp $ */
+/* $Id: query.c,v 1.257.18.36 2007/01/08 02:41:59 marka Exp $ */
 
 /*! \file */
 
@@ -3877,6 +3877,9 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype)
 		 * resolver and not have it cached.
 		 */
 		if (qtype == dns_rdatatype_soa &&
+#ifdef DLZ
+		    zone != NULL &&
+#endif
 		    dns_zone_getzeronosoattl(zone))
 			result = query_addsoa(client, db, version, ISC_TRUE);
 		else

@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: message.c,v 1.191 2001/06/05 09:02:11 marka Exp $ */
+/* $Id: message.c,v 1.194 2001/07/10 20:09:24 gson Exp $ */
 
 /***
  *** Imports
@@ -993,11 +993,10 @@ getquestions(isc_buffer_t *source, dns_message_t *msg, dns_decompress_t *dctx,
 		 * need this name pointer.
 		 */
 		if (result != ISC_R_SUCCESS) {
-			if (ISC_LIST_EMPTY(*section)) {
-				ISC_LIST_APPEND(*section, name, link);
-				free_name = ISC_FALSE;
-			} else
+			if (!ISC_LIST_EMPTY(*section))
 				DO_FORMERR;
+			ISC_LIST_APPEND(*section, name, link);
+			free_name = ISC_FALSE;
 		} else {
 			isc_mempool_put(msg->namepool, name);
 			name = name2;
@@ -1438,8 +1437,8 @@ getsection(isc_buffer_t *source, dns_message_t *msg, dns_decompress_t *dctx,
 			rdataset = NULL;
 			free_rdataset = ISC_FALSE;
 			ercode = (dns_rcode_t)
-				 (msg->opt->ttl & DNS_MESSAGE_EDNSRCODE_MASK)
-				 >> 20;
+				((msg->opt->ttl & DNS_MESSAGE_EDNSRCODE_MASK)
+				 >> 20);
 			msg->rcode |= ercode;
 			isc_mempool_put(msg->namepool, name);
 			free_name = ISC_FALSE;
@@ -2683,8 +2682,7 @@ dns_message_signer(dns_message_t *msg, dns_name_t *signer) {
 			result = DNS_R_SIGINVALID;
 		dns_name_clone(&sig.signer, signer);
 		dns_rdata_freestruct(&sig);
-	}
-	else {
+	} else {
 		dns_name_t *identity;
 		dns_rdata_any_tsig_t tsig;
 

@@ -15,7 +15,18 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: time.c,v 1.20 2001/01/09 21:58:56 bwelling Exp $ */
+/* $Id: time.c,v 1.23 2001/07/09 21:06:22 gson Exp $ */
+
+/*
+ * Windows has a different epoch than Unix. Therefore this code sets the epoch
+ * value to the Unix epoch. Care should be used when using these routines to
+ * ensure that this difference is taken into account.  System and File times
+ * may require adjusting for this when modifying any time value that needs
+ * to be an absolute Windows time.
+ *
+ * Currently only epoch-specific code and the isc_time_seconds
+ * and isc_time_secondsastimet use the epoch-adjusted code.
+ */
 
 #include <config.h>
 
@@ -30,6 +41,7 @@
 
 #include <isc/assertions.h>
 #include <isc/time.h>
+#include <isc/util.h>
 
 /*
  * struct FILETIME uses "100-nanoseconds intervals".
@@ -40,46 +52,7 @@
 #define NS_PER_S 	1000000000
 #define NS_INTERVAL	100
 #define INTERVALS_PER_S (NS_PER_S / NS_INTERVAL)
-#define UINT64_MAX	0xffffffffffffffffui64
-
-/***
- *** Intervals
- ***/
-
-static isc_interval_t zero_interval = { 0 };
-isc_interval_t *isc_interval_zero = &zero_interval;
-
-void
-isc_interval_set(isc_interval_t *i,
-		 unsigned int seconds, unsigned int nanoseconds) {
-
-	/*
-	 * Set 'i' to a value representing an interval of 'seconds' seconds
-	 * and 'nanoseconds' nanoseconds, suitable for use in isc_time_add()
-	 * and isc_time_subtract().
-	 */
-
-	REQUIRE(i != NULL);
-	REQUIRE(nanoseconds < 1000000000);
-
-	i->interval = (LONGLONG)seconds * INTERVALS_PER_S
-		+ nanoseconds / NS_INTERVAL;
-}
-
-isc_boolean_t
-isc_interval_iszero(isc_interval_t *i) {
-
-	/*
-	 * Returns ISC_TRUE iff. 'i' is the zero interval.
-	 */
-
-	REQUIRE(i != NULL);
-	if (i->interval == 0)
-		return (ISC_TRUE);
-
-	return (ISC_FALSE);
-}
-
+#define UINT64_MAX	_UI64_MAX
 
 /***
  *** Absolute Times
@@ -89,15 +62,48 @@ static isc_time_t epoch = { 0, 0 };
 isc_time_t *isc_time_epoch = &epoch;
 
 void
+TimetToFileTime(time_t t, LPFILETIME pft) {
+	LONGLONG i;
+
+	i = Int32x32To64(t, 10000000) + 116444736000000000;
+	pft->dwLowDateTime = (DWORD) i;
+	pft->dwHighDateTime = (DWORD) (i >>32);
+}
+
+/***
+ *** Intervals
+ ***/
+
+static isc_interval_t zero_interval = { 0 };
+isc_interval_t *isc_interval_zero = &zero_interval;
+
+void
+isc_interval_set(isc_interval_t *i, unsigned int seconds,
+		 unsigned int nanoseconds)
+{
+	REQUIRE(i != NULL);
+	REQUIRE(nanoseconds < NS_PER_S);
+
+	i->interval = (LONGLONG)seconds * INTERVALS_PER_S
+		+ nanoseconds / NS_INTERVAL;
+}
+
+isc_boolean_t
+isc_interval_iszero(isc_interval_t *i) {
+	REQUIRE(i != NULL);
+	if (i->interval == 0)
+		return (ISC_TRUE);
+
+	return (ISC_FALSE);
+}
+
+
+void
 isc_time_set(isc_time_t *t, unsigned int seconds, unsigned int nanoseconds) {
 	ULARGE_INTEGER i;
 
-	/*
-	 * Set 't' to a particular number of seconds + nanoseconds since the
-	 * epoch.
-	 */
 	REQUIRE(t != NULL);
-	REQUIRE(nanoseconds < 1000000000);
+	REQUIRE(nanoseconds < NS_PER_S);
 
 	i.QuadPart = (LONGLONG)seconds * INTERVALS_PER_S
 		+ nanoseconds / NS_INTERVAL;
@@ -108,27 +114,24 @@ isc_time_set(isc_time_t *t, unsigned int seconds, unsigned int nanoseconds) {
 }
 
 void
-isc_time_settoepoch(isc_time_t *t) {
-	/*
-	 * Set 't' to the time of the epoch.
-	 */
+isc_time_initepoch() {
+	TimetToFileTime(0, &epoch.absolute);
+}
 
+void
+isc_time_settoepoch(isc_time_t *t) {
 	REQUIRE(t != NULL);
 
-	t->absolute.dwLowDateTime = 0;
-	t->absolute.dwHighDateTime = 0;
+	t->absolute.dwLowDateTime = epoch.absolute.dwLowDateTime;
+	t->absolute.dwHighDateTime = epoch.absolute.dwHighDateTime;
 }
 
 isc_boolean_t
 isc_time_isepoch(isc_time_t *t) {
-	/*
-	 * Returns ISC_TRUE iff. 't' is the epoch ("time zero").
-	 */
-
 	REQUIRE(t != NULL);
 
-	if (t->absolute.dwLowDateTime == 0 &&
-	    t->absolute.dwHighDateTime == 0)
+	if (t->absolute.dwLowDateTime == epoch.absolute.dwLowDateTime &&
+	    t->absolute.dwHighDateTime == epoch.absolute.dwHighDateTime)
 		return (ISC_TRUE);
 
 	return (ISC_FALSE);
@@ -136,24 +139,19 @@ isc_time_isepoch(isc_time_t *t) {
 
 isc_result_t
 isc_time_now(isc_time_t *t) {
-	/*
-	 * Set *t to the current absolute time.
-	 */
+	char dtime[10];
 
 	REQUIRE(t != NULL);
 
 	GetSystemTimeAsFileTime(&t->absolute);
 
+	_strtime(dtime);
 	return (ISC_R_SUCCESS);
 }
 
 isc_result_t
 isc_time_nowplusinterval(isc_time_t *t, isc_interval_t *i) {
 	ULARGE_INTEGER i1;
-
-	/*
-	 * Set *t to the current absolute time + i.
-	 */
 
 	REQUIRE(t != NULL);
 	REQUIRE(i != NULL);
@@ -163,7 +161,7 @@ isc_time_nowplusinterval(isc_time_t *t, isc_interval_t *i) {
 	i1.LowPart = t->absolute.dwLowDateTime;
 	i1.HighPart = t->absolute.dwHighDateTime;
 
-	if (UINT64_MAX - i1.QuadPart < i->interval)
+	if (UINT64_MAX - i1.QuadPart < (unsigned __int64)i->interval)
 		return (ISC_R_RANGE);
 
 	i1.QuadPart += i->interval;
@@ -176,10 +174,6 @@ isc_time_nowplusinterval(isc_time_t *t, isc_interval_t *i) {
 
 int
 isc_time_compare(isc_time_t *t1, isc_time_t *t2) {
-	/*
-	 * Compare the times referenced by 't1' and 't2'
-	 */
-
 	REQUIRE(t1 != NULL && t2 != NULL);
 
 	return ((int)CompareFileTime(&t1->absolute, &t2->absolute));
@@ -189,16 +183,12 @@ isc_result_t
 isc_time_add(isc_time_t *t, isc_interval_t *i, isc_time_t *result) {
 	ULARGE_INTEGER i1;
 
-	/*
-	 * Add 't' to 'i', storing the result in 'result'.
-	 */
-
 	REQUIRE(t != NULL && i != NULL && result != NULL);
 
 	i1.LowPart = t->absolute.dwLowDateTime;
 	i1.HighPart = t->absolute.dwHighDateTime;
 
-	if (UINT64_MAX - i1.QuadPart < i->interval)
+	if (UINT64_MAX - i1.QuadPart < (unsigned __int64)i->interval)
 		return (ISC_R_RANGE);
 
 	i1.QuadPart += i->interval;
@@ -213,22 +203,20 @@ isc_result_t
 isc_time_subtract(isc_time_t *t, isc_interval_t *i, isc_time_t *result) {
 	ULARGE_INTEGER i1;
 
-	/*
-	 * Subtract 'i' from 't', storing the result in 'result'.
-	 */
-
 	REQUIRE(t != NULL && i != NULL && result != NULL);
 
 	i1.LowPart = t->absolute.dwLowDateTime;
 	i1.HighPart = t->absolute.dwHighDateTime;
 
-	if (i.QuadPart < i->interval)
+	if (i1.QuadPart < (unsigned __int64) i->interval)
 		return (ISC_R_RANGE);
 
 	i1.QuadPart -= i->interval;
 
 	result->absolute.dwLowDateTime = i1.LowPart;
 	result->absolute.dwHighDateTime = i1.HighPart;
+
+	return (ISC_R_SUCCESS);
 }
 
 isc_uint64_t
@@ -254,16 +242,21 @@ isc_time_microdiff(isc_time_t *t1, isc_time_t *t2) {
 	return (i3);
 }
 
+/*
+ * Note that the value returned is the seconds relative to the Unix
+ * epoch rather than the seconds since Windows epoch.  This is for
+ * compatibility with the Unix side.
+ */
 isc_uint32_t
 isc_time_seconds(isc_time_t *t) {
 	ULARGE_INTEGER i;
 
 	REQUIRE(t != NULL);
 
-	i.LowPart = t->absolute.dwLowDateTime;
-	i.HighPart = t->absolute.dwHighDateTime;
-
-	INSIST(i.QuadPart / INTERVALS_PER_S <= (isc_uint32_t)-1);
+	i.LowPart = t->absolute.dwLowDateTime -
+		epoch.absolute.dwLowDateTime;
+	i.HighPart = t->absolute.dwHighDateTime -
+		epoch.absolute.dwHighDateTime;
 
 	return ((isc_uint32_t)(i.QuadPart / INTERVALS_PER_S));
 }
@@ -277,6 +270,14 @@ isc_time_secondsastimet(isc_time_t *t, time_t *secondsp) {
 
 	i1.LowPart = t->absolute.dwLowDateTime;
 	i1.HighPart = t->absolute.dwHighDateTime;
+
+	/* 
+	 * Get the time_t zero equivalent in FILETIME
+	 * The zero point for FILETIME is 1 January, 1601
+	 * while for timet it is 1 January, 1970
+	 */
+	i1.LowPart -= epoch.absolute.dwLowDateTime;
+	i1.HighPart -= epoch.absolute.dwHighDateTime;
 
 	i1.QuadPart /= INTERVALS_PER_S;
 
@@ -363,16 +364,13 @@ isc_time_secondsastimet(isc_time_t *t, time_t *secondsp) {
 
 isc_uint32_t
 isc_time_nanoseconds(isc_time_t *t) {
-	ULARGE_INTEGER i;
+	SYSTEMTIME st;
 
-	REQUIRE(t != NULL);
+	/*
+	 * Convert the time to a SYSTEMTIME structure and the grab the
+	 * milliseconds
+	 */
+	FileTimeToSystemTime(&t->absolute, &st);
 
-	i.LowPart = t->absolute.dwLowDateTime;
-	i.HighPart = t->absolute.dwHighDateTime;
-
-	i.QuadPart -= isc_time_seconds(t);
-
-	ENSURE(i.QuadPart * NS_INTERVAL < NS);
-
-	return ((isc_uint32_t)(i.QuadPart * NS_INTERVAL));
+	return ((isc_uint32_t)(st.wMilliseconds * 1000000));
 }

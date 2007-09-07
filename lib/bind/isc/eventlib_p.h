@@ -18,7 +18,7 @@
 /* eventlib_p.h - private interfaces for eventlib
  * vix 09sep95 [initial]
  *
- * $Id: eventlib_p.h,v 1.1 2001/03/29 06:31:54 marka Exp $
+ * $Id: eventlib_p.h,v 1.3 2001/07/03 06:49:54 marka Exp $
  */
 
 #ifndef _EVENTLIB_P_H
@@ -43,8 +43,8 @@
 #include <isc/memcluster.h>
 
 #define	EV_MASK_ALL	(EV_READ | EV_WRITE | EV_EXCEPT)
-#define ERR(e)		return (errno = (e), -1)
-#define OK(x)		if ((x) < 0) ERR(errno); else (void)NULL
+#define EV_ERR(e)		return (errno = (e), -1)
+#define OK(x)		if ((x) < 0) EV_ERR(errno); else (void)NULL
 
 #define	NEW(p)		if (((p) = memget(sizeof *(p))) != NULL) \
 				FILL(p); \
@@ -85,7 +85,7 @@ typedef struct evAccept {
 		struct sockaddr_un	un;
 #endif
 	}		la;
-	int		lalen;
+	ISC_SOCKLEN_T	lalen;
 	union {
 		struct sockaddr		sa;
 		struct sockaddr_in	in;
@@ -93,7 +93,7 @@ typedef struct evAccept {
 		struct sockaddr_un	un;
 #endif
 	}		ra;
-	int		ralen;
+	ISC_SOCKLEN_T	ralen;
 	int		ioErrno;
 	evConn *	conn;
 	LINK(struct evAccept) link;

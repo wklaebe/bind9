@@ -91,7 +91,7 @@ HREF="Bv9ARM.ch06.html#Configuration_File_Grammar"
 ></DT
 ><DT
 >6.3. <A
-HREF="Bv9ARM.ch06.html#AEN3451"
+HREF="Bv9ARM.ch06.html#AEN3484"
 >Zone File</A
 ></DT
 ></DL
@@ -145,7 +145,7 @@ file documentation:</P
 ><DIV
 CLASS="informaltable"
 ><A
-NAME="AEN1090"
+NAME="AEN1092"
 ></A
 ><P
 ></P
@@ -740,7 +740,7 @@ CLASS="sect3"
 ><H3
 CLASS="sect3"
 ><A
-NAME="AEN1253"
+NAME="AEN1255"
 >6.1.1.1. Syntax</A
 ></H3
 ><PRE
@@ -771,7 +771,7 @@ CLASS="sect3"
 ><H3
 CLASS="sect3"
 ><A
-NAME="AEN1261"
+NAME="AEN1263"
 >6.1.1.2. Definition and Usage</A
 ></H3
 ><P
@@ -882,7 +882,7 @@ CLASS="sect2"
 ><H2
 CLASS="sect2"
 ><A
-NAME="AEN1290"
+NAME="AEN1292"
 >6.1.2. Comment Syntax</A
 ></H2
 ><P
@@ -901,7 +901,7 @@ CLASS="sect3"
 ><H3
 CLASS="sect3"
 ><A
-NAME="AEN1295"
+NAME="AEN1297"
 >6.1.2.1. Syntax</A
 ></H3
 ><P
@@ -933,7 +933,7 @@ CLASS="sect3"
 ><H3
 CLASS="sect3"
 ><A
-NAME="AEN1304"
+NAME="AEN1306"
 >6.1.2.2. Definition and Usage</A
 ></H3
 ><P
@@ -1043,7 +1043,7 @@ CLASS="acronym"
 ><DIV
 CLASS="informaltable"
 ><A
-NAME="AEN1328"
+NAME="AEN1330"
 ></A
 ><P
 ></P
@@ -1271,7 +1271,7 @@ CLASS="sect2"
 ><H2
 CLASS="sect2"
 ><A
-NAME="AEN1397"
+NAME="AEN1399"
 >6.2.1. <B
 CLASS="command"
 >acl</B
@@ -1318,7 +1318,7 @@ CLASS="command"
 ><DIV
 CLASS="informaltable"
 ><A
-NAME="AEN1410"
+NAME="AEN1412"
 ></A
 ><P
 ></P
@@ -1416,7 +1416,7 @@ CLASS="sect2"
 ><H2
 CLASS="sect2"
 ><A
-NAME="AEN1439"
+NAME="AEN1441"
 >6.2.3. <B
 CLASS="command"
 >controls</B
@@ -1459,8 +1459,7 @@ NAME="controls_statement_definition_and_usage"
 >6.2.4. <B
 CLASS="command"
 >controls</B
-> Statement Definition and
-Usage</A
+> Statement Definition and Usage</A
 ></H2
 ><P
 >The <B
@@ -1658,20 +1657,20 @@ CLASS="acronym"
       in <SPAN
 CLASS="acronym"
 >BIND</SPAN
-> 9.0.0, and is not expected to be added in future
+> 9, and is not expected to be added in future
       releases.  If it is present in the controls statement from a
       <SPAN
 CLASS="acronym"
 >BIND</SPAN
-> 8 configuration file, a non-fatal warning will be
-      logged.</P
+> 8 configuration file, it is ignored
+      and a warning is logged.</P
 ></DIV
 ><DIV
 CLASS="sect2"
 ><H2
 CLASS="sect2"
 ><A
-NAME="AEN1502"
+NAME="AEN1504"
 >6.2.5. <B
 CLASS="command"
 >include</B
@@ -1691,12 +1690,11 @@ CLASS="sect2"
 ><H2
 CLASS="sect2"
 ><A
-NAME="AEN1507"
+NAME="AEN1509"
 >6.2.6. <B
 CLASS="command"
 >include</B
-> Statement Definition and
-Usage</A
+> Statement Definition and Usage</A
 ></H2
 ><P
 >The <B
@@ -1721,7 +1719,7 @@ CLASS="sect2"
 ><H2
 CLASS="sect2"
 ><A
-NAME="AEN1514"
+NAME="AEN1516"
 >6.2.7. <B
 CLASS="command"
 >key</B
@@ -1755,7 +1753,7 @@ CLASS="sect2"
 ><H2
 CLASS="sect2"
 ><A
-NAME="AEN1521"
+NAME="AEN1523"
 >6.2.8. <B
 CLASS="command"
 >key</B
@@ -1766,10 +1764,34 @@ CLASS="command"
 CLASS="command"
 >key</B
 > statement defines a shared
-      secret key for use with TSIG, see <A
+secret key for use with TSIG, see <A
 HREF="Bv9ARM.ch04.html#tsig"
 >Section 4.4</A
 >.</P
+><P
+>&#13;The <B
+CLASS="command"
+>key</B
+> statement can occur at the top level
+of the configuration file or inside a <B
+CLASS="command"
+>view</B
+> 
+statement.  Keys defined in top-level <B
+CLASS="command"
+>key</B
+>
+statements can be used in all views.  Keys intended for use in
+a <B
+CLASS="command"
+>controls</B
+> statement
+(see <A
+HREF="Bv9ARM.ch06.html#controls_statement_definition_and_usage"
+>Section 6.2.4</A
+>)
+must be defined at the top level.
+</P
 ><P
 >The <TT
 CLASS="replaceable"
@@ -1777,11 +1799,11 @@ CLASS="replaceable"
 >key_id</I
 ></TT
 >, also known as the
-      key name, is a domain name uniquely identifying the key. It can
-      be used in a "server" statement to cause requests sent to that
-      server to be signed with this key, or in address match lists to
-      verify that incoming requests have been signed with a key
-      matching this name, algorithm, and secret.</P
+key name, is a domain name uniquely identifying the key. It can
+be used in a "server" statement to cause requests sent to that
+server to be signed with this key, or in address match lists to
+verify that incoming requests have been signed with a key
+matching this name, algorithm, and secret.</P
 ><P
 >The <TT
 CLASS="replaceable"
@@ -1789,27 +1811,27 @@ CLASS="replaceable"
 >algorithm_id</I
 ></TT
 > is a string
-      that specifies a security/authentication algorithm. The only
-      algorithm currently supported with TSIG authentication is
-      <TT
+that specifies a security/authentication algorithm. The only
+algorithm currently supported with TSIG authentication is
+<TT
 CLASS="literal"
 >hmac-md5</TT
 >.  The
-      <TT
+<TT
 CLASS="replaceable"
 ><I
 >secret_string</I
 ></TT
 > is the secret to be
-      used by the algorithm, and is treated as a base-64 encoded
-      string.</P
+used by the algorithm, and is treated as a base-64 encoded
+string.</P
 ></DIV
 ><DIV
 CLASS="sect2"
 ><H2
 CLASS="sect2"
 ><A
-NAME="AEN1533"
+NAME="AEN1541"
 >6.2.9. <B
 CLASS="command"
 >logging</B
@@ -1969,7 +1991,7 @@ CLASS="sect2"
 ><H2
 CLASS="sect2"
 ><A
-NAME="AEN1573"
+NAME="AEN1581"
 >6.2.10. <B
 CLASS="command"
 >logging</B
@@ -2032,7 +2054,7 @@ CLASS="sect3"
 ><H3
 CLASS="sect3"
 ><A
-NAME="AEN1589"
+NAME="AEN1597"
 >6.2.10.1. The <B
 CLASS="command"
 >channel</B
@@ -2474,7 +2496,7 @@ CLASS="acronym"
 ><DIV
 CLASS="informaltable"
 ><A
-NAME="AEN1693"
+NAME="AEN1701"
 ></A
 ><P
 ></P
@@ -2842,7 +2864,7 @@ CLASS="sect2"
 ><H2
 CLASS="sect2"
 ><A
-NAME="AEN1803"
+NAME="AEN1811"
 >6.2.11. <B
 CLASS="command"
 >lwres</B
@@ -2939,7 +2961,7 @@ CLASS="sect2"
 ><H2
 CLASS="sect2"
 ><A
-NAME="AEN1827"
+NAME="AEN1835"
 >6.2.12. <B
 CLASS="command"
 >lwres</B
@@ -3013,7 +3035,7 @@ CLASS="sect2"
 ><H2
 CLASS="sect2"
 ><A
-NAME="AEN1846"
+NAME="AEN1854"
 >6.2.13. <B
 CLASS="command"
 >options</B
@@ -3937,6 +3959,15 @@ CLASS="replaceable"
 ></TT
 > ; </SPAN
 >]
+    [<SPAN
+CLASS="optional"
+> match-mapped-addresses <TT
+CLASS="replaceable"
+><I
+>yes_or_no</I
+></TT
+>; </SPAN
+>]
 };
 </PRE
 ></DIV
@@ -3945,7 +3976,7 @@ CLASS="sect2"
 ><H2
 CLASS="sect2"
 ><A
-NAME="AEN2058"
+NAME="AEN2068"
 >6.2.14. <B
 CLASS="command"
 >options</B
@@ -4147,15 +4178,10 @@ CLASS="command"
 ></DT
 ><DD
 ><P
->The pathname of the file the server writes
-its process ID in. If not specified, the default is operating system
-dependent, but is usually
-<TT
+>The pathname of the file the server writes its process ID
+in. If not specified, the default is <TT
 CLASS="filename"
 >/var/run/named.pid</TT
-> or <TT
-CLASS="filename"
->/etc/named.pid</TT
 >.
 The pid-file is used by programs that want to send signals to the running
 nameserver.</P
@@ -4551,7 +4577,7 @@ a domain name to allow multiple CNAME records in violation of the
 DNS standards.  <SPAN
 CLASS="acronym"
 >BIND</SPAN
-> 9.1 always strictly
+> 9.2 always strictly
 enforces the CNAME rules both in master files and dynamic updates.
 </P
 ></DD
@@ -4794,9 +4820,9 @@ CLASS="command"
 ></DT
 ><DD
 ><P
->&#13;These options control the server's behavior when answering queries
-which have additional data, or when following CNAME and DNAME
-chains to provide additional data.
+>&#13;These options control the behavior of an authoritative server when
+answering queries which have additional data, or when following CNAME
+and DNAME chains.
 </P
 ><P
 >&#13;When both of these options are set to <TT
@@ -4806,11 +4832,11 @@ CLASS="userinput"
 ></TT
 > 
 (the default) and a
-query is being answered from authoratitive data (a zone
+query is being answered from authoritative data (a zone
 configured into the server), the additional data section of the
-reply will be filled in using data from other authoratitive zones
+reply will be filled in using data from other authoritative zones
 and from the cache.  In some situations this is undesirable, such
-as when there is concern over the correctness of the cache, or in
+as when there is concern over the correctness of the cache, or
 in servers where slave zones may be added and modified by
 untrusted third parties.  Also, avoiding
 the search for this additional data will speed up server operations
@@ -4830,7 +4856,70 @@ records (A, A6, and AAAA) for <TT
 CLASS="literal"
 >mail.example.net</TT
 > will be provided as well,
-if known.  These options disable this behavior.
+if known.  Setting these options to <B
+CLASS="command"
+>no</B
+> disables this behavior.
+</P
+><P
+>&#13;These options are intended for use in authoritative-only 
+servers, or in authoritative-only views.  Attempts to set
+them to <B
+CLASS="command"
+>no</B
+> without also specifying
+<B
+CLASS="command"
+>recursion no;</B
+> will cause the server to
+ignore the options and log a warning message.
+</P
+><P
+>&#13;Specifying <B
+CLASS="command"
+>additional-from-cache no</B
+> actually
+disables the use of the cache not only for additional data lookups
+but also when looking up the answer.  This is usually the desired
+behavior in an authoritative-only server where the correctness of
+the cached data is an issue.
+</P
+><P
+>&#13;When a name server is non-recursively queried for a name that is not
+below the apex of any served zone, it normally answers with an
+"upwards referral" to the root servers or the servers of some other
+known parent of the query name.  Since the data in an upwards referral
+comes from the cache, the server will not be able to provide upwards
+referrals when <B
+CLASS="command"
+>additional-from-cache no</B
+>
+has been specified.  Instead, it will respond to such queries
+with REFUSED.  This should not cause any problems since
+upwards referrals are not required for the resolution process.
+</P
+></DD
+><DT
+><B
+CLASS="command"
+>match-mapped-addresses</B
+></DT
+><DD
+><P
+>If <TT
+CLASS="userinput"
+><B
+>yes</B
+></TT
+>, then an
+IPv4-mapped IPv6 address will match any address match
+list entries that match the corresponding IPv4 address.
+Enabling this option is sometimes useful on IPv6-enabled Linux
+systems, to work around a kernel quirk that causes IPv4
+TCP connections such as zone transfers to be accepted
+on an IPv6 socket using mapped addresses, causing
+address match lists designed for IPv4 to fail to match.
+The use of this option for any other purpose is discouraged.
 </P
 ></DD
 ></DL
@@ -4841,7 +4930,7 @@ CLASS="sect3"
 ><H3
 CLASS="sect3"
 ><A
-NAME="AEN2332"
+NAME="AEN2355"
 >6.2.14.2. Forwarding</A
 ></H3
 ><P
@@ -5045,7 +5134,7 @@ CLASS="sect3"
 ><H3
 CLASS="sect3"
 ><A
-NAME="AEN2397"
+NAME="AEN2420"
 >6.2.14.4. Interfaces</A
 ></H3
 ><P
@@ -5140,7 +5229,7 @@ CLASS="sect3"
 ><H3
 CLASS="sect3"
 ><A
-NAME="AEN2423"
+NAME="AEN2446"
 >6.2.14.5. Query Address</A
 ></H3
 ><P
@@ -5185,12 +5274,13 @@ CLASS="note"
 ><P
 ><B
 >Note: </B
-><B
+>The address specified in the <B
 CLASS="command"
 >query-source</B
-> currently applies only
-to UDP queries; TCP queries always use a wildcard IP address and
-a random unprivileged port.</P
+> option
+is used for both UDP and TCP queries, but the port applies only to 
+UDP queries.  TCP queries always use a random
+unprivileged port.</P
 ></BLOCKQUOTE
 ></DIV
 ></DIV
@@ -5345,39 +5435,57 @@ CLASS="command"
 ></DT
 ><DD
 ><P
->The server supports two zone transfer methods. <B
+>&#13;Zone transfers can be sent using two different formats,
+<B
 CLASS="command"
 >one-answer</B
-> uses
-one DNS message per resource record transferred. <B
+> and <B
 CLASS="command"
 >many-answers</B
-> packs
-as many resource records as possible into a message. <B
+>.
+The <B
+CLASS="command"
+>transfer-format</B
+> option is used
+on the master server to determine which format it sends.
+<B
+CLASS="command"
+>one-answer</B
+> uses one DNS message per
+resource record transferred.
+<B
 CLASS="command"
 >many-answers</B
-> is
-more efficient, but is only known to be understood by <SPAN
+> packs as many resource records as
+possible into a message. <B
+CLASS="command"
+>many-answers</B
+> is more
+efficient, but is only supported by relatively new slave servers,
+such as <SPAN
 CLASS="acronym"
 >BIND</SPAN
 > 9, <SPAN
 CLASS="acronym"
 >BIND</SPAN
->
-8.x and patched versions of <SPAN
+> 8.x and patched
+versions of <SPAN
 CLASS="acronym"
 >BIND</SPAN
-> 4.9.5. The default is <B
+> 4.9.5. The default is
+<B
 CLASS="command"
 >many-answers</B
 >. <B
 CLASS="command"
 >transfer-format</B
-> may
-be overridden on a per-server basis by using the <B
+>
+may be overridden on a per-server basis by using the
+<B
 CLASS="command"
 >server</B
-> statement.</P
+> statement.
+</P
 ></DD
 ><DT
 ><B
@@ -5553,7 +5661,7 @@ CLASS="sect3"
 ><H3
 CLASS="sect3"
 ><A
-NAME="AEN2559"
+NAME="AEN2585"
 >6.2.14.7. Operating System Resource Limits</A
 ></H3
 ><P
@@ -5673,7 +5781,7 @@ CLASS="sect3"
 ><H3
 CLASS="sect3"
 ><A
-NAME="AEN2596"
+NAME="AEN2622"
 >6.2.14.8. Server  Resource Limits</A
 ></H3
 ><P
@@ -5757,7 +5865,7 @@ CLASS="sect3"
 ><H3
 CLASS="sect3"
 ><A
-NAME="AEN2624"
+NAME="AEN2650"
 >6.2.14.9. Periodic Task Intervals</A
 ></H3
 ><P
@@ -6124,7 +6232,7 @@ CLASS="command"
 ><DIV
 CLASS="informaltable"
 ><A
-NAME="AEN2712"
+NAME="AEN2738"
 ></A
 ><P
 ></P
@@ -6511,7 +6619,7 @@ number is identical to the number in the beginning line.</P
 ><DIV
 CLASS="informaltable"
 ><A
-NAME="AEN2824"
+NAME="AEN2850"
 ></A
 ><P
 ></P
@@ -6749,15 +6857,42 @@ NAME="server_statement_definition_and_usage"
 >6.2.16. <B
 CLASS="command"
 >server</B
-> Statement Definition
-and Usage</A
+> Statement Definition and Usage</A
 ></H2
 ><P
 >The <B
 CLASS="command"
 >server</B
-> statement defines the characteristics
+> statement defines characteristics
 to be associated with a remote nameserver.</P
+><P
+>&#13;The <B
+CLASS="command"
+>server</B
+> statement can occur at the top level of the
+configuration file or inside a <B
+CLASS="command"
+>view</B
+> statement.  
+If a <B
+CLASS="command"
+>view</B
+> statement contains
+one or more <B
+CLASS="command"
+>server</B
+> statements, only those
+apply to the view and any top-level ones are ignored.
+If a view contains no <B
+CLASS="command"
+>server</B
+> statements,
+any top-level <B
+CLASS="command"
+>server</B
+> statements are used as
+defaults.
+</P
 ><P
 >If you discover that a remote server is giving out bad data,
 marking it as bogus will prevent further queries to it. The default
@@ -6920,7 +7055,7 @@ CLASS="sect2"
 ><H2
 CLASS="sect2"
 ><A
-NAME="AEN2932"
+NAME="AEN2965"
 >6.2.17. <B
 CLASS="command"
 >trusted-keys</B
@@ -6995,7 +7130,7 @@ CLASS="sect2"
 ><H2
 CLASS="sect2"
 ><A
-NAME="AEN2948"
+NAME="AEN2981"
 >6.2.18. <B
 CLASS="command"
 >trusted-keys</B
@@ -7030,7 +7165,7 @@ CLASS="sect2"
 ><H2
 CLASS="sect2"
 ><A
-NAME="AEN2956"
+NAME="AEN2989"
 >6.2.19. <B
 CLASS="command"
 >view</B
@@ -7093,7 +7228,7 @@ CLASS="sect2"
 ><H2
 CLASS="sect2"
 ><A
-NAME="AEN2970"
+NAME="AEN3003"
 >6.2.20. <B
 CLASS="command"
 >view</B
@@ -7723,7 +7858,7 @@ CLASS="sect2"
 ><H2
 CLASS="sect2"
 ><A
-NAME="AEN3117"
+NAME="AEN3150"
 >6.2.22. <B
 CLASS="command"
 >zone</B
@@ -7734,13 +7869,13 @@ CLASS="sect3"
 ><H3
 CLASS="sect3"
 ><A
-NAME="AEN3120"
+NAME="AEN3153"
 >6.2.22.1. Zone Types</A
 ></H3
 ><DIV
 CLASS="informaltable"
 ><A
-NAME="AEN3122"
+NAME="AEN3155"
 ></A
 ><P
 ></P
@@ -7978,7 +8113,7 @@ CLASS="sect3"
 ><H3
 CLASS="sect3"
 ><A
-NAME="AEN3177"
+NAME="AEN3210"
 >6.2.22.2. Class</A
 ></H3
 ><P
@@ -8016,7 +8151,7 @@ CLASS="sect3"
 ><H3
 CLASS="sect3"
 ><A
-NAME="AEN3187"
+NAME="AEN3220"
 >6.2.22.3. Zone Options</A
 ></H3
 ><P
@@ -8657,7 +8792,7 @@ CLASS="varname"
 ><DIV
 CLASS="informaltable"
 ><A
-NAME="AEN3421"
+NAME="AEN3454"
 ></A
 ><P
 ></P
@@ -8764,7 +8899,7 @@ CLASS="sect1"
 ><H1
 CLASS="sect1"
 ><A
-NAME="AEN3451"
+NAME="AEN3484"
 >6.3. Zone File</A
 ></H1
 ><DIV
@@ -8785,7 +8920,7 @@ CLASS="sect3"
 ><H3
 CLASS="sect3"
 ><A
-NAME="AEN3456"
+NAME="AEN3489"
 >6.3.1.1. Resource Records</A
 ></H3
 ><P
@@ -8808,7 +8943,7 @@ HREF="Bv9ARM.ch06.html#rrset_ordering"
 ><DIV
 CLASS="informaltable"
 ><A
-NAME="AEN3462"
+NAME="AEN3495"
 ></A
 ><P
 ></P
@@ -8919,7 +9054,7 @@ or historical (h) and no longer in general use):</P
 ><DIV
 CLASS="informaltable"
 ><A
-NAME="AEN3494"
+NAME="AEN3527"
 ></A
 ><P
 ></P
@@ -9296,7 +9431,7 @@ are currently valid in the DNS:</P
 ><DIV
 CLASS="informaltable"
 ><A
-NAME="AEN3606"
+NAME="AEN3639"
 ></A
 ><P
 ></P
@@ -9348,7 +9483,7 @@ data that describes the resource:</P
 ><DIV
 CLASS="informaltable"
 ><A
-NAME="AEN3622"
+NAME="AEN3655"
 ></A
 ><P
 ></P
@@ -9525,7 +9660,7 @@ CLASS="sect3"
 ><H3
 CLASS="sect3"
 ><A
-NAME="AEN3670"
+NAME="AEN3703"
 >6.3.1.2. Textual expression of RRs</A
 ></H3
 ><P
@@ -9555,7 +9690,7 @@ knowledge of the typical representation for the data.</P
 ><DIV
 CLASS="informaltable"
 ><A
-NAME="AEN3677"
+NAME="AEN3710"
 ></A
 ><P
 ></P
@@ -9764,7 +9899,7 @@ domain names.</P
 ><DIV
 CLASS="informaltable"
 ><A
-NAME="AEN3743"
+NAME="AEN3776"
 ></A
 ><P
 ></P
@@ -9855,7 +9990,7 @@ CLASS="sect2"
 ><H2
 CLASS="sect2"
 ><A
-NAME="AEN3771"
+NAME="AEN3804"
 >6.3.2. Discussion of MX Records</A
 ></H2
 ><P
@@ -9888,7 +10023,7 @@ pointed to by the CNAME.</P
 ><DIV
 CLASS="informaltable"
 ><A
-NAME="AEN3777"
+NAME="AEN3810"
 ></A
 ><P
 ></P
@@ -10184,7 +10319,7 @@ used in a zone file.</P
 ><DIV
 CLASS="informaltable"
 ><A
-NAME="AEN3869"
+NAME="AEN3902"
 ></A
 ><P
 ></P
@@ -10267,7 +10402,7 @@ CLASS="sect2"
 ><H2
 CLASS="sect2"
 ><A
-NAME="AEN3892"
+NAME="AEN3925"
 >6.3.4. Inverse Mapping in IPv4</A
 ></H2
 ><P
@@ -10291,7 +10426,7 @@ CLASS="optional"
 ><DIV
 CLASS="informaltable"
 ><A
-NAME="AEN3897"
+NAME="AEN3930"
 ></A
 ><P
 ></P
@@ -10371,7 +10506,7 @@ CLASS="sect2"
 ><H2
 CLASS="sect2"
 ><A
-NAME="AEN3919"
+NAME="AEN3952"
 >6.3.5. Other Zone File Directives</A
 ></H2
 ><P
@@ -10396,7 +10531,7 @@ CLASS="sect3"
 ><H3
 CLASS="sect3"
 ><A
-NAME="AEN3926"
+NAME="AEN3959"
 >6.3.5.1. The <B
 CLASS="command"
 >$ORIGIN</B
@@ -10466,7 +10601,7 @@ CLASS="sect3"
 ><H3
 CLASS="sect3"
 ><A
-NAME="AEN3946"
+NAME="AEN3979"
 >6.3.5.2. The <B
 CLASS="command"
 >$INCLUDE</B
@@ -10548,7 +10683,7 @@ CLASS="sect3"
 ><H3
 CLASS="sect3"
 ><A
-NAME="AEN3966"
+NAME="AEN3999"
 >6.3.5.3. The <B
 CLASS="command"
 >$TTL</B
@@ -10588,7 +10723,7 @@ CLASS="sect2"
 ><H2
 CLASS="sect2"
 ><A
-NAME="AEN3977"
+NAME="AEN4010"
 >6.3.6. <SPAN
 CLASS="acronym"
 >BIND</SPAN
@@ -10667,7 +10802,7 @@ CLASS="literal"
 ><DIV
 CLASS="informaltable"
 ><A
-NAME="AEN3997"
+NAME="AEN4030"
 ></A
 ><P
 ></P

@@ -50,7 +50,7 @@
 
 /*
  *	@(#)resolv.h	8.1 (Berkeley) 6/2/93
- *	$Id: resolv.h,v 1.5 2001/05/28 08:38:20 marka Exp $
+ *	$Id: resolv.h,v 1.7 2001/06/25 00:30:46 marka Exp $
  */
 
 #ifndef _RESOLV_H_
@@ -189,6 +189,19 @@ struct __res_state {
 };
 
 typedef struct __res_state *res_state;
+
+union res_sockaddr_union {
+	struct sockaddr_in	sin;
+#ifdef IN6ADDR_ANY_INIT
+	struct sockaddr_in6	sin6;
+#endif
+#ifdef ISC_ALIGN64
+	int64_t			__align;        /* 64bit alignment */
+#else
+	int32_t			__align;        /* 32bit alignment */
+#endif
+	char			__space[128];   /* max size */
+};
 
 /*
  * Resolver flags (used to be discrete per-module statics ints).
@@ -358,6 +371,10 @@ extern const struct res_sym __p_rcode_syms[];
 #define sym_ston		__sym_ston
 #define res_nopt		__res_nopt
 #define res_ndestroy		__res_ndestroy
+#define	res_nametoclass		__res_nametoclass
+#define	res_nametotype		__res_nametotype
+#define	res_setservers		__res_setservers
+#define	res_getservers		__res_getservers
 __BEGIN_DECLS
 int		res_hnok __P((const char *));
 int		res_ownok __P((const char *));
@@ -435,6 +452,12 @@ void		res_buildprotolist __P((void));
 const char *	res_get_nibblesuffix __P((res_state));
 const char *	res_get_bitstringsuffix __P((res_state));
 void		res_ndestroy __P((res_state));
+u_int16_t	res_nametoclass __P((const char *buf, int *success));
+u_int16_t	res_nametotype __P((const char *buf, int *success));
+void		res_setservers __P((res_state,
+				    const union res_sockaddr_union *, int));
+int		res_getservers __P((res_state,
+				    union res_sockaddr_union *, int));
 __END_DECLS
 
 #endif /* !_RESOLV_H_ */

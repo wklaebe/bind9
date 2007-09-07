@@ -15,19 +15,20 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: once.c,v 1.6 2001/01/09 21:58:52 bwelling Exp $ */
+/* $Id: once.c,v 1.9 2001/07/09 21:06:16 gson Exp $ */
 
 /* Principal Authors: DCL */
+
+#include <config.h>
 
 #include <windows.h>
 
 #include <isc/once.h>
 #include <isc/assertions.h>
+#include <isc/util.h>
 
 isc_result_t
-isc_once_do(isc_once_t *controller, void(*function)(void))
-
-{
+isc_once_do(isc_once_t *controller, void(*function)(void)) {
 	REQUIRE(controller != NULL && function != NULL);
 
 	if (controller->status == ISC_ONCE_INIT_NEEDED) {

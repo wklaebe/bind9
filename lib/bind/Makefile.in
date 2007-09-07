@@ -13,7 +13,13 @@
 # NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
 # WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: Makefile.in,v 1.5 2001/05/31 05:53:57 marka Exp $
+# $Id: Makefile.in,v 1.11 2001/07/13 02:38:26 marka Exp $
+
+srcdir =        @srcdir@
+VPATH =         @srcdir@
+top_srcdir =    @top_srcdir@
+
+@LIBBIND_API@
 
 DAEMON_OBJS=bsd/daemon.@O@
 STRSEP_OBJS=bsd/strsep.@O@
@@ -66,8 +72,8 @@ WANT_IRS_THREADSGR_OBJS=irs/getgrent_r.@O@
 ISCOBJS= isc/assertions.@O@ isc/base64.@O@ isc/bitncmp.@O@ isc/ctl_clnt.@O@ \
 	isc/ctl_p.@O@ isc/ctl_srvr.@O@ isc/ev_connects.@O@ isc/ev_files.@O@ \
 	isc/ev_streams.@O@ isc/ev_timers.@O@ isc/ev_waits.@O@ \
-	isc/eventlib.@O@ isc/heap.@O@ isc/logging.@O@ \
-	isc/memcluster.@O@ isc/movefile.@O@ isc/tree.@O@ isc/ip6.@O@
+	isc/eventlib.@O@ isc/heap.@O@ isc/hex.@O@ isc/logging.@O@ \
+	isc/memcluster.@O@ isc/movefile.@O@ isc/tree.@O@
 
 NAMESEROBJS= nameser/ns_date.@O@ nameser/ns_name.@O@ nameser/ns_netint.@O@ \
 	nameser/ns_parse.@O@ nameser/ns_print.@O@  nameser/ns_samedomain.@O@ \
@@ -78,7 +84,7 @@ RESOLVOBJS= resolv/herror.@O@ resolv/res_comp.@O@ resolv/res_data.@O@ \
 	resolv/res_mkquery.@O@ resolv/res_mkupdate.@O@ resolv/res_query.@O@ \
 	resolv/res_send.@O@ resolv/res_sendsigned.@O@ resolv/res_update.@O@
 
-SUBDIRS = bsd dst include inet irs isc nameser resolv
+SUBDIRS = bsd dst include inet irs isc nameser resolv @PORT_INCLUDE@
 
 TARGETS= timestamp
 OBJS=	${BSDOBJS} ${DSTOBJS} ${INETOBJS} ${IRSOBJS} ${ISCOBJS} \
@@ -99,3 +105,14 @@ libbind.la: ${OBJS}
 timestamp: libbind.@A@
 	touch timestamp
 
+installdirs:
+	$(SHELL) ${top_srcdir}/mkinstalldirs ${DESTDIR}${libdir}
+
+install:: timestamp installdirs
+	${LIBTOOL} ${INSTALL_DATA} libbind.@A@ ${DESTDIR}${libdir}
+
+
+clean distclean::
+	rm -f libbind.@SA@ libbind.la
+distclean::
+	rm -f config.cache config.h config.log config.status libtool

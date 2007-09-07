@@ -15,11 +15,9 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: getrrset.c,v 1.9 2001/03/06 23:02:01 bwelling Exp $ */
+/* $Id: getrrset.c,v 1.11 2001/07/10 18:25:44 gson Exp $ */
 
 #include <config.h>
-
-#include <sys/types.h>
 
 #include <string.h>
 #include <errno.h>
@@ -36,6 +34,8 @@ lwresult_to_result(lwres_result_t lwresult) {
 	switch (lwresult) {
 	case LWRES_R_SUCCESS:	return (ERRSET_SUCCESS);
 	case LWRES_R_NOMEMORY:	return (ERRSET_NOMEMORY);
+	case LWRES_R_NOTFOUND:	return (ERRSET_NONAME);
+	case LWRES_R_TYPENOTFOUND: return (ERRSET_NODATA);
 	default:		return (ERRSET_FAIL);
 	}
 }

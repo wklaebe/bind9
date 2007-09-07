@@ -1,4 +1,4 @@
-# Copyright (C) 1998-2001  Internet Software Consortium.
+e# Copyright (C) 1998-2001  Internet Software Consortium.
 #
 # Permission to use, copy, modify, and distribute this software for any
 # purpose with or without fee is hereby granted, provided that the above
@@ -18,12 +18,13 @@ AC_DIVERT_PUSH(AC_DIVERSION_NOTICE)dnl
 esyscmd([sed "s/^/# /" COPYRIGHT])dnl
 AC_DIVERT_POP()dnl
 
-AC_REVISION($Revision: 1.262 $)
+AC_REVISION($Revision: 1.275 $)
 
 AC_INIT(lib/dns/name.c)
 AC_PREREQ(2.13)
 
 AC_CONFIG_HEADER(config.h)
+AC_CONFIG_SUBDIRS(lib/bind)
 
 AC_CANONICAL_HOST
 
@@ -275,59 +276,72 @@ AC_C_BIGENDIAN
 #
 # was --with-openssl specified?
 #
-AC_MSG_CHECKING(for compatible OpenSSL library)
+AC_MSG_CHECKING(for OpenSSL library)
 AC_ARG_WITH(openssl,
 [  --with-openssl=PATH  Specify path for system-supplied openssl
-                        (rather than using bind-9 internal openssl)],
+                        (required for DNSSEC)],
     use_openssl="$withval", use_openssl="no")
-
-#
-# If the user didn't specify where openssl is, and we didn't find or it
-# is incompatible with our code, use our internal one.
-#
-# XXX This appears to assume that the user specified path is correct,
-# and does no checking.
-#
 
 case "$use_openssl" in
 	no)
-		DST_PRIVATEOPENSSL='-DDST_USE_PRIVATE_OPENSSL'
-		dst_privateopenssl='openssl'
-		DST_OPENSSL_INC='-I${srcdir}/../openssl/include'
-		DST_OPENSSL_LIB=''
-		DST_OPENSSL_OBJS='${OPENSSLOBJS}'
-		AC_MSG_RESULT(using private library)
-		openssl_makefiles="lib/dns/sec/openssl/Makefile \
-				   lib/dns/sec/openssl/include/Makefile \
-				   lib/dns/sec/openssl/include/openssl/Makefile"
-
-		;;
-	yes)
-		AC_MSG_ERROR([--with-openssl must specify a path])
+		AC_MSG_RESULT(no)
+		DST_OPENSSL_INC=""
+		USE_OPENSSL=""
 		;;
 	*)
-		DST_PRIVATEOPENSSL=''
-		dst_privateopenssl=''
+		if test "$use_openssl" = "yes"
+		then
+		    	# User did not specify a path - guess it
+			openssldirs="/usr /usr/local /usr/pkg"
+			for d in $openssldirs
+			do
+				if test -f $d/include/openssl/opensslv.h
+				then
+				 	use_openssl=$d
+					break
+				fi
+			done
+			if test "$use_openssl" = "yes"
+			then
+			    	AC_MSG_RESULT(not found)
+				AC_MSG_ERROR(
+[OpenSSL was not found in any of $openssldirs; use --with-openssl=/path])
+			fi
+		fi
+		USE_OPENSSL='-DOPENSSL'
 		DST_OPENSSL_INC="-I$use_openssl/include"
 		DNS_OPENSSL_LIBS="-L$use_openssl/lib -lcrypto"
-		DST_OPENSSL_LIB=''
 		AC_MSG_RESULT(using openssl from $use_openssl/lib and $use_openssl/include)
-		openssl_makefiles=""
+
+		AC_MSG_CHECKING(OpenSSL library version)
+		saved_cflags="$CFLAGS"
+		saved_libs="$LIBS"
+		CFLAGS="$CFLAGS $DST_OPENSSL_INC"
+		LIBS="$LIBS $DNS_OPENSSL_LIBS"
+		AC_TRY_RUN([
+#include <openssl/opensslv.h>
+int main() {
+        if (OPENSSL_VERSION_NUMBER >= 0x0090581fL)
+                return (0);
+        return (1);
+}
+],
+	        [AC_MSG_RESULT(ok)],
+		[AC_MSG_RESULT(not compatible)
+		AC_MSG_ERROR(you need OpenSSL 0.9.5a or newer)])
+		CFLAGS="$saved_cflags"
+		LIBS="$saved_libs"
 		;;
 esac
-
-AC_SUBST(DST_PRIVATEOPENSSL)
-AC_SUBST(dst_privateopenssl)
-AC_SUBST(DST_OPENSSL_INC)
-AC_SUBST(DST_OPENSSL_LIB)
-AC_SUBST(DST_OPENSSL_OBJS)
 
 #
 # This would include the system openssl path (and linker options to use
 # it as needed) if it is found.
 #
 
+AC_SUBST(DST_OPENSSL_INC)
 AC_SUBST(DNS_OPENSSL_LIBS)
+AC_SUBST(USE_OPENSSL)
 
 #
 # was --with-gssapi specified?
@@ -412,11 +426,11 @@ AC_MSG_CHECKING(whether to build with thread support)
 case $host in
 *-dec-osf*)
 	use_threads=true ;;
-*-solaris-2.[0-6])
+[*-solaris-2[0-6]])
 	# Thread signals are broken on Solaris 2.6; they are sometimes
 	# delivered to the wrong thread.
 	use_threads=false ;;
-*-solaris-2.*)
+*-solaris-2*)
 	use_threads=true ;;
 *-ibm-aix*)
 	use_threads=true ;;
@@ -649,9 +663,11 @@ AC_SUBST(ISC_THREAD_DIR)
 
 #
 # flockfile is usually provided by pthreads, but we may want to use it
-# even if compiled with --disable-threads.
+# even if compiled with --disable-threads.  getc_unlocked might also not
+# be defined.
 #
 AC_CHECK_FUNC(flockfile, AC_DEFINE(HAVE_FLOCKFILE),)
+AC_CHECK_FUNC(getc_unlocked, AC_DEFINE(HAVE_GETCUNLOCKED),)
 
 # 
 # Indicate what the final decision was regarding threads.
@@ -827,6 +843,21 @@ AC_SUBST(O)
 AC_SUBST(A)
 AC_SUBST(SA)
 AC_SUBST(LIBTOOL_MKDEP_SED)
+
+#
+# build libbind?
+#
+AC_ARG_ENABLE(libbind,
+	[  --enable-libbind		build libbind [default=no]])
+
+case "$enable_libbind" in
+	yes)
+		LIBBIND=lib/bind
+		AC_SUBST(LIBBIND)
+		;;
+	no|'')
+		;;
+esac
 
 #
 # Here begins a very long section to determine the system's networking
@@ -1357,6 +1388,13 @@ ISC_PLATFORM_RLIMITTYPE="#define ISC_PLATFORM_RLIMITTYPE long long int"],
 AC_SUBST(ISC_PLATFORM_RLIMITTYPE)
 
 #
+# Microsoft has their own way of handling shared libraries that requires
+# additional qualifiers on extern variables.  Unix systems don't need it.
+#
+AC_SUBST(ISC_PLATFORM_USEDECLSPEC)
+ISC_PLATFORM_USEDECLSPEC="#undef ISC_PLATFORM_USEDECLSPEC"
+
+#
 # Random remaining OS-specific issues involving compiler warnings.
 # XXXDCL print messages to indicate some compensation is being done?
 #
@@ -1455,6 +1493,7 @@ AC_SUBST(PDFJADETEX)
 # 
 
 AC_DEFUN(NOM_PATH_FILE, [
+$1=""
 AC_MSG_CHECKING(for $2)
 for d in $3
 do
@@ -1589,7 +1628,6 @@ AC_OUTPUT(
 	lib/dns/include/Makefile
 	lib/dns/include/dns/Makefile
 	lib/dns/sec/Makefile
-	$openssl_makefiles
 	lib/dns/sec/dst/Makefile
 	lib/dns/sec/dst/include/Makefile
 	lib/dns/sec/dst/include/dst/Makefile
@@ -1599,6 +1637,12 @@ AC_OUTPUT(
 	lib/lwres/include/lwres/netdb.h
 	lib/lwres/include/lwres/platform.h
 	lib/lwres/man/Makefile
+	lib/lwres/unix/Makefile
+	lib/lwres/unix/include/Makefile
+	lib/lwres/unix/include/lwres/Makefile
+	lib/lwres/win32/Makefile
+	lib/lwres/win32/include/Makefile
+	lib/lwres/win32/include/lwres/Makefile
 	lib/tests/Makefile
 	lib/tests/include/Makefile
 	lib/tests/include/tests/Makefile

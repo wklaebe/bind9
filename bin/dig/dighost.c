@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dighost.c,v 1.202 2001/06/11 18:20:43 gson Exp $ */
+/* $Id: dighost.c,v 1.206 2001/07/09 22:02:12 gson Exp $ */
 
 /*
  * Notice to programmers:  Do not use this code as an example of how to
@@ -29,7 +29,6 @@
 #include <config.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <netdb.h>
 #include <string.h>
 #include <limits.h>
 
@@ -154,6 +153,9 @@ recv_done(isc_task_t *task, isc_event_t *event);
 
 static void
 connect_timeout(isc_task_t *task, isc_event_t *event);
+
+static void
+launch_next_query(dig_query_t *query, isc_boolean_t include_question);
 
 char *
 next_token(char **stringp, const char *delim) {
@@ -1840,11 +1842,13 @@ tcp_length_done(isc_task_t *task, isc_event_t *event) {
 	b = ISC_LIST_HEAD(sevent->bufferlist);
 	ISC_LIST_DEQUEUE(sevent->bufferlist, &query->lengthbuf, link);
 	length = isc_buffer_getuint16(b);
-	if (length > COMMSIZE) {
+	if (length == 0) {
 		isc_event_free(&event);
-		fatal("Length of %X was longer than I can handle!",
-		      length);
+		launch_next_query(query, ISC_FALSE);
+		UNLOCK_LOOKUP;
+		return;
 	}
+
 	/*
 	 * Even though the buffer was already init'ed, we need
 	 * to redo it now, to force the length we want.
@@ -1894,7 +1898,7 @@ launch_next_query(dig_query_t *query, isc_boolean_t include_question) {
 
 	isc_buffer_clear(&query->slbuf);
 	isc_buffer_clear(&query->lengthbuf);
-	isc_buffer_putuint16(&query->slbuf, query->lookup->sendbuf.used);
+	isc_buffer_putuint16(&query->slbuf, (isc_uint16_t) query->lookup->sendbuf.used);
 	ISC_LIST_INIT(query->sendlist);
 	ISC_LINK_INIT(&query->slbuf, link);
 	ISC_LIST_ENQUEUE(query->sendlist, &query->slbuf, link);

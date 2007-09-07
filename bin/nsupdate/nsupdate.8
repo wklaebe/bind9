@@ -177,6 +177,13 @@ statement is provided,
 \fBnsupdate\fR
 will attempt determine the correct zone to update based on the rest of the input.
 .TP
+\fBkey name secret\fR
+Specifies that all updates are to be TSIG signed using the
+\fIkeyname\fR \fIkeysecret\fR pair.
+The \fBkey\fR command
+overrides any key specified on the command line via
+\fB-y\fR or \fB-k\fR.
+.TP
 \fBprereq nxdomain domain-name\fR
 Requires that no resource record of any type exists with name
 \fIdomain-name\fR.

@@ -16,7 +16,7 @@
  - WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<!-- $Id: dig.docbook,v 1.2 2001/06/08 17:18:09 gson Exp $ -->
+<!-- $Id: dig.docbook,v 1.4 2001/07/12 16:29:11 bwelling Exp $ -->
 
 <refentry>
 
@@ -111,8 +111,9 @@ A typical invocation of <command>dig</command> looks like:
 
 <varlistentry><term><constant>server</constant></term>
 <listitem><para>
-is the name or IP address of the name server to query.  An IPv4
-address can be provided in dotted-decimal notation.  When the supplied
+is the name or IP address of the name server to query.  This can be an IPv4
+address in dotted-decimal notation or an IPv6
+address in colon-delimited notation.  When the supplied
 <parameter>server</parameter> argument is a hostname,
 <command>dig</command> resolves that name before querying that name
 server.  If no <parameter>server</parameter> argument is provided,
@@ -439,6 +440,15 @@ Set the UDP message buffer size advertised using EDNS0 to
 <parameter>B</parameter> bytes.  The maximum and minimum sizes of this
 buffer are 65535 and 0 respectively.  Values outside this range are
 rounded up or down appropriately.
+</para>
+</listitem></varlistentry>
+
+<varlistentry><term><option>+[no]multiline</option></term>
+<listitem><para>
+Print records like the SOA records in a verbose multi-line
+format with human-readable comments.  The default is to print
+each record on a single line, to facilitate machine parsing 
+of the <command>dig</command> output.
 </para>
 </listitem></varlistentry>
 

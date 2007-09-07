@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: name.c,v 1.125 2001/04/24 00:56:17 gson Exp $ */
+/* $Id: name.c,v 1.127 2001/06/28 21:34:11 gson Exp $ */
 
 #include <config.h>
 
@@ -2839,7 +2839,7 @@ dns_name_split(dns_name_t *name,
 
 			if (prefix->length > prefix->buffer->length ) {
 				dns_name_invalidate(prefix);
-				return(ISC_R_NOSPACE);
+				return (ISC_R_NOSPACE);
 			}
 
 			/*
@@ -2854,13 +2854,7 @@ dns_name_split(dns_name_t *name,
 			len = bitbytes;
 
 			if (mod == 0) {
-				if ((void *)(name->ndata) ==
-				    prefix->buffer->base &&
-				    len > (unsigned int)(src - dst))
-					memmove(dst, src, len);
-				else
-					memcpy(dst, src, len);
-
+				memmove(dst, src, len);
 			} else {
 				/*
 				 * p is adjusted to point to the last byte of
@@ -2974,23 +2968,15 @@ dns_name_split(dns_name_t *name,
 			} else
 				len = suffix->length - 2;
 
-			/*
-			 * XXX DCL better way to decide memcpy vs memmove?
-			 */
-			if (len > 0) {
-				if ((dst <= src && dst + len > src) ||
-				    (src <= dst && src + len > dst))
-					memmove(dst, src, len);
-				else
-					memcpy(dst, src, len);
-			}
+			if (len > 0)
+				memmove(dst, src, len);
 
 			suffix->buffer->used = suffix->length;
 			suffix->ndata = suffix->buffer->base;
 
 			/*
 			 * The byte that contains the end of the
-			 * bitstring has its pad bytes (if any) masked
+			 * bitstring has its pad bits (if any) masked
 			 * to zero.
 			 */
 			if (mod != 0)

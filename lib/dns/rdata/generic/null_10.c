@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: null_10.c,v 1.32 2001/03/16 22:52:55 bwelling Exp $ */
+/* $Id: null_10.c,v 1.34 2001/06/21 04:00:36 marka Exp $ */
 
 /* Reviewed: Thu Mar 16 13:57:50 PST 2000 by explorer */
 
@@ -82,8 +82,6 @@ compare_null(ARGS_COMPARE) {
 	REQUIRE(rdata1->type == rdata1->type);
 	REQUIRE(rdata1->rdclass == rdata2->rdclass);
 	REQUIRE(rdata1->type == 10);
-	REQUIRE(rdata1->length != 0);
-	REQUIRE(rdata2->length != 0);
 
 	dns_rdata_toregion(rdata1, &r1);
 	dns_rdata_toregion(rdata2, &r2);
@@ -98,8 +96,7 @@ fromstruct_null(ARGS_FROMSTRUCT) {
 	REQUIRE(source != NULL);
 	REQUIRE(null->common.rdtype == type);
 	REQUIRE(null->common.rdclass == rdclass);
-	REQUIRE((null->data != NULL && null->length != 0) ||
-		(null->data == NULL && null->length == 0));
+	REQUIRE(null->data != NULL || null->length == 0);
 
 	UNUSED(type);
 	UNUSED(rdclass);
@@ -121,12 +118,9 @@ tostruct_null(ARGS_TOSTRUCT) {
 
 	dns_rdata_toregion(rdata, &r);
 	null->length = r.length;
-	if (null->length != 0) {
-		null->data = mem_maybedup(mctx, r.base, r.length);
-		if (null->data == NULL)
-			return (ISC_R_NOMEMORY);
-	} else
-		null->data = NULL;
+	null->data = mem_maybedup(mctx, r.base, r.length);
+	if (null->data == NULL)
+		return (ISC_R_NOMEMORY);
 
 	null->mctx = mctx;
 	return (ISC_R_SUCCESS);

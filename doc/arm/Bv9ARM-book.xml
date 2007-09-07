@@ -2,7 +2,7 @@
 <!DOCTYPE book PUBLIC "-//OASIS//DTD DocBook XML V4.0//EN"
                "http://www.oasis-open.org/docbook/xml/4.0/docbookx.dtd">
 
-<!-- File: $Id: Bv9ARM-book.xml,v 1.138 2001/05/31 22:39:52 bwelling Exp $ -->
+<!-- File: $Id: Bv9ARM-book.xml,v 1.148 2001/07/06 20:39:43 gson Exp $ -->
 
 <book>
 <title>BIND 9 Administrator Reference Manual</title>
@@ -363,8 +363,11 @@ be placed inside a firewall.</para>
 
 </chapter>
 
-  <chapter id="ch02"><title><acronym>BIND</acronym> Resource Requirements</title>
-<sect1><title>Hardware requirements</title>
+<chapter id="ch02"><title><acronym>BIND</acronym> Resource Requirements</title>
+
+<sect1>
+<title>Hardware requirements</title>
+
 <para><acronym>DNS</acronym> hardware requirements have traditionally been quite modest.
 For many installations, servers that have been pensioned off from
 active duty have performed admirably as <acronym>DNS</acronym> servers.</para>
@@ -378,10 +381,11 @@ multiprocessor systems for installations that need it.</para></sect1>
 for serving of static zones without caching, to enterprise-class
 machines if you intend to process many dynamic updates and DNSSEC
 signed zones, serving many thousands of queries per second.</para></sect1>
-<sect1><title>Memory Requirements </title>
+
+<sect1><title>Memory Requirements</title>
 <para>The memory of the server has to be large enough to fit the
-cache and zones loaded off disk. Future releases of <acronym>BIND</acronym> 9 will
-provide methods to limit the amount of memory used by the cache,
+cache and zones loaded off disk.  The <command>max-cache-size</command>
+option can be used to limit the amount of memory used by the cache,
 at the expense of reducing cache hit rates and causing more <acronym>DNS</acronym>
 traffic. It is still good practice to have enough memory to load
 all zone and cache data into memory &mdash; unfortunately, the best way
@@ -390,6 +394,7 @@ in operation. After a few weeks the server process should reach
 a relatively stable size where entries are expiring from the cache as
 fast as they are being inserted. Ideally, the resource limits should
 be set higher than this stable size.</para></sect1>
+
 <sect1><title>Nameserver Intensive Environment Issues</title>
 <para>For nameserver intensive environments, there are two alternative
 configurations that may be used. The first is where clients and
@@ -825,33 +830,42 @@ of a server.</para>
               be shared.  The order of statements is not
               significant.</para>
 
-<para>The <command>options</command> statement has two clauses: <command>default-server</command> and <command>default-key</command>. <command>default-server</command> takes a
+<para>The <command>options</command> statement has three clauses:
+<command>default-server</command>, <command>default-key</command>, 
+and <command>default-port</command>.
+<command>default-server</command> takes a
 host name or address argument  and represents the server that will
 be contacted if no <option>-s</option>
-option is provided on the command line.  <command>default-key</command> takes
+option is provided on the command line.  
+<command>default-key</command> takes
 the name of key as its argument, as defined by a <command>key</command> statement.
- In the future a <command>default-port</command> clause will be
-added to specify the port to which <command>rndc</command> should
-connect.</para>
+<command>default-port</command> specifies the port to which
+<command>rndc</command> should connect if no
+port is given on the command line or in a
+<command>server</command> statement.</para>
+
 <para>The <command>key</command> statement names a key with its
 string argument. The string is required by the server to be a valid
 domain name, though it need not actually be hierarchical; thus,
 a string like "<userinput>rndc_key</userinput>" is a valid name.
-The <command>key</command> statement has two clauses: <command>algorithm</command> and <command>secret</command>.
- While the configuration parser will accept any string as the argument
+The <command>key</command> statement has two clauses:
+<command>algorithm</command> and <command>secret</command>.
+While the configuration parser will accept any string as the argument
 to algorithm, currently only the string "<userinput>hmac-md5</userinput>"
 has any meaning.  The secret is a base-64 encoded string, typically
 generated with either <command>dnssec-keygen</command> or <command>mmencode</command>.</para>
+
 <para>The <command>server</command> statement uses the key clause
 to associate a <command>key</command>-defined key with a server.
- The argument to the <command>server</command> statement is a
+The argument to the <command>server</command> statement is a
 host name or address (addresses must be double quoted).  The argument
 to the key clause is the name of the key as defined by the <command>key</command> statement.
- A <command>port</command> clause will be added to a future release
-to specify the port to which <command>rndc</command> should connect
+The <command>port</command> clause can be used to 
+specify the port to which <command>rndc</command> should connect
 on the given server.</para>
+
 <para>A sample minimal configuration file is as follows:</para>
-              <programlisting>
+<programlisting>
 key rndc_key {
      algorithm "hmac-md5";
      secret "c3Ryb25nIGVub3VnaCBmb3IgYSBtYW4gYnV0IG1hZGUgZm9yIGEgd29tYW4K";
@@ -861,6 +875,7 @@ options {
      default-key    rndc_key;
 };
 </programlisting>
+
 <para>This file, if installed as <filename>/etc/rndc.conf</filename>,
 would allow the command:</para>
               <para><prompt>$ </prompt><userinput>rndc reload</userinput></para>
@@ -2153,10 +2168,10 @@ the system has an interface.</para></entry>
    <optional> inet ...; </optional>
 };
 </programlisting>
-    </sect2>
-    <sect2 id="controls_statement_definition_and_usage">
-      <title><command>controls</command> Statement Definition and
-Usage</title>
+</sect2>
+
+<sect2 id="controls_statement_definition_and_usage">
+<title><command>controls</command> Statement Definition and Usage</title>
 
       <para>The <command>controls</command> statement declares control
       channels to be used by system administrators to affect the
@@ -2227,10 +2242,10 @@ Usage</title>
       that contains the users who should have access.</para>
 
       <para>The UNIX control channel type of <acronym>BIND</acronym> 8 is not supported
-      in <acronym>BIND</acronym> 9.0.0, and is not expected to be added in future
+      in <acronym>BIND</acronym> 9, and is not expected to be added in future
       releases.  If it is present in the controls statement from a
-      <acronym>BIND</acronym> 8 configuration file, a non-fatal warning will be
-      logged.</para>
+      <acronym>BIND</acronym> 8 configuration file, it is ignored
+      and a warning is logged.</para>
 
     </sect2>
     <sect2>
@@ -2238,8 +2253,7 @@ Usage</title>
       <programlisting>include <replaceable>filename</replaceable>;</programlisting>
     </sect2>
     <sect2>
-      <title><command>include</command> Statement Definition and
-Usage</title>
+      <title><command>include</command> Statement Definition and Usage</title>
 
       <para>The <command>include</command> statement inserts the
       specified file at the point that the <command>include</command>
@@ -2252,32 +2266,43 @@ Usage</title>
     </sect2>
     <sect2>
       <title><command>key</command> Statement Grammar</title>
-      <programlisting>key <replaceable>key_id</replaceable> {
+<programlisting>key <replaceable>key_id</replaceable> {
     algorithm <replaceable>string</replaceable>;
     secret <replaceable>string</replaceable>;
 };
 </programlisting>
     </sect2>
-    <sect2>
-      <title><command>key</command> Statement Definition and Usage</title>
 
-      <para>The <command>key</command> statement defines a shared
-      secret key for use with TSIG, see <xref linkend="tsig"/>.</para>
+<sect2>
+<title><command>key</command> Statement Definition and Usage</title>
 
-      <para>The <replaceable>key_id</replaceable>, also known as the
-      key name, is a domain name uniquely identifying the key. It can
-      be used in a "server" statement to cause requests sent to that
-      server to be signed with this key, or in address match lists to
-      verify that incoming requests have been signed with a key
-      matching this name, algorithm, and secret.</para>
+<para>The <command>key</command> statement defines a shared
+secret key for use with TSIG, see <xref linkend="tsig"/>.</para>
 
-      <para>The <replaceable>algorithm_id</replaceable> is a string
-      that specifies a security/authentication algorithm. The only
-      algorithm currently supported with TSIG authentication is
-      <literal>hmac-md5</literal>.  The
-      <replaceable>secret_string</replaceable> is the secret to be
-      used by the algorithm, and is treated as a base-64 encoded
-      string.</para>
+<para>
+The <command>key</command> statement can occur at the top level
+of the configuration file or inside a <command>view</command> 
+statement.  Keys defined in top-level <command>key</command>
+statements can be used in all views.  Keys intended for use in
+a <command>controls</command> statement
+(see <xref linkend="controls_statement_definition_and_usage"/>)
+must be defined at the top level.
+</para>
+
+<para>The <replaceable>key_id</replaceable>, also known as the
+key name, is a domain name uniquely identifying the key. It can
+be used in a "server" statement to cause requests sent to that
+server to be signed with this key, or in address match lists to
+verify that incoming requests have been signed with a key
+matching this name, algorithm, and secret.</para>
+
+<para>The <replaceable>algorithm_id</replaceable> is a string
+that specifies a security/authentication algorithm. The only
+algorithm currently supported with TSIG authentication is
+<literal>hmac-md5</literal>.  The
+<replaceable>secret_string</replaceable> is the secret to be
+used by the algorithm, and is treated as a base-64 encoded
+string.</para>
 
 </sect2>
     <sect2>
@@ -2761,6 +2786,7 @@ statement in the <filename>named.conf</filename> file:</para>
     <optional> additional-from-cache <replaceable>yes_or_no</replaceable> ; </optional>
     <optional> random-device <replaceable>path_name</replaceable> ; </optional>
     <optional> max-cache-size <replaceable>size_spec</replaceable> ; </optional>
+    <optional> match-mapped-addresses <replaceable>yes_or_no</replaceable>; </optional>
 };
 </programlisting>
 </sect2>
@@ -2838,10 +2864,8 @@ the default is <filename>named.memstats</filename>.</para>
 </listitem></varlistentry>
 
 <varlistentry><term><command>pid-file</command></term>
-<listitem><para>The pathname of the file the server writes
-its process ID in. If not specified, the default is operating system
-dependent, but is usually
-<filename>/var/run/named.pid</filename> or <filename>/etc/named.pid</filename>.
+<listitem><para>The pathname of the file the server writes its process ID
+in. If not specified, the default is <filename>/var/run/named.pid</filename>.
 The pid-file is used by programs that want to send signals to the running
 nameserver.</para>
 </listitem></varlistentry>
@@ -2980,7 +3004,7 @@ The default is <userinput>no</userinput>.
 <varlistentry><term><command>multiple-cnames</command></term>
 <listitem><para>This option was used in <acronym>BIND</acronym> 8 to allow
 a domain name to allow multiple CNAME records in violation of the
-DNS standards.  <acronym>BIND</acronym> 9.1 always strictly
+DNS standards.  <acronym>BIND</acronym> 9.2 always strictly
 enforces the CNAME rules both in master files and dynamic updates.
 </para></listitem></varlistentry>
 
@@ -3055,32 +3079,79 @@ and the option is ignored.</para></listitem></varlistentry>
 <varlistentry>
 <term><command>additional-from-auth</command></term>
 <term><command>additional-from-cache</command></term>
-<listitem><para>
-These options control the server's behavior when answering queries
-which have additional data, or when following CNAME and DNAME
-chains to provide additional data.
-</para><para>
+<listitem>
+
+<para>
+These options control the behavior of an authoritative server when
+answering queries which have additional data, or when following CNAME
+and DNAME chains.
+</para>
+
+<para>
 When both of these options are set to <userinput>yes</userinput> 
 (the default) and a
-query is being answered from authoratitive data (a zone
+query is being answered from authoritative data (a zone
 configured into the server), the additional data section of the
-reply will be filled in using data from other authoratitive zones
+reply will be filled in using data from other authoritative zones
 and from the cache.  In some situations this is undesirable, such
-as when there is concern over the correctness of the cache, or in
+as when there is concern over the correctness of the cache, or
 in servers where slave zones may be added and modified by
 untrusted third parties.  Also, avoiding
 the search for this additional data will speed up server operations
 at the possible expense of additional queries to resolve what would
 otherwise be provided in the additional section.
-</para><para>
+</para>
+
+<para>
 For example, if a query asks for an MX record for host <literal>foo.example.com</literal>,
 and the record found is "<literal>MX 10 mail.example.net</literal>", normally the address
 records (A, A6, and AAAA) for <literal>mail.example.net</literal> will be provided as well,
-if known.  These options disable this behavior.
+if known.  Setting these options to <command>no</command> disables this behavior.
+</para>
+
+<para>
+These options are intended for use in authoritative-only 
+servers, or in authoritative-only views.  Attempts to set
+them to <command>no</command> without also specifying
+<command>recursion no;</command> will cause the server to
+ignore the options and log a warning message.
+</para>
+
+<para>
+Specifying <command>additional-from-cache no</command> actually
+disables the use of the cache not only for additional data lookups
+but also when looking up the answer.  This is usually the desired
+behavior in an authoritative-only server where the correctness of
+the cached data is an issue.
+</para>
+
+<para>
+When a name server is non-recursively queried for a name that is not
+below the apex of any served zone, it normally answers with an
+"upwards referral" to the root servers or the servers of some other
+known parent of the query name.  Since the data in an upwards referral
+comes from the cache, the server will not be able to provide upwards
+referrals when <command>additional-from-cache no</command>
+has been specified.  Instead, it will respond to such queries
+with REFUSED.  This should not cause any problems since
+upwards referrals are not required for the resolution process.
+</para>
+
+</listitem></varlistentry>
+
+<varlistentry><term><command>match-mapped-addresses</command></term>
+<listitem><para>If <userinput>yes</userinput>, then an
+IPv4-mapped IPv6 address will match any address match
+list entries that match the corresponding IPv4 address.
+Enabling this option is sometimes useful on IPv6-enabled Linux
+systems, to work around a kernel quirk that causes IPv4
+TCP connections such as zone transfers to be accepted
+on an IPv6 socket using mapped addresses, causing
+address match lists designed for IPv4 to fail to match.
+The use of this option for any other purpose is discouraged.
 </para></listitem></varlistentry>
 
 </variablelist>
-
 
 </sect3>
 
@@ -3233,10 +3304,11 @@ a random unprivileged port will be used. The defaults are</para>
 <programlisting>query-source address * port *;
 query-source-v6 address * port *
 </programlisting>
-        <note>
-<para><command>query-source</command> currently applies only
-to UDP queries; TCP queries always use a wildcard IP address and
-a random unprivileged port.</para></note></sect3>
+<note>
+<para>The address specified in the <command>query-source</command> option
+is used for both UDP and TCP queries, but the port applies only to 
+UDP queries.  TCP queries always use a random
+unprivileged port.</para></note></sect3>
 
 <sect3 id="zone_transfers"><title>Zone Transfers</title>
 <para><acronym>BIND</acronym> has mechanisms in place to facilitate zone transfers
@@ -3305,12 +3377,25 @@ as defined using the <command>serial-query-rate</command> option.
 </listitem></varlistentry>
 
 <varlistentry><term><command>transfer-format</command></term>
-<listitem><para>The server supports two zone transfer methods. <command>one-answer</command> uses
-one DNS message per resource record transferred. <command>many-answers</command> packs
-as many resource records as possible into a message. <command>many-answers</command> is
-more efficient, but is only known to be understood by <acronym>BIND</acronym> 9, <acronym>BIND</acronym>
-8.x and patched versions of <acronym>BIND</acronym> 4.9.5. The default is <command>many-answers</command>. <command>transfer-format</command> may
-be overridden on a per-server basis by using the <command>server</command> statement.</para>
+<listitem>
+
+<para>
+Zone transfers can be sent using two different formats,
+<command>one-answer</command> and <command>many-answers</command>.
+The <command>transfer-format</command> option is used
+on the master server to determine which format it sends.
+<command>one-answer</command> uses one DNS message per
+resource record transferred.
+<command>many-answers</command> packs as many resource records as
+possible into a message. <command>many-answers</command> is more
+efficient, but is only supported by relatively new slave servers,
+such as <acronym>BIND</acronym> 9, <acronym>BIND</acronym> 8.x and patched
+versions of <acronym>BIND</acronym> 4.9.5. The default is
+<command>many-answers</command>. <command>transfer-format</command>
+may be overridden on a per-server basis by using the
+<command>server</command> statement.
+</para>
+
 </listitem></varlistentry>
 
 <varlistentry><term><command>transfers-in</command></term>
@@ -3852,7 +3937,8 @@ failure response other than those above.</para></entry>
 </sect3>
 
 </sect2>
- <sect2 id="server_statement_grammar">
+
+<sect2 id="server_statement_grammar">
 <title><command>server</command> Statement Grammar</title>
 
 <programlisting>server <replaceable>ip_addr</replaceable> {
@@ -3867,11 +3953,23 @@ failure response other than those above.</para></entry>
 </programlisting>
 
 </sect2>
-<sect2 id="server_statement_definition_and_usage"><title><command>server</command> Statement Definition
-and Usage</title>
 
-<para>The <command>server</command> statement defines the characteristics
+<sect2 id="server_statement_definition_and_usage">
+<title><command>server</command> Statement Definition and Usage</title>
+
+<para>The <command>server</command> statement defines characteristics
 to be associated with a remote nameserver.</para>
+
+<para>
+The <command>server</command> statement can occur at the top level of the
+configuration file or inside a <command>view</command> statement.  
+If a <command>view</command> statement contains
+one or more <command>server</command> statements, only those
+apply to the view and any top-level ones are ignored.
+If a view contains no <command>server</command> statements,
+any top-level <command>server</command> statements are used as
+defaults.
+</para>
 
 <para>If you discover that a remote server is giving out bad data,
 marking it as bogus will prevent further queries to it. The default
@@ -3929,7 +4027,10 @@ to be signed by this key.</para>
 
 <para>Although the grammar of the <command>keys</command> clause
 allows for multiple keys, only a single key per server is currently
-supported.</para></sect2>
+supported.</para>
+
+</sect2>
+
 <sect2><title><command>trusted-keys</command> Statement Grammar</title>
 <programlisting>trusted-keys {
     <replaceable>string</replaceable> <replaceable>number</replaceable> <replaceable>number</replaceable> <replaceable>number</replaceable> <replaceable>string</replaceable> ;

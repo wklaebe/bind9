@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: log.c,v 1.67 2001/06/10 17:06:45 tale Exp $ */
+/* $Id: log.c,v 1.69 2001/07/12 05:58:19 mayer Exp $ */
 
 /* Principal Authors: DCL */
 
@@ -30,6 +30,7 @@
 #include <sys/stat.h>
 
 #include <isc/dir.h>
+#include <isc/file.h>
 #include <isc/log.h>
 #include <isc/magic.h>
 #include <isc/mem.h>
@@ -184,7 +185,7 @@ static const int syslog_map[] = {
  * be overridden.  Since the default is always looked up as the first
  * channellist in the log context, it must come first in isc_categories[].
  */
-isc_logcategory_t isc_categories[] = {
+LIBISC_EXTERNAL_DATA isc_logcategory_t isc_categories[] = {
 	{ "default", 0 },	/* "default" must come first. */
 	{ "general", 0 },
 	{ NULL, 0 }
@@ -193,7 +194,7 @@ isc_logcategory_t isc_categories[] = {
 /*
  * See above comment for categories, and apply it to modules.
  */
-isc_logmodule_t isc_modules[] = {
+LIBISC_EXTERNAL_DATA isc_logmodule_t isc_modules[] = {
 	{ "socket", 0 },
 	{ "time", 0 },
 	{ NULL, 0 }
@@ -209,7 +210,7 @@ static isc_logchannellist_t default_channel;
 /*
  * libisc logs to this context.
  */
-isc_log_t *isc_lctx = NULL;
+LIBISC_EXTERNAL_DATA isc_log_t *isc_lctx = NULL;
 
 /*
  * Forward declarations.
@@ -1242,12 +1243,12 @@ roll_log(isc_logchannel_t *channel) {
 	for (i = greatest; i > 0; i--) {
 		sprintf(current, "%s.%d", path, i - 1);
 		sprintf(new, "%s.%d", path, i);
-		(void)rename(current, new);
+		(void)isc_file_rename(current, new);
 	}
 
 	if (FILE_VERSIONS(channel) != 0) {
 		sprintf(new, "%s.0", path);
-		(void)rename(path, new);
+		(void)isc_file_rename(path, new);
 
 	} else if (FILE_VERSIONS(channel) == 0)
 		(void)remove(path);

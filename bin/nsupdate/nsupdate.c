@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: nsupdate.c,v 1.94 2001/05/05 01:19:45 bwelling Exp $ */
+/* $Id: nsupdate.c,v 1.99 2001/07/12 04:13:39 bwelling Exp $ */
 
 #include <config.h>
 
@@ -281,7 +281,7 @@ setup_key(void) {
 
 		s = strchr(keystr, ':');
 		if (s == NULL || s == keystr || *s == 0)
-			fatal("key option must specify keyname:secret\n");
+			fatal("key option must specify keyname:secret");
 		secretstr = s + 1;
 
 		isc_buffer_init(&keynamesrc, keystr, s - keystr);
@@ -300,7 +300,7 @@ setup_key(void) {
 		isc_buffer_init(&secretbuf, secret, secretlen);
 		result = isc_base64_decodestring(secretstr, &secretbuf);
 		if (result != ISC_R_SUCCESS) {
-			fprintf(stderr, "Couldn't create key from %s: %s\n",
+			fprintf(stderr, "could not create key from %s: %s\n",
 				keystr, isc_result_totext(result));
 			goto failure;
 		}
@@ -313,7 +313,7 @@ setup_key(void) {
 		result = dst_key_fromnamedfile(keyfile, DST_TYPE_PRIVATE,
 					       mctx, &dstkey);
 		if (result != ISC_R_SUCCESS) {
-			fprintf(stderr, "Couldn't read key from %s: %s\n",
+			fprintf(stderr, "could not read key from %s: %s\n",
 				keyfile, isc_result_totext(result));
 			goto failure;
 		}
@@ -324,7 +324,7 @@ setup_key(void) {
 		isc_buffer_init(&secretbuf, secret, secretlen);
 		result = dst_key_tobuffer(dstkey, &secretbuf);
 		if (result != ISC_R_SUCCESS) {
-			fprintf(stderr, "Couldn't read key from %s: %s\n",
+			fprintf(stderr, "could not read key from %s: %s\n",
 				keyfile, isc_result_totext(result));
 			goto failure;
 		}
@@ -345,7 +345,7 @@ setup_key(void) {
 			str = keystr;
 		else
 			str = keyfile;
-		fprintf(stderr, "Couldn't create key from %s: %s\n",
+		fprintf(stderr, "could not create key from %s: %s\n",
 			str, dns_result_totext(result));
 	}
 	isc_mem_free(mctx, secret);
@@ -450,7 +450,7 @@ setup_system(void) {
 		have_ipv6 = ISC_TRUE;
 
 	if (!have_ipv4 && !have_ipv6)
-		fatal("couldn't find either IPv4 or IPv6");
+		fatal("could not find either IPv4 or IPv6");
 
 	result = isc_mem_create(0, 0, &mctx);
 	check_result(result, "isc_mem_create");
@@ -462,7 +462,7 @@ setup_system(void) {
 	lwresult = lwres_conf_parse(lwctx, RESOLV_CONF);
 	if (lwresult != LWRES_R_SUCCESS)
 		fprintf(stderr,
-			"An error was encountered in %s\n", RESOLV_CONF);
+			"an error was encountered in %s\n", RESOLV_CONF);
 
 	lwconf = lwres_conf_get(lwctx);
 
@@ -595,7 +595,7 @@ get_address(char *host, in_port_t port, isc_sockaddr_t *sockaddr) {
 		result = getaddrinfo(host, NULL, &hints, &res);
 		isc_app_unblock();
 		if (result != 0) {
-			fatal("Couldn't find server '%s': %s",
+			fatal("couldn't find server '%s': %s",
 			      host, gai_strerror(result));
 		}
 		memcpy(&sockaddr->type.sa,res->ai_addr, res->ai_addrlen);
@@ -608,7 +608,7 @@ get_address(char *host, in_port_t port, isc_sockaddr_t *sockaddr) {
 		he = gethostbyname(host);
 		isc_app_unblock();
 		if (he == NULL)
-		     fatal("Couldn't find server '%s' (h_errno=%d)",
+		     fatal("couldn't find server '%s' (h_errno=%d)",
 			   host, h_errno);
 		INSIST(he->h_addrtype == AF_INET);
 		isc_sockaddr_fromin(sockaddr,
@@ -751,7 +751,7 @@ parse_rdata(char **cmdlinep, dns_rdataclass_t rdataclass,
 			if (buf != NULL)
 				isc_buffer_free(&buf);
 			if (bufsz > MAXDATA) {
-				fprintf(stderr, "couldn't allocate enough "
+				fprintf(stderr, "could not allocate enough "
 					"space for the rdata\n");
 				exit(1);
 			}
@@ -1002,6 +1002,69 @@ evaluate_local(char *cmdline) {
 }
 
 static isc_uint16_t
+evaluate_key(char *cmdline) {
+	char *namestr;
+	char *secretstr;
+	isc_buffer_t b;
+	isc_result_t result;
+	dns_fixedname_t fkeyname;
+	dns_name_t *keyname;
+	int secretlen;
+	unsigned char *secret = NULL;
+	isc_buffer_t secretbuf;
+
+	namestr = nsu_strsep(&cmdline, " \t\r\n");
+	if (*namestr == 0) {
+		fprintf(stderr, "could not read key name\n");
+		return (STATUS_SYNTAX);
+	}
+
+	dns_fixedname_init(&fkeyname);
+	keyname = dns_fixedname_name(&fkeyname);
+
+	isc_buffer_init(&b, namestr, strlen(namestr));
+	isc_buffer_add(&b, strlen(namestr));
+	result = dns_name_fromtext(keyname, &b, dns_rootname, ISC_FALSE, NULL);
+	if (result != ISC_R_SUCCESS) {
+		fprintf(stderr, "could not parse key name\n");
+		return (STATUS_SYNTAX);
+	}
+
+	secretstr = nsu_strsep(&cmdline, " \t\r\n");
+	if (*secretstr == 0) {
+		fprintf(stderr, "could not read key secret\n");
+		return (STATUS_SYNTAX);
+	}
+	secretlen = strlen(secretstr) * 3 / 4;
+	secret = isc_mem_allocate(mctx, secretlen);
+	if (secret == NULL)
+		fatal("out of memory");
+	
+	isc_buffer_init(&secretbuf, secret, secretlen);
+	result = isc_base64_decodestring(secretstr, &secretbuf);
+	if (result != ISC_R_SUCCESS) {
+		fprintf(stderr, "could not create key from %s: %s\n",
+			secretstr, isc_result_totext(result));
+		isc_mem_free(mctx, secret);
+		return (STATUS_SYNTAX);
+	}
+	secretlen = isc_buffer_usedlength(&secretbuf);
+
+	if (key != NULL)
+		dns_tsigkey_detach(&key);
+	result = dns_tsigkey_create(keyname, dns_tsig_hmacmd5_name,
+                                    secret, secretlen, ISC_TRUE, NULL, 0, 0,
+                                    mctx, NULL, &key);
+	isc_mem_free(mctx, secret);
+	if (result != ISC_R_SUCCESS) {
+		fprintf(stderr, "could not create key from %s %s: %s\n",
+			namestr, secretstr, dns_result_totext(result));
+		return (STATUS_SYNTAX);
+	}
+	return (STATUS_MORE);
+}
+
+static isc_uint16_t
 evaluate_zone(char *cmdline) {
 	char *word;
 	isc_buffer_t b;
@@ -1232,7 +1295,7 @@ show_message(dns_message_t *msg) {
 	bufsz = INITTEXT;
 	do { 
 		if (bufsz > MAXTEXT) {
-			fprintf(stderr, "couldn't allocate large enough "
+			fprintf(stderr, "could not allocate large enough "
 				"buffer to display message\n");
 			exit(1);
 		}
@@ -1244,7 +1307,7 @@ show_message(dns_message_t *msg) {
 		bufsz *= 2;
 	} while (result == ISC_R_NOSPACE);
 	if (result != ISC_R_SUCCESS) {
-		fprintf(stderr, "Could not convert message to text format.\n");
+		fprintf(stderr, "could not convert message to text format.\n");
 		isc_buffer_free(&buf);
 		return;
 	}
@@ -1295,6 +1358,8 @@ get_next_command(void) {
 		show_message(updatemsg);
 		return (STATUS_MORE);
 	}
+	if (strcasecmp(word, "key") == 0)
+		return (evaluate_key(cmdline));
 	fprintf(stderr, "incorrect section name: %s\n", word);
 	return (STATUS_SYNTAX);
 }
@@ -1354,7 +1419,22 @@ update_completed(isc_task_t *task, isc_event_t *event) {
 	check_result(result, "dns_message_create");
 	result = dns_request_getresponse(request, rcvmsg,
 					 DNS_MESSAGEPARSE_PRESERVEORDER);
-	check_result(result, "dns_request_getresponse");
+	switch (result) {
+	case ISC_R_SUCCESS:
+		break;
+	case DNS_R_CLOCKSKEW:
+	case DNS_R_EXPECTEDTSIG:
+	case DNS_R_TSIGERRORSET:
+	case DNS_R_TSIGVERIFYFAILURE:
+	case DNS_R_UNEXPECTEDTSIG:
+		fprintf(stderr, "; TSIG error with server: %s\n",
+			isc_result_totext(result));
+		seenerror = ISC_TRUE;
+		break;
+	default:
+		check_result(result, "dns_request_getresponse");
+	}
+
 	if (rcvmsg->rcode != dns_rcode_noerror)
 		seenerror = ISC_TRUE;
 	if (debugging) {
@@ -1364,7 +1444,7 @@ update_completed(isc_task_t *task, isc_event_t *event) {
 		bufsz = INITTEXT;
 		do { 
 			if (bufsz > MAXTEXT) {
-				fprintf(stderr, "couldn't allocate large "
+				fprintf(stderr, "could not allocate large "
 					"enough buffer to display message\n");
 				exit(1);
 			}
@@ -1472,9 +1552,9 @@ recvsoa(isc_task_t *task, isc_event_t *event) {
 		fprintf(stderr, "; Communication with %s failed: %s\n",
 		       addrbuf, isc_result_totext(eresult));
 		if (userserver != NULL)
-			fatal("Couldn't talk to specified nameserver.");
+			fatal("could not talk to specified name server");
 		else if (++ns_inuse >= lwconf->nsnext)
-			fatal("Couldn't talk to any default nameserver.");
+			fatal("could not talk to any default name server");
 		ddebug("Destroying request [%lx]", request);
 		dns_request_destroy(&request);
 		dns_message_renderreset(soaquery);
@@ -1503,7 +1583,7 @@ recvsoa(isc_task_t *task, isc_event_t *event) {
 			if (buf != NULL)
 				isc_buffer_free(&buf);
 			if (bufsz > MAXTEXT) {
-				fprintf(stderr, "couldn't allocate enough "
+				fprintf(stderr, "could not allocate enough "
 					 "space for debugging message\n");
 				exit(1);
 			}
@@ -1673,14 +1753,14 @@ start_update(void) {
 
 	ddebug("start_update()");
 
-	if (userzone != NULL && userserver != NULL) {
-		send_update(userzone, userserver, localaddr);
-		return;
-	}
-
 	result = dns_message_firstname(updatemsg, DNS_SECTION_UPDATE);
 	if (result != ISC_R_SUCCESS) {
 		done_update();
+		return;
+	}
+
+	if (userzone != NULL && userserver != NULL) {
+		send_update(userzone, userserver, localaddr);
 		return;
 	}
 

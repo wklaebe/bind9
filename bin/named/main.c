@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: main.c,v 1.113 2001/06/08 23:52:21 tale Exp $ */
+/* $Id: main.c,v 1.116 2001/06/28 01:08:24 marka Exp $ */
 
 #include <config.h>
 

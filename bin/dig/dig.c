@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dig.c,v 1.146 2001/06/11 18:08:15 gson Exp $ */
+/* $Id: dig.c,v 1.149 2001/07/01 23:47:49 bwelling Exp $ */
 
 #include <config.h>
 #include <stdlib.h>
@@ -38,6 +38,7 @@
 #include <dns/rdataset.h>
 #include <dns/rdatatype.h>
 #include <dns/rdataclass.h>
+#include <dns/result.h>
 
 #include <dig/dig.h>
 
@@ -690,7 +691,7 @@ plus_option(char *option, isc_boolean_t is_batchfile,
 				goto need_value;
 			if (!state)
 				goto invalid_option;
-			lookup->udpsize = parse_int(value, "buffer size",
+			lookup->udpsize = (isc_uint16_t) parse_int(value, "buffer size",
 						    COMMSIZE);
 			if (lookup->udpsize <= 0)
 				lookup->udpsize = 0;
@@ -966,7 +967,7 @@ dash_option(char *option, char *next, dig_lookup_t **lookup,
 		keyfile[sizeof(keyfile)-1]=0;
 		return (value_from_next);
 	case 'p':
-		port = parse_int(value, "port number", MAXPORT);
+		port = (in_port_t) parse_int(value, "port number", MAXPORT);
 		return (value_from_next);
 	case 't':
 		*open_type_class = ISC_FALSE;
@@ -978,6 +979,11 @@ dash_option(char *option, char *next, dig_lookup_t **lookup,
 			tr.length = strlen(value);
 			result = dns_rdatatype_fromtext(&rdtype,
 						(isc_textregion_t *)&tr);
+			if (result == ISC_R_SUCCESS &&
+			    rdtype == dns_rdatatype_ixfr)
+			{
+				result = DNS_R_UNKNOWN;
+			}
 		}
 		if (result == ISC_R_SUCCESS) {
 			if ((*lookup)->rdtypeset) {
@@ -1195,6 +1201,15 @@ parse_args(isc_boolean_t is_batchfile, isc_boolean_t config_only,
 					tr.length = strlen(rv[0]);
 					result = dns_rdatatype_fromtext(&rdtype,
 						     	(isc_textregion_t *)&tr);
+					if (result == ISC_R_SUCCESS &&
+					    rdtype == dns_rdatatype_ixfr)
+					{
+						result = DNS_R_UNKNOWN;
+						fprintf(stderr, ";; Warning, "
+							"ixfr requires a "
+							"serial number\n");
+						continue;
+					}
 				}
 				if (result == ISC_R_SUCCESS)
 				{

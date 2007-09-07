@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: client.c,v 1.171 2001/06/05 09:02:10 marka Exp $ */
+/* $Id: client.c,v 1.174 2001/06/28 02:39:46 marka Exp $ */
 
 #include <config.h>
 
@@ -1244,7 +1244,7 @@ client_request(isc_task_t *task, isc_event_t *event) {
 
 	if (client->message->rdclass == 0) {
 		ns_client_log(client, NS_LOGCATEGORY_CLIENT,
-			      NS_LOGMODULE_CLIENT, ISC_LOG_ERROR,
+			      NS_LOGMODULE_CLIENT, ISC_LOG_DEBUG(1),
 			      "message class could not be determined");
 		ns_client_dumpmessage(client,
 				      "message class could not be determined");
@@ -1291,7 +1291,7 @@ client_request(isc_task_t *task, isc_event_t *event) {
 		dns_rdataclass_format(client->message->rdclass, classname,
 				      sizeof(classname));
 		ns_client_log(client, NS_LOGCATEGORY_CLIENT,
-			      NS_LOGMODULE_CLIENT, ISC_LOG_ERROR,
+			      NS_LOGMODULE_CLIENT, ISC_LOG_DEBUG(1),
 			      "no matching view in class '%s'", classname);
 		ns_client_dumpmessage(client, "no matching view in class");
 		ns_client_error(client, DNS_R_REFUSED);
@@ -1991,9 +1991,8 @@ ns_client_getsockaddr(ns_client_t *client) {
 }
 
 isc_result_t
-ns_client_checkacl(ns_client_t  *client,
-		   const char *opname, dns_acl_t *acl,
-		   isc_boolean_t default_allow, int log_level)
+ns_client_checkaclsilent(ns_client_t *client, dns_acl_t *acl,
+			 isc_boolean_t default_allow)
 {
 	isc_result_t result;
 	int match;
@@ -2018,16 +2017,29 @@ ns_client_checkacl(ns_client_t  *client,
 	goto deny; /* Negative match or no match. */
 
  allow:
-	ns_client_log(client, DNS_LOGCATEGORY_SECURITY,
-		      NS_LOGMODULE_CLIENT, ISC_LOG_DEBUG(3),
-		      "%s approved", opname);
 	return (ISC_R_SUCCESS);
 
  deny:
-	ns_client_log(client, DNS_LOGCATEGORY_SECURITY,
-		      NS_LOGMODULE_CLIENT,
-		      log_level, "%s denied", opname);
 	return (DNS_R_REFUSED);
+}
+
+isc_result_t
+ns_client_checkacl(ns_client_t *client,
+		   const char *opname, dns_acl_t *acl,
+		   isc_boolean_t default_allow, int log_level)
+{
+	isc_result_t result =
+		ns_client_checkaclsilent(client, acl, default_allow);
+
+	if (result == ISC_R_SUCCESS) 
+		ns_client_log(client, DNS_LOGCATEGORY_SECURITY,
+			      NS_LOGMODULE_CLIENT, ISC_LOG_DEBUG(3),
+			      "%s approved", opname);
+	else
+		ns_client_log(client, DNS_LOGCATEGORY_SECURITY,
+			      NS_LOGMODULE_CLIENT,
+			      log_level, "%s denied", opname);
+	return (result);
 }
 
 static void
@@ -2086,7 +2098,7 @@ ns_client_dumpmessage(ns_client_t *client, const char *reason) {
 	isc_result_t result;
 
 	/*
-	 * Note these a multiline debug messages.  We want a newline
+	 * Note that these are multiline debug messages.  We want a newline
 	 * to appear in the log after each message.
 	 */
 
@@ -2103,7 +2115,7 @@ ns_client_dumpmessage(ns_client_t *client, const char *reason) {
 			len += 1024;
 		} else if (result == ISC_R_SUCCESS)
 		        ns_client_log(client, NS_LOGCATEGORY_UNMATCHED,
-				      NS_LOGMODULE_CLIENT, ISC_LOG_INFO,
+				      NS_LOGMODULE_CLIENT, ISC_LOG_DEBUG(1),
 				      "%s\n%.*s", reason,
 				       (int)isc_buffer_usedlength(&buffer),
 				       buf);

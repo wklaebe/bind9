@@ -15,7 +15,7 @@
 # NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
 # WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: ifconfig.sh,v 1.30 2001/05/24 23:58:24 marka Exp $
+# $Id: ifconfig.sh,v 1.35 2001/06/14 14:10:32 gson Exp $
 
 #
 # Set up interface aliases for bind9 system tests.
@@ -47,13 +47,7 @@ case "$1" in
 		    *-*-linux*)
 			ifconfig lo:$ns 10.53.0.$ns up netmask 255.255.255.0
 		        ;;
-		    *-unknown-freebsdelf3.[45])
-			ifconfig lo0 10.53.0.$ns alias netmask 0xffffffff
-			;;
-		    *-unknown-freebsdelf4.*)
-			ifconfig lo0 10.53.0.$ns alias netmask 0xffffffff
-			;;
-		    *-UnixWare7*)
+		    *-unknown-freebsd*)
 			ifconfig lo0 10.53.0.$ns alias netmask 0xffffffff
 			;;
 		    *-unknown-netbsd*)
@@ -63,10 +57,13 @@ case "$1" in
 			ifconfig lo0 add 10.53.0.$ns netmask 255.255.255.0
 			;;
 		    *-dec-osf[4-5].*)
-			/sbin/ifconfig lo0 alias 10.53.0.$ns
+			ifconfig lo0 alias 10.53.0.$ns
 			;;
 		    *-sgi-irix6.*)
 			ifconfig lo0 alias 10.53.0.$ns
+			;;
+		    *-*-sysv5uw7*)
+			ifconfig lo0 10.53.0.$ns alias netmask 0xffffffff
 			;;
 		    *-ibm-aix4.*)
 			ifconfig lo0 alias 10.53.0.$ns
@@ -95,10 +92,7 @@ case "$1" in
 		    *-*-linux*)
 			ifconfig lo:$ns 10.53.0.$ns down
 		        ;;
-		    *-unknown-freebsdelf3.[45])
-			ifconfig lo0 10.53.0.$ns delete
-			;;
-		    *-unknown-freebsdelf4.*)
+		    *-unknown-freebsd*)
 			ifconfig lo0 10.53.0.$ns delete
 			;;
 		    *-unknown-netbsd*)
@@ -113,7 +107,7 @@ case "$1" in
 		    *-sgi-irix6.*)
 			ifconfig lo0 -alias 10.53.0.$ns
 			;;
-		    *-UnixWare7*)
+		    *-*-sysv5uw7*)
 			ifconfig lo0 -alias 10.53.0.$ns
 			;;
 		    *-ibm-aix4.*)

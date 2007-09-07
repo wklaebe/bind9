@@ -16,7 +16,7 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static const char rcsid[] = "$Id: getnetgrent_r.c,v 1.1 2001/03/29 06:31:47 marka Exp $";
+static const char rcsid[] = "$Id: getnetgrent_r.c,v 1.5 2001/07/04 04:51:05 marka Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <port_before.h>
@@ -29,7 +29,7 @@ static const char rcsid[] = "$Id: getnetgrent_r.c,v 1.1 2001/03/29 06:31:47 mark
 #include <sys/types.h>
 #include <netinet/in.h>
 #include <netdb.h>
-#include <netgroup.h>
+#include <stdlib.h>
 #include <port_after.h>
 
 #ifdef NGR_R_RETURN
@@ -71,6 +71,9 @@ setnetgrent_r(const char *netgroup)
 #endif
 {
 	setnetgrent(netgroup);
+#ifdef NGR_R_PRIVATE
+	*buf = NULL;
+#endif
 #ifdef NGR_R_SET_RESULT
 	return (NGR_R_SET_RESULT);
 #endif
@@ -84,6 +87,11 @@ endnetgrent_r(void)
 #endif
 {
 	endnetgrent();
+#ifdef NGR_R_PRIVATE
+	if (*buf != NULL)
+		free(*buf);
+	*buf = NULL;
+#endif
 	NGR_R_END_RESULT(NGR_R_OK);
 }
 
@@ -103,12 +111,20 @@ copy_protoent(char **machinep, char **userp, char **domainp,
 	if (up != NULL) len += strlen(up) + 1;
 	if (dp != NULL) len += strlen(dp) + 1;
 	
-	if (len > buflen) {
+#ifdef NGR_R_PRIVATE
+	free(*buf);
+	*buf = malloc(len);
+	if (*buf == NULL)
+		return(NGR_R_BAD);
+	cp = *buf;
+#else
+	if (len > (int)buflen) {
 		errno = ERANGE;
 		return (NGR_R_BAD);
 	}
-
 	cp = buf;
+#endif
+
 
 	if (mp != NULL) {
 		n = strlen(mp) + 1;

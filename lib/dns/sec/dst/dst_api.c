@@ -19,7 +19,7 @@
 
 /*
  * Principal Author: Brian Wellington
- * $Id: dst_api.c,v 1.83 2001/05/31 10:45:32 tale Exp $
+ * $Id: dst_api.c,v 1.88 2001/07/10 21:27:59 bwelling Exp $
  */
 
 #include <config.h>
@@ -49,8 +49,6 @@
 #include <dst/result.h>
 
 #include "dst_internal.h"
-
-#include <openssl/rand.h>
 
 static dst_func_t *dst_t_func[DST_MAX_ALGS];
 static isc_mem_t *dst_memory_pool = NULL;
@@ -89,11 +87,22 @@ static isc_result_t	frombuffer(dns_name_t *name,
 				   isc_mem_t *mctx,
 				   dst_key_t **keyp);
 
-#define RETERR(x) do { \
-	result = (x); \
-	if (result != ISC_R_SUCCESS) \
-		goto out; \
+static isc_result_t	algorithm_status(unsigned int alg);
+
+#define RETERR(x) 				\
+	do {					\
+		result = (x);			\
+		if (result != ISC_R_SUCCESS)	\
+			goto out;		\
 	} while (0)
+
+#define CHECKALG(alg)				\
+	do {					\
+		isc_result_t _r;		\
+		_r = algorithm_status(alg);	\
+		if (_r != ISC_R_SUCCESS)	\
+			return (_r);		\
+	} while (0);				\
 
 isc_result_t
 dst_lib_init(isc_mem_t *mctx, isc_entropy_t *ectx, unsigned int eflags) {
@@ -102,9 +111,10 @@ dst_lib_init(isc_mem_t *mctx, isc_entropy_t *ectx, unsigned int eflags) {
 	REQUIRE(mctx != NULL && ectx != NULL);
 	REQUIRE(dst_initialized == ISC_FALSE);
 
-	UNUSED(mctx);
-
 	dst_memory_pool = NULL;
+
+#ifdef OPENSSL
+	UNUSED(mctx);
 	/*
 	 * When using --with-openssl, there seems to be no good way of not
 	 * leaking memory due to the openssl error handling mechanism.
@@ -115,6 +125,9 @@ dst_lib_init(isc_mem_t *mctx, isc_entropy_t *ectx, unsigned int eflags) {
 	if (result != ISC_R_SUCCESS)
 		return (result);
 	isc_mem_setdestroycheck(dst_memory_pool, ISC_FALSE);
+#else
+	isc_mem_attach(mctx, &dst_memory_pool);
+#endif
 	isc_entropy_attach(ectx, &dst_entropy_pool);
 	dst_entropy_flags = eflags;
 
@@ -229,8 +242,7 @@ dst_context_sign(dst_context_t *dctx, isc_buffer_t *sig) {
 	REQUIRE(VALID_CTX(dctx));
 	REQUIRE(sig != NULL);
 
-	if (dst_algorithm_supported(dctx->key->key_alg) == ISC_FALSE)
-		return (DST_R_UNSUPPORTEDALG);
+	CHECKALG(dctx->key->key_alg);
 	if (dctx->key->opaque == NULL)
 		return (DST_R_NULLKEY);
 	if (dctx->key->func->sign == NULL)
@@ -244,8 +256,7 @@ dst_context_verify(dst_context_t *dctx, isc_region_t *sig) {
 	REQUIRE(VALID_CTX(dctx));
 	REQUIRE(sig != NULL);
 
-	if (dst_algorithm_supported(dctx->key->key_alg) == ISC_FALSE)
-		return (DST_R_UNSUPPORTEDALG);
+	CHECKALG(dctx->key->key_alg);
 	if (dctx->key->opaque == NULL)
 		return (DST_R_NULLKEY);
 	if (dctx->key->func->verify == NULL)
@@ -262,9 +273,8 @@ dst_key_computesecret(const dst_key_t *pub, const dst_key_t *priv,
 	REQUIRE(VALID_KEY(pub) && VALID_KEY(priv));
 	REQUIRE(secret != NULL);
 
-	if (dst_algorithm_supported(pub->key_alg)  == ISC_FALSE ||
-	    dst_algorithm_supported(priv->key_alg) == ISC_FALSE)
-		return (DST_R_UNSUPPORTEDALG);
+	CHECKALG(pub->key_alg);
+	CHECKALG(priv->key_alg);
 
 	if (pub->opaque == NULL || priv->opaque == NULL)
 		return (DST_R_NULLKEY);
@@ -288,8 +298,7 @@ dst_key_tofile(const dst_key_t *key, int type, const char *directory) {
 	REQUIRE(VALID_KEY(key));
 	REQUIRE((type & (DST_TYPE_PRIVATE | DST_TYPE_PUBLIC)) != 0);
 
-	if (dst_algorithm_supported(key->key_alg) == ISC_FALSE)
-		return (DST_R_UNSUPPORTEDALG);
+	CHECKALG(key->key_alg);
 
 	if (key->func->tofile == NULL)
 		return (DST_R_UNSUPPORTEDALG);
@@ -323,8 +332,7 @@ dst_key_fromfile(dns_name_t *name, dns_keytag_t id,
 	REQUIRE(mctx != NULL);
 	REQUIRE(keyp != NULL && *keyp == NULL);
 
-	if (dst_algorithm_supported(alg) == ISC_FALSE)
-		return (DST_R_UNSUPPORTEDALG);
+	CHECKALG(alg);
 
 	isc_buffer_init(&b, filename, sizeof filename);
 	result = buildfilename(name, id, alg, type, directory, &b);
@@ -427,8 +435,7 @@ dst_key_todns(const dst_key_t *key, isc_buffer_t *target) {
 	REQUIRE(VALID_KEY(key));
 	REQUIRE(target != NULL);
 
-	if (dst_algorithm_supported(key->key_alg) == ISC_FALSE)
-		return (DST_R_UNSUPPORTEDALG);
+	CHECKALG(key->key_alg);
 
 	if (key->func->todns == NULL)
 		return (DST_R_UNSUPPORTEDALG);
@@ -474,8 +481,7 @@ dst_key_fromdns(dns_name_t *name, dns_rdataclass_t rdclass,
 	proto = isc_buffer_getuint8(source);
 	alg = isc_buffer_getuint8(source);
 
-	if (!dst_algorithm_supported(alg))
-		return (DST_R_UNSUPPORTEDALG);
+	CHECKALG(alg);
 
 	id = dst_region_computeid(&r, alg);
 
@@ -507,8 +513,7 @@ dst_key_frombuffer(dns_name_t *name, unsigned int alg,
 
 	REQUIRE(dst_initialized);
 
-	if (!dst_algorithm_supported(alg))
-		return (DST_R_UNSUPPORTEDALG);
+	CHECKALG(alg);
 
 	result = frombuffer(name, alg, flags, protocol, rdclass, source,
 			    mctx, &key);
@@ -531,8 +536,7 @@ dst_key_tobuffer(const dst_key_t *key, isc_buffer_t *target) {
 	REQUIRE(VALID_KEY(key));
 	REQUIRE(target != NULL);
 
-	if (dst_algorithm_supported(key->key_alg) == ISC_FALSE)
-		return (DST_R_UNSUPPORTEDALG);
+	CHECKALG(key->key_alg);
 
 	if (key->func->todns == NULL)
 		return (DST_R_UNSUPPORTEDALG);
@@ -573,8 +577,7 @@ dst_key_generate(dns_name_t *name, unsigned int alg,
 	REQUIRE(mctx != NULL);
 	REQUIRE(keyp != NULL && *keyp == NULL);
 
-	if (dst_algorithm_supported(alg) == ISC_FALSE)
-		return (DST_R_UNSUPPORTEDALG);
+	CHECKALG(alg);
 
 	key = get_key_struct(name, alg, flags, protocol, bits, rdclass, mctx);
 	if (key == NULL)
@@ -1050,6 +1053,19 @@ frombuffer(dns_name_t *name, unsigned int alg, unsigned int flags,
 	}
 
 	*keyp = key;
+	return (ISC_R_SUCCESS);
+}
+
+static isc_result_t
+algorithm_status(unsigned int alg) {
+	REQUIRE(dst_initialized == ISC_TRUE);
+
+#ifndef OPENSSL
+	if (alg == DST_ALG_RSA || alg == DST_ALG_DSA || alg == DST_ALG_DH)
+		return (DST_R_NOCRYPTO);
+#endif
+	if (!dst_algorithm_supported(alg))
+		return (DST_R_UNSUPPORTEDALG);
 	return (ISC_R_SUCCESS);
 }
 

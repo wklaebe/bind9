@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: net.c,v 1.20 2001/03/24 02:18:42 gson Exp $ */
+/* $Id: net.c,v 1.22 2001/07/09 21:05:59 gson Exp $ */
 
 #include <config.h>
 
@@ -31,6 +31,7 @@
 
 #if defined(ISC_PLATFORM_HAVEIPV6) && defined(ISC_PLATFORM_NEEDIN6ADDRANY)
 const struct in6_addr isc_net_in6addrany = IN6ADDR_ANY_INIT;
+const struct in6_addr isc_net_in6addrloop = IN6ADDR_LOOPBACK_INIT;
 #endif
 
 static isc_once_t 	once = ISC_ONCE_INIT;
@@ -135,22 +136,12 @@ initialize(void) {
 
 isc_result_t
 isc_net_probeipv4(void) {
-
-	/*
-	 * Check if the system's kernel supports IPv4.
-	 */
-
 	initialize();
 	return (ipv4_result);
 }
 
 isc_result_t
 isc_net_probeipv6(void) {
-
-	/*
-	 * Check if the system's kernel supports IPv6.
-	 */
-
 	initialize();
 	return (ipv6_result);
 }

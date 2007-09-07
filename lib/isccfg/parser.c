@@ -15,12 +15,13 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: parser.c,v 1.56 2001/06/08 01:03:00 gson Exp $ */
+/* $Id: parser.c,v 1.62 2001/07/06 20:34:12 gson Exp $ */
 
 #include <config.h>
 
 #include <isc/buffer.h>
 #include <isc/dir.h>
+#include <isc/formatcheck.h>
 #include <isc/lex.h>
 #include <isc/log.h>
 #include <isc/mem.h>
@@ -38,6 +39,8 @@
 /* Shorthand */
 #define CAT CFG_LOGCATEGORY_CONFIG
 #define MOD CFG_LOGMODULE_PARSER
+
+#define QSTRING (ISC_LEXOPT_QSTRING | ISC_LEXOPT_QSTRINGMULTILINE)
 
 /*
  * Pass one of these flags to parser_error() to include the
@@ -374,10 +377,12 @@ cfg_getstringtoken(cfg_parser_t *pctx);
 
 static void
 parser_error(cfg_parser_t *pctx, unsigned int flags,
-				 const char *fmt, ...);
+	     const char *fmt, ...) ISC_FORMAT_PRINTF(3, 4);
+
 static void
 parser_warning(cfg_parser_t *pctx, unsigned int flags,
-	       const char *fmt, ...);
+	       const char *fmt, ...) ISC_FORMAT_PRINTF(3, 4);
+
 static void
 parser_complain(cfg_parser_t *pctx, isc_boolean_t is_warning,
 		unsigned int flags, const char *format, va_list args);
@@ -599,7 +604,7 @@ static cfg_type_t cfg_type_grant = {
 	"grant", parse_tuple, print_tuple, &cfg_rep_tuple, grant_fields };
 
 static cfg_type_t cfg_type_updatepolicy = {
-	"updatepolicy", parse_bracketed_list, print_bracketed_list,
+	"update_policy", parse_bracketed_list, print_bracketed_list,
 	&cfg_rep_list, &cfg_type_grant
 };
 
@@ -1573,7 +1578,7 @@ cfg_obj_asuint32(cfg_obj_t *obj) {
 }
 
 static cfg_type_t cfg_type_uint32 = {
-	"uint32", parse_uint32, print_uint32, &cfg_rep_uint32, NULL };
+	"integer", parse_uint32, print_uint32, &cfg_rep_uint32, NULL };
 
 
 /*
@@ -1638,7 +1643,7 @@ print_uint64(cfg_printer_t *pctx, cfg_obj_t *obj) {
 }
 
 static cfg_type_t cfg_type_uint64 = {
-	"uint64", NULL, print_uint64, &cfg_rep_uint64, NULL };
+	"64_bit_integer", NULL, print_uint64, &cfg_rep_uint64, NULL };
 
 static isc_result_t
 parse_sizeval(cfg_parser_t *pctx, cfg_type_t *type, cfg_obj_t **ret) {
@@ -1764,7 +1769,7 @@ parse_qstring(cfg_parser_t *pctx, cfg_type_t *type, cfg_obj_t **ret) {
         isc_result_t result;
 	UNUSED(type);
 
-	CHECK(cfg_gettoken(pctx, ISC_LEXOPT_QSTRING));
+	CHECK(cfg_gettoken(pctx, QSTRING));
 	if (pctx->token.type != isc_tokentype_qstring) {
 		parser_error(pctx, LOG_NEAR, "expected quoted string");
 		return (ISC_R_UNEXPECTEDTOKEN);
@@ -1905,7 +1910,7 @@ cfg_obj_asboolean(cfg_obj_t *obj) {
 
 /* Quoted string only */
 static cfg_type_t cfg_type_qstring = {
-	"qstring", parse_qstring, print_qstring, &cfg_rep_string, NULL };
+	"quoted_string", parse_qstring, print_qstring, &cfg_rep_string, NULL };
 
 /* Unquoted string only */
 static cfg_type_t cfg_type_ustring = {
@@ -2330,17 +2335,16 @@ parse_mapbody(cfg_parser_t *pctx, cfg_type_t *type, cfg_obj_t **ret)
 						   1, symval,
 						   isc_symexists_reject);
 				if (result != ISC_R_SUCCESS) {
+					parser_error(pctx, LOG_NEAR,
+						     "isc_symtab_define(%s) "
+						     "failed", clause->name);
 					isc_mem_put(pctx->mctx, list,
 						    sizeof(cfg_list_t));
 					goto cleanup;
 				}
-			} else if (result == ISC_R_SUCCESS) {
-				listobj = symval.as_pointer;
 			} else {
-				parser_error(pctx, LOG_NEAR,
-					     "isc_symtab_define() failed",
-					     clause->name);
-				goto cleanup;
+				INSIST(result == ISC_R_SUCCESS);
+				listobj = symval.as_pointer;
 			}
 
 			elt = NULL;
@@ -2568,7 +2572,7 @@ parse_token(cfg_parser_t *pctx, cfg_type_t *type, cfg_obj_t **ret) {
 	UNUSED(type);
 
 	CHECK(create_cfgobj(pctx, &cfg_type_token, &obj));
-	CHECK(cfg_gettoken(pctx, ISC_LEXOPT_QSTRING));
+	CHECK(cfg_gettoken(pctx, QSTRING));
 	if (pctx->token.type == isc_tokentype_eof) {
 		cfg_ungettoken(pctx);
 		result = ISC_R_EOF;
@@ -3012,7 +3016,7 @@ parse_addrmatchelt(cfg_parser_t *pctx, cfg_type_t *type, cfg_obj_t **ret) {
         isc_result_t result;
 	UNUSED(type);
 
-	CHECK(cfg_peektoken(pctx, ISC_LEXOPT_QSTRING));
+	CHECK(cfg_peektoken(pctx, QSTRING));
 
 	if (pctx->token.type == isc_tokentype_string ||
 	    pctx->token.type == isc_tokentype_qstring) {
@@ -3071,7 +3075,7 @@ static cfg_type_t cfg_type_negated = {
 /* an address match list element */
 
 static cfg_type_t cfg_type_addrmatchelt = {
-	"addrmatchelt", parse_addrmatchelt, NULL, NULL, NULL };
+	"address_match_element", parse_addrmatchelt, NULL, NULL, NULL };
 static cfg_type_t cfg_type_bracketed_aml = {
 	"bracketed_aml", parse_bracketed_list, print_bracketed_list,
 	&cfg_rep_list, &cfg_type_addrmatchelt
@@ -3215,7 +3219,7 @@ parse_server_key_kludge(cfg_parser_t *pctx, cfg_type_t *type, cfg_obj_t **ret)
 	return (result);
 }
 static cfg_type_t cfg_type_server_key_kludge = {
-	"server_key_kludge", parse_server_key_kludge, NULL, NULL, NULL };
+	"server_key", parse_server_key_kludge, NULL, NULL, NULL };
 
 
 /*
@@ -3228,7 +3232,7 @@ parse_optional_facility(cfg_parser_t *pctx, cfg_type_t *type, cfg_obj_t **ret)
 	isc_result_t result;
 	UNUSED(type);
 
-	CHECK(cfg_peektoken(pctx, ISC_LEXOPT_QSTRING));
+	CHECK(cfg_peektoken(pctx, QSTRING));
 	if (pctx->token.type == isc_tokentype_string ||
 	    pctx->token.type == isc_tokentype_qstring) {
 		CHECK(parse(pctx, &cfg_type_astring, ret));
@@ -3547,7 +3551,7 @@ static isc_result_t
 cfg_getstringtoken(cfg_parser_t *pctx) {
 	isc_result_t result;
 
-	result = cfg_gettoken(pctx, ISC_LEXOPT_QSTRING);
+	result = cfg_gettoken(pctx, QSTRING);
 	if (result != ISC_R_SUCCESS)
 		return (result);
 
@@ -3564,7 +3568,7 @@ parser_error(cfg_parser_t *pctx, unsigned int flags, const char *fmt, ...)
 {
 	va_list args;
 	va_start(args, fmt);
-	parser_complain(pctx, ISC_TRUE, flags, fmt, args);
+	parser_complain(pctx, ISC_FALSE, flags, fmt, args);
 	va_end(args);
 	pctx->errors++;
 }
@@ -3574,7 +3578,7 @@ parser_warning(cfg_parser_t *pctx, unsigned int flags, const char *fmt, ...)
 {
 	va_list args;
 	va_start(args, fmt);
-	parser_complain(pctx, ISC_FALSE, flags, fmt, args);
+	parser_complain(pctx, ISC_TRUE, flags, fmt, args);
 	va_end(args);
 	pctx->warnings++;
 }
@@ -3745,4 +3749,129 @@ static void
 free_noop(cfg_parser_t *pctx, cfg_obj_t *obj) {
 	UNUSED(pctx);
 	UNUSED(obj);
+}
+
+/*
+ * Data and functions for printing grammar summaries.
+ */
+struct flagtext {
+	unsigned int flag;
+	const char *text;
+} flagtexts[] = {
+	{ CFG_CLAUSEFLAG_NOTIMP, "not implemented" },
+	{ CFG_CLAUSEFLAG_OBSOLETE, "obsolete" },
+	{ CFG_CLAUSEFLAG_NEWDEFAULT, "default changed" },
+	{ 0, NULL }
+};
+
+static void
+print_clause_flags(cfg_printer_t *pctx, unsigned int flags) {
+	struct flagtext *p;
+	isc_boolean_t first = ISC_TRUE;
+	for (p = flagtexts; p->flag != 0; p++) {
+		if ((flags & p->flag) != 0) {
+			if (first)
+				print(pctx, " // ", 4);
+			else
+				print(pctx, ", ", 2);
+			print(pctx, p->text, strlen(p->text));
+			first = ISC_FALSE;
+		}
+	}
+}
+
+static void
+print_grammar(cfg_printer_t *pctx, cfg_type_t *type) {
+	if (type->print == print_mapbody) {
+		cfg_clausedef_t **clauseset;
+		cfg_clausedef_t *clause;
+
+		for (clauseset = type->of; *clauseset != NULL; clauseset++) {
+			for (clause = *clauseset;
+			     clause->name != NULL;
+		     clause++) {
+				print(pctx, clause->name, strlen(clause->name));
+				print(pctx, " ", 1);
+				print_grammar(pctx, clause->type);
+				print(pctx, ";", 1);
+				/* XXX print flags here? */
+				print(pctx, "\n\n", 2);
+			}
+		}
+	} else if (type->print == print_map) {
+		cfg_clausedef_t **clauseset;
+		cfg_clausedef_t *clause;
+
+		print_open(pctx);
+
+		for (clauseset = type->of; *clauseset != NULL; clauseset++) {
+			for (clause = *clauseset;
+			     clause->name != NULL;
+			     clause++) {
+				print_indent(pctx);
+				print(pctx, clause->name, strlen(clause->name));
+				if (clause->type->print != print_void)
+					print(pctx, " ", 1);
+				print_grammar(pctx, clause->type);
+				print(pctx, ";", 1);
+				print_clause_flags(pctx, clause->flags);
+				print(pctx, "\n", 1);
+			}
+		}
+		print_close(pctx);
+	} else if (type->print == print_tuple) {
+		cfg_tuplefielddef_t *fields = type->of;
+		cfg_tuplefielddef_t *f;
+		isc_boolean_t need_space = ISC_FALSE;
+
+		for (f = fields; f->name != NULL; f++) {
+			if (need_space)
+				print(pctx, " ", 1);
+			print_grammar(pctx, f->type);
+			need_space = ISC_TF(f->type->print != print_void);
+		}
+	} else if (type->parse == parse_enum) {
+		const char **p;
+		print(pctx, "( ", 2);
+		for (p = type->of; *p != NULL; p++) {
+			print(pctx, *p, strlen(*p));
+			if (p[1] != NULL)
+				print(pctx, " | ", 3);
+		}
+		print(pctx, " )", 2);
+	} else if (type->print == print_bracketed_list) {
+		print(pctx, "{ ", 2);
+		print_grammar(pctx, type->of);
+		print(pctx, "; ... }", 7);
+	} else if (type->parse == parse_keyvalue) {
+		keyword_type_t *kw = type->of;
+		print(pctx, kw->name, strlen(kw->name));
+		print(pctx, " ", 1);
+		print_grammar(pctx, kw->type);
+	} else if (type->parse == parse_optional_keyvalue) {
+		keyword_type_t *kw = type->of;
+		print(pctx, "[ ", 2);
+		print(pctx, kw->name, strlen(kw->name));
+		print(pctx, " ", 1);
+		print_grammar(pctx, kw->type);
+		print(pctx, " ]", 2);
+	} else if (type->print == print_void) {
+		/* Print nothing. */
+	} else {
+		print(pctx, "<", 1);
+		print(pctx, type->name, strlen(type->name));
+		print(pctx, ">", 1);
+	}
+}
+
+void
+cfg_print_grammar(cfg_type_t *type,
+	void (*f)(void *closure, const char *text, int textlen),
+	void *closure)
+{
+	cfg_printer_t pctx;
+	pctx.f = f;
+	pctx.closure = closure;
+	pctx.indent = 0;
+	print_grammar(&pctx, type);
 }

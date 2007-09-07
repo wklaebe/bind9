@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: context.c,v 1.35 2001/06/07 00:45:35 bwelling Exp $ */
+/* $Id: context.c,v 1.38 2001/07/10 21:13:07 gson Exp $ */
 
 #include <config.h>
 
@@ -25,12 +25,6 @@
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
-
-#include <sys/types.h>
-#include <sys/time.h>
-#include <sys/socket.h>
-
-#include <netinet/in.h>
 
 #include <lwres/lwres.h>
 #include <lwres/net.h>
@@ -301,6 +295,9 @@ lwres_context_recv(lwres_context_t *ctx,
 	if (ret < 0)
 		return (LWRES_R_IOERROR);
 
+	if (ret == recvlen)
+		return (LWRES_R_TOOLARGE);
+
 	/*
 	 * If we got something other than what we expect, have the caller
 	 * wait for another packet.  This can happen if an old result
@@ -336,7 +333,6 @@ lwres_context_sendrecv(lwres_context_t *ctx,
 	int ret2;
 	fd_set readfds;
 	struct timeval timeout;
-
 
 	/*
 	 * Type of tv_sec is long, so make sure the unsigned long timeout

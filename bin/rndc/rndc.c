@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rndc.c,v 1.63 2001/06/08 21:53:47 tale Exp $ */
+/* $Id: rndc.c,v 1.68 2001/07/09 22:02:15 gson Exp $ */
 
 /*
  * Principal Author: DCL
@@ -24,7 +24,6 @@
 #include <config.h>
 
 #include <stdlib.h>
-#include <netdb.h>
 
 #include <isc/app.h>
 #include <isc/buffer.h>
@@ -32,6 +31,7 @@
 #include <isc/file.h>
 #include <isc/log.h>
 #include <isc/mem.h>
+#include <isc/netdb.h>
 #include <isc/socket.h>
 #include <isc/stdtime.h>
 #include <isc/string.h>
@@ -50,7 +50,7 @@
 #include <isccc/types.h>
 #include <isccc/util.h>
 
-#define NS_CONTROL_PORT		953
+#include "util.h"
 
 #ifdef HAVE_ADDRINFO
 #ifdef HAVE_GETADDRINFO
@@ -64,6 +64,9 @@
 extern int h_errno;
 #endif
 
+char *progname;
+isc_boolean_t verbose;
+
 static const char *admin_conffile = RNDC_SYSCONFDIR "/rndc.conf";
 static const char *auto_conffile = NS_LOCALSTATEDIR "/run/named.key";
 static const char *version = VERSION;
@@ -71,27 +74,14 @@ static const char *servername = NULL;
 static unsigned int remoteport = NS_CONTROL_PORT;
 static isc_socketmgr_t *socketmgr = NULL;
 static unsigned char databuf[2048];
-static unsigned char progname[256];
 static isccc_ccmsg_t ccmsg;
 static isccc_region_t secret;
-static isc_boolean_t verbose;
 static isc_boolean_t failed = ISC_FALSE;
 static isc_mem_t *mctx;
 static int sends, recvs, connects;
 static char *command;
 static char *args;
-
-static void
-notify(const char *fmt, ...) {
-	va_list ap;
-
-	if (verbose) {
-		va_start(ap, fmt);
-		vfprintf(stderr, fmt, ap);
-		va_end(ap);
-		fputs("\n", stderr);
-	}
-}
+static char program[256];
 
 static void
 usage(int status) {
@@ -125,30 +115,6 @@ Version: %s\n",
 
 	exit(status);
 }
-
-static void            
-fatal(const char *format, ...) {
-	va_list args;
-
-	fprintf(stderr, "%s: ", progname);
-	va_start(args, format);
-	vfprintf(stderr, format, args);
-	va_end(args);
-	fprintf(stderr, "\n");
-	exit(1);
-}               
-
-
-#undef DO
-#define DO(name, function) \
-	do { \
-		result = function; \
-		if (result != ISC_R_SUCCESS) \
-			fatal("%s: %s", name, isc_result_totext(result)); \
-		else \
-			notify(name); \
-	} while (0)
-
 
 static void
 get_address(const char *host, in_port_t port, isc_sockaddr_t *sockaddr) {
@@ -231,7 +197,7 @@ rndc_recvdone(isc_task_t *task, isc_event_t *event) {
 	recvs--;
 
 	if (ccmsg.result == ISC_R_EOF)
-		fatal("connection to remote host closed\n",
+		fatal("connection to remote host closed\n"
 		      "This may indicate that the remote server is using "
 		      "an older version of the\n"
 		      "command protocol, this host is not authorized "
@@ -403,9 +369,10 @@ main(int argc, char **argv) {
 
 	isc_app_start();
 
-	result = isc_file_progname(*argv, progname, sizeof(progname));
+	result = isc_file_progname(*argv, program, sizeof(program));
 	if (result != ISC_R_SUCCESS)
 		memcpy(progname, "rndc", 5);
+	progname = program;
 
 	while ((ch = isc_commandline_parse(argc, argv, "c:Mmp:s:Vy:"))
 	       != -1) {

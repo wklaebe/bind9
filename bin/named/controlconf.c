@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: controlconf.c,v 1.11 2001/05/31 21:49:11 tale Exp $ */
+/* $Id: controlconf.c,v 1.16 2001/07/05 18:39:14 bwelling Exp $ */
 
 #include <config.h>
 
@@ -187,9 +187,17 @@ maybe_free_connection(controlconnection_t *conn) {
 static void
 shutdown_listener(controllistener_t *listener) {
 	isc_boolean_t destroy = ISC_TRUE;
-	char socktext[ISC_SOCKADDR_FORMATSIZE];
 
-	listener->exiting = ISC_TRUE;
+	if (!listener->exiting) {
+		char socktext[ISC_SOCKADDR_FORMATSIZE];
+
+		isc_sockaddr_format(&listener->address, socktext,
+				    sizeof(socktext));
+		isc_log_write(ns_g_lctx, NS_LOGCATEGORY_GENERAL,
+			      NS_LOGMODULE_CONTROL, ISC_LOG_NOTICE,
+			      "stopping command channel on %s", socktext);
+		listener->exiting = ISC_TRUE;
+	}
 
 	if (!ISC_LIST_EMPTY(listener->connections)) {
 		controlconnection_t *conn;
@@ -206,10 +214,6 @@ shutdown_listener(controllistener_t *listener) {
 		destroy = ISC_FALSE;
 	}
 
-	isc_sockaddr_format(&listener->address, socktext, sizeof(socktext));
-	isc_log_write(ns_g_lctx, NS_LOGCATEGORY_GENERAL,
-		      NS_LOGMODULE_CONTROL, ISC_LOG_NOTICE,
-		      "stopping command channel on %s", socktext);
 	if (destroy)
 		free_listener(listener);
 }
@@ -336,13 +340,7 @@ control_recvmessage(isc_task_t *task, isc_event_t *event) {
 
 	conn = event->ev_arg;
 	listener = conn->listener;
-	key = ISC_LIST_HEAD(listener->keys);
-	INSIST(key != NULL);
-	secret.rstart = isc_mem_get(listener->mctx, key->secret.length);
-	if (secret.rstart == NULL)
-		goto cleanup;
-	memcpy(secret.rstart, key->secret.base, key->secret.length);
-	secret.rend = secret.rstart + key->secret.length;
+	secret.rstart = NULL;
 
 	if (conn->ccmsg.result != ISC_R_SUCCESS) {
 		if (conn->ccmsg.result != ISC_R_CANCELED &&
@@ -351,12 +349,40 @@ control_recvmessage(isc_task_t *task, isc_event_t *event) {
 		goto cleanup;
 	}
 
-	ccregion.rstart = isc_buffer_base(&conn->ccmsg.buffer);
-	ccregion.rend = isc_buffer_used(&conn->ccmsg.buffer);
 	request = NULL;
-	result = isccc_cc_fromwire(&ccregion, &request, &secret);
-	if (result != ISC_R_SUCCESS) {
-		log_invalid(&conn->ccmsg, result);
+	INSIST(!ISC_LIST_EMPTY(listener->keys));
+
+	for (key = ISC_LIST_HEAD(listener->keys);
+	     key != NULL;
+	     key = ISC_LIST_NEXT(key, link))
+	{
+		ccregion.rstart = isc_buffer_base(&conn->ccmsg.buffer);
+		ccregion.rend = isc_buffer_used(&conn->ccmsg.buffer);
+		secret.rstart = isc_mem_get(listener->mctx, key->secret.length);
+		if (secret.rstart == NULL)
+			goto cleanup;
+		memcpy(secret.rstart, key->secret.base, key->secret.length);
+		secret.rend = secret.rstart + key->secret.length;
+		result = isccc_cc_fromwire(&ccregion, &request, &secret);
+		if (result == ISC_R_SUCCESS)
+			break;
+		else if (result == ISCCC_R_BADAUTH) {
+			/*
+			 * For some reason, request is non-NULL when
+			 * isccc_cc_fromwire returns ISCCC_R_BADAUTH.
+			 */
+			if (request != NULL)
+				isccc_sexpr_free(&request);
+			isc_mem_put(listener->mctx, secret.rstart,
+				    REGION_SIZE(secret));
+		} else {
+			log_invalid(&conn->ccmsg, result);
+			goto cleanup;
+		}
+	}
+
+	if (key == NULL) {
+		log_invalid(&conn->ccmsg, ISCCC_R_BADAUTH);
 		goto cleanup;
 	}
 
@@ -729,7 +755,7 @@ make_automagic_key(isc_mem_t *mctx) {
 		isc_buffer_init(&key_txtbuffer, &key_txtsecret,
 				sizeof(key_txtsecret));
 		isc_buffer_usedregion(&key_rawbuffer, &key_rawregion);
-		result = isc_base64_totext(&key_rawregion, -1, "\0",
+		result = isc_base64_totext(&key_rawregion, -1, "",
 					   &key_txtbuffer);
 	}
 
@@ -833,7 +859,7 @@ parse_automagic_key(isc_mem_t *mctx) {
 
 static void
 finalize_automagic_key(void) {
-	int fsaccess;
+	unsigned int fsaccess;
 	int i;
 	FILE *fp;
 	isc_result_t result;

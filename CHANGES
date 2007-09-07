@@ -1,4 +1,114 @@
 
+	--- 9.2.0a3 released ---
+
+ 932.	[bug]		Use INSTALL_SCRIPT, not INSTALL_PROGRAM,
+			when installing isc-config.sh.
+			[RT #198, #1466]
+
+ 931.	[bug]		The controls statement only attempted to verify
+			messages using the first key in the key list.
+			(9.2.0a1/a2 only).
+
+ 930.	[func]		Query performance testing tool added as
+			contrib/queryperf.
+
+ 929.	[placeholder]
+
+ 928.	[bug]		nsupdate would send empty update packets if the
+			send (or empty line) command was run after
+			another send but before any new updates or
+			prerequisites were specified.  It should simply
+			ignore this command.
+
+ 927.	[bug]		Don't hold the zone lock for the entire dump to disk.
+			[RT #1423]
+
+ 926.	[bug]		The resolver could deadlock with the ADB when
+			shutting down (multithreaded builds only).
+			[RT #1324]
+
+ 925.	[cleanup]	Remove openssl from the distribution; require that
+			--with-openssl be specified if DNSSEC is needed.
+
+ 924.	[port]		Extend support for pre-RFC2133 IPv6 implementation.
+			[RT #987]
+
+ 923.	[bug]		Multiline TSIG secrets (and other multiline strings)
+			were not accepted in named.conf. [RT #1469]
+
+ 922.	[func]		Added two new lwres_getrrsetbyname() result codes,
+			ERR_NONAME and ERR_NODATA.
+
+ 921.	[bug]		lwres returned an incorrect error code if it received
+			a truncated message.
+
+ 920.	[func]		Increase the lwres receive buffer size to 16K.
+			[RT #1451]
+
+ 919.	[placeholder]
+
+ 918.	[func]		In nsupdate, TSIG errors are no longer treated as
+			fatal errors.
+
+ 917.	[func]		New nsupdate command 'key', allowing TSIG keys to
+			be specified in the nsupdate command stream rather
+			than the command line.
+
+ 916.	[bug]		Specifying type ixfr to dig without specifying
+			a serial number failed in unexpected ways.
+
+ 915.	[func]		The named-checkconf and named-checkzone programs
+			now have a '-v' option for printing their version.
+			[RT #1151]
+
+ 914.	[bug]		Global 'server' statements were rejected when
+			using views, even though they were accepted
+			in 9.1. [RT #1368]
+
+ 913.	[bug]		Cache cleaning was not sufficiently aggressive.
+			[RT #1441, #1444]
+
+ 912.	[bug]		Attempts to set the 'additional-from-cache' or
+			'additional-from-auth' option to 'no' in a
+			server with recursion enabled will now
+			be ignored and cause a warning message.
+			[RT #1145]
+
+ 911.	[placeholder]
+
+ 910.	[port]		Some pre-RFC2133 IPv6 implementations do not define
+			IN6ADDR_ANY_INIT. [RT #1416]
+
+ 908.	[func]		New program, rndc-confgen, to simplify setting up rndc.
+
+ 907.	[func]		The ability to get entropy from either the
+			random device, a user-provided file or from
+			the keyboard was migrated from the DNSSEC tools
+			to libisc as isc_entropy_usebestsource().
+
+ 906.	[port]		Separated the system independent portion of
+			lib/isc/unix/entropy.c into lib/isc/entropy.c
+			and added lib/isc/win32/entropy.c.
+
+ 905.	[bug]		Configuring a forward "zone" for the root domain
+			did not work. [RT #1418]
+
+ 904.	[bug]		The server would leak memory if attempting to use
+			an expired TSIG key. [RT #1406]
+
+ 903.	[bug]		dig should not crash when receiving a TCP packet
+			of length 0.
+
+ 902.	[bug]		The -d option was ignored if both -t and -g were also
+			specified.
+
+ 901.	[placeholder]
+
+ 900.	[bug]		A config.guess update changed the system identification
+			string of FreeBSD systems; configure and
+			bin/tests/system/ifconfig.sh now recognize the new
+			string. 
+
 	--- 9.2.0a2 released ---
 
  899.	[bug]		lib/dns/soa.c failed to compile on many platforms

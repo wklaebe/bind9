@@ -90,6 +90,13 @@ ns_interfacemgr_create(isc_mem_t *mctx, isc_taskmgr_t *taskmgr,
 		       isc_socketmgr_t *socketmgr,
 		       dns_dispatchmgr_t *dispatchmgr,
 		       ns_clientmgr_t *clientmgr, ns_interfacemgr_t **mgrp);
+/*
+ * Create a new interface manager.
+ *
+ * Initially, the new manager will not listen on any interfaces.
+ * Call ns_interfacemgr_setlistenon() and/or ns_interfacemgr_setlistenon6()
+ * to set nonempty listen-on lists.
+ */
 
 void
 ns_interfacemgr_attach(ns_interfacemgr_t *source, ns_interfacemgr_t **target);
@@ -101,7 +108,7 @@ void
 ns_interfacemgr_shutdown(ns_interfacemgr_t *mgr);
 
 void
-ns_interfacemgr_scan(ns_interfacemgr_t *mgr);
+ns_interfacemgr_scan(ns_interfacemgr_t *mgr, isc_boolean_t verbose);
 /*
  * Scan the operatings system's list of network interfaces
  * and create listeners when new interfaces are discovered.
@@ -113,10 +120,17 @@ ns_interfacemgr_scan(ns_interfacemgr_t *mgr);
  */
 
 void
-ns_interfacemgr_setlistenon(ns_interfacemgr_t *mgr, ns_listenlist_t *value);
+ns_interfacemgr_setlistenon4(ns_interfacemgr_t *mgr, ns_listenlist_t *value);
 /*
- * Set the "listen-on" list of 'mgr' to 'value'.
- * The previous listen-on list is freed.
+ * Set the IPv4 "listen-on" list of 'mgr' to 'value'.
+ * The previous IPv4 listen-on list is freed.
+ */
+
+void
+ns_interfacemgr_setlistenon6(ns_interfacemgr_t *mgr, ns_listenlist_t *value);
+/*
+ * Set the IPv6 "listen-on" list of 'mgr' to 'value'.
+ * The previous IPv6 listen-on list is freed.
  */
 
 isc_result_t

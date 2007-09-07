@@ -17,7 +17,7 @@
 
 /*
  * Principal Author: Brian Wellington
- * $Id: dst_result.c,v 1.8 2000/05/08 14:37:05 tale Exp $
+ * $Id: dst_result.c,v 1.12 2000/06/07 19:18:51 bwelling Exp $
  */
 
 #include <config.h>
@@ -28,22 +28,22 @@
 #include <dst/result.h>
 #include <dst/lib.h>
 
-static char *text[DST_R_NRESULTS] = {
+static const char *text[DST_R_NRESULTS] = {
 	"algorithm is unsupported",		/*  0 */
-	"key type is unsupported",		/*  1 */
-	"signature mode is unsupported",	/*  2 */
+	"UNUSED1",				/*  1 */
+	"UNUSED2",				/*  2 */
 	"illegal operation for a null key",	/*  3 */
 	"public key is invalid",		/*  4 */
 	"private key is invalid",		/*  5 */
-	"key name is too long",			/*  6 */
+	"UNUSED6",				/*  6 */
 	"error occurred writing key to disk",	/*  7 */
 	"invalid algorithm specific parameter",	/*  8 */
-	"sign init failure",			/*  9 */
-	"sign update failure",			/* 10 */
-	"sign final failure",			/* 11 */
-        "verify init failure",			/* 12 */
-	"verify update failure",		/* 13 */
-	"verify final failure",			/* 14 */
+	"UNUSED9",				/*  9 */
+	"UNUSED10",				/* 10 */
+	"sign failure",				/* 11 */
+        "UNUSED12",				/* 12 */
+	"UNUSED13",				/* 13 */
+	"verify failure",			/* 14 */
 	"not a public key",			/* 15 */
 	"not a private key",			/* 16 */
 	"not a key that can compute a secret",	/* 17 */
@@ -72,7 +72,7 @@ initialize(void) {
 	RUNTIME_CHECK(isc_once_do(&once, initialize_action) == ISC_R_SUCCESS);
 }
 
-char *
+const char *
 dst_result_totext(isc_result_t result) {
 	initialize();
 

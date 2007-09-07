@@ -15,7 +15,7 @@
  * SOFTWARE.
  */
 
-/* $Id: rdata.c,v 1.93 2000/05/20 01:05:50 explorer Exp $ */
+/* $Id: rdata.c,v 1.100 2000/06/06 17:43:21 gson Exp $ */
 
 #include <config.h>
 #include <ctype.h>
@@ -47,6 +47,34 @@
 		return (_r); \
 	} while (0)
 
+#define ARGS_FROMTEXT	int rdclass, dns_rdatatype_t type, \
+			isc_lex_t *lexer, dns_name_t *origin, \
+			isc_boolean_t downcase, isc_buffer_t *target
+
+#define ARGS_TOTEXT	dns_rdata_t *rdata, dns_rdata_textctx_t *tctx, \
+			isc_buffer_t *target
+
+#define ARGS_FROMWIRE	int rdclass, dns_rdatatype_t type, \
+			isc_buffer_t *source, dns_decompress_t *dctx, \
+			isc_boolean_t downcase, isc_buffer_t *target
+
+#define ARGS_TOWIRE	dns_rdata_t *rdata, dns_compress_t *cctx, \
+			isc_buffer_t *target
+
+#define ARGS_COMPARE	const dns_rdata_t *rdata1, const dns_rdata_t *rdata2
+
+#define ARGS_FROMSTRUCT	int rdclass, dns_rdatatype_t type, \
+			void *source, isc_buffer_t *target
+
+#define ARGS_TOSTRUCT	dns_rdata_t *rdata, void *target, isc_mem_t *mctx
+
+#define ARGS_FREESTRUCT void *source
+
+#define ARGS_ADDLDATA	dns_rdata_t *rdata, dns_additionaldatafunc_t add, \
+			void *arg
+
+#define ARGS_DIGEST	dns_rdata_t *rdata, dns_digestfunc_t digest, void *arg
+
 /*
  * Context structure for the totext_ functions.  
  * Contains formatting options for rdata-to-text
@@ -56,7 +84,7 @@ typedef struct dns_rdata_textctx {
 	dns_name_t *origin;	/* Current origin, or NULL. */
 	unsigned int flags;	/* DNS_STYLEFLAG_* */
 	unsigned int width;	/* Width of rdata column. */
-  	char *linebreak;	/* Line break string. */
+  	const char *linebreak;	/* Line break string. */
 } dns_rdata_textctx_t;
 
 static isc_result_t
@@ -75,7 +103,7 @@ static unsigned int
 name_length(dns_name_t *name);
 
 static isc_result_t
-str_totext(char *source, isc_buffer_t *target);
+str_totext(const char *source, isc_buffer_t *target);
 
 static isc_boolean_t
 buffer_empty(isc_buffer_t *source);
@@ -127,12 +155,12 @@ static isc_result_t
 atob_tobuffer(isc_lex_t *lexer, isc_buffer_t *target);
 
 static void
-default_fromtext_callback(dns_rdatacallbacks_t *callbacks, char *, ...);
+default_fromtext_callback(dns_rdatacallbacks_t *callbacks, const char *, ...);
 
 static void
-fromtext_error(void (*callback)(dns_rdatacallbacks_t *, char *, ...),
-	       dns_rdatacallbacks_t *callbacks, char *name, int line,
-	       isc_token_t *token, isc_result_t result);
+fromtext_error(void (*callback)(dns_rdatacallbacks_t *, const char *, ...),
+	       dns_rdatacallbacks_t *callbacks, const char *name,
+	       unsigned long line, isc_token_t *token, isc_result_t result);
 
 static isc_result_t
 rdata_totext(dns_rdata_t *rdata, dns_rdata_textctx_t *tctx,
@@ -180,9 +208,21 @@ static const char decdigits[] = "0123456789";
 	{ dns_rcode_yxrrset, "YXRRSET", 0}, \
 	{ dns_rcode_nxrrset, "NXRRSET", 0}, \
 	{ dns_rcode_notauth, "NOTAUTH", 0}, \
-	{ dns_rcode_notzone, "NOTZONE", 0}, \
+	{ dns_rcode_notzone, "NOTZONE", 0},
+
+#define ERCODENAMES \
 	/* extended rcodes */ \
 	{ dns_rcode_badvers, "BADVERS", 0}, \
+	{ 0, NULL, 0 }
+
+#define TSIGRCODENAMES \
+	/* extended rcodes */ \
+	{ dns_tsigerror_badsig, "BADSIG", 0}, \
+	{ dns_tsigerror_badkey, "BADKEY", 0}, \
+	{ dns_tsigerror_badtime, "BADTIME", 0}, \
+	{ dns_tsigerror_badmode, "BADMODE", 0}, \
+	{ dns_tsigerror_badname, "BADNAME", 0}, \
+	{ dns_tsigerror_badalg, "BADALG", 0}, \
 	{ 0, NULL, 0 }
 
 #define CERTNAMES \
@@ -218,17 +258,18 @@ static const char decdigits[] = "0123456789";
 
 struct tbl {
 	unsigned int	value;
-	char	*name;
-	int	flags;
+	const char	*name;
+	int		flags;
 };
 
-static struct tbl rcodes[] = { RCODENAMES };
+static struct tbl rcodes[] = { RCODENAMES ERCODENAMES };
+static struct tbl tsigrcodes[] = { RCODENAMES TSIGRCODENAMES };
 static struct tbl certs[] = { CERTNAMES };
 static struct tbl secalgs[] = { SECALGNAMES };
 static struct tbl secprotos[] = { SECPROTONAMES };
 
 static struct keyflag {
-	char *name;
+	const char *name;
 	unsigned int value;
 	unsigned int mask;
 } keyflags[] = {
@@ -288,7 +329,7 @@ dns_rdata_init(dns_rdata_t *rdata) {
  ***/
 
 int
-dns_rdata_compare(dns_rdata_t *rdata1, dns_rdata_t *rdata2) {
+dns_rdata_compare(const dns_rdata_t *rdata1, const dns_rdata_t *rdata2) {
 	int result = 0;
 	isc_boolean_t use_default = ISC_FALSE;
 
@@ -335,7 +376,7 @@ dns_rdata_fromregion(dns_rdata_t *rdata, dns_rdataclass_t rdclass,
 }
 
 void
-dns_rdata_toregion(dns_rdata_t *rdata, isc_region_t *r) {
+dns_rdata_toregion(const dns_rdata_t *rdata, isc_region_t *r) {
 
 	REQUIRE(rdata != NULL);
 	REQUIRE(r != NULL);
@@ -374,7 +415,7 @@ dns_rdata_fromwire(dns_rdata_t *rdata, dns_rdataclass_t rdclass,
 	if (result == ISC_R_SUCCESS && !buffer_empty(source))
 		result = DNS_R_EXTRADATA;
 
-	if (rdata && result == ISC_R_SUCCESS) {
+	if (rdata != NULL && result == ISC_R_SUCCESS) {
 		region.length = target->used - st.used;
 		dns_rdata_fromregion(rdata, rdclass, type, &region);
 	}
@@ -431,8 +472,8 @@ dns_rdata_fromtext(dns_rdata_t *rdata, dns_rdataclass_t rdclass,
 	unsigned int options = ISC_LEXOPT_EOL | ISC_LEXOPT_EOF |
 			       ISC_LEXOPT_DNSMULTILINE | ISC_LEXOPT_ESCAPE;
 	char *name;
-	int line;
-	void (*callback)(dns_rdatacallbacks_t *, char *, ...);
+	unsigned long line;
+	void (*callback)(dns_rdatacallbacks_t *, const char *, ...);
 	isc_result_t iresult;
 
 	REQUIRE(origin == NULL || dns_name_isabsolute(origin) == ISC_TRUE);
@@ -741,12 +782,20 @@ dns_mnemonic_totext(unsigned int value, isc_buffer_t *target,
  */
 isc_result_t
 dns_rdataclass_fromtext(dns_rdataclass_t *classp, isc_textregion_t *source) {
+	unsigned int attrs;
 
+	/*
+	 * Note: attrs is set and then used in the bit test with RESERVED
+	 * because testing "(flags & RESERVED) != 0" generates
+	 * warnings on IRIX about how the test always has the same value
+	 * because it is all constants.
+	 */
 #define COMPARE(string, flags, type) \
 	if (((sizeof(string) - 1) == source->length) \
 	    && (strcasecmp(source->base, string) == 0)) { \
 		*classp = type; \
-		if ((flags & RESERVED) != 0) \
+		attrs = flags; \
+		if ((attrs & RESERVED) != 0) \
 			return (ISC_R_NOTIMPLEMENTED); \
 		return (ISC_R_SUCCESS); \
 	}
@@ -768,7 +817,7 @@ dns_rdataclass_fromtext(dns_rdataclass_t *classp, isc_textregion_t *source) {
 		COMPARE("none", META, dns_rdataclass_none);
 		break;
 	case 'r':
-		COMPARE("reserved0", META, dns_rdataclass_reserved0);
+		COMPARE("reserved0", META|RESERVED, dns_rdataclass_reserved0);
 		break;
 	}
 
@@ -779,7 +828,7 @@ dns_rdataclass_fromtext(dns_rdataclass_t *classp, isc_textregion_t *source) {
 
 isc_result_t
 dns_rdataclass_totext(dns_rdataclass_t rdclass, isc_buffer_t *target) {
-	char buf[sizeof "RDCLASS4294967296"];
+	char buf[sizeof("RDCLASS4294967296")];
 
 	switch (rdclass) {
 	case dns_rdataclass_any:
@@ -843,24 +892,28 @@ dns_rdatatype_totext(dns_rdatatype_t type, isc_buffer_t *target) {
 
 isc_result_t
 dns_rcode_fromtext(dns_rcode_t *rcodep, isc_textregion_t *source) {
-	int i = 0;
-	unsigned int n;
-
-	while (rcodes[i].name != NULL) {
-		n = strlen(rcodes[i].name);
-		if (n == source->length &&
-		    strncasecmp(source->base, rcodes[i].name, n) == 0) {
-			*rcodep = rcodes[i].value;
-			return (ISC_R_SUCCESS);
-		}
-		i++;
-	}
-	return (DNS_R_UNKNOWN);
+	unsigned int value;
+	RETERR(dns_mnemonic_fromtext(&value, source, rcodes, 0xffff));
+	*rcodep = value;
+	return (ISC_R_SUCCESS);
 }
 
 isc_result_t
 dns_rcode_totext(dns_rcode_t rcode, isc_buffer_t *target) {
 	return (dns_mnemonic_totext(rcode, target, rcodes));	
+}
+
+isc_result_t
+dns_tsigrcode_fromtext(dns_rcode_t *rcodep, isc_textregion_t *source) {
+	unsigned int value;
+	RETERR(dns_mnemonic_fromtext(&value, source, tsigrcodes, 0xffff));
+	*rcodep = value;
+	return (ISC_R_SUCCESS);
+}
+
+isc_result_t
+dns_tsigrcode_totext(dns_rcode_t rcode, isc_buffer_t *target) {
+	return (dns_mnemonic_totext(rcode, target, tsigrcodes));	
 }
 
 isc_result_t
@@ -1138,7 +1191,7 @@ return_false:
 }
 
 static isc_result_t
-str_totext(char *source, isc_buffer_t *target) {
+str_totext(const char *source, isc_buffer_t *target) {
 	unsigned int l;
 	isc_region_t region;
 
@@ -1600,7 +1653,9 @@ btoa_totext(unsigned char *inbuf, int inbuflen, isc_buffer_t *target) {
 
 
 static void
-default_fromtext_callback(dns_rdatacallbacks_t *callbacks, char *fmt, ...) {
+default_fromtext_callback(dns_rdatacallbacks_t *callbacks, const char *fmt,
+			  ...)
+{
 	va_list ap;
 
 	UNUSED(callbacks);
@@ -1611,9 +1666,9 @@ default_fromtext_callback(dns_rdatacallbacks_t *callbacks, char *fmt, ...) {
 }
 
 static void
-fromtext_error(void (*callback)(dns_rdatacallbacks_t *, char *, ...),
-	       dns_rdatacallbacks_t *callbacks, char *name, int line,
-	       isc_token_t *token, isc_result_t result)
+fromtext_error(void (*callback)(dns_rdatacallbacks_t *, const char *, ...),
+	       dns_rdatacallbacks_t *callbacks, const char *name,
+	       unsigned long line, isc_token_t *token, isc_result_t result)
 {
 	if (name == NULL)
 		name = "UNKNOWN";
@@ -1621,36 +1676,36 @@ fromtext_error(void (*callback)(dns_rdatacallbacks_t *, char *, ...),
 	if (token != NULL) {
 		switch (token->type) {
 		case isc_tokentype_eol:
-			(*callback)(callbacks, "%s: %s:%d: near eol: %s",
+			(*callback)(callbacks, "%s: %s:%lu: near eol: %s",
 				    "dns_rdata_fromtext", name, line,
 				    dns_result_totext(result));
 			break;
 		case isc_tokentype_eof:
-			(*callback)(callbacks, "%s: %s:%d: near eof: %s",
+			(*callback)(callbacks, "%s: %s:%lu: near eof: %s",
 				    "dns_rdata_fromtext", name, line,
 				    dns_result_totext(result));
 			break;
 		case isc_tokentype_number:
-			(*callback)(callbacks, "%s: %s:%d: near %lu: %s",
+			(*callback)(callbacks, "%s: %s:%lu: near %lu: %s",
 				    "dns_rdata_fromtext", name, line,
 				    token->value.as_ulong,
 				    dns_result_totext(result));
 			break;
 		case isc_tokentype_string:
 		case isc_tokentype_qstring:
-			(*callback)(callbacks, "%s: %s:%d: near '%s': %s",
+			(*callback)(callbacks, "%s: %s:%lu: near '%s': %s",
 				    "dns_rdata_fromtext", name, line,
 				    (char *)token->value.as_pointer,
 				    dns_result_totext(result));
 			break;
 		default:
-			(*callback)(callbacks, "%s: %s:%d: %s",
+			(*callback)(callbacks, "%s: %s:%lu: %s",
 				    "dns_rdata_fromtext", name, line,
 				    dns_result_totext(result));
 			break;
 		}
 	} else {
-		(*callback)(callbacks, "dns_rdata_fromtext: %s:%d: %s",
+		(*callback)(callbacks, "dns_rdata_fromtext: %s:%lu: %s",
 			    name, line, dns_result_totext(result));
 	}
 }

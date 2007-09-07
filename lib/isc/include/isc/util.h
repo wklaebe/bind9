@@ -48,6 +48,21 @@
 #define ISC_MIN(a, b)  ((a) < (b) ? (a) : (b))
 
 /*
+ * Use this to remove the const qualifier of a variable to assign it to
+ * a non-const variable or pass it as a non-const function argument ...
+ * but only when you are sure it won't then be changed!
+ * This is necessary to sometimes shut up some compilers
+ * (as with gcc -Wcast-qual) when there is just no other good way to avoid the
+ * situation.
+ */
+#define DE_CONST(konst, var) \
+	do { \
+		union { const void *k; void *v; } _u; \
+		_u.k = konst; \
+		var = _u.v; \
+	} while (0)
+
+/*
  * We use macros instead of calling the routines directly because
  * the capital letters make the locking stand out.
  *
@@ -65,27 +80,34 @@
 #include <isc/result.h>		/* Contractual promise. */
 
 #define LOCK(lp) do { \
-	ISC_UTIL_TRACE(fprintf(stderr, "LOCKING %p %s %d\n", (lp), __FILE__, __LINE__)); \
+	ISC_UTIL_TRACE(fprintf(stderr, "LOCKING %p %s %d\n", \
+			       (lp), __FILE__, __LINE__)); \
 	RUNTIME_CHECK(isc_mutex_lock((lp)) == ISC_R_SUCCESS); \
-	ISC_UTIL_TRACE(fprintf(stderr, "LOCKED %p %s %d\n", (lp), __FILE__, __LINE__)); \
+	ISC_UTIL_TRACE(fprintf(stderr, "LOCKED %p %s %d\n", (lp), \
+			       __FILE__, __LINE__)); \
 	} while (0)
 #define UNLOCK(lp) do { \
 	RUNTIME_CHECK(isc_mutex_unlock((lp)) == ISC_R_SUCCESS); \
-	ISC_UTIL_TRACE(fprintf(stderr, "UNLOCKED %p %s %d\n", (lp), __FILE__, __LINE__)); \
+	ISC_UTIL_TRACE(fprintf(stderr, "UNLOCKED %p %s %d\n", \
+			       (lp), __FILE__, __LINE__)); \
 	} while (0)
 
 #define BROADCAST(cvp) do { \
-	ISC_UTIL_TRACE(fprintf(stderr, "BROADCAST %p %s %d\n", (cvp), __FILE__, __LINE__)); \
+	ISC_UTIL_TRACE(fprintf(stderr, "BROADCAST %p %s %d\n", \
+			       (cvp), __FILE__, __LINE__)); \
 	RUNTIME_CHECK(isc_condition_broadcast((cvp)) == ISC_R_SUCCESS); \
 	} while (0)
 #define SIGNAL(cvp) do { \
-	ISC_UTIL_TRACE(fprintf(stderr, "SIGNAL %p %s %d\n", (cvp), __FILE__, __LINE__)); \
+	ISC_UTIL_TRACE(fprintf(stderr, "SIGNAL %p %s %d\n", \
+			       (cvp), __FILE__, __LINE__)); \
 	RUNTIME_CHECK(isc_condition_signal((cvp)) == ISC_R_SUCCESS); \
 	} while (0)
 #define WAIT(cvp, lp) do { \
-	ISC_UTIL_TRACE(fprintf(stderr, "WAIT %p LOCK %p %s %d\n", (cvp), (lp), __FILE__, __LINE__)); \
+	ISC_UTIL_TRACE(fprintf(stderr, "WAIT %p LOCK %p %s %d\n", \
+			       (cvp), (lp), __FILE__, __LINE__)); \
 	RUNTIME_CHECK(isc_condition_wait((cvp), (lp)) == ISC_R_SUCCESS); \
-	ISC_UTIL_TRACE(fprintf(stderr, "WAITED %p LOCKED %p %s %d\n", (cvp), (lp), __FILE__, __LINE__)); \
+	ISC_UTIL_TRACE(fprintf(stderr, "WAITED %p LOCKED %p %s %d\n", \
+			       (cvp), (lp), __FILE__, __LINE__)); \
 	} while (0)
 
 /*
@@ -99,12 +121,15 @@
 	isc_condition_waituntil((cvp), (lp), (tp))
 
 #define RWLOCK(lp, t) do { \
-	ISC_UTIL_TRACE(fprintf(stderr, "RWLOCK %p, %d %s %d\n", (lp), (t), __FILE__, __LINE__)); \
+	ISC_UTIL_TRACE(fprintf(stderr, "RWLOCK %p, %d %s %d\n", \
+			       (lp), (t), __FILE__, __LINE__)); \
 	RUNTIME_CHECK(isc_rwlock_lock((lp), (t)) == ISC_R_SUCCESS); \
-	ISC_UTIL_TRACE(fprintf(stderr, "RWLOCKED %p, %d %s %d\n", (lp), (t), __FILE__, __LINE__)); \
+	ISC_UTIL_TRACE(fprintf(stderr, "RWLOCKED %p, %d %s %d\n", \
+			       (lp), (t), __FILE__, __LINE__)); \
 	} while (0)
 #define RWUNLOCK(lp, t) do { \
-	ISC_UTIL_TRACE(fprintf(stderr, "RWUNLOCK %p, %d %s %d\n", (lp), (t), __FILE__, __LINE__)); \
+	ISC_UTIL_TRACE(fprintf(stderr, "RWUNLOCK %p, %d %s %d\n", \
+			       (lp), (t), __FILE__, __LINE__)); \
 	RUNTIME_CHECK(isc_rwlock_unlock((lp), (t)) == ISC_R_SUCCESS); \
 	} while (0)
 

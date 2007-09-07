@@ -15,6 +15,8 @@
  * SOFTWARE.
  */
 
+/* $Id: nslookup.c,v 1.13 2000/06/06 23:06:25 mws Exp $ */
+
 #include <config.h>
 
 #include <stdlib.h>
@@ -28,11 +30,13 @@ extern int h_errno;
 #include <isc/condition.h>
 #include <isc/commandline.h>
 #include <isc/timer.h>
+#include <isc/buffer.h>
 
 #include <dns/message.h>
 #include <dns/rdata.h>
 #include <dns/rdataset.h>
 #include <dns/rdatatype.h>
+#include <dns/name.h>
 
 #include <dig/dig.h>
 
@@ -45,10 +49,6 @@ extern isc_boolean_t have_ipv6, show_details,
 extern in_port_t port;
 extern unsigned int timeout;
 extern isc_mem_t *mctx;
-extern isc_taskmgr_t *taskmgr;
-extern isc_task_t *task;
-extern isc_timermgr_t *timermgr;
-extern isc_socketmgr_t *socketmgr;
 extern dns_messageid_t id;
 extern char *rootspace[BUFSIZE];
 extern isc_buffer_t rootbuf;
@@ -77,7 +77,7 @@ isc_boolean_t busy = ISC_FALSE, in_use = ISC_FALSE;
 char defclass[MXRD] = "IN";
 char deftype[MXRD] = "A";
 
-static char *rcodetext[] = {
+static const char *rcodetext[] = {
 	"NOERROR",
 	"FORMERR",
 	"SERVFAIL",
@@ -97,7 +97,7 @@ static char *rcodetext[] = {
 	"BADVERS"
 };
 
-static char *rtypetext[] = {
+static const char *rtypetext[] = {
 	"rtype_0 = ",			/* 0 */
 	"internet address = ",		/* 1 */
 	"nameserver = ",		/* 2 */
@@ -253,7 +253,7 @@ printsection(dig_query_t *query, dns_message_t *msg, isc_boolean_t headers,
 								  b);
 					check_result(result,
 						     "dns_rdata_totext");
-					isc_buffer_used(b)[0]=0;
+					((char *)isc_buffer_used(b))[0]=0;
 					ptr = strtok(isc_buffer_base(b),
 						     " \t\r\n");
 					if (ptr == NULL)
@@ -409,7 +409,7 @@ detailsection(dig_query_t *query, dns_message_t *msg, isc_boolean_t headers,
 								  b);
 					check_result(result,
 						     "dns_rdata_totext");
-					isc_buffer_used(b)[0]=0;
+					((char *)isc_buffer_used(b))[0]=0;
 					ptr = strtok(isc_buffer_base(b),
 						     " \t\r\n");
 					if (ptr == NULL)
@@ -628,9 +628,6 @@ addlookup(char *opt) {
 	dig_lookup_t *lookup;
 
 	debug ("addlookup()");
-	lookup_counter++;
-	if (lookup_counter > LOOKUP_LIMIT)
-		fatal ("Too many lookups.");
 	lookup = isc_mem_allocate(mctx, sizeof(struct dig_lookup));
 	if (lookup == NULL)
 		fatal("Memory allocation failure.");
@@ -646,8 +643,10 @@ addlookup(char *opt) {
 	lookup->timer = NULL;
 	lookup->xfr_q = NULL;
 	lookup->origin = NULL;
+	lookup->querysig = NULL;
 	lookup->use_my_server_list = ISC_FALSE;
 	lookup->doing_xfr = ISC_FALSE;
+	lookup->ixfr_serial = 0;
 	lookup->defname = ISC_FALSE;
 	lookup->trace = (trace || ns_search_only);
 	lookup->trace_root = trace;
@@ -665,6 +664,7 @@ addlookup(char *opt) {
 	lookup->section_answer = section_answer;
 	lookup->section_authority = section_authority;
 	lookup->section_additional = section_additional;
+	lookup->new_search = ISC_TRUE;
 	ISC_LIST_INIT(lookup->q);
 	ISC_LIST_APPEND(lookup_list, lookup, link);
 	lookup->origin = NULL;
@@ -734,7 +734,6 @@ get_next_command() {
 static void
 parse_args(int argc, char **argv) {
 	dig_lookup_t *lookup = NULL;
-	isc_boolean_t have_host = ISC_FALSE;
 
 	for (argc--, argv++; argc > 0; argc--, argv++) {
 		debug ("Main parsing %s", argv[0]);
@@ -746,8 +745,6 @@ parse_args(int argc, char **argv) {
 			}
 			if (argv[0][1] != 0)
 				setoption(&argv[0][1]);
-			else {
-				
 		} else {
 			if (lookup == NULL) {
 				in_use = ISC_TRUE;

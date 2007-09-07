@@ -44,33 +44,22 @@ done(isc_task_t *task, isc_event_t *event) {
 	dns_byaddrevent_t *bevent;
 	dns_byaddr_t *byaddr;
 	dns_name_t *name;
-	char textname[1024];
-	isc_buffer_t buffer;
-	isc_result_t result;
-	isc_region_t r;
 
 	REQUIRE(event->ev_type == DNS_EVENT_BYADDRDONE);
 	bevent = (dns_byaddrevent_t *)event;
 
-	(void)task;
+	UNUSED(task);
 
 	printf("byaddr event result = %s\n",
 	       isc_result_totext(bevent->result));
 
 	if (bevent->result == ISC_R_SUCCESS) {
-		isc_buffer_init(&buffer, textname, sizeof(textname));
 		for (name = ISC_LIST_HEAD(bevent->names);
 		     name != NULL;
 		     name = ISC_LIST_NEXT(name, link)) {
-			isc_buffer_clear(&buffer);
-			result = dns_name_totext(name, ISC_TRUE, &buffer);
-			if (result != ISC_R_SUCCESS) {
-				printf("dns_name_totext() returned %s\n",
-				       isc_result_totext(result));
-				break;
-			}
-			isc_buffer_usedregion(&buffer, &r);
-			printf("%.*s\n", (int)r.length, r.base);
+			char text[1024];
+			dns_name_format(name, text, sizeof(text));
+			printf("%s\n", text);
 		}
 	}
 
@@ -132,6 +121,7 @@ main(int argc, char *argv[]) {
 	task = NULL;
 	RUNTIME_CHECK(isc_task_create(taskmgr, 0, &task)
 		      == ISC_R_SUCCESS);
+	isc_task_setname(task, "byaddr", NULL);	
 
 	dispatchmgr = NULL;
 	RUNTIME_CHECK(dns_dispatchmgr_create(mctx, &dispatchmgr)
@@ -151,10 +141,55 @@ main(int argc, char *argv[]) {
 	RUNTIME_CHECK(dns_view_create(mctx, dns_rdataclass_in, "default",
 				      &view) == ISC_R_SUCCESS);
 
-	RUNTIME_CHECK(dns_view_createresolver(view, taskmgr, 10, socketmgr,
-					      timermgr, 0,
-					      dispatchmgr, NULL, NULL) ==
+	{
+		unsigned int attrs;
+		dns_dispatch_t *disp4 = NULL;
+		dns_dispatch_t *disp6 = NULL;
+		
+		if (isc_net_probeipv4() == ISC_R_SUCCESS) {
+			isc_sockaddr_t any4;
+			
+			isc_sockaddr_any(&any4);
+
+			attrs = DNS_DISPATCHATTR_IPV4 | DNS_DISPATCHATTR_UDP;
+			RUNTIME_CHECK(dns_dispatch_getudp(dispatchmgr,
+							  socketmgr,
+							  taskmgr, &any4,
+							  512, 6, 1024,
+							  17, 19, attrs, 
+							  attrs, &disp4)
+			 	      == ISC_R_SUCCESS);
+			INSIST(disp4 != NULL);
+		}
+
+		if (isc_net_probeipv6() == ISC_R_SUCCESS) {
+			isc_sockaddr_t any6;
+			
+			isc_sockaddr_any6(&any6);
+
+			attrs = DNS_DISPATCHATTR_IPV6 | DNS_DISPATCHATTR_UDP;
+			RUNTIME_CHECK(dns_dispatch_getudp(dispatchmgr, 
+							  socketmgr,
+							  taskmgr, &any6, 
+							  512, 6, 1024,
+							  17, 19, attrs, 
+							  attrs, &disp6)
+				      == ISC_R_SUCCESS);
+			INSIST(disp6 != NULL);
+		}
+
+		RUNTIME_CHECK(dns_view_createresolver(view, taskmgr, 10,
+						      socketmgr,
+						      timermgr, 0,
+						      dispatchmgr,
+						      disp4, disp6) ==
 		      ISC_R_SUCCESS);
+
+	        if (disp4 != NULL)
+		    dns_dispatch_detach(&disp4);
+	        if (disp6 != NULL)
+		    dns_dispatch_detach(&disp6);
+	}
 
 	{
 		struct in_addr ina;
@@ -207,6 +242,9 @@ main(int argc, char *argv[]) {
 
 	isc_task_shutdown(task);
 	isc_task_detach(&task);
+
+	dns_dispatchmgr_destroy(&dispatchmgr);
+
 	isc_taskmgr_destroy(&taskmgr);
 
 	isc_socketmgr_destroy(&socketmgr);

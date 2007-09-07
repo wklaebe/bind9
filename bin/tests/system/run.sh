@@ -18,26 +18,43 @@
 #
 # Run a system test.
 #
-. ./conf.sh
 
-whoami=`whoami`
-if [ $whoami != "root" ]; then
-	echo "I:System tests must be run as root."
-	exit
-fi
+SYSTEMTESTTOP=.
+. $SYSTEMTESTTOP/conf.sh
 
-sh ifconfig.sh start
+stopservers=true
 
-if [ $? != 0 ]; then
-	exit 0
-fi
+case $1 in
+   --keep) stopservers=false; shift ;;
+esac
 
-test $# -gt 0 || { echo "usage: runtest.sh test-directory" >&2; exit 1; }
+test $# -gt 0 || { echo "usage: $0 [--keep] test-directory" >&2; exit 1; }
 
 test=$1
 shift
 
 test -d $test || { echo "$0: $test: no such test" >&2; exit 1; }
+
+echo "S:$test:`date`" >&2
+echo "T:$test:1:A" >&2
+echo "A:System test $test" >&2
+
+# Irix does not have /var/run
+test -f /var/run/system_test_ifsetup ||
+test -f /etc/system_test_ifsetup ||
+    { echo "I:Interfaces not set up.  Not trying system tests." >&2;
+      echo "R:UNTESTED" >&2
+      echo "E:$test:`date`" >&2
+      exit 0;
+    }
+
+if [ x$PERL = x ]
+then
+    echo "I:Perl not available.  Not trying system tests." >&2
+    echo "R:UNTESTED" >&2
+    echo "E:$test:`date`" >&2
+    exit 0;
+fi
 
 # Set up any dynamically generated test data
 if test -f $test/setup.sh
@@ -46,7 +63,7 @@ then
 fi
 
 # Start name servers running
-sh start.sh $test
+sh start.sh $test || exit 1
 
 sleep 10
 
@@ -55,12 +72,19 @@ sleep 10
 
 status=$?
 
+if $stopservers
+then
+    :
+else
+    exit $status
+fi
+
 # Shutdown
 sh stop.sh $test
 
 # Cleanup
 ( cd $test ; sh clean.sh )
 
-sh ifconfig.sh stop
+echo "E:$test:`date`"
 
 exit $status

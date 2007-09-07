@@ -28,8 +28,8 @@
 #define MAXFIELDS		12
 
 #define TAG_SHIFT		4
-#define TAG_ALG(tag)		(tag >> TAG_SHIFT)
-#define TAG(alg, off)		((alg << TAG_SHIFT) + off)
+#define TAG_ALG(tag)		((unsigned int)(tag) >> TAG_SHIFT)
+#define TAG(alg, off)		(((alg) << TAG_SHIFT) + (off))
 
 #define RSA_NTAGS		8
 #define TAG_RSA_MODULUS		((DST_ALG_RSA << TAG_SHIFT) + 0)
@@ -75,14 +75,16 @@ typedef struct dst_private dst_private_t;
 ISC_LANG_BEGINDECLS
 
 void
-dst_s_free_private_structure_fields(dst_private_t *priv, isc_mem_t *mctx);
+dst__privstruct_free(dst_private_t *priv, isc_mem_t *mctx);
 
 int
-dst_s_parse_private_key_file(dst_key_t *key, const isc_uint16_t id,
-			     dst_private_t *priv, isc_mem_t *mctx);
+dst__privstruct_parsefile(dst_key_t *key, const isc_uint16_t id,
+			  const char *filename, isc_mem_t *mctx,
+			  dst_private_t *priv);
 
 int
-dst_s_write_private_key_file(const dst_key_t *key, const dst_private_t *priv);
+dst__privstruct_writefile(const dst_key_t *key, const dst_private_t *priv,
+			  const char *directory);
 
 ISC_LANG_ENDDECLS
 

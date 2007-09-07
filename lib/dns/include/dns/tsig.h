@@ -102,19 +102,34 @@ dns_tsigkey_create(dns_name_t *name, dns_name_t *algorithm,
  */
 
 void
-dns_tsigkey_free(dns_tsigkey_t **key);
+dns_tsigkey_attach(dns_tsigkey_t *source, dns_tsigkey_t **targetp);
 /*
- *	Frees the tsig key structure pointed to by 'key'.
+ *	Attach '*targetp' to 'source'.
  *
  *	Requires:
  *		'key' is a valid TSIG key
- *		'ring' is a valid TSIG keyring containing the key
+ *
+ *	Ensures:
+ *		*targetp is attached to source.
+ */
+
+void
+dns_tsigkey_detach(dns_tsigkey_t **key);
+/*
+ *	Detaches from the tsig key structure pointed to by '*key'.
+ *
+ *	Requires:
+ *		'key' not NULL and '*key' is a valid TSIG key
+ *
+ *	Ensures:
+ *		'key' points to NULL
  */
 
 void
 dns_tsigkey_setdeleted(dns_tsigkey_t *key);
 /*
- *	Marks this key as deleted.  It will be deleted when no references exist.
+ *	Marks this key as deleted.  It will be deleted when no references
+ *	exist.
  *
  *	Requires:
  *		'key' is a valid TSIG key
@@ -134,7 +149,8 @@ dns_tsig_sign(dns_message_t *msg);
  *		ISC_R_SUCCESS
  *		ISC_R_NOMEMORY
  *		ISC_R_NOSPACE
- *		DNS_R_EXPECTEDTSIG - this is a response & msg->querytsig is NULL
+ *		DNS_R_EXPECTEDTSIG
+ *			- this is a response & msg->querytsig is NULL
  */
 
 isc_result_t

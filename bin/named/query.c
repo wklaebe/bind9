@@ -311,7 +311,8 @@ query_newrdataset(ns_client_t *client) {
 	rdataset = NULL;
 	result = dns_message_gettemprdataset(client->message, &rdataset);
 	if (result != ISC_R_SUCCESS) {
-	  CTRACE("query_newrdataset: dns_message_gettemprdataset failed: done");
+	  CTRACE("query_newrdataset: "
+		 "dns_message_gettemprdataset failed: done");
 		return (NULL);
 	}
 	dns_rdataset_init(rdataset);
@@ -1747,11 +1748,14 @@ query_resume(isc_task_t *task, isc_event_t *event) {
 		query_putrdataset(client, &devent->sigrdataset);
 		isc_event_free(&event);
 		ns_client_next(client, ISC_R_CANCELED);
-		/* This may destroy the client. */
+		/*
+		 * This may destroy the client.
+		 */
 		ns_client_detach(&client);
 	} else {
 		RWLOCK(&ns_g_server->conflock, isc_rwlocktype_read);
-		dns_zonemgr_lockconf(ns_g_server->zonemgr, isc_rwlocktype_read);
+		dns_zonemgr_lockconf(ns_g_server->zonemgr,
+				     isc_rwlocktype_read);
 		dns_view_attach(client->view, &client->lockview);
 		RWLOCK(&client->lockview->conflock, isc_rwlocktype_read);
 
@@ -1759,7 +1763,8 @@ query_resume(isc_task_t *task, isc_event_t *event) {
 		
 		RWUNLOCK(&client->lockview->conflock, isc_rwlocktype_read);
 		dns_view_detach(&client->lockview);		
-		dns_zonemgr_unlockconf(ns_g_server->zonemgr, isc_rwlocktype_read);
+		dns_zonemgr_unlockconf(ns_g_server->zonemgr,
+				       isc_rwlocktype_read);
 		RWUNLOCK(&ns_g_server->conflock, isc_rwlocktype_read);
 	}
 }
@@ -2799,7 +2804,6 @@ ns_query_start(ns_client_t *client) {
 	isc_result_t result;
 	dns_message_t *message = client->message;
 	dns_rdataset_t *rdataset;
-	isc_boolean_t set_ra = ISC_TRUE;
 	ns_client_t *qclient;
 	
 	CTRACE("ns_query_start");
@@ -2816,7 +2820,6 @@ ns_query_start(ns_client_t *client) {
 		 */
 		client->query.attributes &=
 			~(NS_QUERYATTR_RECURSIONOK|NS_QUERYATTR_CACHEOK);
-		set_ra = ISC_FALSE;
 	} else if ((client->attributes & NS_CLIENTATTR_RA) == 0 ||
 		   (message->flags & DNS_MESSAGEFLAG_RD) == 0) {
 		/*
@@ -2826,7 +2829,6 @@ ns_query_start(ns_client_t *client) {
 		 * doesn't want recursion, turn recursion off.
 		 */
 		client->query.attributes &= ~NS_QUERYATTR_RECURSIONOK;
-		set_ra = ISC_FALSE;
 	}
 
 	/*
@@ -2894,8 +2896,8 @@ ns_query_start(ns_client_t *client) {
 				return;
 			case dns_rdatatype_tkey:
 				result = dns_tkey_processquery(client->message,
-							       ns_g_server->tkeyctx,
-							       client->view->dynamickeys);
+							  ns_g_server->tkeyctx,
+						    client->view->dynamickeys);
 				if (result == ISC_R_SUCCESS)
 					ns_client_send(client);
 				else
@@ -2908,8 +2910,9 @@ ns_query_start(ns_client_t *client) {
 		}
 	}
 
-	/* This is an ordinary query. */
-
+	/*
+	 * This is an ordinary query.
+	 */
 	result = dns_message_reply(message, ISC_TRUE);
 	if (result != ISC_R_SUCCESS) {
 		ns_client_next(client, result);

@@ -15,6 +15,8 @@
  * SOFTWARE.
  */
 
+/* $Id: dig.h,v 1.22 2000/06/07 00:13:57 mws Exp $ */
+
 #ifndef DIG_H
 #define DIG_H
 
@@ -28,6 +30,8 @@
 #include <isc/mem.h>
 #include <isc/list.h>
 #include <isc/print.h>
+#include <dns/rdatalist.h>
+#include <dst/dst.h>
 
 #define MXSERV 4
 #define MXNAME 256
@@ -35,6 +39,7 @@
 #define BUFSIZE 512
 #define COMMSIZE 32767
 #define RESOLVCONF "/etc/resolv.conf"
+#define OUTPUTBUF 32767
 #define LOOKUP_LIMIT 64
 /* Lookup_limit is just a limiter, keeping too many lookups from being
  * created.  It's job is mainly to prevent the program from running away
@@ -73,7 +78,8 @@ struct dig_lookup {
 		section_question,
 		section_answer,
 		section_authority,
-		section_additional;
+		section_additional,
+		new_search;
 	char textname[MXNAME]; /* Name we're going to be looking up */
 	char rttext[MXRD]; /* rdata type text */
 	char rctext[MXRD]; /* rdata class text */
@@ -96,6 +102,12 @@ struct dig_lookup {
 	int retries;
 	int nsfound;
 	isc_uint16_t udpsize;
+	isc_uint32_t ixfr_serial;
+	isc_buffer_t rdatabuf;
+	char rdatastore[MXNAME];
+	dst_context_t *tsigctx;
+	isc_buffer_t *querysig;
+	isc_uint32_t msgcounter;
 };
 
 struct dig_query {
@@ -103,7 +115,11 @@ struct dig_query {
 	isc_boolean_t working,
 		waiting_connect,
 		first_pass,
-		first_soa_rcvd;
+		first_soa_rcvd,
+		second_rr_rcvd,
+		first_repeat_rcvd;
+	isc_uint32_t first_rr_serial;
+	isc_uint32_t second_rr_serial;
 	int retries;
 	char *servname;
 	isc_bufferlist_t sendlist,
@@ -131,19 +147,21 @@ struct dig_searchlist {
 	ISC_LINK(dig_searchlist_t) link;
 };
 
-/* Routines in dighost.c */
+/*
+ * Routines in dighost.c.
+ */
 void
 get_address(char *host, in_port_t port, isc_sockaddr_t *sockaddr);
 void
-fatal(char *format, ...) ;
+fatal(const char *format, ...);
 void
-debug(char *format, ...) ;
+debug(const char *format, ...);
 void
-check_result(isc_result_t result, char *msg);
+check_result(isc_result_t result, const char *msg);
 isc_boolean_t
-isclass(char *text) ;
+isclass(char *text);
 isc_boolean_t
-istype(char *text) ;
+istype(char *text);
 void
 setup_lookup(dig_lookup_t *lookup);
 void
@@ -160,13 +178,15 @@ void
 setup_system(void);
 void
 free_lists(int exitcode);
-dig_lookup_t
-*requeue_lookup(dig_lookup_t *lookold, isc_boolean_t servers);
+dig_lookup_t *
+requeue_lookup(dig_lookup_t *lookold, isc_boolean_t servers);
 
 
-/* Routines needed in dig.c and host.c */
+/*
+ * Routines needed in dig.c and host.c.
+ */
 isc_result_t
-printmessage(dig_query_t *query, dns_message_t *msg, isc_boolean_t headers) ;
+printmessage(dig_query_t *query, dns_message_t *msg, isc_boolean_t headers);
 void
 received(int bytes, int frmsize, char *frm, dig_query_t *query);
 void

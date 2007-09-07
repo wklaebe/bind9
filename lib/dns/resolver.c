@@ -32,6 +32,7 @@
 #include <dns/rdata.h>
 #include <dns/rdatalist.h>
 #include <dns/rdataset.h>
+#include <dns/rdatastruct.h>
 #include <dns/rdatatype.h>
 #include <dns/resolver.h>
 #include <dns/result.h>
@@ -57,6 +58,12 @@
 				      DNS_LOGMODULE_RESOLVER, \
 				      ISC_LOG_DEBUG(3), \
 				      "fctx %p: %s", fctx, (m))
+#define FCTXTRACE2(m1, m2) \
+			isc_log_write(dns_lctx, \
+				      DNS_LOGCATEGORY_RESOLVER, \
+				      DNS_LOGMODULE_RESOLVER, \
+				      ISC_LOG_DEBUG(3), \
+				      "fctx %p: %s %s", fctx, (m1), (m2))
 #define FTRACE(m)	isc_log_write(dns_lctx, \
 				      DNS_LOGCATEGORY_RESOLVER, \
 				      DNS_LOGMODULE_RESOLVER, \
@@ -97,7 +104,7 @@ typedef struct query {
 	dns_dispentry_t *		dispentry;
 	ISC_LINK(struct query)		link;
 	isc_buffer_t			buffer;
-	dns_rdata_any_tsig_t		*tsig;
+	isc_buffer_t			*tsig;
 	dns_tsigkey_t			*tsigkey;
 	unsigned int			options;
 	unsigned int			attributes;
@@ -254,7 +261,7 @@ static isc_boolean_t fctx_destroy(fetchctx_t *fctx);
 static isc_result_t ncache_adderesult(dns_message_t *message,
 				      dns_db_t *cache, dns_dbnode_t *node,
 				      dns_rdatatype_t covers,
-				      isc_stdtime_t now,
+				      isc_stdtime_t now, dns_ttl_t maxttl,
 				      dns_rdataset_t *ardataset,
 				      isc_result_t *eresultp);
 
@@ -378,11 +385,8 @@ fctx_cancelquery(resquery_t **queryp, dns_dispatchevent_t **deventp,
 	if (query->dispentry != NULL)
 		dns_dispatch_removeresponse(&query->dispentry, deventp);
 	ISC_LIST_UNLINK(fctx->queries, query, link);
-	if (query->tsig != NULL) {
-		dns_rdata_freestruct(query->tsig);
-		isc_mem_put(query->fctx->res->mctx, query->tsig,
-			    sizeof(*query->tsig));
-	}
+	if (query->tsig != NULL)
+		isc_buffer_free(&query->tsig);
 	if (RESQUERY_CONNECTING(query)) {
 		/*
 		 * Cancel the connect.
@@ -659,15 +663,17 @@ fctx_query(fetchctx_t *fctx, dns_adbaddrinfo_t *addrinfo,
 	query->tcpsocket = NULL;
 	if ((query->options & DNS_FETCHOPT_TCP) != 0) {
 		isc_sockaddr_t any;
+		int pf;
 
-		result = isc_socket_create(res->socketmgr,
-					   isc_sockaddr_pf(addrinfo->sockaddr),
+		pf = isc_sockaddr_pf(&addrinfo->sockaddr);
+
+		result = isc_socket_create(res->socketmgr, pf, 
 					   isc_sockettype_tcp,
 					   &query->tcpsocket);
 		if (result != ISC_R_SUCCESS)
 			goto cleanup_query;
 
-		switch (isc_sockaddr_pf(addrinfo->sockaddr)) {
+		switch (pf) {
 		case AF_INET:
 			isc_sockaddr_any(&any);
 			break;
@@ -678,16 +684,14 @@ fctx_query(fetchctx_t *fctx, dns_adbaddrinfo_t *addrinfo,
 			INSIST(0);
 		}
 		result = isc_socket_bind(query->tcpsocket, &any);
-		if (result != ISC_R_SUCCESS) {
-			isc_socket_detach(&query->tcpsocket);
-			goto cleanup_query;
-		}
+		if (result != ISC_R_SUCCESS)
+			goto cleanup_socket;
 		
 		/*
 		 * A dispatch will be created once the connect succeeds.
 		 */
 	} else {
-		switch (isc_sockaddr_pf(addrinfo->sockaddr)) {
+		switch (isc_sockaddr_pf(&addrinfo->sockaddr)) {
 		case PF_INET:
 			dns_dispatch_attach(res->dispatchv4, &query->dispatch);
 			break;
@@ -720,10 +724,11 @@ fctx_query(fetchctx_t *fctx, dns_adbaddrinfo_t *addrinfo,
 		 *
 		 * XXXRTH  Should we attach to the socket?
 		 */
-		result = isc_socket_connect(query->tcpsocket, addrinfo->sockaddr,
-					    task, resquery_connected, query);
+		result = isc_socket_connect(query->tcpsocket,
+					    &addrinfo->sockaddr, task,
+					    resquery_connected, query);
 		if (result != ISC_R_SUCCESS)
-			goto cleanup_query;
+			goto cleanup_socket;
 		query->attributes |= RESQUERY_ATTR_CONNECTING;
 		QTRACE("connecting via TCP");
 	} else {
@@ -736,8 +741,12 @@ fctx_query(fetchctx_t *fctx, dns_adbaddrinfo_t *addrinfo,
 
 	return (ISC_R_SUCCESS);
 
+ cleanup_socket:
+	isc_socket_detach(&query->tcpsocket);
+
  cleanup_dispatch:
-	dns_dispatch_detach(&query->dispatch);
+	if (query->dispatch != NULL)
+		dns_dispatch_detach(&query->dispatch);
 
  cleanup_query:
 	query->magic = 0;
@@ -800,7 +809,7 @@ resquery_send(resquery_t *query) {
 	 * Get a query id from the dispatch.
 	 */
 	result = dns_dispatch_addresponse(query->dispatch,
-					  query->addrinfo->sockaddr,
+					  &query->addrinfo->sockaddr,
 					  task,
 					  resquery_response,
 					  query,
@@ -891,22 +900,27 @@ resquery_send(resquery_t *query) {
 	/*
 	 * Add TSIG record tailored to the current recipient.
 	 */
-	isc_netaddr_fromsockaddr(&ipaddr, query->addrinfo->sockaddr);
+	isc_netaddr_fromsockaddr(&ipaddr, &query->addrinfo->sockaddr);
 	result = dns_peerlist_peerbyaddr(fctx->res->view->peers,
 					 &ipaddr, &peer);
 
 	if (result == ISC_R_SUCCESS &&
 	    dns_peer_getkey(peer, &keyname) == ISC_R_SUCCESS)
 	{
-		result = dns_tsigkey_find(&fctx->qmessage->tsigkey,
-					  keyname, NULL,
+		dns_tsigkey_t *tsigkey = NULL;
+
+		result = dns_tsigkey_find(&tsigkey, keyname, NULL,
 					  fctx->res->view->statickeys);
 		if (result == ISC_R_NOTFOUND)
-			result = dns_tsigkey_find(&fctx->qmessage->tsigkey,
-						  keyname, NULL,
-						  fctx->res->view->dynamickeys);
+			result = dns_tsigkey_find(&tsigkey, keyname, NULL,
+						 fctx->res->view->dynamickeys);
 		if (result != ISC_R_SUCCESS && result != ISC_R_NOTFOUND)
 			goto cleanup_message;
+
+		if (tsigkey != NULL) {
+			dns_message_settsigkey(fctx->qmessage, tsigkey);
+			dns_tsigkey_detach(&tsigkey);
+		}
 	}
 
 	result = dns_message_rendersection(fctx->qmessage,
@@ -918,11 +932,14 @@ resquery_send(resquery_t *query) {
 	if (result != ISC_R_SUCCESS)
 		goto cleanup_message;
 
-	if (fctx->qmessage->tsigkey != NULL) {
-		query->tsigkey = fctx->qmessage->tsigkey;
-		query->tsig = fctx->qmessage->tsig;
-		fctx->qmessage->tsig = NULL;
-		fctx->qmessage->tsigkey = NULL;
+	if (dns_message_gettsigkey(fctx->qmessage) != NULL) {
+		dns_tsigkey_attach(dns_message_gettsigkey(fctx->qmessage),
+				   &query->tsigkey);
+		result = dns_message_getquerytsig(fctx->qmessage,
+						  fctx->res->mctx,
+						  &query->tsig);
+		if (result != ISC_R_SUCCESS)
+			goto cleanup_message;
 	}
 
 	/*
@@ -945,7 +962,7 @@ resquery_send(resquery_t *query) {
 	 * Send the query!
 	 */
 	if ((query->options & DNS_FETCHOPT_TCP) == 0)
-		address = query->addrinfo->sockaddr;
+		address = &query->addrinfo->sockaddr;
 	isc_buffer_usedregion(buffer, &r);
 	/*
 	 * XXXRTH  Make sure we don't send to ourselves!  We should probably
@@ -1017,7 +1034,7 @@ resquery_connected(isc_task_t *task, isc_event_t *event) {
 			attrs = 0;
 			attrs |= DNS_DISPATCHATTR_TCP;
 			attrs |= DNS_DISPATCHATTR_PRIVATE;
-			if (isc_sockaddr_pf(query->addrinfo->sockaddr) ==
+			if (isc_sockaddr_pf(&query->addrinfo->sockaddr) ==
 			    AF_INET)
 				attrs |= DNS_DISPATCHATTR_IPV4;
 			else
@@ -1025,11 +1042,10 @@ resquery_connected(isc_task_t *task, isc_event_t *event) {
 			attrs |= DNS_DISPATCHATTR_MAKEQUERY;
 
 			result = dns_dispatch_createtcp(query->dispatchmgr,
-							query->tcpsocket,
-							query->fctx->res->taskmgr,
-							4096, 2, 1, 1, 3,
-							attrs,
-							&query->dispatch);
+						     query->tcpsocket,
+						     query->fctx->res->taskmgr,
+						     4096, 2, 1, 1, 3, attrs,
+						     &query->dispatch);
 		
 			/*
 			 * Regardless of whether dns_dispatch_create()
@@ -1154,7 +1170,7 @@ mark_bad(fetchctx_t *fctx) {
 		for (addrinfo = ISC_LIST_HEAD(curr->list);
 		     addrinfo != NULL;
 		     addrinfo = ISC_LIST_NEXT(addrinfo, publink)) {
-			if (bad_server(fctx, addrinfo->sockaddr))
+			if (bad_server(fctx, &addrinfo->sockaddr))
 				addrinfo->flags |= FCTX_ADDRINFO_MARK;
 			else
 				all_bad = ISC_FALSE;
@@ -1167,7 +1183,7 @@ mark_bad(fetchctx_t *fctx) {
 	for (addrinfo = ISC_LIST_HEAD(fctx->forwaddrs);
 	     addrinfo != NULL;
 	     addrinfo = ISC_LIST_NEXT(addrinfo, publink)) {
-		if (bad_server(fctx, addrinfo->sockaddr))
+		if (bad_server(fctx, &addrinfo->sockaddr))
 			addrinfo->flags |= FCTX_ADDRINFO_MARK;
 		else
 			all_bad = ISC_FALSE;
@@ -1288,7 +1304,7 @@ fctx_getaddresses(fetchctx_t *fctx) {
 	INSIST(ISC_LIST_EMPTY(fctx->forwaddrs));
 
 	/*
-	 * If this fctx has forwarders, use them; otherwise the use
+	 * If this fctx has forwarders, use them; otherwise use the
 	 * resolver's forwarders (if any).
 	 */
 	sa = ISC_LIST_HEAD(fctx->forwarders);
@@ -1365,7 +1381,7 @@ fctx_getaddresses(fetchctx_t *fctx) {
 					    res->buckets[fctx->bucketnum].task,
 					    fctx_finddone, fctx, &name,
 					    &fctx->domain, options, now, NULL,
-					    &find);
+					    res->view->dstport, &find);
 		if (result != ISC_R_SUCCESS) {
 			if (result == DNS_R_ALIAS) {
 				/*
@@ -1469,6 +1485,31 @@ fctx_getaddresses(fetchctx_t *fctx) {
 	return (result);
 }
 
+static inline void
+possibly_mark(fetchctx_t *fctx, dns_adbaddrinfo_t *addr)
+{
+	isc_netaddr_t na;
+	char buf[ISC_NETADDR_FORMATSIZE];
+	isc_sockaddr_t *sa;
+
+	sa = &addr->sockaddr;
+
+	if (sa->type.sa.sa_family != AF_INET6)
+		return;
+
+	if (IN6_IS_ADDR_V4MAPPED(&sa->type.sin6.sin6_addr)) {
+		isc_netaddr_fromsockaddr(&na, sa);
+		isc_netaddr_format(&na, buf, sizeof buf);
+		addr->flags |= FCTX_ADDRINFO_MARK;
+		FCTXTRACE2("Ignoring IPv6 mapped IPV4 address: ", buf);
+	} else if (IN6_IS_ADDR_V4COMPAT(&sa->type.sin6.sin6_addr)) {
+		isc_netaddr_fromsockaddr(&na, sa);
+		isc_netaddr_format(&na, buf, sizeof buf);
+		addr->flags |= FCTX_ADDRINFO_MARK;
+		FCTXTRACE2("Ignoring IPv6 compatibility IPV4 address: ", buf);
+	}
+}
+
 static inline dns_adbaddrinfo_t *
 fctx_nextaddress(fetchctx_t *fctx) {
 	dns_adbfind_t *find;
@@ -1484,6 +1525,7 @@ fctx_nextaddress(fetchctx_t *fctx) {
 	for (addrinfo = ISC_LIST_HEAD(fctx->forwaddrs);
 	     addrinfo != NULL;
 	     addrinfo = ISC_LIST_NEXT(addrinfo, publink)) {
+		possibly_mark(fctx, addrinfo);
 		if (UNMARKED(addrinfo)) {
 			addrinfo->flags |= FCTX_ADDRINFO_MARK;
 			fctx->find = NULL;
@@ -1511,6 +1553,7 @@ fctx_nextaddress(fetchctx_t *fctx) {
 		for (addrinfo = ISC_LIST_HEAD(find->list);
 		     addrinfo != NULL;
 		     addrinfo = ISC_LIST_NEXT(addrinfo, publink)) {
+			possibly_mark(fctx, addrinfo);
 			if (UNMARKED(addrinfo)) {
 				addrinfo->flags |= FCTX_ADDRINFO_MARK;
 				break;
@@ -1563,10 +1606,13 @@ fctx_try(fetchctx_t *fctx) {
 
 		addrinfo = fctx_nextaddress(fctx);
 		/*
-		 * fctx_getaddresses() returned success, so at least one
-		 * of the find lists should be nonempty.
+		 * While we may have addresses from the ADB, they
+		 * might be bad ones.  In this case, return SERVFAIL.
 		 */
-		INSIST(addrinfo != NULL);
+		if (addrinfo == NULL) {
+			fctx_done(fctx, DNS_R_SERVFAIL);
+			return;
+		}
 	}
 
 	result = fctx_query(fctx, addrinfo, fctx->options);
@@ -1754,7 +1800,6 @@ fctx_start(isc_task_t *task, isc_event_t *event) {
 
 	res = fctx->res;
 	bucketnum = fctx->bucketnum;
-	UNUSED(task);
 
 	FCTXTRACE("start");
 
@@ -1789,11 +1834,13 @@ fctx_start(isc_task_t *task, isc_event_t *event) {
 		fctx->state = fetchstate_active;
 		/*
 		 * Reset the control event for later use in shutting down
-		 * the fctx.
+		 * the fctx.  "task" is set as the sender only to satisfy
+		 * the requirement that the sender is non-null, but it is not
+		 * used by the event receiver.
 		 */
 		ISC_EVENT_INIT(event, sizeof(*event), 0, NULL,
 			       DNS_EVENT_FETCHCONTROL, fctx_doshutdown, fctx,
-			       (void *)fctx_doshutdown, NULL, NULL);
+			       task, NULL, NULL);
 	}
 
 	UNLOCK(&res->buckets[bucketnum].lock);
@@ -2229,7 +2276,9 @@ validated(isc_task_t *task, isc_event_t *event) {
 		
 		result = ncache_adderesult(fctx->rmessage,
 					   fctx->res->view->cachedb, node,
-					   covers, now, ardataset, &eresult);
+					   covers, now,
+					   fctx->res->view->maxncachettl,
+					   ardataset, &eresult);
 		if (result != ISC_R_SUCCESS)
 			goto respond;			
 
@@ -2366,6 +2415,13 @@ cache_name(fetchctx_t *fctx, dns_name_t *name, isc_stdtime_t now) {
 	     rdataset = ISC_LIST_NEXT(rdataset, link)) {
 		if (!CACHE(rdataset))
 			continue;
+
+		/*
+		 * Enforce the configure maximum cache TTL.
+		 */
+		if (rdataset->ttl > res->view->maxcachettl)
+			rdataset->ttl = res->view->maxcachettl;
+
 		/*
 		 * If this rrset is in a secure domain, do DNSSEC validation
 		 * for it, unless it is glue.
@@ -2398,13 +2454,18 @@ cache_name(fetchctx_t *fctx, dns_name_t *name, isc_stdtime_t now) {
 			}
 
 			/*
+			 * Normalize the rdataset and sigrdataset TTLs.
+			 */
+			if (sigrdataset != NULL) {
+				rdataset->ttl = ISC_MIN(rdataset->ttl,
+							sigrdataset->ttl);
+				sigrdataset->ttl = rdataset->ttl;
+			}
+
+			/*
 			 * Cache this rdataset/sigrdataset pair as
 			 * pending data.
 			 */
-#ifdef notyet
-			if (sigrdataset != NULL)
-				set_ttl(rdataset, sigrdataset);
-#endif
 			rdataset->trust = dns_trust_pending;
 			if (sigrdataset != NULL)
 				sigrdataset->trust = dns_trust_pending;
@@ -2577,12 +2638,13 @@ cache_message(fetchctx_t *fctx, isc_stdtime_t now) {
  */
 static isc_result_t
 ncache_adderesult(dns_message_t *message, dns_db_t *cache, dns_dbnode_t *node,
-		  dns_rdatatype_t covers, isc_stdtime_t now,
+		  dns_rdatatype_t covers, isc_stdtime_t now, dns_ttl_t maxttl,
 		  dns_rdataset_t *ardataset,
 		  isc_result_t *eresultp)
 {
 	isc_result_t result;
-	result = dns_ncache_add(message, cache, node, covers, now, ardataset);
+	result = dns_ncache_add(message, cache, node, covers, now,
+				maxttl, ardataset);
 	if (result == DNS_R_UNCHANGED) {
 		/*
 		 * The data in the cache is better than the negative cache
@@ -2692,7 +2754,8 @@ ncache_message(fetchctx_t *fctx, dns_rdatatype_t covers, isc_stdtime_t now) {
 		goto unlock;
 
 	result = ncache_adderesult(fctx->rmessage, res->view->cachedb, node,
-				   covers, now, ardataset, &eresult);
+				   covers, now, res->view->maxncachettl,
+				   ardataset, &eresult);
 	if (result != ISC_R_SUCCESS)
 		goto unlock;	
 	
@@ -2956,8 +3019,8 @@ noanswer_response(fetchctx_t *fctx, dns_name_t *oqname) {
 					 *
 					 * Only one SOA is allowed.
 					 */
-					if (rdataset->type == dns_rdatatype_soa)
-					{
+					if (rdataset->type ==
+					    dns_rdatatype_soa) {
 						if (soa_name != NULL &&
 						    name != soa_name)
 							return (DNS_R_FORMERR);
@@ -3421,6 +3484,8 @@ resquery_response(isc_task_t *task, isc_event_t *event) {
 	isc_time_t tnow, *finish;
 	dns_adbaddrinfo_t *addrinfo;
 	unsigned int options;
+	dns_name_t *tsigowner = NULL;
+	dns_rdataset_t *tsigset;
 
 	REQUIRE(VALID_QUERY(query));
 	fctx = query->fctx;
@@ -3482,10 +3547,11 @@ resquery_response(isc_task_t *task, isc_event_t *event) {
 
 	message = fctx->rmessage;
 
-	/* BEW - clean this up at some point */
-	message->querytsig = query->tsig;
-	message->tsigkey = query->tsigkey;
-	query->tsig = NULL;
+	if (query->tsig != NULL) {
+		result = dns_message_setquerytsig(message, query->tsig);
+		if (result != ISC_R_SUCCESS)
+			goto done;
+	}
 
 	result = dns_message_parse(message, &devent->buffer, ISC_FALSE);
 	if (result != ISC_R_SUCCESS) {
@@ -3571,10 +3637,22 @@ resquery_response(isc_task_t *task, isc_event_t *event) {
 	result = dns_message_checksig(message, fctx->res->view);
 	if (result != ISC_R_SUCCESS)
 		goto done;
-	if (message->tsig != NULL && message->tsig->error != dns_rcode_noerror)
-	{
-		result = DNS_R_FORMERR; /* BEW - good enough for now */
-		goto done;
+	tsigset = dns_message_gettsig(message, &tsigowner);
+	if (tsigset != NULL) {
+		dns_rdata_any_tsig_t tsig;
+		dns_rdata_t rdata;
+
+		result = dns_rdataset_first(tsigset);
+		if (result != ISC_R_SUCCESS)
+			goto done;
+		dns_rdataset_current(tsigset, &rdata);
+		result = dns_rdata_tostruct(&rdata, &tsig, NULL);
+		if (result != ISC_R_SUCCESS)
+			goto done;
+		if (tsig.error != dns_rcode_noerror) {
+			result = DNS_R_FORMERR; /* BEW - good enough for now */
+			goto done;
+		}
 	}
 
 	/*
@@ -3788,7 +3866,7 @@ resquery_response(isc_task_t *task, isc_event_t *event) {
 			 * Add this server to the list of bad servers for
 			 * this fctx.
 			 */
-			add_bad(fctx, addrinfo->sockaddr);
+			add_bad(fctx, &addrinfo->sockaddr);
 		}
 
 		if (get_nameservers) {
@@ -4457,12 +4535,15 @@ dns_resolver_createfetch(dns_resolver_t *res, dns_name_t *name,
 	if (new_fctx) {
 		if (result == ISC_R_SUCCESS) {
 			/*
-			 * Launch this fctx.
+			 * Launch this fctx.  "task" is set as the sender only
+			 * to satisfy * the requirement that the sender is
+			 * non-null, but it is not * used by the event
+			 * receiver.
 			 */
 			event = &fctx->control_event;
 			ISC_EVENT_INIT(event, sizeof(*event), 0, NULL,
 				       DNS_EVENT_FETCHCONTROL,
-				       fctx_start, fctx, (void *)fctx_create,
+				       fctx_start, fctx, task,
 				       NULL, NULL);
 			isc_task_send(res->buckets[bucketnum].task, &event);
 		} else {

@@ -15,11 +15,9 @@
  * SOFTWARE.
  */
 
-/* $Id: tsig_250.c,v 1.38 2000/05/22 12:37:28 marka Exp $ */
+/* $Id: tsig_250.c,v 1.41 2000/06/01 18:26:01 tale Exp $ */
 
 /* Reviewed: Thu Mar 16 13:39:43 PST 2000 by gson */
-
-/* draft-ietf-dnsext-tsig-00.txt */
 
 #ifndef RDATA_ANY_255_TSIG_250_C
 #define RDATA_ANY_255_TSIG_250_C
@@ -28,14 +26,13 @@
 	(DNS_RDATATYPEATTR_META | DNS_RDATATYPEATTR_NOTQUESTION)
 
 static inline isc_result_t
-fromtext_any_tsig(dns_rdataclass_t rdclass, dns_rdatatype_t type,
-		  isc_lex_t *lexer, dns_name_t *origin,
-		  isc_boolean_t downcase, isc_buffer_t *target)
-{
+	fromtext_any_tsig(ARGS_FROMTEXT) {
 	isc_token_t token;
 	dns_name_t name;
 	isc_uint64_t sigtime;
 	isc_buffer_t buffer;
+	dns_rcode_t rcode;
+	long i;
 	char *e;
 
 	REQUIRE(type == 250);
@@ -94,10 +91,18 @@ fromtext_any_tsig(dns_rdataclass_t rdclass, dns_rdatatype_t type,
 	/*
 	 * Error.
 	 */
-	RETERR(gettoken(lexer, &token, isc_tokentype_number, ISC_FALSE));
-	if (token.value.as_ulong > 0xffff)
-		return (ISC_R_RANGE);
-	RETERR(uint16_tobuffer(token.value.as_ulong, target));
+	RETERR(gettoken(lexer, &token, isc_tokentype_string, ISC_FALSE));
+	if (dns_tsigrcode_fromtext(&rcode, &token.value.as_textregion)
+				!= ISC_R_SUCCESS)
+	{
+		i = strtol(token.value.as_pointer, &e, 10);
+		if (*e != 0)
+			return (DNS_R_UNKNOWN);
+		if (i < 0 || i > 0xffff)
+			return (ISC_R_RANGE);
+		rcode = (dns_rcode_t)i;
+	}
+	RETERR(uint16_tobuffer(rcode, target));
 
 	/*
 	 * Other Len.
@@ -114,9 +119,7 @@ fromtext_any_tsig(dns_rdataclass_t rdclass, dns_rdatatype_t type,
 }
 
 static inline isc_result_t
-totext_any_tsig(dns_rdata_t *rdata, dns_rdata_textctx_t *tctx, 
-		isc_buffer_t *target) 
-{
+totext_any_tsig(ARGS_TOTEXT) {
 	isc_region_t sr;
 	isc_region_t sigr;
 	char buf[sizeof "281474976710655 "];	
@@ -206,8 +209,12 @@ totext_any_tsig(dns_rdata_t *rdata, dns_rdata_textctx_t *tctx,
 	 */
 	n = uint16_fromregion(&sr);
 	isc_region_consume(&sr, 2);
-	sprintf(buf, "%u ", n);
-	RETERR(str_totext(buf, target));
+	if (dns_tsigrcode_totext((dns_rcode_t)n, target) == ISC_R_SUCCESS)
+		RETERR(str_totext(" ", target));
+	else {
+		sprintf(buf, "%u ", n);
+		RETERR(str_totext(buf, target));
+	}
 
 	/*
 	 * Other Size.
@@ -224,10 +231,7 @@ totext_any_tsig(dns_rdata_t *rdata, dns_rdata_textctx_t *tctx,
 }
 
 static inline isc_result_t
-fromwire_any_tsig(dns_rdataclass_t rdclass, dns_rdatatype_t type,
-		  isc_buffer_t *source, dns_decompress_t *dctx,
-		  isc_boolean_t downcase, isc_buffer_t *target)
-{
+fromwire_any_tsig(ARGS_FROMWIRE) {
 	isc_region_t sr;
 	dns_name_t name;
 	unsigned long n;
@@ -287,9 +291,7 @@ fromwire_any_tsig(dns_rdataclass_t rdclass, dns_rdatatype_t type,
 }
 
 static inline isc_result_t
-towire_any_tsig(dns_rdata_t *rdata, dns_compress_t *cctx,
-		isc_buffer_t *target)
-{
+towire_any_tsig(ARGS_TOWIRE) {
 	isc_region_t sr;
 	dns_name_t name;
 
@@ -306,7 +308,7 @@ towire_any_tsig(dns_rdata_t *rdata, dns_compress_t *cctx,
 }
 
 static inline int
-compare_any_tsig(dns_rdata_t *rdata1, dns_rdata_t *rdata2) {
+compare_any_tsig(ARGS_COMPARE) {
 	isc_region_t r1;
 	isc_region_t r2;
 	dns_name_t name1;
@@ -333,9 +335,7 @@ compare_any_tsig(dns_rdata_t *rdata1, dns_rdata_t *rdata2) {
 }
 
 static inline isc_result_t
-fromstruct_any_tsig(dns_rdataclass_t rdclass, dns_rdatatype_t type,
-		    void *source, isc_buffer_t *target)
-{
+fromstruct_any_tsig(ARGS_FROMSTRUCT) {
 	dns_rdata_any_tsig_t *tsig = source;
 	isc_region_t tr;
 
@@ -403,7 +403,7 @@ fromstruct_any_tsig(dns_rdataclass_t rdclass, dns_rdatatype_t type,
 }
 
 static inline isc_result_t
-tostruct_any_tsig(dns_rdata_t *rdata, void *target, isc_mem_t *mctx) {
+tostruct_any_tsig(ARGS_TOSTRUCT) {
 	dns_rdata_any_tsig_t *tsig;
 	dns_name_t alg;
 	isc_region_t sr;
@@ -503,7 +503,7 @@ tostruct_any_tsig(dns_rdata_t *rdata, void *target, isc_mem_t *mctx) {
 }
 
 static inline void
-freestruct_any_tsig(void *source) {
+freestruct_any_tsig(ARGS_FREESTRUCT) {
 	dns_rdata_any_tsig_t *tsig = (dns_rdata_any_tsig_t *) source;
 
 	REQUIRE(source != NULL);
@@ -522,9 +522,7 @@ freestruct_any_tsig(void *source) {
 }
 
 static inline isc_result_t
-additionaldata_any_tsig(dns_rdata_t *rdata, dns_additionaldatafunc_t add,
-			void *arg)
-{
+additionaldata_any_tsig(ARGS_ADDLDATA) {
 	REQUIRE(rdata->type == 250);
 	REQUIRE(rdata->rdclass == 255);
 
@@ -536,7 +534,7 @@ additionaldata_any_tsig(dns_rdata_t *rdata, dns_additionaldatafunc_t add,
 }
 
 static inline isc_result_t
-digest_any_tsig(dns_rdata_t *rdata, dns_digestfunc_t digest, void *arg) {
+digest_any_tsig(ARGS_DIGEST) {
 
 	REQUIRE(rdata->type == 250);
 	REQUIRE(rdata->rdclass == 255);

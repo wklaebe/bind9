@@ -15,7 +15,7 @@
  * SOFTWARE.
  */
 
-/* $Id: gen.c,v 1.46 2000/05/09 22:22:11 tale Exp $ */
+/* $Id: gen.c,v 1.51 2000/06/06 02:01:40 marka Exp $ */
 
 #include <config.h>
 
@@ -34,70 +34,51 @@
 #include "gen-unix.h"
 #endif
 
-#define FROMTEXTDECL "dns_rdataclass_t rdclass, dns_rdatatype_t type, " \
-			"isc_lex_t *lexer, dns_name_t *origin, " \
-			"isc_boolean_t downcase, isc_buffer_t *target"
 #define FROMTEXTARGS "rdclass, type, lexer, origin, downcase, target"
 #define FROMTEXTCLASS "rdclass"
 #define FROMTEXTTYPE "type"
 #define FROMTEXTDEF "use_default = ISC_TRUE"
 
-#define TOTEXTDECL "dns_rdata_t *rdata, dns_rdata_textctx_t *tctx, " \
-			"isc_buffer_t *target"
 #define TOTEXTARGS "rdata, tctx, target"
 #define TOTEXTCLASS "rdata->rdclass"
 #define TOTEXTTYPE "rdata->type"
 #define TOTEXTDEF "use_default = ISC_TRUE"
 
-#define FROMWIREDECL "dns_rdataclass_t rdclass, dns_rdatatype_t type, " \
-			"isc_buffer_t *source, dns_decompress_t *dctx, " \
-			"isc_boolean_t downcase, isc_buffer_t *target"
 #define FROMWIREARGS "rdclass, type, source, dctx, downcase, target"
 #define FROMWIRECLASS "rdclass"
 #define FROMWIRETYPE "type"
 #define FROMWIREDEF "use_default = ISC_TRUE"
 
-#define TOWIREDECL "dns_rdata_t *rdata, dns_compress_t *cctx, " \
-			"isc_buffer_t *target"
 #define TOWIREARGS "rdata, cctx, target"
 #define TOWIRECLASS "rdata->rdclass"
 #define TOWIRETYPE "rdata->type"
 #define TOWIREDEF "use_default = ISC_TRUE"
 
-#define FROMSTRUCTDECL "dns_rdataclass_t rdclass, dns_rdatatype_t type, " \
-			"void *source, isc_buffer_t *target"
 #define FROMSTRUCTARGS "rdclass, type, source, target"
 #define FROMSTRUCTCLASS "rdclass"
 #define FROMSTRUCTTYPE "type"
 #define FROMSTRUCTDEF "use_default = ISC_TRUE"
 
-#define TOSTRUCTDECL "dns_rdata_t *rdata, void *target, isc_mem_t *mctx"
 #define TOSTRUCTARGS "rdata, target, mctx"
 #define TOSTRUCTCLASS "rdata->rdclass"
 #define TOSTRUCTTYPE "rdata->type"
 #define TOSTRUCTDEF "use_default = ISC_TRUE"
 
-#define FREESTRUCTDECL "void *source"
 #define FREESTRUCTARGS "source"
 #define FREESTRUCTCLASS "common->rdclass"
 #define FREESTRUCTTYPE "common->rdtype"
 #define FREESTRUCTDEF NULL
 
-#define COMPAREDECL "dns_rdata_t *rdata1, dns_rdata_t *rdata2"
 #define COMPAREARGS "rdata1, rdata2"
 #define COMPARECLASS "rdata1->rdclass"
 #define COMPARETYPE "rdata1->type"
 #define COMPAREDEF "use_default = ISC_TRUE"
 
-#define ADDITIONALDATADECL \
-	"dns_rdata_t *rdata, dns_additionaldatafunc_t add, void *arg"
 #define ADDITIONALDATAARGS "rdata, add, arg"
 #define ADDITIONALDATACLASS "rdata->rdclass"
 #define ADDITIONALDATATYPE "rdata->type"
 #define ADDITIONALDATADEF "use_default = ISC_TRUE"
 
-#define DIGESTDECL \
-	"dns_rdata_t *rdata, dns_digestfunc_t digest, void *arg"
 #define DIGESTARGS "rdata, digest, arg"
 #define DIGESTCLASS "rdata->rdclass"
 #define DIGESTTYPE "rdata->type"
@@ -151,13 +132,21 @@ struct ttnam {
 	unsigned int sorted;
 } typenames[256];
 
-char *	upper(char *);
-char *	funname(char *, char *);
-void	doswitch(char *, char *, char *, char *, char *, char *);
-void	dodecl(char *, char *, char *);
-void	add(int, char *, int, char *, char *);
-void	sd(int, char *, char *, char);
-void	insert_into_typenames(int, char *, char *);
+char *
+upper(char *);
+char *
+funname(const char *, char *);
+void
+doswitch(const char *, const char *, const char *, const char *,
+	 const char *, const char *);
+void
+dodecl(char *, char *, char *);
+void
+add(int, const char *, int, const char *, const char *);
+void
+sd(int, const char *, const char *, char);
+void
+insert_into_typenames(int, const char *, const char *);
 
 /*
  * If you use more than 10 of these in, say, a printf(), you'll have problems.
@@ -183,7 +172,7 @@ upper(char *s) {
 }
 
 char *
-funname(char *s, char *buf) {
+funname(const char *s, char *buf) {
 	char *b = buf;
 	char c;
 
@@ -195,15 +184,15 @@ funname(char *s, char *buf) {
 }
 
 void
-doswitch(char *name, char *function, char *args,
-	 char *tsw, char *csw, char *res)
+doswitch(const char *name, const char *function, const char *args,
+	 const char *tsw, const char *csw, const char *res)
 {
 	struct tt *tt;
 	int first = 1;
 	int lasttype = 0;
 	int subswitch = 0;
 	char buf1[11], buf2[11];
-	char *result = " result =";
+	const char *result = " result =";
 
 	if (res == NULL)
 		result = "";
@@ -286,8 +275,7 @@ dodecl(char *type, char *function, char *args) {
 }
 
 void
-insert_into_typenames(int type, char *typename, char *attr)
-{
+insert_into_typenames(int type, const char *typename, const char *attr) {
 	struct ttnam *ttn;
 	int c;
 	char tmp[256];
@@ -335,7 +323,9 @@ insert_into_typenames(int type, char *typename, char *attr)
 }
 
 void
-add(int rdclass, char *classname, int type, char *typename, char *dirname) {
+add(int rdclass, const char *classname, int type, const char *typename,
+    const char *dirname)
+{
 	struct tt *newtt = (struct tt *)malloc(sizeof *newtt);
 	struct tt *tt, *oldtt;
 	struct cc *newcc;
@@ -409,7 +399,7 @@ add(int rdclass, char *classname, int type, char *typename, char *dirname) {
 }
 
 void
-sd(int rdclass, char *classname, char *dirname, char filetype) {
+sd(int rdclass, const char *classname, const char *dirname, char filetype) {
 	char buf[sizeof "0123456789_65535.h"];
 	char fmt[sizeof "%10[-0-9a-z]_%d.h"];
 	int type;
@@ -436,8 +426,7 @@ sd(int rdclass, char *classname, char *dirname, char filetype) {
 }
 
 static unsigned int
-HASH(char *string)
-{
+HASH(char *string) {
 	unsigned int n;
 	unsigned char a, b;
 
@@ -470,29 +459,41 @@ main(int argc, char **argv) {
 	int class_enum = 0;
 	int type_enum = 0;
 	int structs = 0;
+	int depend = 0;
 	int c, i, j;
 	char buf1[11];
 	char filetype = 'c';
 	FILE *fd;
 	char *prefix = NULL;
 	char *suffix = NULL;
+	char *file = NULL;
 	isc_dir_t dir;
 
 	for (i = 0 ; i <= 255 ; i++)
 		memset(&typenames[i], 0, sizeof(typenames[i]));
 
 	strcpy(srcdir, "");
-	while ((c = isc_commandline_parse(argc, argv, "cits:P:S:")) != -1)
+	while ((c = isc_commandline_parse(argc, argv, "cdits:F:P:S:")) != -1)
 		switch (c) {
 		case 'c':
 			code = 0;
+			depend = 0;
 			type_enum = 0;
 			class_enum = 1;
 			filetype = 'c';
 			structs = 0;
 			break;
+		case 'd':
+			code = 0;
+			depend = 1;
+			class_enum = 0;
+			type_enum = 0;
+			structs = 0;
+			filetype = 'h';
+			break;
 		case 't':
 			code = 0;
+			depend = 0;
 			class_enum = 0;
 			type_enum = 1;
 			filetype = 'c';
@@ -500,6 +501,7 @@ main(int argc, char **argv) {
 			break;
 		case 'i':
 			code = 0;
+			depend = 0;
 			class_enum = 0;
 			type_enum = 0;
 			structs = 1;
@@ -507,6 +509,9 @@ main(int argc, char **argv) {
 			break;
 		case 's':
 			sprintf(srcdir, "%s/", isc_commandline_argument);
+			break;
+		case 'F':
+			file = isc_commandline_argument;
 			break;
 		case 'P':
 			prefix = isc_commandline_argument;
@@ -547,7 +552,7 @@ main(int argc, char **argv) {
 	} else
 		year[0] = 0;
 
-	fprintf(stdout, copyright, year);
+	if (!depend) fprintf(stdout, copyright, year);
 
 	if (code) {
 		fputs("#ifndef DNS_CODE_H\n", stdout);
@@ -617,7 +622,7 @@ main(int argc, char **argv) {
 		insert_into_typenames(255, "any", METAQUESTIONONLY);
 
 		printf("\ntypedef struct {\n");
-		printf("\tchar *name;\n");
+		printf("\tconst char *name;\n");
 		printf("\tunsigned int flags;\n");
 		printf("} typeattr_t;\n");
 		printf("static typeattr_t typeattr[] = {\n");
@@ -718,38 +723,95 @@ main(int argc, char **argv) {
 
 		fputs("#endif /* DNS_CODE_H */\n", stdout);
 	} else if (type_enum) {
-		fprintf(stdout, "#ifndef DNS_ENUMTYPE_H\n");
-		fprintf(stdout, "#define DNS_ENUMTYPE_H 1\n");
+		char *s;
 
-		fprintf(stdout, "#define DNS_TYPEENUM%s\n",
-			types != NULL ? " \\" : "");
+		fprintf(stdout, "#ifndef DNS_ENUMTYPE_H\n");
+		fprintf(stdout, "#define DNS_ENUMTYPE_H 1\n\n");
+
+		fprintf(stdout, "enum {\n");
+		fprintf(stdout, "\tdns_rdatatype_none = 0,\n");
 
 		lasttype = 0;
 		for (tt = types; tt != NULL ; tt = tt->next)
 			if (tt->type != lasttype)
 				fprintf(stdout,
-					"\t dns_rdatatype_%s = %d,%s\n",
+					"\tdns_rdatatype_%s = %d,\n",
 					funname(tt->typename, buf1),
-					lasttype = tt->type,
-					tt->next != NULL ? " \\" : "");
-		fprintf(stdout, "#endif /* DNS_ENUMTYPE_H */\n");
-	} else if (class_enum) {
-		fprintf(stdout, "#ifndef DNS_ENUMCLASS_H\n");
-		fprintf(stdout, "#define DNS_ENUMCLASS_H 1\n");
-		
-		fprintf(stdout, "#define DNS_CLASSENUM%s\n",
-			classes != NULL ? " \\" : "");
+					lasttype = tt->type);
 
-		printf("\t dns_rdataclass_reserved0 = 0, \\\n");
+		fprintf(stdout, "\tdns_rdatatype_ixfr = 251,\n");
+		fprintf(stdout, "\tdns_rdatatype_axfr = 252,\n");
+		fprintf(stdout, "\tdns_rdatatype_mailb = 253,\n");
+		fprintf(stdout, "\tdns_rdatatype_maila = 254,\n");
+		fprintf(stdout, "\tdns_rdatatype_any = 255\n");
+
+		fprintf(stdout, "};\n\n");
+
+		fprintf(stdout, "#define dns_rdatatype_none\t"
+			"((dns_rdatatype_t)dns_rdatatype_none)\n");
+
+		for (tt = types; tt != NULL ; tt = tt->next)
+			if (tt->type != lasttype) {
+				s = funname(tt->typename, buf1);
+				fprintf(stdout,
+					"#define dns_rdatatype_%s\t%s"
+					"((dns_rdatatype_t)dns_rdatatype_%s)"
+					"\n",
+					s, strlen(s) < 2 ? "\t" : "", s);
+				lasttype = tt->type;
+			}
+
+		fprintf(stdout, "#define dns_rdatatype_ixfr\t"
+			"((dns_rdatatype_t)dns_rdatatype_ixfr)\n");
+		fprintf(stdout, "#define dns_rdatatype_axfr\t"
+			"((dns_rdatatype_t)dns_rdatatype_axfr)\n");
+		fprintf(stdout, "#define dns_rdatatype_mailb\t"
+			"((dns_rdatatype_t)dns_rdatatype_mailb)\n");
+		fprintf(stdout, "#define dns_rdatatype_maila\t"
+			"((dns_rdatatype_t)dns_rdatatype_maila)\n");
+		fprintf(stdout, "#define dns_rdatatype_any\t"
+			"((dns_rdatatype_t)dns_rdatatype_any)\n");
+		
+		fprintf(stdout, "\n#endif /* DNS_ENUMTYPE_H */\n");
+
+	} else if (class_enum) {
+		char *s;
+		int classnum;
+
+		printf("#ifndef DNS_ENUMCLASS_H\n");
+		printf("#define DNS_ENUMCLASS_H 1\n\n");
+
+		printf("enum {\n");
+
+		printf("\tdns_rdataclass_reserved0 = 0,\n");
+		printf("#define dns_rdataclass_reserved0 \\\n\t\t\t\t"
+			"((dns_rdataclass_t)dns_rdataclass_reserved0)\n");
+
+#define PRINTCLASS(name, num) \
+	do { \
+		s = funname(name, buf1); \
+		classnum = num; \
+		printf("\tdns_rdataclass_%s = %d%s\n", s, classnum, \
+		       classnum != 255 ? "," : ""); \
+		printf("#define dns_rdataclass_%s\t" \
+		       "((dns_rdataclass_t)dns_rdataclass_%s)\n", s, s); \
+	} while (0)
+
 		for (cc = classes; cc != NULL; cc = cc->next) {
-			if (cc->rdclass == 4)
-				printf("\t dns_rdataclass_chaos = 3, \\\n");
-			fprintf(stdout, "\t dns_rdataclass_%s = %d,%s\n",
-				funname(cc->classname, buf1),
-				cc->rdclass,
-				cc->next != NULL ? " \\" : "");
+			if (cc->rdclass == 4) {
+				PRINTCLASS("ch", 3);
+				PRINTCLASS("chaos", 3);
+
+			} else if (cc->rdclass == 255) {
+				PRINTCLASS("none", 254);
+			}
+			PRINTCLASS(cc->classname, cc->rdclass);
 		}
-		fprintf(stdout, "#endif /* DNS_ENUMCLASS_H */\n");
+
+#undef PRINTCLASS
+
+		printf("};\n\n");
+		printf("#endif /* DNS_ENUMCLASS_H */\n");
 	} else if (structs) {
 		if (prefix != NULL) {
 			if ((fd = fopen(prefix,"r")) != NULL) {
@@ -774,6 +836,10 @@ main(int argc, char **argv) {
 				fclose(fd);
 			}
 		}
+	} else if (depend) {
+		for (tt = types; tt != NULL ; tt = tt->next)
+			fprintf(stdout, "%s:\t%s/%s_%d.h\n", file,
+				tt->dirname, tt->typename, tt->type);
 	}
 
 	if (ferror(stdout) != 0)

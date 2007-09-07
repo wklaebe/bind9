@@ -23,8 +23,9 @@
 #include <isc/mem.h>
 #include <isc/string.h>
 
-#include <dns/rbt.h>
 #include <dns/fixedname.h>
+#include <dns/rbt.h>
+#include <dns/result.h>
 
 #include <tests/t_api.h>
 
@@ -162,10 +163,7 @@ create_name(char *s, isc_mem_t *mctx, dns_name_t **dns_name) {
 
 static void
 delete_name(void *data, void *arg) {
-	dns_name_t *name;
-
-	name = (dns_name_t *) data;
-	isc_mem_put((isc_mem_t *) arg, data, sizeof(dns_name_t) + DNSNAMELEN);
+	isc_mem_put((isc_mem_t *)arg, data, sizeof(dns_name_t) + DNSNAMELEN);
 }
 
 
@@ -274,7 +272,9 @@ rbt_init(char *filename, dns_rbt_t **rbt, isc_mem_t *mctx) {
 
 	while ((p = t_fgetbs(fp)) != NULL) {
 
-		/* skip any comment lines */
+		/*
+		 * Skip any comment lines.
+		 */
 		if ((*p == '#') || (*p == '\0') || (*p == ' ')) {
 			free(p);
 			continue;
@@ -329,7 +329,9 @@ test_rbt_gen(char *filename, char *command, char *testname,
 		return(result);
 	}
 		
-	/* now try the database command */
+	/*
+	 * Now try the database command.
+	 */
 	if (strcmp(command, "create") == 0) {
 		result = T_PASS;
 	} else if (strcmp(command, "add") == 0) {
@@ -413,7 +415,7 @@ test_rbt_gen(char *filename, char *command, char *testname,
 }
 
 static int
-test_dns_rbt_x(char *filename) {
+test_dns_rbt_x(const char *filename) {
 	FILE		*fp;
 	char		*p;
 	int		line;
@@ -473,7 +475,7 @@ test_dns_rbt_x(char *filename) {
 }
 
 
-static char	*a1 =	"dns_rbt_create creates a rbt and returns "
+static const char *a1 =	"dns_rbt_create creates a rbt and returns "
 			"ISC_R_SUCCESS on success";
 
 static void
@@ -485,7 +487,7 @@ t1() {
 	t_result(result);
 }
 
-static char	*a2 =	"dns_rbt_addname adds a name to a database and "
+static const char *a2 =	"dns_rbt_addname adds a name to a database and "
 			"returns ISC_R_SUCCESS on success";
 
 static void
@@ -497,7 +499,7 @@ t2() {
 	t_result(result);
 }
 
-static char	*a3 =	"when name already exists, dns_rbt_addname() "
+static const char *a3 =	"when name already exists, dns_rbt_addname() "
 			"returns ISC_R_EXISTS";
 
 static void
@@ -509,7 +511,7 @@ t3() {
 	t_result(result);
 }
 
-static char	*a4 =	"when name exists, dns_rbt_deletename() returns "
+static const char *a4 =	"when name exists, dns_rbt_deletename() returns "
 			"ISC_R_SUCCESS";
 
 static void
@@ -521,7 +523,7 @@ t4() {
 	t_result(result);
 }
 
-static char	*a5 =	"when name does not exist, dns_rbt_deletename() "
+static const char *a5 =	"when name does not exist, dns_rbt_deletename() "
 			"returns ISC_R_NOTFOUND";
 static void
 t5() {
@@ -532,7 +534,7 @@ t5() {
 	t_result(result);
 }
 
-static char	*a6 =	"when name exists and exactly matches the "
+static const char *a6 =	"when name exists and exactly matches the "
 			"search name dns_rbt_findname() returns ISC_R_SUCCESS";
 
 static void
@@ -544,7 +546,7 @@ t6() {
 	t_result(result);
 }
 
-static char	*a7 =	"when a name does not exist, "
+static const char *a7 =	"when a name does not exist, "
 			"dns_rbt_findname returns ISC_R_NOTFOUND";
 
 static void
@@ -556,7 +558,7 @@ t7() {
 	t_result(result);
 }
 
-static char	*a8 =	"when a superdomain is found with data matching name, "
+static const char *a8 =	"when a superdomain is found with data matching name, "
 			"dns_rbt_findname returns DNS_R_PARTIALMATCH";
 
 static void
@@ -569,7 +571,7 @@ t8() {
 }
 
 
-static char	*a9 =	"a call to dns_rbtnodechain_init(chain, mctx) "
+static const char *a9 =	"a call to dns_rbtnodechain_init(chain, mctx) "
 			"initializes chain";
 
 static int
@@ -580,7 +582,6 @@ t9_walkchain(dns_rbtnodechain_t *chain, dns_rbt_t *rbt) {
 	unsigned int	nbits;
 	int		nprobs;
 	isc_result_t	dns_result;
-	dns_namereln_t	dns_namereln;
 
 	dns_fixedname_t	name;
 	dns_fixedname_t	origin;
@@ -662,7 +663,7 @@ t9_walkchain(dns_rbtnodechain_t *chain, dns_rbt_t *rbt) {
 			       fixedname_totext(&fullname1));
 			t_info("\twith\t<%s>\n", fixedname_totext(&fullname2));
 
-			dns_namereln = dns_name_fullcompare(
+			(void)dns_name_fullcompare(
 						dns_fixedname_name(&fullname1),
 						dns_fixedname_name(&fullname2),
 						&order, &nlabels, &nbits);
@@ -722,12 +723,11 @@ t_dns_rbtnodechain_init(char *dbfile, char *findname,
 			char *nextname, char *nextorigin,
 			char *prevname, char *prevorigin,
 			char *firstname, char *firstorigin,
-			char *lastname, char *lastorigin) {
-
+			char *lastname, char *lastorigin)
+{
 	int			result;
 	int			len;
 	int			nfails;
-	int			nprobs;
 	dns_rbt_t		*rbt;
 	dns_rbtnode_t		*node;
 	dns_rbtnodechain_t	chain;
@@ -746,7 +746,6 @@ t_dns_rbtnodechain_init(char *dbfile, char *findname,
 	result = T_UNRESOLVED;
 
 	nfails = 0;
-	nprobs = 0;
 	mctx = NULL;
 	isc_result = isc_mem_create(0, 0, &mctx);
 	if (isc_result != ISC_R_SUCCESS) {
@@ -894,13 +893,16 @@ t_dns_rbtnodechain_init(char *dbfile, char *findname,
 	else
 		result = T_PASS;
 		
+	dns_rbtnodechain_invalidate(&chain);
 	dns_rbt_destroy(&rbt);
+
 	isc_mem_destroy(&mctx);
+
 	return(result);
 }
 
 static int
-test_dns_rbtnodechain_init(char *filename) {
+test_dns_rbtnodechain_init(const char *filename) {
 	FILE		*fp;
 	char		*p;
 	int		line;
@@ -1056,13 +1058,15 @@ t_dns_rbtnodechain_first(char *dbfile, char *expected_firstname,
 	else
 		result = T_PASS;
 		
+	dns_rbtnodechain_invalidate(&chain);
+
 	dns_rbt_destroy(&rbt);
 	isc_mem_destroy(&mctx);
 	return(result);
 }
 
 static int
-test_dns_rbtnodechain_first(char *filename) {
+test_dns_rbtnodechain_first(const char *filename) {
 	FILE		*fp;
 	char		*p;
 	int		line;
@@ -1125,7 +1129,7 @@ test_dns_rbtnodechain_first(char *filename) {
 	return(result);
 }
 
-static char	*a10 =	"a call to "
+static const char *a10 = "a call to "
 			"dns_rbtnodechain_first(chain, rbt, name, origin) "
 			"sets name to point to the root of the tree, "
 			"origin to point to the origin, "
@@ -1221,13 +1225,16 @@ t_dns_rbtnodechain_last(char *dbfile, char *expected_lastname,
 	else
 		result = T_PASS;
 		
+	dns_rbtnodechain_invalidate(&chain);
 	dns_rbt_destroy(&rbt);
+
 	isc_mem_destroy(&mctx);
+
 	return(result);
 }
 
 static int
-test_dns_rbtnodechain_last(char *filename) {
+test_dns_rbtnodechain_last(const char *filename) {
 	FILE		*fp;
 	char		*p;
 	int		line;
@@ -1290,7 +1297,7 @@ test_dns_rbtnodechain_last(char *filename) {
 	return(result);
 }
 
-static char	*a11 =	"a call to "
+static const char *a11 = "a call to "
 			"dns_rbtnodechain_last(chain, rbt, name, origin) "
 			"sets name to point to the last node of the megatree, "
 			"origin to the name of the level above it, "
@@ -1313,7 +1320,6 @@ t_dns_rbtnodechain_next(char *dbfile, char *findname,
 	int			result;
 	int			len;
 	int			nfails;
-	int			nprobs;
 	dns_rbt_t		*rbt;
 	dns_rbtnode_t		*node;
 	dns_rbtnodechain_t	chain;
@@ -1329,7 +1335,6 @@ t_dns_rbtnodechain_next(char *dbfile, char *findname,
 	result = T_UNRESOLVED;
 
 	nfails = 0;
-	nprobs = 0;
 	mctx = NULL;
 	isc_result = isc_mem_create(0, 0, &mctx);
 	if (isc_result != ISC_R_SUCCESS) {
@@ -1402,13 +1407,16 @@ t_dns_rbtnodechain_next(char *dbfile, char *findname,
 	else
 		result = T_PASS;
 		
+	dns_rbtnodechain_invalidate(&chain);
 	dns_rbt_destroy(&rbt);
+
 	isc_mem_destroy(&mctx);
+
 	return(result);
 }
 
 static int
-test_dns_rbtnodechain_next(char *filename) {
+test_dns_rbtnodechain_next(const char *filename) {
 	FILE		*fp;
 	char		*p;
 	int		line;
@@ -1470,7 +1478,8 @@ test_dns_rbtnodechain_next(char *filename) {
 	return(result);
 }
 
-static char	*a12 =	"a call to dns_rbtnodechain_next(chain, name, origin) "
+static const char *a12 = "a call to "
+			"dns_rbtnodechain_next(chain, name, origin) "
 			"sets name to point to the next node of the tree "
 			"and returns ISC_R_SUCCESS or "
 			"DNS_R_NEWORIGIN on success";
@@ -1492,7 +1501,6 @@ t_dns_rbtnodechain_prev(char *dbfile, char *findname, char *prevname,
 	int			result;
 	int			len;
 	int			nfails;
-	int			nprobs;
 	dns_rbt_t		*rbt;
 	dns_rbtnode_t		*node;
 	dns_rbtnodechain_t	chain;
@@ -1508,7 +1516,6 @@ t_dns_rbtnodechain_prev(char *dbfile, char *findname, char *prevname,
 	result = T_UNRESOLVED;
 
 	nfails = 0;
-	nprobs = 0;
 	mctx = NULL;
 	isc_result = isc_mem_create(0, 0, &mctx);
 	if (isc_result != ISC_R_SUCCESS) {
@@ -1581,13 +1588,16 @@ t_dns_rbtnodechain_prev(char *dbfile, char *findname, char *prevname,
 	else
 		result = T_PASS;
 		
+	dns_rbtnodechain_invalidate(&chain);
 	dns_rbt_destroy(&rbt);
+
 	isc_mem_destroy(&mctx);
+
 	return(result);
 }
 
 static int
-test_dns_rbtnodechain_prev(char *filename) {
+test_dns_rbtnodechain_prev(const char *filename) {
 	FILE		*fp;
 	char		*p;
 	int		line;
@@ -1649,7 +1659,8 @@ test_dns_rbtnodechain_prev(char *filename) {
 	return(result);
 }
 
-static char	*a13 =	"a call to dns_rbtnodechain_prev(chain, name, origin) "
+static const char *a13 = "a call to "
+			"dns_rbtnodechain_prev(chain, name, origin) "
 			"sets name to point to the previous node of the tree "
 			"and returns ISC_R_SUCCESS or "
 			"DNS_R_NEWORIGIN on success";

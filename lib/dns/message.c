@@ -32,6 +32,7 @@
 #include <dns/rdata.h>
 #include <dns/rdatalist.h>
 #include <dns/rdataset.h>
+#include <dns/rdatastruct.h>
 #include <dns/result.h>
 #include <dns/tsig.h>
 #include <dns/view.h>
@@ -71,14 +72,21 @@
  * Text representation of the different items, for message_totext
  * functions.
  */
-static char *sectiontext[] = {
+static const char *sectiontext[] = {
 	"QUESTION",
 	"ANSWER",
 	"AUTHORITY",
 	"ADDITIONAL"
 };
 
-static char *opcodetext[] = {
+static const char *updsectiontext[] = {
+	"ZONE",
+	"PREREQUISITE",
+	"UPDATE",
+	"ADDITIONAL"
+};
+
+static const char *opcodetext[] = {
 	"QUERY",
 	"IQUERY",
 	"STATUS",
@@ -97,7 +105,7 @@ static char *opcodetext[] = {
 	"RESERVED15"
 };
 
-static char *rcodetext[] = {
+static const char *rcodetext[] = {
 	"NOERROR",
 	"FORMERR",
 	"SERVFAIL",
@@ -320,10 +328,12 @@ msginitprivate(dns_message_t *m) {
 	}
 	m->opt = NULL;
 	m->sig0 = NULL;
-	m->tsigset = NULL;
+	m->sig0name = NULL;
+	m->tsig = NULL;
 	m->tsigname = NULL;
 	m->state = DNS_SECTION_ANY;  /* indicate nothing parsed or rendered */
 	m->opt_reserved = 0;
+	m->sig_reserved = 0;
 	m->reserved = 0;
 	m->buffer = NULL;
 	m->need_cctx_cleanup = 0;
@@ -331,8 +341,8 @@ msginitprivate(dns_message_t *m) {
 
 static inline void
 msginittsig(dns_message_t *m) {
-	m->tsigstatus = m->querytsigstatus = dns_rcode_noerror;
-	m->tsig = m->querytsig = NULL;
+	m->tsigstatus = dns_rcode_noerror;
+	m->querytsigstatus = dns_rcode_noerror;
 	m->tsigkey = NULL;
 	m->tsigctx = NULL;
 	m->sigstart = -1;
@@ -340,6 +350,7 @@ msginittsig(dns_message_t *m) {
 	m->sig0status = dns_rcode_noerror;
 	m->query = NULL;
 	m->saved = NULL;
+	m->querytsig = NULL;
 }
 
 /*
@@ -405,21 +416,37 @@ msgresetopt(dns_message_t *msg)
 }
 
 static void
-msgresetsigs(dns_message_t *msg) {
-	if (msg->tsigset != NULL) {
-		INSIST(dns_rdataset_isassociated(msg->tsigset));
+msgresetsigs(dns_message_t *msg, isc_boolean_t replying) {
+	if (msg->sig_reserved > 0) {
+		dns_message_renderrelease(msg, msg->sig_reserved);
+		msg->sig_reserved = 0;
+	}
+	if (msg->tsig != NULL) {
+		INSIST(dns_rdataset_isassociated(msg->tsig));
 		INSIST(msg->namepool != NULL);
-		dns_rdataset_disassociate(msg->tsigset);
-		isc_mempool_put(msg->rdspool, msg->tsigset);
+		if (replying) {
+			INSIST(msg->querytsig == NULL);
+			msg->querytsig = msg->tsig;
+		} else {
+			dns_rdataset_disassociate(msg->tsig);
+			isc_mempool_put(msg->rdspool, msg->tsig);
+			if (msg->querytsig != NULL) {
+				dns_rdataset_disassociate(msg->querytsig);
+				isc_mempool_put(msg->rdspool, msg->querytsig);
+			}
+		}
 		isc_mempool_put(msg->namepool, msg->tsigname);
-		msg->tsigset = NULL;
+		msg->tsig = NULL;
 		msg->tsigname = NULL;
 	}
 	if (msg->sig0 != NULL) {
 		INSIST(dns_rdataset_isassociated(msg->sig0));
 		dns_rdataset_disassociate(msg->sig0);
 		isc_mempool_put(msg->rdspool, msg->sig0);
+		if (msg->sig0name != NULL)
+			isc_mempool_put(msg->namepool, msg->sig0name);
 		msg->sig0 = NULL;
+		msg->sig0name = NULL;
 	}
 }
 
@@ -436,7 +463,7 @@ msgreset(dns_message_t *msg, isc_boolean_t everything) {
 
 	msgresetnames(msg, 0);
 	msgresetopt(msg);
-	msgresetsigs(msg);
+	msgresetsigs(msg, ISC_FALSE);
 
 	/*
 	 * Clean up linked lists.
@@ -503,21 +530,8 @@ msgreset(dns_message_t *msg, isc_boolean_t everything) {
 	if (msg->need_cctx_cleanup == 1)
 		dns_compress_invalidate(&msg->cctx);
 
-	if (msg->tsig != NULL) {
-		dns_rdata_freestruct(msg->tsig);
-		isc_mem_put(msg->mctx, msg->tsig, sizeof(dns_rdata_any_tsig_t));
-		msg->tsig = NULL;
-	}
-
-	if (msg->querytsig != NULL) {
-		dns_rdata_freestruct(msg->querytsig);
-		isc_mem_put(msg->mctx, msg->querytsig,
-			    sizeof(dns_rdata_any_tsig_t));
-		msg->querytsig = NULL;
-        }
-
 	if (msg->tsigkey != NULL) {
-		dns_tsigkey_free(&msg->tsigkey);
+		dns_tsigkey_detach(&msg->tsigkey);
 		msg->tsigkey = NULL;
 	}
 
@@ -549,6 +563,43 @@ msgreset(dns_message_t *msg, isc_boolean_t everything) {
 	 */
 	if (!everything)
 		msginit(msg);
+}
+
+static unsigned int
+spacefortsig(dns_tsigkey_t *key, int otherlen) {
+	isc_region_t r1, r2;
+	unsigned int x;
+	isc_result_t result;
+
+	/*
+	 * The space required for an TSIG record is:
+	 *
+	 *	n1 bytes for the name
+	 *	2 bytes for the type
+	 *	2 bytes for the class
+	 *	4 bytes for the ttl
+	 *	6 bytes for the time signed
+	 *	2 bytes for the fudge
+	 *	2 bytes for the MAC size
+	 *	x bytes for the MAC
+	 *	2 bytes for the original id
+	 *	2 bytes for the error
+	 *	2 bytes for the other data length
+	 *	y bytes for the other data (at most)
+	 * ---------------------------------
+	 *     30 + n1 + n2 + x + y bytes
+	 */
+
+	dns_name_toregion(&key->name, &r1);
+	dns_name_toregion(&key->algorithm, &r2);
+	if (key->key == NULL)
+		x = 0;
+	else {
+		result = dst_key_sigsize(key->key, &x);
+		if (result != ISC_R_SUCCESS)
+			x = 0;
+	}
+	return (24 + r1.length + r2.length + x + otherlen);
 }
 
 isc_result_t
@@ -780,9 +831,12 @@ getrdata(isc_buffer_t *source, dns_message_t *msg, dns_decompress_t *dctx,
 	if (msg->opcode == dns_opcode_update && rdatalen == 0) {
 		/*
 		 * When the rdata is empty, the data pointer is never
-		 * dereferenced, but it must still be non-NULL.
+		 * dereferenced, but it must still be non-NULL.  Casting
+		 * 1 rather than "" avoids warnings about discarding
+		 * the const attribute of a string, for compilers that
+		 * would warn about such things.
 		 */
-		rdata->data = (unsigned char *)""; 
+		rdata->data = (unsigned char *)1; 
 		rdata->length = 0;
 		rdata->rdclass = rdclass;
 		rdata->type = rdtype;
@@ -1091,7 +1145,7 @@ getsection(isc_buffer_t *source, dns_message_t *msg, dns_decompress_t *dctx,
 				result = DNS_R_FORMERR;
 				goto cleanup;
 			}
-			if (msg->tsigset != NULL) {
+			if (msg->tsig != NULL) {
 				result = DNS_R_FORMERR;
 				goto cleanup;
 			}
@@ -1344,13 +1398,13 @@ getsection(isc_buffer_t *source, dns_message_t *msg, dns_decompress_t *dctx,
 		    sectionid == DNS_SECTION_ADDITIONAL)
 		{
 			msg->sig0 = rdataset;
+			msg->sig0name = name;
 			rdataset = NULL;
 			free_rdataset = ISC_FALSE;
-			isc_mempool_put(msg->namepool, name);
 			free_name = ISC_FALSE;
 		}
 		else if (rdtype == dns_rdatatype_tsig) {
-			msg->tsigset = rdataset;
+			msg->tsig = rdataset;
 			msg->tsigname = name;
 			rdataset = NULL;
 			free_rdataset = ISC_FALSE;
@@ -1439,8 +1493,7 @@ dns_message_parse(dns_message_t *msg, isc_buffer_t *source,
 	if (r.length != 0)
 		return (DNS_R_FORMERR);
 
-	if (msg->tsigset != NULL || msg->tsigkey != NULL ||
-	    msg->sig0 != NULL) {
+	if (msg->tsig != NULL || msg->tsigkey != NULL || msg->sig0 != NULL) {
 		msg->saved = isc_mem_get(msg->mctx, sizeof(isc_region_t));
 		if (msg->saved == NULL)
 			return (ISC_R_NOMEMORY);
@@ -1480,6 +1533,9 @@ dns_message_renderbegin(dns_message_t *msg, isc_buffer_t *buffer) {
 	 */
 	isc_buffer_availableregion(buffer, &r);
 	REQUIRE(r.length >= DNS_MESSAGE_HEADERLEN);
+
+	if (r.length < msg->reserved)
+		return (ISC_R_NOSPACE);
 
 	result = dns_compress_init(&msg->cctx, -1, msg->mctx);
 	if (result != ISC_R_SUCCESS)
@@ -1528,7 +1584,6 @@ dns_message_renderchangebuffer(dns_message_t *msg, isc_buffer_t *buffer) {
 void
 dns_message_renderrelease(dns_message_t *msg, unsigned int space) {
 	REQUIRE(DNS_MESSAGE_VALID(msg));
-	REQUIRE(msg->buffer != NULL);
 	REQUIRE(space <= msg->reserved);
 
 	msg->reserved -= space;
@@ -1539,11 +1594,12 @@ dns_message_renderreserve(dns_message_t *msg, unsigned int space) {
 	isc_region_t r;
 
 	REQUIRE(DNS_MESSAGE_VALID(msg));
-	REQUIRE(msg->buffer != NULL);
 
-	isc_buffer_availableregion(msg->buffer, &r);
-	if (r.length < (space + msg->reserved))
-		return (ISC_R_NOSPACE);
+	if (msg->buffer != NULL) {
+		isc_buffer_availableregion(msg->buffer, &r);
+		if (r.length < (space + msg->reserved))
+			return (ISC_R_NOSPACE);
+	}
 
 	msg->reserved += space;
 
@@ -1613,8 +1669,11 @@ dns_message_rendersection(dns_message_t *msg, dns_section_t sectionid,
 
 	do {
 		name = ISC_LIST_HEAD(*section);
-		if (name == NULL)
+		if (name == NULL) {
+			msg->buffer->length += msg->reserved;
+			msg->counts[sectionid] += total;
 			return (ISC_R_SUCCESS);
+		}
 
 		while (name != NULL) {
 			next_name = ISC_LIST_NEXT(name, link);
@@ -1766,24 +1825,61 @@ dns_message_renderend(dns_message_t *msg) {
 			return (result);
 	}
 
+	/*
+	 * If we're adding a TSIG or SIG(0) to a truncated message,
+	 * clear all rdatasets from the message except for the question
+	 * before adding the TSIG or SIG(0).
+	 */
+	if ((msg->tsigkey != NULL || msg->sig0key != NULL) &&
+	    (msg->flags & DNS_MESSAGEFLAG_TC) != 0)
+	{
+		isc_buffer_t *buf;
+
+		msgresetnames(msg, DNS_SECTION_ANSWER);
+		buf = msg->buffer;
+		dns_message_renderreset(msg);
+		msg->buffer = buf;
+		isc_buffer_clear(msg->buffer);
+		isc_buffer_add(msg->buffer, DNS_MESSAGE_HEADERLEN);
+		dns_compress_rollback(&msg->cctx, 0);
+		result = dns_message_rendersection(msg, DNS_SECTION_QUESTION,
+						   0);
+		if (result != ISC_R_SUCCESS)
+			return (result);
+	}
+
+	/*
+	 * If we're adding a TSIG record, generate and render it.
+	 */
 	if (msg->tsigkey != NULL) {
-		REQUIRE(msg->tsig == NULL);
+		dns_message_renderrelease(msg, msg->sig_reserved);
+		msg->sig_reserved = 0;
 		result = dns_tsig_sign(msg);
 		if (result != ISC_R_SUCCESS)
 			return (result);
 		count = 0;
-		result = dns_rdataset_towire(msg->tsigset, msg->tsigname,
+		result = dns_rdataset_towire(msg->tsig, msg->tsigname,
 					     &msg->cctx, msg->buffer, &count);
 		msg->counts[DNS_SECTION_ADDITIONAL] += count;
 		if (result != ISC_R_SUCCESS)
 			return (result);
 	}
 
-	else if (msg->sig0key != NULL) {
+	/*
+	 * If we're adding a SIG(0) record, generate and render it.
+	 */
+	if (msg->sig0key != NULL) {
+		dns_message_renderrelease(msg, msg->sig_reserved);
+		msg->sig_reserved = 0;
 		result = dns_dnssec_signmessage(msg, msg->sig0key);
 		if (result != ISC_R_SUCCESS)
 			return (result);
 		count = 0;
+		/*
+		 * Note: dns_rootname is used here, not msg->sig0name, since
+		 * the owner name of a SIG(0) is irrelevant, and will not
+		 * be set in a message being rendered.
+		 */
 		result = dns_rdataset_towire(msg->sig0, dns_rootname,
 					     &msg->cctx, msg->buffer, &count);
 		msg->counts[DNS_SECTION_ADDITIONAL] += count;
@@ -2090,6 +2186,7 @@ dns_message_peekheader(isc_buffer_t *source, dns_messageid_t *idp,
 isc_result_t
 dns_message_reply(dns_message_t *msg, isc_boolean_t want_question_section) {
 	unsigned int first_section;
+	isc_result_t result;
 
 	REQUIRE(DNS_MESSAGE_VALID(msg));
 	REQUIRE((msg->flags & DNS_MESSAGEFLAG_QR) == 0);
@@ -2108,7 +2205,7 @@ dns_message_reply(dns_message_t *msg, isc_boolean_t want_question_section) {
 	msg->from_to_wire = DNS_MESSAGE_INTENTRENDER;
 	msgresetnames(msg, first_section);
 	msgresetopt(msg);
-	msgresetsigs(msg);
+	msgresetsigs(msg, ISC_TRUE);
 	msginitprivate(msg);
 	/*
 	 * We now clear most flags and then set QR, ensuring that the
@@ -2118,15 +2215,21 @@ dns_message_reply(dns_message_t *msg, isc_boolean_t want_question_section) {
 	msg->flags |= DNS_MESSAGEFLAG_QR;
 
 	/*
-	 * This saves the query TSIG information for later use, if there is
-	 * any.  This only happens once - that is, if dns_message_reply
-	 * has already moved the variables, this has no effect.
+	 * This saves the query TSIG status, if the query was signed, and
+	 * reserves space in the reply for the TSIG.
 	 */
-	if (msg->tsig != NULL) {
-		msg->querytsig = msg->tsig;
-		msg->tsig = NULL;
+	if (msg->querytsig != NULL) {
+		unsigned int otherlen = 0;
 		msg->querytsigstatus = msg->tsigstatus;
 		msg->tsigstatus = dns_rcode_noerror;
+		if (msg->querytsigstatus == dns_tsigerror_badtime)
+			otherlen = 6;
+		msg->sig_reserved = spacefortsig(msg->tsigkey, otherlen);
+		result = dns_message_renderreserve(msg, msg->sig_reserved);
+		if (result != ISC_R_SUCCESS) {
+			msg->sig_reserved = 0;
+			return (result);
+		}
 	}
 	if (msg->saved != NULL) {
 		msg->query = msg->saved;
@@ -2178,7 +2281,6 @@ dns_message_setopt(dns_message_t *msg, dns_rdataset_t *opt) {
 	REQUIRE(msg->state == DNS_SECTION_ANY);
 
 	msgresetopt(msg);
-	msgresetsigs(msg);
 
 	result = dns_rdataset_first(opt);
 	if (result != ISC_R_SUCCESS)
@@ -2204,22 +2306,220 @@ dns_message_gettsig(dns_message_t *msg, dns_name_t **owner) {
 	 */
 
 	REQUIRE(DNS_MESSAGE_VALID(msg));
-	REQUIRE(owner != NULL && *owner == NULL);
+	REQUIRE(owner == NULL || *owner == NULL);
 
-	*owner = msg->tsigname;
-	return (msg->tsigset);
+	if (owner != NULL)
+		*owner = msg->tsigname;
+	return (msg->tsig);
+}
+
+isc_result_t
+dns_message_settsigkey(dns_message_t *msg, dns_tsigkey_t *key) {
+	isc_result_t result;
+
+	/*
+	 * Set the TSIG key for 'msg'
+	 */
+
+	REQUIRE(DNS_MESSAGE_VALID(msg));
+	REQUIRE(msg->state == DNS_SECTION_ANY);
+	REQUIRE(msg->tsigkey == NULL && msg->sig0key == NULL);
+
+	if (key != NULL) {
+		dns_tsigkey_attach(key, &msg->tsigkey);
+		if (msg->from_to_wire == DNS_MESSAGE_INTENTRENDER) {
+			msg->sig_reserved = spacefortsig(msg->tsigkey, 0);
+			result = dns_message_renderreserve(msg,
+							   msg->sig_reserved);
+			if (result != ISC_R_SUCCESS) {
+				msg->sig_reserved = 0;
+				return (result);
+			}
+		}
+	}
+	return (ISC_R_SUCCESS);
+}
+
+dns_tsigkey_t *
+dns_message_gettsigkey(dns_message_t *msg) {
+
+	/*
+	 * Get the TSIG key for 'msg'
+	 */
+
+	REQUIRE(DNS_MESSAGE_VALID(msg));
+
+	return (msg->tsigkey);
+}
+
+isc_result_t
+dns_message_setquerytsig(dns_message_t *msg, isc_buffer_t *querytsig) {
+	dns_rdata_t *rdata = NULL;
+	dns_rdatalist_t *list = NULL;
+	dns_rdataset_t *set = NULL;
+	isc_buffer_t *buf = NULL;
+	isc_region_t r;
+	isc_result_t result;
+
+	REQUIRE(DNS_MESSAGE_VALID(msg));
+	REQUIRE(msg->querytsig == NULL);
+
+	if (querytsig == NULL)
+		return (ISC_R_SUCCESS);
+
+	result = dns_message_gettemprdata(msg, &rdata);
+	if (result != ISC_R_SUCCESS)
+		goto cleanup;
+	
+	result = dns_message_gettemprdatalist(msg, &list);
+	if (result != ISC_R_SUCCESS)
+		goto cleanup;
+	result = dns_message_gettemprdataset(msg, &set);
+	if (result != ISC_R_SUCCESS)
+		goto cleanup;
+
+	isc_buffer_usedregion(querytsig, &r);
+	result = isc_buffer_allocate(msg->mctx, &buf, r.length);
+	if (result != ISC_R_SUCCESS)
+		goto cleanup;
+	isc_buffer_putmem(buf, r.base, r.length);
+	isc_buffer_usedregion(buf, &r);
+	dns_rdata_init(rdata);
+	dns_rdata_fromregion(rdata, dns_rdataclass_any, dns_rdatatype_tsig, &r);
+	dns_message_takebuffer(msg, &buf);
+	ISC_LIST_INIT(list->rdata);
+	ISC_LIST_APPEND(list->rdata, rdata, link);
+	result = dns_rdatalist_tordataset(list, set);
+	if (result != ISC_R_SUCCESS)
+		goto cleanup;
+
+	msg->querytsig = set;
+
+	return (result);
+
+ cleanup:
+	if (rdata != NULL)
+		dns_message_puttemprdata(msg, &rdata);
+	if (list != NULL)
+		dns_message_puttemprdatalist(msg, &list);
+	if (set != NULL)
+		dns_message_puttemprdataset(msg, &set);
+	return (ISC_R_NOMEMORY);
+}
+
+isc_result_t
+dns_message_getquerytsig(dns_message_t *msg, isc_mem_t *mctx,
+			 isc_buffer_t **querytsig) {
+	isc_result_t result;
+	dns_rdata_t rdata;
+	isc_region_t r;
+
+	REQUIRE(DNS_MESSAGE_VALID(msg));
+	REQUIRE(mctx != NULL);
+	REQUIRE(querytsig != NULL && *querytsig == NULL);
+
+	if (msg->tsig == NULL)
+		return (ISC_R_SUCCESS);
+
+	result = dns_rdataset_first(msg->tsig);
+	if (result != ISC_R_SUCCESS)
+		return (result);
+	dns_rdataset_current(msg->tsig, &rdata);
+	dns_rdata_toregion(&rdata, &r);
+
+	result = isc_buffer_allocate(mctx, querytsig, r.length);
+	if (result != ISC_R_SUCCESS)
+		return (result);
+	isc_buffer_putmem(*querytsig, r.base, r.length);
+	return (ISC_R_SUCCESS);
 }
 
 dns_rdataset_t *
-dns_message_getsig0(dns_message_t *msg) {
+dns_message_getsig0(dns_message_t *msg, dns_name_t **owner) {
 
 	/*
 	 * Get the SIG(0) record for 'msg'.
 	 */
 
 	REQUIRE(DNS_MESSAGE_VALID(msg));
+	REQUIRE(owner == NULL || *owner == NULL);
 
+	if (msg->sig0 != NULL && owner != NULL) {
+		/* If dns_message_getsig0 is called on a rendered message
+		 * after the SIG(0) has been applied, we need to return the
+		 * root name, not NULL.
+		 */
+		if (msg->sig0name == NULL)
+			*owner = dns_rootname;
+		else
+			*owner = msg->sig0name;
+	}
 	return (msg->sig0);
+}
+
+isc_result_t
+dns_message_setsig0key(dns_message_t *msg, dst_key_t *key) {
+	isc_region_t r;
+	unsigned int x;
+	isc_result_t result;
+
+	/*
+	 * Set the SIG(0) key for 'msg'
+	 */
+
+	/*
+	 * The space required for an SIG(0) record is:
+	 *
+	 *	1 byte for the name
+	 *	2 bytes for the type
+	 *	2 bytes for the class
+	 *	4 bytes for the ttl
+	 *	2 bytes for the type covered
+	 *	1 byte for the algorithm
+	 *	1 bytes for the labels
+	 *	4 bytes for the original ttl
+	 *	4 bytes for the signature expiration
+	 *	4 bytes for the signature inception
+	 *	2 bytes for the key tag
+	 *	n bytes for the signer's name
+	 *	x bytes for the signature
+	 * ---------------------------------
+	 *     27 + n + x bytes
+	 */
+	REQUIRE(DNS_MESSAGE_VALID(msg));
+	REQUIRE(msg->from_to_wire == DNS_MESSAGE_INTENTRENDER);
+	REQUIRE(msg->buffer != NULL);
+	REQUIRE(msg->state == DNS_SECTION_ANY);
+	REQUIRE(msg->sig0key == NULL && msg->tsigkey == NULL);
+
+	msg->sig0key = key;
+	if (key != NULL) {
+		dns_name_toregion(dst_key_name(key), &r);
+		result = dst_key_sigsize(key, &x);
+		if (result != ISC_R_SUCCESS) {
+			msg->sig_reserved = 0;
+			return (result);
+		}
+		msg->sig_reserved = 27 + r.length + x;
+		result = dns_message_renderreserve(msg, msg->sig_reserved);
+		if (result != ISC_R_SUCCESS) {
+			msg->sig_reserved = 0;
+			return (result);
+		}
+	}
+	return (ISC_R_SUCCESS);
+}
+
+dst_key_t *
+dns_message_getsig0key(dns_message_t *msg) {
+
+	/*
+	 * Get the SIG(0) key for 'msg'
+	 */
+
+	REQUIRE(DNS_MESSAGE_VALID(msg));
+
+	return (msg->sig0key);
 }
 
 void
@@ -2236,12 +2536,13 @@ isc_result_t
 dns_message_signer(dns_message_t *msg, dns_name_t *signer) {
 	isc_region_t r;
 	isc_result_t result = ISC_R_SUCCESS;
+	dns_rdata_t rdata;
 
 	REQUIRE(DNS_MESSAGE_VALID(msg));
 	REQUIRE(signer != NULL);
 	REQUIRE(msg->from_to_wire == DNS_MESSAGE_INTENTPARSE);
 
-	if ((msg->tsig == NULL || msg->tsigkey == NULL) && msg->sig0 == NULL)
+	if (msg->tsig == NULL && msg->sig0 == NULL)
 		return (ISC_R_NOTFOUND);
 
 	if (msg->verify_attempted == 0)
@@ -2257,14 +2558,13 @@ dns_message_signer(dns_message_t *msg, dns_name_t *signer) {
 	}
 
 	if (msg->sig0 != NULL) {
-		dns_rdata_t rdata;
 		dns_rdata_sig_t sig;
 
 		result = dns_rdataset_first(msg->sig0);
 		INSIST(result == ISC_R_SUCCESS);
 		dns_rdataset_current(msg->sig0, &rdata);
 
-		result = dns_rdata_tostruct(&rdata, &sig, msg->mctx);
+		result = dns_rdata_tostruct(&rdata, &sig, NULL);
 		if (result != ISC_R_SUCCESS)
 			return (result);
 		
@@ -2278,9 +2578,16 @@ dns_message_signer(dns_message_t *msg, dns_name_t *signer) {
 	}
 	else {
 		dns_name_t *identity;
+		dns_rdata_any_tsig_t tsig;
+
+		result = dns_rdataset_first(msg->tsig);
+		INSIST(result == ISC_R_SUCCESS);
+		dns_rdataset_current(msg->tsig, &rdata);
+
+		result = dns_rdata_tostruct(&rdata, &tsig, NULL);
 		if (msg->tsigstatus != dns_rcode_noerror)
 			result = DNS_R_TSIGVERIFYFAILURE;
-		else if (msg->tsig->error != dns_rcode_noerror)
+		else if (tsig.error != dns_rcode_noerror)
 			result = DNS_R_TSIGERRORSET;
 		else
 			result = ISC_R_SUCCESS;
@@ -2292,6 +2599,7 @@ dns_message_signer(dns_message_t *msg, dns_name_t *signer) {
 		}
 		dns_name_toregion(identity, &r);
 		dns_name_fromregion(signer, &r);
+		dns_rdata_freestruct(&tsig);
 	}
 
 	return (result);
@@ -2304,12 +2612,12 @@ dns_message_checksig(dns_message_t *msg, dns_view_t *view) {
 	REQUIRE(DNS_MESSAGE_VALID(msg));
 	REQUIRE(view != NULL);
 
-	if (msg->tsigkey == NULL && msg->tsigset == NULL && msg->sig0 == NULL)
+	if (msg->tsigkey == NULL && msg->tsig == NULL && msg->sig0 == NULL)
 		return (ISC_R_SUCCESS);
 	INSIST(msg->saved != NULL);
 	isc_buffer_init(&msgb, msg->saved->base, msg->saved->length);
 	isc_buffer_add(&msgb, msg->saved->length);
-	if (msg->tsigkey != NULL || msg->tsigset != NULL)
+	if (msg->tsigkey != NULL || msg->tsig != NULL)
 		return (dns_view_checksig(view, &msgb, msg));
 	else {
 		dns_rdata_t rdata;
@@ -2361,11 +2669,8 @@ dns_message_checksig(dns_message_t *msg, dns_view_t *view) {
 			isc_buffer_init(&b, rdata.data, rdata.length);
 			isc_buffer_add(&b, rdata.length);
 
-			/*
-			 * XXXBEW should actually pass in the key name,
-			 * but it's not used anyway.
-			 */
-			result = dst_key_fromdns("", &b, view->mctx, &key);
+			result = dst_key_fromdns(&sig.signer, &b, view->mctx,
+						 &key);
 			if (result != ISC_R_SUCCESS)
 				continue;
 			if (dst_key_alg(key) != sig.algorithm ||
@@ -2394,22 +2699,20 @@ dns_message_checksig(dns_message_t *msg, dns_view_t *view) {
 
 isc_result_t
 dns_message_sectiontotext(dns_message_t *msg, dns_section_t section,
-			  isc_boolean_t comments,
-			  isc_boolean_t omit_final_dot,
+			  dns_messagetextflag_t flags,
 			  isc_buffer_t *target) {
 	dns_name_t *name, empty_name;
 	dns_rdataset_t *rdataset;
 	isc_result_t result;
 	isc_boolean_t no_rdata;
+	isc_boolean_t omit_final_dot;
 
 	REQUIRE(DNS_MESSAGE_VALID(msg));
 	REQUIRE(target != NULL);
 	REQUIRE(VALID_SECTION(section));
 
-	/*
-	 * If the section is empty, that's still success, but we don't
-	 * actually do anything.
-	 */
+	omit_final_dot = ISC_TF((flags & DNS_MESSAGETEXTFLAG_OMITDOT) != 0);
+
 	if (ISC_LIST_EMPTY(msg->sections[section]))
 		return ISC_R_SUCCESS;
 
@@ -2418,9 +2721,14 @@ dns_message_sectiontotext(dns_message_t *msg, dns_section_t section,
 	else
 		no_rdata = ISC_FALSE;
 
-	if (comments) {
+	if ((flags & DNS_MESSAGETEXTFLAG_NOCOMMENTS) == 0) {
 		ADD_STRING(target, ";; ");
-		ADD_STRING(target, sectiontext[section]);
+		if (msg->opcode != dns_opcode_update) {
+			ADD_STRING(target, sectiontext[section]);
+		}
+		else {
+			ADD_STRING(target, updsectiontext[section]);
+		}
 		ADD_STRING(target, " SECTION:\n");
 	}
 
@@ -2446,7 +2754,8 @@ dns_message_sectiontotext(dns_message_t *msg, dns_section_t section,
 		}
 		result = dns_message_nextname(msg, section);
 	} while (result == ISC_R_SUCCESS);
-	ADD_STRING(target, "\n");
+	if ((flags & DNS_MESSAGETEXTFLAG_NOHEADERS) == 0)
+		ADD_STRING(target, "\n");
 	if (result == ISC_R_NOMORE)
 		result = ISC_R_SUCCESS;
 	return (result);
@@ -2455,28 +2764,26 @@ dns_message_sectiontotext(dns_message_t *msg, dns_section_t section,
 isc_result_t
 dns_message_pseudosectiontotext(dns_message_t *msg,
 				dns_pseudosection_t section,
-				isc_boolean_t comments,
-				isc_boolean_t omit_final_dot,
+				dns_messagetextflag_t flags,
 				isc_buffer_t *target) {
 	dns_rdataset_t *ps = NULL;
 	dns_name_t *name = NULL;
 	isc_result_t result;
 	char buf[sizeof("1234567890")];
+	isc_boolean_t omit_final_dot;
 
 	REQUIRE(DNS_MESSAGE_VALID(msg));
 	REQUIRE(target != NULL);
 	REQUIRE(VALID_PSEUDOSECTION(section));
 
-	/*
-	 * If the section is empty, that's still success, but we don't
-	 * actually do anything.
-	 */
+	omit_final_dot = ISC_TF((flags & DNS_MESSAGETEXTFLAG_OMITDOT) != 0);
+
 	switch (section) {
 	case DNS_PSEUDOSECTION_OPT:
 		ps = dns_message_getopt(msg);
 		if (ps == NULL)
 			return (ISC_R_SUCCESS);
-		if (comments)
+		if ((flags & DNS_MESSAGETEXTFLAG_NOCOMMENTS) == 0)
 			ADD_STRING(target, ";; OPT PSEUDOSECTION:\n");
 		ADD_STRING(target, "; EDNS: version: ");
 		sprintf(buf, "%4u",
@@ -2488,36 +2795,33 @@ dns_message_pseudosectiontotext(dns_message_t *msg,
 			(unsigned int)ps->rdclass);
 		ADD_STRING(target, buf);
 		return (ISC_R_SUCCESS);
-		break;
 	case DNS_PSEUDOSECTION_TSIG:
 		ps = dns_message_gettsig(msg, &name);
 		if (ps == NULL)
 			return (ISC_R_SUCCESS);
-		if (comments)
+		if ((flags & DNS_MESSAGETEXTFLAG_NOCOMMENTS) == 0)
 			ADD_STRING(target, ";; TSIG PSEUDOSECTION:\n");
 		result = dns_rdataset_totext(ps, name, omit_final_dot,
 					     ISC_FALSE, target);
 		ADD_STRING(target, "\n");
 		return (result);
-		break;
 	case DNS_PSEUDOSECTION_SIG0:
-		ps = dns_message_getsig0(msg);
+		ps = dns_message_getsig0(msg, &name);
 		if (ps == NULL)
 			return (ISC_R_SUCCESS);
-		if (comments)
+		if ((flags & DNS_MESSAGETEXTFLAG_NOCOMMENTS) == 0)
 			ADD_STRING(target, ";; SIG0 PSEUDOSECTION:\n");
-		result = dns_rdataset_totext(ps, dns_rootname, omit_final_dot,
+		result = dns_rdataset_totext(ps, name, omit_final_dot,
 					     ISC_FALSE, target);
-		ADD_STRING(target, "\n");
+		if ((flags & DNS_MESSAGETEXTFLAG_NOHEADERS) == 0)
+			ADD_STRING(target, "\n");
 		return (result);
-		break;
 	}
 	return (ISC_R_UNEXPECTED);
 }
 
 isc_result_t
-dns_message_totext(dns_message_t *msg, isc_boolean_t comments,
-		   isc_boolean_t headers, isc_boolean_t omit_final_dot,
+dns_message_totext(dns_message_t *msg, dns_messagetextflag_t flags,
 		   isc_buffer_t *target) {
 	char buf[sizeof "1234567890"];
 	isc_result_t result;
@@ -2525,7 +2829,7 @@ dns_message_totext(dns_message_t *msg, isc_boolean_t comments,
 	REQUIRE(DNS_MESSAGE_VALID(msg));
 	REQUIRE(target != NULL);
 
-	if (headers) {
+	if ((flags & DNS_MESSAGETEXTFLAG_NOHEADERS) == 0) {
 		ADD_STRING(target, ";; ->>HEADER<<- opcode: ");
 		ADD_STRING(target, opcodetext[msg->opcode]);
 		ADD_STRING(target, ", status: ");
@@ -2564,47 +2868,36 @@ dns_message_totext(dns_message_t *msg, isc_boolean_t comments,
 	}
 	result = dns_message_pseudosectiontotext(msg,
 						 DNS_PSEUDOSECTION_OPT,
-						 comments, omit_final_dot,
-						 target);
+						 flags, target);
 	if (result != ISC_R_SUCCESS)
 		return (result);
 
 	result = dns_message_sectiontotext(msg, DNS_SECTION_QUESTION,
-					   comments,
-					   omit_final_dot,
-					   target);
+					   flags, target);
 	if (result != ISC_R_SUCCESS)
 		return (result);
 	result = dns_message_sectiontotext(msg, DNS_SECTION_ANSWER,
-					   comments,
-					   omit_final_dot,
-					   target);
+					   flags, target);
 	if (result != ISC_R_SUCCESS)
 		return (result);
 	result = dns_message_sectiontotext(msg, DNS_SECTION_AUTHORITY,
-					   comments,
-					   omit_final_dot,
-					   target);
+					   flags, target);
 	if (result != ISC_R_SUCCESS)
 		return (result);
 	result = dns_message_sectiontotext(msg, DNS_SECTION_ADDITIONAL,
-					   comments,
-					   omit_final_dot,
-					   target);
+					   flags, target);
 	if (result != ISC_R_SUCCESS)
 		return (result);
 
 	result = dns_message_pseudosectiontotext(msg,
 						 DNS_PSEUDOSECTION_TSIG,
-						 comments, omit_final_dot,
-						 target);
+						 flags, target);
 	if (result != ISC_R_SUCCESS)
 		return (result);
 
 	result = dns_message_pseudosectiontotext(msg,
 						 DNS_PSEUDOSECTION_SIG0,
-						 comments, omit_final_dot,
-						 target);
+						 flags, target);
 	if (result != ISC_R_SUCCESS)
 		return (result);
 

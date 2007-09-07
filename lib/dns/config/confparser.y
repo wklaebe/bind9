@@ -16,7 +16,7 @@
  * SOFTWARE.
  */
 
-/* $Id: confparser.y,v 1.82 2000/05/18 23:20:18 brister Exp $ */
+/* $Id: confparser.y,v 1.96 2000/06/09 22:13:21 brister Exp $ */
 
 #include <config.h>
 
@@ -61,8 +61,6 @@
 #define ACL_SYM_TYPE 0x3
 
 
-static isc_mutex_t yacc_mutex;
-
 /* used for holding a list of dns_rdatatype_t on the stack */
 struct confrdtype_s {
 	dns_rdatatype_t *types;
@@ -83,6 +81,8 @@ struct keydetails_s {
 	char *secret;
 };
 
+
+static isc_mutex_t		yacc_mutex;
 
 /* All these statics are protected by the above yacc_mutex */
 static dns_c_ctx_t	       *currcfg;
@@ -115,6 +115,7 @@ static isc_lexspecials_t	specials;
 
 static isc_result_t	tmpres;
 static int		debug_lexer;
+static in_port_t	default_port;
 
 int			yyparse(void);
 static int		yylex(void);
@@ -125,8 +126,8 @@ static void		parser_warning(isc_boolean_t lasttoken,
 static void		parser_complain(isc_boolean_t is_warning,
 					isc_boolean_t last_token,
 					const char *format, va_list args);
-static isc_boolean_t	unit_to_uint32(char *in, isc_uint32_t *out);
-static char *		token_to_keyword(int token);
+static isc_result_t	unit_to_uint32(char *in, isc_uint32_t *out);
+static const char *	token_to_keyword(int token);
 static void		yyerror(const char *);
 static dns_peerlist_t	*currentpeerlist(dns_c_ctx_t *cfg,
 					 isc_boolean_t createIfNeeded);
@@ -241,6 +242,7 @@ static isc_boolean_t	int_too_big(isc_uint32_t base, isc_uint32_t mult);
 %token		L_BANG
 %token		L_BLACKHOLE
 %token		L_BOGUS
+%token		L_MAX_CACHE_SIZE
 %token		L_CATEGORY
 %token		L_CHANNEL
 %token		L_CHECK_NAMES
@@ -290,6 +292,7 @@ static isc_boolean_t	int_too_big(isc_uint32_t base, isc_uint32_t mult);
 %token		L_LAME_TTL
 %token		L_LBRACE
 %token		L_LISTEN_ON
+%token		L_LISTEN_ON_V6
 %token		L_LOGGING
 %token		L_MAINTAIN_IXFR_BASE
 %token		L_MANY_ANSWERS
@@ -341,6 +344,7 @@ static isc_boolean_t	int_too_big(isc_uint32_t base, isc_uint32_t mult);
 %token		L_SERIAL_QUERIES
 %token		L_SERVER
 %token		L_SEVERITY
+%token		L_SIG_VALIDITY_INTERVAL
 %token		L_SIZE
 %token		L_SLASH
 %token		L_SLAVE
@@ -439,7 +443,8 @@ static isc_boolean_t	int_too_big(isc_uint32_t base, isc_uint32_t mult);
 
 %%
 
-config_file: statement_list
+config_file: /* nothing */
+	| statement_list
 	;
 
 statement_list: statement
@@ -465,8 +470,10 @@ statement: include_stmt
  */
 include_stmt: L_INCLUDE L_QSTRING L_EOS
 	{
-		if (isc_lex_openfile(mylexer, $2) != ISC_R_SUCCESS) {
-			parser_error(ISC_FALSE ,"can't open file %s", $2);
+		tmpres = isc_lex_openfile(mylexer, $2);
+		if (tmpres != ISC_R_SUCCESS) {
+			parser_error(ISC_FALSE, "can't open file %s: %s",
+				     $2, isc_result_totext(tmpres));
 			YYABORT;
 		}
 
@@ -522,8 +529,13 @@ options_stmt: L_OPTIONS
 	}
 	;
 
-options: option L_EOS
-	| options option L_EOS
+
+options_list: option L_EOS
+	| options_list option L_EOS
+	;
+
+options: /* nothin */
+	| options_list
 	;
 
 
@@ -532,7 +544,7 @@ option: /* Empty */
 	{
 		tmpres = dns_c_ctx_setversion(currcfg, $2);
 		if (tmpres == ISC_R_EXISTS) {
-			parser_error(ISC_FALSE, "cannot redefine version.");
+			parser_error(ISC_FALSE, "cannot redefine version");
 			YYABORT;
 		} else if (tmpres != ISC_R_SUCCESS) {
 			parser_error(ISC_FALSE, "set version error %s: %s",
@@ -666,7 +678,8 @@ option: /* Empty */
 	{
 		tmpres = dns_c_ctx_setexpertmode(currcfg, $2);
 		if (tmpres == ISC_R_EXISTS) {
-			parser_error(ISC_FALSE, "cannot redefine expert-mode.");
+			parser_error(ISC_FALSE,
+				     "cannot redefine expert-mode");
 			YYABORT;
 		}
 	}
@@ -674,7 +687,8 @@ option: /* Empty */
 	{
 		tmpres = dns_c_ctx_setfakeiquery(currcfg, ISC_FALSE);
 		if (tmpres == ISC_R_EXISTS) {
-			parser_error(ISC_FALSE, "cannot redefine fake-iquery.");
+			parser_error(ISC_FALSE,
+				     "cannot redefine fake-iquery");
 			YYABORT;
 		}
 	}
@@ -690,7 +704,7 @@ option: /* Empty */
 	{
 		tmpres = dns_c_ctx_setfetchglue(currcfg, $2);
 		if (tmpres == ISC_R_EXISTS) {
-			parser_error(ISC_FALSE, "cannot redefine fetch-glue.");
+			parser_error(ISC_FALSE, "cannot redefine fetch-glue");
 			YYABORT;
 		}
 	}
@@ -698,7 +712,7 @@ option: /* Empty */
 	{
 		tmpres = dns_c_ctx_setnotify(currcfg, $2);
 		if (tmpres == ISC_R_EXISTS) {
-			parser_error(ISC_FALSE, "cannot redefine notify.");
+			parser_error(ISC_FALSE, "cannot redefine notify");
 			YYABORT;
 		}
 	}
@@ -707,7 +721,7 @@ option: /* Empty */
 		tmpres = dns_c_ctx_sethoststatistics(currcfg, $2);
 		if (tmpres == ISC_R_EXISTS) {
 			parser_error(ISC_FALSE,
-				     "cannot redefine host-statistics.");
+				     "cannot redefine host-statistics");
 			YYABORT;
 		}
 	}
@@ -716,7 +730,7 @@ option: /* Empty */
 		tmpres = dns_c_ctx_setdealloconexit(currcfg, $2);
 		if (tmpres == ISC_R_EXISTS) {
 			parser_error(ISC_FALSE,
-				     "cannot redefine deallocate-on-exit.");
+				     "cannot redefine deallocate-on-exit");
 			YYABORT;
 		}
 	}
@@ -724,7 +738,7 @@ option: /* Empty */
 	{
 		tmpres = dns_c_ctx_setuseixfr(currcfg, $2);
 		if (tmpres == ISC_R_EXISTS) {
-			parser_error(ISC_FALSE, "cannot redefine use-ixfr.");
+			parser_error(ISC_FALSE, "cannot redefine use-ixfr");
 			YYABORT;
 		}
 	}
@@ -736,7 +750,8 @@ option: /* Empty */
 		 */
 		tmpres = dns_c_ctx_setprovideixfr(currcfg, $2);
 		if (tmpres == ISC_R_EXISTS) {
-			parser_error(ISC_FALSE, "cannot redefine provide-ixfr.");
+			parser_error(ISC_FALSE,
+				     "cannot redefine provide-ixfr");
 			YYABORT;
 		}
 	}
@@ -745,7 +760,7 @@ option: /* Empty */
 		tmpres = dns_c_ctx_sethasoldclients(currcfg, $2);
 		if (tmpres == ISC_R_EXISTS) {
 			parser_error(ISC_FALSE,
-				     "cannot redefine has-old-clients.");
+				     "cannot redefine has-old-clients");
 			YYABORT;
 		}
 	}
@@ -753,7 +768,8 @@ option: /* Empty */
 	{
 		tmpres = dns_c_ctx_setauthnxdomain(currcfg, $2);
 		if (tmpres == ISC_R_EXISTS) {
-			parser_error(ISC_FALSE, "cannot redefine auth-nxdomain.");
+			parser_error(ISC_FALSE,
+				     "cannot redefine auth-nxdomain");
 			YYABORT;
 		}
 	}
@@ -762,7 +778,7 @@ option: /* Empty */
 		tmpres = dns_c_ctx_setmultiplecnames(currcfg, $2);
 		if (tmpres == ISC_R_EXISTS) {
 			parser_error(ISC_FALSE,
-				     "cannot redefine multiple-cnames.");
+				     "cannot redefine multiple-cnames");
 			YYABORT;
 		}
 	}
@@ -770,7 +786,8 @@ option: /* Empty */
 	{
 		tmpres = dns_c_ctx_setchecknames(currcfg, $2, $3);
 		if (tmpres == ISC_R_EXISTS) {
-			parser_error(ISC_FALSE, "cannot redefine check-names.");
+			parser_error(ISC_FALSE,
+				     "cannot redefine check-names");
 			YYABORT;
 		}
 	}
@@ -778,7 +795,8 @@ option: /* Empty */
 	{
 		tmpres = dns_c_ctx_setuseidpool(currcfg, $2);
 		if (tmpres == ISC_R_EXISTS) {
-			parser_error(ISC_FALSE, "cannot redefine use-id-pool.");
+			parser_error(ISC_FALSE,
+				     "cannot redefine use-id-pool");
 			YYABORT;
 		}
 	}
@@ -786,7 +804,8 @@ option: /* Empty */
 	{
 		tmpres = dns_c_ctx_setrfc2308type1(currcfg, $2);
 		if (tmpres == ISC_R_EXISTS) {
-			parser_error(ISC_FALSE, "cannot redefine rfc2308-type.");
+			parser_error(ISC_FALSE,
+				     "cannot redefine rfc2308-type");
 			YYABORT;
 		}
 	}
@@ -794,7 +813,8 @@ option: /* Empty */
 	{
 		tmpres = dns_c_ctx_setprovideixfr(currcfg, $2);
 		if (tmpres == ISC_R_EXISTS) {
-			parser_error(ISC_FALSE, "cannot redefine provide-ixfr.");
+			parser_error(ISC_FALSE,
+				     "cannot redefine provide-ixfr");
 			YYABORT;
 		}
 	}
@@ -802,7 +822,8 @@ option: /* Empty */
 	{
 		tmpres = dns_c_ctx_setrequestixfr(currcfg, $2);
 		if (tmpres == ISC_R_EXISTS) {
-			parser_error(ISC_FALSE, "cannot redefine request-ixfr.");
+			parser_error(ISC_FALSE,
+				     "cannot redefine request-ixfr");
 			YYABORT;
 		}
 	}
@@ -811,7 +832,7 @@ option: /* Empty */
 		tmpres = dns_c_ctx_settreatcrasspace(currcfg, $2);
 		if (tmpres == ISC_R_EXISTS) {
 			parser_error(ISC_FALSE,
-				     "cannot redefine treat-cr-as-space.");
+				     "cannot redefine treat-cr-as-space");
 			YYABORT;
 		}
 	}
@@ -819,8 +840,8 @@ option: /* Empty */
 	{
 		if ($4 == NULL) {
 			parser_warning(ISC_FALSE,
-				       "address-match-list empty. "
-				       "listen statement ignored.");
+				       "address-match-list empty implies"
+				       "listen statement ignored");
 		} else {
 			tmpres = dns_c_ctx_addlisten_on(currcfg, $2, $4,
 							ISC_FALSE);
@@ -828,6 +849,24 @@ option: /* Empty */
 			if (tmpres != ISC_R_SUCCESS) {
 				parser_error(ISC_FALSE,
 					     "failed to add listen statement");
+				YYABORT;
+			}
+		}
+	}
+	| L_LISTEN_ON_V6 maybe_port L_LBRACE address_match_list L_RBRACE
+	{
+		if ($4 == NULL) {
+			parser_warning(ISC_FALSE,
+				       "address-match-list empty implies"
+				       "listen statement ignored");
+		} else {
+			tmpres = dns_c_ctx_addv6listen_on(currcfg, $2, $4,
+							  ISC_FALSE);
+
+			if (tmpres != ISC_R_SUCCESS) {
+				parser_error(ISC_FALSE,
+					     "failed to add "
+					     "v6listen statement");
 				YYABORT;
 			}
 		}
@@ -861,7 +900,7 @@ option: /* Empty */
 						 forwarders);
 		if (tmpres != ISC_R_SUCCESS) {
 			parser_error(ISC_FALSE,
-				     "failed to set forwarders list.");
+				     "failed to set forwarders list");
 			YYABORT;
 		}
 	} L_LBRACE opt_forwarders_list L_RBRACE
@@ -870,11 +909,11 @@ option: /* Empty */
 		tmpres = dns_c_ctx_setquerysource(currcfg, $2);
 		if (tmpres == ISC_R_EXISTS) {
 			parser_error(ISC_FALSE,
-				     "cannot redefine query-source.");
+				     "cannot redefine query-source");
 			YYABORT;
 		} else if (tmpres != ISC_R_SUCCESS) {
 			parser_error(ISC_FALSE,
-				     "failed to set query-source.");
+				     "failed to set query-source");
 			YYABORT;
 		}
 	}
@@ -883,11 +922,11 @@ option: /* Empty */
 		tmpres = dns_c_ctx_setquerysourcev6(currcfg, $2);
 		if (tmpres == ISC_R_EXISTS) {
 			parser_error(ISC_FALSE,
-				     "cannot redefine query-source-v6.");
+				     "cannot redefine query-source-v6");
 			YYABORT;
 		} else if (tmpres != ISC_R_SUCCESS) {
 			parser_error(ISC_FALSE,
-				     "failed to set query-source-v6.");
+				     "failed to set query-source-v6");
 			YYABORT;
 		}
 	}
@@ -970,7 +1009,7 @@ option: /* Empty */
 		dns_c_ipmatchlist_detach(&$3);
 
 		if (tmpres == ISC_R_EXISTS) {
-			parser_error(ISC_FALSE, "cannot redefine sortlist.");
+			parser_error(ISC_FALSE, "cannot redefine sortlist");
 			YYABORT;
 		} else if (tmpres != ISC_R_SUCCESS) {
 			parser_error(ISC_FALSE, "failed to set sortlist");
@@ -983,7 +1022,8 @@ option: /* Empty */
 		dns_c_iplist_detach(&$2);
 
 		if (tmpres == ISC_R_EXISTS) {
-			parser_error(ISC_FALSE, "cannot redefine also-notify.");
+			parser_error(ISC_FALSE,
+				     "cannot redefine also-notify");
 			YYABORT;
 		} else if (tmpres != ISC_R_SUCCESS) {
 			parser_error(ISC_FALSE, "failed to set also-notify");
@@ -996,7 +1036,7 @@ option: /* Empty */
 		dns_c_ipmatchlist_detach(&$3);
 
 		if (tmpres == ISC_R_EXISTS) {
-			parser_error(ISC_FALSE, "cannot redefine blackhole.");
+			parser_error(ISC_FALSE, "cannot redefine blackhole");
 			YYABORT;
 		} else if (tmpres != ISC_R_SUCCESS) {
 			parser_error(ISC_FALSE, "failed to set blackhole");
@@ -1009,10 +1049,10 @@ option: /* Empty */
 		dns_c_ipmatchlist_detach(&$3);
 
 		if (tmpres == ISC_R_EXISTS) {
-			parser_error(ISC_FALSE, "cannot redefine topology.");
+			parser_error(ISC_FALSE, "cannot redefine topology");
 			YYABORT;
 		} else if (tmpres != ISC_R_SUCCESS) {
-			parser_error(ISC_FALSE, "failed to set topology.");
+			parser_error(ISC_FALSE, "failed to set topology");
 			YYABORT;
 		}
 	}
@@ -1023,11 +1063,11 @@ option: /* Empty */
 		tmpres = dns_c_ctx_settransferformat(currcfg, $2);
 		if (tmpres == ISC_R_EXISTS) {
 			parser_error(ISC_FALSE,
-				     "cannot redefine transfer-format.");
+				     "cannot redefine transfer-format");
 			YYABORT;
 		} else if (tmpres != ISC_R_SUCCESS) {
 			parser_error(ISC_FALSE,
-				     "failed to set transfer-format.");
+				     "failed to set transfer-format");
 			YYABORT;
 		}
 	}
@@ -1042,13 +1082,27 @@ option: /* Empty */
 		tmpres = dns_c_ctx_setmaxtransfertimein(currcfg, $2 * 60);
 		if (tmpres == ISC_R_EXISTS) {
 			parser_error(ISC_FALSE,
-				     "cannot redefine max-transfer-time-in.");
+				     "cannot redefine max-transfer-time-in");
 			YYABORT;
 		} else if (tmpres != ISC_R_SUCCESS) {
 			parser_error(ISC_FALSE,
-				     "failed to set max-transfer-time-in.");
+				     "failed to set max-transfer-time-in");
 			YYABORT;
 		}
+	}
+	| L_PORT in_port
+	{
+		tmpres = dns_c_ctx_setport(currcfg, $2);
+		if (tmpres == ISC_R_EXISTS) {
+			parser_error(ISC_FALSE,
+				     "cannot redefine port");
+			YYABORT;
+		} else if (tmpres != ISC_R_SUCCESS) {
+			parser_error(ISC_FALSE,
+				     "failed to set port");
+			YYABORT;
+		}
+		default_port = $2;
 	}
 	| L_MAX_TRANSFER_TIME_OUT L_INTEGER
 	{
@@ -1061,11 +1115,11 @@ option: /* Empty */
 		tmpres = dns_c_ctx_setmaxtransfertimeout(currcfg, $2 * 60);
 		if (tmpres == ISC_R_EXISTS) {
 			parser_error(ISC_FALSE,
-				     "cannot redefine max-transfer-time-out.");
+				     "cannot redefine max-transfer-time-out");
 			YYABORT;
 		} else if (tmpres != ISC_R_SUCCESS) {
 			parser_error(ISC_FALSE,
-				     "failed to set max-transfer-time-out.");
+				     "failed to set max-transfer-time-out");
 			YYABORT;
 		}
 	}
@@ -1080,11 +1134,11 @@ option: /* Empty */
 		tmpres = dns_c_ctx_setmaxtransferidlein(currcfg, $2 * 60);
 		if (tmpres == ISC_R_EXISTS) {
 			parser_error(ISC_FALSE,
-				     "cannot redefine max-transfer-idle-in.");
+				     "cannot redefine max-transfer-idle-in");
 			YYABORT;
 		} else if (tmpres != ISC_R_SUCCESS) {
 			parser_error(ISC_FALSE,
-				     "failed to set max-transfer-idle-in.");
+				     "failed to set max-transfer-idle-in");
 			YYABORT;
 		}
 	}
@@ -1099,11 +1153,11 @@ option: /* Empty */
 		tmpres = dns_c_ctx_setmaxtransferidleout(currcfg, $2 * 60);
 		if (tmpres == ISC_R_EXISTS) {
 			parser_error(ISC_FALSE,
-				     "cannot redefine max-transfer-idle-out.");
+				     "cannot redefine max-transfer-idle-out");
 			YYABORT;
 		} else if (tmpres != ISC_R_SUCCESS) {
 			parser_error(ISC_FALSE,
-				     "failed to set max-transfer-idle-out.");
+				     "failed to set max-transfer-idle-out");
 			YYABORT;
 		}
 	}
@@ -1112,11 +1166,24 @@ option: /* Empty */
 		tmpres = dns_c_ctx_settcpclients(currcfg, $2);
 		if (tmpres == ISC_R_EXISTS) {
 			parser_error(ISC_FALSE,
-				     "cannot redefine tcp-clients.");
+				     "cannot redefine tcp-clients");
 			YYABORT;
 		} else if (tmpres != ISC_R_SUCCESS) {
 			parser_error(ISC_FALSE,
-				     "failed to set tcp-clients.");
+				     "failed to set tcp-clients");
+			YYABORT;
+		}
+	}
+	| L_SIG_VALIDITY_INTERVAL L_INTEGER
+	{
+		tmpres = dns_c_ctx_setsigvalidityinterval(currcfg, $2);
+		if (tmpres == ISC_R_EXISTS) {
+			parser_error(ISC_FALSE,
+				     "cannot redefine sig-validity-interval");
+			YYABORT;
+		} else if (tmpres != ISC_R_SUCCESS) {
+			parser_error(ISC_FALSE,
+				     "failed to set sig-validity-interval");
 			YYABORT;
 		}
 	}
@@ -1124,10 +1191,10 @@ option: /* Empty */
 	{
 		tmpres = dns_c_ctx_setlamettl(currcfg, $2);
 		if (tmpres == ISC_R_EXISTS) {
-			parser_error(ISC_FALSE, "cannot redefine lame-ttl.");
+			parser_error(ISC_FALSE, "cannot redefine lame-ttl");
 			YYABORT;
 		} else if (tmpres != ISC_R_SUCCESS) {
-			parser_error(ISC_FALSE, "failed to set lame-ttl.");
+			parser_error(ISC_FALSE, "failed to set lame-ttl");
 			YYABORT;
 		}
 	}
@@ -1136,11 +1203,11 @@ option: /* Empty */
 		tmpres = dns_c_ctx_setrecursiveclients(currcfg, $2);
 		if (tmpres == ISC_R_EXISTS) {
 			parser_error(ISC_FALSE,
-				     "cannot redefine recursive-clients.");
+				     "cannot redefine recursive-clients");
 			YYABORT;
 		} else if (tmpres != ISC_R_SUCCESS) {
 			parser_error(ISC_FALSE,
-				     "failed to set recursive-clients.");
+				     "failed to set recursive-clients");
 			YYABORT;
 		}
 	}
@@ -1149,11 +1216,11 @@ option: /* Empty */
 		tmpres = dns_c_ctx_setminroots(currcfg, $2);
 		if (tmpres == ISC_R_EXISTS) {
 			parser_error(ISC_FALSE,
-				     "cannot redefine min-roots.");
+				     "cannot redefine min-roots");
 			YYABORT;
 		} else if (tmpres != ISC_R_SUCCESS) {
 			parser_error(ISC_FALSE,
-				     "failed to set min-roots.");
+				     "failed to set min-roots");
 			YYABORT;
 		}
 	}
@@ -1162,11 +1229,11 @@ option: /* Empty */
 		tmpres = dns_c_ctx_setserialqueries(currcfg, $2);
 		if (tmpres == ISC_R_EXISTS) {
 			parser_error(ISC_FALSE,
-				     "cannot redefine serial-queries.");
+				     "cannot redefine serial-queries");
 			YYABORT;
 		} else if (tmpres != ISC_R_SUCCESS) {
 			parser_error(ISC_FALSE,
-				     "failed to set serial-queries.");
+				     "failed to set serial-queries");
 			YYABORT;
 		}
 	}
@@ -1181,11 +1248,11 @@ option: /* Empty */
 		tmpres = dns_c_ctx_setcleaninterval(currcfg, $2 * 60);
 		if (tmpres == ISC_R_EXISTS) {
 			parser_error(ISC_FALSE,
-				     "cannot redefine cleaning-interval.");
+				     "cannot redefine cleaning-interval");
 			YYABORT;
 		} else if (tmpres != ISC_R_SUCCESS) {
 			parser_error(ISC_FALSE,
-				     "failed to set cleaning-interval.");
+				     "failed to set cleaning-interval");
 			YYABORT;
 		}
 	}
@@ -1200,11 +1267,11 @@ option: /* Empty */
 		tmpres = dns_c_ctx_setinterfaceinterval(currcfg, $2 * 60);
 		if (tmpres == ISC_R_EXISTS) {
 			parser_error(ISC_FALSE,
-				     "cannot redefine interface-interval.");
+				     "cannot redefine interface-interval");
 			YYABORT;
 		} else if (tmpres != ISC_R_SUCCESS) {
 			parser_error(ISC_FALSE,
-				     "failed to set interface-interval.");
+				     "failed to set interface-interval");
 			YYABORT;
 		}
 	}
@@ -1219,11 +1286,11 @@ option: /* Empty */
 		tmpres = dns_c_ctx_setstatsinterval(currcfg, $2 * 60);
 		if (tmpres == ISC_R_EXISTS) {
 			parser_error(ISC_FALSE,
-				     "cannot redefine statistics-interval.");
+				     "cannot redefine statistics-interval");
 			YYABORT;
 		} else if (tmpres != ISC_R_SUCCESS) {
 			parser_error(ISC_FALSE,
-				     "failed to set statistics-interval.");
+				     "failed to set statistics-interval");
 			YYABORT;
 		}
 	}
@@ -1232,11 +1299,11 @@ option: /* Empty */
 		tmpres = dns_c_ctx_setmaxlogsizeixfr(currcfg, $2);
 		if (tmpres == ISC_R_EXISTS) {
 			parser_error(ISC_FALSE,
-				     "cannot redefine max-ixfr-log-size.");
+				     "cannot redefine max-ixfr-log-size");
 			YYABORT;
 		} else if (tmpres != ISC_R_SUCCESS) {
 			parser_error(ISC_FALSE,
-				     "failed to set max-ixfr-log-size.");
+				     "failed to set max-ixfr-log-size");
 			YYABORT;
 		}
 	}
@@ -1245,11 +1312,11 @@ option: /* Empty */
 		tmpres = dns_c_ctx_setmaxncachettl(currcfg, $2);
 		if (tmpres == ISC_R_EXISTS) {
 			parser_error(ISC_FALSE,
-				     "cannot redefine max-ncache-ttl.");
+				     "cannot redefine max-ncache-ttl");
 			YYABORT;
 		} else if (tmpres != ISC_R_SUCCESS) {
 			parser_error(ISC_FALSE,
-				     "failed to set max-ncache-ttl.");
+				     "failed to set max-ncache-ttl");
 			YYABORT;
 		}
 	}
@@ -1258,11 +1325,11 @@ option: /* Empty */
 		tmpres = dns_c_ctx_setmaxcachettl(currcfg, $2);
 		if (tmpres == ISC_R_EXISTS) {
 			parser_error(ISC_FALSE,
-				     "cannot redefine max-cache-ttl.");
+				     "cannot redefine max-cache-ttl");
 			YYABORT;
 		} else if (tmpres != ISC_R_SUCCESS) {
 			parser_error(ISC_FALSE,
-				     "failed to set max-cache-ttl.");
+				     "failed to set max-cache-ttl");
 			YYABORT;
 		}
 	}
@@ -1277,11 +1344,11 @@ option: /* Empty */
 		tmpres = dns_c_ctx_setheartbeatinterval(currcfg, $2 * 60);
 		if (tmpres == ISC_R_EXISTS) {
 			parser_error(ISC_FALSE,
-				     "cannot redefine heartbeat-interval.");
+				     "cannot redefine heartbeat-interval");
 			YYABORT;
 		} else if (tmpres != ISC_R_SUCCESS) {
 			parser_error(ISC_FALSE,
-				     "failed to set heartbeat-interval.");
+				     "failed to set heartbeat-interval");
 			YYABORT;
 		}
 	}
@@ -1289,10 +1356,10 @@ option: /* Empty */
 	{
 		tmpres = dns_c_ctx_setdialup(currcfg, $2);
 		if (tmpres == ISC_R_EXISTS) {
-			parser_error(ISC_FALSE, "cannot redefine dialup.");
+			parser_error(ISC_FALSE, "cannot redefine dialup");
 			YYABORT;
 		} else if (tmpres != ISC_R_SUCCESS) {
-			parser_error(ISC_FALSE, "failed to set dialup.");
+			parser_error(ISC_FALSE, "failed to set dialup");
 			YYABORT;
 		}
 	}
@@ -1318,7 +1385,7 @@ option: /* Empty */
 							     ordering);
 			if (tmpres != ISC_R_SUCCESS) {
 				parser_error(ISC_FALSE,
-					     "failed to set rrset-order.");
+					     "failed to set rrset-order");
 				YYABORT;
 			}
 		}
@@ -1330,11 +1397,12 @@ option: /* Empty */
 
 		if (tmpres == ISC_R_EXISTS) {
 			parser_error(ISC_FALSE,
-				     "cannot redefine allow-update-forwarding.");
+				     "cannot redefine "
+				     "allow-update-forwarding");
 			YYABORT;
 		} else if (tmpres != ISC_R_SUCCESS) {
 			parser_error(ISC_FALSE,
-				     "failed to set allow-update-forwarding.");
+				     "failed to set allow-update-forwarding");
 			YYABORT;
 		}
 	}
@@ -1343,11 +1411,11 @@ option: /* Empty */
 		tmpres = dns_c_ctx_setadditionaldata(currcfg, $2);
 		if (tmpres == ISC_R_EXISTS) {
 			parser_error(ISC_FALSE,
-				     "cannot redefine additional-data.");
+				     "cannot redefine additional-data");
 			YYABORT;
 		} else if (tmpres != ISC_R_SUCCESS) {
 			parser_error(ISC_FALSE,
-				     "failed to set additional-data.");
+				     "failed to set additional-data");
 			YYABORT;
 		}
 	}
@@ -1477,8 +1545,8 @@ rrset_ordering_element: ordering_class ordering_type ordering_name
 		tmpres = dns_c_string2ordering($5, &o);
 		if (tmpres != ISC_R_SUCCESS) {
 			parser_warning(ISC_FALSE,
-				       "unknown ordering type '%s'."
-				       " Using default", $5);
+				       "unknown ordering type '%s'"
+				       " using default", $5);
 			o = DNS_DEFAULT_ORDERING;
 		}
 
@@ -1513,16 +1581,11 @@ maybe_wild_addr: ip4_address
 	| ip6_address
 	| L_STRING
 	{
-		struct in_addr any;
-		any.s_addr = htonl(INADDR_ANY);
+		isc_sockaddr_any(&$$);
 
-		memset(&any, 0x0, sizeof any);
-		isc_sockaddr_fromin(&$$, &any, 0);
-
-		if (strcmp($1, "*") != 0) {
+		if (strcmp($1, "*") != 0)
 			parser_error(ISC_TRUE,
-				     "bad ip-address. using ipv4 '*'");
-		}
+				     "bad IP address, using IPv4 '*'");
 
 		isc_mem_free(memctx, $1);
 	}
@@ -1535,21 +1598,16 @@ maybe_wild_ip4_only_addr: ip4_address
 	| ip6_address
 	{
 		parser_error(ISC_FALSE,
-			     "cannot have an IPv6 address in this context.");
+			     "cannot have an IPv6 address in this context");
 		YYABORT;
 	}
 	| L_STRING
 	{
-		struct in_addr any;
-		any.s_addr = htonl(INADDR_ANY);
+		isc_sockaddr_any(&$$);
 
-		memset(&any, 0x0, sizeof any);
-		isc_sockaddr_fromin(&$$, &any, 0);
-
-		if (strcmp($1, "*") != 0) {
+		if (strcmp($1, "*") != 0)
 			parser_error(ISC_TRUE,
-				     "bad IPv4-address. using '*'");
-		}
+				     "bad IPv4 address, using '*'");
 
 		isc_mem_free(memctx, $1);
 	}
@@ -1562,17 +1620,16 @@ maybe_wild_ip6_only_addr: ip6_address
 	| ip4_address
 	{
 		parser_error(ISC_FALSE,
-			     "cannot have an IPv4 address in this context.");
+			     "cannot have an IPv4 address in this context");
 		YYABORT;
 	}
 	| L_STRING
 	{
-		isc_sockaddr_fromin6(&$$, &in6addr_any, 0);
+		isc_sockaddr_any6(&$$);
 
-		if (strcmp($1, "*") != 0) {
+		if (strcmp($1, "*") != 0)
 			parser_error(ISC_TRUE,
-				     "bad IPv6-address. using '*'");
-		}
+				     "bad IPv6 address, using '*'");
 
 		isc_mem_free(memctx, $1);
 	}
@@ -1588,7 +1645,7 @@ maybe_wild_port: in_port
 
 		if (strcmp ($1, "*") != 0) {
 			parser_error(ISC_TRUE,
-				     "bad port specification. Using '*'");
+				     "bad port specification using '*'");
 		}
 
 		isc_mem_free(memctx, $1);
@@ -1603,7 +1660,7 @@ port_ip_list: maybe_zero_port L_LBRACE ip_and_port_list L_RBRACE
 		unsigned int i;
 
 		if (port == 0)
-			port = DNS_C_DEFAULTPORT;
+			port = default_port;
 
 		for (i = 0 ; i < list->nextidx ; i++) {
 			if (isc_sockaddr_getport(&list->ips[i]) == 0) {
@@ -1709,7 +1766,7 @@ query_source_v4: L_ADDRESS maybe_wild_ip4_only_addr
 
 maybe_port: /* nothing */
 	{
-		$$ = DNS_C_DEFAULTPORT;
+		$$ = default_port;
 	}
 	| L_PORT in_port
 	{
@@ -1822,10 +1879,10 @@ size_clause: L_DATASIZE size_spec
 	{
 		tmpres = dns_c_ctx_setdatasize(currcfg, $2);
 		if (tmpres == ISC_R_EXISTS) {
-			parser_error(ISC_FALSE, "cannot redefine datasize.");
+			parser_error(ISC_FALSE, "cannot redefine datasize");
 			YYABORT;
 		} else if (tmpres != ISC_R_SUCCESS) {
-			parser_error(ISC_FALSE, "failed to set datasize.");
+			parser_error(ISC_FALSE, "failed to set datasize");
 			YYABORT;
 		}
 	}
@@ -1833,10 +1890,10 @@ size_clause: L_DATASIZE size_spec
 	{
 		tmpres = dns_c_ctx_setstacksize(currcfg, $2);
 		if (tmpres == ISC_R_EXISTS) {
-			parser_error(ISC_FALSE, "cannot redefine stacksize.");
+			parser_error(ISC_FALSE, "cannot redefine stacksize");
 			YYABORT;
 		} else if (tmpres != ISC_R_SUCCESS) {
-			parser_error(ISC_FALSE, "failed to set stacksize.");
+			parser_error(ISC_FALSE, "failed to set stacksize");
 			YYABORT;
 		}
 	}
@@ -1844,10 +1901,10 @@ size_clause: L_DATASIZE size_spec
 	{
 		tmpres = dns_c_ctx_setcoresize(currcfg, $2);
 		if (tmpres == ISC_R_EXISTS) {
-			parser_error(ISC_FALSE, "cannot redefine coresize.");
+			parser_error(ISC_FALSE, "cannot redefine coresize");
 			YYABORT;
 		} else if (tmpres != ISC_R_SUCCESS) {
-			parser_error(ISC_FALSE, "failed to set coresize.");
+			parser_error(ISC_FALSE, "failed to set coresize");
 			YYABORT;
 		}
 	}
@@ -1855,10 +1912,30 @@ size_clause: L_DATASIZE size_spec
 	{
 		tmpres = dns_c_ctx_setfiles(currcfg, $2);
 		if (tmpres == ISC_R_EXISTS) {
-			parser_error(ISC_FALSE, "cannot redefine files.");
+			parser_error(ISC_FALSE, "cannot redefine files");
 			YYABORT;
 		} else if (tmpres != ISC_R_SUCCESS) {
-			parser_error(ISC_FALSE, "failed to set files.");
+			parser_error(ISC_FALSE, "failed to set files");
+			YYABORT;
+		}
+	}
+	| L_MAX_CACHE_SIZE size_spec
+	{
+		if ($2 == DNS_C_SIZE_SPEC_DEFAULT) {
+			parser_error(ISC_FALSE,
+				     "cannot specific 'default' for "
+				     "'max-cache-size'");
+			YYABORT;
+		}
+		
+		tmpres = dns_c_ctx_setmaxcachesize(currcfg, $2);
+		if (tmpres == ISC_R_EXISTS) {
+			parser_error(ISC_FALSE,
+				     "cannot redefine max-cache-size");
+			YYABORT;
+		} else if (tmpres != ISC_R_SUCCESS) {
+			parser_error(ISC_FALSE,
+				     "failed to set max-cache-size");
 			YYABORT;
 		}
 	}
@@ -1869,22 +1946,26 @@ size_spec: any_string
 	{
 		isc_uint32_t result;
 
-		if (unit_to_uint32($1, &result)) {
+		tmpres = unit_to_uint32($1, &result);
+		if (tmpres == ISC_R_SUCCESS) {
 			$$ = result;
-			if ($$ == DNS_C_SIZE_SPEC_DEFAULT) {
-				isc_uint32_t newi = DNS_C_SIZE_SPEC_DEFAULT-1;
-				parser_warning(ISC_FALSE,
-					       "value (%lu) too big. "
-					       "reducing to %lu",
-					       (unsigned long)$$,
-					       (unsigned long)newi);
-				$$ = newi;			}
+		} else if (tmpres == ISC_R_RANGE) {
+			$$ = DNS_C_SIZE_SPEC_UNLIM;
+			parser_warning(ISC_FALSE,
+				       "invalid value %s: using 'unlimited'",
+				       $1);
+		} else if (tmpres == ISC_R_FAILURE) {
+			parser_warning(ISC_FALSE,
+				       "invalid unit string '%s', Using "
+				       "'default'", $1);
+			$$ = DNS_C_SIZE_SPEC_DEFAULT;
 		} else {
 			parser_warning(ISC_FALSE,
-				       "invalid unit string '%s'. Using "
-				       "default", $1);
+				       "unknown result: %s: using 'default'",
+				       isc_result_totext(tmpres));
 			$$ = DNS_C_SIZE_SPEC_DEFAULT;
 		}
+			
 		isc_mem_free(memctx, $1);
 	}
 	| L_INTEGER
@@ -1893,7 +1974,7 @@ size_spec: any_string
 		if ($$ == DNS_C_SIZE_SPEC_DEFAULT) {
 			isc_uint32_t newi = DNS_C_SIZE_SPEC_DEFAULT - 1;
 			parser_warning(ISC_FALSE,
-				       "value (%lu) too big. Reducing to %lu",
+				       "value (%lu) too big, Reducing to %lu",
 				       (unsigned long) $$,
 				       (unsigned long) newi);
 			$$ = newi;
@@ -1915,10 +1996,11 @@ transfer_clause: L_TRANSFERS_IN L_INTEGER
 	{
 		tmpres = dns_c_ctx_settransfersin(currcfg, $2);
 		if (tmpres == ISC_R_EXISTS) {
-			parser_error(ISC_FALSE, "cannot redefine transfers-in.");
+			parser_error(ISC_FALSE,
+				     "cannot redefine transfers-in");
 			YYABORT;
 		} else if (tmpres != ISC_R_SUCCESS) {
-			parser_error(ISC_FALSE, "failed to set transfers-in.");
+			parser_error(ISC_FALSE, "failed to set transfers-in");
 			YYABORT;
 		}
 	}
@@ -1927,11 +2009,11 @@ transfer_clause: L_TRANSFERS_IN L_INTEGER
 		tmpres = dns_c_ctx_settransfersout(currcfg, $2);
 		if (tmpres == ISC_R_EXISTS) {
 			parser_error(ISC_FALSE,
-				     "cannot redefine transfers-out.");
+				     "cannot redefine transfers-out");
 			YYABORT;
 		} else if (tmpres != ISC_R_SUCCESS) {
 			parser_error(ISC_FALSE,
-				     "failed to set transfers-out.");
+				     "failed to set transfers-out");
 			YYABORT;
 		}
 	}
@@ -1940,11 +2022,11 @@ transfer_clause: L_TRANSFERS_IN L_INTEGER
 		tmpres = dns_c_ctx_settransfersperns(currcfg, $2);
 		if (tmpres == ISC_R_EXISTS) {
 			parser_error(ISC_FALSE,
-				     "cannot redefine transfers-per-ns.");
+				     "cannot redefine transfers-per-ns");
 			YYABORT;
 		} else if (tmpres != ISC_R_SUCCESS) {
 			parser_error(ISC_FALSE,
-				     "failed to set transfers-per-ns.");
+				     "failed to set transfers-per-ns");
 			YYABORT;
 		}
 	}
@@ -1966,7 +2048,7 @@ forwarders_in_addr: ip_address
 		if (tmpres != ISC_R_SUCCESS) {
 			parser_error(ISC_FALSE,
 				     "failed to add forwarders "
-				     "address element.");
+				     "address element");
 			YYABORT;
 		}
 	}
@@ -2006,7 +2088,7 @@ channel_stmt:
 			YYABORT;
 		} else if (tmpres != ISC_R_SUCCESS) {
 			parser_error(ISC_FALSE,
-				     "failed to add new file channel.");
+				     "failed to add new file channel");
 			YYABORT;
 		}
 
@@ -2015,7 +2097,7 @@ channel_stmt:
 		tmpres = dns_c_logchan_setpath(newc, $5);
 		if (tmpres != ISC_R_SUCCESS) {
 			parser_error(ISC_FALSE,
-				     "failed to add file channel's path.");
+				     "failed to add file channel's path");
 			YYABORT;
 		}
 
@@ -2028,18 +2110,19 @@ channel_stmt:
 		tmpres = dns_c_ctx_addsyslogchannel(currcfg,
 						    $2, &newc);
 		if (tmpres == ISC_R_EXISTS) {
-			parser_error(ISC_FALSE, "cannot redefine channel %s", $2);
+			parser_error(ISC_FALSE,
+				     "cannot redefine channel %s", $2);
 			YYABORT;
 		} else if (tmpres != ISC_R_SUCCESS) {
 			parser_error(ISC_FALSE,
-				     "failed to add new syslog channel.");
+				     "failed to add new syslog channel");
 			YYABORT;
 		}
 
 		tmpres = dns_c_logchan_setfacility(newc, $5);
 		if (tmpres != ISC_R_SUCCESS) {
 			parser_error(ISC_FALSE,
-				     "can't get set channel facility.");
+				     "can't get set channel facility");
 			YYABORT;
 		}
 		isc_mem_free(memctx, $2);
@@ -2050,7 +2133,8 @@ channel_stmt:
 		tmpres = dns_c_ctx_addnullchannel(currcfg,
 						  $2, &newc);
 		if (tmpres == ISC_R_EXISTS) {
-			parser_error(ISC_FALSE, "cannot redefine channel %s", $2);
+			parser_error(ISC_FALSE,
+				     "cannot redefine channel %s", $2);
 			YYABORT;
 		} else if (tmpres != ISC_R_SUCCESS) {
 			parser_error(ISC_FALSE,
@@ -2063,7 +2147,7 @@ channel_stmt:
 	| L_CHANNEL channel_name L_LBRACE logging_non_type_keywords {
 		parser_error(ISC_FALSE,
 			     "first statment inside a channel definition "
-			     "must be 'file' or 'syslog' or 'null'.");
+			     "must be 'file' or 'syslog' or 'null'");
 		YYABORT;
 	}
 	;
@@ -2088,7 +2172,7 @@ category_stmt: L_CATEGORY category_name {
 			YYABORT;
 		} else if (tmpres != ISC_R_SUCCESS) {
 			parser_error(ISC_FALSE,
-				     "failed to add new logging category.");
+				     "failed to add new logging category");
 			isc_mem_free(memctx, $2);
 			YYABORT;
 		}
@@ -2112,17 +2196,17 @@ channel_severity: any_string
 		tmpres = dns_c_ctx_currchannel(currcfg, &chan);
 		if (tmpres != ISC_R_SUCCESS) {
 			parser_error(ISC_FALSE,
-				     "can't get current channel.");
+				     "can't get current channel");
 			YYABORT;
 		}
 
 		tmpres = dns_c_logchan_setseverity(chan, severity);
 		if (tmpres == ISC_R_EXISTS) {
-			parser_error(ISC_FALSE, "cannot redefine severity.");
+			parser_error(ISC_FALSE, "cannot redefine severity");
 			YYABORT;
 		} else if (tmpres != ISC_R_SUCCESS) {
 			parser_error(ISC_FALSE,
-				     "can't get set channel severity.");
+				     "can't get set channel severity");
 			YYABORT;
 		}
 
@@ -2135,18 +2219,18 @@ channel_severity: any_string
 		tmpres = dns_c_ctx_currchannel(currcfg, &chan);
 		if (tmpres != ISC_R_SUCCESS) {
 			parser_error(ISC_FALSE,
-				     "can't get current channel.");
+				     "can't get current channel");
 			YYABORT;
 		}
 
 		tmpres = dns_c_logchan_setseverity(chan,
 						   dns_c_log_debug);
 		if (tmpres == ISC_R_EXISTS) {
-			parser_error(ISC_FALSE, "cannot redefine severity.");
+			parser_error(ISC_FALSE, "cannot redefine severity");
 			YYABORT;
 		} else if (tmpres != ISC_R_SUCCESS) {
 			parser_error(ISC_FALSE,
-				     "can't get set channel severity(debug).");
+				     "can't get set channel severity(debug)");
 			YYABORT;
 		}
 	}
@@ -2157,19 +2241,19 @@ channel_severity: any_string
 		tmpres = dns_c_ctx_currchannel(currcfg, &chan);
 		if (tmpres != ISC_R_SUCCESS) {
 			parser_error(ISC_FALSE,
-				     "can't get current channel.");
+				     "can't get current channel");
 			YYABORT;
 		}
 
 		tmpres = dns_c_logchan_setseverity(chan,
 						   dns_c_log_debug);
 		if (tmpres == ISC_R_EXISTS) {
-			parser_error(ISC_FALSE, "cannot redefine severity.");
+			parser_error(ISC_FALSE, "cannot redefine severity");
 			YYABORT;
 		} else if (tmpres != ISC_R_SUCCESS) {
 			parser_error(ISC_FALSE,
 				     "can't get set channel "
-				     "severity (debug).");
+				     "severity (debug)");
 			YYABORT;
 		}
 
@@ -2177,7 +2261,7 @@ channel_severity: any_string
 		if (tmpres != ISC_R_SUCCESS) {
 			parser_error(ISC_FALSE,
 				     "can't get set channel "
-				     "severity debug level.");
+				     "severity debug level");
 			YYABORT;
 		}
 	}
@@ -2188,19 +2272,19 @@ channel_severity: any_string
 		tmpres = dns_c_ctx_currchannel(currcfg, &chan);
 		if (tmpres != ISC_R_SUCCESS) {
 			parser_error(ISC_FALSE,
-				     "can't get current channel.");
+				     "can't get current channel");
 			YYABORT;
 		}
 
 		tmpres = dns_c_logchan_setseverity(chan,
 						   dns_c_log_dynamic);
 		if (tmpres == ISC_R_EXISTS) {
-			parser_error(ISC_FALSE, "cannot redefine severity.");
+			parser_error(ISC_FALSE, "cannot redefine severity");
 			YYABORT;
 		} else if (tmpres != ISC_R_SUCCESS) {
 			parser_error(ISC_FALSE,
 				     "can't get set channel "
-				     "severity (dynamic).");
+				     "severity (dynamic)");
 			YYABORT;
 		}
 	}
@@ -2213,17 +2297,17 @@ version_modifier: L_VERSIONS L_INTEGER
 		tmpres = dns_c_ctx_currchannel(currcfg, &chan);
 		if (tmpres != ISC_R_SUCCESS) {
 			parser_error(ISC_FALSE,
-				     "can't get current channel.");
+				     "can't get current channel");
 			YYABORT;
 		}
 
 		tmpres = dns_c_logchan_setversions(chan, $2);
 		if (tmpres == ISC_R_EXISTS) {
-			parser_error(ISC_FALSE, "cannot redefine versions.");
+			parser_error(ISC_FALSE, "cannot redefine versions");
 			YYABORT;
 		} else if (tmpres != ISC_R_SUCCESS) {
 			parser_error(ISC_FALSE,
-				     "can't get set channel versions.");
+				     "can't get set channel versions");
 			YYABORT;
 		}
 	}
@@ -2234,18 +2318,18 @@ version_modifier: L_VERSIONS L_INTEGER
 		tmpres = dns_c_ctx_currchannel(currcfg, &chan);
 		if (tmpres != ISC_R_SUCCESS) {
 			parser_error(ISC_FALSE,
-				     "can't get current channel.");
+				     "can't get current channel");
 			YYABORT;
 		}
 
 		tmpres = dns_c_logchan_setversions(chan, 0xffffffffU);
 		if (tmpres == ISC_R_EXISTS) {
-			parser_error(ISC_FALSE, "cannot redefine versions.");
+			parser_error(ISC_FALSE, "cannot redefine versions");
 			YYABORT;
 		} else if (tmpres != ISC_R_SUCCESS) {
 			parser_error(ISC_FALSE,
 				     "can't get set channel "
-				     "versions (unlimited).");
+				     "versions (unlimited)");
 			YYABORT;
 		}
 	}
@@ -2258,17 +2342,17 @@ size_modifier: L_SIZE size_spec
 		tmpres = dns_c_ctx_currchannel(currcfg, &chan);
 		if (tmpres != ISC_R_SUCCESS) {
 			parser_error(ISC_FALSE,
-				     "can't get current channel.");
+				     "can't get current channel");
 			YYABORT;
 		}
 
 		tmpres = dns_c_logchan_setsize(chan, $2);
 		if (tmpres == ISC_R_EXISTS) {
-			parser_error(ISC_FALSE, "cannot redefine size.");
+			parser_error(ISC_FALSE, "cannot redefine size");
 			YYABORT;
 		} else if (tmpres != ISC_R_SUCCESS) {
 			parser_error(ISC_FALSE,
-				     "can't get set channel size.");
+				     "can't get set channel size");
 			YYABORT;
 		}
 	}
@@ -2285,7 +2369,7 @@ facility_name: any_string
 	{
 		tmpres = dns_c_string2facility($1, &$$);
 		if (tmpres != ISC_R_SUCCESS) {
-			parser_error(ISC_TRUE, "unknown syslog facility.");
+			parser_error(ISC_TRUE, "unknown syslog facility");
 			$$ = LOG_DAEMON;
 		}
 
@@ -2320,17 +2404,17 @@ channel_opt: L_SEVERITY channel_severity { /* nothing to do */ }
 
 		tmpres = dns_c_ctx_currchannel(currcfg, &chan);
 		if (tmpres != ISC_R_SUCCESS) {
-			parser_error(ISC_FALSE, "can't get current channel.");
+			parser_error(ISC_FALSE, "can't get current channel");
 			YYABORT;
 		}
 
 		tmpres = dns_c_logchan_setprinttime(chan, $2);
 		if (tmpres == ISC_R_EXISTS) {
-			parser_error(ISC_FALSE, "cannot redefine print-time.");
+			parser_error(ISC_FALSE, "cannot redefine print-time");
 			YYABORT;
 		} else if (tmpres != ISC_R_SUCCESS) {
 			parser_error(ISC_FALSE,
-				     "can't get set channel print-time.");
+				     "can't get set channel print-time");
 			YYABORT;
 		}
 	}
@@ -2340,18 +2424,18 @@ channel_opt: L_SEVERITY channel_severity { /* nothing to do */ }
 
 		tmpres = dns_c_ctx_currchannel(currcfg, &chan);
 		if (tmpres != ISC_R_SUCCESS) {
-			parser_error(ISC_FALSE, "can't get current channel.");
+			parser_error(ISC_FALSE, "can't get current channel");
 			YYABORT;
 		}
 
 		tmpres = dns_c_logchan_setprintcat(chan, $2);
 		if (tmpres == ISC_R_EXISTS) {
 			parser_error(ISC_FALSE,
-				     "cannot redefine print-category.");
+				     "cannot redefine print-category");
 			YYABORT;
 		} else if (tmpres != ISC_R_SUCCESS) {
 			parser_error(ISC_FALSE,
-				     "can't get set channel print-category.");
+				     "can't get set channel print-category");
 			YYABORT;
 		}
 	}
@@ -2361,18 +2445,18 @@ channel_opt: L_SEVERITY channel_severity { /* nothing to do */ }
 
 		tmpres = dns_c_ctx_currchannel(currcfg, &chan);
 		if (tmpres != ISC_R_SUCCESS) {
-			parser_error(ISC_FALSE, "can't get current channel.");
+			parser_error(ISC_FALSE, "can't get current channel");
 			YYABORT;
 		}
 
 		tmpres = dns_c_logchan_setprintsev(chan, $2);
 		if (tmpres == ISC_R_EXISTS) {
 			parser_error(ISC_FALSE,
-				     "cannot redefine print-severity.");
+				     "cannot redefine print-severity");
 			YYABORT;
 		} else if (tmpres != ISC_R_SUCCESS) {
 			parser_error(ISC_FALSE,
-				     "can't get set channel print-severity.");
+				     "can't get set channel print-severity");
 			YYABORT;
 		}
 	}
@@ -2397,14 +2481,14 @@ channel: channel_name
 		 */
 		tmpres = dns_c_ctx_currcategory(currcfg, &cat);
 		if (tmpres != ISC_R_SUCCESS) {
-			parser_error(ISC_FALSE, "can't get current category.");
+			parser_error(ISC_FALSE, "can't get current category");
 			YYABORT;
 		}
 
 		tmpres = dns_c_logcat_addname(cat, $1);
 		if (tmpres != ISC_R_SUCCESS) {
 			parser_error(ISC_FALSE,
-				     "can't add new name to category.");
+				     "can't add new name to category");
 			YYABORT;
 		}
 
@@ -2424,7 +2508,7 @@ category_name: any_string
 	}
 	| L_DEFAULT
 	{
-		char *name = token_to_keyword(L_DEFAULT);
+		const char *name = token_to_keyword(L_DEFAULT);
 
 		REQUIRE(name != NULL);
 
@@ -2432,7 +2516,7 @@ category_name: any_string
 	}
 	| L_NOTIFY
 	{
-		char *name = token_to_keyword(L_NOTIFY);
+		const char *name = token_to_keyword(L_NOTIFY);
 
 		REQUIRE(name != NULL);
 
@@ -2526,7 +2610,8 @@ server_info: L_BOGUS yea_or_nay
 
 		if (tmpres == ISC_R_EXISTS) {
 			parser_error(ISC_FALSE,
-				     "cannot redefine peer request-ixfr value");
+				     "cannot redefine peer "
+				     "request-ixfr value");
 			YYABORT;
 		} else if(tmpres != ISC_R_SUCCESS) {
 			parser_error(ISC_FALSE,
@@ -2552,7 +2637,8 @@ server_info: L_BOGUS yea_or_nay
 
 		if (tmpres == ISC_R_EXISTS) {
 			parser_error(ISC_FALSE,
-				     "cannot redefine peer provide-ixfr value");
+				     "cannot redefine peer "
+				     "provide-ixfr value");
 			YYABORT;
 		} else if(tmpres != ISC_R_SUCCESS) {
 			parser_error(ISC_FALSE,
@@ -2578,7 +2664,8 @@ server_info: L_BOGUS yea_or_nay
 
 		if (tmpres == ISC_R_EXISTS) {
 			parser_error(ISC_FALSE,
-				     "cannot redefine peer request-ixfr value");
+				     "cannot redefine peer "
+				     "request-ixfr value");
 			YYABORT;
 		} else if(tmpres != ISC_R_SUCCESS) {
 			parser_error(ISC_FALSE,
@@ -2652,7 +2739,7 @@ server_info: L_BOGUS yea_or_nay
 
 		if (!keydefinedinscope(currcfg, $2)) {
 			parser_error(ISC_FALSE,
-				     "undefined key '%s' referenced.", $2);
+				     "undefined key '%s' referenced", $2);
 			YYABORT;
 		}
 
@@ -2787,13 +2874,13 @@ address_match_simple: ip_address
 						  prefixlen);
 		switch (tmpres) {
 		case ISC_R_FAILURE:
-			parser_error(ISC_FALSE, "bad address match element.");
+			parser_error(ISC_FALSE, "bad address match element");
 			YYABORT;
 			break;
 
 		case ISC_R_NOMEMORY:
 			parser_error(ISC_FALSE,
-				     "insufficient memory available.");
+				     "insufficient memory available");
 			YYABORT;
 			break;
 
@@ -2820,13 +2907,13 @@ address_match_simple: ip_address
 			switch (tmpres) {
 			case ISC_R_FAILURE:
 				parser_error(ISC_FALSE,
-					     "bad address match element.");
+					     "bad address match element");
 				YYABORT;
 				break;
 
 			case ISC_R_NOMEMORY:
 				parser_error(ISC_FALSE,
-					     "insufficient memory available.");
+					     "insufficient memory available");
 				YYABORT;
 				break;
 
@@ -2866,14 +2953,14 @@ address_match_simple: ip_address
 				case ISC_R_FAILURE:
 					parser_error(ISC_FALSE,
 						     "bad address match "
-						     "element.");
+						     "element");
 					YYABORT;
 					break;
 
 				case ISC_R_NOMEMORY:
 					parser_error(ISC_FALSE,
 						     "insufficient memory "
-						     "available.");
+						     "available");
 					YYABORT;
 					break;
 
@@ -2896,7 +2983,7 @@ address_match_simple: ip_address
 			if (tmpres != ISC_R_SUCCESS) {
 				parser_error(ISC_FALSE,
 					     "failed to create indirect "
-					     "ipmatch list.");
+					     "ipmatch list");
 				YYABORT;
 			}
 		}
@@ -3038,7 +3125,7 @@ key_stmt: L_SEC_KEY any_string L_LBRACE key_definition L_RBRACE
 
 		if (tmpres != ISC_R_SUCCESS) {
 			parser_error(ISC_FALSE,
-				     "failed to set key details.");
+				     "failed to set key details");
 			isc_mem_free(memctx, $2);
 			isc_mem_free(memctx, $4.algorithm);
 			isc_mem_free(memctx, $4.secret);
@@ -3128,11 +3215,11 @@ view_option: L_FORWARD zone_forward_opt
 		tmpres = dns_c_view_setforward(view, $2);
 		if (tmpres == ISC_R_EXISTS) {
 			parser_error(ISC_FALSE,
-				     "cannot redefine view forward.");
+				     "cannot redefine view forward");
 			YYABORT;
 		} else if (tmpres != ISC_R_SUCCESS) {
 			parser_error(ISC_FALSE,
-				     "failed to set view forward.");
+				     "failed to set view forward");
 			YYABORT;
 		}
 	}
@@ -3146,11 +3233,11 @@ view_option: L_FORWARD zone_forward_opt
 						  $3, ISC_FALSE);
 		if (tmpres == ISC_R_EXISTS) {
 			parser_error(ISC_FALSE,
-				     "cannot redefine view forwarders.");
+				     "cannot redefine view forwarders");
 			YYABORT;
 		} else if (tmpres != ISC_R_SUCCESS) {
 			parser_error(ISC_FALSE,
-				     "failed to set view forwarders.");
+				     "failed to set view forwarders");
 			YYABORT;
 		}
 	}
@@ -3165,11 +3252,11 @@ view_option: L_FORWARD zone_forward_opt
 
 		if (tmpres == ISC_R_EXISTS) {
 			parser_error(ISC_FALSE,
-				     "cannot redefine view allow-query.");
+				     "cannot redefine view allow-query");
 			YYABORT;
 		} else if (tmpres != ISC_R_SUCCESS) {
 			parser_error(ISC_FALSE,
-				     "failed to set view allow-query.");
+				     "failed to set view allow-query");
 			YYABORT;
 		}
 	}
@@ -3185,12 +3272,12 @@ view_option: L_FORWARD zone_forward_opt
 		if (tmpres == ISC_R_EXISTS) {
 			parser_error(ISC_FALSE,
 				     "cannot redefine view "
-				     "allow-update-forwarding.");
+				     "allow-update-forwarding");
 			YYABORT;
 		} else if (tmpres != ISC_R_SUCCESS) {
 			parser_error(ISC_FALSE,
 				     "failed to set view "
-				     "allow-update-forwarding.");
+				     "allow-update-forwarding");
 			YYABORT;
 		}
 	}
@@ -3205,11 +3292,11 @@ view_option: L_FORWARD zone_forward_opt
 
 		if (tmpres == ISC_R_EXISTS) {
 			parser_error(ISC_FALSE,
-				     "cannot redefine view allow-transfer.");
+				     "cannot redefine view allow-transfer");
 			YYABORT;
 		} else if (tmpres != ISC_R_SUCCESS) {
 			parser_error(ISC_FALSE,
-				     "failed to set view allow-transfer.");
+				     "failed to set view allow-transfer");
 			YYABORT;
 		}
 	}
@@ -3224,11 +3311,11 @@ view_option: L_FORWARD zone_forward_opt
 
 		if (tmpres == ISC_R_EXISTS) {
 			parser_error(ISC_FALSE,
-				     "cannot redefine view allow-recursion.");
+				     "cannot redefine view allow-recursion");
 			YYABORT;
 		} else if (tmpres != ISC_R_SUCCESS) {
 			parser_error(ISC_FALSE,
-				     "failed to set view allow-recursion.");
+				     "failed to set view allow-recursion");
 			YYABORT;
 		}
 	}
@@ -3243,11 +3330,11 @@ view_option: L_FORWARD zone_forward_opt
 
 		if (tmpres == ISC_R_EXISTS) {
 			parser_error(ISC_FALSE,
-				     "cannot redefine view sortlist.");
+				     "cannot redefine view sortlist");
 			YYABORT;
 		} else if (tmpres != ISC_R_SUCCESS) {
 			parser_error(ISC_FALSE,
-				     "failed to set view sortlist.");
+				     "failed to set view sortlist");
 			YYABORT;
 		}
 	}
@@ -3262,11 +3349,11 @@ view_option: L_FORWARD zone_forward_opt
 
 		if (tmpres == ISC_R_EXISTS) {
 			parser_error(ISC_FALSE,
-				     "cannot redefine view topology.");
+				     "cannot redefine view topology");
 			YYABORT;
 		} else if (tmpres != ISC_R_SUCCESS) {
 			parser_error(ISC_FALSE,
-				     "failed to set view topology.");
+				     "failed to set view topology");
 			YYABORT;
 		}
 	}
@@ -3281,11 +3368,11 @@ view_option: L_FORWARD zone_forward_opt
 
 		if (tmpres == ISC_R_EXISTS) {
 			parser_error(ISC_FALSE,
-				     "cannot redefine view match-clients.");
+				     "cannot redefine view match-clients");
 			YYABORT;
 		} else if (tmpres != ISC_R_SUCCESS) {
 			parser_error(ISC_FALSE,
-				     "failed to set view match-clients.");
+				     "failed to set view match-clients");
 			YYABORT;
 		}
 	}
@@ -3298,11 +3385,11 @@ view_option: L_FORWARD zone_forward_opt
 		tmpres = dns_c_view_setchecknames(view, $2, $3);
 		if (tmpres == ISC_R_EXISTS) {
 			parser_error(ISC_FALSE,
-				     "cannot redefine view check-names.");
+				     "cannot redefine view check-names");
 			YYABORT;
 		} else if (tmpres != ISC_R_SUCCESS) {
 			parser_error(ISC_FALSE,
-				     "failed to set view check-names.");
+				     "failed to set view check-names");
 			YYABORT;
 		}
 	}
@@ -3315,11 +3402,11 @@ view_option: L_FORWARD zone_forward_opt
 		tmpres = dns_c_view_setauthnxdomain(view, $2);
 		if (tmpres == ISC_R_EXISTS) {
 			parser_error(ISC_FALSE,
-				     "cannot redefine view auth-nxdomain.");
+				     "cannot redefine view auth-nxdomain");
 			YYABORT;
 		} else if (tmpres != ISC_R_SUCCESS) {
 			parser_error(ISC_FALSE,
-				     "failed to set view auth-nxdomain.");
+				     "failed to set view auth-nxdomain");
 			YYABORT;
 		}
 	}
@@ -3332,11 +3419,11 @@ view_option: L_FORWARD zone_forward_opt
 		tmpres = dns_c_view_setrecursion(view, $2);
 		if (tmpres == ISC_R_EXISTS) {
 			parser_error(ISC_FALSE,
-				     "cannot redefine view recursion.");
+				     "cannot redefine view recursion");
 			YYABORT;
 		} else if (tmpres != ISC_R_SUCCESS) {
 			parser_error(ISC_FALSE,
-				     "failed to set view recursion.");
+				     "failed to set view recursion");
 			YYABORT;
 		}
 	}
@@ -3349,11 +3436,11 @@ view_option: L_FORWARD zone_forward_opt
 		tmpres = dns_c_view_setprovideixfr(view, $2);
 		if (tmpres == ISC_R_EXISTS) {
 			parser_error(ISC_FALSE,
-				     "cannot redefine view provide-ixfr.");
+				     "cannot redefine view provide-ixfr");
 			YYABORT;
 		} else if (tmpres != ISC_R_SUCCESS) {
 			parser_error(ISC_FALSE,
-				     "failed to set view provide-ixfr.");
+				     "failed to set view provide-ixfr");
 			YYABORT;
 		}
 	}
@@ -3366,11 +3453,11 @@ view_option: L_FORWARD zone_forward_opt
 		tmpres = dns_c_view_setrequestixfr(view, $2);
 		if (tmpres == ISC_R_EXISTS) {
 			parser_error(ISC_FALSE,
-				     "cannot redefine view request-ixfr.");
+				     "cannot redefine view request-ixfr");
 			YYABORT;
 		} else if (tmpres != ISC_R_SUCCESS) {
 			parser_error(ISC_FALSE,
-				     "failed to set view request-ixfr.");
+				     "failed to set view request-ixfr");
 			YYABORT;
 		}
 	}
@@ -3383,11 +3470,11 @@ view_option: L_FORWARD zone_forward_opt
 		tmpres = dns_c_view_setfetchglue(view, $2);
 		if (tmpres == ISC_R_EXISTS) {
 			parser_error(ISC_FALSE,
-				     "cannot redefine view fetch-glue.");
+				     "cannot redefine view fetch-glue");
 			YYABORT;
 		} else if (tmpres != ISC_R_SUCCESS) {
 			parser_error(ISC_FALSE,
-				     "failed to set view fetch-glue.");
+				     "failed to set view fetch-glue");
 			YYABORT;
 		}
 	}
@@ -3400,11 +3487,11 @@ view_option: L_FORWARD zone_forward_opt
 		tmpres = dns_c_view_setnotify(view, $2);
 		if (tmpres == ISC_R_EXISTS) {
 			parser_error(ISC_FALSE,
-				     "cannot redefine view notify.");
+				     "cannot redefine view notify");
 			YYABORT;
 		} else if (tmpres != ISC_R_SUCCESS) {
 			parser_error(ISC_FALSE,
-				     "failed to set view notify.");
+				     "failed to set view notify");
 			YYABORT;
 		}
 	}
@@ -3417,11 +3504,11 @@ view_option: L_FORWARD zone_forward_opt
 		tmpres = dns_c_view_setrfc2308type1(view, $2);
 		if (tmpres == ISC_R_EXISTS) {
 			parser_error(ISC_FALSE,
-				     "cannot redefine view rfc2308-type1.");
+				     "cannot redefine view rfc2308-type1");
 			YYABORT;
 		} else if (tmpres != ISC_R_SUCCESS) {
 			parser_error(ISC_FALSE,
-				     "failed to set view rfc2308-type1.");
+				     "failed to set view rfc2308-type1");
 			YYABORT;
 		}
 	}
@@ -3434,11 +3521,11 @@ view_option: L_FORWARD zone_forward_opt
 		tmpres = dns_c_view_setquerysource(view, $2);
 		if (tmpres == ISC_R_EXISTS) {
 			parser_error(ISC_FALSE,
-				     "cannot redefine view query-source.");
+				     "cannot redefine view query-source");
 			YYABORT;
 		} else if (tmpres != ISC_R_SUCCESS) {
 			parser_error(ISC_FALSE,
-				     "failed to set view query-source.");
+				     "failed to set view query-source");
 			YYABORT;
 		}
 	}
@@ -3451,11 +3538,11 @@ view_option: L_FORWARD zone_forward_opt
 		tmpres = dns_c_view_setquerysourcev6(view, $2);
 		if (tmpres == ISC_R_EXISTS) {
 			parser_error(ISC_FALSE,
-				     "cannot redefine view query-source-v6.");
+				     "cannot redefine view query-source-v6");
 			YYABORT;
 		} else if (tmpres != ISC_R_SUCCESS) {
 			parser_error(ISC_FALSE,
-				     "failed to set view query-source-v6.");
+				     "failed to set view query-source-v6");
 			YYABORT;
 		}
 	}
@@ -3485,7 +3572,8 @@ view_option: L_FORWARD zone_forward_opt
 		tmpres = dns_c_view_settransfersourcev6(view, $2);
 		if (tmpres == ISC_R_EXISTS) {
 			parser_error(ISC_FALSE,
-				     "cannot redefine view transfer-source-v6");
+				     "cannot redefine view "
+				     "transfer-source-v6");
 			YYABORT;
 		} else if (tmpres != ISC_R_SUCCESS) {
 			parser_error(ISC_FALSE,
@@ -3508,12 +3596,13 @@ view_option: L_FORWARD zone_forward_opt
 		tmpres = dns_c_view_setmaxtransfertimeout(view, $2 * 60);
 		if (tmpres == ISC_R_EXISTS) {
 			parser_error(ISC_FALSE,
-				     "cannot redefine view max-transfer-time-out.");
+				     "cannot redefine view "
+				     "max-transfer-time-out");
 			YYABORT;
 		} else if (tmpres != ISC_R_SUCCESS) {
 			parser_error(ISC_FALSE,
 				     "failed to set view "
-				     "max-transfer-time-out.");
+				     "max-transfer-time-out");
 			YYABORT;
 		}
 	}
@@ -3532,12 +3621,13 @@ view_option: L_FORWARD zone_forward_opt
 		tmpres = dns_c_view_setmaxtransferidleout(view, $2 * 60);
 		if (tmpres == ISC_R_EXISTS) {
 			parser_error(ISC_FALSE,
-				     "cannot redefine view max-transfer-idle-out.");
+				     "cannot redefine view "
+				     "max-transfer-idle-out");
 			YYABORT;
 		} else if (tmpres != ISC_R_SUCCESS) {
 			parser_error(ISC_FALSE,
 				     "failed to set view "
-				     "max-transfer-idle-out.");
+				     "max-transfer-idle-out");
 			YYABORT;
 		}
 	}
@@ -3556,11 +3646,12 @@ view_option: L_FORWARD zone_forward_opt
 		tmpres = dns_c_view_setcleaninterval(view, $2 * 60);
 		if (tmpres == ISC_R_EXISTS) {
 			parser_error(ISC_FALSE,
-				     "cannot redefine view cleaning-interval.");
+				     "cannot redefine view "
+				     "cleaning-interval");
 			YYABORT;
 		} else if (tmpres != ISC_R_SUCCESS) {
 			parser_error(ISC_FALSE,
-				     "failed to set view cleaning-interval.");
+				     "failed to set view cleaning-interval");
 			YYABORT;
 		}
 	}
@@ -3573,11 +3664,11 @@ view_option: L_FORWARD zone_forward_opt
 		tmpres = dns_c_view_setminroots(view, $2);
 		if (tmpres == ISC_R_EXISTS) {
 			parser_error(ISC_FALSE,
-				     "cannot redefine view min-roots.");
+				     "cannot redefine view min-roots");
 			YYABORT;
 		} else if (tmpres != ISC_R_SUCCESS) {
 			parser_error(ISC_FALSE,
-				     "failed to set view min-roots.");
+				     "failed to set view min-roots");
 			YYABORT;
 		}
 	}
@@ -3590,11 +3681,11 @@ view_option: L_FORWARD zone_forward_opt
 		tmpres = dns_c_view_setlamettl(view, $2);
 		if (tmpres == ISC_R_EXISTS) {
 			parser_error(ISC_FALSE,
-				     "cannot redefine view lame-ttl.");
+				     "cannot redefine view lame-ttl");
 			YYABORT;
 		} else if (tmpres != ISC_R_SUCCESS) {
 			parser_error(ISC_FALSE,
-				     "failed to set view lame-ttl.");
+				     "failed to set view lame-ttl");
 			YYABORT;
 		}
 	}
@@ -3607,11 +3698,11 @@ view_option: L_FORWARD zone_forward_opt
 		tmpres = dns_c_view_setmaxncachettl(view, $2);
 		if (tmpres == ISC_R_EXISTS) {
 			parser_error(ISC_FALSE,
-				     "cannot redefine view max-ncache-ttl.");
+				     "cannot redefine view max-ncache-ttl");
 			YYABORT;
 		} else if (tmpres != ISC_R_SUCCESS) {
 			parser_error(ISC_FALSE,
-				     "failed to set view max-ncache-ttl.");
+				     "failed to set view max-ncache-ttl");
 			YYABORT;
 		}
 	}
@@ -3624,11 +3715,30 @@ view_option: L_FORWARD zone_forward_opt
 		tmpres = dns_c_view_setmaxcachettl(view, $2);
 		if (tmpres == ISC_R_EXISTS) {
 			parser_error(ISC_FALSE,
-				     "cannot redefine view max-cache-ttl.");
+				     "cannot redefine view max-cache-ttl");
 			YYABORT;
 		} else if (tmpres != ISC_R_SUCCESS) {
 			parser_error(ISC_FALSE,
-				     "failed to set view max-cache-ttl.");
+				     "failed to set view max-cache-ttl");
+			YYABORT;
+		}
+	}
+	| L_SIG_VALIDITY_INTERVAL L_INTEGER
+	{
+		dns_c_view_t *view = dns_c_ctx_getcurrview(currcfg);
+
+		INSIST(view != NULL);
+
+		tmpres = dns_c_view_setsigvalidityinterval(view, $2);
+		if (tmpres == ISC_R_EXISTS) {
+			parser_error(ISC_FALSE,
+				     "cannot redefine view "
+				     "sig-validity-interval");
+			YYABORT;
+		} else if (tmpres != ISC_R_SUCCESS) {
+			parser_error(ISC_FALSE,
+				     "failed to set view "
+				     "sig-validity-interval");
 			YYABORT;
 		}
 	}
@@ -3641,11 +3751,11 @@ view_option: L_FORWARD zone_forward_opt
 		tmpres = dns_c_view_setadditionaldata(view, $2);
 		if (tmpres == ISC_R_EXISTS) {
 			parser_error(ISC_FALSE,
-				     "cannot redefine view additional-data.");
+				     "cannot redefine view additional-data");
 			YYABORT;
 		} else if (tmpres != ISC_R_SUCCESS) {
 			parser_error(ISC_FALSE,
-				     "failed to set view additional-data.");
+				     "failed to set view additional-data");
 			YYABORT;
 		}
 	}
@@ -3658,17 +3768,61 @@ view_option: L_FORWARD zone_forward_opt
 		tmpres = dns_c_view_settransferformat(view, $2);
 		if (tmpres == ISC_R_EXISTS) {
 			parser_error(ISC_FALSE,
-				     "cannot redefine view transfer-format.");
+				     "cannot redefine view transfer-format");
 			YYABORT;
 		} else if (tmpres != ISC_R_SUCCESS) {
 			parser_error(ISC_FALSE,
-				     "failed to set view transfer-format.");
+				     "failed to set view transfer-format");
+			YYABORT;
+		}
+	}
+	| L_ALSO_NOTIFY port_ip_list
+	{
+		dns_c_view_t *view = dns_c_ctx_getcurrview(currcfg);
+
+		INSIST(view != NULL);
+
+		tmpres = dns_c_view_setalsonotify(view, $2);
+		dns_c_iplist_detach(&$2);
+
+		if (tmpres == ISC_R_EXISTS) {
+			parser_error(ISC_FALSE,
+				     "cannot redefine view also-notify");
+			YYABORT;
+		} else if (tmpres != ISC_R_SUCCESS) {
+			parser_error(ISC_FALSE,
+				     "failed to set view also-notify");
+			YYABORT;
+		}
+	}
+	| L_MAX_CACHE_SIZE size_spec
+	{
+		dns_c_view_t *view = dns_c_ctx_getcurrview(currcfg);
+
+		INSIST(view != NULL);
+
+		if ($2 == DNS_C_SIZE_SPEC_DEFAULT) {
+			parser_error(ISC_FALSE,
+				     "cannot specific 'default' for "
+				     "'max-cache-size'");
+			YYABORT;
+		}
+		
+		tmpres = dns_c_view_setmaxcachesize(view, $2);
+		if (tmpres == ISC_R_EXISTS) {
+			parser_error(ISC_FALSE,
+				     "cannot redefine view max-cache-size");
+			YYABORT;
+		} else if (tmpres != ISC_R_SUCCESS) {
+			parser_error(ISC_FALSE,
+				     "failed to set view max-cache-size");
 			YYABORT;
 		}
 	}
 	| key_stmt
 	| zone_stmt
 	| server_stmt
+	| trusted_keys_stmt
 	;
 
 
@@ -3689,14 +3843,14 @@ zone_ssu_stmt: grant_stmt {
 		case dns_c_zone_hint:
 			parser_error(ISC_FALSE,
 				     "hint zones do not have grant/deny "
-				     "statements.");
+				     "statements");
 			ok = ISC_FALSE;
 			break;
 
 		case dns_c_zone_forward:
 			parser_error(ISC_FALSE,
 				     "forward zones do not have grant/deny "
-				     "statements.");
+				     "statements");
 			ok = ISC_FALSE;
 			break;
 
@@ -3778,7 +3932,7 @@ grant_stmt: grantp any_string grant_match_type any_string rdatatype_list
 			if (!dns_name_isabsolute(identity)) {
 				parser_error(ISC_FALSE,
 					     "identity (%s) must be an "
-					     "absolute (not relative) name.",
+					     "absolute (not relative) name",
 					     $2);
 				ok = ISC_FALSE;
 			}
@@ -3786,7 +3940,7 @@ grant_stmt: grantp any_string grant_match_type any_string rdatatype_list
 			if (!dns_name_isabsolute(name)) {
 				parser_error(ISC_FALSE,
 					     "name (%s) must be an "
-					     "absolute (not relative) name.",
+					     "absolute (not relative) name",
 					     $4);
 				ok = ISC_FALSE;
 			}
@@ -3870,7 +4024,7 @@ rdatatype: any_string {
 
 		tmpres = dns_rdatatype_fromtext(&ty, &reg);
 		if (tmpres != ISC_R_SUCCESS) {
-			parser_error(ISC_TRUE, "unknown rdatatype.");
+			parser_error(ISC_TRUE, "unknown rdatatype");
 			YYABORT;
 		}
 
@@ -3943,12 +4097,8 @@ zone_stmt: L_ZONE domain_name optional_class L_LBRACE L_TYPE zone_type L_EOS
 			isc_log_write(dns_lctx, DNS_LOGCATEGORY_CONFIG,
 				      DNS_LOGMODULE_CONFIG,
 				      ISC_LOG_ERROR,
-				      "Error creating new zone.");
+				      "Error creating new zone");
 			YYABORT;
-		}
-
-		if (currcfg->options != NULL) {
-			zone->afteropts = ISC_TRUE;
 		}
 
 		tmpres = dns_c_zonelist_addzone(currcfg->zlist, zone);
@@ -3957,7 +4107,7 @@ zone_stmt: L_ZONE domain_name optional_class L_LBRACE L_TYPE zone_type L_EOS
 			isc_log_write(dns_lctx, DNS_LOGCATEGORY_CONFIG,
 				      DNS_LOGMODULE_CONFIG,
 				      ISC_LOG_ERROR,
-				      "Error adding new zone to list.");
+				      "Error adding new zone to list");
 			YYABORT;
 		}
 
@@ -4014,7 +4164,7 @@ zone_stmt: L_ZONE domain_name optional_class L_LBRACE L_TYPE zone_type L_EOS
 	| L_ZONE domain_name
 	{
 		parser_warning(ISC_FALSE,
-			       "references to zones not implemented yet.");
+			       "references to zones not implemented yet");
 	}
 	;
 
@@ -4032,7 +4182,7 @@ class_name: any_string
 
 		tmpres = dns_rdataclass_fromtext(&cl, &reg);
 		if (tmpres != ISC_R_SUCCESS) {
-			parser_error(ISC_TRUE, "unknown class.");
+			parser_error(ISC_TRUE, "unknown class");
 			YYABORT;
 		}
 
@@ -4054,7 +4204,7 @@ wild_class_name: any_string
 			tmpres = dns_rdataclass_fromtext(&cl, &reg);
 			if (tmpres != ISC_R_SUCCESS) {
 				parser_error(ISC_TRUE,
-					     "unknown class, assuming '*'.");
+					     "unknown class, assuming '*'");
 				cl = dns_rdataclass_any;
 			}
 		}
@@ -4111,7 +4261,7 @@ zone_non_type_keywords: L_FILE | L_FILE_IXFR | L_IXFR_TMP | L_MASTERS |
 	L_MAX_TRANSFER_TIME_OUT | L_MAX_TRANSFER_IDLE_IN |
 	L_MAX_TRANSFER_IDLE_OUT | L_MAX_LOG_SIZE_IXFR | L_NOTIFY |
 	L_MAINTAIN_IXFR_BASE | L_PUBKEY | L_ALSO_NOTIFY | L_DIALUP |
-	L_ENABLE_ZONE | L_DATABASE
+	L_ENABLE_ZONE | L_DATABASE | L_PORT
 	;
 
 
@@ -4124,7 +4274,7 @@ zone_option: L_FILE L_QSTRING
 		tmpres = dns_c_zone_setfile(zone, $2);
 		if (tmpres == ISC_R_EXISTS) {
 			parser_error(ISC_FALSE,
-				     "cannot redefine zone filename.");
+				     "cannot redefine zone filename");
 			YYABORT;
 		} else if (tmpres != ISC_R_SUCCESS) {
 			parser_error(ISC_FALSE,
@@ -4142,11 +4292,11 @@ zone_option: L_FILE L_QSTRING
 		tmpres = dns_c_zone_setixfrbase(zone, $2);
 		if (tmpres == ISC_R_EXISTS) {
 			parser_error(ISC_FALSE,
-				     "cannot redefine ixfr-base.");
+				     "cannot redefine ixfr-base");
 			YYABORT;
 		} else if (tmpres != ISC_R_SUCCESS) {
 			parser_error(ISC_FALSE,
-				     "failed to set zone ixfr_base.");
+				     "failed to set zone ixfr_base");
 			YYABORT;
 		}
 		isc_mem_free(memctx, $2);
@@ -4160,11 +4310,11 @@ zone_option: L_FILE L_QSTRING
 		tmpres = dns_c_zone_setixfrtmp(zone, $2);
 		if (tmpres == ISC_R_EXISTS) {
 			parser_error(ISC_FALSE,
-				     "cannot redefine ixfr-tmp-file.");
+				     "cannot redefine ixfr-tmp-file");
 			YYABORT;
 		} else if (tmpres != ISC_R_SUCCESS) {
 			parser_error(ISC_FALSE,
-				     "failed to set zone ixfr_tmp-file.");
+				     "failed to set zone ixfr_tmp-file");
 			YYABORT;
 		}
 		isc_mem_free(memctx, $2);
@@ -4178,11 +4328,11 @@ zone_option: L_FILE L_QSTRING
 		tmpres = dns_c_zone_setmasterips(zone, $2, ISC_FALSE);
 		if (tmpres == ISC_R_EXISTS) {
 			parser_error(ISC_FALSE,
-				     "cannot redefine zone masters ips.");
+				     "cannot redefine zone masters ips");
 			YYABORT;
 		} else if (tmpres != ISC_R_SUCCESS) {
 			parser_error(ISC_FALSE,
-				     "failed to set zone masters ips.");
+				     "failed to set zone masters ips");
 			YYABORT;
 		}
 	}
@@ -4195,11 +4345,11 @@ zone_option: L_FILE L_QSTRING
 		tmpres = dns_c_zone_settransfersource(zone, $2);
 		if (tmpres == ISC_R_EXISTS) {
 			parser_error(ISC_FALSE,
-				     "cannot redefine zone transfer-source.");
+				     "cannot redefine zone transfer-source");
 			YYABORT;
 		} else if (tmpres != ISC_R_SUCCESS) {
 			parser_error(ISC_FALSE,
-				     "failed to set zone transfer-source.");
+				     "failed to set zone transfer-source");
 			YYABORT;
 		}
 	}
@@ -4212,11 +4362,12 @@ zone_option: L_FILE L_QSTRING
 		tmpres = dns_c_zone_settransfersourcev6(zone, $2);
 		if (tmpres == ISC_R_EXISTS) {
 			parser_error(ISC_FALSE,
-				     "cannot redefine zone transfer-source-v6.");
+				     "cannot redefine zone "
+				     "transfer-source-v6");
 			YYABORT;
 		} else if (tmpres != ISC_R_SUCCESS) {
 			parser_error(ISC_FALSE,
-				     "failed to set zone transfer-source-v6.");
+				     "failed to set zone transfer-source-v6");
 			YYABORT;
 		}
 	}
@@ -4229,11 +4380,11 @@ zone_option: L_FILE L_QSTRING
 		tmpres = dns_c_zone_setchecknames(zone, $2);
 		if (tmpres == ISC_R_EXISTS) {
 			parser_error(ISC_FALSE,
-				     "cannot redefine zone check-names.");
+				     "cannot redefine zone check-names");
 			YYABORT;
 		} else if (tmpres != ISC_R_SUCCESS) {
 			parser_error(ISC_FALSE,
-				     "failed to set zone check-names.");
+				     "failed to set zone check-names");
 			YYABORT;
 		}
 	}
@@ -4247,11 +4398,11 @@ zone_option: L_FILE L_QSTRING
 						$3, ISC_FALSE);
 		if (tmpres == ISC_R_EXISTS) {
 			parser_error(ISC_FALSE,
-				     "cannot redefine zone allow-update.");
+				     "cannot redefine zone allow-update");
 			YYABORT;
 		} else if (tmpres != ISC_R_SUCCESS) {
 			parser_error(ISC_FALSE,
-				     "failed to set zone allow-update.");
+				     "failed to set zone allow-update");
 			YYABORT;
 		}
 	}
@@ -4266,12 +4417,12 @@ zone_option: L_FILE L_QSTRING
 		if (tmpres == ISC_R_EXISTS) {
 			parser_error(ISC_FALSE,
 				     "cannot redefine zone "
-				     "allow-update-forwarding.");
+				     "allow-update-forwarding");
 			YYABORT;
 		} else if (tmpres != ISC_R_SUCCESS) {
 			parser_error(ISC_FALSE,
 				     "failed to set zone "
-				     "allow-update-forwarding.");
+				     "allow-update-forwarding");
 			YYABORT;
 		}
 	}
@@ -4285,11 +4436,11 @@ zone_option: L_FILE L_QSTRING
 						  $3, ISC_FALSE);
 		if (tmpres == ISC_R_EXISTS) {
 			parser_error(ISC_FALSE,
-				     "cannot redefine zone allow-query.");
+				     "cannot redefine zone allow-query");
 			YYABORT;
 		} else if (tmpres != ISC_R_SUCCESS) {
 			parser_error(ISC_FALSE,
-				     "failed to set zone allow-query.");
+				     "failed to set zone allow-query");
 			YYABORT;
 		}
 	}
@@ -4303,11 +4454,11 @@ zone_option: L_FILE L_QSTRING
 						     $3, ISC_FALSE);
 		if (tmpres == ISC_R_EXISTS) {
 			parser_error(ISC_FALSE,
-				     "cannot redefine zone allow-transfer.");
+				     "cannot redefine zone allow-transfer");
 			YYABORT;
 		} else if (tmpres != ISC_R_SUCCESS) {
 			parser_error(ISC_FALSE,
-				     "failed to set zone allow-transfer.");
+				     "failed to set zone allow-transfer");
 			YYABORT;
 		}
 	}
@@ -4320,11 +4471,11 @@ zone_option: L_FILE L_QSTRING
 		tmpres = dns_c_zone_setforward(zone, $2);
 		if (tmpres == ISC_R_EXISTS) {
 			parser_error(ISC_FALSE,
-				     "cannot redefine zone forward.");
+				     "cannot redefine zone forward");
 			YYABORT;
 		} else if (tmpres != ISC_R_SUCCESS) {
 			parser_error(ISC_FALSE,
-				     "failed to set zone forward.");
+				     "failed to set zone forward");
 			YYABORT;
 		}
 	}
@@ -4352,11 +4503,11 @@ zone_option: L_FILE L_QSTRING
 						  iplist, ISC_FALSE);
 		if (tmpres == ISC_R_EXISTS) {
 			parser_error(ISC_FALSE,
-				     "cannot redefine zone forwarders.");
+				     "cannot redefine zone forwarders");
 			YYABORT;
 		} else if (tmpres != ISC_R_SUCCESS) {
 			parser_error(ISC_FALSE,
-				     "failed to set zone forwarders.");
+				     "failed to set zone forwarders");
 			YYABORT;
 		}
 	}
@@ -4376,12 +4527,12 @@ zone_option: L_FILE L_QSTRING
 		if (tmpres == ISC_R_EXISTS) {
 			parser_error(ISC_FALSE,
 				     "cannot redefine zone "
-				     "max-transfer-time-in.");
+				     "max-transfer-time-in");
 			YYABORT;
 		} else if (tmpres != ISC_R_SUCCESS) {
 			parser_error(ISC_FALSE,
 				     "failed to set zone "
-				     "max-transfer-time-in.");
+				     "max-transfer-time-in");
 			YYABORT;
 		}
 	}
@@ -4401,12 +4552,12 @@ zone_option: L_FILE L_QSTRING
 		if (tmpres == ISC_R_EXISTS) {
 			parser_error(ISC_FALSE,
 				     "cannot redefine zone "
-				     "max-transfer-time-out.");
+				     "max-transfer-time-out");
 			YYABORT;
 		} else if (tmpres != ISC_R_SUCCESS) {
 			parser_error(ISC_FALSE,
 				     "failed to set zone "
-				     "max-transfer-time-out.");
+				     "max-transfer-time-out");
 			YYABORT;
 		}
 	}
@@ -4426,12 +4577,12 @@ zone_option: L_FILE L_QSTRING
 		if (tmpres == ISC_R_EXISTS) {
 			parser_error(ISC_FALSE,
 				     "cannot redefine zone "
-				     "max-transfer-idle-in.");
+				     "max-transfer-idle-in");
 			YYABORT;
 		} else if (tmpres != ISC_R_SUCCESS) {
 			parser_error(ISC_FALSE,
 				     "failed to set zone "
-				     "max-transfer-idle-in.");
+				     "max-transfer-idle-in");
 			YYABORT;
 		}
 	}
@@ -4451,12 +4602,31 @@ zone_option: L_FILE L_QSTRING
 		if (tmpres == ISC_R_EXISTS) {
 			parser_error(ISC_FALSE,
 				     "cannot redefine zone "
-				     "max-transfer-idle-out.");
+				     "max-transfer-idle-out");
 			YYABORT;
 		} else if (tmpres != ISC_R_SUCCESS) {
 			parser_error(ISC_FALSE,
 				     "failed to set zone "
-				     "max-transfer-idle-out.");
+				     "max-transfer-idle-out");
+			YYABORT;
+		}
+	}
+	| L_SIG_VALIDITY_INTERVAL L_INTEGER
+	{
+		dns_c_zone_t *zone = dns_c_ctx_getcurrzone(currcfg);
+
+		INSIST(zone != NULL);
+
+		tmpres = dns_c_zone_setsigvalidityinterval(zone, $2);
+		if (tmpres == ISC_R_EXISTS) {
+			parser_error(ISC_FALSE,
+				     "cannot redefine zone "
+				     "sig-validity-interval");
+			YYABORT;
+		} else if (tmpres != ISC_R_SUCCESS) {
+			parser_error(ISC_FALSE,
+				     "failed to set zone "
+				     "sig-validity-interval");
 			YYABORT;
 		}
 	}
@@ -4469,11 +4639,12 @@ zone_option: L_FILE L_QSTRING
 		tmpres = dns_c_zone_setmaxixfrlog(zone, $2);
 		if (tmpres == ISC_R_EXISTS) {
 			parser_error(ISC_FALSE,
-				     "cannot redefine zone	 max-ixfr-log-size.");
+				     "cannot redefine zone "
+				     "max-ixfr-log-size");
 			YYABORT;
 		} else if (tmpres != ISC_R_SUCCESS) {
 			parser_error(ISC_FALSE,
-				     "failed to set zone max-ixfr-log-size.");
+				     "failed to set zone max-ixfr-log-size");
 			YYABORT;
 		}
 	}
@@ -4486,11 +4657,11 @@ zone_option: L_FILE L_QSTRING
 		tmpres = dns_c_zone_setnotify(zone, $2);
 		if (tmpres == ISC_R_EXISTS) {
 			parser_error(ISC_FALSE,
-				     "cannot redefine zone notify.");
+				     "cannot redefine zone notify");
 			YYABORT;
 		} else if (tmpres != ISC_R_SUCCESS) {
 			parser_error(ISC_FALSE,
-				     "failed to set zone notify.");
+				     "failed to set zone notify");
 			YYABORT;
 		}
 	}
@@ -4503,11 +4674,12 @@ zone_option: L_FILE L_QSTRING
 		tmpres = dns_c_zone_setmaintixfrbase(zone, $2);
 		if (tmpres == ISC_R_EXISTS) {
 			parser_error(ISC_FALSE,
-				     "cannot redefine zone maintain-ixfr-base.");
+				     "cannot redefine zone "
+				     "maintain-ixfr-base");
 			YYABORT;
 		} else if (tmpres != ISC_R_SUCCESS) {
 			parser_error(ISC_FALSE,
-				     "failed to set zone maintain-ixfr-base.");
+				     "failed to set zone maintain-ixfr-base");
 			YYABORT;
 		}
 	}
@@ -4531,7 +4703,7 @@ zone_option: L_FILE L_QSTRING
 		if (tmpres != ISC_R_SUCCESS) {
 			dns_c_pubkey_delete(&pubkey);
 			parser_error(ISC_FALSE,
-				     "failed to add a zone pubkey.");
+				     "failed to add a zone pubkey");
 			YYABORT;
 		}
 
@@ -4546,11 +4718,11 @@ zone_option: L_FILE L_QSTRING
 		tmpres = dns_c_zone_setalsonotify(zone, $2, ISC_FALSE);
 		if (tmpres == ISC_R_EXISTS) {
 			parser_error(ISC_FALSE,
-				     "cannot redefine zone also-notify.");
+				     "cannot redefine zone also-notify");
 			YYABORT;
 		} else if (tmpres != ISC_R_SUCCESS) {
 			parser_error(ISC_FALSE,
-				     "failed to set zone also-notify.");
+				     "failed to set zone also-notify");
 			YYABORT;
 		}
 	}
@@ -4563,11 +4735,11 @@ zone_option: L_FILE L_QSTRING
 		tmpres = dns_c_zone_setdialup(zone, $2);
 		if (tmpres == ISC_R_EXISTS) {
 			parser_error(ISC_FALSE,
-				     "cannot redefine zone dialup.");
+				     "cannot redefine zone dialup");
 			YYABORT;
 		} else if (tmpres != ISC_R_SUCCESS) {
 			parser_error(ISC_FALSE,
-				     "failed to set zone dialup.");
+				     "failed to set zone dialup");
 			YYABORT;
 		}
 	}
@@ -4580,17 +4752,12 @@ zone_option: L_FILE L_QSTRING
 		tmpres = dns_c_zone_setenabled(zone, $2);
 		if (tmpres == ISC_R_EXISTS) {
 			parser_error(ISC_FALSE,
-				     "cannot redefine enable-zone.");
+				     "cannot redefine enable-zone");
 			YYABORT;
 		} else if (tmpres != ISC_R_SUCCESS) {
 			parser_error(ISC_FALSE,
-				     "failed to set enable-zone.");
+				     "failed to set enable-zone");
 			YYABORT;
-		}
-
-		if ($2 == ISC_FALSE) {
-			parser_warning(ISC_FALSE, "zone '%s' is disabled",
-				       zone->name);
 		}
 	}
 	| L_DATABASE L_QSTRING
@@ -4604,11 +4771,11 @@ zone_option: L_FILE L_QSTRING
 
 		if (tmpres == ISC_R_EXISTS) {
 			parser_error(ISC_FALSE,
-				     "cannot redefine zone database.");
+				     "cannot redefine zone database");
 			YYABORT;
 		} else if (tmpres != ISC_R_SUCCESS) {
 			parser_error(ISC_FALSE,
-				     "failed to set zone database.");
+				     "failed to set zone database");
 			YYABORT;
 		}
 
@@ -4704,9 +4871,15 @@ opt_zone_forwarders_list: opt_in_addr_list
 trusted_keys_stmt: L_TRUSTED_KEYS
 	{
 		dns_c_tkeylist_t *newlist;
+		dns_c_view_t *view = dns_c_ctx_getcurrview(currcfg);
 
-		tmpres = dns_c_ctx_gettrustedkeys(currcfg,
-						  &newlist);
+		if (view == NULL) {
+			tmpres = dns_c_ctx_gettrustedkeys(currcfg,
+							  &newlist);
+		} else {
+			tmpres = dns_c_view_gettrustedkeys(view, &newlist);
+		}
+		
 		if (tmpres == ISC_R_NOTFOUND) {
 			tmpres = dns_c_tkeylist_new(currcfg->mem, &newlist);
 			if (tmpres != ISC_R_SUCCESS) {
@@ -4714,13 +4887,20 @@ trusted_keys_stmt: L_TRUSTED_KEYS
 					      DNS_LOGMODULE_CONFIG,
 					      ISC_LOG_ERROR,
 					      "Failed to create trusted key"
-					      " list.");
+					      " list");
 				YYABORT;
 			}
 
-			tmpres = dns_c_ctx_settrustedkeys(currcfg,
-							  newlist,
-							  ISC_FALSE);
+			if (view == NULL) {
+				tmpres = dns_c_ctx_settrustedkeys(currcfg,
+								  newlist,
+								  ISC_FALSE);
+			} else {
+				tmpres = dns_c_view_settrustedkeys(view,
+								   newlist,
+								   ISC_FALSE);
+			}
+			
 			if (tmpres != ISC_R_SUCCESS) {
 				isc_log_write(dns_lctx, DNS_LOGCATEGORY_CONFIG,
 					      DNS_LOGMODULE_CONFIG,
@@ -4737,12 +4917,21 @@ trusted_keys_list: trusted_key L_EOS
 	;
 
 
-trusted_key: domain_name L_INTEGER L_INTEGER L_INTEGER L_QSTRING
+trusted_key: any_string L_INTEGER L_INTEGER L_INTEGER L_QSTRING
 	{
 		dns_c_tkey_t *tkey;
 		dns_c_tkeylist_t *list;
+		dns_c_view_t *view = dns_c_ctx_getcurrview(currcfg);
+		isc_mem_t *mem;
 
-		tmpres = dns_c_ctx_gettrustedkeys(currcfg, &list);
+		if (view == NULL) {
+			tmpres = dns_c_ctx_gettrustedkeys(currcfg, &list);
+			mem = currcfg->mem;
+		} else {
+			tmpres = dns_c_view_gettrustedkeys(view, &list);
+			mem = view->mem;
+		}
+		
 		if (tmpres != ISC_R_SUCCESS) {
 			isc_log_write(dns_lctx, DNS_LOGCATEGORY_CONFIG,
 				      DNS_LOGMODULE_CONFIG,
@@ -4751,7 +4940,7 @@ trusted_key: domain_name L_INTEGER L_INTEGER L_INTEGER L_QSTRING
 			YYABORT;
 		}
 
-		tmpres = dns_c_tkey_new(currcfg->mem, $1, $2, $3,
+		tmpres = dns_c_tkey_new(mem, $1, $2, $3,
 					$4, $5, &tkey);
 		if (tmpres != ISC_R_SUCCESS) {
 			isc_log_write(dns_lctx, DNS_LOGCATEGORY_CONFIG,
@@ -4767,7 +4956,7 @@ trusted_key: domain_name L_INTEGER L_INTEGER L_INTEGER L_QSTRING
 			isc_log_write(dns_lctx, DNS_LOGCATEGORY_CONFIG,
 				      DNS_LOGMODULE_CONFIG,
 				      ISC_LOG_ERROR,
-				      "Failed to append trusted key.");
+				      "Failed to append trusted key");
 			YYABORT;
 		}
 
@@ -4824,7 +5013,7 @@ static int		lasttoken;
  */
 struct token
 {
-	char *token;
+	const char *token;
 	int yaccval;
 };
 
@@ -4849,6 +5038,7 @@ static struct token keyword_tokens [] = {
 	{ "auth-nxdomain",		L_AUTH_NXDOMAIN },
 	{ "blackhole",			L_BLACKHOLE },
 	{ "bogus",			L_BOGUS },
+	{ "max-cache-size",		L_MAX_CACHE_SIZE },
 	{ "category",			L_CATEGORY },
 	{ "class",			L_CLASS },
 	{ "channel",			L_CHANNEL },
@@ -4899,6 +5089,7 @@ static struct token keyword_tokens [] = {
 	{ "keys",			L_KEYS },
 	{ "lame-ttl",			L_LAME_TTL },
 	{ "listen-on",			L_LISTEN_ON },
+	{ "listen-on-v6",		L_LISTEN_ON_V6 },
 	{ "logging",			L_LOGGING },
 	{ "maintain-ixfr-base",		L_MAINTAIN_IXFR_BASE },
 	{ "many-answers",		L_MANY_ANSWERS },
@@ -4947,6 +5138,7 @@ static struct token keyword_tokens [] = {
 	{ "server",			L_SERVER },
 	{ "serial-queries",		L_SERIAL_QUERIES },
 	{ "severity",			L_SEVERITY },
+	{ "sig-validity-interval",	L_SIG_VALIDITY_INTERVAL },
 	{ "size",			L_SIZE },
 	{ "slave",			L_SLAVE },
 	{ "sortlist",			L_SORTLIST },
@@ -5051,10 +5243,8 @@ dns_c_parse_namedconf(const char *filename, isc_mem_t *mem,
 	specials['/'] = 1;
 	specials['"'] = 1;
 	specials['!'] = 1;
-#if 0
-	specials['*'] = 1;
-#endif
 
+	default_port = DNS_C_DEFAULTPORT;
 
 	/*
 	 * This memory context is only used by the lexer routines (and must
@@ -5066,7 +5256,7 @@ dns_c_parse_namedconf(const char *filename, isc_mem_t *mem,
 	if (res != ISC_R_SUCCESS) {
 		isc_log_write(dns_lctx, DNS_LOGCATEGORY_CONFIG,
 			      DNS_LOGMODULE_CONFIG, ISC_LOG_CRITICAL,
-			      "%s: Error creating mem context.",
+			      "%s: Error creating mem context",
 			      funcname);
 		goto done;
 	}
@@ -5075,7 +5265,7 @@ dns_c_parse_namedconf(const char *filename, isc_mem_t *mem,
 	if (res != ISC_R_SUCCESS) {
 		isc_log_write(dns_lctx, DNS_LOGCATEGORY_CONFIG,
 			      DNS_LOGMODULE_CONFIG, ISC_LOG_CRITICAL,
-			      "%s: Error initializing keywords.",
+			      "%s: Error initializing keywords",
 			      funcname);
 		goto done;
 	}
@@ -5084,7 +5274,7 @@ dns_c_parse_namedconf(const char *filename, isc_mem_t *mem,
 	if (res != ISC_R_SUCCESS) {
 		isc_log_write(dns_lctx, DNS_LOGCATEGORY_CONFIG,
 			      DNS_LOGMODULE_CONFIG, ISC_LOG_CRITICAL,
-			      "%s: Error creating config context.",
+			      "%s: Error creating config context",
 			      funcname);
 		goto done;
 	}
@@ -5103,7 +5293,7 @@ dns_c_parse_namedconf(const char *filename, isc_mem_t *mem,
 				      ISC_LEXCOMMENT_CPLUSPLUS |
 				      ISC_LEXCOMMENT_SHELL));
 
-	res = isc_lex_openfile(mylexer, (char *)filename); /* remove const */
+	res = isc_lex_openfile(mylexer, filename);
 	if (res != ISC_R_SUCCESS) {
 		isc_log_write(dns_lctx, DNS_LOGCATEGORY_CONFIG,
 			      DNS_LOGMODULE_CONFIG, ISC_LOG_CRITICAL,
@@ -5223,33 +5413,33 @@ yylex(void)
 
 	case ISC_R_UNBALANCED:
 		parser_error(ISC_TRUE,
-			     "%s: %d: unbalanced parentheses",
+			     "%s: %lu: unbalanced parentheses",
 			     isc_lex_getsourcename(mylexer),
-			     (int)isc_lex_getsourceline(mylexer));
+			     isc_lex_getsourceline(mylexer));
 		res = -1;
 		break;
 
 	case ISC_R_NOSPACE:
 		parser_error(ISC_TRUE,
-			     "%s: %d: token too big.",
+			     "%s: %lu: token too big",
 			     isc_lex_getsourcename(mylexer),
-			     (int)isc_lex_getsourceline(mylexer));
+			     isc_lex_getsourceline(mylexer));
 		res = -1;
 		break;
 
 	case ISC_R_UNEXPECTEDEND:
 		parser_error(ISC_TRUE,
-			     "%s: %d: unexpected EOF",
+			     "%s: %lu: unexpected EOF",
 			     isc_lex_getsourcename(mylexer),
-			     (int)isc_lex_getsourceline(mylexer));
+			     isc_lex_getsourceline(mylexer));
 		res = -1;
 		break;
 
 	default:
 		parser_error(ISC_TRUE,
-			     "%s: %d unknown lexer error (%d)",
+			     "%s: %lu unknown lexer error (%d)",
 			     isc_lex_getsourcename(mylexer),
-			     (int)isc_lex_getsourceline(mylexer),
+			     isc_lex_getsourceline(mylexer),
 			     (int)res);
 		res = -1;
 		break;
@@ -5267,9 +5457,11 @@ yylex(void)
 static char *
 token_to_text(int token, YYSTYPE lval) {
 	static char buffer[1024];
-	char *tk;
+	const char *tk;
 
-	/* Yacc keeps token numbers above 128, it seems. */
+	/*
+	 * Yacc keeps token numbers above 128, it seems.
+	 */
 	if (token < 128) {
 		if (token == 0)
 			strncpy(buffer, "<end of file>", sizeof buffer);
@@ -5326,9 +5518,8 @@ token_to_text(int token, YYSTYPE lval) {
 	return (buffer);
 }
 
-static char *
-token_to_keyword(int token)
-{
+static const char *
+token_to_keyword(int token) {
 	int i;
 
 	for (i = 0 ; keyword_tokens[i].token != NULL ; i++) {
@@ -5350,7 +5541,7 @@ parser_complain(isc_boolean_t is_warning, isc_boolean_t print_last_token,
 	static char message[2048];
 	int level = ISC_LOG_ERROR;
 	const char *filename = isc_lex_getsourcename(mylexer);
-	int lineno = isc_lex_getsourceline(mylexer);
+	unsigned long lineno = isc_lex_getsourceline(mylexer);
 
 	/*
 	 * We can't get a trace of the include files we may be nested in
@@ -5365,7 +5556,7 @@ parser_complain(isc_boolean_t is_warning, isc_boolean_t print_last_token,
 		level = ISC_LOG_WARNING;
 	}
 
-	sprintf(where, "%s:%d: ", filename, lineno);
+	sprintf(where, "%s:%lu: ", filename, lineno);
 	if ((unsigned int)vsprintf(message, format, args) >= sizeof message)
 		FATAL_ERROR(__FILE__, __LINE__,
 			    "error message would overflow");
@@ -5588,44 +5779,60 @@ intuit_token(const char *string)
  * Conversion Routines
  */
 
-static isc_boolean_t
+static isc_result_t
 unit_to_uint32(char *in, isc_uint32_t *out) {
+	char *start = in;
 	int c, units_done = 0;
 	isc_uint32_t result = 0L;
+	isc_uint32_t maxK = 4194304;	/* 2^32 / 1024 */
+	isc_uint32_t maxM = 4096;	/* 2^32 / (1024 * 1024) */
+	isc_uint32_t maxG = 4;		/* 2^32 / (1024 * 1024 * 1024) */
 
 	INSIST(in != NULL);
 
 	for (; (c = *in) != '\0'; in++) {
 		if (units_done)
-			return (ISC_FALSE);
+			return (ISC_R_FAILURE);
 		if (isdigit((unsigned char)c)) {
 			result *= 10;
 			result += (c - '0');
 		} else {
+			if (start == in) {
+				return (ISC_R_FAILURE);
+			}
 			switch (c) {
 			case 'k':
 			case 'K':
+				if (result > maxK) {
+					return (ISC_R_RANGE);
+				}
 				result *= 1024;
 				units_done = 1;
 				break;
 			case 'm':
 			case 'M':
+				if (result > maxM) {
+					return (ISC_R_RANGE);
+				}
 				result *= (1024*1024);
 				units_done = 1;
 				break;
 			case 'g':
 			case 'G':
+				if (result > maxG) {
+					return (ISC_R_RANGE);
+				}
 				result *= (1024*1024*1024);
 				units_done = 1;
 				break;
 			default:
-				return (ISC_FALSE);
+				return (ISC_R_FAILURE);
 			}
 		}
 	}
 
 	*out = result;
-	return (ISC_TRUE);
+	return (ISC_R_SUCCESS);
 }
 
 

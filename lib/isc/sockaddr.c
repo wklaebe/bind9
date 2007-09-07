@@ -110,45 +110,47 @@ isc_sockaddr_eqaddrprefix(const isc_sockaddr_t *a, const isc_sockaddr_t *b,
 
 isc_result_t
 isc_sockaddr_totext(const isc_sockaddr_t *sockaddr, isc_buffer_t *target) {
-	char abuf[sizeof "xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:255.255.255.255"];
-	unsigned int alen;
+	isc_result_t result;
+	isc_netaddr_t netaddr;
 	char pbuf[sizeof "65000"];
 	unsigned int plen;
 	isc_region_t avail;
-	const struct sockaddr *sa;
-	const struct sockaddr_in *sin;
-	const struct sockaddr_in6 *sin6;
 
 	REQUIRE(sockaddr != NULL);
 
-	sa = &sockaddr->type.sa;
-	switch (sa->sa_family) {
+	/*
+	 * Do the port first, giving us the opportunity to check for
+	 * unsupported address families before calling 
+	 * isc_netaddr_fromsockaddr().
+	 */
+	switch (sockaddr->type.sa.sa_family) {
 	case AF_INET:
-		sin = &sockaddr->type.sin;
-		inet_ntop(sa->sa_family, &sin->sin_addr, abuf, sizeof abuf);
-		sprintf(pbuf, "%u", ntohs(sin->sin_port));
+		sprintf(pbuf, "%u", ntohs(sockaddr->type.sin.sin_port));
 		break;
 	case AF_INET6:
-		sin6 = &sockaddr->type.sin6;
-		inet_ntop(sa->sa_family, &sin6->sin6_addr, abuf, sizeof abuf);
-		sprintf(pbuf, "%u", ntohs(sin6->sin6_port));
+		sprintf(pbuf, "%u", ntohs(sockaddr->type.sin6.sin6_port));
 		break;
 	default:
-		return (ISC_R_NOTIMPLEMENTED);
+		return (ISC_R_FAILURE);
 	}
-
-	alen = strlen(abuf);
+	
 	plen = strlen(pbuf);
-
-	isc_buffer_availableregion(target, &avail);
-	if (alen + 1 + plen + 1 > avail.length)
+	INSIST(plen < sizeof(pbuf));
+	
+	isc_netaddr_fromsockaddr(&netaddr, sockaddr);
+	result = isc_netaddr_totext(&netaddr, target);
+	if (result != ISC_R_SUCCESS)
+		return (result);
+	
+	if (1 + plen + 1 > isc_buffer_availablelength(target))
 		return (ISC_R_NOSPACE);
 	    
-	isc_buffer_putmem(target, (unsigned char *) abuf, alen);
-	isc_buffer_putmem(target, (unsigned char *)"#", 1);
-	isc_buffer_putmem(target, (unsigned char *) pbuf, plen);
+	isc_buffer_putmem(target, (const unsigned char *)"#", 1);
+	isc_buffer_putmem(target, (const unsigned char *)pbuf, plen);
 
-	/* Null terminate after used region. */
+	/*
+	 * Null terminate after used region.
+	 */
 	isc_buffer_availableregion(target, &avail);
 	INSIST(avail.length >= 1);
 	avail.base[0] = '\0';
@@ -189,18 +191,19 @@ isc_sockaddr_hash(const isc_sockaddr_t *sockaddr, isc_boolean_t address_only) {
 		case AF_INET:
 			return (ntohl(sockaddr->type.sin.sin_addr.s_addr));
 		case AF_INET6:
-			s = (unsigned char *)&sockaddr->type.sin6.sin6_addr;
+			s = (const unsigned char *)&sockaddr->
+							   type.sin6.sin6_addr;
 			length = sizeof sockaddr->type.sin6.sin6_addr;
 			break;
 		default:
 			UNEXPECTED_ERROR(__FILE__, __LINE__,
 					 "unknown address family: %d",
 					 (int)sockaddr->type.sa.sa_family);
-			s = (unsigned char *)&sockaddr->type;
+			s = (const unsigned char *)&sockaddr->type;
 			length = sockaddr->length;
 		}
 	} else {
-		s = (unsigned char *)&sockaddr->type;
+		s = (const unsigned char *)&sockaddr->type;
 		length = sockaddr->length;
 	}
 
@@ -308,7 +311,7 @@ isc_sockaddr_pf(const isc_sockaddr_t *sockaddr) {
 	case AF_INET:
 		return (PF_INET);
 	case AF_INET6:
-		return (PF_INET);
+		return (PF_INET6);
 	default:
 		FATAL_ERROR(__FILE__, __LINE__, "unknown address family");
 	}

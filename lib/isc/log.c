@@ -15,7 +15,7 @@
  * SOFTWARE.
  */
 
-/* $Id: log.c,v 1.34 2000/05/18 22:38:49 tale Exp $ */
+/* $Id: log.c,v 1.37 2000/06/02 18:15:45 bwelling Exp $ */
 
 /* Principal Authors: DCL */
 
@@ -67,7 +67,7 @@ struct isc_logchannel {
 };
 
 /*
- * The logchannelist structure associates categories and modules with
+ * The logchannellist structure associates categories and modules with
  * channels.  First the appropriate channellist is found based on the
  * category, and then each structure in the linked list is checked for
  * a matching module.  It is expected that the number of channels
@@ -77,7 +77,7 @@ struct isc_logchannel {
 typedef struct isc_logchannellist isc_logchannellist_t;
 
 struct isc_logchannellist {
-	isc_logmodule_t *		module;
+	const isc_logmodule_t *		module;
 	isc_logchannel_t *		channel;
 	ISC_LINK(isc_logchannellist_t)	link;
 };
@@ -210,7 +210,7 @@ isc_log_t *isc_lctx = NULL;
  */
 static isc_result_t
 assignchannel(isc_logconfig_t *lcfg, unsigned int category_id,
-	      isc_logmodule_t *module, isc_logchannel_t *channel);
+	      const isc_logmodule_t *module, isc_logchannel_t *channel);
 
 static isc_result_t
 sync_channellist(isc_logconfig_t *lcfg);
@@ -280,6 +280,9 @@ isc_log_create(isc_mem_t *mctx, isc_log_t **lctxp, isc_logconfig_t **lcfgp) {
 
 	} else
 		result = ISC_R_NOMEMORY;
+
+	if (result == ISC_R_SUCCESS)
+		result = sync_channellist(lcfg);
 
 	if (result == ISC_R_SUCCESS) {
 		lctx->logconfig = lcfg;
@@ -471,6 +474,7 @@ isc_logconfig_destroy(isc_logconfig_t **lcfgp) {
 	isc_mem_t *mctx;
 	isc_logchannel_t *channel;
 	isc_logchannellist_t *item;
+	char *filename;
 	unsigned int i;
 
 	REQUIRE(lcfgp != NULL && VALID_CONFIG(*lcfgp));
@@ -489,10 +493,17 @@ isc_logconfig_destroy(isc_logconfig_t **lcfgp) {
 		ISC_LIST_UNLINK(lcfg->channels, channel, link);
 
 		if (channel->type == ISC_LOG_TOFILE) {
-		    isc_mem_free(mctx, FILE_NAME(channel));
+			/*
+			 * The filename for the channel may have ultimately
+			 * started its life in user-land as a const string,
+			 * but in isc_log_createchannel it gets copied
+			 * into writable memory and is not longer truly const.
+			 */
+			DE_CONST(FILE_NAME(channel), filename);
+			isc_mem_free(mctx, filename);
 
-		    if (FILE_STREAM(channel) != NULL)
-			(void)fclose(FILE_STREAM(channel));
+			if (FILE_STREAM(channel) != NULL)
+				(void)fclose(FILE_STREAM(channel));
 		}
 
 		isc_mem_free(mctx, channel->name);
@@ -505,11 +516,14 @@ isc_logconfig_destroy(isc_logconfig_t **lcfgp) {
 			isc_mem_put(mctx, item, sizeof(*item));
 		}
 
-	isc_mem_put(mctx, lcfg->channellists,
-		    lcfg->channellist_count *
-		    sizeof(ISC_LIST(isc_logchannellist_t)));
+	if (lcfg->channellist_count > 0)
+		isc_mem_put(mctx, lcfg->channellists,
+			    lcfg->channellist_count *
+			    sizeof(ISC_LIST(isc_logchannellist_t)));
 
 	lcfg->dynamic = ISC_FALSE;
+	if (lcfg->tag != NULL)
+		isc_mem_free(lcfg->lctx->mctx, lcfg->tag);	
 	lcfg->tag = NULL;
 	lcfg->highest_level = 0;
 	lcfg->duplicate_interval = 0;
@@ -545,7 +559,11 @@ isc_log_registercategories(isc_log_t *lctx, isc_logcategory_t categories[]) {
 		 */
 		for (catp = lctx->categories; catp->name != NULL; catp++)
 			if (catp->id == UINT_MAX)
-				catp = (isc_logcategory_t *)catp->name;
+				/*
+				 * The name pointer points to the next array.
+				 * Ick.
+				 */
+				DE_CONST(catp->name, catp);
 
 		catp->name = (void *)categories;
 		catp->id = UINT_MAX;
@@ -567,10 +585,14 @@ isc_log_categorybyname(isc_log_t *lctx, const char *name) {
 
 	for (catp = lctx->categories; catp->name != NULL; catp++)
 		if (catp->id == UINT_MAX)
-			catp = (isc_logcategory_t *)catp->name;
+			/*
+			 * catp is neither modified nor returned to the
+			 * caller, so removing its const qualifier is ok.
+			 */
+			DE_CONST(catp->name, catp);
 		else
 			if (strcmp(catp->name, name) == 0)
-				return catp;
+				return (catp);
 
 	return (NULL);
 }
@@ -600,7 +622,11 @@ isc_log_registermodules(isc_log_t *lctx, isc_logmodule_t modules[]) {
 		 */
 		for (modp = lctx->modules; modp->name != NULL; modp++)
 			if (modp->id == UINT_MAX)
-				modp = (isc_logmodule_t *)modp->name;
+				/*
+				 * The name pointer points to the next array.
+				 * Ick.
+				 */
+				DE_CONST(modp->name, modp);
 
 		modp->name = (void *)modules;
 		modp->id = UINT_MAX;
@@ -622,10 +648,14 @@ isc_log_modulebyname(isc_log_t *lctx, const char *name) {
 
 	for (modp = lctx->modules; modp->name != NULL; modp++)
 		if (modp->id == UINT_MAX)
-			modp = (isc_logmodule_t *)modp->name;
+			/*
+			 * catp is neither modified nor returned to the
+			 * caller, so removing its const qualifier is ok.
+			 */
+			DE_CONST(modp->name, modp);
 		else
 			if (strcmp(modp->name, name) == 0)
-				return modp;
+				return (modp);
 
 	return (NULL);
 }
@@ -633,7 +663,8 @@ isc_log_modulebyname(isc_log_t *lctx, const char *name) {
 isc_result_t
 isc_log_createchannel(isc_logconfig_t *lcfg, const char *name,
 		      unsigned int type, int level,
-		      isc_logdestination_t *destination, unsigned int flags)
+		      const isc_logdestination_t *destination,
+		      unsigned int flags)
 {
 	isc_logchannel_t *channel;
 	isc_mem_t *mctx;
@@ -644,7 +675,8 @@ isc_log_createchannel(isc_logconfig_t *lcfg, const char *name,
 		type == ISC_LOG_TOFILEDESC || type == ISC_LOG_TONULL);
 	REQUIRE(destination != NULL || type == ISC_LOG_TONULL);
 	REQUIRE(level >= ISC_LOG_CRITICAL);
-	REQUIRE((flags & ~(ISC_LOG_PRINTALL | ISC_LOG_DEBUGONLY)) == 0);
+	REQUIRE((flags &
+		 (unsigned int)~(ISC_LOG_PRINTALL | ISC_LOG_DEBUGONLY)) == 0);
 
 	/* XXXDCL find duplicate names? */
 
@@ -713,7 +745,8 @@ isc_log_createchannel(isc_logconfig_t *lcfg, const char *name,
 
 isc_result_t
 isc_log_usechannel(isc_logconfig_t *lcfg, const char *name,
-		   isc_logcategory_t *category, isc_logmodule_t *module)
+		   const isc_logcategory_t *category,
+		   const isc_logmodule_t *module)
 {
 	isc_log_t *lctx;
 	isc_logchannel_t *channel;
@@ -844,14 +877,22 @@ isc_log_getduplicateinterval(isc_logconfig_t *lcfg) {
 	return (lcfg->duplicate_interval);
 }
 
-void
-isc_log_settag(isc_logconfig_t *lcfg, char *tag) {
+isc_result_t
+isc_log_settag(isc_logconfig_t *lcfg, const char *tag) {
 	REQUIRE(VALID_CONFIG(lcfg));
 	
-	if (tag != NULL && *tag != '\0')
-		lcfg->tag = tag;
-	else
+	if (tag != NULL && *tag != '\0') {
+		lcfg->tag = isc_mem_strdup(lcfg->lctx->mctx, tag);
+		if (lcfg->tag == NULL)
+			return (ISC_R_NOMEMORY);
+
+	} else {
+		if (lcfg->tag != NULL)
+			isc_mem_free(lcfg->lctx->mctx, lcfg->tag);
 		lcfg->tag = NULL;
+	}
+
+	return (ISC_R_SUCCESS);
 }
 
 char *
@@ -890,7 +931,7 @@ isc_log_closefilelogs(isc_log_t *lctx) {
 
 static isc_result_t
 assignchannel(isc_logconfig_t *lcfg, unsigned int category_id,
-	      isc_logmodule_t *module, isc_logchannel_t *channel)
+	      const isc_logmodule_t *module, isc_logchannel_t *channel)
 {
 	isc_logchannellist_t *new_item;
 	isc_log_t *lctx;
@@ -934,9 +975,13 @@ assignchannel(isc_logconfig_t *lcfg, unsigned int category_id,
 	return (ISC_R_SUCCESS);
 }
 
+/*
+ * This would ideally be part of isc_log_registercategories(), except then
+ * that function would have to return isc_result_t instead of void.
+ */
 static isc_result_t
 sync_channellist(isc_logconfig_t *lcfg) {
-	int bytes;
+	unsigned int bytes;
 	isc_log_t *lctx;
 	void *lists;
 	
@@ -974,7 +1019,8 @@ sync_channellist(isc_logconfig_t *lcfg) {
 static unsigned int
 greatest_version(isc_logchannel_t *channel) {
 	/* XXXDCL HIGHLY NT */
-	char *dirname, *basename, *digit_end;
+	char *basename, *digit_end;
+	const char *dirname;
 	int version, greatest = -1;
 	unsigned int basenamelen;
 	isc_dir_t dir;
@@ -982,12 +1028,16 @@ greatest_version(isc_logchannel_t *channel) {
 
 	REQUIRE(channel->type == ISC_LOG_TOFILE);
 
+	/*
+	 * It is safe to DE_CONST the file.name because it was copied
+	 * with isc_mem_strdup in isc_log_createchannel.
+	 */
 	basename = strrchr(FILE_NAME(channel), '/');
 	if (basename != NULL) {
 		*basename++ = '\0';
 		dirname = FILE_NAME(channel);
 	} else {
-		basename = FILE_NAME(channel);
+		DE_CONST(FILE_NAME(channel), basename);
 		dirname = ".";
 	}
 	basenamelen = strlen(basename);
@@ -1021,7 +1071,7 @@ roll_log(isc_logchannel_t *channel) {
 	int i, greatest, digits = 0;
 	char current[FILENAME_MAX + 1];
 	char new[FILENAME_MAX + 1];
-	char *path;
+	const char *path;
 
 	/*
 	 * Do nothing (not even excess version trimming) if ISC_LOG_ROLLNEVER
@@ -1101,7 +1151,7 @@ isc_log_open(isc_logchannel_t *channel) {
 	FILE *stream;
 	struct stat statbuf;
 	isc_boolean_t regular_file;
-	char *path;
+	const char *path;
 
 	REQUIRE(channel->type == ISC_LOG_TOFILE);
 	REQUIRE(FILE_STREAM(channel) == NULL);
@@ -1154,7 +1204,7 @@ isc_log_doit(isc_log_t *lctx, isc_logcategory_t *category,
 	isc_logconfig_t *lcfg;
 	isc_logchannel_t *channel;
 	isc_logchannellist_t *category_channels;
-	isc_time_t time;
+	isc_time_t isctime;
 	isc_result_t result;
 
 	REQUIRE(lctx == NULL || VALID_CONTEXT(lctx));
@@ -1259,9 +1309,10 @@ isc_log_doit(isc_log_t *lctx, isc_logcategory_t *category,
 		    time_string[0] == '\0') {
 			time_t now;
 
-			result = isc_time_now(&time);
+			result = isc_time_now(&isctime);
 			if (result == ISC_R_SUCCESS)
-				result = isc_time_secondsastimet(&time, &now);
+				result = isc_time_secondsastimet(&isctime,
+								 &now);
 
 			if (result == ISC_R_SUCCESS) {
 				unsigned int len;
@@ -1283,7 +1334,7 @@ isc_log_doit(isc_log_t *lctx, isc_logcategory_t *category,
 				snprintf(time_string + len,
 					 sizeof(time_string) - len,
 					 ".%03u ",
-					 isc_time_nanoseconds(&time)
+					 isc_time_nanoseconds(&isctime)
 					 / 1000000);
 
 			} else

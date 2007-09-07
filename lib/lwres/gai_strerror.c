@@ -1,43 +1,49 @@
 /*
-%%% copyright-cmetz-97
-This software is Copyright 1997-1998 by Craig Metz, All Rights Reserved.
-The Inner Net License Version 2 applies to this software.
-You should have received a copy of the license with this software. If
-you didn't get a copy, you may request one from <license@inner.net>.
+ * Copyright (C) 2000  Internet Software Consortium.
+ * 
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ * 
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
+ * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
+ * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
+ * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+ * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
+ * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
+ * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
+ * SOFTWARE.
+ */
 
-*/
+/* $Id: gai_strerror.c,v 1.9 2000/06/09 20:56:25 gson Exp $ */
 
 #include <lwres/netdb.h>
-#include <errno.h>
+
+static const char *gai_messages[] = {
+	"no error",
+	"address family for hostname not supported",
+	"temporary failure in name resolution",
+	"invalid value for ai_flags",
+	"non-recoverable failure in name resolution",
+	"ai_family not supported",
+	"memory allocation failure",
+	"no address associated with hostname",
+	"hostname nor servname provided, or not known",
+	"servname not supported for ai_socktype",
+	"ai_socktype not supported",
+	"system error returned in errno"
+};
 
 char *
-lwres_gai_strerror(int errnum) {
-	switch(errnum) {
-	case 0:
-		return "no error";
-	case EAI_BADFLAGS:
-		return "invalid value for ai_flags";
-	case EAI_NONAME:
-		return "name or service is not known";
-	case EAI_AGAIN:
-		return "temporary failure in name resolution";
-	case EAI_FAIL:
-		return "non-recoverable failure in name resolution";
-	case EAI_NODATA:
-		return "no address associated with name";
-	case EAI_FAMILY:
-		return "ai_family not supported";
-	case EAI_SOCKTYPE:
-		return "ai_socktype not supported";
-	case EAI_SERVICE:
-		return "service not supported for ai_socktype";
-	case EAI_ADDRFAMILY:
-		return "address family for name not supported";
-	case EAI_MEMORY:
-		return "memory allocation failure";
-	case EAI_SYSTEM:
-		return "system error";
-	default:
-		return "unknown error";
-	};
+gai_strerror(int ecode) {
+	union {
+		const char *const_ptr;
+		char *deconst_ptr;
+	} ptr;
+		       
+	if ((ecode < 0) || (ecode > EAI_MAX))
+		ptr.const_ptr = "invalid error code";
+	else
+		ptr.const_ptr = gai_messages[ecode];
+	return (ptr.deconst_ptr);
 }

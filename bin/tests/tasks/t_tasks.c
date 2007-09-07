@@ -29,35 +29,15 @@
 
 #include <tests/t_api.h>
 
-void	t1(void);
-void	t2(void);
-void	t3(void);
-void	t4(void);
-void	t7(void);
-void	t10(void);
-void	t11(void);
-void	t12(void);
-void	t13(void);
-
-static int	t_tasks1(void);
-static int	t_tasks2(void);
-static int	t_tasks3(void);
-static int	t_tasks4(void);
-static int	t_tasks7(void);
-static int	t_tasks10(void);
-static int	t_tasks11(int purgable);
-static int	t_tasks12(void);
-static int	t_tasks13(void);
-
-isc_mem_t *mctx = NULL;
-
 static void
 t1_callback(isc_task_t *task, isc_event_t *event) {
 	int	i;
 	int	j;
 
+	UNUSED(task);
+
 	j = 0;
-	task = task;
+
 	for (i = 0; i < 1000000; i++)
 		j += 100;
 
@@ -67,15 +47,16 @@ t1_callback(isc_task_t *task, isc_event_t *event) {
 
 static void
 t1_shutdown(isc_task_t *task, isc_event_t *event) {
+	UNUSED(task);
 
-	task = task;
 	t_info("shutdown %s\n", event->ev_arg);
 	isc_event_free(&event);
 }
 
 static void
 my_tick(isc_task_t *task, isc_event_t *event) {
-	task = task;
+	UNUSED(task);
+
 	t_info("%s\n", event->ev_arg);
 	isc_event_free(&event);
 }
@@ -85,8 +66,9 @@ my_tick(isc_task_t *task, isc_event_t *event) {
  */
 
 static int
-t_tasks1() {
+t_tasks1(void) {
 	char			*p;
+	isc_mem_t		*mctx;
 	isc_taskmgr_t		*manager;
 	isc_task_t		*task1;
 	isc_task_t		*task2;
@@ -106,6 +88,7 @@ t_tasks1() {
 	task2 = NULL;
 	task3 = NULL;
 	task4 = NULL;
+	mctx = NULL;
 
 	workers = 2;
 	p = t_getenv("ISC_TASK_WORKERS");
@@ -368,10 +351,10 @@ t_tasks1() {
 	return(T_PASS);
 }
 
-static char	*a1 =	"The task subsystem can create and manage tasks";
+static const char *a1 =	"The task subsystem can create and manage tasks";
 
-void
-t1() {
+static void
+t1(void) {
 	int	result;
 
 	t_assert("tasks", 1, T_REQUIRED, a1);
@@ -566,10 +549,10 @@ t_tasks2(void) {
 	return(result);
 }
 
-static char	*a2 = "The task subsystem can create ISC_TASKS_MIN tasks";
+static const char *a2 = "The task subsystem can create ISC_TASKS_MIN tasks";
 
-void
-t2() {
+static void
+t2(void) {
 	int	result;
 
 	t_assert("tasks", 2, T_REQUIRED, a2);
@@ -656,7 +639,7 @@ t3_event2(isc_task_t *task, isc_event_t *event) {
 }
 
 static int
-t_tasks3() {
+t_tasks3(void) {
 	int		cnt;
 	int		result;
 	char		*p;
@@ -822,11 +805,11 @@ t_tasks3() {
 	return(result);
 }
 
-static char	*a3 =	"When isc_task_shutdown() is called, any shutdown "
+static const char *a3 =	"When isc_task_shutdown() is called, any shutdown "
 			"events that have been requested via prior "
 			"isc_task_onshutdown() calls are posted in "
 			"LIFO order.";
-void
+static void
 t3(void) {
 	int	result;
 
@@ -878,7 +861,7 @@ t4_sde(isc_task_t *task, isc_event_t *event) {
 }
 
 static int
-t_tasks4() {
+t_tasks4(void) {
 	int		result;
 	char		*p;
 	isc_mem_t	*mctx;
@@ -1013,11 +996,12 @@ t_tasks4() {
 	return(result);
 }
 
-static char *a4 = "After isc_task_shutdown() has been called, any call to "
-		  "isc_task_onshutdown() will return ISC_R_SHUTTINGDOWN.";
+static const char *a4 =
+		"After isc_task_shutdown() has been called, any call to "
+		"isc_task_onshutdown() will return ISC_R_SHUTTINGDOWN.";
 
-void
-t4() {
+static void
+t4(void) {
 	int	result;
 
 	t_assert("tasks", 4, T_REQUIRED, a4);
@@ -1074,7 +1058,7 @@ t7_sde(isc_task_t *task, isc_event_t *event) {
 }
 
 static int
-t_tasks7() {
+t_tasks7(void) {
 	int		result;
 	char		*p;
 	isc_mem_t	*mctx;
@@ -1235,10 +1219,10 @@ t_tasks7() {
 	return(result);
 }
 
-static char	*a7 =	"A call to isc_task_create() creates a task that can "
+static const char *a7 =	"A call to isc_task_create() creates a task that can "
 			"receive events.";
 
-void
+static void
 t7(void) {
 	int	result;
 
@@ -1650,7 +1634,7 @@ t_taskpurge_x(int sender, int type, int tag, int purge_sender,
 }
 
 static int
-t_tasks10() {
+t_tasks10(void) {
 	int	result;
 
 	T10_nprobs = 0;
@@ -1699,12 +1683,13 @@ t_tasks10() {
 	return(result);
 }
 
-static char	*a10 =	"A call to isc_task_purge(task, sender, type, tag) "
+static const char *a10 =
+			"A call to isc_task_purge(task, sender, type, tag) "
 			"purges all events of type 'type' and with tag 'tag' "
 			"not marked as unpurgable from sender from the task's "
 			"queue and returns the number of events purged.";
 
-void
+static void
 t10(void) {
 	int	result;
 
@@ -1976,11 +1961,12 @@ t_tasks11(int purgable) {
 	return(result);
 }
 
-static char *a11 = "When the event is marked as purgable, a call to "
-		   "isc_task_purgeevent(task, event) purges the event 'event' "
-		   "from the task's queue and returns ISC_TRUE.";
+static const char *a11 =
+		"When the event is marked as purgable, a call to "
+		"isc_task_purgeevent(task, event) purges the event 'event' "
+		"from the task's queue and returns ISC_TRUE.";
 			
-void
+static void
 t11(void) {
 	int	result;
 	t_assert("tasks", 11, T_REQUIRED, a11);
@@ -1988,17 +1974,18 @@ t11(void) {
 	t_result(result);
 }
 
-static char	*a12 =	"When the event is not marked as purgable, a call to "
+static const char *a12 =
+			"When the event is not marked as purgable, a call to "
 			"isc_task_purgeevent(task, event) does not purge the "
 			"event 'event' from the task's queue and returns "
 			"ISC_FALSE.";
 
 static int
-t_tasks12() {
+t_tasks12(void) {
 	return(t_tasks11(0));
 }
 
-void
+static void
 t12(void) {
 	int	result;
 	t_assert("tasks", 12, T_REQUIRED, a12);
@@ -2009,15 +1996,16 @@ t12(void) {
 static int	T13_nfails;
 static int	T13_nprobs;
 
-static char	*a13 =	"A call to "
-			"isc_event_purgerange(task, sender, first, last, tag) "
-			"purges all events not marked unpurgable from "
-			"sender 'sender' and of type within the range 'first' "
-			"to 'last' inclusive from the task's event queue and "
-			"returns the number of tasks purged.";
+static const char *a13 =
+		"A call to "
+		"isc_event_purgerange(task, sender, first, last, tag) "
+		"purges all events not marked unpurgable from "
+		"sender 'sender' and of type within the range 'first' "
+		"to 'last' inclusive from the task's event queue and "
+		"returns the number of tasks purged.";
 			
 static int
-t_tasks13() {
+t_tasks13(void) {
 	int	result;
 
 	T13_nfails = 0;
@@ -2104,7 +2092,7 @@ t_tasks13() {
 	return (result);
 }
 
-void
+static void
 t13(void) {
 	int	result;
 

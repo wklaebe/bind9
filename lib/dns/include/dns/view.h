@@ -62,6 +62,7 @@
 #include <isc/lang.h>
 #include <isc/magic.h>
 #include <isc/event.h>
+#include <isc/net.h>
 #include <isc/rwlock.h>
 #include <isc/stdtime.h>
 
@@ -102,12 +103,16 @@ struct dns_view {
 	dns_acl_t *			recursionacl;
 	isc_boolean_t			requestixfr;
 	isc_boolean_t			provideixfr;
+	dns_ttl_t			maxcachettl;
+	dns_ttl_t			maxncachettl;
+	in_port_t			dstport;
 
 	/*
 	 * Configurable data for server use only,
 	 * locked by server configuration lock.
 	 */
 	dns_acl_t *			matchclients;
+	
 	/* Locked by lock. */
 	unsigned int			references;
 	unsigned int			weakrefs;
@@ -298,7 +303,26 @@ dns_view_setkeyring(dns_view_t *view, dns_tsig_keyring_t *ring);
  *      The static TSIG keyring of 'view' is 'ring'.
  */
 
-
+void
+dns_view_setdstport(dns_view_t *view, in_port_t dstport);
+/*
+ * Set the view's destination port.  This is the port to
+ * which outgoing queries are sent.  The default is 53,
+ * the standard DNS port.
+ *
+ * Requires:
+ *
+ *      'view' is a valid view.
+ *
+ *      'dstport' is a valid TCP/UDP port number.
+ *
+ * Ensures:
+ *	External name servers will be assumed to be listning
+ *	on 'dstport'.  For servers whose address has already
+ *	obtained obtained at the time of the call, the view may
+ *	continue to use the previously set port until the address
+ *	times out from the view's address database.
+ */
 
 
 isc_result_t
@@ -445,6 +469,9 @@ dns_view_findzonecut(dns_view_t *view, dns_name_t *name, dns_name_t *fname,
 		     dns_rdataset_t *rdataset, dns_rdataset_t *sigrdataset);
 /*
  * Find the best known zonecut containing 'name'.
+ *
+ * This uses local authority, cache, and optionally hints data.
+ * No external queries are performed.
  *
  * Notes:
  *

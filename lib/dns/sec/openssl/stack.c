@@ -80,7 +80,7 @@ const char *STACK_version="Stack" OPENSSL_VERSION_PTEXT;
 #define	FP_ICC	(int (*)(const void *,const void *))
 #include <errno.h>
 
-int (*sk_set_cmp_func(STACK *sk, int (*c)()))(void)
+int (*sk_set_cmp_func(STACK *sk, int (*c)()))()
 	{
 	int (*old)()=sk->comp;
 

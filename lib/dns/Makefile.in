@@ -43,7 +43,7 @@ CONFOBJS =	config/confacl.@O@ config/confcache.@O@ config/confcommon.@O@ \
 DSTOBJS =	sec/dst/bsafe_link.@O@ sec/dst/dst_api.@O@ \
 		sec/dst/dst_parse.@O@ sec/dst/hmac_link.@O@ \
 		sec/dst/openssl_link.@O@ sec/dst/openssldh_link.@O@ \
-		sec/dst/opensslmd5_link.@O@ sec/dst/dst_result.@O@ \
+		sec/dst/dst_result.@O@ \
 		sec/dst/dst_support.@O@ sec/dst/dst_lib.@O@
 
 OPENSSLOBJS =	sec/openssl/bn_add.@O@ sec/openssl/bn_asm.@O@ \
@@ -63,12 +63,10 @@ OPENSSLOBJS =	sec/openssl/bn_add.@O@ sec/openssl/bn_asm.@O@ \
 		sec/openssl/dsa_lib.@O@  sec/openssl/dsa_ossl.@O@ \
 		sec/openssl/dsa_sign.@O@ sec/openssl/dsa_vrf.@O@ \
 		sec/openssl/err.@O@ sec/openssl/ex_data.@O@ \
-		sec/openssl/lhash.@O@ sec/openssl/md_rand.@O@ \
-		sec/openssl/mem_dbg.@O@ \
-		sec/openssl/md5_dgst.@O@ sec/openssl/mem.@O@ \
-		sec/openssl/rand_lib.@O@ sec/openssl/sha1_one.@O@ \
-		sec/openssl/sha1dgst.@O@ sec/openssl/stack.@O@ \
-		sec/openssl/th-lock.@O@
+		sec/openssl/lhash.@O@ sec/openssl/mem_dbg.@O@ \
+		sec/openssl/mem.@O@ sec/openssl/rand_lib.@O@ \
+		sec/openssl/sha1_one.@O@ sec/openssl/sha1dgst.@O@ \
+		sec/openssl/stack.@O@ sec/openssl/th-lock.@O@
 
 DNSSAFEOBJS =	sec/dnssafe/ahchdig.@O@ sec/dnssafe/ahchencr.@O@ \
 		sec/dnssafe/ahchgen.@O@ sec/dnssafe/ahchrand.@O@ \
@@ -148,6 +146,9 @@ SUBDIRS =	include sec config
 TARGETS =	include/dns/enumtype.h include/dns/enumclass.h \
 		include/dns/rdatastruct.h timestamp
 
+DEPENDEXTRA =	./gen -F include/dns/rdatastruct.h \
+		-s ${srcdir} -d >> Makefile ;
+
 @BIND9_MAKE_RULES@
 
 version.@O@: version.c
@@ -188,8 +189,8 @@ newrr::
 	rm -f code.h include/dns/enumtype.h include/dns/enumclass.h
 	rm -f include/dns/rdatastruct.h
 
-${SUBDIRS}: include/dns/enumtype.h include/dns/enumclass.h
-	    include/dns/rdatastruct.h
+include: include/dns/enumtype.h include/dns/enumclass.h \
+	include/dns/rdatastruct.h
 
 rdata.@O@: code.h
 

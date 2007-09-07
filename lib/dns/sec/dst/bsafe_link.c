@@ -1,11 +1,11 @@
 /*
- * Portions Copyright (c) 1995-1999 by Network Associates, Inc.
  * Portions Copyright (C) 1999, 2000  Internet Software Consortium.
- *
+ * Portions Copyright (C) 1995-2000 by Network Associates, Inc.
+ * 
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- *
+ * 
  * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM AND
  * NETWORK ASSOCIATES DISCLAIM ALL WARRANTIES WITH REGARD TO THIS
  * SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
@@ -19,13 +19,14 @@
 
 /*
  * Principal Author: Brian Wellington
- * $Id: bsafe_link.c,v 1.19 2000/05/15 21:30:39 bwelling Exp $
+ * $Id: bsafe_link.c,v 1.31 2000/06/12 18:05:09 bwelling Exp $
  */
 
-#if defined(BSAFE) || defined(DNSSAFE)
+#if defined(DNSSAFE)
 
 #include <config.h>
 
+#include <isc/md5.h>
 #include <isc/mem.h>
 #include <isc/string.h>
 #include <isc/util.h>
@@ -37,15 +38,10 @@
 #include "dst_internal.h"
 #include "dst_parse.h"
 
-#  ifdef BSAFE
-#    include <aglobal.h>
-#    include <bsafe.h>
-#  else
-#    include <global.h>
-#    include <bsafe2.h>
-#  endif
+#include <global.h>
+#include <bsafe2.h>
 
-typedef struct bsafekey {
+typedef struct dnssafekey {
 	B_KEY_OBJ rk_Private_Key;
 	B_KEY_OBJ rk_Public_Key;
 } RSA_Key;
@@ -56,8 +52,6 @@ typedef struct bsafekey {
 
 #define NULL_SURRENDER (A_SURRENDER_CTX *)NULL_PTR
 #define NULL_RANDOM (B_ALGORITHM_OBJ)NULL_PTR
-
-static struct dst_func bsafe_functions;
 
 static B_ALGORITHM_METHOD *CHOOSER[] =
 {
@@ -78,326 +72,401 @@ static unsigned char pkcs1[] =
 	0x04, 0x10
 };
 
-static isc_result_t	dst_bsafe_md5digest(const unsigned int mode,
-					    B_ALGORITHM_OBJ *digest_obj,
-					    isc_region_t *data,
-					    isc_buffer_t *digest);
+static isc_boolean_t dnssafersa_isprivate(const dst_key_t *key);
 
-static int		dst_bsafe_key_size(RSA_Key *r_key);
-static isc_boolean_t	dst_s_bsafe_itemcmp(ITEM i1, ITEM i2);
+static isc_result_t
+dnssafersa_createctx(dst_key_t *key, dst_context_t *dctx) {
+	isc_md5_t *md5ctx;
 
-static isc_result_t	dst_bsafe_sign(const unsigned int mode, dst_key_t *key,
-				       void **context, isc_region_t *data,
-				       isc_buffer_t *sig, isc_mem_t *mctx);
-static isc_result_t	dst_bsafe_verify(const unsigned int mode,
-					 dst_key_t *key,
-					 void **context, isc_region_t *data,
-					 isc_region_t *sig, isc_mem_t *mctx);
-static isc_boolean_t	dst_bsafe_compare(const dst_key_t *key1,
-					  const dst_key_t *key2);
-static isc_result_t	dst_bsafe_generate(dst_key_t *key, int exp,
-					   isc_mem_t *mctx);
-static isc_boolean_t	dst_bsafe_isprivate(const dst_key_t *key);
-static void		dst_bsafe_destroy(void *key, isc_mem_t *mctx);
-static isc_result_t	dst_bsafe_to_dns(const dst_key_t *in_key,
-					 isc_buffer_t *data);
-static isc_result_t	dst_bsafe_from_dns(dst_key_t *key, isc_buffer_t *data,
-					   isc_mem_t *mctx);
-static isc_result_t	dst_bsafe_to_file(const dst_key_t *key);
-static isc_result_t	dst_bsafe_from_file(dst_key_t *key,
-					    const isc_uint16_t id,
-					    isc_mem_t *mctx);
+	UNUSED(key);
 
-/*
- * dst_s_bsafersa_init()
- * Sets up function pointers for BSAFE/DNSSAFE related functions 
- */
-void
-dst_s_bsafersa_init(void) {
-	REQUIRE(dst_t_func[DST_ALG_RSA] == NULL);
-	dst_t_func[DST_ALG_RSA] = &bsafe_functions;
-	memset(&bsafe_functions, 0, sizeof(struct dst_func));
-	bsafe_functions.sign = dst_bsafe_sign;
-	bsafe_functions.verify = dst_bsafe_verify;
-	bsafe_functions.computesecret = NULL;
-	bsafe_functions.compare = dst_bsafe_compare;
-	bsafe_functions.paramcompare = NULL;
-	bsafe_functions.generate = dst_bsafe_generate;
-	bsafe_functions.isprivate = dst_bsafe_isprivate;
-	bsafe_functions.destroy = dst_bsafe_destroy;
-	bsafe_functions.to_dns = dst_bsafe_to_dns;
-	bsafe_functions.from_dns = dst_bsafe_from_dns;
-	bsafe_functions.to_file = dst_bsafe_to_file;
-	bsafe_functions.from_file = dst_bsafe_from_file;
+	md5ctx = isc_mem_get(dctx->mctx, sizeof(isc_md5_t));
+	isc_md5_init(md5ctx);
+	dctx->opaque = md5ctx;
+	return (ISC_R_SUCCESS);
 }
 
-/*
- * dst_bsafe_sign
- *	Call BSAFE signing functions to sign a block of data.
- *	There are three steps to signing, INIT (initialize structures), 
- *	UPDATE (hash (more) data), FINAL (generate a signature).  This
- *	routine performs one or more of these steps.
- * Parameters
- *	mode		DST_SIGMODE_{INIT_UPDATE_FINAL|ALL}
- *	key		key to use for signing
- *	context		the context to use for this computation
- *	data		data to be signed
- *	signature	buffer to store signature
- *	mctx		memory context for temporary allocations
- * Returns 
- *	ISC_R_SUCCESS	Success
- *	!ISC_R_SUCCESS	Failure
- */
-static isc_result_t
-dst_bsafe_sign(const unsigned int mode, dst_key_t *key, void **context,
-	       isc_region_t *data, isc_buffer_t *sig, isc_mem_t *mctx)
-{
-	B_ALGORITHM_OBJ *md5_ctx = NULL;
-	unsigned char digest_array[DNS_SIG_RSAMAXSIZE];
-	isc_buffer_t digest;
-	isc_region_t sig_region, digest_region;
-	isc_result_t ret;
-	
-	if ((mode & DST_SIGMODE_INIT) != 0) { 
-		md5_ctx = (B_ALGORITHM_OBJ *)isc_mem_get(mctx,
-							 sizeof(*md5_ctx));
-		if (md5_ctx == NULL)
-			return (ISC_R_NOMEMORY);
-		if (B_CreateAlgorithmObject(md5_ctx) != 0)
-			return (ISC_R_NOMEMORY);
-		if (B_SetAlgorithmInfo(*md5_ctx, AI_MD5, NULL) != 0)
-			return (ISC_R_NOMEMORY);
-	} else if (context != NULL) 
-		md5_ctx = (B_ALGORITHM_OBJ *)*context;
-	REQUIRE (md5_ctx != NULL);
+static void
+dnssafersa_destroyctx(dst_context_t *dctx) {
+	isc_md5_t *md5ctx = dctx->opaque;
 
-	isc_buffer_init(&digest, digest_array, sizeof(digest_array));
-	ret = dst_bsafe_md5digest(mode, md5_ctx, data, &digest);
-	if (ret != ISC_R_SUCCESS || (mode & DST_SIGMODE_FINAL) != 0) {
-		B_DestroyAlgorithmObject(md5_ctx);
-		memset(md5_ctx, 0, sizeof(*md5_ctx));
-		isc_mem_put(mctx, md5_ctx, sizeof(*md5_ctx));
-		if (ret != ISC_R_SUCCESS)
-			return (ret);
+	if (md5ctx != NULL) {
+		isc_md5_invalidate(md5ctx);
+		isc_mem_put(dctx->mctx, md5ctx, sizeof(isc_md5_t));
+		dctx->opaque = NULL;
 	}
+}
 
-	if ((mode & DST_SIGMODE_FINAL) != 0) {
-		RSA_Key *rkey;
-		B_ALGORITHM_OBJ rsaEncryptor = (B_ALGORITHM_OBJ)NULL_PTR;
-		unsigned int written = 0;
+static isc_result_t
+dnssafersa_adddata(dst_context_t *dctx, const isc_region_t *data) {
+	isc_md5_t *md5ctx = dctx->opaque;
 
-		isc_buffer_availableregion(sig, &sig_region);
-		isc_buffer_remainingregion(&digest, &digest_region);
+	isc_md5_update(md5ctx, data->base, data->length);
+	return (ISC_R_SUCCESS);
+}
 
-		if (sig_region.length * 8 < (unsigned int)key->key_size)
-			return (ISC_R_NOSPACE);
+static isc_result_t
+dnssafersa_sign(dst_context_t *dctx, isc_buffer_t *sig) {
+	isc_md5_t *md5ctx = dctx->opaque;
+	unsigned char digest[ISC_MD5_DIGESTLENGTH];
+	isc_region_t sig_region;
+	dst_key_t *key = dctx->key;
+	RSA_Key *rkey = key->opaque;
+	B_ALGORITHM_OBJ rsaEncryptor = (B_ALGORITHM_OBJ)NULL_PTR;
+	unsigned int written = 0;
+
+	isc_md5_final(md5ctx, digest);
+
+	isc_buffer_availableregion(sig, &sig_region);
+	if (sig_region.length * 8 < (unsigned int) key->key_size)
+		return (ISC_R_NOSPACE);
 		
-		rkey = (RSA_Key *)key->opaque;
-		if (rkey == NULL)
-			return (DST_R_NULLKEY);
-		if (rkey->rk_Private_Key == NULL)
-			return (DST_R_NOTPRIVATEKEY);
+	if (!dnssafersa_isprivate(key))
+		return (DST_R_NOTPRIVATEKEY);
 
-		if (B_CreateAlgorithmObject(&rsaEncryptor) != 0)
-			return (ISC_R_NOMEMORY);
-		if (B_SetAlgorithmInfo(rsaEncryptor, AI_PKCS_RSAPrivate,
-				       NULL_PTR) != 0)
-			goto finalfail;
+	if (B_CreateAlgorithmObject(&rsaEncryptor) != 0)
+		return (ISC_R_NOMEMORY);
+	if (B_SetAlgorithmInfo(rsaEncryptor, AI_PKCS_RSAPrivate, NULL_PTR)
+	    != 0)
+		goto finalfail;
 
-		if (B_EncryptInit(rsaEncryptor, rkey->rk_Private_Key, CHOOSER,
-				  NULL_SURRENDER) != 0)
-			goto finalfail;
+	if (B_EncryptInit(rsaEncryptor, rkey->rk_Private_Key, CHOOSER,
+			  NULL_SURRENDER) != 0)
+		goto finalfail;
 
-		if (B_EncryptUpdate(rsaEncryptor, sig_region.base, &written,
-				    sig_region.length, pkcs1, sizeof(pkcs1),
-				    NULL_PTR, NULL_SURRENDER) != 0)
-			goto finalfail;
+	written = 0;
+	if (B_EncryptUpdate(rsaEncryptor, sig_region.base, &written,
+			    sig_region.length, pkcs1, sizeof(pkcs1),
+			    NULL_PTR, NULL_SURRENDER) != 0)
+		goto finalfail;
 
-		if (written > 0) {
-			isc_buffer_add(sig, written);
-			isc_buffer_availableregion(sig, &sig_region);
-			written = 0;
-		}
-
-		if (B_EncryptUpdate(rsaEncryptor, sig_region.base, &written,
-				    sig_region.length, digest_region.base,
-				    digest_region.length, NULL_PTR,
-				    NULL_SURRENDER) != 0)
-			goto finalfail;
-
-		if (written > 0) {
-			isc_buffer_add(sig, written);
-			isc_buffer_availableregion(sig, &sig_region);
-			written = 0;
-		}
-
-		isc_buffer_forward(&digest, digest_region.length);
-
-		if (B_EncryptFinal(rsaEncryptor, sig_region.base, &written,
-				   sig_region.length, NULL_PTR,
-				   NULL_SURRENDER) != 0)
-			goto finalfail;
+	if (written > 0) {
 		isc_buffer_add(sig, written);
-
-		B_DestroyAlgorithmObject(&rsaEncryptor);
-		return (ISC_R_SUCCESS);
- finalfail:
-		B_DestroyAlgorithmObject(&rsaEncryptor);
-		return (DST_R_SIGNFINALFAILURE);
+		isc_buffer_availableregion(sig, &sig_region);
+		written = 0;
 	}
-	else
-		*context = md5_ctx;
 
+	if (B_EncryptUpdate(rsaEncryptor, sig_region.base, &written,
+			    sig_region.length, digest, sizeof(digest),
+			    NULL_PTR, NULL_SURRENDER) != 0)
+		goto finalfail;
+
+	if (written > 0) {
+		isc_buffer_add(sig, written);
+		isc_buffer_availableregion(sig, &sig_region);
+		written = 0;
+	}
+
+	if (B_EncryptFinal(rsaEncryptor, sig_region.base, &written,
+			   sig_region.length, NULL_PTR,
+			   NULL_SURRENDER) != 0)
+		goto finalfail;
+
+	isc_buffer_add(sig, written);
+
+	B_DestroyAlgorithmObject(&rsaEncryptor);
 	return (ISC_R_SUCCESS);
+
+ finalfail:
+	B_DestroyAlgorithmObject(&rsaEncryptor);
+	return (DST_R_SIGNFAILURE);
 }
 
 
-/*
- * dst_bsafe_verify 
- *	Calls BSAFE verification routines.  There are three steps to 
- *	verification, INIT (initialize structures), UPDATE (hash (more) data), 
- *	FINAL (generate a signature).  This routine performs one or more of 
- *	these steps.
- * Parameters
- *	mode		DST_SIGMODE_{INIT_UPDATE_FINAL|ALL}
- *	key		key to use for verifying
- *	context		the context to use for this computation
- *	data		signed data
- *	signature	signature
- *	mctx		memory context for temporary allocations
- * Returns 
- *	ISC_R_SUCCESS	Success
- *	!ISC_R_SUCCESS	Failure
- */
 static isc_result_t
-dst_bsafe_verify(const unsigned int mode, dst_key_t *key, void **context,
-		 isc_region_t *data, isc_region_t *sig, isc_mem_t *mctx)
-{
-	B_ALGORITHM_OBJ *md5_ctx = NULL;
-	unsigned char digest_array[DST_HASH_SIZE];
-	unsigned char work_area[DST_HASH_SIZE + sizeof(pkcs1)];
-	isc_buffer_t work, digest;
-	isc_region_t work_region, digest_region;
-	isc_result_t ret;
+dnssafersa_verify(dst_context_t *dctx, const isc_region_t *sig) {
+	isc_md5_t *md5ctx = dctx->opaque;
+	unsigned char digest[ISC_MD5_DIGESTLENGTH];
+	unsigned char work_area[ISC_MD5_DIGESTLENGTH + sizeof(pkcs1)];
+	isc_buffer_t work;
+	isc_region_t work_region;
+	dst_key_t *key = dctx->key;
+	RSA_Key *rkey = key->opaque;
+	B_ALGORITHM_OBJ rsaEncryptor = (B_ALGORITHM_OBJ) NULL_PTR;
+	unsigned int written = 0;
 
-	if ((mode & DST_SIGMODE_INIT) != 0) { 
-		md5_ctx = (B_ALGORITHM_OBJ *)isc_mem_get(mctx,
-							 sizeof(*md5_ctx));
-		if (md5_ctx == NULL)
-			return (ISC_R_NOMEMORY);
-		if (B_CreateAlgorithmObject(md5_ctx) != 0)
-			return (ISC_R_NOMEMORY);
-		if (B_SetAlgorithmInfo(*md5_ctx, AI_MD5, NULL) != 0)
-			return (ISC_R_NOMEMORY);
-	} else if (context != NULL) 
-		md5_ctx = (B_ALGORITHM_OBJ *)*context;
-	REQUIRE (md5_ctx != NULL);
+	isc_md5_final(md5ctx, digest);
 
-	isc_buffer_init(&digest, digest_array, sizeof(digest_array));
-	ret = dst_bsafe_md5digest(mode, md5_ctx, data, &digest);
-	if (ret != ISC_R_SUCCESS || (mode & DST_SIGMODE_FINAL) != 0) {
-		B_DestroyAlgorithmObject(md5_ctx);
-		memset(md5_ctx, 0, sizeof(*md5_ctx));
-		isc_mem_put(mctx, md5_ctx, sizeof(*md5_ctx));
-		if (ret != ISC_R_SUCCESS)
-			return (ret);
-	}
+	if (B_CreateAlgorithmObject(&rsaEncryptor) != 0)
+		return (ISC_R_NOMEMORY);
+	if (B_SetAlgorithmInfo(rsaEncryptor, AI_PKCS_RSAPublic, NULL_PTR) != 0)
+		goto finalfail;
+	if (B_DecryptInit(rsaEncryptor, rkey->rk_Public_Key,
+			  CHOOSER, NULL_SURRENDER) != 0)
+		goto finalfail;
 
-	if (mode & DST_SIGMODE_FINAL) {
-		RSA_Key *rkey;
-		B_ALGORITHM_OBJ rsaEncryptor = (B_ALGORITHM_OBJ) NULL_PTR;
-		unsigned int written = 0;
+	isc_buffer_init(&work, work_area, sizeof(work_area));
+	isc_buffer_availableregion(&work, &work_region);
+	if (B_DecryptUpdate(rsaEncryptor, work_region.base, &written,
+			    work_region.length, sig->base, sig->length,
+			    NULL_PTR, NULL_SURRENDER) != 0)
+		goto finalfail;
 
-		isc_buffer_init(&work, work_area, sizeof(work_area));
-
+	if (written > 0) {
+		isc_buffer_add(&work, written);
 		isc_buffer_availableregion(&work, &work_region);
-
-		rkey = (RSA_Key *) key->opaque;
-		if (rkey == NULL)
-			return (DST_R_NULLKEY);
-		if (rkey->rk_Public_Key == NULL)
-			return (DST_R_NOTPUBLICKEY);
-		if (B_CreateAlgorithmObject(&rsaEncryptor) != 0)
-			return (ISC_R_NOMEMORY);
-		if (B_SetAlgorithmInfo(rsaEncryptor, AI_PKCS_RSAPublic,
-				       NULL_PTR) != 0)
-			goto finalfail;
-		if (B_DecryptInit(rsaEncryptor, rkey->rk_Public_Key,
-				  CHOOSER, NULL_SURRENDER) != 0)
-			goto finalfail;
-
-		if (B_DecryptUpdate(rsaEncryptor, work_region.base, &written,
-				    work_region.length, sig->base, sig->length,
-				    NULL_PTR, NULL_SURRENDER) != 0)
-			goto finalfail;
-
-		if (written > 0) {
-			isc_buffer_add(&work, written);
-			isc_buffer_availableregion(&work, &work_region);
-			written = 0;
-		}
-
-		if (B_DecryptFinal(rsaEncryptor, work_region.base, &written,
-				   work_region.length, NULL_PTR,
-				   NULL_SURRENDER) != 0)
-			goto finalfail;
-
-		if (written > 0)
-			isc_buffer_add(&work, written);
-
-		isc_buffer_usedregion(&work, &work_region);
-		isc_buffer_usedregion(&digest, &digest_region);
-		
-		B_DestroyAlgorithmObject(&rsaEncryptor);
-		/*
-		 * Skip PKCS#1 header in output from Decrypt function.
-		 */
-		if (memcmp(digest_region.base,
-			   work_region.base + sizeof(pkcs1),
-			   digest_region.length) == 0)
-			return (ISC_R_SUCCESS);
-		else
-			return (DST_R_VERIFYFINALFAILURE);
- finalfail:
-		B_DestroyAlgorithmObject(&rsaEncryptor);
-		return (DST_R_VERIFYFINALFAILURE);
+		written = 0;
 	}
-	else
-		*context = md5_ctx;
 
-	return (ISC_R_SUCCESS);
+	if (B_DecryptFinal(rsaEncryptor, work_region.base, &written,
+			   work_region.length, NULL_PTR,
+			   NULL_SURRENDER) != 0)
+		goto finalfail;
+
+	if (written > 0)
+		isc_buffer_add(&work, written);
+
+	B_DestroyAlgorithmObject(&rsaEncryptor);
+	/*
+	 * Skip PKCS#1 header in output from Decrypt function.
+	 */
+	if (memcmp(digest,
+		   (char *)isc_buffer_base(&work) + sizeof(pkcs1),
+		   sizeof(digest)) == 0)
+		return (ISC_R_SUCCESS);
+	else
+		return (DST_R_VERIFYFAILURE);
+
+ finalfail:
+	B_DestroyAlgorithmObject(&rsaEncryptor);
+	return (DST_R_VERIFYFAILURE);
 }
 
-
-/*
- * dst_bsafe_isprivate
- *	Is this a private key?
- * Parameters
- *	key		DST KEY structure
- * Returns
- *	ISC_TRUE
- *	ISC_FALSE
- */
 static isc_boolean_t
-dst_bsafe_isprivate(const dst_key_t *key) {
+itemcmp(ITEM i1, ITEM i2) {
+	if (i1.len != i2.len || memcmp (i1.data, i2.data, i1.len) != 0)
+		return (ISC_FALSE);
+	else
+		return (ISC_TRUE);
+}
+
+static isc_boolean_t
+dnssafersa_compare(const dst_key_t *key1, const dst_key_t *key2) {
+	int status;
+	RSA_Key *rkey1, *rkey2;
+	A_RSA_KEY *public1 = NULL, *public2 = NULL;
+	A_PKCS_RSA_PRIVATE_KEY *p1 = NULL, *p2 = NULL;
+
+	rkey1 = (RSA_Key *) key1->opaque;
+	rkey2 = (RSA_Key *) key2->opaque;
+
+	if (rkey1 == NULL && rkey2 == NULL) 
+		return (ISC_TRUE);
+	else if (rkey1 == NULL || rkey2 == NULL)
+		return (ISC_FALSE);
+
+	if (rkey1->rk_Public_Key) 
+		(void)B_GetKeyInfo((POINTER *) &public1, rkey1->rk_Public_Key, 
+				   KI_RSAPublic);
+	if (rkey2->rk_Public_Key) 
+		(void)B_GetKeyInfo((POINTER *) &public2, rkey2->rk_Public_Key, 
+				   KI_RSAPublic);
+	if (public1 == NULL && public2 == NULL)
+		return (ISC_TRUE);
+	else if (public1 == NULL || public2 == NULL)
+		return (ISC_FALSE);
+
+	status = itemcmp(public1->modulus, public2->modulus) ||
+		 itemcmp(public1->exponent, public2->exponent);
+
+	if (status == ISC_FALSE) 
+		return (ISC_FALSE);
+
+	if (rkey1->rk_Private_Key != NULL || rkey2->rk_Private_Key != NULL) {
+		if (rkey1->rk_Private_Key == NULL ||
+		    rkey2->rk_Private_Key == NULL)
+			return (ISC_FALSE);
+
+		(void)B_GetKeyInfo((POINTER *)&p1, rkey1->rk_Private_Key,
+				   KI_PKCS_RSAPrivate);
+		(void)B_GetKeyInfo((POINTER *)&p2, rkey2->rk_Private_Key,
+				   KI_PKCS_RSAPrivate);
+		if (p1 == NULL || p2 == NULL) 
+			return (ISC_FALSE);
+
+		status = itemcmp(p1->modulus, p2->modulus) &&
+			 itemcmp(p1->publicExponent, p2->publicExponent) &&
+			 itemcmp(p1->privateExponent, p2->privateExponent) &&
+			 itemcmp(p1->prime[0], p2->prime[0]) &&
+			 itemcmp(p1->prime[1], p2->prime[1]) &&
+			 itemcmp(p1->primeExponent[0], p2->primeExponent[0]) &&
+			 itemcmp(p1->primeExponent[1], p2->primeExponent[1]) &&
+			 itemcmp(p1->coefficient, p2->coefficient);
+		if (status == ISC_FALSE)
+			return (ISC_FALSE);
+	}
+	return (ISC_TRUE);
+}
+
+static isc_result_t
+dnssafersa_generate(dst_key_t *key, int exp) {
+	B_KEY_OBJ private;
+	B_KEY_OBJ public;
+	B_ALGORITHM_OBJ keypairGenerator = NULL;
+	B_ALGORITHM_OBJ randomAlgorithm = NULL;
+	A_RSA_KEY_GEN_PARAMS keygenParams;
+	char exponent[4];
+	int exponent_len = 0;
+	RSA_Key *rsa;
+	unsigned char randomSeed[256];
+	isc_buffer_t b;
+	A_RSA_KEY *pub = NULL;
+	isc_result_t ret;
+	isc_mem_t *mctx;
+
+	mctx = key->mctx;
+	rsa = (RSA_Key *) isc_mem_get(mctx, sizeof(RSA_Key));
+	if (rsa == NULL)
+		return (ISC_R_NOMEMORY);
+
+	memset(rsa, 0, sizeof(*rsa));
+	keygenParams.publicExponent.data = NULL;
+
+#define do_fail(code) {ret = code; goto fail;}
+	if (B_CreateAlgorithmObject(&keypairGenerator) != 0)
+		do_fail(ISC_R_NOMEMORY);
+
+	keygenParams.modulusBits = key->key_size;
+
+	/*
+	 * exp = 0 or 1 are special (mean 3 or F4).
+	 */
+	if (exp == 0)
+		exp = 3;
+	else if (exp == 1)
+		exp = 65537;
+
+	/*
+	 * Now encode the exponent and its length.
+	 */
+	if (exp < 256) {
+		exponent_len = 1;
+		exponent[0] = exp;
+	} else if (exp < (1 << 16)) {
+		exponent_len = 2;
+		exponent[0] = exp >> 8;
+		exponent[1] = exp;
+	} else if (exp < (1 << 24)) {
+		exponent_len = 3;
+		exponent[0] = exp >> 16;
+		exponent[1] = exp >> 8;
+		exponent[2] = exp;
+	} else {
+		exponent_len = 4;
+		exponent[0] = exp >> 24;
+		exponent[1] = exp >> 16;
+		exponent[2] = exp >> 8;
+		exponent[3] = exp;
+	}
+
+	keygenParams.publicExponent.data =
+		(unsigned char *)isc_mem_get(mctx, exponent_len);
+	if (keygenParams.publicExponent.data == NULL)
+		do_fail(ISC_R_NOMEMORY);
+
+	memcpy(keygenParams.publicExponent.data, exponent, exponent_len);
+	keygenParams.publicExponent.len = exponent_len;
+	if (B_SetAlgorithmInfo(keypairGenerator, AI_RSAKeyGen,
+			       (POINTER)&keygenParams) != 0)
+		do_fail(DST_R_INVALIDPARAM);
+
+	isc_mem_put(mctx, keygenParams.publicExponent.data, exponent_len);
+	keygenParams.publicExponent.data = NULL;
+
+	if (B_GenerateInit(keypairGenerator, CHOOSER, NULL_SURRENDER) != 0)
+		do_fail(ISC_R_NOMEMORY);
+
+	if (B_CreateKeyObject(&public) != 0)
+		do_fail(ISC_R_NOMEMORY);
+
+	if (B_CreateKeyObject(&private) != 0)
+		do_fail(ISC_R_NOMEMORY);
+
+	if (B_CreateAlgorithmObject(&randomAlgorithm) != 0)
+		do_fail(ISC_R_NOMEMORY);
+
+	if (B_SetAlgorithmInfo(randomAlgorithm, AI_MD5Random,
+					 NULL_PTR) != 0)
+		do_fail(ISC_R_NOMEMORY);
+
+	if (B_RandomInit(randomAlgorithm, CHOOSER, NULL_SURRENDER) != 0)
+		do_fail(ISC_R_NOMEMORY);
+
+	ret = dst__entropy_getdata(randomSeed, sizeof(randomSeed), ISC_FALSE);
+	if (ret != ISC_R_SUCCESS)
+		goto fail;
+
+	if (B_RandomUpdate(randomAlgorithm, randomSeed, sizeof(randomSeed),
+			   NULL_SURRENDER) != 0)
+		do_fail(ISC_R_NOMEMORY);
+
+	memset(randomSeed, 0, sizeof(randomSeed));
+
+	if (B_GenerateKeypair(keypairGenerator, public, private,
+			      randomAlgorithm, NULL_SURRENDER) != 0)
+		do_fail(DST_R_INVALIDPARAM);
+
+	rsa->rk_Private_Key = private;
+	rsa->rk_Public_Key = public;
+	key->opaque = (void *) rsa;
+
+	B_DestroyAlgorithmObject(&keypairGenerator);
+	B_DestroyAlgorithmObject(&randomAlgorithm);
+
+	/*
+	 * Fill in the footprint in generate key.
+	 */
+	(void)B_GetKeyInfo((POINTER *)&pub, public, KI_RSAPublic);
+
+	isc_buffer_init(&b, pub->modulus.data + pub->modulus.len - 3, 2);
+	isc_buffer_add(&b, 2);
+	key->key_id = isc_buffer_getuint16(&b);
+	return (ISC_R_SUCCESS);
+
+ fail:
+	if (rsa != NULL) {
+		memset(rsa, 0, sizeof(*rsa));
+		isc_mem_put(mctx, rsa, sizeof(*rsa));
+	}
+	if (keygenParams.publicExponent.data != NULL) {
+		memset(keygenParams.publicExponent.data, 0, exponent_len);
+		isc_mem_put(mctx, keygenParams.publicExponent.data,
+			    exponent_len);
+	}
+	if (keypairGenerator != NULL)
+		B_DestroyAlgorithmObject(&keypairGenerator);
+	if (randomAlgorithm != NULL)
+		B_DestroyAlgorithmObject(&randomAlgorithm);
+	if (public != NULL)
+		B_DestroyKeyObject(&public);
+	if (private != NULL)
+		B_DestroyKeyObject(&private);
+	return (ret);
+}
+
+static isc_boolean_t
+dnssafersa_isprivate(const dst_key_t *key) {
 	RSA_Key *rkey = (RSA_Key *) key->opaque;
 	return (ISC_TF(rkey != NULL && rkey->rk_Private_Key != NULL));
 }
 
+static void
+dnssafersa_destroy(dst_key_t *key) {
+	isc_mem_t *mctx;
+	RSA_Key *rkey;
 
-/*
- * dst_bsafe_to_dns
- *	Converts key from RSA to DNS distribution format
- * Parameters
- *	key		DST KEY structure
- *	data		output data
- * Returns
- *	ISC_R_SUCCESS	Success
- *	!ISC_R_SUCCESS	Failure
- */
+	mctx = key->mctx;
+	rkey = key->opaque;
+	if (rkey->rk_Private_Key != NULL)
+		B_DestroyKeyObject(&rkey->rk_Private_Key);
+	if (rkey->rk_Public_Key != NULL)
+		B_DestroyKeyObject(&rkey->rk_Public_Key);
+	memset(rkey, 0, sizeof(*rkey));
+	isc_mem_put(mctx, rkey, sizeof(*rkey));
+}
 
 static isc_result_t
-dst_bsafe_to_dns(const dst_key_t *key, isc_buffer_t *data) {
+dnssafersa_todns(const dst_key_t *key, isc_buffer_t *data) {
 	B_KEY_OBJ public;
 	A_RSA_KEY *pub = NULL;
 	isc_region_t r;
@@ -429,25 +498,33 @@ dst_bsafe_to_dns(const dst_key_t *key, isc_buffer_t *data) {
 	return (ISC_R_SUCCESS);
 }
 
+static int
+dnssafersa_keysize(RSA_Key *key) {
+	A_PKCS_RSA_PRIVATE_KEY *private = NULL;
 
-/*
- * dst_bsafe_from_dns
- *	Converts from a DNS KEY RR format to an RSA KEY. 
- * Parameters
- *	key		Partially filled key structure
- *	data		Buffer containing key in DNS format
- * Return
- *	ISC_R_SUCCESS	Success
- *	!ISC_R_SUCCESS	Failure
- */
+	REQUIRE(key != NULL);
+	REQUIRE(key->rk_Private_Key != NULL || key->rk_Public_Key != NULL);
+
+	if (key->rk_Private_Key != NULL)
+		(void)B_GetKeyInfo((POINTER *)&private, key->rk_Private_Key,
+				   KI_PKCS_RSAPrivate);
+	else
+		(void)B_GetKeyInfo((POINTER *)&private, key->rk_Public_Key,
+				   KI_RSAPublic);
+
+	return (private->modulus.len * 8);
+}
+
 static isc_result_t
-dst_bsafe_from_dns(dst_key_t *key, isc_buffer_t *data, isc_mem_t *mctx) {
+dnssafersa_fromdns(dst_key_t *key, isc_buffer_t *data) {
 	unsigned int bytes;
 	RSA_Key *rkey;
 	A_RSA_KEY *public;
 	isc_region_t r;
 	isc_buffer_t b;
+	isc_mem_t *mctx;
 
+	mctx = key->mctx;
 	isc_buffer_remainingregion(data, &r);
 	if (r.length == 0)
 		return (ISC_R_SUCCESS);
@@ -471,7 +548,7 @@ dst_bsafe_from_dns(dst_key_t *key, isc_buffer_t *data, isc_mem_t *mctx) {
 		bytes = isc_buffer_getuint16(data);
 
 	if (bytes > MAX_RSA_MODULUS_LEN) { 
-		dst_bsafe_destroy(rkey, mctx);
+		dnssafersa_destroy(key);
 		return (DST_R_INVALIDPUBLICKEY);
 	}
 
@@ -497,7 +574,7 @@ dst_bsafe_from_dns(dst_key_t *key, isc_buffer_t *data, isc_mem_t *mctx) {
 	isc_buffer_remainingregion(data, &r);
 
 	if (r.length > MAX_RSA_MODULUS_LEN) { 
-		dst_bsafe_destroy(rkey, mctx);
+		dnssafersa_destroy(key);
 		memset(public->exponent.data, 0, bytes);
 		isc_mem_put(mctx, public->exponent.data, bytes);
 		isc_mem_put(mctx, public, sizeof(*public));
@@ -506,7 +583,7 @@ dst_bsafe_from_dns(dst_key_t *key, isc_buffer_t *data, isc_mem_t *mctx) {
 	public->modulus.len = r.length;
 	public->modulus.data = (unsigned char *) isc_mem_get(mctx, r.length);
 	if (public->modulus.data == NULL) {
-		dst_bsafe_destroy(rkey, mctx);
+		dnssafersa_destroy(key);
 		memset(public->exponent.data, 0, bytes);
 		isc_mem_put(mctx, public->exponent.data, bytes);
 		isc_mem_put(mctx, public, sizeof(*public));
@@ -522,7 +599,7 @@ dst_bsafe_from_dns(dst_key_t *key, isc_buffer_t *data, isc_mem_t *mctx) {
 	isc_buffer_init(&b, public->modulus.data + public->modulus.len - 3, 2);
 	isc_buffer_add(&b, 2);
 	key->key_id = isc_buffer_getuint16(&b);
-	key->key_size = dst_bsafe_key_size(rkey);
+	key->key_size = dnssafersa_keysize(rkey);
 
 	memset(public->exponent.data, 0, public->exponent.len);
 	isc_mem_put(mctx, public->exponent.data, public->exponent.len);
@@ -535,18 +612,8 @@ dst_bsafe_from_dns(dst_key_t *key, isc_buffer_t *data, isc_mem_t *mctx) {
 	return (ISC_R_SUCCESS);
 }
 
-
-/*
- * dst_bsafe_to_file
- *	Encodes an RSA Key into the portable file format.
- * Parameters 
- *	key		DST KEY structure 
- * Returns
- *	ISC_R_SUCCESS	Success
- *	!ISC_R_SUCCESS	Failure
- */
 static isc_result_t
-dst_bsafe_to_file(const dst_key_t *key) {
+dnssafersa_tofile(const dst_key_t *key, const char *directory) {
 	int cnt = 0;
 	B_KEY_OBJ rkey;
 	A_PKCS_RSA_PRIVATE_KEY *private = NULL;
@@ -592,24 +659,12 @@ dst_bsafe_to_file(const dst_key_t *key) {
 	priv.elements[cnt++].length = private->coefficient.len;
 
 	priv.nelements = cnt;
-	return (dst_s_write_private_key_file(key, &priv));
+	return (dst__privstruct_writefile(key, &priv, directory));
 }
 
-
-/*
- * dst_bsafe_from_file
- *	Converts contents of a private key file into a private RSA key. 
- * Parameters 
- *	key		Partially filled RSA KEY structure
- *	id		The key id
- *	path		The directory that the file will be read from
- * Return
- *	ISC_R_SUCCESS	Success
- *	!ISC_R_SUCCESS	Failure
- */
-
 static isc_result_t 
-dst_bsafe_from_file(dst_key_t *key, const isc_uint16_t id, isc_mem_t *mctx) {
+dnssafersa_fromfile(dst_key_t *key, const isc_uint16_t id,
+		    const char *filename) {
 	dst_private_t priv;
 	isc_result_t ret;
 	isc_buffer_t b;
@@ -617,13 +672,15 @@ dst_bsafe_from_file(dst_key_t *key, const isc_uint16_t id, isc_mem_t *mctx) {
 	RSA_Key *rkey = NULL;
 	A_RSA_KEY *public = NULL;
 	A_PKCS_RSA_PRIVATE_KEY *private = NULL;
+	isc_mem_t *mctx;
 
 #define DST_RET(a) {ret = a; goto err;}
 
+	mctx = key->mctx;
 	/*
 	 * Read private key file.
 	 */
-	ret = dst_s_parse_private_key_file(key, id, &priv, mctx);
+	ret = dst__privstruct_parsefile(key, id, filename, mctx, &priv);
 	if (ret != ISC_R_SUCCESS)
 		return (ret);
 	/*
@@ -707,7 +764,7 @@ dst_bsafe_from_file(dst_key_t *key, const isc_uint16_t id, isc_mem_t *mctx) {
 			 (POINTER)private) != 0)
 		DST_RET(DST_R_INVALIDPRIVATEKEY);
 
-	key->key_size = dst_bsafe_key_size(rkey);
+	key->key_size = dnssafersa_keysize(rkey);
 	key->opaque = rkey;
 	rkey = NULL;
  err:
@@ -723,335 +780,52 @@ dst_bsafe_from_file(dst_key_t *key, const isc_uint16_t id, isc_mem_t *mctx) {
 		memset(rkey, 0, sizeof(*rkey));
 		isc_mem_put(mctx, rkey, sizeof(*rkey));
 	}
-	dst_s_free_private_structure_fields(&priv, mctx);
+	dst__privstruct_free(&priv, mctx);
 	memset(&priv, 0, sizeof(priv));
 	return (ret);
 }
 
-/*
- * dst_bsafe_destroy
- *	Frees all dynamically allocated structures in key.
- */
-static void
-dst_bsafe_destroy(void *key, isc_mem_t *mctx)
-{
-	RSA_Key *rkey = (RSA_Key *) key;
-	if (rkey == NULL)
-		return;
-	if (rkey->rk_Private_Key != NULL)
-		B_DestroyKeyObject(&rkey->rk_Private_Key);
-	if (rkey->rk_Public_Key != NULL)
-		B_DestroyKeyObject(&rkey->rk_Public_Key);
-	memset(rkey, 0, sizeof(*rkey));
-	isc_mem_put(mctx, rkey, sizeof(*rkey));
-}
+static dst_func_t dnssafersa_functions = {
+	dnssafersa_createctx,
+	dnssafersa_destroyctx,
+	dnssafersa_adddata,
+	dnssafersa_sign,
+	dnssafersa_verify,
+	NULL, /* computesecret */
+	dnssafersa_compare,
+	NULL, /* paramcompare */
+	dnssafersa_generate,
+	dnssafersa_isprivate,
+	dnssafersa_destroy,
+	dnssafersa_todns,
+	dnssafersa_fromdns,
+	dnssafersa_tofile,
+	dnssafersa_fromfile,
+};
 
-
-/*
- *  dst_bsafe_generate
- *	Generates unique keys that are hard to predict.
- *  Parameters
- *	key		DST Key structure
- *	exp		the public exponent
- *	mctx		memory context to allocate key
- *  Return 
- *	ISC_R_SUCCESS	Success
- *	!ISC_R_SUCCESS	Failure
- */
-
-static isc_result_t
-dst_bsafe_generate(dst_key_t *key, int exp, isc_mem_t *mctx) {
-	B_KEY_OBJ private;
-	B_KEY_OBJ public;
-	B_ALGORITHM_OBJ keypairGenerator = NULL;
-	B_ALGORITHM_OBJ randomAlgorithm = NULL;
-	A_RSA_KEY_GEN_PARAMS keygenParams;
-	char exponent[4];
-	int exponent_len = 0;
-	RSA_Key *rsa;
-	unsigned char randomSeed[256];
-	isc_buffer_t b, rand;
-	A_RSA_KEY *pub = NULL;
-	isc_result_t ret;
-
-	rsa = (RSA_Key *) isc_mem_get(mctx, sizeof(RSA_Key));
-	if (rsa == NULL)
-		return (ISC_R_NOMEMORY);
-
-	memset(rsa, 0, sizeof(*rsa));
-	keygenParams.publicExponent.data = NULL;
-
-#define do_fail(code) {ret = code; goto fail;}
-	if (B_CreateAlgorithmObject(&keypairGenerator) != 0)
-		do_fail(ISC_R_NOMEMORY);
-
-	keygenParams.modulusBits = key->key_size;
-
-	/*
-	 * exp = 0 or 1 are special (mean 3 or F4).
-	 */
-	if (exp == 0)
-		exp = 3;
-	else if (exp == 1)
-		exp = 65537;
-
-	/*
-	 * Now encode the exponent and its length.
-	 */
-	if (exp < 256) {
-		exponent_len = 1;
-		exponent[0] = exp;
-	} else if (exp < (1 << 16)) {
-		exponent_len = 2;
-		exponent[0] = exp >> 8;
-		exponent[1] = exp;
-	} else if (exp < (1 << 24)) {
-		exponent_len = 3;
-		exponent[0] = exp >> 16;
-		exponent[1] = exp >> 8;
-		exponent[2] = exp;
-	} else {
-		exponent_len = 4;
-		exponent[0] = exp >> 24;
-		exponent[1] = exp >> 16;
-		exponent[2] = exp >> 8;
-		exponent[3] = exp;
-	}
-
-	keygenParams.publicExponent.data =
-		(unsigned char *)isc_mem_get(mctx, exponent_len);
-	if (keygenParams.publicExponent.data == NULL)
-		do_fail(ISC_R_NOMEMORY);
-
-	memcpy(keygenParams.publicExponent.data, exponent, exponent_len);
-	keygenParams.publicExponent.len = exponent_len;
-	if (B_SetAlgorithmInfo(keypairGenerator, AI_RSAKeyGen,
-			       (POINTER)&keygenParams) != 0)
-		do_fail(DST_R_INVALIDPARAM);
-
-	isc_mem_put(mctx, keygenParams.publicExponent.data, exponent_len);
-	keygenParams.publicExponent.data = NULL;
-
-	if (B_GenerateInit(keypairGenerator, CHOOSER, NULL_SURRENDER) != 0)
-		do_fail(ISC_R_NOMEMORY);
-
-	if (B_CreateKeyObject(&public) != 0)
-		do_fail(ISC_R_NOMEMORY);
-
-	if (B_CreateKeyObject(&private) != 0)
-		do_fail(ISC_R_NOMEMORY);
-
-	if (B_CreateAlgorithmObject(&randomAlgorithm) != 0)
-		do_fail(ISC_R_NOMEMORY);
-
-	if (B_SetAlgorithmInfo(randomAlgorithm, AI_MD5Random,
-					 NULL_PTR) != 0)
-		do_fail(ISC_R_NOMEMORY);
-
-	if (B_RandomInit(randomAlgorithm, CHOOSER, NULL_SURRENDER) != 0)
-		do_fail(ISC_R_NOMEMORY);
-
-	isc_buffer_init(&rand, randomSeed, sizeof(randomSeed));
-	ret = dst_random_get(sizeof(randomSeed), &rand);
-	if (ret != ISC_R_SUCCESS)
-		goto fail;
-
-	if (B_RandomUpdate(randomAlgorithm, randomSeed, sizeof(randomSeed),
-			   NULL_SURRENDER) != 0)
-		do_fail(ISC_R_NOMEMORY);
-
-	memset(randomSeed, 0, sizeof(randomSeed));
-
-	if (B_GenerateKeypair(keypairGenerator, public, private,
-			      randomAlgorithm, NULL_SURRENDER) != 0)
-		do_fail(DST_R_INVALIDPARAM);
-
-	rsa->rk_Private_Key = private;
-	rsa->rk_Public_Key = public;
-	key->opaque = (void *) rsa;
-
-	B_DestroyAlgorithmObject(&keypairGenerator);
-	B_DestroyAlgorithmObject(&randomAlgorithm);
-
-	/*
-	 * Fill in the footprint in generate key.
-	 */
-	(void)B_GetKeyInfo((POINTER *)&pub, public, KI_RSAPublic);
-
-	isc_buffer_init(&b, pub->modulus.data + pub->modulus.len - 3, 2);
-	isc_buffer_add(&b, 2);
-	key->key_id = isc_buffer_getuint16(&b);
-	return (ISC_R_SUCCESS);
-
- fail:
-	if (rsa != NULL) {
-		memset(rsa, 0, sizeof(*rsa));
-		isc_mem_put(mctx, rsa, sizeof(*rsa));
-	}
-	if (keygenParams.publicExponent.data != NULL) {
-		memset(keygenParams.publicExponent.data, 0, exponent_len);
-		isc_mem_put(mctx, keygenParams.publicExponent.data,
-			    exponent_len);
-	}
-	if (keypairGenerator != NULL)
-		B_DestroyAlgorithmObject(&keypairGenerator);
-	if (randomAlgorithm != NULL)
-		B_DestroyAlgorithmObject(&randomAlgorithm);
-	return (ret);
-}
-
-
-static isc_boolean_t
-dst_s_bsafe_itemcmp(ITEM i1, ITEM i2) {
-	if (i1.len != i2.len || memcmp (i1.data, i2.data, i1.len) != 0)
-		return (ISC_FALSE);
-	else
-		return (ISC_TRUE);
-}
-
-/************************************************************************** 
- *  dst_bsafe_compare
- *	Compare two keys for equality.
- *  Return
- *	ISC_TRUE	The keys are equal
- *	ISC_FALSE	The keys are not equal
- */
-static isc_boolean_t
-dst_bsafe_compare(const dst_key_t *key1, const dst_key_t *key2) {
-	int status;
-	RSA_Key *rkey1, *rkey2;
-	A_RSA_KEY *public1 = NULL, *public2 = NULL;
-	A_PKCS_RSA_PRIVATE_KEY *p1 = NULL, *p2 = NULL;
-
-	rkey1 = (RSA_Key *) key1->opaque;
-	rkey2 = (RSA_Key *) key2->opaque;
-
-	if (rkey1 == NULL && rkey2 == NULL) 
-		return (ISC_TRUE);
-	else if (rkey1 == NULL || rkey2 == NULL)
-		return (ISC_FALSE);
-
-	if (rkey1->rk_Public_Key) 
-		(void)B_GetKeyInfo((POINTER *) &public1, rkey1->rk_Public_Key, 
-				   KI_RSAPublic);
-	if (rkey2->rk_Public_Key) 
-		(void)B_GetKeyInfo((POINTER *) &public2, rkey2->rk_Public_Key, 
-				   KI_RSAPublic);
-	if (public1 == NULL && public2 == NULL)
-		return (ISC_TRUE);
-	else if (public1 == NULL || public2 == NULL)
-		return (ISC_FALSE);
-
-	status = dst_s_bsafe_itemcmp(public1->modulus, public2->modulus) ||
-		 dst_s_bsafe_itemcmp(public1->exponent, public2->exponent);
-
-	if (status == ISC_FALSE) 
-		return (ISC_FALSE);
-
-	if (rkey1->rk_Private_Key != NULL || rkey2->rk_Private_Key != NULL) {
-		if (rkey1->rk_Private_Key == NULL ||
-		    rkey2->rk_Private_Key == NULL)
-			return (ISC_FALSE);
-
-		(void)B_GetKeyInfo((POINTER *)&p1, rkey1->rk_Private_Key,
-				   KI_PKCS_RSAPrivate);
-		(void)B_GetKeyInfo((POINTER *)&p2, rkey2->rk_Private_Key,
-				   KI_PKCS_RSAPrivate);
-		if (p1 == NULL || p2 == NULL) 
-			return (ISC_FALSE);
-
-		status = dst_s_bsafe_itemcmp(p1->modulus, p2->modulus) &&
-			 dst_s_bsafe_itemcmp(p1->publicExponent, 
-					     p2->publicExponent) &&
-			 dst_s_bsafe_itemcmp(p1->privateExponent, 
-					     p2->privateExponent) &&
-			 dst_s_bsafe_itemcmp(p1->prime[0], p2->prime[0]) &&
-			 dst_s_bsafe_itemcmp(p1->prime[1], p2->prime[1]) &&
-			 dst_s_bsafe_itemcmp(p1->primeExponent[0], 
-					     p2->primeExponent[0]) &&
-			 dst_s_bsafe_itemcmp(p1->primeExponent[1], 
-					     p2->primeExponent[1]) &&
-			 dst_s_bsafe_itemcmp(p1->coefficient, p2->coefficient);
-		if (status == ISC_FALSE)
-			return (ISC_FALSE);
-	}
-	return (ISC_TRUE);
-}
-
-
-/* 
- * dst_bsafe_key_size() 
- * Function to calculate the size of the key in bits
- */
-static int
-dst_bsafe_key_size(RSA_Key *key)
-{
-	int size;
-	A_PKCS_RSA_PRIVATE_KEY *private = NULL;
-
-	REQUIRE(key != NULL);
-	REQUIRE(key->rk_Private_Key != NULL || key->rk_Public_Key != NULL);
-
-	if (key->rk_Private_Key != NULL)
-		(void)B_GetKeyInfo((POINTER *)&private, key->rk_Private_Key,
-				   KI_PKCS_RSAPrivate);
-	else
-		(void)B_GetKeyInfo((POINTER *)&private, key->rk_Public_Key,
-				   KI_RSAPublic);
-
-	size = dst_s_calculate_bits(private->modulus.data,
-				    private->modulus.len * 8);
-	return (size);
-}
-
-/* 
- * dst_bsafe_md5digest(): function to digest data using MD5 digest function 
- * if needed 
- */
-static isc_result_t
-dst_bsafe_md5digest(const unsigned int mode, B_ALGORITHM_OBJ *digest_obj,
-		    isc_region_t *data, isc_buffer_t *digest)
-{
-	unsigned int written = 0;
-	isc_region_t r;
-
-	REQUIRE(digest != NULL);
-	REQUIRE(digest_obj != NULL);
-
-	if ((mode & DST_SIGMODE_INIT) != 0 &&
-	    B_DigestInit(*digest_obj, (B_KEY_OBJ) NULL, CHOOSER,
-			 NULL_SURRENDER) != 0)
-		return (DST_R_SIGNINITFAILURE);
-
-	if ((mode & DST_SIGMODE_UPDATE) != 0 &&
-	    B_DigestUpdate(*digest_obj, data->base, data->length,
-			   NULL_SURRENDER) != 0)
-		return (DST_R_SIGNUPDATEFAILURE);
-
-	isc_buffer_availableregion(digest, &r);
-	if ((mode & DST_SIGMODE_FINAL) != 0) {
-		if (digest == NULL ||
-		    B_DigestFinal(*digest_obj, r.base, &written, r.length,
-				  NULL_SURRENDER) != 0)
-			return (DST_R_SIGNFINALFAILURE);
-		isc_buffer_add(digest, written);
-	}
+isc_result_t
+dst__dnssafersa_init(dst_func_t **funcp) {
+	REQUIRE(funcp != NULL && *funcp == NULL);
+	*funcp = &dnssafersa_functions;
 	return (ISC_R_SUCCESS);
 }
 
+void
+dst__dnssafersa_destroy(void) {
+}
 
 /* 
- * define memory functions for bsafe that use the isc_mem functions and a
+ * define memory functions for dnssafe that use the isc_mem functions and a
  * static context.
  */
 void
 T_free(POINTER block) {
-	dst_mem_free(block);
+	dst__mem_free(block);
 }
 
 POINTER
 T_malloc(unsigned int len) {
-	return (dst_mem_alloc(len));
+	return (dst__mem_alloc(len));
 }
 
 int
@@ -1076,6 +850,6 @@ T_memset(POINTER output, int value, unsigned int len) {
 
 POINTER
 T_realloc(POINTER block, unsigned int len) {
-	return (dst_mem_realloc(block, len));
+	return (dst__mem_realloc(block, len));
 }
-#endif /* BSAFE || DNSSAFE */
+#endif /* DNSSAFE */

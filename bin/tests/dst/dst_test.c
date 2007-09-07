@@ -22,42 +22,77 @@
 #include <unistd.h>		/* XXX */
 
 #include <isc/buffer.h>
+#include <isc/entropy.h>
 #include <isc/mem.h>
 #include <isc/region.h>
 #include <isc/string.h>		/* Required for HP/UX (and others?) */
 
+#include <dns/fixedname.h>
+#include <dns/name.h>
 #include <dns/result.h>
 
 #include <dst/dst.h>
 #include <dst/result.h>
 
-char *current, *tmp = "/tmp";
+char *current;
+const char *tmp = "/tmp";
 
 static void
-use(dst_key_t *key) {
+use(dst_key_t *key, isc_mem_t *mctx) {
 	isc_result_t ret;
-	char *data = "This is some data";
+	const char *data = "This is some data";
 	unsigned char sig[512];
 	isc_buffer_t databuf, sigbuf;
 	isc_region_t datareg, sigreg;
+	dst_context_t *ctx = NULL;
 
 	isc_buffer_init(&sigbuf, sig, sizeof(sig));
-	/* Advance 1 byte for fun */
+	/*
+	 * Advance 1 byte for fun.
+	 */
 	isc_buffer_add(&sigbuf, 1);
 
 	isc_buffer_init(&databuf, data, strlen(data));
 	isc_buffer_add(&databuf, strlen(data));
 	isc_buffer_usedregion(&databuf, &datareg);
 
-	ret = dst_key_sign(DST_SIGMODE_ALL, key, NULL, &datareg, &sigbuf);
+	ret = dst_context_create(key, mctx, &ctx);
+	if (ret != ISC_R_SUCCESS) {
+		printf("contextcreate(%d) returned: %s\n", dst_key_alg(key),
+		       isc_result_totext(ret));
+		return;
+	}
+	ret = dst_context_adddata(ctx, &datareg);
+	if (ret != ISC_R_SUCCESS) {
+		printf("adddata(%d) returned: %s\n", dst_key_alg(key),
+		       isc_result_totext(ret));
+		dst_context_destroy(&ctx);
+		return;
+	}
+	ret = dst_context_sign(ctx, &sigbuf);
 	printf("sign(%d) returned: %s\n", dst_key_alg(key),
 	       isc_result_totext(ret));
+	dst_context_destroy(&ctx);
 
 	isc_buffer_forward(&sigbuf, 1);
 	isc_buffer_remainingregion(&sigbuf, &sigreg);
-	ret = dst_key_verify(DST_SIGMODE_ALL, key, NULL, &datareg, &sigreg);
+	ret = dst_context_create(key, mctx, &ctx);
+	if (ret != ISC_R_SUCCESS) {
+		printf("contextcreate(%d) returned: %s\n", dst_key_alg(key),
+		       isc_result_totext(ret));
+		return;
+	}
+	ret = dst_context_adddata(ctx, &datareg);
+	if (ret != ISC_R_SUCCESS) {
+		printf("adddata(%d) returned: %s\n", dst_key_alg(key),
+		       isc_result_totext(ret));
+		dst_context_destroy(&ctx);
+		return;
+	}
+	ret = dst_context_verify(ctx, &sigreg);
 	printf("verify(%d) returned: %s\n", dst_key_alg(key),
 	       isc_result_totext(ret));
+	dst_context_destroy(&ctx);
 }
 
 static void
@@ -89,34 +124,33 @@ dns(dst_key_t *key, isc_mem_t *mctx) {
 		return;
 	isc_buffer_usedregion(&buf1, &r1);
 	isc_buffer_usedregion(&buf2, &r2);
-	match = (r1.length == r2.length &&
-		 memcmp(r1.base, r2.base, r1.length) == 0);
-	printf("compare(%d): %s\n", dst_key_alg(key), match ? "true" : "false");
+	match = ISC_TF(r1.length == r2.length &&
+		       memcmp(r1.base, r2.base, r1.length) == 0);
+	printf("compare(%d): %s\n", dst_key_alg(key),
+	       match ? "true" : "false");
 	dst_key_free(&newkey);
 }
 
 static void
-io(char *name, int id, int alg, int type, isc_mem_t *mctx) {
+io(dns_name_t *name, int id, int alg, int type, isc_mem_t *mctx) {
 	dst_key_t *key = NULL;
 	isc_result_t ret;
 
-	chdir(current);
-	ret = dst_key_fromfile(name, id, alg, type, mctx, &key);
+	ret = dst_key_fromfile(name, id, alg, type, current, mctx, &key);
 	printf("read(%d) returned: %s\n", alg, isc_result_totext(ret));
 	if (ret != 0)
 		return;
-	chdir(tmp);
-	ret = dst_key_tofile(key, type);
+	ret = dst_key_tofile(key, type, tmp);
 	printf("write(%d) returned: %s\n", alg, isc_result_totext(ret));
 	if (ret != 0)
 		return;
-	use(key);
+	use(key, mctx);
 	dns(key, mctx);
 	dst_key_free(&key);
 }
 
 static void
-dh(char *name1, int id1, char *name2, int id2, isc_mem_t *mctx) {
+dh(dns_name_t *name1, int id1, dns_name_t *name2, int id2, isc_mem_t *mctx) {
 	dst_key_t *key1 = NULL, *key2 = NULL;
 	isc_result_t ret;
 	isc_buffer_t b1, b2;
@@ -125,22 +159,20 @@ dh(char *name1, int id1, char *name2, int id2, isc_mem_t *mctx) {
 	int alg = DST_ALG_DH;
 	int type = DST_TYPE_PUBLIC|DST_TYPE_PRIVATE;
 
-	chdir(current);
-	ret = dst_key_fromfile(name1, id1, alg, type, mctx, &key1);
+	ret = dst_key_fromfile(name1, id1, alg, type, current, mctx, &key1);
 	printf("read(%d) returned: %s\n", alg, isc_result_totext(ret));
 	if (ret != 0)
 		return;
-	ret = dst_key_fromfile(name2, id2, alg, type, mctx, &key2);
+	ret = dst_key_fromfile(name2, id2, alg, type, current, mctx, &key2);
 	printf("read(%d) returned: %s\n", alg, isc_result_totext(ret));
 	if (ret != 0)
 		return;
 
-	chdir(tmp);
-	ret = dst_key_tofile(key1, type);
+	ret = dst_key_tofile(key1, type, tmp);
 	printf("write(%d) returned: %s\n", alg, isc_result_totext(ret));
 	if (ret != 0)
 		return;
-	ret = dst_key_tofile(key2, type);
+	ret = dst_key_tofile(key2, type, tmp);
 	printf("write(%d) returned: %s\n", alg, isc_result_totext(ret));
 	if (ret != 0)
 		return;
@@ -182,33 +214,25 @@ generate(int alg, isc_mem_t *mctx) {
 	isc_result_t ret;
 	dst_key_t *key = NULL;
 
-	ret = dst_key_generate("test.", alg, 512, 0, 0, 0, mctx, &key);
+	ret = dst_key_generate(dns_rootname, alg, 512, 0, 0, 0, mctx, &key);
 	printf("generate(%d) returned: %s\n", alg, isc_result_totext(ret));
+	if (ret != ISC_R_SUCCESS)
+		return;
 
 	if (alg != DST_ALG_DH)
-		use(key);
+		use(key, mctx);
 
 	dst_key_free(&key);
 }
 
-static void
-get_random() {
-	unsigned char data[25];
-	isc_buffer_t databuf;
-	isc_result_t ret;
-	unsigned int i;
-
-	isc_buffer_init(&databuf, data, sizeof(data));
-	ret = dst_random_get(sizeof(data), &databuf);
-	printf("random() returned: %s\n", isc_result_totext(ret));
-	for (i = 0; i < sizeof data; i++)
-		printf("%02x ", data[i]);
-	printf("\n");
-}
-
 int
-main() {
+main(void) {
 	isc_mem_t *mctx = NULL;
+	isc_entropy_t *ectx = NULL;
+	isc_entropysource_t *devrandom = NULL, *randfile = NULL;
+	isc_buffer_t b;
+	dns_fixedname_t fname;
+	dns_name_t *name;
 
 	isc_mem_create(0, 0, &mctx);
 
@@ -216,22 +240,41 @@ main() {
 	getcwd(current, 256);
 
 	dns_result_register();
-	dst_result_register();
 
-	io("test.", 6204, DST_ALG_DSA, DST_TYPE_PRIVATE|DST_TYPE_PUBLIC, mctx);
-	io("test.", 54622, DST_ALG_RSA, DST_TYPE_PRIVATE|DST_TYPE_PUBLIC, mctx);
+	isc_entropy_create(mctx, &ectx);
+	isc_entropy_createfilesource(ectx, "/dev/random", 0,
+			&devrandom);
+	isc_entropy_createfilesource(ectx, "randomfile", 0,
+			&randfile);
+	dst_lib_init(mctx, ectx, ISC_ENTROPY_BLOCKING|ISC_ENTROPY_GOODONLY);
 
-	io("test.", 0, DST_ALG_DSA, DST_TYPE_PRIVATE|DST_TYPE_PUBLIC, mctx);
-	io("test.", 0, DST_ALG_RSA, DST_TYPE_PRIVATE|DST_TYPE_PUBLIC, mctx);
+	dns_fixedname_init(&fname);
+	name = dns_fixedname_name(&fname);
+	isc_buffer_init(&b, "test.", 5);
+	isc_buffer_add(&b, 5);
+	dns_name_fromtext(name, &b, NULL, ISC_FALSE, NULL);
+	io(name, 6204, DST_ALG_DSA, DST_TYPE_PRIVATE|DST_TYPE_PUBLIC, mctx);
+	io(name, 54622, DST_ALG_RSA, DST_TYPE_PRIVATE|DST_TYPE_PUBLIC, mctx);
 
-	dh("dh.", 18088, "dh.", 48443, mctx);
+	io(name, 0, DST_ALG_DSA, DST_TYPE_PRIVATE|DST_TYPE_PUBLIC, mctx);
+	io(name, 0, DST_ALG_RSA, DST_TYPE_PRIVATE|DST_TYPE_PUBLIC, mctx);
+
+	isc_buffer_init(&b, "dh.", 3);
+	isc_buffer_add(&b, 3);
+	dns_name_fromtext(name, &b, NULL, ISC_FALSE, NULL);
+	dh(name, 18088, name, 48443, mctx);
 
 	generate(DST_ALG_RSA, mctx);
 	generate(DST_ALG_DH, mctx);
 	generate(DST_ALG_DSA, mctx);
 	generate(DST_ALG_HMACMD5, mctx);
 
-	get_random();
+	dst_lib_destroy();
+	if (devrandom != NULL)
+		isc_entropy_destroysource(&devrandom);
+	if (randfile != NULL)
+		isc_entropy_destroysource(&randfile);
+	isc_entropy_detach(&ectx);
 
 	isc_mem_put(mctx, current, 256);
 /*	isc_mem_stats(mctx, stdout);*/

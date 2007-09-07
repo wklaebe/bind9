@@ -15,7 +15,7 @@
  * SOFTWARE.
  */
 
-/* $Id: confndc.c,v 1.14 2000/05/13 19:45:13 tale Exp $ */
+/* $Id: confndc.c,v 1.17 2000/06/02 15:12:28 brister Exp $ */
 
 /*
 **	options {
@@ -81,8 +81,8 @@ typedef struct  {
 } ndcpcontext;
 
 struct keywordtoken {
-        char *token;
-        int yaccval;
+        const char *token;
+        const int yaccval;
 };
 
 
@@ -110,7 +110,7 @@ struct keywordtoken {
 #define L_STRING                                           20
 #define L_INTEGER					   21
 
-static struct keywordtoken keyword_tokens [] = {
+static struct keywordtoken keyword_tokens[] = {
         { "{",                          L_LBRACE },
         { "}",                          L_RBRACE },
         { ";",                          L_EOS },
@@ -142,40 +142,51 @@ static struct keywordtoken misc_tokens[] = {
 
 
 
-static isc_result_t parse_file(ndcpcontext *pctx,
-			       dns_c_ndcctx_t **context);
+static isc_result_t
+parse_file(ndcpcontext *pctx, dns_c_ndcctx_t **context);
 
-static isc_result_t parse_statement(ndcpcontext *pctx);
-static isc_result_t parse_options(ndcpcontext *pctx, dns_c_ndcopts_t **opts);
-static isc_result_t parse_serverstmt(ndcpcontext *pctx,
-				     dns_c_ndcserver_t **server);
-static isc_result_t parse_keystmt(ndcpcontext *pctx, dns_c_kdeflist_t *keys);
+static isc_result_t
+parse_statement(ndcpcontext *pctx);
+static isc_result_t
+parse_options(ndcpcontext *pctx, dns_c_ndcopts_t **opts);
+static isc_result_t
+parse_serverstmt(ndcpcontext *pctx, dns_c_ndcserver_t **server);
+static isc_result_t
+parse_keystmt(ndcpcontext *pctx, dns_c_kdeflist_t *keys);
 
+static const char *
+keyword2str(isc_int32_t val);
+static isc_boolean_t
+eat(ndcpcontext *pctx, isc_uint32_t token);
+static isc_boolean_t
+eat_eos(ndcpcontext *pctx);
+static isc_boolean_t
+eat_lbrace(ndcpcontext *pctx);
+static isc_boolean_t
+eat_rbrace(ndcpcontext *pctx);
 
+static isc_boolean_t
+looking_at(ndcpcontext *pctx, isc_uint32_t token);
+static isc_boolean_t
+looking_at_anystring(ndcpcontext *pctx);
 
-	
-static const char * keyword2str(isc_int32_t val);
-static isc_boolean_t eat(ndcpcontext *pctx, isc_uint32_t token);
-static isc_boolean_t eat_eos(ndcpcontext *pctx);
-static isc_boolean_t eat_lbrace(ndcpcontext *pctx);
-static isc_boolean_t eat_rbrace(ndcpcontext *pctx);
-
-static isc_boolean_t looking_at(ndcpcontext *pctx, isc_uint32_t token);
-static isc_boolean_t looking_at_anystring(ndcpcontext *pctx);
-
-static isc_result_t parser_setup(ndcpcontext *pctx, isc_mem_t *mem,
-				 const char *filename);
-static void parser_complain(isc_boolean_t is_warning,
-			    isc_boolean_t print_last_token, ndcpcontext *pctx,
-			 const char *format, va_list args);
-static void parser_error(ndcpcontext *pctx, isc_boolean_t lasttoken,
-			 const char *fmt, ...);
-static void parser_warn(ndcpcontext *pctx, isc_boolean_t lasttoken,
-			const char *fmt, ...);
-static isc_boolean_t is_ip6addr(const char *string, struct in6_addr *addr);
-static isc_boolean_t is_ip4addr(const char *string, struct in_addr *addr);
-static isc_result_t getnexttoken(ndcpcontext *pctx);
-static void syntax_error(ndcpcontext *pctx, isc_uint32_t keyword);
+static isc_result_t
+parser_setup(ndcpcontext *pctx, isc_mem_t *mem, const char *filename);
+static void
+parser_complain(isc_boolean_t is_warning, isc_boolean_t print_last_token,
+		ndcpcontext *pctx, const char *format, va_list args);
+static void
+parser_error(ndcpcontext *pctx, isc_boolean_t lasttoken, const char *fmt, ...);
+static void
+parser_warn(ndcpcontext *pctx, isc_boolean_t lasttoken, const char *fmt, ...);
+static isc_boolean_t
+is_ip6addr(const char *string, struct in6_addr *addr);
+static isc_boolean_t
+is_ip4addr(const char *string, struct in_addr *addr);
+static isc_result_t
+getnexttoken(ndcpcontext *pctx);
+static void
+syntax_error(ndcpcontext *pctx, isc_uint32_t keyword);
 
 
 /* *********************************************************************** */
@@ -1161,7 +1172,7 @@ parse_keystmt(ndcpcontext *pctx, dns_c_kdeflist_t *keys) {
 
 	else if (pctx->tokstr[0] == '\0') {
 		parser_error(pctx, ISC_TRUE,
-			     "zero length key names are illegal.");
+			     "zero length key names are illegal");
 		return (ISC_R_FAILURE);
 	}
 
@@ -1194,7 +1205,7 @@ parse_keystmt(ndcpcontext *pctx, dns_c_kdeflist_t *keys) {
 			
 			if (algorithm != NULL) {
 				parser_warn(pctx, ISC_FALSE,
-					    "multiple 'algorithm' values.");
+					    "multiple 'algorithm' values");
 				isc_mem_free(pctx->themem, algorithm);
 			}
 
@@ -1213,7 +1224,7 @@ parse_keystmt(ndcpcontext *pctx, dns_c_kdeflist_t *keys) {
 			
 			if (secret != NULL) {
 				parser_warn(pctx, ISC_FALSE,
-					    "multiple 'secret' values.");
+					    "multiple 'secret' values");
 				isc_mem_free(pctx->themem, secret);
 			}
 
@@ -1400,11 +1411,11 @@ parser_setup(ndcpcontext *pctx, isc_mem_t *mem, const char *filename) {
 					     ISC_LEXCOMMENT_CPLUSPLUS |
 					     ISC_LEXCOMMENT_SHELL));
 
-        result = isc_lex_openfile(pctx->thelexer, (char *)filename);
+        result = isc_lex_openfile(pctx->thelexer, filename);
         if (result != ISC_R_SUCCESS) {
                 isc_log_write(dns_lctx, DNS_LOGCATEGORY_CONFIG,
                               DNS_LOGMODULE_CONFIG, ISC_LOG_CRITICAL,
-                              "%s: Error opening file %s.",
+                              "%s: Error opening file %s",
                               "dns_c_parse_namedconf", filename);
 		return (result);
         }
@@ -1433,7 +1444,7 @@ parser_setup(ndcpcontext *pctx, isc_mem_t *mem, const char *filename) {
 		if (result != ISC_R_SUCCESS) {
 			isc_log_write(dns_lctx, DNS_LOGCATEGORY_CONFIG,
 				      DNS_LOGMODULE_CONFIG, ISC_LOG_CRITICAL,
-				      "%s: Error installing keyword.",
+				      "%s: Error installing keyword",
 				      "dns_c_parse_namedconf");
 			return (result);
 		}
@@ -1451,7 +1462,7 @@ parser_complain(isc_boolean_t is_warning, isc_boolean_t print_last_token,
         static char message[2048];
 	int level = ISC_LOG_CRITICAL;
 	const char *filename = isc_lex_getsourcename(pctx->thelexer);
-	int lineno = isc_lex_getsourceline(pctx->thelexer);
+	unsigned long lineno = isc_lex_getsourceline(pctx->thelexer);
 
         /*
          * We can't get a trace of the include files we may be nested in
@@ -1464,7 +1475,7 @@ parser_complain(isc_boolean_t is_warning, isc_boolean_t print_last_token,
 	if (is_warning)
 		level = ISC_LOG_WARNING;
 
-        sprintf(where, "%s:%d: ", filename, lineno);
+        sprintf(where, "%s:%lu: ", filename, lineno);
 	vsnprintf(message, sizeof(message), format, args);
 
         if (print_last_token) {
@@ -1727,7 +1738,7 @@ getnexttoken(ndcpcontext *pctx) {
 		break;
 
 	case ISC_R_NOSPACE:
-		parser_error(pctx, ISC_TRUE, "token too big.");
+		parser_error(pctx, ISC_TRUE, "token too big");
 		result = ISC_R_FAILURE;
 		break;
 

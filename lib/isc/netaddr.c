@@ -17,8 +17,11 @@
 
 #include <config.h>
 
+#include <stdio.h>
 
+#include <isc/buffer.h>
 #include <isc/netaddr.h>
+#include <isc/print.h>
 #include <isc/sockaddr.h>
 #include <isc/string.h>
 #include <isc/util.h>
@@ -36,7 +39,8 @@ isc_netaddr_equal(const isc_netaddr_t *a, const isc_netaddr_t *b) {
 			return (ISC_FALSE);
 		break;
 	case AF_INET6:
-		if (memcmp(&a->type.in6, &b->type.in6, sizeof a->type.in6) != 0)
+		if (memcmp(&a->type.in6, &b->type.in6, sizeof a->type.in6)
+		    != 0)
 			return (ISC_FALSE);
 		break;
 	default:
@@ -49,7 +53,7 @@ isc_boolean_t
 isc_netaddr_eqprefix(const isc_netaddr_t *a, const isc_netaddr_t *b,
 		     unsigned int prefixlen)
 {
-	unsigned char *pa, *pb;
+	const unsigned char *pa, *pb;
 	unsigned int ipabytes; /* Length of whole IP address in bytes */
 	unsigned int nbytes;   /* Number of significant whole bytes */
 	unsigned int nbits;    /* Number of significant leftover bits */
@@ -61,13 +65,13 @@ isc_netaddr_eqprefix(const isc_netaddr_t *a, const isc_netaddr_t *b,
 	
 	switch (a->family) {
 	case AF_INET:
-		pa = (unsigned char *) &a->type.in;
-		pb = (unsigned char *) &b->type.in;
+		pa = (const unsigned char *) &a->type.in;
+		pb = (const unsigned char *) &b->type.in;
 		ipabytes = 4;
 		break;
 	case AF_INET6:
-		pa = (unsigned char *) &a->type.in6;
-		pb = (unsigned char *) &b->type.in6;
+		pa = (const unsigned char *) &a->type.in6;
+		pb = (const unsigned char *) &b->type.in6;
 		ipabytes = 16;
 		break;
 	default:
@@ -76,7 +80,9 @@ isc_netaddr_eqprefix(const isc_netaddr_t *a, const isc_netaddr_t *b,
 		return (ISC_FALSE);
 	}
 
-	/* Don't crash if we get a pattern like 10.0.0.1/9999999. */
+	/*
+	 * Don't crash if we get a pattern like 10.0.0.1/9999999.
+	 */
 	if (prefixlen > ipabytes * 8)
 		prefixlen = ipabytes * 8;
 
@@ -101,18 +107,66 @@ isc_netaddr_eqprefix(const isc_netaddr_t *a, const isc_netaddr_t *b,
 }
 
 isc_result_t
-isc_netaddr_masktoprefixlen(const isc_netaddr_t *s, unsigned int *lenp)
-{
+isc_netaddr_totext(const isc_netaddr_t *netaddr, isc_buffer_t *target) {
+	char abuf[sizeof "xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:255.255.255.255"];
+	unsigned int alen;
+	const char *r;
+
+	REQUIRE(netaddr != NULL);
+
+	r = inet_ntop(netaddr->family, &netaddr->type, abuf, sizeof abuf);
+	if (r == NULL)
+		return (ISC_R_FAILURE);
+
+	alen = strlen(abuf);
+	INSIST(alen < sizeof(abuf));
+
+	if (alen > isc_buffer_availablelength(target))
+		return (ISC_R_NOSPACE);
+	    
+	isc_buffer_putmem(target, (unsigned char *)abuf, alen);
+
+	return (ISC_R_SUCCESS);
+}
+
+void
+isc_netaddr_format(isc_netaddr_t *na, char *array, unsigned int size) {
+	isc_result_t result;
+	isc_buffer_t buf;
+
+	isc_buffer_init(&buf, array, size);
+	result = isc_netaddr_totext(na, &buf);
+
+	/*
+	 * Null terminate.
+	 */
+	if (result == ISC_R_SUCCESS) {
+		if (isc_buffer_availablelength(&buf) >= 1)
+			isc_buffer_putuint8(&buf, 0);
+		else
+			result = ISC_R_NOSPACE;
+	}
+		
+	if (result != ISC_R_SUCCESS) {
+		snprintf(array, size,
+			 "<unknown address, family %u>",
+			 na->family);
+		array[size - 1] = '\0';
+	}
+}
+
+isc_result_t
+isc_netaddr_masktoprefixlen(const isc_netaddr_t *s, unsigned int *lenp) {
 	unsigned int nbits, nbytes, ipbytes, i;
-	unsigned char *p;
+	const unsigned char *p;
 	
 	switch (s->family) {
 	case AF_INET:
-		p = (unsigned char *) &s->type.in;
+		p = (const unsigned char *) &s->type.in;
 		ipbytes = 4;
 		break;
 	case AF_INET6:
-		p = (unsigned char *) &s->type.in6;
+		p = (const unsigned char *) &s->type.in6;
 		ipbytes = 16;
 		break;
 	default:
@@ -144,16 +198,14 @@ isc_netaddr_masktoprefixlen(const isc_netaddr_t *s, unsigned int *lenp)
 }
 
 void
-isc_netaddr_fromin(isc_netaddr_t *netaddr, const struct in_addr *ina)
-{
+isc_netaddr_fromin(isc_netaddr_t *netaddr, const struct in_addr *ina) {
 	memset(netaddr, 0, sizeof *netaddr);
 	netaddr->family = AF_INET;
 	netaddr->type.in = *ina;
 }
 
 void
-isc_netaddr_fromin6(isc_netaddr_t *netaddr, const struct in6_addr *ina6)
-{
+isc_netaddr_fromin6(isc_netaddr_t *netaddr, const struct in6_addr *ina6) {
 	memset(netaddr, 0, sizeof *netaddr);
 	netaddr->family = AF_INET6;
 	netaddr->type.in6 = *ina6;

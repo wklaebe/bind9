@@ -1,11 +1,11 @@
 /*
- * Portions Copyright (c) 1995-1999 by Network Associates, Inc.
  * Portions Copyright (C) 1999, 2000  Internet Software Consortium.
- *
+ * Portions Copyright (C) 1995-2000 by Network Associates, Inc.
+ * 
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- *
+ * 
  * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM AND
  * NETWORK ASSOCIATES DISCLAIM ALL WARRANTIES WITH REGARD TO THIS
  * SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
@@ -19,7 +19,7 @@
 
 /*
  * Principal Author: Brian Wellington
- * $Id: dst_parse.c,v 1.16 2000/05/15 23:14:11 bwelling Exp $
+ * $Id: dst_parse.c,v 1.21 2000/06/09 20:58:34 gson Exp $
  */
 
 #include <config.h>
@@ -47,8 +47,8 @@
 #define HMACMD5_STR "HMAC_MD5"
 
 struct parse_map {
-	int value;
-	char *tag;
+	const int value;
+	const char *tag;
 };
 
 static struct parse_map map[] = {
@@ -77,7 +77,7 @@ static struct parse_map map[] = {
 };
 
 static int
-find_value(const char *s, const int alg) {
+find_value(const char *s, const unsigned int alg) {
 	int i;
 
 	for (i = 0; ; i++) {
@@ -89,7 +89,7 @@ find_value(const char *s, const int alg) {
 	}
 }
 
-static char *
+static const char *
 find_tag(const int value) {
 	int i;
 
@@ -156,7 +156,7 @@ check_hmac_md5(const dst_private_t *priv) {
 }
 
 static int
-check_data(const dst_private_t *priv, const int alg) {
+check_data(const dst_private_t *priv, const unsigned int alg) {
 	switch (alg) {
 		case DST_ALG_RSA:
 			return (check_rsa(priv));
@@ -172,7 +172,7 @@ check_data(const dst_private_t *priv, const int alg) {
 }
 
 void
-dst_s_free_private_structure_fields(dst_private_t *priv, isc_mem_t *mctx) {
+dst__privstruct_free(dst_private_t *priv, isc_mem_t *mctx) {
 	int i;
 
 	if (priv == NULL)
@@ -187,32 +187,42 @@ dst_s_free_private_structure_fields(dst_private_t *priv, isc_mem_t *mctx) {
 }
 
 int
-dst_s_parse_private_key_file(dst_key_t *key, const isc_uint16_t id,
-			     dst_private_t *priv, isc_mem_t *mctx)
+dst__privstruct_parsefile(dst_key_t *key, const isc_uint16_t id,
+			  const char *filename, isc_mem_t *mctx,
+			  dst_private_t *priv)
 {
-	char filename[ISC_DIR_NAMEMAX];
 	int n = 0, ret, major, minor;
 	isc_buffer_t b;
 	isc_lex_t *lex = NULL;
 	isc_token_t token;
 	unsigned int opt = ISC_LEXOPT_EOL;
+	char *newfilename;
 	isc_result_t iret;
 
 	REQUIRE(priv != NULL);
 
+	if (strlen(filename) < 8)
+		return (DST_R_INVALIDPUBLICKEY);
+
+	newfilename = isc_mem_get(mctx, strlen(filename) + 9);
+	if (newfilename == NULL)
+		return (ISC_R_NOMEMORY);
+	strcpy(newfilename, filename);
+
+	if (strcmp(filename + strlen(filename) - 4, ".key") == 0)
+		sprintf(newfilename + strlen(filename) - 4, ".private");
+	else if (strcmp(filename + strlen(filename) - 8, ".private") != 0)
+		sprintf(newfilename + strlen(filename), ".private");
+
 	priv->nelements = 0;
 
-	isc_buffer_init(&b, filename, sizeof(filename));
 	key->key_id = id;
-	ret = dst_key_buildfilename(key, DST_TYPE_PRIVATE, &b);
-	if (ret != ISC_R_SUCCESS)
-		return (ret);
 
 	iret = isc_lex_create(mctx, 1024, &lex);
 	if (iret != ISC_R_SUCCESS)
 		return (ISC_R_NOMEMORY);
 
-	iret = isc_lex_openfile(lex, filename);
+	iret = isc_lex_openfile(lex, newfilename);
 	if (iret != ISC_R_SUCCESS)
 		goto fail;
 
@@ -308,6 +318,7 @@ dst_s_parse_private_key_file(dst_key_t *key, const isc_uint16_t id,
 
 	isc_lex_close(lex);
 	isc_lex_destroy(&lex);
+	isc_mem_put(mctx, newfilename, strlen(filename) + 9);
 
 	return (ISC_R_SUCCESS);
 
@@ -316,14 +327,17 @@ fail:
 		isc_lex_close(lex);
 		isc_lex_destroy(&lex);
 	}
+	isc_mem_put(mctx, newfilename, strlen(filename) + 9);
 
 	priv->nelements = n;
-	dst_s_free_private_structure_fields(priv, mctx);
+	dst__privstruct_free(priv, mctx);
 	return (DST_R_INVALIDPRIVATEKEY);
 }
 
 int
-dst_s_write_private_key_file(const dst_key_t *key, const dst_private_t *priv) {
+dst__privstruct_writefile(const dst_key_t *key, const dst_private_t *priv,
+			  const char *directory)
+{
 	FILE *fp;
 	int ret, i;
 	isc_result_t iret;
@@ -337,7 +351,7 @@ dst_s_write_private_key_file(const dst_key_t *key, const dst_private_t *priv) {
 		return (DST_R_INVALIDPRIVATEKEY);
 
 	isc_buffer_init(&b, filename, sizeof(filename));
-	ret = dst_key_buildfilename(key, DST_TYPE_PRIVATE, &b);
+	ret = dst_key_buildfilename(key, DST_TYPE_PRIVATE, directory, &b);
 	if (ret != ISC_R_SUCCESS)
 		return (ret);
 
@@ -362,7 +376,7 @@ dst_s_write_private_key_file(const dst_key_t *key, const dst_private_t *priv) {
 	for (i = 0; i < priv->nelements; i++) {
 		isc_buffer_t b;
 		isc_region_t r;
-		char *s;
+		const char *s;
 
 		s = find_tag(priv->elements[i].tag);
 

@@ -34,18 +34,18 @@
 
 
 isc_result_t
-dns_tkeyctx_fromconfig(dns_c_ctx_t *cfg, isc_mem_t *mctx,
-		       dns_tkey_ctx_t **tctxp)
+dns_tkeyctx_fromconfig(dns_c_ctx_t *cfg, isc_mem_t *mctx, isc_entropy_t *ectx,
+		       dns_tkeyctx_t **tctxp)
 {
 	isc_result_t result;
-	dns_tkey_ctx_t *tctx = NULL;
+	dns_tkeyctx_t *tctx = NULL;
 	char *s;
-	int n;
+	isc_uint32_t n;
 	isc_buffer_t b, namebuf;
 	unsigned char data[1024];
-	dns_name_t domain;
+	dns_name_t domain, keyname;
 
-	result = dns_tkeyctx_create(mctx, &tctx);
+	result = dns_tkeyctx_create(mctx, ectx, &tctx);
 	if (result != ISC_R_SUCCESS)
 		return (result);
 
@@ -55,9 +55,14 @@ dns_tkeyctx_fromconfig(dns_c_ctx_t *cfg, isc_mem_t *mctx,
 		*tctxp = tctx;
 		return (ISC_R_SUCCESS);
 	}
-	RETERR(dst_key_fromfile(s, n, DNS_KEYALG_DH,
+	isc_buffer_init(&namebuf, data, sizeof(data));
+	dns_name_init(&keyname, NULL);
+	isc_buffer_init(&b, s, strlen(s));
+	isc_buffer_add(&b, strlen(s));
+	dns_name_fromtext(&keyname, &b, dns_rootname, ISC_FALSE, &namebuf);
+	RETERR(dst_key_fromfile(&keyname, n, DNS_KEYALG_DH,
 				DST_TYPE_PUBLIC|DST_TYPE_PRIVATE,
-				mctx, &tctx->dhkey));
+				NULL, mctx, &tctx->dhkey));
 	s = NULL;
 	RETERR(dns_c_ctx_gettkeydomain(cfg, &s));
 	dns_name_init(&domain, NULL);
@@ -69,7 +74,6 @@ dns_tkeyctx_fromconfig(dns_c_ctx_t *cfg, isc_mem_t *mctx,
 	dns_name_init(tctx->domain, NULL);
 	isc_buffer_init(&b, s, strlen(s));
 	isc_buffer_add(&b, strlen(s));
-	isc_buffer_init(&namebuf, data, sizeof(data));
 	RETERR(dns_name_fromtext(&domain, &b, dns_rootname, ISC_FALSE,
 				 &namebuf));
 	RETERR(dns_name_dup(&domain, mctx, tctx->domain));

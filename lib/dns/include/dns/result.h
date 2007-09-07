@@ -40,7 +40,7 @@
 #define DNS_R_BITSTRINGTOOLONG		(ISC_RESULTCLASS_DNS + 3)
 #define DNS_R_EMPTYLABEL		(ISC_RESULTCLASS_DNS + 4)
 #define DNS_R_BADDOTTEDQUAD		(ISC_RESULTCLASS_DNS + 5)
-/* 6 is unused */
+#define DNS_R_INVALIDNS			(ISC_RESULTCLASS_DNS + 6)
 #define DNS_R_UNKNOWN			(ISC_RESULTCLASS_DNS + 7)
 #define DNS_R_BADLABELTYPE		(ISC_RESULTCLASS_DNS + 8)
 #define DNS_R_BADPOINTER		(ISC_RESULTCLASS_DNS + 9)
@@ -125,7 +125,7 @@
 
 ISC_LANG_BEGINDECLS
 
-char *
+const char *
 dns_result_totext(isc_result_t);
 
 void

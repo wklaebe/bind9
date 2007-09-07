@@ -15,111 +15,87 @@
 # ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
 # SOFTWARE.
 
-echo "S:`date`"
-echo "T:system_dnssec:1"
-echo "A:A test to determine online functionality of dnssec tools"
-
 #
 # Perform tests
 #
 
-if [ -f dig.out.ns2 ]; then
-	rm -f dig.out.ns2
-fi
-if [ -f dig.out.ns3 ]; then
-	rm -f dig.out.ns3
-fi
-if [ -f dig.out.ns4 ]; then
-	rm -f dig.out.ns4
-fi
+SYSTEMTESTTOP=..
+. $SYSTEMTESTTOP/conf.sh
 
-# Make sure all of the servers are up
-status=0;
-../../../dig/dig +tcp +noadd +nosea +nostat +noquest +nocomm +nocmd . \
-	@10.53.0.2 soa > dig.out.ns2
-status=`expr $status + $?`
-grep ";" dig.out.ns2
-
-../../../dig/dig +tcp +noadd +nosea +nostat +noquest +nocomm +nocmd . \
-	@10.53.0.3 soa > dig.out.ns3
-status=`expr $status + $?`
-grep ";" dig.out.ns3
-
-../../../dig/dig +tcp +noadd +nosea +nostat +noquest +nocomm +nocmd . \
-	@10.53.0.4 soa > dig.out.ns4
-status=`expr $status + $?`
-grep ";" dig.out.ns4
+status=0
 
 rm -f dig.out.*
 
+DIGOPTS="+tcp +noadd +nosea +nostat +noquest +nocomm +nocmd -p 5300"
+
 # Check the example. domain
-../../../dig/dig +tcp +noadd +nosea +nostat +noquest +nocomm +nocmd \
+$DIG $DIGOPTS \
 	a.example. @10.53.0.2 a > dig.out.ns2
 status=`expr $status + $?`
 grep ";" dig.out.ns2
 
-../../../dig/dig +tcp +noadd +nosea +nostat +noquest +nocomm +nocmd \
+$DIG $DIGOPTS \
 	a.example. @10.53.0.3 a > dig.out.ns3
 status=`expr $status + $?`
 grep ";" dig.out.ns3
 
-perl ../digcomp.pl dig.out.ns2 dig.out.ns3
+$PERL ../digcomp.pl dig.out.ns2 dig.out.ns3
 status=`expr $status + $?`
 
 rm -f dig.out.*
 
-../../../dig/dig +tcp +noadd +nosea +nostat +noquest +nocomm +nocmd +noauth \
+$DIG $DIGOPTS +noauth \
 	a.example. @10.53.0.2 a > dig.out.ns2
 status=`expr $status + $?`
 grep ";" dig.out.ns2
 
-../../../dig/dig +tcp +noadd +nosea +nostat +noquest +nocomm +nocmd +noauth \
+$DIG $DIGOPTS +noauth \
 	a.example. @10.53.0.4 a > dig.out.ns4
 status=`expr $status + $?`
 grep ";" dig.out.ns2
 
-perl ../digcomp.pl dig.out.ns2 dig.out.ns4
+$PERL ../digcomp.pl dig.out.ns2 dig.out.ns4
 status=`expr $status + $?`
 
 # Check the insecure.example domain
 
 rm -f dig.out.*
 
-../../../dig/dig +tcp +noadd +nosea +nostat +noquest +nocomm +nocmd \
+$DIG $DIGOPTS \
 	a.insecure.example. @10.53.0.3 a > dig.out.ns3
 status=`expr $status + $?`
 grep ";" dig.out.ns3
 
-../../../dig/dig +tcp +noadd +nosea +nostat +noquest +nocomm +nocmd \
+$DIG $DIGOPTS \
 	a.insecure.example. @10.53.0.4 a > dig.out.ns4
 status=`expr $status + $?`
 grep ";" dig.out.ns4
 
-perl ../digcomp.pl dig.out.ns3 dig.out.ns4
+$PERL ../digcomp.pl dig.out.ns3 dig.out.ns4
 status=`expr $status + $?`
 
 # Check the secure.example domain
 
 rm -f dig.out.*
 
-../../../dig/dig +tcp +noadd +nosea +nostat +noquest +nocomm +nocmd \
+$DIG $DIGOPTS \
 	a.secure.example. @10.53.0.3 a > dig.out.ns3
 status=`expr $status + $?`
 grep ";" dig.out.ns3
 
-../../../dig/dig +tcp +noadd +nosea +nostat +noquest +nocomm +nocmd \
+$DIG $DIGOPTS \
 	a.secure.example. @10.53.0.4 a > dig.out.ns4
 status=`expr $status + $?`
 grep ";" dig.out.ns4
 
-perl ../digcomp.pl dig.out.ns3 dig.out.ns4
+$PERL ../digcomp.pl dig.out.ns3 dig.out.ns4
 status=`expr $status + $?`
 
 # Check the bogus domain
 
 rm -f dig.out.*
 
-../../../dig/dig +tcp +noadd +nosea +nostat +noquest +nocmd \
+$DIG +tcp +noadd +nosea +nostat +noquest +nocmd -p 5300 \
 	a.bogus.example. @10.53.0.4 a > dig.out.ns4
 grep "SERVFAIL" dig.out.ns4 > /dev/null
 status=`expr $status + $?`

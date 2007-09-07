@@ -30,6 +30,7 @@
 #include <dns/name.h>
 #include <dns/rdataclass.h>
 #include <dns/rdataset.h>
+#include <dns/result.h>
 
 #include <tests/t_api.h>
 
@@ -38,9 +39,6 @@
 
 static isc_result_t
 t1_add_callback(void *arg, dns_name_t *owner, dns_rdataset_t *dataset);
-
-static void
-t1(void);
 
 isc_mem_t	*T1_mctx;
 char		*Tokens[T_MAXTOKS + 1];
@@ -73,8 +71,6 @@ test_master(char *testfile, char *origin, char *class, isc_result_t exp_result)
 	isc_buffer_t		source;
 	isc_buffer_t		target;
 	unsigned char		name_buf[BUFLEN];
-	int			soacount;
-	int			nscount;
 	dns_rdatacallbacks_t	callbacks;
 	dns_rdataclass_t	rdataclass;
 	isc_textregion_t	textregion;
@@ -121,8 +117,6 @@ test_master(char *testfile, char *origin, char *class, isc_result_t exp_result)
 						&dns_origin,
 						rdataclass,
 						ISC_TRUE,
-						&soacount,
-						&nscount,
 						&callbacks,
 						T1_mctx);
 
@@ -138,8 +132,7 @@ test_master(char *testfile, char *origin, char *class, isc_result_t exp_result)
 }
 
 static int
-test_master_x(char *filename) {
-
+test_master_x(const char *filename) {
 	FILE		*fp;
 	char		*p;
 	int		line;
@@ -183,28 +176,29 @@ test_master_x(char *filename) {
 	return(result);
 }
 
-static char *a1 =	"dns_master_loadfile loads a valid master file and "
+static const char *a1 =	"dns_master_loadfile loads a valid master file and "
 			"returns ISC_R_SUCCESS";
 static void
-t1() {
+t1(void) {
 	int	result;
 	t_assert("dns_master_loadfile", 1, T_REQUIRED, a1);
 	result = test_master_x("dns_master_load_1_data");
 	t_result(result);
 }
 
-static char *a2 = "dns_master_loadfile returns ISC_R_UNEXPECTEDEND when the "
-		  "masterfile input ends unexpectedly";
+static const char *a2 =
+	"dns_master_loadfile returns ISC_R_UNEXPECTEDEND when the "
+	"masterfile input ends unexpectedly";
 
 static void
-t2() {
+t2(void) {
 	int	result;
 	t_assert("dns_master_loadfile", 2, T_REQUIRED, a2);
 	result = test_master_x("dns_master_load_2_data");
 	t_result(result);
 }
 
-static char *a3 =	"dns_master_loadfile returns DNS_R_NOOWNER when the "
+static const char *a3 =	"dns_master_loadfile returns DNS_R_NOOWNER when the "
 			"an ownername is not specified";
 
 static void
@@ -215,7 +209,7 @@ t3() {
 	t_result(result);
 }
 
-static char *a4 =	"dns_master_loadfile returns DNS_R_NOTTL when the "
+static const char *a4 =	"dns_master_loadfile returns DNS_R_NOTTL when the "
 			"the ttl is not specified";
 
 static void
@@ -226,7 +220,7 @@ t4() {
 	t_result(result);
 }
 
-static char *a5 =	"dns_master_loadfile returns DNS_R_BADCLASS when the "
+static const char *a5 =	"dns_master_loadfile returns DNS_R_BADCLASS when the "
 			"the record class did not match the zone class";
 
 static void
@@ -239,8 +233,9 @@ t5() {
 	t_result(result);
 }
 
-static char *a6 = "dns_master_loadfile understands KEY RR specifications "
-		  "containing key material";
+static const char *a6 =
+	"dns_master_loadfile understands KEY RR specifications "
+	"containing key material";
 
 static void
 t6() {
@@ -252,8 +247,9 @@ t6() {
 	t_result(result);
 }
 
-static char *a7 = "dns_master_loadfile understands KEY RR specifications "
-		  "containing no key material";
+static const char *a7 =
+	"dns_master_loadfile understands KEY RR specifications "
+	"containing no key material";
 
 static void
 t7() {

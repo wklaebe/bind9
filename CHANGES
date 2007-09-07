@@ -1,3 +1,191 @@
+	--- 9.0.0b4 released ---
+
+ 253.	[func]		resolv.conf parser now recognises ';' and '#' as
+			comments (anywhere in line, not just as the beginning).
+
+ 252.	[bug]		resolv.conf parser mishandled masks on sortlists.
+			It slso aborted when an unrecognised keyword was seen,
+			now it silently ignores the entire line.
+
+ 251.	[bug]		lwresd caught an assertion failure on startup.
+
+ 250.	[bug]		fixed handling of size+unit when value would be too
+			large for internal representation.
+
+ 249.	[cleanup]	max-cache-size config option now takes a size-spec
+			like 'datasize', except 'default' is not allowed.
+
+ 248.	[bug]		global lame-ttl option was not being printed when
+			config structures were written out.
+
+ 247.	[cleanup]	Rename cache-size config option to max-cache-size.
+
+ 246.	[func]		Rename global option cachesize to cache-size and
+			add corresponding option to view statement.
+
+ 245.	[bug]		If an uncompressed name will take more than 255
+			bytes and the buffer is sufficiently long,
+			dns_name_fromwire should return DNS_R_FORMERR,
+			not ISC_R_NOSPACE.  This bug caused cause the
+			server to catch an assertion failure when it
+			received a query for a name longer than 255
+			bytes.
+
+ 244.	[bug]		empty named.conf file and empty options statement are
+			now parsed properly.
+
+ 243.	[func]		new cachesize option for named.conf
+
+ 242.	[cleanup]	fixed incorrect warning about auth-nxdomain usage.
+
+ 241.	[cleanup]	nscount and soacount have been removed from the
+			dns_master_*() arguement lists.
+
+ 240.	[func]		databases now come in three flavours: zone, cache
+			and stub.
+
+ 239.	[feature]	If ISC_MEM_DEBUG is enabled, the variable
+			isc_mem_debugging controls whether messages
+			are printed or not.
+
+ 238.   [cleanup]       A few more compilation warnings have been quieted:
+                        + missing sigwait prototype on BSD/OS 4.0/4.0.1.
+                        + PTHREAD_ONCE_INIT unbraced initializer warnings on
+                                Solaris 2.8.
+                        + IN6ADDR_ANY_INIT unbraced initializer warnings on
+                                BSD/OS 4.*, Linux and Solaris 2.8.
+
+ 237.	[bug]		If connect() returned ENOBUFS when the resolver was
+			initiating a TCP query, the socket didn't get
+                        destroyed, and the server did not shut down cleanly. 
+
+ 236.	[func]		Added new listen-on-v6 config file statement.
+
+ 235.	[func]		Consider it a config file error if a listen-on 
+			statement has an IPv6 address in it, or a 
+			listen-on-v6 statement has an IPv4 address in it.
+			
+ 234.	[bug]		Allow a trusted-key's first field (domain-name) be
+			either a quoted or an unquoted string, instead of
+			requiring a quoted string.
+
+ 233.	[cleanup]	Convert all config structure integer values to unsigned
+			integer (isc_uint32_t) to match grammer.
+
+ 232.	[bug]		Allow slave zones to not have a file.
+
+ 231.	[func]		Support new 'port' clause in config file options
+			section. Causes 'listen-on', 'masters' and
+			'also-notify' statements to use its value instead of
+			default (53).
+
+ 230.	[func]		Replace the dst sign/verify API with a cleaner one.
+
+ 229.	[func]		Support config file sig-validity-interval statement 
+			in options, views and zone statements (master 
+			zones only).
+
+ 228.	[cleanup]	Logging messages in config module stripped of 
+			trailing period.
+
+ 227.   [cleanup]	The enumerated identifiers dns_rdataclass_*,
+                        dns_rcode_*, dns_opcode_*, and dns_trust_* are
+                        also now cast to their appropriate types, as with
+                        dns_rdatatype_* in item number 225 below.
+
+ 226.	[func]		dns_name_totext() now always prints the root name as
+			'.', even when omit_final_dot is true.
+
+ 225.   [cleanup]       The enumerated dns_rdatatype_* identifiers are now
+                        cast to dns_rdatatype_t via macros of their same name
+                        so that they are of the proper integral type wherever
+                        a dns_rdatatype_t is needed.
+
+ 224.   [cleanup]       The entire project builds cleanly with gcc's
+                        -Wcast-qual and -Wwrite-strings warnings enabled,
+                        which is now the default when using gcc.  (Warnings
+                        from confparser.c, because of yacc's code, are
+                        unfortunately to be expected.)
+
+ 223.   [func]          Several functions were reprototyped to qualify one
+                        or more of their arguments with "const".  Similarly,
+                        several functions that return pointers now have
+                        those pointers qualified with const.
+
+ 222.	[bug]		The global 'also-notify' option was ignored.
+
+ 221.	[bug]		An uninitialized variable was sometimes passed to
+			dns_rdata_freestruct() when loading a zone, causing
+			an assertion failure.
+
+ 220.	[cleanup]	Set the default outgoing port in the view, and
+			set it in sockaddrs returned from the ADB.
+			[31-May-2000 explorer]
+
+ 219.	[bug]		Signed truncated messages more correctly follow
+			the respective specs.
+
+ 218.	[func]		When an rdataset is signed, its ttl is normalized
+			based on the signature validity period.
+
+ 217.	[func]		Also-notify and trusted-keys can now be used in
+			the 'view' statement.
+
+ 216.   [func]		The 'max-cache-ttl' and 'max-ncache-ttl' options 
+			now work.
+
+ 215.	[bug]		Failures at certain points in request processing
+			could cause the assertion INSIST(client->lockview
+			== NULL) to be triggered.
+
+ 214.   [func]		New public function isc_netaddr_format(), for
+			formatting network addresses in log messages.
+
+ 213.	[bug]		Don't leak memory when reloading the zone if
+			an update-policy clause was present in the old zone.
+
+ 212.	[func]		Added dns_message_get/settsigkey, to make TSIG
+			key management reasonable.
+
+ 211.	[func]		The 'key' and 'server' statements can now occur
+			inside 'view' statements.
+
+ 210.	[bug]		The 'allow-transfer' option was ignored for slave
+			zones, and the 'transfers-per-ns' option was
+			was ignored for all zones.
+
+ 209.	[cleanup]	Upgraded openssl files to new version 0.9.5a
+
+ 208.   [func]          Added ISC_OFFSET_MAXIMUM for the maximum value
+                        of an isc_offset_t.
+
+ 207.   [func]		The dnssec tools properly use the logging subsystem.
+
+ 206.   [cleanup]	dst now stores the key name as a dns_name_t, not
+			a char *.
+
+ 205.   [cleanup]       On IRIX, turn off the mostly harmless warnings 1692
+                        ("prototyped function redeclared without prototype")
+                        and 1552 ("variable ... set but not used") when
+                        compiling in the lib/dns/sec/{dnssafe,openssl}
+                        directories, which contain code imported from outside
+                        sources.
+
+ 204.   [cleanup]       On HP/UX, pass +vnocompatwarnings to the linker
+                        to quiet the warnings that "The linked output may not
+                        run on a PA 1.x system."
+
+ 203.   [func]		notify and zone soa queries are now tsig signed when
+			appropriate.
+
+ 202.   [func]          isc_lex_getsourceline() changed from returning int
+                        to returning unsigned long, the type of its underlying
+                        counter.
+
+ 201.	[cleanup]	Removed the test/sdig program, it has been
+			replaced by bin/dig/dig.
+
+
 	--- 9.0.0b3 released ---
 
  200.	[bug]		Failures in sending query responses to clients
@@ -28,7 +216,7 @@
 			Manual is no longer included in the ISC BIND9
 			distribution.
 
- 193.	[func]		changed dst_key_free() prototype
+ 193.	[func]		changed dst_key_free() prototype.
 
  192.	[bug]		Zone configuration validation is now done at end 
 			of config file parsing, and before loading
@@ -110,7 +298,7 @@
 
  175.	[func]		New global and per-view option:
 
-				addition-data internal | minimal | maximal;
+				additional-data internal | minimal | maximal;
 
  174.   [func]		New public function isc_sockaddr_format(), for
 			formatting socket addresses in log messages.

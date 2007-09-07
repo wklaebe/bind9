@@ -15,7 +15,7 @@
  * SOFTWARE.
  */
 
-/* $Id: confcommon.c,v 1.28 2000/05/15 12:36:19 brister Exp $ */
+/* $Id: confcommon.c,v 1.30 2000/06/01 18:25:42 tale Exp $ */
 
 #include <config.h>
 
@@ -156,16 +156,20 @@ dns_c_printinunits(FILE *fp, isc_uint32_t val) {
 	isc_uint32_t one_meg = (1024 * 1024);
 	isc_uint32_t one_k = 1024;
 
+	/* XXXJAB These format strings may break if isc_offset_t is a large
+	   enough type and val has a value greater than MAX_ULONG. I know
+	   of no portablt solution to this. */
+	
 	if (val == DNS_C_SIZE_SPEC_DEFAULT)
 		fprintf(fp, "default");
 	else if (val == 0)
 		fprintf(fp, "0");
 	else if ((val % one_gig) == 0)
-		fprintf(fp, "%luG", (unsigned long) val / one_gig);
+		fprintf(fp, "%luG", (unsigned long)(val / one_gig));
 	else if ((val % one_meg) == 0)
-		fprintf(fp, "%luM", (unsigned long) val / one_meg);
+		fprintf(fp, "%luM", (unsigned long)(val / one_meg));
 	else if ((val % one_k) == 0)
-		fprintf(fp, "%luK", (unsigned long) val / one_k);
+		fprintf(fp, "%luK", (unsigned long)(val / one_k));
 	else if (val == DNS_C_SIZE_SPEC_UNLIM)
 		fprintf(fp, "unlimited");
 	else
@@ -712,7 +716,7 @@ dns_c_charptoname(isc_mem_t *mem, const char *keyval, dns_name_t **name) {
 	
 	dns_name_setbuffer(&newkey, b1);
 	
-	isc_buffer_init(&b2, (char *)keyval, len);
+	isc_buffer_init(&b2, keyval, len);
 	isc_buffer_add(&b2, len);
 	
 	res = dns_name_fromtext(&newkey, &b2, NULL, ISC_FALSE, NULL);

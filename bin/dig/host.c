@@ -15,6 +15,8 @@
  * SOFTWARE.
  */
 
+/* $Id: host.c,v 1.25 2000/06/06 23:06:24 mws Exp $ */
+
 #include <config.h>
 
 #include <stdlib.h>
@@ -27,6 +29,7 @@ extern int h_errno;
 #include <isc/util.h>
 
 #include <dns/message.h>
+#include <dns/name.h>
 #include <dns/rdata.h>
 #include <dns/rdataset.h>
 
@@ -40,10 +43,6 @@ extern isc_boolean_t have_ipv6, show_details;
 extern in_port_t port;
 extern unsigned int timeout;
 extern isc_mem_t *mctx;
-extern isc_taskmgr_t *taskmgr;
-extern isc_task_t *task;
-extern isc_timermgr_t *timermgr;
-extern isc_socketmgr_t *socketmgr;
 extern dns_messageid_t id;
 extern dns_name_t rootorg;
 extern char *rootspace[BUFSIZE];
@@ -54,12 +53,12 @@ extern int tries;
 extern int lookup_counter;
 extern int exitcode;
 
-isc_boolean_t short_form=ISC_TRUE,
-	filter=ISC_FALSE,
-	showallsoa=ISC_FALSE,
+isc_boolean_t short_form = ISC_TRUE,
+	filter = ISC_FALSE,
+	showallsoa = ISC_FALSE,
 	tcpmode = ISC_FALSE;
 
-static char *opcodetext[] = {
+static const char *opcodetext[] = {
 	"QUERY",
 	"IQUERY",
 	"STATUS",
@@ -78,7 +77,7 @@ static char *opcodetext[] = {
 	"RESERVED15"
 };
 
-static char *rcodetext[] = {
+static const char *rcodetext[] = {
 	"NOERROR",
 	"FORMERR",
 	"SERVFAIL",
@@ -98,7 +97,7 @@ static char *rcodetext[] = {
 	"BADVERS"
 };
 
-static char *rtypetext[] = {
+static const char *rtypetext[] = {
 	"zero",				/* 0 */
 	"has address",			/* 1 */
 	"name server",			/* 2 */
@@ -120,7 +119,7 @@ static char *rtypetext[] = {
 	"AFSDB",			/* 18 */
 	"x25 address",			/* 19 */
 	"isdn address",			/* 20 */
-	"RT"				/* 21 */
+	"RT",				/* 21 */
 	"NSAP",				/* 22 */
 	"NSAP_PTR",			/* 23 */
 	"has signature",		/* 24 */
@@ -130,21 +129,82 @@ static char *rtypetext[] = {
 	"has AAAA address",		/* 28 */
 	"LOC",				/* 29 */
 	"has next record",		/* 30 */
-	"has 31 record",		/* 31 */
-	"has 32 record",		/* 32 */
+	"EID",				/* 31 */
+	"NIMLOC",			/* 32 */
 	"SRV",				/* 33 */
-	"has 34 record",		/* 34 */
+	"ATMA",				/* 34 */
 	"NAPTR",			/* 35 */
 	"KX",				/* 36 */
 	"CERT",				/* 37 */
 	"has v6 address",		/* 38 */
 	"DNAME",			/* 39 */
-	"has 40 record",       		/* 40 */
-	"has optional information"};	/* 41 */
+	"has optional information",	/* 41 */
+	"has 42 record",       		/* 42 */
+	"has 43 record",       		/* 43 */
+	"has 44 record",       		/* 44 */
+	"has 45 record",       		/* 45 */
+	"has 46 record",       		/* 46 */
+	"has 47 record",       		/* 47 */
+	"has 48 record",       		/* 48 */
+	"has 49 record",       		/* 49 */
+	"has 50 record",       		/* 50 */
+	"has 51 record",       		/* 51 */
+	"has 52 record",       		/* 52 */
+	"has 53 record",       		/* 53 */
+	"has 54 record",       		/* 54 */
+	"has 55 record",       		/* 55 */
+	"has 56 record",       		/* 56 */
+	"has 57 record",       		/* 57 */
+	"has 58 record",       		/* 58 */
+	"has 59 record",       		/* 59 */
+	"has 60 record",       		/* 60 */
+	"has 61 record",       		/* 61 */
+	"has 62 record",       		/* 62 */
+	"has 63 record",       		/* 63 */
+	"has 64 record",       		/* 64 */
+	"has 65 record",       		/* 65 */
+	"has 66 record",       		/* 66 */
+	"has 67 record",       		/* 67 */
+	"has 68 record",       		/* 68 */
+	"has 69 record",       		/* 69 */
+	"has 70 record",       		/* 70 */
+	"has 71 record",       		/* 71 */
+	"has 72 record",       		/* 72 */
+	"has 73 record",       		/* 73 */
+	"has 74 record",       		/* 74 */
+	"has 75 record",       		/* 75 */
+	"has 76 record",       		/* 76 */
+	"has 77 record",       		/* 77 */
+	"has 78 record",       		/* 78 */
+	"has 79 record",       		/* 79 */
+	"has 80 record",       		/* 80 */
+	"has 81 record",       		/* 81 */
+	"has 82 record",       		/* 82 */
+	"has 83 record",       		/* 83 */
+	"has 84 record",       		/* 84 */
+	"has 85 record",       		/* 85 */
+	"has 86 record",       		/* 86 */
+	"has 87 record",       		/* 87 */
+	"has 88 record",       		/* 88 */
+	"has 89 record",       		/* 89 */
+	"has 90 record",       		/* 90 */
+	"has 91 record",       		/* 91 */
+	"has 92 record",       		/* 92 */
+	"has 93 record",       		/* 93 */
+	"has 94 record",       		/* 94 */
+	"has 95 record",       		/* 95 */
+	"has 96 record",       		/* 96 */
+	"has 97 record",       		/* 97 */
+	"has 98 record",       		/* 98 */
+	"has 99 record",       		/* 99 */
+	"UNIFO",			/* 100 */
+	"UID",				/* 101 */
+	"GID",				/* 102 */
+	"UNSPEC"};			/* 103 */
 
 
 static void
-show_usage() {
+show_usage(void) {
 	fputs (
 "Usage: host [-aCdlrTwv] [-c class] [-N ndots] [-t type] [-W time]\n"
 "            [-R number] hostname [server]\n"
@@ -193,10 +253,10 @@ trying(int frmsize, char *frm, dig_lookup_t *lookup) {
 }
 
 static void
-say_message(dns_name_t *name, char *msg, dns_rdata_t *rdata,
+say_message(dns_name_t *name, const char *msg, dns_rdata_t *rdata,
 	    dig_query_t *query)
 {
-	isc_buffer_t *b=NULL, *b2=NULL;
+	isc_buffer_t *b = NULL, *b2 = NULL;
 	isc_region_t r, r2;
 	isc_result_t result;
 
@@ -222,8 +282,9 @@ say_message(dns_name_t *name, char *msg, dns_rdata_t *rdata,
 
 
 static isc_result_t
-printsection(dns_message_t *msg, dns_section_t sectionid, char *section_name,
-	     isc_boolean_t headers, dig_query_t *query)
+printsection(dns_message_t *msg, dns_section_t sectionid,
+	     const char *section_name, isc_boolean_t headers,
+	     dig_query_t *query)
 {
 	dns_name_t *name, *print_name;
 	dns_rdataset_t *rdataset;
@@ -235,7 +296,7 @@ printsection(dns_message_t *msg, dns_section_t sectionid, char *section_name,
 	char t[4096];
 	isc_boolean_t first;
 	isc_boolean_t no_rdata;
-	char *rtt;
+	const char *rtt;
 	
 	if (sectionid == DNS_SECTION_QUESTION)
 		no_rdata = ISC_TRUE;
@@ -277,26 +338,25 @@ printsection(dns_message_t *msg, dns_section_t sectionid, char *section_name,
 					print_name = &empty_name;
 					first = ISC_FALSE;
 				}
+#else
+				UNUSED(first); /* Shut up compiler. */
 #endif
 			} else { 
 				loopresult = dns_rdataset_first(rdataset);
 				while (loopresult == ISC_R_SUCCESS) {
 					dns_rdataset_current(rdataset, &rdata);
-					if (rdata.type <= 41)
+					if (rdata.type <= 103)
 						rtt=rtypetext[rdata.type];
-					else if (rdata.type == 103)
-						rtt="unspecified data";
 					else if (rdata.type == 249)
-						rtt="key";
+						rtt = "key";
 					else if (rdata.type == 250)
-						rtt="signature";
+						rtt = "signature";
 					else
-						rtt="unknown";
-					say_message(print_name,
-						    rtypetext[rdata.type],
+						rtt = "unknown";
+					say_message(print_name, rtt,
 						    &rdata, query);
-					loopresult = dns_rdataset_next(
-								 rdataset);
+					loopresult =
+						dns_rdataset_next(rdataset);
 				}
 			}
 		}
@@ -321,7 +381,7 @@ printsection(dns_message_t *msg, dns_section_t sectionid, char *section_name,
 
 static isc_result_t
 printrdata(dns_message_t *msg, dns_rdataset_t *rdataset, dns_name_t *owner,
-	   char *set_name, isc_boolean_t headers)
+	   const char *set_name, isc_boolean_t headers)
 {
 	isc_buffer_t target;
 	isc_result_t result;
@@ -437,7 +497,7 @@ printmessage(dig_query_t *query, dns_message_t *msg, isc_boolean_t headers) {
 		if (!short_form)
 			printf("\n");
 		result = printsection(msg, DNS_SECTION_ANSWER, "ANSWER",
-				      !short_form, query);
+				      ISC_TF(!short_form), query);
 		if (result != ISC_R_SUCCESS)
 			return (result);
 	}
@@ -472,13 +532,10 @@ printmessage(dig_query_t *query, dns_message_t *msg, isc_boolean_t headers) {
 
 static void
 parse_args(isc_boolean_t is_batchfile, int argc, char **argv) {
-	isc_boolean_t have_host=ISC_FALSE,
-		recursion=ISC_TRUE,
-		xfr_mode=ISC_FALSE,
-		nsfind=ISC_FALSE;
+	isc_boolean_t recursion = ISC_TRUE;
 	char hostname[MXNAME];
-	char querytype[32]="";
-	char queryclass[32]="";
+	char querytype[32] = "";
+	char queryclass[32] = "";
 	dig_server_t *srv;
 	dig_lookup_t *lookup;
 	int i, c, n, adrs[4];
@@ -491,9 +548,8 @@ parse_args(isc_boolean_t is_batchfile, int argc, char **argv) {
 		switch (c) {
 		case 'l':
 			tcpmode = ISC_TRUE;
-			xfr_mode = ISC_TRUE;
 			filter = ISC_TRUE;
-			strcpy (querytype, "axfr");
+			strcpy(querytype, "axfr");
 			break;
 		case 'v':
 		case 'd':
@@ -536,7 +592,6 @@ parse_args(isc_boolean_t is_batchfile, int argc, char **argv) {
 				strcpy (querytype, "soa");
 			if (queryclass[0] == 0)
 				strcpy (queryclass, "in");
-			nsfind = ISC_TRUE;
 			showallsoa = ISC_TRUE;
 			show_details = ISC_TRUE;
 			break;
@@ -552,7 +607,8 @@ parse_args(isc_boolean_t is_batchfile, int argc, char **argv) {
 	}
 	strncpy (hostname, argv[isc_commandline_index], MXNAME);
 	if (argc > isc_commandline_index+1) {
-			srv=isc_mem_allocate(mctx, sizeof(struct dig_server));
+			srv = isc_mem_allocate(mctx,
+					       sizeof(struct dig_server));
 			if (srv == NULL)
 				fatal ("Memory allocation failure.");
 			strncpy(srv->servername,
@@ -561,9 +617,6 @@ parse_args(isc_boolean_t is_batchfile, int argc, char **argv) {
 			ISC_LIST_APPEND(server_list, srv, link);
 	}
 	
-	lookup_counter++;
-	if (lookup_counter > LOOKUP_LIMIT)
-		fatal ("Too many lookups.");
 	lookup = isc_mem_allocate (mctx, 
 				   sizeof(struct dig_lookup));
 	if (lookup == NULL)	
@@ -574,10 +627,10 @@ parse_args(isc_boolean_t is_batchfile, int argc, char **argv) {
 	 * to extract the formatted text.
 	 */
 	if (strspn(hostname, "0123456789.") == strlen(hostname)) {
-		lookup->textname[0]=0;
+		lookup->textname[0] = 0;
 		n = sscanf(hostname, "%d.%d.%d.%d", &adrs[0], &adrs[1],
 				   &adrs[2], &adrs[3]);
-		if (n==0) {
+		if (n == 0) {
 			show_usage();
 			exit (exitcode);
 		}
@@ -597,15 +650,17 @@ parse_args(isc_boolean_t is_batchfile, int argc, char **argv) {
 		strcpy (queryclass, "in");
 	strncpy (lookup->rttext, querytype, 32);
 	strncpy (lookup->rctext, queryclass, 32);
-	lookup->namespace[0]=0;
-	lookup->sendspace[0]=0;
-	lookup->sendmsg=NULL;
-	lookup->name=NULL;
-	lookup->oname=NULL;
+	lookup->namespace[0] = 0;
+	lookup->sendspace[0] = 0;
+	lookup->sendmsg = NULL;
+	lookup->name = NULL;
+	lookup->oname = NULL;
 	lookup->timer = NULL;
 	lookup->xfr_q = NULL;
 	lookup->origin = NULL;
+	lookup->querysig = NULL;
 	lookup->doing_xfr = ISC_FALSE;
+	lookup->ixfr_serial = 0;
 	lookup->defname = ISC_FALSE;
 	lookup->identify = ISC_FALSE;
 	lookup->recurse = recursion;
@@ -617,11 +672,11 @@ parse_args(isc_boolean_t is_batchfile, int argc, char **argv) {
 	lookup->trace = showallsoa;
 	lookup->trace_root = ISC_FALSE;
 	lookup->tcp_mode = tcpmode;
+	lookup->new_search = ISC_TRUE;
 	ISC_LIST_INIT(lookup->q);
 	ISC_LIST_APPEND(lookup_list, lookup, link);
 	lookup->origin = NULL;
 	ISC_LIST_INIT(lookup->my_server_list);
-	have_host = ISC_TRUE;
 }
 
 int
@@ -638,15 +693,15 @@ main(int argc, char **argv) {
 	debug ("dhmain()");
 #ifdef TWIDDLE
 	fp = fopen("/dev/urandom", "r");
-	if (fp!=NULL) {
+	if (fp != NULL) {
 		fread (&i, sizeof(int), 1, fp);
 		srandom(i);
 	}
 	else {
 		srandom ((int)&main);
 	}
-	p = getpid()%16+8;
-	for (i=0 ; i<p; i++);
+	p = getpid() % 16 + 8;
+	for (i = 0 ; i < p; i++);
 #endif
 	setup_libs();
 	parse_args(ISC_FALSE, argc, argv);

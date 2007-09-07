@@ -19,8 +19,11 @@
 # Start name servers for running system tests.
 #
 
+SYSTEMTESTTOP=.
+. $SYSTEMTESTTOP/conf.sh
 
-. ./conf.sh
+test $# -gt 0 || { echo "usage: $0 test-directory" >&2; exit 1; }
+
 cd $1
 
 for d in ns*
@@ -39,10 +42,41 @@ do
 	    fi
 	fi
 	$NAMED -c named.conf -d 99 -g >named.run 2>&1 &
+	x=1
 	while test ! -f named.pid
 	do
+	    x=`expr $x + 1`
+	    if [ $x = 5 ]; then
+		echo "I: Couldn't start server $d!"
+		exit 1
+	    fi
 	    sleep 1
         done
     )
 done
 
+
+# Make sure all of the servers are up.
+
+status=0
+
+sleep 5
+
+for d in ns*
+do
+	n=`echo $d | sed 's/ns//'`
+	$DIG +tcp +noadd +nosea +nostat +noquest +nocomm +nocmd -p 5300 \
+		version.bind. chaos txt @10.53.0.$n > dig.out
+	status=`expr $status + $?`
+	grep ";" dig.out
+done
+rm -f dig.out
+
+if [ $status != 0 ]
+then
+    echo "I: Couldn't talk to server(s)."
+    cd ..
+    sh stop.sh $1
+fi
+
+exit $status

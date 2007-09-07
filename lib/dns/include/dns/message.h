@@ -26,7 +26,6 @@
 #include <isc/magic.h>
 
 #include <dns/compress.h>
-#include <dns/rdatastruct.h>
 #include <dns/types.h>
 
 #include <dst/dst.h>
@@ -122,6 +121,10 @@ typedef int dns_pseudosection_t;
 #define DNS_PSEUDOSECTION_SIG0          2
 #define DNS_PSEUDOSECTION_MAX           3
 
+typedef int dns_messagetextflag_t;
+#define DNS_MESSAGETEXTFLAG_NOCOMMENTS	0x0001
+#define DNS_MESSAGETEXTFLAG_NOHEADERS	0x0002
+#define DNS_MESSAGETEXTFLAG_OMITDOT	0x0004
 
 /*
  * Dynamic update names for these sections.
@@ -162,7 +165,7 @@ struct dns_message {
 	dns_name_t		       *cursors[DNS_SECTION_MAX];
 	dns_rdataset_t		       *opt;
 	dns_rdataset_t		       *sig0;
-	dns_rdataset_t		       *tsigset;
+	dns_rdataset_t		       *tsig;
 
 	int				state;
 	unsigned int			from_to_wire : 2;
@@ -174,6 +177,7 @@ struct dns_message {
 	unsigned int			verify_attempted : 1;
 
 	unsigned int			opt_reserved;
+	unsigned int			sig_reserved;
 	unsigned int			reserved; /* reserved space (render) */
 
 	isc_buffer_t		       *buffer;
@@ -195,12 +199,12 @@ struct dns_message {
 	dns_rcode_t			tsigstatus;
 	dns_rcode_t			querytsigstatus;
 	dns_name_t		       *tsigname;
-	dns_rdata_any_tsig_t	       *tsig;
-	dns_rdata_any_tsig_t	       *querytsig;
+	dns_rdataset_t		       *querytsig;
 	dns_tsigkey_t		       *tsigkey;
-	void			       *tsigctx;
+	dst_context_t		       *tsigctx;
 	int				sigstart;
 
+	dns_name_t		       *sig0name;
 	dst_key_t		       *sig0key;
 	dns_rcode_t			sig0status;
 	isc_region_t		       *query;
@@ -274,26 +278,20 @@ dns_message_destroy(dns_message_t **msgp);
 
 isc_result_t
 dns_message_sectiontotext(dns_message_t *msg, dns_section_t section,
-			  isc_boolean_t comments,
-			  isc_boolean_t omit_final_dot,
+			  dns_messagetextflag_t flags,
 			  isc_buffer_t *target);
 
 isc_result_t
 dns_message_pseudosectiontotext(dns_message_t *msg,
 				dns_pseudosection_t section,
-				isc_boolean_t comments,
-				isc_boolean_t omit_final_dot,
+				dns_messagetextflag_t flags,
 				isc_buffer_t *target);
 /*
  * Convert section 'section' or 'pseudosection' of message 'msg' to 
  * a cleartext representation
  *
  * Notes:
- *	If 'omit_final_dot' is true, then the final '.' in absolute names
- *	will not be emitted.
- *	If 'no_rdata_or_tt;' is true, omit rdata and ttl fields.
- *	If 'comments' is true, lines beginning with ";;" will be emitted
- *	indicating section name.
+ *      See dns_message_totext for meanings of flags.
  *
  * Requires:
  *
@@ -321,18 +319,18 @@ dns_message_pseudosectiontotext(dns_message_t *msg,
 */
 
 isc_result_t
-dns_message_totext(dns_message_t *msg, isc_boolean_t comments,
-		   isc_boolean_t headers, isc_boolean_t omit_final_dot,
+dns_message_totext(dns_message_t *msg, dns_messagetextflag_t flags,
 		   isc_buffer_t *target);
 /*
  * Convert all sections of message 'msg' to a cleartext representation
  *
  * Notes:
- *	If 'omit_final_dot' is true, then the final '.' in absolute names
- *	will not be emitted.
- *	If 'no_rdata_or_tt;' is true, omit rdata and ttl fields.
- *	If 'comments' is true, lines beginning with ";;" will be emitted
- *	indicating section name.
+ *      In flags, If DNS_MESSAGETEXTFLAG_OMITDOT is set, then the *
+ *      final '.' in absolute names will not be emitted.  If
+ *      DNS_MESSAGETEXTFLAG_NOCOMMENTS is cleared, * lines * beginning
+ *      with ";;" will be emitted indicating section name.  If
+ *      DNS_MESSAGETEXTFLAG_NOHEADERS is cleared, header lines will
+ *      be emmitted.
  *
  * Requires:
  *
@@ -354,8 +352,7 @@ dns_message_totext(dns_message_t *msg, isc_boolean_t comments,
  *	ISC_R_NOSPACE
  *	ISC_R_NOMORE
  *
- *	Note: On error return, *target may be partially filled with data. 
-*/
+ *	Note: On error return, *target may be partially filled with data.  */
 
 isc_result_t
 dns_message_parse(dns_message_t *msg, isc_buffer_t *source,
@@ -387,7 +384,7 @@ dns_message_parse(dns_message_t *msg, isc_buffer_t *source,
  * Requires:
  *	"msg" be valid.
  *
- *	"buffer" be a wire format binary buffer.
+ *	"buffer" be a wire format buffer.
  *
  * Ensures:
  *	The buffer's data format is correct.
@@ -416,7 +413,7 @@ dns_message_renderbegin(dns_message_t *msg, isc_buffer_t *buffer);
  *
  *	'msg' be valid.
  *
- *	buffer is a valid binary buffer.
+ *	'buffer' is a valid buffer.
  *
  * Side Effects:
  *
@@ -947,25 +944,138 @@ dns_message_gettsig(dns_message_t *msg, dns_name_t **owner);
  * Requires:
  *
  *	'msg' is a valid message.
- *	'owner' is not NULL, and *owner is NULL.  Contains the owner on return.
+ *	'owner' is NULL or *owner is NULL.
  *
  * Returns:
  *
  *	The TSIG rdataset of 'msg', or NULL if there isn't one.
+ *
+ * Ensures:
+ *
+ * 	If 'owner' is not NULL, it will point to the owner name.
+ */
+
+isc_result_t
+dns_message_settsigkey(dns_message_t *msg, dns_tsigkey_t *key);
+/*
+ * Set the tsig key for 'msg'.  This is only necessary for when rendering a
+ * query or parsing a response.  The key (if non-NULL) is attached to, and
+ * will be detached when the message is destroyed.
+ *
+ * Requires:
+ *
+ *	'msg' is a valid message with rendering intent,
+ *	dns_message_renderbegin() has been called, and no sections have been
+ *	rendered.
+ *	'key' is a valid tsig key or NULL.
+ *
+ * Returns:
+ *
+ *	ISC_R_SUCCESS		-- all is well.
+ *
+ *	ISC_R_NOSPACE		-- there is no space for the TSIG record.
+ */
+
+dns_tsigkey_t *
+dns_message_gettsigkey(dns_message_t *msg);
+/*
+ * Gets the tsig key for 'msg'.
+ *
+ * Requires:
+ *
+ *	'msg' is a valid message
+ */
+
+isc_result_t
+dns_message_setquerytsig(dns_message_t *msg, isc_buffer_t *querytsig);
+/*
+ * Indicates that 'querytsig' is the TSIG from the signed query for which
+ * 'msg' is the response.  This is also used for chained TSIGs in TCP
+ * responses.
+ *
+ * Requires:
+ *
+ *	'querytsig' is a valid buffer as returned by dns_message_getquerytsig()
+ *	or NULL
+ *
+ *	'msg' is a valid message
+ *
+ * Returns:
+ *
+ *	ISC_R_SUCCESS
+ *	ISC_R_NOMEMORY
+ */
+
+isc_result_t
+dns_message_getquerytsig(dns_message_t *msg, isc_mem_t *mctx,
+			 isc_buffer_t **querytsig);
+/*
+ * Gets the tsig from the TSIG from the signed query 'msg'.  This is also used
+ * for chained TSIGs in TCP responses.  Unlike dns_message_gettsig, this makes
+ * a copy of the data, so can be used if the message is destroyed.
+ *
+ * Requires:
+ *
+ *	'msg' is a valid signed message
+ *	'mctx' is a valid memory context
+ *	querytsig != NULL && *querytsig == NULL
+ *
+ * Returns:
+ *
+ *	ISC_R_SUCCESS
+ *	ISC_R_NOMEMORY
+ *
+ * Ensures:
+ * 	'tsig' points to NULL or an allocated buffer which must be freed
+ * 	by the caller.
  */
 
 dns_rdataset_t *
-dns_message_getsig0(dns_message_t *msg);
+dns_message_getsig0(dns_message_t *msg, dns_name_t **owner);
 /*
- * Get the SIG(0) record for 'msg'.
+ * Get the SIG(0) record and owner for 'msg'.
  *
  * Requires:
  *
  *	'msg' is a valid message.
+ *	'owner' is NULL or *owner is NULL.
  *
  * Returns:
  *
  *	The SIG(0) rdataset of 'msg', or NULL if there isn't one.
+ *
+ * Ensures:
+ *
+ * 	If 'owner' is not NULL, it will point to the owner name.
+ */
+
+isc_result_t
+dns_message_setsig0key(dns_message_t *msg, dst_key_t *key);
+/*
+ * Set the SIG(0) key for 'msg'.
+ *
+ * Requires:
+ *
+ *	'msg' is a valid message with rendering intent,
+ *	dns_message_renderbegin() has been called, and no sections have been
+ *	rendered.
+ *	'key' is a valid sig key or NULL.
+ *
+ * Returns:
+ *
+ *	ISC_R_SUCCESS		-- all is well.
+ *
+ *	ISC_R_NOSPACE		-- there is no space for the SIG(0) record.
+ */
+
+dst_key_t *
+dns_message_getsig0key(dns_message_t *msg);
+/*
+ * Gets the SIG(0) key for 'msg'.
+ *
+ * Requires:
+ *
+ *	'msg' is a valid message
  */
 
 void

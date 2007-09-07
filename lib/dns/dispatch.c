@@ -164,15 +164,6 @@ static void destroy_mgr(dns_dispatchmgr_t **mgrp);
 
 #define LVL(x) ISC_LOG_DEBUG(x)
 
-static inline void
-violate_locking_hierarchy(isc_mutex_t *have, isc_mutex_t *want) {
-	if (isc_mutex_trylock(want) != ISC_R_SUCCESS) {
-		UNLOCK(have);
-		LOCK(want);
-		LOCK(have);
-	}
-}
-
 static void
 mgr_log(dns_dispatchmgr_t *mgr, int level, const char *fmt, ...) {
 	char msgbuf[2048];
@@ -1357,6 +1348,8 @@ dns_dispatch_createtcp(dns_dispatchmgr_t *mgr, isc_socket_t *sock,
 	if (result != ISC_R_SUCCESS)
 		goto kill_socket;
 
+	isc_task_setname(disp->task, "tcpdispatch", disp);
+
 	dns_tcpmsg_init(mgr->mctx, disp->socket, &disp->tcpmsg);
 	disp->tcpmsg_valid = 1;
 
@@ -1493,6 +1486,8 @@ dispatch_createudp(dns_dispatchmgr_t *mgr, isc_socketmgr_t *sockmgr,
 	result = isc_task_create(taskmgr, 0, &disp->task);
 	if (result != ISC_R_SUCCESS)
 		goto kill_socket;
+
+	isc_task_setname(disp->task, "udpdispatch", disp);
 
 	attributes &= ~DNS_DISPATCHATTR_TCP;
 	attributes |= DNS_DISPATCHATTR_UDP;

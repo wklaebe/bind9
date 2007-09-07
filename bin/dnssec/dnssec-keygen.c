@@ -1,21 +1,23 @@
 /*
- * Portions Copyright (c) 1995-2000 by Network Associates, Inc.
- *
- * Permission to use, copy modify, and distribute this software for any
+ * Portions Copyright (C) 2000  Internet Software Consortium.
+ * Portions Copyright (C) 1995-2000 by Network Associates, Inc.
+ * 
+ * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND NETWORK ASSOCIATES
- * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS.  IN NO EVENT SHALL
- * TRUSTED INFORMATION SYSTEMS BE LIABLE FOR ANY SPECIAL, DIRECT,
- * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
- * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
- * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
- * WITH THE USE OR PERFORMANCE OF THE SOFTWARE.
+ * 
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM AND
+ * NETWORK ASSOCIATES DISCLAIM ALL WARRANTIES WITH REGARD TO THIS
+ * SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+ * FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE CONSORTIUM OR NETWORK
+ * ASSOCIATES BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR
+ * CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+ * USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+ * OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dnssec-keygen.c,v 1.23 2000/05/19 00:20:39 bwelling Exp $ */
+/* $Id: dnssec-keygen.c,v 1.34 2000/06/10 01:28:06 bwelling Exp $ */
 
 #include <config.h>
 
@@ -23,58 +25,28 @@
 
 #include <isc/buffer.h>
 #include <isc/commandline.h>
+#include <isc/entropy.h>
 #include <isc/mem.h>
 #include <isc/region.h>
 #include <isc/string.h>
 #include <isc/util.h>
 
+#include <dns/fixedname.h>
 #include <dns/keyvalues.h>
+#include <dns/log.h>
+#include <dns/name.h>
+#include <dns/result.h>
 #include <dns/secalg.h>
+
 #include <dst/dst.h>
 #include <dst/result.h>
 
-#define PROGRAM "dnssec-keygen"
+#include "dnssectool.h"
 
 #define MAX_RSA 2048 /* XXX ogud update this when rsa library is updated */
 
-static int verbose;
-
-static void
-fatal(char *format, ...) {
-	va_list args;
-
-	fprintf(stderr, "%s: ", PROGRAM);
-	va_start(args, format);
-	vfprintf(stderr, format, args);
-	va_end(args);
-	fprintf(stderr, "\n");
-	exit(1);
-}
-
-static inline void
-check_result(isc_result_t result, char *message) {
-	if (result != ISC_R_SUCCESS) {
-		fprintf(stderr, "%s: %s: %s\n", PROGRAM, message,
-			isc_result_totext(result));
-		exit(1);
-	}
-}
-
-/* Not thread-safe! */
-static char *
-algtostr(const dns_secalg_t alg) {
-	isc_buffer_t b;
-	isc_region_t r;
-	isc_result_t result;
-	static char data[10];
-
-	isc_buffer_init(&b, data, sizeof(data));
-	result = dns_secalg_totext(alg, &b);
-	check_result(result, "dns_secalg_totext()");
-	isc_buffer_usedregion(&b, &r);
-	r.base[r.length] = 0;
-	return (char *) r.base;
-}
+const char *program = "dnssec-keygen";
+int verbose;
 
 static isc_boolean_t
 dsa_size_ok(int size) {
@@ -82,9 +54,9 @@ dsa_size_ok(int size) {
 }
 
 static void
-usage() {
+usage(void) {
 	printf("Usage:\n");
-	printf("    %s [options] name\n\n", PROGRAM);
+	printf("    %s [options] name\n\n", program);
 	printf("Required options:\n");
 	printf("    -a algorithm: RSA | RSAMD5 | DH | DSA | HMAC-MD5\n");
 	printf("    -b key size, in bits:\n");
@@ -104,6 +76,8 @@ usage() {
 	       			"3 (dnssec) for all others\n");
 	printf("    -s strength value this key signs DNS records with\n");
 	printf("        default: 0\n");
+	printf("    -r randomdev\n");
+        printf("        a file containing random data\n");
 	printf("    -v verbose level\n");
 
 	exit (-1);
@@ -112,12 +86,14 @@ usage() {
 int
 main(int argc, char **argv) {
 	char		*algname = NULL, *nametype = NULL, *type = NULL;
+	char		*randomfile = NULL;
 	char		*prog, *endp;
 	dst_key_t	*key = NULL, *oldkey;
-	char		*name = NULL;
+	dns_fixedname_t	fname;
+	dns_name_t	*name;
 	isc_uint16_t	flags = 0;
 	dns_secalg_t	alg;
-	isc_boolean_t    conflict = ISC_FALSE, null_key = ISC_FALSE;
+	isc_boolean_t	conflict = ISC_FALSE, null_key = ISC_FALSE;
 	isc_mem_t	*mctx = NULL;
 	int		ch, rsa_exp = 0, generator = 0, param = 0;
 	int		protocol = -1, size = -1, signatory = 0;
@@ -125,6 +101,8 @@ main(int argc, char **argv) {
 	isc_textregion_t r;
 	char		filename[255];
 	isc_buffer_t	buf;
+	isc_log_t	*log = NULL;
+	isc_entropy_t	*ectx = NULL;
 
 	RUNTIME_CHECK(isc_mem_create(0, 0, &mctx) == ISC_R_SUCCESS);
 
@@ -138,8 +116,10 @@ main(int argc, char **argv) {
 	if (argc == 1)
 		usage();
 
+	dns_result_register();
+
 	while ((ch = isc_commandline_parse(argc, argv,
-					   "a:b:eg:n:t:p:s:hv:")) != -1)
+					   "a:b:eg:n:t:p:s:hr:v:")) != -1)
 	{
 	    switch (ch) {
 		case 'a':
@@ -157,7 +137,8 @@ main(int argc, char **argv) {
 			rsa_exp = 1;
 			break;
 		case 'g':
-			generator = strtol(isc_commandline_argument, &endp, 10);
+			generator = strtol(isc_commandline_argument,
+					   &endp, 10);
 			if (*endp != '\0' || generator <= 0)
 				fatal("-g requires a positive number");
 			break;
@@ -185,6 +166,12 @@ main(int argc, char **argv) {
 				fatal("-s must be followed by a number "
 				      "[0..15]");
 			break;
+		case 'r':
+			randomfile = isc_mem_strdup(mctx,
+						    isc_commandline_argument);
+			if (randomfile == NULL)
+				fatal("out of memory");
+			break;
 		case 'v':
 			endp = NULL;
 			verbose = strtol(isc_commandline_argument, &endp, 0);
@@ -196,10 +183,20 @@ main(int argc, char **argv) {
 			usage();
 		default:
 			fprintf(stderr, "%s: invalid argument -%c\n",
-				PROGRAM, ch);
+				program, ch);
 			usage();
 		} 
 	}
+
+	setup_entropy(mctx, randomfile, &ectx);
+	if (randomfile != NULL)
+		isc_mem_free(mctx, randomfile);
+	ret = dst_lib_init(mctx, ectx,
+			   ISC_ENTROPY_BLOCKING | ISC_ENTROPY_GOODONLY);
+	if (ret != ISC_R_SUCCESS)
+		fatal("could not initialize dst");
+
+	setup_logging(verbose, mctx, &log);
 
 	if (argc < isc_commandline_index + 1)
 		fatal("the key name was not specified");
@@ -294,16 +291,15 @@ main(int argc, char **argv) {
 			fatal("Specified null key with signing authority");
 	}
 
-	name = isc_mem_allocate(mctx, strlen(argv[isc_commandline_index]) + 2);
-	if (name == NULL)
-		fatal("out of memory");
-	strcpy(name, argv[isc_commandline_index]);
-	if (name[strlen(name) - 1] != '.') {
-		strcat(name, ".");
-		fprintf(stderr,
-			"%s: added a trailing dot to fully qualify the name\n",
-			PROGRAM);
-	}
+	dns_fixedname_init(&fname);
+	name = dns_fixedname_name(&fname);
+	isc_buffer_init(&buf, argv[isc_commandline_index],
+			strlen(argv[isc_commandline_index]));
+	isc_buffer_add(&buf, strlen(argv[isc_commandline_index]));
+	ret = dns_name_fromtext(name, &buf, dns_rootname, ISC_FALSE, NULL);
+	if (ret != ISC_R_SUCCESS)
+		fatal("Invalid key name %s: %s", argv[isc_commandline_index],
+		      isc_result_totext(ret));
 
 	switch(alg) {
 	case DNS_KEYALG_RSA:
@@ -322,7 +318,6 @@ main(int argc, char **argv) {
 		null_key = ISC_TRUE;
 
 	isc_buffer_init(&buf, filename, sizeof(filename) - 1);
-	dst_result_register();
 
 	do { 
 		conflict = ISC_FALSE; 
@@ -333,8 +328,9 @@ main(int argc, char **argv) {
 				       mctx, &key);
 
 		if (ret != ISC_R_SUCCESS) {
-			fatal("failed to generate key %s/%d: %s\n", name, alg,
-				dst_result_totext(ret));
+			fatal("failed to generate key %s/%s: %s\n",
+			      nametostr(name), algtostr(alg),
+			      dst_result_totext(ret));
 			exit(-1);
 		}
 		
@@ -345,7 +341,7 @@ main(int argc, char **argv) {
 		 * case we return failure.
 		 */
 		ret = dst_key_fromfile(name, dst_key_id(key), alg, 
-				       DST_TYPE_PRIVATE, mctx, &oldkey);
+				       DST_TYPE_PRIVATE, NULL, mctx, &oldkey);
 		/* do not overwrite an existing key  */
 		if (ret == ISC_R_SUCCESS) {
 			dst_key_free(&oldkey);
@@ -353,8 +349,17 @@ main(int argc, char **argv) {
 			if (null_key)
 				break;
 		}
-		if (conflict == ISC_TRUE)
+		if (conflict == ISC_TRUE) {
+			if (verbose > 0) {
+				isc_buffer_clear(&buf);
+				ret = dst_key_buildfilename(key, 0, NULL, &buf);
+				fprintf(stderr,
+					"%s: %s already exists, "
+					"generating a new key\n",
+					program, filename);
+			}
 			dst_key_free(&key);
+		}
 
 	} while (conflict == ISC_TRUE);
 
@@ -362,23 +367,28 @@ main(int argc, char **argv) {
 		fatal("cannot generate a null key when a key with id 0 "
 		      "already exists");
 
-	ret = dst_key_tofile(key, DST_TYPE_PUBLIC | DST_TYPE_PRIVATE);
+	ret = dst_key_tofile(key, DST_TYPE_PUBLIC | DST_TYPE_PRIVATE, NULL);
 	if (ret != ISC_R_SUCCESS)
-		fatal("failed to write key %s/%s/%d: %s\n", name, 
-			dst_key_id(key), algtostr(alg), isc_result_totext(ret));
+		fatal("failed to write key %s/%s/%d: %s\n", nametostr(name),
+		      dst_key_id(key), algtostr(alg), isc_result_totext(ret));
 
 	isc_buffer_clear(&buf);
-	ret = dst_key_buildfilename(key, 0, &buf);
-	filename[isc_buffer_usedlength(&buf)] = 0;
+	ret = dst_key_buildfilename(key, 0, NULL, &buf);
 	printf("%s\n", filename);
-	isc_mem_free(mctx, name);
 	isc_mem_free(mctx, algname);
 	isc_mem_free(mctx, nametype);
 	isc_mem_free(mctx, prog);
 	if (type != NULL)
 		isc_mem_free(mctx, type);
 	dst_key_free(&key);
-	isc_mem_destroy(&mctx);
+
+	if (log != NULL)
+		isc_log_destroy(&log);
+	cleanup_entropy(&ectx);
+	dst_lib_destroy();
+	if (verbose > 10)
+		isc_mem_stats(mctx, stdout);
+        isc_mem_destroy(&mctx);
 
 	return (0);
 }

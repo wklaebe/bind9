@@ -15,7 +15,7 @@
  * SOFTWARE.
  */
 
-/* $Id: cache.c,v 1.21 2000/05/08 14:34:26 tale Exp $ */
+/* $Id: cache.c,v 1.23 2000/06/07 02:38:30 marka Exp $ */
 
 #include <config.h>
 
@@ -120,7 +120,7 @@ cleaner_shutdown_action(isc_task_t *task, isc_event_t *event);
 isc_result_t 
 dns_cache_create(isc_mem_t *mctx, isc_taskmgr_t *taskmgr,
 		 isc_timermgr_t *timermgr, dns_rdataclass_t rdclass,
-		 char *db_type, unsigned int db_argc, char **db_argv,
+		 const char *db_type, unsigned int db_argc, char **db_argv,
 		 dns_cache_t **cachep)
 {
 	isc_result_t result;
@@ -151,8 +151,9 @@ dns_cache_create(isc_mem_t *mctx, isc_taskmgr_t *taskmgr,
 	cache->rdclass = rdclass;
 
 	cache->db = NULL;
-	result = dns_db_create(cache->mctx, db_type, dns_rootname, ISC_TRUE,
-				rdclass, db_argc, db_argv, &cache->db);
+	result = dns_db_create(cache->mctx, db_type, dns_rootname,
+			       dns_dbtype_cache, rdclass, db_argc, db_argv,
+			       &cache->db);
 	if (result != ISC_R_SUCCESS)
 		goto cleanup_mutex;
 

@@ -29,10 +29,14 @@
 #include <unistd.h>		/* XXX */
 
 #include <isc/buffer.h>
+#include <isc/entropy.h>
 #include <isc/mem.h>
 #include <isc/region.h>
 #include <isc/string.h>
 #include <isc/util.h>
+
+#include <dns/fixedname.h>
+#include <dns/name.h>
 
 #include <dst/dst.h>
 #include <dst/result.h>
@@ -75,41 +79,78 @@ cleandir(char *path) {
 }
 
 static void
-use(dst_key_t *key, isc_result_t exp_result, int *nfails) {
+use(dst_key_t *key, isc_mem_t *mctx, isc_result_t exp_result, int *nfails) {
 
 	isc_result_t ret;
-	char *data = "This is some data";
+	const char *data = "This is some data";
 	unsigned char sig[512];
 	isc_buffer_t databuf, sigbuf;
 	isc_region_t datareg, sigreg;
+	dst_context_t *ctx = NULL;
 
 	isc_buffer_init(&sigbuf, sig, sizeof(sig));
 	isc_buffer_init(&databuf, data, strlen(data));
 	isc_buffer_add(&databuf, strlen(data));
 	isc_buffer_usedregion(&databuf, &datareg);
 
-	ret = dst_key_sign(DST_SIGMODE_ALL, key, NULL, &datareg, &sigbuf);
+	ret = dst_context_create(key, mctx, &ctx);
 	if (ret != exp_result) {
-		t_info("dst_sign(%d) returned (%s) expected (%s)\n",
-				dst_key_alg(key), dst_result_totext(ret),
-				dst_result_totext(exp_result));
+		t_info("dst_context_create(%d) returned (%s) expected (%s)\n",
+		       dst_key_alg(key), dst_result_totext(ret),
+		       dst_result_totext(exp_result));
 		++*nfails;
 		return;
 	}
-
+	if (exp_result != ISC_R_SUCCESS)
+		return;
+	ret = dst_context_adddata(ctx, &datareg);
+	if (ret != ISC_R_SUCCESS) {
+		t_info("dst_context_adddata(%d) returned (%s)\n",
+		       dst_key_alg(key), dst_result_totext(ret));
+		++*nfails;
+		dst_context_destroy(&ctx);
+		return;
+	}
+	ret = dst_context_sign(ctx, &sigbuf);
+	if (ret != ISC_R_SUCCESS) {
+		t_info("dst_context_sign(%d) returned (%s)\n",
+		       dst_key_alg(key), dst_result_totext(ret));
+		++*nfails;
+		dst_context_destroy(&ctx);
+		return;
+	}
+	dst_context_destroy(&ctx);
 
 	isc_buffer_remainingregion(&sigbuf, &sigreg);
-	ret = dst_key_verify(DST_SIGMODE_ALL, key, NULL, &datareg, &sigreg);
-	if (ret != exp_result) {
-		t_info("dst_verify(%d) returned (%s) expected (%s)\n",
-				dst_key_alg(key), dst_result_totext(ret),
-				dst_result_totext(exp_result));
+	ret = dst_context_create(key, mctx, &ctx);
+	if (ret != ISC_R_SUCCESS) {
+		t_info("dst_context_create(%d) returned (%s)\n",
+		       dst_key_alg(key), dst_result_totext(ret));
 		++*nfails;
+		return;
 	}
+	ret = dst_context_adddata(ctx, &datareg);
+	if (ret != ISC_R_SUCCESS) {
+		t_info("dst_context_adddata(%d) returned (%s)\n",
+		       dst_key_alg(key), dst_result_totext(ret));
+		++*nfails;
+		dst_context_destroy(&ctx);
+		return;
+	}
+	ret = dst_context_verify(ctx, &sigreg);
+	if (ret != exp_result) {
+		t_info("dst_context_verify(%d) returned (%s) expected (%s)\n",
+		       dst_key_alg(key), dst_result_totext(ret),
+		       dst_result_totext(exp_result));
+		++*nfails;
+		dst_context_destroy(&ctx);
+		return;
+	}
+	dst_context_destroy(&ctx);
 }
 
 static void
-dh(char *name1, int id1, char *name2, int id2, isc_mem_t *mctx,
+dh(dns_name_t *name1, int id1, dns_name_t *name2, int id2, isc_mem_t *mctx,
    isc_result_t exp_result, int *nfails, int *nprobs)
 {
 	dst_key_t	*key1 = NULL, *key2 = NULL;
@@ -133,7 +174,7 @@ dh(char *name1, int id1, char *name2, int id2, isc_mem_t *mctx,
 		return;
 	}
 
-	ret = dst_key_fromfile(name1, id1, alg, type, mctx, &key1);
+	ret = dst_key_fromfile(name1, id1, alg, type, current, mctx, &key1);
 	if (ret != ISC_R_SUCCESS) {
 		t_info("dst_key_fromfile(%d) returned: %s\n",
 		       alg, dst_result_totext(ret));
@@ -141,7 +182,7 @@ dh(char *name1, int id1, char *name2, int id2, isc_mem_t *mctx,
 		return;
 	}
 
-	ret = dst_key_fromfile(name2, id2, alg, type, mctx, &key2);
+	ret = dst_key_fromfile(name2, id2, alg, type, current, mctx, &key2);
 	if (ret != ISC_R_SUCCESS) {
 		t_info("dst_key_fromfile(%d) returned: %s\n",
 		       alg, dst_result_totext(ret));
@@ -163,34 +204,19 @@ dh(char *name1, int id1, char *name2, int id2, isc_mem_t *mctx,
 		return;
 	}
 
-	if (chdir(tmp)) {
-		t_info("chdir failed %d\n", errno);
-		(void) rmdir(tmp);
-		++*nprobs;
-		return;
-	}
-
-	ret = dst_key_tofile(key1, type);
+	ret = dst_key_tofile(key1, type, tmp);
 	if (ret != 0) {
 		t_info("dst_key_tofile(%d) returned: %s\n",
 		       alg, dst_result_totext(ret));
-		(void) chdir(current);
 		++*nfails;
 		return;
 	}
 
-	ret = dst_key_tofile(key2, type);
+	ret = dst_key_tofile(key2, type, tmp);
 	if (ret != 0) {
 		t_info("dst_key_tofile(%d) returned: %s\n",
 		       alg, dst_result_totext(ret));
-		(void) chdir(current);
 		++*nfails;
-		return;
-	}
-
-	if (chdir(current)) {
-		t_info("chdir failed %d\n", errno);
-		++*nprobs;
 		return;
 	}
 
@@ -228,7 +254,7 @@ dh(char *name1, int id1, char *name2, int id2, isc_mem_t *mctx,
 }
 
 static void
-io(char *name, int id, int alg, int type, isc_mem_t *mctx,
+io(dns_name_t *name, int id, int alg, int type, isc_mem_t *mctx,
    isc_result_t exp_result, int *nfails, int *nprobs)
 {
 	dst_key_t	*key = NULL;
@@ -245,9 +271,10 @@ io(char *name, int id, int alg, int type, isc_mem_t *mctx,
 		return;
 	}
 
-	ret = dst_key_fromfile(name, id, alg, type, mctx, &key);
+	ret = dst_key_fromfile(name, id, alg, type, current, mctx, &key);
 	if (ret != ISC_R_SUCCESS) {
-		t_info("dst_key_fromfile(%d) returned: %s\n", alg, dst_result_totext(ret));
+		t_info("dst_key_fromfile(%d) returned: %s\n",
+		       alg, dst_result_totext(ret));
 		++*nfails;
 		return;
 	}
@@ -266,29 +293,16 @@ io(char *name, int id, int alg, int type, isc_mem_t *mctx,
 		return;
 	}
 
-	if (chdir(tmp)) {
-		t_info("chdir failed %d\n", errno);
-		(void) rmdir(tmp);
-		++*nprobs;
-		return;
-	}
-
-	ret = dst_key_tofile(key, type);
+	ret = dst_key_tofile(key, type, tmp);
 	if (ret != 0) {
-		t_info("dst_key_tofile(%d) returned: %s\n", alg, dst_result_totext(ret));
-		(void) chdir(current);
+		t_info("dst_key_tofile(%d) returned: %s\n",
+		       alg, dst_result_totext(ret));
 		++*nfails;
 		return;
 	}
 
 	if (dst_key_alg(key) != DST_ALG_DH)
-		use(key, exp_result, nfails);
-
-	if (chdir(current)) {
-		t_info("chdir failed %d\n", errno);
-		++*nprobs;
-		return;
-	}
+		use(key, mctx, exp_result, nfails);
 
 	cleandir(tmp);
 
@@ -300,7 +314,7 @@ generate(int alg, isc_mem_t *mctx, int size, int *nfails) {
 	isc_result_t ret;
 	dst_key_t *key = NULL;
 
-	ret = dst_key_generate("test.", alg, size, 0, 0, 0, mctx, &key);
+	ret = dst_key_generate(dns_rootname, alg, size, 0, 0, 0, mctx, &key);
 	if (ret != ISC_R_SUCCESS) {
 		t_info("dst_key_generate(%d) returned: %s\n", alg,
 		       dst_result_totext(ret));
@@ -309,64 +323,30 @@ generate(int alg, isc_mem_t *mctx, int size, int *nfails) {
 	}
 
 	if (alg != DST_ALG_DH)
-		use(key, ISC_R_SUCCESS, nfails);
+		use(key, mctx, ISC_R_SUCCESS, nfails);
 	dst_key_free(&key);
 }
 
 #define	DBUFSIZ	25
 
-static void
-get_random(int *nfails) {
-	unsigned char data1[DBUFSIZ];
-	unsigned char data2[DBUFSIZ];
-	isc_buffer_t databuf1;
-	isc_buffer_t databuf2;
-	isc_result_t ret;
-	unsigned int i;
-
-	isc_buffer_init(&databuf1, data1, sizeof(data1));
-	ret = dst_random_get(sizeof(data1), &databuf1);
-	if (ret != ISC_R_SUCCESS) {
-		t_info("random() returned: %s\n", dst_result_totext(ret));
-		++*nfails;
-		return;
-	}
-
-	isc_buffer_init(&databuf2, data2, sizeof(data2));
-	ret = dst_random_get(sizeof(data2), &databuf2);
-	if (ret != ISC_R_SUCCESS) {
-		t_info("random() returned: %s\n", dst_result_totext(ret));
-		++*nfails;
-		return;
-	}
-
-	/* weak test, but better than nought */
-	if (memcmp(data1, data2, DBUFSIZ) == 0) {
-		t_info("data not random\n");
-		++*nfails;
-	}
-
-	if (T_debug) {
-		for (i = 0; i < sizeof(data1); i++)
-			t_info("data1[%d]: %02x ", i, data1[i]);
-		for (i = 0; i < sizeof(data2); i++)
-			t_info("data2[%d]: %02x ", i, data2[i]);
-	}
-}
-
-static char	*a1 =
+static const char *a1 =
 		"the dst module provides the capability to "
 		"generate, store and retrieve public and private keys, "
 		"sign and verify data using the RSA, DSA and MD5 algorithms, "
-		"compute Diffie-Hellman shared secrets, "
-		"and generate random number sequences.";
+		"and compute Diffie-Hellman shared secrets.";
 static void
 t1(void) {
 	isc_mem_t	*mctx;
+	isc_entropy_t	*ectx;
+	isc_entropysource_t *devrandom;
+	isc_entropysource_t *randfile;
 	int		nfails;
 	int		nprobs;
 	int		result;
 	isc_result_t	isc_result;
+	dns_fixedname_t	fname;
+	dns_name_t	*name;
+	isc_buffer_t	b;
 
 	t_assert("dst", 1, T_REQUIRED, a1);
 
@@ -380,32 +360,76 @@ t1(void) {
 		t_result(T_UNRESOLVED);
 		return;
 	}
+	ectx = NULL;
+	isc_result = isc_entropy_create(mctx, &ectx);
+	if (isc_result != ISC_R_SUCCESS) {
+		t_info("isc_entropy_create failed %d\n",
+		       isc_result_totext(isc_result));
+		t_result(T_UNRESOLVED);
+		return;
+	}
+	devrandom = NULL;
+	isc_entropy_createfilesource(ectx, "/dev/random", 0,
+			&devrandom);
+	randfile = NULL;
+	result = isc_entropy_createfilesource(ectx, "randomfile", 0,
+					      &randfile);
+	if (isc_result != ISC_R_SUCCESS) {
+		t_info("isc_entropy_create failed %d\n",
+		       isc_result_totext(isc_result));
+		t_result(T_UNRESOLVED);
+		return;
+	}
+	isc_result = dst_lib_init(mctx, ectx, ISC_ENTROPY_BLOCKING);
+	if (isc_result != ISC_R_SUCCESS) {
+		t_info("dst_lib_init failed %d\n",
+		       isc_result_totext(isc_result));
+		t_result(T_UNRESOLVED);
+		return;
+	}
 
 	t_info("testing use of stored keys [1]\n");
-	io("test.", 6204, DST_ALG_DSA, DST_TYPE_PRIVATE|DST_TYPE_PUBLIC,
+
+	dns_fixedname_init(&fname);
+	name = dns_fixedname_name(&fname);
+	isc_buffer_init(&b, "test.", 5);
+	isc_buffer_add(&b, 5);
+	dns_name_fromtext(name, &b, NULL, ISC_FALSE, NULL);
+	io(name, 6204, DST_ALG_DSA, DST_TYPE_PRIVATE|DST_TYPE_PUBLIC,
 			mctx, ISC_R_SUCCESS, &nfails, &nprobs);
 	t_info("testing use of stored keys [2]\n");
-	io("test.", 54622, DST_ALG_RSA, DST_TYPE_PRIVATE|DST_TYPE_PUBLIC,
+	io(name, 54622, DST_ALG_RSA, DST_TYPE_PRIVATE|DST_TYPE_PUBLIC,
 			mctx, ISC_R_SUCCESS, &nfails, &nprobs);
 
 	t_info("testing use of stored keys [3]\n");
-	io("test.", 0, DST_ALG_DSA, DST_TYPE_PRIVATE|DST_TYPE_PUBLIC,
+	io(name, 0, DST_ALG_DSA, DST_TYPE_PRIVATE|DST_TYPE_PUBLIC,
 			mctx, DST_R_NULLKEY, &nfails, &nprobs);
 	t_info("testing use of stored keys [4]\n");
-	io("test.", 0, DST_ALG_RSA, DST_TYPE_PRIVATE|DST_TYPE_PUBLIC,
+	io(name, 0, DST_ALG_RSA, DST_TYPE_PRIVATE|DST_TYPE_PUBLIC,
 			mctx, DST_R_NULLKEY, &nfails, &nprobs);
 
-	dh("dh.", 18088, "dh.", 48443, mctx, ISC_R_SUCCESS, &nfails, &nprobs);
+	isc_buffer_init(&b, "dh.", 3);
+	isc_buffer_add(&b, 3);
+	dns_name_fromtext(name, &b, NULL, ISC_FALSE, NULL);
+
+	dh(name, 18088, name, 48443, mctx, ISC_R_SUCCESS, &nfails, &nprobs);
 
 	t_info("testing use of generated keys\n");
 	generate(DST_ALG_RSA, mctx, 512, &nfails);
 	generate(DST_ALG_DSA, mctx, 512, &nfails);
 	generate(DST_ALG_DH, mctx, 512, &nfails);
-	generate(DST_ALG_DH, mctx, 768, &nfails); /* this one uses a constant */
+	/*
+	 * This one uses a constant.
+	 */
+	generate(DST_ALG_DH, mctx, 768, &nfails);
 	generate(DST_ALG_HMACMD5, mctx, 512, &nfails);
 
-	t_info("testing random number sequence generation\n");
-	get_random(&nfails);
+	dst_lib_destroy();
+
+	if (devrandom != NULL)
+		isc_entropy_destroysource(&devrandom);
+	isc_entropy_destroysource(&randfile);
+	isc_entropy_detach(&ectx);
 
 	isc_mem_destroy(&mctx);
 
@@ -420,7 +444,7 @@ t1(void) {
 
 #define	T_SIGMAX	512
 
-#undef	NEWSIG	/* define NEWSIG to generate the original signature file */
+#undef	NEWSIG	/* Define NEWSIG to generate the original signature file. */
 
 #ifdef	NEWSIG
 
@@ -594,6 +618,10 @@ t2_sigchk(char *datapath, char *sigpath, char *keyname,
 	isc_buffer_t	sigbuf;
 	isc_region_t	datareg;
 	isc_region_t	sigreg;
+	dns_fixedname_t	fname;
+	dns_name_t	*name;
+	isc_buffer_t	b;
+	dst_context_t	*ctx = NULL;
 
 	/*
 	 * Read data from file in a form usable by dst_verify.
@@ -634,7 +662,12 @@ t2_sigchk(char *datapath, char *sigpath, char *keyname,
 	/*
 	 * Read key from file in a form usable by dst_verify.
 	 */
-	isc_result = dst_key_fromfile(keyname, id, alg, type, mctx, &key);
+	dns_fixedname_init(&fname);
+	name = dns_fixedname_name(&fname);
+	isc_buffer_init(&b, keyname, strlen(keyname));
+	isc_buffer_add(&b, strlen(keyname));
+	dns_name_fromtext(name, &b, dns_rootname, ISC_FALSE, NULL);
+	isc_result = dst_key_fromfile(name, id, alg, type, NULL, mctx, &key);
 	if (isc_result != ISC_R_SUCCESS) {
 		t_info("dst_key_fromfile failed %s\n",
 			isc_result_totext(isc_result));
@@ -657,15 +690,36 @@ t2_sigchk(char *datapath, char *sigpath, char *keyname,
 	memset(sig, 0, sizeof(sig));
 	isc_buffer_init(&sigbuf, sig, sizeof(sig));
 
-	isc_result = dst_sign(DST_SIGMODE_ALL, key, NULL, &datareg, &sigbuf);
+	isc_result = dst_context_create(key, mctx, &ctx);
 	if (isc_result != ISC_R_SUCCESS) {
-		t_info("dst_sign(%d) failed %s\n",
+		t_info("dst_context_create(%d) failed %s\n",
 		       dst_result_totext(isc_result));
 		(void) free(data);
 		dst_key_free(&key);
 		++*nprobs;
 		return;
 	}
+	isc_result = dst_context_adddata(ctx, &datareg);
+	if (isc_result != ISC_R_SUCCESS) {
+		t_info("dst_context_adddata(%d) failed %s\n",
+		       dst_result_totext(isc_result));
+		(void) free(data);
+		dst_key_free(&key);
+		dst_context_destroy(&ctx);
+		++*nprobs;
+		return;
+	}
+	isc_result = dst_context_sign(ctx, &sigbuf);
+	if (isc_result != ISC_R_SUCCESS) {
+		t_info("dst_sign(%d) failed %s\n",
+		       dst_result_totext(isc_result));
+		(void) free(data);
+		dst_key_free(&key);
+		dst_context_destroy(&ctx);
+		++*nprobs;
+		return;
+	}
+	dst_context_destroy(&ctx);
 
 	rval = sig_tofile(sigpath, &sigbuf);
 	if (rval != 0) {
@@ -702,18 +756,32 @@ t2_sigchk(char *datapath, char *sigpath, char *keyname,
 	if (strstr(expected_result, "!"))
 		exp_res = 1;
 
-	isc_result = dst_key_verify(DST_SIGMODE_ALL, key, NULL, &datareg,
-				    &sigreg);
+	isc_result = dst_context_create(key, mctx, &ctx);
+	if (isc_result != ISC_R_SUCCESS) {
+		t_info("dst_context_create returned %s\n",
+			isc_result_totext(isc_result));
+		++*nfails;
+	}
+	isc_result = dst_context_adddata(ctx, &datareg);
+	if (isc_result != ISC_R_SUCCESS) {
+		t_info("dst_context_adddata returned %s\n",
+			isc_result_totext(isc_result));
+		dst_context_destroy(&ctx);
+		++*nfails;
+	}
+	isc_result = dst_context_verify(ctx, &sigreg);
 	if (	((exp_res == 0) && (isc_result != ISC_R_SUCCESS))	||
 		((exp_res != 0) && (isc_result == ISC_R_SUCCESS)))	{
 
-		t_info("dst_verify returned %s, expected %s\n",
+		t_info("dst_context_verify returned %s, expected %s\n",
 			isc_result_totext(isc_result),
 			expected_result);
+		dst_context_destroy(&ctx);
 		++*nfails;
 	}
 
 	(void) free(data);
+	dst_context_destroy(&ctx);
 	dst_key_free(&key);
 	return;
 }
@@ -724,7 +792,7 @@ t2_sigchk(char *datapath, char *sigpath, char *keyname,
  * signed at some earlier time, possibly with an entire different
  * version or implementation of the DSA and RSA algorithms
  */
-static char	*a2 =
+static const char *a2 =
 		"the dst module provides the capability to "
 		"verify data signed with the RSA and DSA algorithms";
 
@@ -744,6 +812,9 @@ t2_vfy(char **av) {
 	int		nfails;
 	int		nprobs;
 	isc_mem_t	*mctx;
+	isc_entropy_t	*ectx;
+	isc_entropysource_t *devrandom;
+	isc_entropysource_t *randfile;
 	isc_result_t	isc_result;
 	int		result;
 
@@ -773,6 +844,30 @@ t2_vfy(char **av) {
 		       isc_result_totext(isc_result));
 		return(T_UNRESOLVED);
 	}
+	ectx = NULL;
+	isc_result = isc_entropy_create(mctx, &ectx);
+	if (isc_result != ISC_R_SUCCESS) {
+		t_info("isc_entropy_create failed %d\n",
+		       isc_result_totext(isc_result));
+		return(T_UNRESOLVED);
+	}
+	devrandom = NULL;
+	isc_entropy_createfilesource(ectx, "/dev/random", 0,
+			&devrandom);
+	randfile = NULL;
+	result = isc_entropy_createfilesource(ectx, "randomfile", 0,
+					      &randfile);
+	if (isc_result != ISC_R_SUCCESS) {
+		t_info("isc_entropy_create failed %d\n",
+		       isc_result_totext(isc_result));
+		return(T_UNRESOLVED);
+	}
+	isc_result = dst_lib_init(mctx, ectx, ISC_ENTROPY_BLOCKING);
+	if (isc_result != ISC_R_SUCCESS) {
+		t_info("dst_lib_init failed %d\n",
+		       isc_result_totext(isc_result));
+		return(T_UNRESOLVED);
+	}
 
 	t_info("testing %s, %s, %s, %s, %s, %s\n",
 			datapath, sigpath, keyname, key, alg, exp_result);
@@ -780,6 +875,13 @@ t2_vfy(char **av) {
 			algid, DST_TYPE_PRIVATE|DST_TYPE_PUBLIC,
 			mctx, exp_result,
 			&nfails, &nprobs);
+
+	dst_lib_destroy();
+
+	if (devrandom != NULL)
+		isc_entropy_destroysource(&devrandom);
+	isc_entropy_destroysource(&randfile);
+	isc_entropy_detach(&ectx);
 
 	isc_mem_destroy(&mctx);
 

@@ -23,14 +23,14 @@
 #include <dns/result.h>
 #include <dns/lib.h>
 
-static char *text[DNS_R_NRESULTS] = {
+static const char *text[DNS_R_NRESULTS] = {
 	"label too long",			/*  0 */
 	"bad escape",				/*  1 */
 	"bad bitstring",			/*  2 */
 	"bitstring too long",			/*  3 */
 	"empty label",				/*  4 */
 	"bad dotted quad",			/*  5 */
-	"UNUSED6",				/*  6 */
+	"invalid NS owner name (wildcard)",	/*  6 */
 	"unknown class/type",			/*  7 */
 	"bad label type",			/*  8 */
 	"bad compression pointer",		/*  9 */
@@ -88,7 +88,7 @@ static char *text[DNS_R_NRESULTS] = {
 	"not insecure"				/* 61 */
 };
 
-static char *rcode_text[DNS_R_NRCODERESULTS] = {
+static const char *rcode_text[DNS_R_NRCODERESULTS] = {
 	"NOERROR",				/* 0 */
 	"FORMERR",				/* 1 */
 	"SERVFAIL",				/* 2 */
@@ -135,7 +135,7 @@ initialize(void) {
 	RUNTIME_CHECK(isc_once_do(&once, initialize_action) == ISC_R_SUCCESS);
 }
 
-char *
+const char *
 dns_result_totext(isc_result_t result) {
 	initialize();
 

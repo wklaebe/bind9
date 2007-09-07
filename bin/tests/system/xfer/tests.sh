@@ -15,37 +15,45 @@
 # ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
 # SOFTWARE.
 
-echo "S:`date`"
-echo "T:system_xfer:1"
-echo "A:A test to determine online functionality of domain name transfers"
+SYSTEMTESTTOP=..
+. $SYSTEMTESTTOP/conf.sh
 
 #
 # Perform tests
 #
 
-if [ -f dig.out.ns2 ]; then
-	rm -f dig.out.ns2
-fi
-if [ -f dig.out.ns3 ]; then
-	rm -f dig.out.ns3
-fi
-
+sleep 5
 
 status=0;
-../../../dig/dig +tcp +noadd +nosea +nostat +noquest +nocomm +nocmd example. \
-	@10.53.0.2 axfr > dig.out.ns2
+$DIG +tcp +noadd +nosea +nostat +noquest +nocomm +nocmd example. \
+	@10.53.0.2 axfr -p 5300 > dig.out.ns2
 status=`expr $status + $?`
 grep ";" dig.out.ns2
 
-../../../dig/dig +tcp +noadd +nosea +nostat +noquest +nocomm +nocmd example. \
-	@10.53.0.3 axfr > dig.out.ns3
+$DIG +tcp +noadd +nosea +nostat +noquest +nocomm +nocmd example. \
+	@10.53.0.3 axfr -p 5300 > dig.out.ns3
 status=`expr $status + $?`
 grep ";" dig.out.ns3
 
-perl ../digcomp.pl knowngood.dig.out dig.out.ns2
+$PERL ../digcomp.pl knowngood.dig.out dig.out.ns2
 status=`expr $status + $?`
 
-perl ../digcomp.pl knowngood.dig.out dig.out.ns3
+$PERL ../digcomp.pl knowngood.dig.out dig.out.ns3
+status=`expr $status + $?`
+
+../../../dig/dig +tcp +noadd +nosea +nostat +noquest +nocomm +nocmd \
+	tsigzone. @10.53.0.2 axfr -y tsigzone.:1234abcd8765 -p 5300 \
+	> dig.out.ns2
+status=`expr $status + $?`
+grep ";" dig.out.ns2
+
+../../../dig/dig +tcp +noadd +nosea +nostat +noquest +nocomm +nocmd \
+	tsigzone. @10.53.0.3 axfr -y tsigzone.:1234abcd8765 -p 5300 \
+	> dig.out.ns3
+status=`expr $status + $?`
+grep ";" dig.out.ns3
+
+$PERL ../digcomp.pl dig.out.ns2 dig.out.ns3
 status=`expr $status + $?`
 
 if [ $status != 0 ]; then

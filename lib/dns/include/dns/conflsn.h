@@ -133,9 +133,24 @@ dns_c_lstnlist_delete(dns_c_lstnlist_t **llist);
 
 
 isc_result_t
-dns_c_lstnlist_print(FILE *fp, int indent, dns_c_lstnlist_t *ll);
+dns_c_lstnlist_print(FILE *fp, int indent, dns_c_lstnlist_t *ll,
+		     in_port_t default_port);
 /*
  * Prints the given the list LL to the stream FP. INDENT number of tabs
+ * preceed each line of output.
+ *
+ * Requires:
+ *
+ *	fp be a pointer to a valid FILE.
+ *
+ */
+
+
+isc_result_t
+dns_c_lstnlistv6_print(FILE *fp, int indent, dns_c_lstnlist_t *ll,
+		       in_port_t default_port);
+/*
+ * Prints the given the v6 list LL to the stream FP. INDENT number of tabs
  * preceed each line of output.
  *
  * Requires:
@@ -188,8 +203,15 @@ dns_c_lstnon_setiml(dns_c_lstnon_t *listen, dns_c_ipmatchlist_t *iml,
  *	ISC_R_NOMEMORY on allocation failure.
  */
 
-isc_result_t
-dns_c_lstnon_print(FILE *fp, int indent, dns_c_lstnon_t *lo);
+isc_result_t dns_c_lstnon_print(FILE *fp, int indent, dns_c_lstnon_t *lo,
+				in_port_t default_port);
+isc_result_t dns_c_lstnonv6_print(FILE *fp, int indent, dns_c_lstnon_t *lo,
+				  in_port_t default_port);
+
+isc_result_t dns_c_lstnlist_validate(dns_c_lstnlist_t *lo);
+isc_result_t dns_c_lstnlistv6_validate(dns_c_lstnlist_t *lo);
+
+
 
 ISC_LANG_ENDDECLS
 

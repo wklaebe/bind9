@@ -20,7 +20,11 @@
 # other shell scripts.
 #
 
-TOP="`cd ../../..; pwd`"
+# Find the top of the BIND9 tree.
+TOP=${SYSTEMTESTTOP:=.}/../../..
+
+# Make it absolute so that it continues to work after we cd.
+TOP=`cd $TOP && pwd`
 
 NAMED=$TOP/bin/named/named
 DIG=$TOP/bin/dig/dig
@@ -29,6 +33,9 @@ SIGNER=$TOP/bin/dnssec/dnssec-signzone
 KEYSIGNER=$TOP/bin/dnssec/dnssec-signkey
 KEYSETTOOL=$TOP/bin/dnssec/dnssec-makekeyset
 
+# PERL will be an empty string if no perl interpreter was found.
+PERL=/usr/pkg/bin/perl
+
 SUBDIRS="xfer dnssec xferquota"
 
-export NAMED DIG KEYGEN SIGNER KEYSIGNER KEYSETTOOL
+export NAMED DIG KEYGEN SIGNER KEYSIGNER KEYSETTOOL PERL SUBDIRS

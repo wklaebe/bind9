@@ -26,8 +26,11 @@
 #include <dns/events.h>
 #include <dns/log.h>
 #include <dns/message.h>
+#include <dns/rdata.h>
+#include <dns/rdatastruct.h>
 #include <dns/request.h>
 #include <dns/result.h>
+#include <dns/tsig.h>
 
 #define REQUESTMGR_MAGIC 0x5271754dU		/* RquM */
 #define VALID_REQUESTMGR(mgr) ((mgr) != NULL && \
@@ -75,10 +78,14 @@ struct dns_request {
 	dns_dispentry_t		       *dispentry;
 	isc_timer_t		       *timer;
 	dns_requestmgr_t	       *requestmgr;
+	isc_buffer_t		       *tsig;
+	dns_tsigkey_t		       *tsigkey;
+
 };
 
 #define DNS_REQUEST_F_CONNECTING 0x0001
 #define DNS_REQUEST_F_CANCELED 0x0002
+#define DNS_REQUEST_F_TCP 0x0008		/* This request used TCP */
 #define DNS_REQUEST_CANCELED(r) \
 	(((r)->flags & DNS_REQUEST_F_CANCELED) != 0)
 #define DNS_REQUEST_CONNECTING(r) \
@@ -415,6 +422,7 @@ req_send(dns_request_t *request, isc_task_t *task, isc_sockaddr_t *address) {
 isc_result_t
 dns_request_create(dns_requestmgr_t *requestmgr, dns_message_t *message,
 		   isc_sockaddr_t *address, unsigned int options,
+		   dns_tsigkey_t *key,
 		   unsigned int timeout, isc_task_t *task,
 		   isc_taskaction_t action, void *arg,
 		   dns_request_t **requestp)
@@ -424,6 +432,7 @@ dns_request_create(dns_requestmgr_t *requestmgr, dns_message_t *message,
 	isc_socket_t *socket = NULL;
 	isc_result_t result;
 	isc_mem_t *mctx;
+	isc_sockaddr_t bind_any;
 	isc_interval_t interval;
 	dns_messageid_t	id;
 	isc_time_t expires;
@@ -459,6 +468,8 @@ dns_request_create(dns_requestmgr_t *requestmgr, dns_message_t *message,
 	request->dispentry = NULL;
 	request->timer = NULL;
 	request->requestmgr = NULL;
+	request->tsig = NULL;
+	request->tsigkey = NULL;
 
 	/*
 	 * Create timer now.  We will set it below once.
@@ -480,6 +491,7 @@ dns_request_create(dns_requestmgr_t *requestmgr, dns_message_t *message,
 	request->event->ev_sender = task;
 	request->event->request = request;
 	request->event->result = ISC_R_FAILURE;
+	request->tsigkey = key;
 	
  use_tcp:
 	if ((options & DNS_REQUESTOPT_TCP) != 0) {
@@ -488,6 +500,12 @@ dns_request_create(dns_requestmgr_t *requestmgr, dns_message_t *message,
 					   isc_sockettype_tcp, &socket);
 		if (result != ISC_R_SUCCESS)
 			goto cleanup;
+		isc_sockaddr_any(&bind_any);
+		result = isc_socket_bind(socket, &bind_any);
+		if (result != ISC_R_SUCCESS) {
+			isc_socket_detach(&socket);
+			goto cleanup;
+		}
 		attrs = 0;
 		attrs |= DNS_DISPATCHATTR_TCP;
 		attrs |= DNS_DISPATCHATTR_PRIVATE;
@@ -527,6 +545,7 @@ dns_request_create(dns_requestmgr_t *requestmgr, dns_message_t *message,
 		goto cleanup;
 
 	message->id = id;
+	dns_message_settsigkey(message, request->tsigkey);
 	result = req_render(message, &request->query, mctx);
 	if (result == DNS_R_USETCP &&
 	    (options & DNS_REQUESTOPT_TCP) == 0) {
@@ -543,7 +562,11 @@ dns_request_create(dns_requestmgr_t *requestmgr, dns_message_t *message,
 	}
 	if (result != ISC_R_SUCCESS && result != DNS_R_USETCP)
 		goto cleanup;
-	
+
+	result = dns_message_getquerytsig(message, mctx, &request->tsig);
+	if (result != ISC_R_SUCCESS)
+		goto cleanup;
+
 	isc_mem_attach(mctx, &request->mctx);
 	LOCK(&requestmgr->lock);
 	if (requestmgr->exiting) {
@@ -572,7 +595,7 @@ dns_request_create(dns_requestmgr_t *requestmgr, dns_message_t *message,
 					    req_connected, request);
 		if (result != ISC_R_SUCCESS)
 			goto unlink;
-		request->flags |= DNS_REQUEST_F_CONNECTING;
+		request->flags |= DNS_REQUEST_F_CONNECTING|DNS_REQUEST_F_TCP;
 	} else {
 		result = req_send(request, task, address);
 		if (result != ISC_R_SUCCESS)
@@ -709,7 +732,16 @@ dns_request_getresponse(dns_request_t *request, dns_message_t *message,
 	req_log(ISC_LOG_DEBUG(3), "dns_request_getresponse: request %p",
 		request);
 
+	dns_message_setquerytsig(message, request->tsig);
+	dns_message_settsigkey(message, request->tsigkey);
 	return (dns_message_parse(message, request->answer, preserve_order));
+}
+
+isc_boolean_t
+dns_request_usedtcp(dns_request_t *request) {
+	REQUIRE(VALID_REQUEST(request));
+
+	return (ISC_TF((request->flags & DNS_REQUEST_F_TCP) != 0));
 }
 
 void
@@ -747,7 +779,7 @@ req_connected(isc_task_t *task, isc_event_t *event) {
 	isc_result_t result;
 	dns_request_t *request = event->ev_arg;
 
-	REQUIRE(event->ev_type == ISC_SOCKEVENT_SENDDONE);
+	REQUIRE(event->ev_type == ISC_SOCKEVENT_CONNECT);
 	REQUIRE(VALID_REQUEST(request));
 	REQUIRE(DNS_REQUEST_CONNECTING(request));
 
@@ -884,6 +916,8 @@ req_destroy(dns_request_t *request) {
 		dns_dispatch_detach(&request->dispatch);
 	if (request->timer != NULL)
 		isc_timer_detach(&request->timer);
+	if (request->tsig != NULL)
+		isc_buffer_free(&request->tsig);
 	requestmgr_detach(&request->requestmgr);
 	mctx = request->mctx;
 	isc_mem_put(mctx, request, sizeof(*request));

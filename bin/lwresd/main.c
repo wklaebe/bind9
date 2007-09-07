@@ -15,11 +15,20 @@
  * SOFTWARE.
  */
 
+/*
+ * Main program for the Lightweight Resolver Daemon.
+ *
+ * To paraphrase the old saying about X11, "It's not a lightweight deamon 
+ * for resolvers, it's a deamon for lightweight resolvers".
+ */
+
 #include <config.h>
+
+#include <stdlib.h>
 
 #include <isc/app.h>
 #include <isc/mem.h>
-#include <isc/string.h>		/* Required for HP/UX (and others?) */
+#include <isc/string.h>
 #include <isc/task.h>
 #include <isc/timer.h>
 #include <isc/util.h>
@@ -58,12 +67,30 @@ dns_dispatchmgr_t *dispatchmgr;
 
 isc_sockaddrlist_t forwarders;
 
+static isc_logmodule_t logmodules[] = {
+	{ "main",	 		0 },
+	{ NULL, 			0 }
+};
+
+#define LWRES_LOGMODULE_MAIN		(&logmodules[0])
+
+static isc_logcategory_t logcategories[] = {
+	{ "network",	 		0 },
+	{ NULL, 			0 }
+};
+
+#define LWRES_LOGCATEGORY_NETWORK	(&logcategories[0])
+	
+
 static isc_result_t
 create_view(isc_mem_t *mctx) {
 	dns_cache_t *cache;
 	isc_result_t result;
 	dns_db_t *rootdb;
-
+	unsigned int attrs;
+	dns_dispatch_t *disp4 = NULL;
+	dns_dispatch_t *disp6 = NULL;		
+	
 	view = NULL;
 	cache = NULL;
 
@@ -89,8 +116,41 @@ create_view(isc_mem_t *mctx) {
 	 *
 	 * XXXMLG hardwired number of tasks.
 	 */
+
+	if (isc_net_probeipv4() == ISC_R_SUCCESS) {
+		isc_sockaddr_t any4;
+		
+		isc_sockaddr_any(&any4);
+		attrs = DNS_DISPATCHATTR_IPV4 | DNS_DISPATCHATTR_UDP;
+		result = dns_dispatch_getudp(dispatchmgr, sockmgr,
+					     taskmgr, &any4, 512, 6, 1024,
+					     17, 19, attrs, attrs, &disp4);
+		if (result != ISC_R_SUCCESS)
+			goto out;
+	}
+
+	if (isc_net_probeipv6() == ISC_R_SUCCESS) {
+		isc_sockaddr_t any6;
+		
+		isc_sockaddr_any6(&any6);
+		
+		attrs = DNS_DISPATCHATTR_IPV6 | DNS_DISPATCHATTR_UDP;
+		result = dns_dispatch_getudp(dispatchmgr, sockmgr,
+					     taskmgr, &any6, 512, 6, 1024,
+					     17, 19, attrs, attrs, &disp6);
+		if (result != ISC_R_SUCCESS)
+			goto out;
+	}
+	
 	result = dns_view_createresolver(view, taskmgr, 16, sockmgr,
-					 timermgr, 0, dispatchmgr, NULL, NULL);
+					 timermgr, 0, dispatchmgr,
+					 disp4, disp6);
+
+	if (disp4 != NULL)
+		dns_dispatch_detach(&disp4);
+	if (disp6 != NULL)
+		dns_dispatch_detach(&disp6);
+	
 	if (result != ISC_R_SUCCESS)
 		goto out;
 
@@ -231,6 +291,8 @@ main(int argc, char **argv) {
 	lctx = NULL;
         result = isc_log_create(mem, &lctx, &lcfg);
 	INSIST(result == ISC_R_SUCCESS);
+	isc_log_registermodules(lctx, logmodules);
+	isc_log_registercategories(lctx, logcategories);
 	isc_log_setcontext(lctx);
 	dns_log_init(lctx);
 	dns_log_setcontext(lctx);
@@ -306,6 +368,15 @@ main(int argc, char **argv) {
 	isc_sockaddr_fromin(&localhost, &lh_addr, LWRES_UDP_PORT);
 
 	result = isc_socket_bind(sock, &localhost);
+	if (result != ISC_R_SUCCESS) {
+		isc_log_write(lctx, LWRES_LOGCATEGORY_NETWORK,
+			      LWRES_LOGMODULE_MAIN, ISC_LOG_ERROR,
+			      "binding lwres protocol socket to port %d: %s",
+			      LWRES_UDP_PORT,
+			      isc_result_totext(result));
+		exit(1);
+	}
+			      
 	INSIST(result == ISC_R_SUCCESS);
 
 	cmgr = isc_mem_get(mem, sizeof(clientmgr_t) * NTASKS);
@@ -319,16 +390,16 @@ main(int argc, char **argv) {
 		cmgr[i].sock = sock;
 		cmgr[i].view = NULL;
 		cmgr[i].flags = 0;
-		ISC_EVENT_INIT(&cmgr[i].sdev, sizeof(isc_event_t),
-			       ISC_EVENTATTR_NOPURGE,
-			       0, LWRD_SHUTDOWN,
-			       client_shutdown, &cmgr[i], (void *)main,
-			       NULL, NULL);
-		ISC_LIST_INIT(cmgr[i].idle);
-		ISC_LIST_INIT(cmgr[i].running);
 		result = isc_task_create(taskmgr, 0, &cmgr[i].task);
 		if (result != ISC_R_SUCCESS)
 			break;
+		ISC_EVENT_INIT(&cmgr[i].sdev, sizeof(isc_event_t),
+			       ISC_EVENTATTR_NOPURGE,
+			       0, LWRD_SHUTDOWN,
+			       client_shutdown, &cmgr[i], cmgr[i].task,
+			       NULL, NULL);
+		ISC_LIST_INIT(cmgr[i].idle);
+		ISC_LIST_INIT(cmgr[i].running);
 		isc_task_setname(cmgr[i].task, "lwresd client", &cmgr[i]);
 		cmgr[i].mctx = mem;
 		cmgr[i].lwctx = NULL;
@@ -369,9 +440,7 @@ main(int argc, char **argv) {
 	/*
 	 * Wait for ^c or kill.
 	 */
-	isc_mem_stats(mem, stdout);
 	isc_app_run();
-	isc_mem_stats(mem, stdout);
 
 	/*
 	 * Send a shutdown event to every task.
@@ -381,7 +450,6 @@ main(int argc, char **argv) {
 
 		ev = &cmgr[j].sdev;
 		isc_task_send(cmgr[j].task, &ev);
-		printf("Sending shutdown events to task %p\n", cmgr[j].task);
 	}
 
 	/*
@@ -392,14 +460,12 @@ main(int argc, char **argv) {
 	/*
 	 * Wait for the tasks to all die.
 	 */
-	printf("Waiting for task manager to die...\n");
 	isc_taskmgr_destroy(&taskmgr);
 
 	/*
 	 * Wait for everything to die off by waiting for the sockets
 	 * to be detached.
 	 */
-	printf("Waiting for socket manager to die...\n");
 	isc_socket_detach(&sock);
 	isc_socketmgr_destroy(&sockmgr);
 
@@ -424,12 +490,13 @@ main(int argc, char **argv) {
 	isc_mem_put(mem, cmgr, sizeof(clientmgr_t) * NTASKS);
 	cmgr = NULL;
 
+	dns_dispatchmgr_destroy(&dispatchmgr);
+	
 	isc_log_destroy(&lctx);
 
 	/*
 	 * Kill the memory system.
 	 */
-	isc_mem_stats(mem, stdout);
 	isc_mem_destroy(&mem);
 
 	isc_app_finish();

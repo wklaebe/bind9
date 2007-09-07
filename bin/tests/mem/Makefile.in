@@ -19,22 +19,20 @@ top_srcdir =	@top_srcdir@
 
 @BIND9_INCLUDES@
 
-CINCLUDES =	${TEST_INCLUDES} ${DNS_INCLUDES} ${ISC_INCLUDES}
+CINCLUDES =	${TEST_INCLUDES} ${ISC_INCLUDES}
 
 CDEFINES =
 CWARNINGS =
 
-DNSLIBS =	../../../lib/dns/libdns.@A@ @DNS_OPENSSL_LIBS@
 ISCLIBS =	../../../lib/isc/libisc.@A@
 TAPIDEPLIBS =	../../../lib/tests/libt_api.@A@
 
-DNSDEPLIBS =	../../../lib/dns/libdns.@A@
 ISCDEPLIBS =	../../../lib/isc/libisc.@A@
 TAPILIBS =	../../../lib/tests/libt_api.@A@
 
-DEPLIBS =	${DNSDEPLIBS} ${TAPIDEPLIBS} ${ISCDEPLIBS} 
+DEPLIBS =	${TAPIDEPLIBS} ${ISCDEPLIBS} 
 
-LIBS =		${DNSLIBS} ${TAPILIBS} ${ISCLIBS} @LIBS@
+LIBS =		${TAPILIBS} ${ISCLIBS} @LIBS@
 
 TARGETS =	t_mem
 
@@ -45,7 +43,7 @@ SRCS =		t_mem.c
 t_mem: t_mem.@O@ ${DEPLIBS}
 	${LIBTOOL} ${CC} -o $@ t_mem.@O@ ${LIBS}
 
-test:
+test: t_mem
 	-@./t_mem -b @srcdir@ -q 300 -a
 
 testhelp:

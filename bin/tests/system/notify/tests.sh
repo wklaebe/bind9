@@ -15,38 +15,25 @@
 # ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
 # SOFTWARE.
 
-echo "S:`date`"
-echo "T:system_notify:1"
-echo "A:A test to determine online functionality of notify"
-
 #
 # Perform tests
 #
 
-TOP="`cd ../../../..; pwd`"
-
-NAMED=$TOP/bin/named/named
-export NAMED
-
-if [ -f dig.out.ns2 ]; then
-	rm -f dig.out.ns2
-fi
-if [ -f dig.out.ns3 ]; then
-	rm -f dig.out.ns3
-fi
+SYSTEMTESTTOP=..
+. $SYSTEMTESTTOP/conf.sh
 
 status=0
-../../../dig/dig +tcp +noadd +nosea +nostat +noquest +nocomm +nocmd a.example.\
-	@10.53.0.2 a > dig.out.ns2
+$DIG +tcp +noadd +nosea +nostat +noquest +nocomm +nocmd a.example.\
+	@10.53.0.2 a -p 5300 > dig.out.ns2
 status=`expr $status + $?`
 grep ";" dig.out.ns2
 
-../../../dig/dig +tcp +noadd +nosea +nostat +noquest +nocomm +nocmd a.example.\
-	@10.53.0.3 a > dig.out.ns3
+$DIG +tcp +noadd +nosea +nostat +noquest +nocomm +nocmd a.example.\
+	@10.53.0.3 a -p 5300 > dig.out.ns3
 status=`expr $status + $?`
 grep ";" dig.out.ns3
 
-perl ../digcomp.pl dig.out.ns2 dig.out.ns3
+$PERL ../digcomp.pl dig.out.ns2 dig.out.ns3
 status=`expr $status + $?`
 
 rm -f ns2/example.db
@@ -55,17 +42,17 @@ sleep 6
 kill -HUP `cat ns2/named.pid`
 sleep 6
 
-../../../dig/dig +tcp +noadd +nosea +nostat +noquest +nocomm +nocmd a.example.\
-	@10.53.0.2 a > dig.out.ns2
+$DIG +tcp +noadd +nosea +nostat +noquest +nocomm +nocmd a.example.\
+	@10.53.0.2 a -p 5300 > dig.out.ns2
 status=`expr $status + $?`
 grep ";" dig.out.ns2
 
-../../../dig/dig +tcp +noadd +nosea +nostat +noquest +nocomm +nocmd a.example.\
-	@10.53.0.3 a > dig.out.ns3
+$DIG +tcp +noadd +nosea +nostat +noquest +nocomm +nocmd a.example.\
+	@10.53.0.3 a -p 5300 > dig.out.ns3
 status=`expr $status + $?`
 grep ";" dig.out.ns3
 
-perl ../digcomp.pl dig.out.ns2 dig.out.ns3
+$PERL ../digcomp.pl dig.out.ns2 dig.out.ns3
 status=`expr $status + $?`
 
 kill `cat ns3/named.pid`
@@ -76,17 +63,17 @@ kill -HUP `cat ns2/named.pid`
 (cd ns3 ; $NAMED -c named.conf -d 99 -g >> named.run 2>&1 & )
 sleep 6
 
-../../../dig/dig +tcp +noadd +nosea +nostat +noquest +nocomm +nocmd a.example.\
-	@10.53.0.2 a > dig.out.ns2
+$DIG +tcp +noadd +nosea +nostat +noquest +nocomm +nocmd a.example.\
+	@10.53.0.2 a -p 5300 > dig.out.ns2
 status=`expr $status + $?`
 grep ";" dig.out.ns2
 
-../../../dig/dig +tcp +noadd +nosea +nostat +noquest +nocomm +nocmd a.example.\
-	@10.53.0.3 a > dig.out.ns3
+$DIG +tcp +noadd +nosea +nostat +noquest +nocomm +nocmd a.example.\
+	@10.53.0.3 a -p 5300 > dig.out.ns3
 status=`expr $status + $?`
 grep ";" dig.out.ns3
 
-perl ../digcomp.pl dig.out.ns2 dig.out.ns3
+$PERL ../digcomp.pl dig.out.ns2 dig.out.ns3
 status=`expr $status + $?`
 
 rm -f ns2/example.db
@@ -96,17 +83,17 @@ sleep 6
 (cd ns2 ; $NAMED -c named.conf -d 99 -g >> named.run 2>&1 & )
 sleep 6
 
-../../../dig/dig +tcp +noadd +nosea +nostat +noquest +nocomm +nocmd a.example.\
-	@10.53.0.2 a > dig.out.ns2
+$DIG +tcp +noadd +nosea +nostat +noquest +nocomm +nocmd a.example.\
+	@10.53.0.2 a -p 5300 > dig.out.ns2
 status=`expr $status + $?`
 grep ";" dig.out.ns2
 
-../../../dig/dig +tcp +noadd +nosea +nostat +noquest +nocomm +nocmd a.example.\
-	@10.53.0.3 a > dig.out.ns3
+$DIG +tcp +noadd +nosea +nostat +noquest +nocomm +nocmd a.example.\
+	@10.53.0.3 a -p 5300 > dig.out.ns3
 status=`expr $status + $?`
 grep ";" dig.out.ns3
 
-perl ../digcomp.pl dig.out.ns2 dig.out.ns3
+$PERL ../digcomp.pl dig.out.ns2 dig.out.ns3
 status=`expr $status + $?`
 
 if [ $status != 0 ]; then

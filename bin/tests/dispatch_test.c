@@ -30,6 +30,7 @@
 #include <dns/dispatch.h>
 #include <dns/log.h>
 #include <dns/message.h>
+#include <dns/name.h>
 #include <dns/rdatalist.h>
 #include <dns/rdataset.h>
 #include <dns/result.h>
@@ -67,15 +68,14 @@ printmsg(dns_message_t *msg, FILE *out) {
 	int result;
 
 	isc_buffer_init(&textbuf, text, sizeof text);
-	result = dns_message_totext(msg, ISC_TRUE, ISC_TRUE,
-				    ISC_FALSE, &textbuf);
+	result = dns_message_totext(msg, 0, &textbuf);
 
 	if (result != ISC_R_SUCCESS)
 		return (result);
 
 	fprintf(out, "msg:\n%*s\n",
 		isc_buffer_usedlength(&textbuf),
-		isc_buffer_base(&textbuf));
+		(char *)isc_buffer_base(&textbuf));
 
 	return (ISC_R_SUCCESS);
 }
@@ -98,7 +98,7 @@ hex_dump(isc_buffer_t *b) {
 }
 
 static inline void
-CHECKRESULT(isc_result_t result, char *msg) {
+CHECKRESULT(isc_result_t result, const char *msg) {
 	if (result != ISC_R_SUCCESS) {
 		printf("%s: %s\n", msg, isc_result_totext(result));
 
@@ -129,7 +129,7 @@ send_done(isc_task_t *task, isc_event_t *ev_in) {
 }
 
 static void
-start_response(clictx_t *cli, char *query, isc_task_t *task) {
+start_response(clictx_t *cli, const char *query, isc_task_t *task) {
 	dns_messageid_t id;
 	isc_sockaddr_t from;
 	dns_message_t *msg;

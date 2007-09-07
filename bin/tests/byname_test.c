@@ -19,15 +19,13 @@
  * Principal Author: Bob Halley
  */
 
-/* XXXRTH */
-#define ISC_MEM_DEBUG 1
-
 #include <config.h>
 
 #include <stdlib.h>
 
 #include <isc/app.h>
 #include <isc/commandline.h>
+#include <isc/netaddr.h>
 #include <isc/task.h>
 #include <isc/timer.h>
 #include <isc/util.h>
@@ -41,6 +39,7 @@
 #include <dns/result.h>
 
 static isc_mem_t *mctx = NULL;
+static isc_taskmgr_t *taskmgr;
 static dns_view_t *view = NULL;
 static dns_adbfind_t *find = NULL;
 static isc_task_t *task = NULL;
@@ -86,43 +85,24 @@ log_init(void) {
 static void
 print_addresses(dns_adbfind_t *find) {
 	dns_adbaddrinfo_t *address;
-	isc_result_t result;
-	isc_buffer_t b;
-	isc_region_t r;
-	char text[1024];
-
-	isc_buffer_init(&b, text, sizeof(text));
 
 	for (address = ISC_LIST_HEAD(find->list);
 	     address != NULL;
 	     address = ISC_LIST_NEXT(address, publink)) {
-		isc_buffer_clear(&b);
-		result = isc_sockaddr_totext(address->sockaddr, &b);
-		if (result == ISC_R_SUCCESS) {
-			isc_buffer_usedregion(&b, &r);
-			printf("%.*s\n", (int)r.length, r.base);
-		} else
-			printf("isc_sockaddr_totext() failed: %s\n",
-			       isc_result_totext(result));
+		isc_netaddr_t netaddr;
+		char text[ISC_NETADDR_FORMATSIZE];
+		isc_netaddr_fromsockaddr(&netaddr, &address->sockaddr);
+		isc_netaddr_format(&netaddr, text, sizeof(text));
+		printf("%s\n", text);
 	}
 }
 
 static void
 print_name(dns_name_t *name) {
-	isc_result_t result;
-	isc_buffer_t b;
-	isc_region_t r;
 	char text[1024];
 
-	isc_buffer_init(&b, text, sizeof(text));
-
-	result = dns_name_totext(name, ISC_FALSE, &b);
-	if (result == ISC_R_SUCCESS) {
-		isc_buffer_usedregion(&b, &r);
-		printf("%.*s\n", (int)r.length, r.base);
-	} else
-		printf("dns_name_totext() failed: %s\n",
-		       isc_result_totext(result));
+	dns_name_format(name, text, sizeof(text));
+	printf("%s\n", text);
 }
 
 static void
@@ -138,7 +118,7 @@ do_find(isc_boolean_t want_event) {
 	result = dns_adb_createfind(view->adb, task, adb_callback, NULL,
 				    dns_fixedname_name(&name),
 				    dns_rootname, options, 0,
-				    dns_fixedname_name(&target),
+				    dns_fixedname_name(&target), 0,
 				    &find);
 	if (result == ISC_R_SUCCESS) {
 		if (!ISC_LIST_EMPTY(find->list)) {
@@ -204,7 +184,7 @@ adb_callback(isc_task_t *etask, isc_event_t *event) {
 
 static void
 run(isc_task_t *task, isc_event_t *event) {
-	(void)task;
+	UNUSED(task);
 	do_find(ISC_TRUE);
 	isc_event_free(&event);
 }
@@ -213,7 +193,6 @@ int
 main(int argc, char *argv[]) {
 	isc_boolean_t verbose = ISC_FALSE;
 	unsigned int workers = 2;
-	isc_taskmgr_t *taskmgr;
 	isc_timermgr_t *timermgr;
 	int ch;
 	isc_socketmgr_t *socketmgr;
@@ -256,6 +235,7 @@ main(int argc, char *argv[]) {
 	task = NULL;
 	RUNTIME_CHECK(isc_task_create(taskmgr, 0, &task) ==
 		      ISC_R_SUCCESS);
+	isc_task_setname(task, "byname", NULL);
 
 	dispatchmgr = NULL;
 	RUNTIME_CHECK(dns_dispatchmgr_create(mctx, &dispatchmgr)
@@ -266,8 +246,6 @@ main(int argc, char *argv[]) {
 	socketmgr = NULL;
 	RUNTIME_CHECK(isc_socketmgr_create(mctx, &socketmgr) == ISC_R_SUCCESS);
 
-	
-
 	cache = NULL;
 	RUNTIME_CHECK(dns_cache_create(mctx, taskmgr, timermgr,
 				       dns_rdataclass_in, "rbt", 0, NULL,
@@ -277,10 +255,54 @@ main(int argc, char *argv[]) {
 	RUNTIME_CHECK(dns_view_create(mctx, dns_rdataclass_in, "default",
 				      &view) == ISC_R_SUCCESS);
 
-	RUNTIME_CHECK(dns_view_createresolver(view, taskmgr, 10, socketmgr,
-					      timermgr, 0,
-					      dispatchmgr, NULL, NULL) ==
+	{
+		unsigned int attrs;
+		dns_dispatch_t *disp4 = NULL;
+		dns_dispatch_t *disp6 = NULL;		
+
+		if (isc_net_probeipv4() == ISC_R_SUCCESS) {
+			isc_sockaddr_t any4;
+			isc_sockaddr_any(&any4);
+			
+			attrs = DNS_DISPATCHATTR_IPV4 | DNS_DISPATCHATTR_UDP;
+			RUNTIME_CHECK(dns_dispatch_getudp(dispatchmgr,
+							  socketmgr,
+							  taskmgr, &any4,
+							  512, 6, 1024,
+							  17, 19, attrs,
+							  attrs, &disp4)
+				      == ISC_R_SUCCESS);
+			INSIST(disp4 != NULL);
+		}
+
+		if (isc_net_probeipv6() == ISC_R_SUCCESS) {
+			isc_sockaddr_t any6;
+			
+			isc_sockaddr_any6(&any6);
+			
+			attrs = DNS_DISPATCHATTR_IPV6 | DNS_DISPATCHATTR_UDP;
+			RUNTIME_CHECK(dns_dispatch_getudp(dispatchmgr,
+							  socketmgr,
+							  taskmgr, &any6,
+							  512, 6, 1024,
+							  17, 19, attrs,
+							  attrs, &disp6)
+				      == ISC_R_SUCCESS);
+			INSIST(disp6 != NULL);
+		}
+		
+		RUNTIME_CHECK(dns_view_createresolver(view, taskmgr, 10,
+						      socketmgr,
+						      timermgr, 0,
+						      dispatchmgr,
+						      disp4, disp6) ==
 		      ISC_R_SUCCESS);
+
+		if (disp4 != NULL)
+			dns_dispatch_detach(&disp4);
+		if (disp6 != NULL)		
+			dns_dispatch_detach(&disp6);		
+	}
 
 	{
 		struct in_addr ina;
@@ -318,11 +340,14 @@ main(int argc, char *argv[]) {
 	dns_view_detach(&view);
 	isc_task_shutdown(task);
 	isc_task_detach(&task);
+
+	dns_dispatchmgr_destroy(&dispatchmgr);
+	
 	isc_taskmgr_destroy(&taskmgr);
 
 	isc_socketmgr_destroy(&socketmgr);
 	isc_timermgr_destroy(&timermgr);
-
+	
 	isc_log_destroy(&lctx);
 
 	if (verbose)

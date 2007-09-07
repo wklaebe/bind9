@@ -15,6 +15,8 @@
  * SOFTWARE.
  */
 
+/* $Id: dig.c,v 1.43 2000/06/07 00:13:54 mws Exp $ */
+
 #include <config.h>
 
 #include <stdlib.h>
@@ -26,9 +28,11 @@ extern int h_errno;
 #include <isc/util.h>
 
 #include <dns/message.h>
+#include <dns/name.h>
 #include <dns/rdata.h>
 #include <dns/rdataset.h>
 #include <dns/rdatatype.h>
+#include <dns/message.h>
 
 #include <dig/dig.h>
 
@@ -36,15 +40,17 @@ extern ISC_LIST(dig_lookup_t) lookup_list;
 extern ISC_LIST(dig_server_t) server_list;
 extern ISC_LIST(dig_searchlist_t) search_list;
 
+#define ADD_STRING(b, s)        {if (strlen(s) >= \
+                                   isc_buffer_availablelength(b)) \
+                                       return(ISC_R_NOSPACE); else \
+                                       isc_buffer_putstr(b, s);}
+
+
 extern isc_boolean_t have_ipv6, show_details, specified_source,
 	usesearch, qr;
 extern in_port_t port;
 extern unsigned int timeout;
 extern isc_mem_t *mctx;
-extern isc_taskmgr_t *taskmgr;
-extern isc_task_t *task;
-extern isc_timermgr_t *timermgr;
-extern isc_socketmgr_t *socketmgr;
 extern dns_messageid_t id;
 extern char *rootspace[BUFSIZE];
 extern isc_buffer_t rootbuf;
@@ -58,6 +64,13 @@ extern isc_boolean_t twiddle;
 #endif
 extern int exitcode;
 extern isc_sockaddr_t bind_address;
+extern char keynametext[MXNAME];
+extern char keysecret[MXNAME];
+extern dns_tsigkey_t *key;
+extern isc_boolean_t validated;
+
+extern isc_boolean_t debugging;
+extern isc_boolean_t isc_mem_debugging;
 
 isc_boolean_t short_form = ISC_FALSE, printcmd = ISC_TRUE;
 
@@ -71,7 +84,7 @@ isc_boolean_t identify = ISC_FALSE,
 	defname = ISC_TRUE, aaonly = ISC_FALSE, tcpmode = ISC_FALSE;
 
 
-static char *opcodetext[] = {
+static const char *opcodetext[] = {
 	"QUERY",
 	"IQUERY",
 	"STATUS",
@@ -90,7 +103,7 @@ static char *opcodetext[] = {
 	"RESERVED15"
 };
 
-static char *rcodetext[] = {
+static const char *rcodetext[] = {
 	"NOERROR",
 	"FORMERR",
 	"SERVFAIL",
@@ -111,7 +124,7 @@ static char *rcodetext[] = {
 };
 
 static void
-show_usage() {
+show_usage(void) {
 	fputs (
 "Usage:  dig [@global-server] [domain] [q-type] [q-class] {q-opt}\n"
 "        {global-d-opt} host [@local-server] {local-d-opt}\n"
@@ -119,12 +132,14 @@ show_usage() {
 "Where:  domain	  are in the Domain Name System\n"
 "        q-class  is one of (in,chaos,...) [default: in]\n"
 "        q-type   is one of (a,any,mx,ns,soa,hinfo,axfr,txt,...) [default:a]\n"
+"                 (Use ixfr=version for type ixfr)\n"
 "        q-opt    is one of:\n"
 "                 -x dot-notation     (shortcut for in-addr lookups)\n"
 "                 -f filename         (batch mode)\n"
 "                 -p port             (specify port number)\n"
 "                 -t type             (specify query type)\n"
 "                 -c class            (specify query class)\n"
+"                 -y name:key         (specify named base64 tsig key)\n"
 "        d-opt    is of the form +keyword[=value], where keyword is:\n"
 "                 +[no]vc             (TCP mode)\n"
 "                 +[no]tcp            (TCP mode, alternate syntax)\n"
@@ -180,7 +195,16 @@ received(int bytes, int frmsize, char *frm, dig_query_t *query) {
 		printf(";; SERVER: %.*s\n", frmsize, frm);
 		time (&tnow);
 		printf(";; WHEN: %s", ctime(&tnow));
-		printf (";; MSG SIZE  rcvd: %d\n\n", bytes);
+		printf (";; MSG SIZE  rcvd: %d\n", bytes);
+		if (key != NULL) {
+			if (!validated)
+				puts (";; WARNING -- Some TSIG could not "
+				      "be validated");
+		}
+		if ((key == NULL) && (keysecret[0] != 0)) {
+			puts (";; WARNING -- TSIG key was not used.");
+		}
+		puts ("");
 	} else if (query->lookup->identify && !short_form) {
 		diff = isc_time_microdiff(&now, &query->time_sent);
 		printf(";; Received %u bytes from %.*s in %d ms\n",
@@ -196,68 +220,51 @@ trying(int frmsize, char *frm, dig_lookup_t *lookup) {
 
 }
 
-static void
-say_message(dns_rdata_t *rdata, dig_query_t *query) {
-	isc_buffer_t *b=NULL, *b2=NULL;
-	isc_region_t r, r2;
+static isc_result_t
+say_message(dns_rdata_t *rdata, dig_query_t *query, isc_buffer_t *buf) {
 	isc_result_t result;
 	isc_uint64_t diff;
 	isc_time_t now;
+	char store[sizeof("12345678901234567890")];
 
-	result = isc_buffer_allocate(mctx, &b, BUFSIZE);
-	check_result (result, "isc_buffer_allocate");
-	result = dns_rdata_totext(rdata, NULL, b);
-	check_result(result, "dns_rdata_totext");
-	isc_buffer_usedregion(b, &r);
-	if (!query->lookup->trace && !query->lookup->ns_search_only)
-		printf ( "%.*s", (int)r.length, (char *)r.base);
-	else {
-		result = isc_buffer_allocate(mctx, &b2, BUFSIZE);
-		check_result (result, "isc_buffer_allocate");
-		result = dns_rdatatype_totext(rdata->type, b2);
-		check_result(result, "dns_rdatatype_totext");
-		isc_buffer_usedregion(b2, &r2);
-		printf ( "%.*s %.*s",(int)r2.length, (char *)r2.base, 
-			 (int)r.length, (char *)r.base);
-		isc_buffer_free (&b2);
+	if (query->lookup->trace || query->lookup->ns_search_only) {
+		result = dns_rdatatype_totext(rdata->type, buf);
+		if (result != ISC_R_SUCCESS)
+			return (result);
+		ADD_STRING(buf, " ");
 	}
+	result = dns_rdata_totext(rdata, NULL, buf);
+	check_result(result, "dns_rdata_totext");
 	if (query->lookup->identify) {
 		result = isc_time_now(&now);
-		check_result (result, "isc_time_now");
+		if (result != ISC_R_SUCCESS)
+			return (result);
 		diff = isc_time_microdiff(&now, &query->time_sent);
-		printf (" from server %s in %d ms", query->servname,
-			(int)diff/1000);
+		ADD_STRING(buf, " from server ");
+		ADD_STRING(buf, query->servname);
+		snprintf (store, 19, " in %d ms.", (int)diff/1000);
+		ADD_STRING(buf, store);
 	}
-	printf ("\n");
-	isc_buffer_free(&b);
+	ADD_STRING(buf,"\n");
+	return (ISC_R_SUCCESS);
 }
 
 static isc_result_t
-printsection(dns_message_t *msg, dns_section_t sectionid, char *section_name,
-	     isc_boolean_t headers, dig_query_t *query)
+short_answer(dns_message_t *msg, dns_messagetextflag_t flags,
+	     isc_buffer_t *buf, dig_query_t *query)
 {
-	dns_name_t *name, *print_name;
+	dns_name_t *name;
 	dns_rdataset_t *rdataset;
 	isc_buffer_t target;
 	isc_result_t result, loopresult;
-	isc_region_t r;
 	dns_name_t empty_name;
 	char t[4096];
-	isc_boolean_t first;
-	isc_boolean_t no_rdata;
 	dns_rdata_t rdata;
 	
-	if (sectionid == DNS_SECTION_QUESTION)
-		no_rdata = ISC_TRUE;
-	else
-		no_rdata = ISC_FALSE;
-
-	if (headers && query->lookup->comments && !short_form)
-		printf(";; %s SECTION:\n", section_name);
+	UNUSED (flags);
 
 	dns_name_init(&empty_name, NULL);
-
-	result = dns_message_firstname(msg, sectionid);
+	result = dns_message_firstname(msg, DNS_SECTION_ANSWER);
 	if (result == ISC_R_NOMORE)
 		return (ISC_R_SUCCESS);
 	else if (result != ISC_R_SUCCESS)
@@ -265,47 +272,25 @@ printsection(dns_message_t *msg, dns_section_t sectionid, char *section_name,
 
 	for (;;) {
 		name = NULL;
-		dns_message_currentname(msg, sectionid, &name);
+		dns_message_currentname(msg, DNS_SECTION_ANSWER, &name);
 
 		isc_buffer_init(&target, t, sizeof(t));
-		first = ISC_TRUE;
-		print_name = name;
 
 		for (rdataset = ISC_LIST_HEAD(name->list);
 		     rdataset != NULL;
 		     rdataset = ISC_LIST_NEXT(rdataset, link)) {
-			if (!short_form) {
-				result = dns_rdataset_totext(rdataset,
-							     print_name,
-							     ISC_FALSE,
-							     no_rdata,
-							     &target);
-				if (result != ISC_R_SUCCESS)
-					return (result);
-#ifdef USEINITALWS
-				if (first) {
-					print_name = &empty_name;
-					first = ISC_FALSE;
-				}
-#endif
-			} else {
-				loopresult = dns_rdataset_first(rdataset);
-				while (loopresult == ISC_R_SUCCESS) {
-					dns_rdataset_current(rdataset, &rdata);
-					say_message(&rdata, query);
-					loopresult = dns_rdataset_next(
-								 rdataset);
-				}
+			loopresult = dns_rdataset_first(rdataset);
+			while (loopresult == ISC_R_SUCCESS) {
+				dns_rdataset_current(rdataset, &rdata);
+				result = say_message(&rdata, query,
+						     buf);
+				check_result (result, "say_message");
+				loopresult = dns_rdataset_next(
+							       rdataset);
 			}
-
+			
 		}
-		isc_buffer_usedregion(&target, &r);
-		if (no_rdata)
-			printf(";%.*s", (int)r.length, (char *)r.base);
-		else
-			printf("%.*s", (int)r.length, (char *)r.base);
-
-		result = dns_message_nextname(msg, sectionid);
+		result = dns_message_nextname(msg, DNS_SECTION_ANSWER);
 		if (result == ISC_R_NOMORE)
 			break;
 		else if (result != ISC_R_SUCCESS)
@@ -315,39 +300,17 @@ printsection(dns_message_t *msg, dns_section_t sectionid, char *section_name,
 	return (ISC_R_SUCCESS);
 }
 
-static isc_result_t
-printrdata(dns_message_t *msg, dns_rdataset_t *rdataset, dns_name_t *owner,
-	   char *set_name, isc_boolean_t headers)
-{
-	isc_buffer_t target;
-	isc_result_t result;
-	isc_region_t r;
-	char t[4096];
-
-	UNUSED(msg);
-	if (headers) 
-		printf(";; %s SECTION:\n", set_name);
-
-	isc_buffer_init(&target, t, sizeof(t));
-
-	result = dns_rdataset_totext(rdataset, owner, ISC_FALSE, ISC_FALSE,
-				     &target);
-	if (result != ISC_R_SUCCESS)
-		return (result);
-	isc_buffer_usedregion(&target, &r);
-	printf("%.*s", (int)r.length, (char *)r.base);
-
-	return (ISC_R_SUCCESS);
-}
 
 isc_result_t
 printmessage(dig_query_t *query, dns_message_t *msg, isc_boolean_t headers) {
 	isc_boolean_t did_flag = ISC_FALSE;
 	isc_result_t result;
-	dns_rdataset_t *opt, *tsig = NULL;
-	dns_name_t *tsigname;
+	dns_messagetextflag_t flags;
+	isc_buffer_t *buf = NULL;
 
 	UNUSED (query);
+
+	debug ("printmessage(%s)",headers?"headers":"noheaders");
 
 	/*
 	 * Exitcode 9 means we timed out, but if we're printing a message,
@@ -357,18 +320,28 @@ printmessage(dig_query_t *query, dns_message_t *msg, isc_boolean_t headers) {
 	if (exitcode == 9)
 		exitcode = 0;
 
+	flags = 0;
+	if (!headers) {
+		flags |= DNS_MESSAGETEXTFLAG_NOHEADERS;
+		flags |= DNS_MESSAGETEXTFLAG_NOCOMMENTS;
+	}
+	if (!query->lookup->comments)
+		flags |= DNS_MESSAGETEXTFLAG_NOCOMMENTS;
+
 	result = ISC_R_SUCCESS;
 
-	if (query->lookup->comments && !short_form &&
-	    !query->lookup->doing_xfr) {
-		if (msg == query->lookup->sendmsg)
-			printf (";; Sending:\n");
-		else
-			printf (";; Got answer:\n");
-	}
+	result = isc_buffer_allocate(mctx, &buf, OUTPUTBUF);
+	check_result (result, "isc_buffer_allocate");
 
-	if (headers) {
-		if (query->lookup->comments && !short_form) {
+	if (query->lookup->comments && !short_form) {
+		if (!query->lookup->doing_xfr) {
+			if (msg == query->lookup->sendmsg)
+				printf (";; Sending:\n");
+			else
+				printf (";; Got answer:\n");
+		}
+
+		if (headers) {
 			printf(";; ->>HEADER<<- opcode: %s, status: %s, "
 			       "id: %u\n",
 			       opcodetext[msg->opcode], rcodetext[msg->rcode],
@@ -409,67 +382,72 @@ printmessage(dig_query_t *query, dns_message_t *msg, isc_boolean_t headers) {
 			       msg->counts[DNS_SECTION_AUTHORITY],
 			       msg->counts[DNS_SECTION_ADDITIONAL]);
 
-			opt = dns_message_getopt(msg);
-			if (opt != NULL)
-				printf(";; EDNS: version: %u, udp=%u\n",
-				       (unsigned int)((opt->ttl & 
-						       0x00ff0000) >> 16),
-				       (unsigned int)opt->rdclass);
-			tsigname = NULL;
-			tsig = dns_message_gettsig(msg, &tsigname);
-			if (tsig != NULL)
-				printf(";; PSEUDOSECTIONS: TSIG\n");
+			result = dns_message_pseudosectiontotext(msg,
+						 DNS_PSEUDOSECTION_OPT,
+						 flags, buf);
+			check_result(result, 
+				     "dns_message_pseudosectiontotext");
 		}
 	}
-	if (! ISC_LIST_EMPTY(msg->sections[DNS_SECTION_QUESTION]) &&
-	    headers && query->lookup->section_question) {
-		printf("\n");
-		result = printsection(msg, DNS_SECTION_QUESTION, "QUESTION",
-				      ISC_TRUE, query);
-		if (result != ISC_R_SUCCESS)
-			return (result);
-	}
-	if (! ISC_LIST_EMPTY(msg->sections[DNS_SECTION_ANSWER]) && 
-	    query->lookup->section_answer ) {
-		if (headers && query->lookup->comments && !short_form)
-			printf("\n");
-		result = printsection(msg, DNS_SECTION_ANSWER, "ANSWER",
-				      headers, query);
-		if (result != ISC_R_SUCCESS)
-			return (result);
-	}
-	if ((! ISC_LIST_EMPTY(msg->sections[DNS_SECTION_AUTHORITY]) &&
-	    headers && query->lookup->section_authority) || 
-	    ( ISC_LIST_EMPTY(msg->sections[DNS_SECTION_ANSWER]) &&
-	      headers && query->lookup->section_answer &&
-	      query->lookup->trace )) {
-		if (headers && query->lookup->comments && !short_form)
-			printf("\n");
-		result = printsection(msg, DNS_SECTION_AUTHORITY, "AUTHORITY",
-				      ISC_TRUE, query);
-		if (result != ISC_R_SUCCESS)
-			return (result);
-	}
-	if (! ISC_LIST_EMPTY(msg->sections[DNS_SECTION_ADDITIONAL]) &&
-	    headers && query->lookup->section_additional) {
-		if (headers && query->lookup->comments && !short_form)
-			printf("\n");
-		result = printsection(msg, DNS_SECTION_ADDITIONAL,
-				      "ADDITIONAL", ISC_TRUE, query);
-		if (result != ISC_R_SUCCESS)
-			return (result);
-	}
-	if ((tsig != NULL) && headers && query->lookup->section_additional) {
-		if (headers && query->lookup->comments && !short_form)
-			printf("\n");
-		result = printrdata(msg, tsig, tsigname,
-				    "PSEUDOSECTION TSIG", ISC_TRUE);
-		if (result != ISC_R_SUCCESS)
-			return (result);
-	}
+
+	if (query->lookup->section_question && headers) {
+		if (!short_form) {
+			result = dns_message_sectiontotext(msg,
+						       DNS_SECTION_QUESTION,
+						       flags, buf);
+			check_result(result, "dns_message_sectiontotext");
+		}
+	}			
+	if (query->lookup->section_answer) {
+		if (!short_form) {
+			result = dns_message_sectiontotext(msg,
+						       DNS_SECTION_ANSWER,
+						       flags, buf);
+			check_result(result, "dns_message_sectiontotext");
+		}
+		else {
+			result = short_answer(msg, flags, buf, query);
+			check_result (result, "short_answer");
+		}
+	}			
+	if (query->lookup->section_authority) {
+		if (!short_form) {
+			result = dns_message_sectiontotext(msg,
+						       DNS_SECTION_AUTHORITY,
+						       flags, buf);
+			check_result(result, "dns_message_sectiontotext");
+		}
+	}			
+	if (query->lookup->section_additional) {
+		if (!short_form) {
+			result = dns_message_sectiontotext(msg,
+						      DNS_SECTION_ADDITIONAL,
+						      flags, buf);
+			check_result(result, "dns_message_sectiontotext");
+			/* Only print the signature on the first record */
+			if (headers) {
+				result = dns_message_pseudosectiontotext(
+						   msg,
+						   DNS_PSEUDOSECTION_TSIG,
+						   flags, buf);
+				check_result(result,
+					  "dns_message_pseudosectiontotext");
+				result = dns_message_pseudosectiontotext(
+						   msg,
+						   DNS_PSEUDOSECTION_SIG0,
+						   flags, buf);
+				
+				check_result(result,
+					   "dns_message_pseudosectiontotext");
+			}
+		}
+	}			
 	if (headers && query->lookup->comments && !short_form)
 		printf("\n");
 
+	printf ("%.*s",(int)isc_buffer_usedlength(buf),
+		(char *)isc_buffer_base(buf));
+	isc_buffer_free(&buf);
 	return (result);
 }
 
@@ -509,16 +487,16 @@ reorder_args(int argc, char *argv[]) {
 			return;
 	}
 	debug ("arg[end]=%s",argv[end]);
-	for (i=1; i<end-1; i++) {
-		if (argv[i][0]=='@') {
+	for (i = 1; i<end-1; i++) {
+		if (argv[i][0] == '@') {
 			debug ("Arg[%d]=%s", i, argv[i]);
-			ptr=argv[i];
-			for (j=i+1; j<end; j++) {
+			ptr = argv[i];
+			for (j = i+1; j<end; j++) {
 				debug ("Moving %s to %d", argv[j], j-1);
-				argv[j-1]=argv[j];
+				argv[j-1] = argv[j];
 			}
 			debug ("Moving %s to end, %d", ptr, end-1);
-			argv[end-1]=ptr;
+			argv[end-1] = ptr;
 			end--;
 			if (end < 1)
 				return;
@@ -542,10 +520,12 @@ parse_args(isc_boolean_t is_batchfile, int argc, char **argv) {
 	FILE *fp = NULL;
 	int bargc;
 	char *bargv[16];
+	char bargv0[sizeof("dig")];
 	int i, n;
 	int adrs[4];
 	int rc;
 	char **rv;
+	char *ptr;
 
 	/*
 	 * The semantics for parsing the args is a bit complex; if
@@ -560,7 +540,8 @@ parse_args(isc_boolean_t is_batchfile, int argc, char **argv) {
 	for (rc--, rv++; rc > 0; rc--, rv++) {
 		debug ("Main parsing %s", rv[0]);
 		if (strncmp(rv[0], "@", 1) == 0) {
-			srv=isc_mem_allocate(mctx, sizeof(struct dig_server));
+			srv = isc_mem_allocate(mctx,
+					       sizeof(struct dig_server));
 			if (srv == NULL)
 				fatal("Memory allocation failure.");
 			strncpy(srv->servername, &rv[0][1], MXNAME-1);
@@ -890,7 +871,7 @@ parse_args(isc_boolean_t is_batchfile, int argc, char **argv) {
 #endif
 		} else if (strncmp(rv[0], "-c", 2) == 0) {
  			if (have_host) {
-				if (rv[0][2]!=0) {
+				if (rv[0][2] != 0) {
 					strncpy(lookup->rctext, &rv[0][2],
 						MXRD);
 				} else {
@@ -902,7 +883,7 @@ parse_args(isc_boolean_t is_batchfile, int argc, char **argv) {
 			}
 		} else if (strncmp(rv[0], "-t", 2) == 0) {
  			if (have_host) {
-				if (rv[0][2]!=0) {
+				if (rv[0][2] != 0) {
 					strncpy(lookup->rttext, &rv[0][2],
 						MXRD);
 				} else {
@@ -913,23 +894,43 @@ parse_args(isc_boolean_t is_batchfile, int argc, char **argv) {
 				}
 			}
 		} else if (strncmp(rv[0], "-f", 2) == 0) {
-			if (rv[0][2]!=0) {
-				batchname=&rv[0][2];
+			if (rv[0][2] != 0) {
+				batchname = &rv[0][2];
 			} else {
-				batchname=rv[1];
+				batchname = rv[1];
 				rv++;
 				rc--;
 			}
+		} else if (strncmp(rv[0], "-y", 2) == 0) {
+			if (rv[0][2] != 0)
+				ptr = &rv[0][2];
+			else {
+				ptr = rv[1];
+				rv++;
+				rc--;
+			}
+			ptr = strtok(ptr,":");
+			if (ptr == NULL) {
+				show_usage();
+				exit (exitcode);
+			}
+			strncpy(keynametext, ptr, MXNAME);
+			ptr = strtok(NULL, "");
+			if (ptr == NULL) {
+				show_usage();
+				exit (exitcode);
+			}
+			strncpy(keysecret, ptr, MXNAME);
 		} else if (strncmp(rv[0], "-p", 2) == 0) {
-			if (rv[0][2]!=0) {	
-				port=atoi(&rv[0][2]);
+			if (rv[0][2] != 0) {	
+				port = atoi(&rv[0][2]);
 			} else {
-				port=atoi(rv[1]);
+				port = atoi(rv[1]);
 				rv++;
 				rc--;
 			}
 		} else if (strncmp(rv[0], "-b", 2) == 0) {
-			if (rv[0][2]!=0) {
+			if (rv[0][2] != 0) {
 				strncpy(address, &rv[0][2],
 					MXRD);
 			} else {
@@ -943,6 +944,10 @@ parse_args(isc_boolean_t is_batchfile, int argc, char **argv) {
 		} else if (strncmp(rv[0], "-h", 2) == 0) {
 			show_usage();
 			exit (exitcode);
+		} else if (strcmp(rv[0], "-memdebug") == 0) {
+			isc_mem_debugging = ISC_TRUE;
+		} else if (strcmp(rv[0], "-debug") == 0) {
+			debugging = ISC_TRUE;
 		} else if (strncmp(rv[0], "-x", 2) == 0) {
 			/*
 			 *XXXMWS Only works for ipv4 now.
@@ -957,15 +962,12 @@ parse_args(isc_boolean_t is_batchfile, int argc, char **argv) {
 				    &adrs[2], &adrs[3]);
 			if (n == 0)
 				show_usage();
-			lookup_counter++;
-			if (lookup_counter > LOOKUP_LIMIT)
-				fatal ("Too many lookups.");
 			lookup = isc_mem_allocate(mctx,
 						  sizeof(struct dig_lookup));
 			if (lookup == NULL)
 				fatal("Memory allocation failure.");
 			lookup->pending = ISC_FALSE;
-			lookup->textname[0]=0;
+			lookup->textname[0] = 0;
 			for (i = n - 1; i >= 0; i--) {
 				snprintf(batchline, MXNAME/8, "%d.",
 					  adrs[i]);
@@ -975,19 +977,21 @@ parse_args(isc_boolean_t is_batchfile, int argc, char **argv) {
 			debug("Looking up %s", lookup->textname);
 			strcpy(lookup->rttext, "ptr");
 			strcpy(lookup->rctext, "in");
-			lookup->namespace[0]=0;
-			lookup->sendspace[0]=0;
-			lookup->sendmsg=NULL;
-			lookup->name=NULL;
-			lookup->oname=NULL;
+			lookup->namespace[0] = 0;
+			lookup->sendspace[0] = 0;
+			lookup->sendmsg = NULL;
+			lookup->name = NULL;
+			lookup->oname = NULL;
 			lookup->timer = NULL;
 			lookup->xfr_q = NULL;
 			lookup->origin = NULL;
+			lookup->querysig = NULL;
 			lookup->use_my_server_list = ISC_FALSE;
-			lookup->trace = (trace || ns_search_only);
+			lookup->trace = ISC_TF(trace || ns_search_only);
 			lookup->trace_root = trace;
 			lookup->ns_search_only = ns_search_only;
 			lookup->doing_xfr = ISC_FALSE;
+			lookup->ixfr_serial = 0;
 			lookup->defname = ISC_FALSE;
 			lookup->identify = identify;
 			lookup->recurse = recurse;
@@ -1002,6 +1006,7 @@ parse_args(isc_boolean_t is_batchfile, int argc, char **argv) {
 			lookup->section_answer = section_answer;
 			lookup->section_authority = section_authority;
 			lookup->section_additional = section_additional;
+			lookup->new_search = ISC_TRUE;
 			ISC_LIST_INIT(lookup->q);
 			lookup->origin = NULL;
 			ISC_LIST_INIT(lookup->my_server_list);
@@ -1012,38 +1017,43 @@ parse_args(isc_boolean_t is_batchfile, int argc, char **argv) {
 		} else {
  			if (have_host) {
 				ENSURE(lookup != NULL);
-			       if (istype(rv[0])) {
+				if (strncmp(rv[0],"ixfr=",5) == 0) {
+					strcpy(lookup->rttext, "ixfr");
+					lookup->ixfr_serial = 
+						atoi(&rv[0][5]);
+					continue;
+				}
+				if (istype(rv[0])) {
 					strncpy(lookup->rttext, rv[0], MXRD);
 					continue;
-			       } else if (isclass(rv[0])) {
-				       strncpy(lookup->rctext, rv[0],
-					       MXRD);
-				       continue;
-			       }
+				} else if (isclass(rv[0])) {
+					strncpy(lookup->rctext, rv[0],
+						MXRD);
+					continue;
+				}
 			}
-			lookup_counter++;
-			if (lookup_counter > LOOKUP_LIMIT)
-				fatal ("Too many lookups.");
 			lookup = isc_mem_allocate(mctx, 
 						  sizeof(struct dig_lookup));
 			if (lookup == NULL)
 				fatal("Memory allocation failure.");
 			lookup->pending = ISC_FALSE;
 			strncpy(lookup->textname, rv[0], MXNAME-1);
-			lookup->rttext[0]=0;
-			lookup->rctext[0]=0;
-			lookup->namespace[0]=0;
-			lookup->sendspace[0]=0;
-			lookup->sendmsg=NULL;
-			lookup->name=NULL;
-			lookup->oname=NULL;
+			lookup->rttext[0] = 0;
+			lookup->rctext[0] = 0;
+			lookup->namespace[0] = 0;
+			lookup->sendspace[0] = 0;
+			lookup->sendmsg = NULL;
+			lookup->name = NULL;
+			lookup->oname = NULL;
 			lookup->timer = NULL;
 			lookup->xfr_q = NULL;
 			lookup->origin = NULL;
+			lookup->querysig = NULL;
 			lookup->use_my_server_list = ISC_FALSE;
 			lookup->doing_xfr = ISC_FALSE;
+			lookup->ixfr_serial = 0;
 			lookup->defname = ISC_FALSE;
-			lookup->trace = (trace || ns_search_only);
+			lookup->trace = ISC_TF(trace || ns_search_only);
 			lookup->trace_root = trace;
 			lookup->ns_search_only = ns_search_only;
 			lookup->identify = identify;
@@ -1059,6 +1069,7 @@ parse_args(isc_boolean_t is_batchfile, int argc, char **argv) {
 			lookup->section_answer = section_answer;
 			lookup->section_authority = section_authority;
 			lookup->section_additional = section_additional;
+			lookup->new_search = ISC_TRUE;
 			ISC_LIST_INIT(lookup->q);
 			ISC_LIST_APPEND(lookup_list, lookup, link);
 			lookup->origin = NULL;
@@ -1077,40 +1088,47 @@ parse_args(isc_boolean_t is_batchfile, int argc, char **argv) {
 		}
 		while (fgets(batchline, MXNAME, fp) != 0) {
 			debug ("Batch line %s", batchline);
-			bargc=1;
-			bargv[bargc]=strtok(batchline, " \t\r\n");
-			while ((bargv[bargc] != NULL) &&
-			       (bargc < 14 )) {
+			bargc = 1;
+			bargv[bargc] = strtok(batchline, " \t\r\n");
+			while ((bargv[bargc] != NULL) && (bargc < 14 )) {
 				bargc++;
-				bargv[bargc]=strtok(NULL, " \t\r\n");
+				bargv[bargc] = strtok(NULL, " \t\r\n");
 			}
-			bargc--;
-			bargv[0]="dig";
-			reorder_args(bargc+1, (char**)bargv);
-			parse_args(ISC_TRUE, bargc+1, (char**)bargv);
+
+			/*
+			 * This silliness (instead of ``bargv[0] = "dig";'')
+			 * dances around the const string issue.  If in
+			 * the future the 2nd argument to strncpy() is made
+			 * longer than three characters, don't forget to resize
+			 * bargv0 to accommodate it.
+			 */
+			strncpy(bargv0, "dig", sizeof(bargv0));
+			bargv[0] = bargv0;
+
+			reorder_args(bargc, (char **)bargv);
+			parse_args(ISC_TRUE, bargc, (char **)bargv);
 		}
 	}
 	if (lookup_list.head == NULL) {
-		lookup_counter++;
-		if (lookup_counter > LOOKUP_LIMIT)
-			fatal ("Too many lookups.");
 		lookup = isc_mem_allocate(mctx, sizeof(struct dig_lookup));
 		if (lookup == NULL)
 			fatal("Memory allocation failure.");
 		lookup->pending = ISC_FALSE;
-		lookup->rctext[0]=0;
-		lookup->namespace[0]=0;
-		lookup->sendspace[0]=0;
-		lookup->sendmsg=NULL;
-		lookup->name=NULL;
-		lookup->oname=NULL;
+		lookup->rctext[0] = 0;
+		lookup->namespace[0] = 0;
+		lookup->sendspace[0] = 0;
+		lookup->sendmsg = NULL;
+		lookup->name = NULL;
+		lookup->oname = NULL;
 		lookup->timer = NULL;
 		lookup->xfr_q = NULL;
 		lookup->origin = NULL;
+		lookup->querysig = NULL;
 		lookup->use_my_server_list = ISC_FALSE;
 		lookup->doing_xfr = ISC_FALSE;
+		lookup->ixfr_serial = 0;
 		lookup->defname = ISC_FALSE;
-		lookup->trace = (trace || ns_search_only);
+		lookup->trace = ISC_TF(trace || ns_search_only);
 		lookup->trace_root = trace;
 		lookup->ns_search_only = ns_search_only;
 		lookup->identify = identify;
@@ -1126,11 +1144,12 @@ parse_args(isc_boolean_t is_batchfile, int argc, char **argv) {
 		lookup->section_answer = section_answer;
 		lookup->section_authority = section_authority;
 		lookup->section_additional = section_additional;
+		lookup->new_search = ISC_TRUE;
 		ISC_LIST_INIT(lookup->q);
 		ISC_LIST_INIT(lookup->my_server_list);
 		strcpy(lookup->textname, ".");
 		strcpy(lookup->rttext, "NS");
-		lookup->rctext[0]=0;
+		lookup->rctext[0] = 0;
 		ISC_LIST_APPEND(lookup_list, lookup, link);
 	}
 	if (!is_batchfile)
@@ -1151,7 +1170,7 @@ main(int argc, char **argv) {
 	debug ("dhmain()");
 #ifdef TWIDDLE
 	fp = fopen("/dev/urandom", "r");
-	if (fp!=NULL) {
+	if (fp != NULL) {
 		fread (&i, sizeof(int), 1, fp);
 		srandom(i);
 	}
@@ -1159,7 +1178,7 @@ main(int argc, char **argv) {
 		srandom ((int)&main);
 	}
 	p = getpid()%16+8;
-	for (i=0 ; i<p; i++);
+	for (i = 0 ; i<p; i++);
 #endif
 	setup_libs();
 	parse_args(ISC_FALSE, argc, argv);

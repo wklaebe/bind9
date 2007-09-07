@@ -14,16 +14,18 @@
 # PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
 # ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
 # SOFTWARE.
+
 #
 # Clean up after system tests.
 #
 
-. ./conf.sh
+SYSTEMTESTTOP=.
+. $SYSTEMTESTTOP/conf.sh
 
 find . -type f \( \
     -name 'K*' -o -name '*~' -o -name '*.core' -o -name '*.log' \
-    -o -name '*.pid' -o -name '*.run' -o -name '*.keyset' \
-\) -print | xargs rm
+    -o -name '*.pid' -o -name '*.keyset' \
+\) -print | xargs rm -f
 
 for d in $SUBDIRS
 do

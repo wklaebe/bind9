@@ -71,9 +71,7 @@ static isc_boolean_t bind8_compat = ISC_TRUE; /* XXX config */
 		if (result != ISC_R_SUCCESS) goto failure; 	\
 	} while (0)
 
-/* XXX should be macros */
-
-static isc_uint32_t
+static inline isc_uint32_t
 decode_uint32(unsigned char *p) {
 	return ((p[0] << 24) +
 		(p[1] << 16) +
@@ -81,7 +79,7 @@ decode_uint32(unsigned char *p) {
 		(p[3] <<  0));
 }
 
-static void 
+static inline void 
 encode_uint32(isc_uint32_t val, unsigned char *p) {
 	p[0] = (isc_uint8_t)(val >> 24);
 	p[1] = (isc_uint8_t)(val >> 16);
@@ -386,11 +384,15 @@ dns_diff_apply(dns_diff_t *diff, dns_db_t *db, dns_dbversion_t *ver)
 				t = ISC_LIST_NEXT(t, link);
 			}
 
-			/* Convert the rdatalist into a rdataset. */
+			/*
+			 * Convert the rdatalist into a rdataset.
+			 */
 			dns_rdataset_init(&rds);
 			CHECK(dns_rdatalist_tordataset(&rdl, &rds));
 
-			/* Merge the rdataset into the database. */
+			/*
+			 * Merge the rdataset into the database.
+			 */
 			if (op == DNS_DIFFOP_ADD) {
 				result = dns_db_addrdataset(db, node, ver,
 							    0, &rds,
@@ -417,7 +419,9 @@ dns_diff_apply(dns_diff_t *diff, dns_db_t *db, dns_dbversion_t *ver)
 					      "update with no effect");
 			} else if (result == ISC_R_SUCCESS ||
 				   result == DNS_R_NXRRSET) {
-				/* OK */
+				/*
+				 * OK.
+				 */
 			} else {
 				CHECK(result);
 			}
@@ -473,7 +477,9 @@ dns_diff_load(dns_diff_t *diff, dns_addrdatasetfunc_t addfunc,
 				t = ISC_LIST_NEXT(t, link);
 			}
 
-			/* Convert the rdatalist into a rdataset. */
+			/*
+			 * Convert the rdatalist into a rdataset.
+			 */
 			dns_rdataset_init(&rds);
 			CHECK(dns_rdatalist_tordataset(&rdl, &rds));
 			rds.trust = dns_trust_ultimate;
@@ -486,7 +492,9 @@ dns_diff_load(dns_diff_t *diff, dns_addrdatasetfunc_t addfunc,
 					      "update with no effect");
 			} else if (result == ISC_R_SUCCESS ||
 				   result == DNS_R_NXRRSET) {
-				/* OK */
+				/*
+				 * OK.
+				 */
 			} else {
 				CHECK(result);
 			}
@@ -685,6 +693,10 @@ typedef struct {
 	unsigned char	serial[4];  /* SOA serial before update. */
 	/*
 	 * XXXRTH  Should offset be 8 bytes?
+	 * XXXDCL ... probably, since isc_offset_t is 8 bytes on many OSs.
+	 * XXXAG  ... but we will not be able to seek >2G anyway on many
+	 *            platforms as long as we are using fseek() rather
+	 *            than lseek().
 	 */
 	unsigned char	offset[4];  /* Offset from beginning of file. */
 } journal_rawpos_t;
@@ -733,14 +745,12 @@ typedef struct {
 	unsigned char	size[4]; 	/* In bytes, excluding header. */
 } journal_rawrrhdr_t;
 
-/* The in-core representation of the journal header. */
-
+/*
+ * The in-core representation of the journal header.
+ */
 typedef struct {
 	isc_uint32_t	serial;
-	/*
-	 * XXXRTH  Should offset be 8 bytes?
-	 */
-	isc_uint32_t	offset;
+	isc_offset_t	offset;
 } journal_pos_t;
 
 #define POS_VALID(pos) 		((pos).offset != 0)
@@ -753,7 +763,9 @@ typedef struct {
 	isc_uint32_t	index_size;
 } journal_header_t;
 
-/* The in-core representation of the transaction header. */
+/*
+ * The in-core representation of the transaction header.
+ */
 
 typedef struct {
 	isc_uint32_t	size;
@@ -761,8 +773,9 @@ typedef struct {
 	isc_uint32_t	serial1;	
 } journal_xhdr_t;
 
-/* The in-core representation of the RR header. */
-
+/*
+ * The in-core representation of the RR header.
+ */
 typedef struct {
 	isc_uint32_t	size;
 } journal_rrhdr_t;
@@ -799,6 +812,8 @@ struct dns_journal {
 	FILE *			fp;		/* File handle */
 	isc_offset_t		offset;		/* Current file offset */
 	journal_header_t 	header;		/* In-core journal header */
+	unsigned char		*rawindex;	/* In-core buffer for journal
+						   index in on-disk format */
 	journal_pos_t		*index;		/* In-core journal index */
 
 	/* Current transaction state (when writing). */
@@ -861,8 +876,9 @@ journal_header_encode(journal_header_t *cooked, journal_rawheader_t *raw) {
 	encode_uint32(cooked->index_size, raw->h.index_size);
 }
 
-/* Journal file I/O subroutines, with error checking and reporting. */
-  
+/*
+ * Journal file I/O subroutines, with error checking and reporting.
+ */
 static isc_result_t
 journal_seek(dns_journal_t *j, isc_uint32_t offset) {
 	isc_result_t result;
@@ -1023,7 +1039,7 @@ journal_file_create(isc_mem_t *mctx, const char *filename) {
 	
 	result = isc_stdio_close(fp);
 	if (result != ISC_R_SUCCESS) {
-		isc_log_write(JOURNAL_COMMON_LOGARGS, ISC_LOG_ERROR,		
+		isc_log_write(JOURNAL_COMMON_LOGARGS, ISC_LOG_ERROR,
 				 "%s: close: %s",
 				 filename, isc_result_totext(result));
 		(void)isc_file_remove(filename);
@@ -1052,6 +1068,7 @@ dns_journal_open(isc_mem_t *mctx, const char *filename, isc_boolean_t write,
 	j->fp = NULL;
 	j->filename = filename;
 	j->index = NULL;
+	j->rawindex = NULL;
 
 	result = isc_stdio_open(j->filename, write ? "rb+" : "rb", &fp);
 
@@ -1110,23 +1127,34 @@ dns_journal_open(isc_mem_t *mctx, const char *filename, isc_boolean_t write,
 	}
 	
 	/*
-	 * If there is an index, read it into dynamically allocated
-	 * memory and byte swap it if necessary.
+	 * If there is an index, read the raw index into a dynamically
+	 * allocated buffer and then convert it into a cooked index.
 	 */
 	if (j->header.index_size != 0) {
 		unsigned int i;
-		INSIST(sizeof(journal_rawpos_t) == sizeof(journal_pos_t));
-		j->index = isc_mem_get(mctx, j->header.index_size *
-				       sizeof(journal_rawpos_t));
-		if (j->index == NULL)
+		unsigned int rawbytes;
+		unsigned char *p;
+			
+		rawbytes = j->header.index_size * sizeof(journal_rawpos_t);
+		j->rawindex = isc_mem_get(mctx, rawbytes);
+		if (j->rawindex == NULL)
 			FAIL(ISC_R_NOMEMORY);
 		
-		CHECK(journal_read(j, j->index, j->header.index_size *
-				   sizeof(journal_rawpos_t)));
+		CHECK(journal_read(j, j->rawindex, rawbytes));
+		
+		j->index = isc_mem_get(mctx, j->header.index_size *
+				       sizeof(journal_pos_t));
+		if (j->index == NULL)
+			FAIL(ISC_R_NOMEMORY);
+
+		p = j->rawindex;
 		for (i = 0; i < j->header.index_size; i++) {
-			j->index[i].serial = ntohl(j->index[i].serial);
-			j->index[i].offset = ntohl(j->index[i].offset);
+			j->index[i].serial = decode_uint32(p);
+			p += 4;
+			j->index[i].offset = decode_uint32(p);
+			p += 4;
 		}
+		INSIST(p == j->rawindex + rawbytes);
 	}
 	j->offset = -1; /* Invalid, must seek explicitly. */
 
@@ -1246,10 +1274,11 @@ journal_next(dns_journal_t *j, journal_pos_t *pos) {
 	/*
 	 * Check for offset wraparound.
 	 */
-	if (pos->offset + xhdr.size < pos->offset) {
-		isc_log_write(JOURNAL_COMMON_LOGARGS, ISC_LOG_ERROR,		
-				 "%s: offset too large",
-				 j->filename);
+	if (xhdr.size + sizeof(journal_rawxhdr_t) > ISC_OFFSET_MAXIMUM ||
+           ISC_OFFSET_MAXIMUM - xhdr.size - sizeof(journal_rawxhdr_t)
+           < pos->offset) {
+		isc_log_write(JOURNAL_COMMON_LOGARGS, ISC_LOG_ERROR,
+			      "%s: offset too large", j->filename);
 		return (ISC_R_UNEXPECTED);		
 	}
 	
@@ -1513,7 +1542,6 @@ isc_result_t
 dns_journal_commit(dns_journal_t *j) {
 	isc_result_t result;
 	journal_rawheader_t rawheader;
-	unsigned int i;
 	
 	REQUIRE(DNS_JOURNAL_VALID(j));
 	REQUIRE(j->state == JOURNAL_STATE_TRANSACTION);
@@ -1593,31 +1621,37 @@ dns_journal_commit(dns_journal_t *j) {
 	CHECK(journal_write(j, &rawheader, sizeof(rawheader)));
 	
 	/*
-	 * Update the index.  Byte swap in-place if necessary.
+	 * Update the index.
 	 */
 	index_add(j, &j->x.pos[0]);
+
+	/*
+	 * Convert the index into on-disk format and write
+	 * it to disk.
+	 */
 	if (j->header.index_size != 0) {
 		unsigned int i;
+		unsigned char *p;
+		unsigned int rawbytes;
+
+		rawbytes = j->header.index_size * sizeof(journal_rawpos_t);
+		
+		p = j->rawindex;
 		for (i = 0; i < j->header.index_size; i++) {
-			j->index[i].serial = ntohl(j->index[i].serial);
-			j->index[i].offset = ntohl(j->index[i].offset);
+			encode_uint32(j->index[i].serial, p);
+			p += 4;
+			encode_uint32(j->index[i].serial, p);
+			p += 4;
 		}
-		CHECK(journal_write(j, j->index, j->header.index_size *
-				    sizeof(journal_rawpos_t)));
+		INSIST(p == j->rawindex + rawbytes);
+		
+		CHECK(journal_write(j, j->index, rawbytes));
 	}
 
 	/*
 	 * Commit the header to stable storage.
 	 */
 	CHECK(journal_fsync(j));
-
-	/*
-	 * Undo the byte swapping.
-	 */
-	for (i = 0; i < j->header.index_size; i++) {
-		j->index[i].serial = ntohl(j->index[i].serial);
-		j->index[i].offset = ntohl(j->index[i].offset);
-	}
 
 	/*
 	 * We no longer have a transaction open.
@@ -1650,9 +1684,12 @@ dns_journal_destroy(dns_journal_t **journalp) {
 	j->it.result = ISC_R_FAILURE;
 	dns_name_invalidate(&j->it.name);
 	dns_decompress_invalidate(&j->it.dctx);
+	if (j->rawindex != NULL)
+		isc_mem_put(j->mctx, j->rawindex, j->header.index_size *
+			    sizeof(journal_rawpos_t));
 	if (j->index != NULL)
 		isc_mem_put(j->mctx, j->index, j->header.index_size *
-			    sizeof(journal_rawpos_t));
+			    sizeof(journal_pos_t));
 	if (j->it.target.base != NULL)
 		isc_mem_put(j->mctx, j->it.target.base, j->it.target.length);
 	if (j->it.source.base != NULL)
@@ -1747,7 +1784,7 @@ roll_forward(dns_journal_t *j, dns_db_t *db) {
 		if (n_soa == 3)
 			n_soa = 1;
 		if (n_soa == 0) {
-			isc_log_write(JOURNAL_COMMON_LOGARGS, ISC_LOG_ERROR,			
+			isc_log_write(JOURNAL_COMMON_LOGARGS, ISC_LOG_ERROR,
 					 "%s: journal file corrupt: missing "
 					 "initial SOA", j->filename);
 			FAIL(ISC_R_UNEXPECTED);
@@ -2022,11 +2059,6 @@ read_one_rr(dns_journal_t *j) {
 	journal_xhdr_t xhdr;
 	journal_rrhdr_t rrhdr;
 
-	/*
-	 * XXXRTH  Need to resolve the comparison between int and unsigned
-	 *         int here, but we can defer this until we decide what type
-	 *	   we want j->offset to be.
-	 */
 	INSIST(j->offset <= j->it.epos.offset);
 	if (j->offset == j->it.epos.offset)
 		return (ISC_R_NOMORE);
@@ -2267,7 +2299,9 @@ dns_diff_subtract(dns_diff_t diff[2], dns_diff_t *r) {
 			goto next;
 		}
 		INSIST(t == 0);
-		/* Identical RRs in both databases; skip them both. */
+		/*
+		 * Identical RRs in both databases; skip them both.
+		 */
 		for (i = 0; i < 2; i++) {
 			ISC_LIST_UNLINK(diff[i].tuples, p[i], link);
 			dns_difftuple_free(&p[i]);

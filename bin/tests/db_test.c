@@ -64,7 +64,7 @@ static int			pause_every = 0;
 static isc_boolean_t		ascending = ISC_TRUE;
 
 static void
-print_result(char *message, isc_result_t result) {
+print_result(const char *message, isc_result_t result) {
 	size_t len;
 
 	if (message == NULL) {
@@ -235,7 +235,7 @@ list(dbinfo *dbi, char *seektext) {
 }
 
 static isc_result_t
-load(char *filename, char *origintext, isc_boolean_t cache) {
+load(const char *filename, const char *origintext, isc_boolean_t cache) {
 	dns_fixedname_t forigin;
 	dns_name_t *origin;
 	isc_result_t result;
@@ -271,7 +271,9 @@ load(char *filename, char *origintext, isc_boolean_t cache) {
 	if (result != ISC_R_SUCCESS)
 		return (result);
 
-	result = dns_db_create(mctx, dbtype, origin, cache, dns_rdataclass_in,
+	result = dns_db_create(mctx, dbtype, origin,
+			       cache ? dns_dbtype_cache : dns_dbtype_zone,
+			       dns_rdataclass_in,
 			       0, NULL, &dbi->db);
 	if (result != ISC_R_SUCCESS) {
 		isc_mem_put(mctx, dbi, sizeof *dbi);

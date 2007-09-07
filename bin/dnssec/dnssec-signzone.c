@@ -1,18 +1,20 @@
 /*
- * Copyright (C) 1999, 2000  Internet Software Consortium.
+ * Portions Copyright (C) 1999, 2000  Internet Software Consortium.
+ * Portions Copyright (C) 1995-2000 by Network Associates, Inc.
  * 
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  * 
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
- * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
- * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
- * SOFTWARE.
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM AND
+ * NETWORK ASSOCIATES DISCLAIM ALL WARRANTIES WITH REGARD TO THIS
+ * SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+ * FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE CONSORTIUM OR NETWORK
+ * ASSOCIATES BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR
+ * CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+ * USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+ * OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ * PERFORMANCE OF THIS SOFTWARE.
  */
 
 #include <config.h>
@@ -20,6 +22,7 @@
 #include <stdlib.h>
 
 #include <isc/commandline.h>
+#include <isc/entropy.h>
 #include <isc/mem.h>
 #include <isc/string.h>
 #include <isc/util.h>
@@ -40,9 +43,13 @@
 #include <dns/secalg.h>
 #include <dns/time.h>
 
+#include <dst/dst.h>
 #include <dst/result.h>
 
-#define PROGRAM "dnssec-signzone"
+#include "dnssectool.h"
+
+const char *program = "dnssec-signzone";
+int verbose;
 
 /*#define USE_ZONESTATUS*/
 
@@ -65,100 +72,18 @@ struct signer_array_struct {
 static ISC_LIST(signer_key_t) keylist;
 static isc_stdtime_t starttime = 0, endtime = 0, now;
 static int cycle = -1;
-static int verbose;
 static isc_boolean_t tryverify = ISC_FALSE;
-
 static isc_mem_t *mctx = NULL;
-
-static void
-fatal(char *format, ...) {
-	va_list args;
-
-	fprintf(stderr, "%s: ", PROGRAM);
-	va_start(args, format);
-	vfprintf(stderr, format, args);
-	va_end(args);
-	fprintf(stderr, "\n");
-	exit(1);
-}
-
-static inline void
-check_result(isc_result_t result, char *message) {
-	if (result != ISC_R_SUCCESS) {
-		fprintf(stderr, "%s: %s: %s\n", PROGRAM, message,
-			isc_result_totext(result));
-		exit(1);
-	}
-}
-
-static void
-vbprintf(int level, const char *fmt, ...) {
-	va_list ap;
-	if (level > verbose)
-		return;
-	va_start(ap, fmt);
-	fprintf(stderr, "%s: ", PROGRAM);
-	vfprintf(stderr, fmt, ap);
-	va_end(ap);
-}
-
-/* Not thread-safe! */
-static char *
-nametostr(dns_name_t *name) {
-	isc_buffer_t b;
-	isc_region_t r;
-	isc_result_t result;
-	static char data[1025];
-
-	isc_buffer_init(&b, data, sizeof(data));
-	result = dns_name_totext(name, ISC_FALSE, &b);
-	check_result(result, "dns_name_totext()");
-	isc_buffer_usedregion(&b, &r);
-	r.base[r.length] = 0;
-	return (char *) r.base;
-}
-
-/* Not thread-safe! */
-static char *
-typetostr(const dns_rdatatype_t type) {
-	isc_buffer_t b;
-	isc_region_t r;
-	isc_result_t result;
-	static char data[10];
-
-	isc_buffer_init(&b, data, sizeof(data));
-	result = dns_rdatatype_totext(type, &b);
-	check_result(result, "dns_rdatatype_totext()");
-	isc_buffer_usedregion(&b, &r);
-	r.base[r.length] = 0;
-	return (char *) r.base;
-}
-
-/* Not thread-safe! */
-static char *
-algtostr(const dns_secalg_t alg) {
-	isc_buffer_t b;
-	isc_region_t r;
-	isc_result_t result;
-	static char data[10];
-
-	isc_buffer_init(&b, data, sizeof(data));
-	result = dns_secalg_totext(alg, &b);
-	check_result(result, "dns_secalg_totext()");
-	isc_buffer_usedregion(&b, &r);
-	r.base[r.length] = 0;
-	return (char *) r.base;
-}
+static isc_entropy_t *ectx = NULL;
 
 static inline void
 set_bit(unsigned char *array, unsigned int index, unsigned int bit) {
-	unsigned int byte, shift, mask;
+	unsigned int shift, mask;
 
-	byte = array[index / 8];
 	shift = 7 - (index % 8);
 	mask = 1 << shift;
 
-	if (bit)
+	if (bit != 0)
 		array[index / 8] |= mask;
 	else
 		array[index / 8] &= (~mask & 0xFF);
@@ -175,7 +100,7 @@ signwithkey(dns_name_t *name, dns_rdataset_t *rdataset, dns_rdata_t *rdata,
 				 mctx, b, rdata);
 	if (result != ISC_R_SUCCESS)
 		fatal("key '%s/%s/%d' failed to sign data: %s",
-		      dst_key_name(key), algtostr(dst_key_alg(key)),
+		      nametostr(dst_key_name(key)), algtostr(dst_key_alg(key)),
 		      dst_key_id(key), isc_result_totext(result));
 
 	if (tryverify) {
@@ -195,17 +120,10 @@ issigningkey(signer_key_t *key) {
 
 static inline isc_boolean_t
 iszonekey(signer_key_t *key, dns_db_t *db) {
-	char origin[1024];
-	isc_buffer_t b;
-	isc_result_t result;
-
-	isc_buffer_init(&b, origin, sizeof(origin));
-	result = dns_name_totext(dns_db_origin(db), ISC_FALSE, &b);
-	check_result(result, "dns_name_totext()");
-
-	return (ISC_TF(strcasecmp(dst_key_name(key->key), origin) == 0 &&
-		(dst_key_flags(key->key) & DNS_KEYFLAG_OWNERMASK) ==
-		 DNS_KEYOWNER_ZONE));
+	return (ISC_TF(dns_name_equal(dst_key_name(key->key),
+				      dns_db_origin(db)) &&
+		       (dst_key_flags(key->key) & DNS_KEYFLAG_OWNERMASK) ==
+		       DNS_KEYOWNER_ZONE));
 }
 
 /*
@@ -214,24 +132,21 @@ iszonekey(signer_key_t *key, dns_db_t *db) {
  */
 static signer_key_t *
 keythatsigned(dns_rdata_sig_t *sig) {
-	char *keyname;
 	isc_result_t result;
 	dst_key_t *pubkey = NULL, *privkey = NULL;
 	signer_key_t *key;
-
-	keyname = nametostr(&sig->signer);
 
 	key = ISC_LIST_HEAD(keylist);
 	while (key != NULL) {
 		if (sig->keyid == dst_key_id(key->key) &&
 		    sig->algorithm == dst_key_alg(key->key) &&
-		    strcasecmp(keyname, dst_key_name(key->key)) == 0)
+		    dns_name_equal(&sig->signer, dst_key_name(key->key)))
 			return key;
 		key = ISC_LIST_NEXT(key, link);
 	}
 
-	result = dst_key_fromfile(keyname, sig->keyid, sig->algorithm,
-				  DST_TYPE_PUBLIC, mctx, &pubkey);
+	result = dst_key_fromfile(&sig->signer, sig->keyid, sig->algorithm,
+				  DST_TYPE_PUBLIC, NULL, mctx, &pubkey);
 	if (result != ISC_R_SUCCESS)
 		return (NULL);
 
@@ -239,8 +154,8 @@ keythatsigned(dns_rdata_sig_t *sig) {
 	if (key == NULL)
 		fatal("out of memory");
 
-	result = dst_key_fromfile(keyname, sig->keyid, sig->algorithm,
-				  DST_TYPE_PRIVATE, mctx, &privkey);
+	result = dst_key_fromfile(&sig->signer, sig->keyid, sig->algorithm,
+				  DST_TYPE_PRIVATE, NULL, mctx, &privkey);
 	if (result == ISC_R_SUCCESS) {
 		key->key = privkey;
 		dst_key_free(&pubkey);
@@ -464,7 +379,7 @@ signset(dns_db_t *db, dns_dbversion_t *version, dns_dbnode_t *node,
 			else if (resign) {
 				allocbufferandrdata;
 				vbprintf(1, "\tresigning with key %s/%s/%d\n",
-				       dst_key_name(key->key),
+				       nametostr(dst_key_name(key->key)),
 				       algtostr(dst_key_alg(key->key)),
 				       dst_key_id(key->key));
 				signwithkey(name, set, trdata, key->key, &b);
@@ -489,13 +404,13 @@ signset(dns_db_t *db, dns_dbversion_t *version, dns_dbnode_t *node,
 
 	key = ISC_LIST_HEAD(keylist);
 	while (key != NULL) {
-		int alg = dst_key_alg(key->key);
+		unsigned int alg = dst_key_alg(key->key);
 		if (key->isdefault &&
 		    (notsigned || (wassignedby[alg] && !nowsignedby[alg])))
 		{
 			allocbufferandrdata;
 			vbprintf(1, "\tsigning with key %s/%s/%d\n",
-			       dst_key_name(key->key),
+			       nametostr(dst_key_name(key->key)),
 			       algtostr(dst_key_alg(key->key)),
 			       dst_key_id(key->key));
 			signwithkey(name, set, trdata, key->key, &b);
@@ -606,8 +521,8 @@ importparentsig(dns_db_t *db, dns_dbversion_t *version, dns_dbnode_t *node,
 	check_result(result, "dns_name_totext()");
 	isc_buffer_usedregion(&b, &r);
 	strcpy((char *)r.base + r.length, "signedkey");
-	result = dns_db_create(mctx, "rbt", name, ISC_FALSE, dns_db_class(db),
-			       0, NULL, &newdb);
+	result = dns_db_create(mctx, "rbt", name, dns_dbtype_zone,
+			       dns_db_class(db), 0, NULL, &newdb);
 	check_result(result, "dns_db_create()");
 	result = dns_db_load(newdb, (char *)filename);
 	if (result != ISC_R_SUCCESS)
@@ -685,8 +600,8 @@ haschildkey(dns_db_t *db, dns_name_t *name) {
 	check_result(result, "dns_name_totext()");
 	isc_buffer_usedregion(&b, &r);
 	strcpy((char *)r.base + r.length, "signedkey");
-	result = dns_db_create(mctx, "rbt", name, ISC_FALSE, dns_db_class(db),
-			       0, NULL, &newdb);
+	result = dns_db_create(mctx, "rbt", name, dns_dbtype_zone,
+			      dns_db_class(db), 0, NULL, &newdb);
 	check_result(result, "dns_db_create()");
 	result = dns_db_load(newdb, (char *)filename);
 	if (result != ISC_R_SUCCESS)
@@ -760,14 +675,15 @@ signname(dns_db_t *db, dns_dbversion_t *version, dns_dbnode_t *node,
 	if (dns_name_iswildcard(name)) {
 		if (warnwild++ == 0) {
 			fprintf(stderr, "%s: warning: BIND 9 doesn't properly "
-				"handle wildcards in secure zones:\n", PROGRAM);
+				"handle wildcards in secure zones:\n",
+				program);
 			fprintf(stderr, "\t- wildcard nonexistence proof is "
 				"not generated by the server\n");
 			fprintf(stderr, "\t- wildcard nonexistence proof is "
 				"not required by the resolver\n");
 		}
 		fprintf(stderr, "%s: warning: wildcard name seen: %s\n",
-			PROGRAM, nametostr(name));
+			program, nametostr(name));
 	}
 	if (!atorigin) {
 		dns_rdataset_t nsset;
@@ -887,7 +803,7 @@ signname(dns_db_t *db, dns_dbversion_t *version, dns_dbnode_t *node,
 				dns_rdatalist_init(&keyrdatalist);
 				dstkey = NULL;
 				
-				result = dst_key_generate("", DNS_KEYALG_DSA,
+				result = dst_key_generate(name, DNS_KEYALG_DSA,
 							  0, 0,
 							  DNS_KEYTYPE_NOKEY |
 							  DNS_KEYOWNER_ZONE,
@@ -1165,7 +1081,7 @@ loadzone(char *file, char *origin, dns_db_t **db) {
 		fatal("failed converting name '%s' to dns format: %s",
 		      origin, isc_result_totext(result));
 
-	result = dns_db_create(mctx, "rbt", &name, ISC_FALSE,
+	result = dns_db_create(mctx, "rbt", &name, dns_dbtype_zone,
 			       dns_rdataclass_in, 0, NULL, db);
 	check_result(result, "dns_db_create()");
 
@@ -1229,31 +1145,31 @@ static isc_stdtime_t
 strtotime(char *str, isc_int64_t now, isc_int64_t base) {
 	isc_int64_t val, offset;
 	isc_result_t result;
-	char *endp = "";
+	char *endp;
 
 	if (str[0] == '+') {
 		offset = strtol(str + 1, &endp, 0);
+		if (*endp != '\0')
+			fatal("time value %s is invalid", str);
 		val = base + offset;
-	}
-	else if (strncmp(str, "now+", 4) == 0) {
+	} else if (strncmp(str, "now+", 4) == 0) {
 		offset = strtol(str + 4, &endp, 0);
+		if (*endp != '\0')
+			fatal("time value %s is invalid", str);
 		val = now + offset;
-	}
-	else {
+	} else {
 		result = dns_time64_fromtext(str, &val);
 		if (result != ISC_R_SUCCESS)
 			fatal("time %s must be numeric", str);
 	}
-	if (*endp != '\0')
-		fatal("time value %s is invalid", str);
 
 	return ((isc_stdtime_t) val);
 }
 
 static void
-usage() {
+usage(void) {
 	fprintf(stderr, "Usage:\n");
-	fprintf(stderr, "\t%s [options] zonefile [keys]\n", PROGRAM);
+	fprintf(stderr, "\t%s [options] zonefile [keys]\n", program);
 
 	fprintf(stderr, "\n");
 
@@ -1261,7 +1177,8 @@ usage() {
 	fprintf(stderr, "\t-s YYYYMMDDHHMMSS|+offset:\n");
 	fprintf(stderr, "\t\tSIG start time - absolute|offset (now)\n");
 	fprintf(stderr, "\t-e YYYYMMDDHHMMSS|+offset|\"now\"+offset]:\n");
-	fprintf(stderr, "\t\tSIG end time  - absolute|from start|from now (now + 30 days)\n");
+	fprintf(stderr, "\t\tSIG end time  - absolute|from start|from now "
+				"(now + 30 days)\n");
 	fprintf(stderr, "\t-c ttl:\n");
 	fprintf(stderr, "\t\tcycle period - regenerate "
 				"if < cycle from end ( (end-start)/4 )\n");
@@ -1270,11 +1187,14 @@ usage() {
 	fprintf(stderr, "\t-o origin:\n");
 	fprintf(stderr, "\t\tzone origin (name of zonefile)\n");
 	fprintf(stderr, "\t-f outfile:\n");
-	fprintf(stderr, "\t\tfile the signed zone is written in " \
-			"(zonefile + .signed)\n");
-	fprintf(stderr, "\t-a:\n");
-	fprintf(stderr, "\t\tverify generated signatures "
-					"(if currently valid)\n");
+	fprintf(stderr, "\t\tfile the signed zone is written in "
+				"(zonefile + .signed)\n");
+	fprintf(stderr, "\t-a\n");
+	fprintf(stderr, "\t\tverify generated signatures\n");
+	fprintf(stderr, "\t-p\n");
+	fprintf(stderr, "\t\tuse pseudorandom data (faster but less secure)\n");
+	fprintf(stderr, "\t-r randomdev:\n");
+	fprintf(stderr,	"\t\ta file containing random data\n");
 
 	fprintf(stderr, "\n");
 
@@ -1284,62 +1204,28 @@ usage() {
 	exit(0);
 }
 
-static void
-setup_logging(int level, isc_log_t **logp) {
-	isc_result_t result;
-	isc_logdestination_t destination;
-	isc_logconfig_t *logconfig;
-	isc_log_t *log = 0;
-	
-	RUNTIME_CHECK(isc_log_create(mctx, &log, &logconfig)
-		      == ISC_R_SUCCESS);
-	isc_log_setcontext(log);
-	dns_log_init(log);
-	dns_log_setcontext(log);
-	
-	/*
-	 * Set up a channel similar to default_stderr except:
-	 *  - the logging level is passed in
-	 *  - the logging level is printed
-	 *  - no time stamp is printed
-	 */
-	destination.file.stream = stderr;
-	destination.file.name = NULL;
-	destination.file.versions = ISC_LOG_ROLLNEVER;
-	destination.file.maximum_size = 0;
-	result = isc_log_createchannel(logconfig, "stderr",
-				       ISC_LOG_TOFILEDESC,
-				       level,
-				       &destination,
-				       ISC_LOG_PRINTLEVEL);
-	check_result(result, "isc_log_createchannel()");
-
-	RUNTIME_CHECK(isc_log_usechannel(logconfig, "stderr",
-					 NULL, NULL) == ISC_R_SUCCESS);
-
-	*logp = log;
-}
-
 int
 main(int argc, char *argv[]) {
 	int i, ch;
 	char *startstr = NULL, *endstr = NULL;
 	char *origin = NULL, *file = NULL, *output = NULL;
+	char *randomfile = NULL;
 	char *endp;
 	dns_db_t *db;
 	dns_dbversion_t *version;
 	signer_key_t *key;
 	isc_result_t result;
 	isc_log_t *log = NULL;
-	int loglevel;
-
-	dns_result_register();
+	isc_boolean_t pseudorandom = ISC_FALSE;
+	unsigned int eflags;
 
 	result = isc_mem_create(0, 0, &mctx);
 	if (result != ISC_R_SUCCESS)
 		fatal("out of memory");
 
-	while ((ch = isc_commandline_parse(argc, argv, "s:e:c:v:o:f:ah"))
+	dns_result_register();
+
+	while ((ch = isc_commandline_parse(argc, argv, "s:e:c:v:o:f:ahpr:"))
 	       != -1) {
 		switch (ch) {
 		case 's':
@@ -1361,6 +1247,17 @@ main(int argc, char *argv[]) {
 			cycle = strtol(isc_commandline_argument, &endp, 0);
 			if (*endp != '\0')
 				fatal("cycle period must be numeric");
+			break;
+
+		case 'p':
+			pseudorandom = ISC_TRUE;
+			break;
+
+		case 'r':
+			randomfile = isc_mem_strdup(mctx,
+						    isc_commandline_argument);
+			if (randomfile == NULL)
+				fatal("out of memory");
 			break;
 
 		case 'v':
@@ -1395,6 +1292,16 @@ main(int argc, char *argv[]) {
 		}
 	}
 
+	setup_entropy(mctx, randomfile, &ectx);
+	if (randomfile != NULL)
+		isc_mem_free(mctx, randomfile);
+	eflags = ISC_ENTROPY_BLOCKING;
+	if (!pseudorandom)
+		eflags |= ISC_ENTROPY_GOODONLY;
+	result = dst_lib_init(mctx, ectx, eflags);
+	if (result != ISC_R_SUCCESS)
+		fatal("could not initialize dst");
+
 	isc_stdtime_get(&now);
 
 	if (startstr != NULL) {
@@ -1415,22 +1322,7 @@ main(int argc, char *argv[]) {
 		cycle = (endtime - starttime) / 4;
 	}
 
-	switch (verbose) {
-	case 0:
-		/*
-		 * We want to see warnings about things like out-of-zone
-		 * data in the master file even when not verbose.
-		 */
-		loglevel = ISC_LOG_WARNING;
-		break;
-	case 1:
-		loglevel = ISC_LOG_INFO;
-		break;
-	default:
-		loglevel = ISC_LOG_DEBUG(verbose - 2 + 1);
-		break;
-	}
-	setup_logging(loglevel, &log);
+	setup_logging(verbose, mctx, &log);
 	
 	argc -= isc_commandline_index;
 	argv += isc_commandline_index;
@@ -1482,56 +1374,41 @@ main(int argc, char *argv[]) {
 	}
 	else {
 		for (i = 0; i < argc; i++) {
-			isc_uint16_t id;
-			int alg;
-			char *namestr = NULL;
-			isc_buffer_t b;
+			dst_key_t *newkey = NULL;
 
-			isc_buffer_init(&b, argv[i], strlen(argv[i]));
-			isc_buffer_add(&b, strlen(argv[i]));
-			result = dst_key_parsefilename(&b, mctx, &namestr,
-						       &id, &alg, NULL);
+			result = dst_key_fromnamedfile(argv[i],
+						       DST_TYPE_PRIVATE,
+						       mctx, &newkey);
 			if (result != ISC_R_SUCCESS)
 				usage();
 
 			key = ISC_LIST_HEAD(keylist);
 			while (key != NULL) {
 				dst_key_t *dkey = key->key;
-				if (dst_key_id(dkey) == id &&
-				    dst_key_alg(dkey) == alg &&
-				    strcasecmp(namestr,
-					       dst_key_name(dkey)) == 0)
+				if (dst_key_id(dkey) == dst_key_id(newkey) &&
+				    dst_key_alg(dkey) == dst_key_alg(newkey) &&
+				    dns_name_equal(dst_key_name(dkey),
+					    	   dst_key_name(newkey)))
 				{
 					key->isdefault = ISC_TRUE;
 					if (!dst_key_isprivate(dkey))
 						fatal("cannot sign zone with "
-						      "non-private key "
-						      "'%s/%s/%d'",
-						      dst_key_name(dkey),
-						      algtostr(dst_key_alg(dkey)),
-						      dst_key_id(dkey));
+						      "non-private key %s",
+						      argv[i]);
 					break;
 				}
 				key = ISC_LIST_NEXT(key, link);
 			}
 			if (key == NULL) {
-				dst_key_t *dkey = NULL;
-				result = dst_key_fromfile(namestr, id, alg,
-							  DST_TYPE_PRIVATE,
-							  mctx, &dkey);
-				if (result != ISC_R_SUCCESS)
-					fatal("failed to load key '%s/%s/%d' "
-					      "from disk: %s", namestr,
-					      algtostr(alg), id,
-					      isc_result_totext(result));
 				key = isc_mem_get(mctx, sizeof(signer_key_t));
 				if (key == NULL)
 					fatal("out of memory");
-				key->key = dkey;
+				key->key = newkey;
 				key->isdefault = ISC_TRUE;
 				ISC_LIST_APPEND(keylist, key, link);
 			}
-		isc_mem_put(mctx, namestr, strlen(namestr) + 1);
+			else
+				dst_key_free(&newkey);
 		}
 	}
 
@@ -1563,7 +1440,10 @@ main(int argc, char *argv[]) {
 
 	if (log != NULL)
 		isc_log_destroy(&log);
-/*	isc_mem_stats(mctx, stdout);*/
+	cleanup_entropy(&ectx);
+	dst_lib_destroy();
+	if (verbose > 10)
+		isc_mem_stats(mctx, stdout);
 	isc_mem_destroy(&mctx);
 
 	return (0);

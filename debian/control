@@ -1,0 +1,151 @@
+Source: bind9
+Section: net
+Priority: optional
+Maintainer: LaMont Jones <lamont@debian.org>
+Uploaders: Bdale Garbee <bdale@gag.com>
+Build-Depends: debhelper (>=4.1.16), libssl-dev, libtool, bison, gcc-3.4 [powerpc], g++-3.4 [powerpc]
+Standards-Version: 3.5.6.0
+
+Package: bind9
+Architecture: any
+Depends: ${shlibs:Depends}, netbase, adduser, libdns21 (=${Source-Version}), libisccfg1 (=${Source-Version}), libisc11 (=${Source-Version}), libisccc0 (=${Source-Version}), lsb-base (>=3.0-6)
+Conflicts: bind
+Replaces: bind, dnsutils (<< 1:9.1.0-3)
+Suggests: dnsutils, bind9-doc
+Description: Internet Domain Name Server
+ ${Description}
+ .
+ This package provides the server and related configuration files.
+
+Package: bind9-doc
+Architecture: all
+Section: doc
+Description: Documentation for BIND
+ This package provides various documents that are useful for maintaining a
+ working BIND installation.
+
+Package: bind9-host
+Priority: standard
+Architecture: any
+Depends: ${shlibs:Depends}
+Conflicts: host, dnsutils (<< 1:9.0.0)
+Replaces: dnsutils (<< 1:9.0.0)
+Provides: host
+Description: Version of 'host' bundled with BIND 9.X
+ This package provides the 'host' program in the form that is bundled with
+ the BIND 9.X sources.  This version differs from the one provided in the
+ package called host, which is from NIKHEF, and has a similar but different
+ set of features/options.
+
+Package: libbind-dev
+Section: libdevel
+Architecture: any
+Conflicts: bind-dev
+Replaces: bind-dev
+Depends: libdns21 (= ${Source-Version}), libisc11 (= ${Source-Version}), libisccc0(= ${Source-Version}), libisccfg1 (= ${Source-Version}), liblwres9 (= ${Source-Version}) 
+Description: Static Libraries and Headers used by BIND
+ This package delivers archive-style libraries, header files, and API man
+ pages for libbind, libdns, libisc, and liblwres.  These are are only needed 
+ if you want to compile other packages that need more nameserver API than the 
+ resolver code provided in libc.
+
+Package: libbind9-0
+Section: libs
+Priority: standard
+Architecture: any
+Conflicts: libbind0
+Replaces: libbind0
+Depends: ${shlibs:Depends}
+Description: BIND9 Shared Library used by BIND
+ ${Description}
+ .
+ This package delivers the libbind9 shared library used by BIND's daemons and
+ clients.
+
+Package: libdns21
+Section: libs
+Priority: standard
+Architecture: any
+Conflicts: libbind0
+Replaces: libbind0
+Depends: ${shlibs:Depends}
+Description: DNS Shared Library used by BIND
+ ${Description}
+ .
+ This package delivers the libdns shared library used by BIND's daemons and
+ clients.
+
+Package: libisc11
+Section: libs
+Priority: standard
+Architecture: any
+Conflicts: libbind0
+Replaces: libbind0
+Depends: ${shlibs:Depends}
+Description: ISC Shared Library used by BIND
+ ${Description}
+ .
+ This package delivers the libisc shared library used by BIND's daemons and
+ clients.
+
+Package: liblwres9
+Section: libs
+Priority: standard
+Architecture: any
+Conflicts: libbind0
+Replaces: libbind0
+Depends: ${shlibs:Depends}
+Description: Lightweight Resolver Library used by BIND
+ ${Description}
+ .
+ This package delivers the liblwres shared library used by BIND's daemons
+ and clients.
+
+Package: libisccc0
+Section: libs
+Architecture: any
+Conflicts: libbind0
+Replaces: libbind0
+Depends: ${shlibs:Depends}
+Description: Command Channel Library used by BIND
+ ${Description}
+ .
+ This package delivers the libisccc shared library used by BIND's daemons
+ and clients, particularly rndc.
+
+Package: libisccfg1
+Section: libs
+Architecture: any
+Conflicts: libbind0
+Replaces: libbind0
+Depends: ${shlibs:Depends}
+Description: Config File Handling Library used by BIND
+ ${Description}
+ .
+ This package delivers the libisccfg shared library used by BIND's daemons
+ and clients to read and write ISC-style configuration files like named.conf
+ and rndc.conf.
+
+Package: dnsutils
+Priority: standard
+Architecture: any
+Depends: ${shlibs:Depends}, bind9-host | host
+Suggests: rblcheck
+Conflicts: netstd (<< 2.00)
+Replaces: bind, bind9 (<< 1:9.1.0-3)
+Description: Clients provided with BIND
+ ${Description}
+ .
+ This package delivers various client programs related to DNS that are 
+ derived from the BIND source tree.
+
+Package: lwresd
+Architecture: any
+Depends: ${shlibs:Depends}
+Recommends: libnss-lwres
+Description: Lightweight Resolver Daemon
+ lwresd is the daemon providing name lookup services to clients that use
+ the BIND 9 lightweight resolver library.  It is essentially a stripped-
+ down, caching-only name server that answers queries using the BIND 9
+ lightweight resolver protocol rather than the DNS protocol.
+

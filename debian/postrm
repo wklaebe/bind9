@@ -1,0 +1,10 @@
+#!/bin/sh
+
+if [ "$1" = "purge" ]
+then
+	rm -f /etc/bind/rndc.key /etc/default/bind9
+	rmdir /etc/bind >/dev/null 2>&1 || true
+	update-rc.d bind9 remove >/dev/null
+fi
+
+#DEBHELPER#

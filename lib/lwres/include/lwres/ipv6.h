@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: ipv6.h,v 1.9.2.1 2004/03/09 06:12:36 marka Exp $ */
+/* $Id: ipv6.h,v 1.9.206.1 2004/03/06 08:15:34 marka Exp $ */
 
 #ifndef LWRES_IPV6_H
 #define LWRES_IPV6_H 1

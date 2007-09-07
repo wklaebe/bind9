@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
- * Copyright (C) 1998-2001  Internet Software Consortium.
+ * Copyright (C) 1998-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: socket.h,v 1.54.2.1 2004/03/09 06:12:02 marka Exp $ */
+/* $Id: socket.h,v 1.54.12.4 2004/03/08 09:04:53 marka Exp $ */
 
 #ifndef ISC_SOCKET_H
 #define ISC_SOCKET_H 1
@@ -324,6 +324,13 @@ isc_socket_bind(isc_socket_t *sock, isc_sockaddr_t *addressp);
  *	ISC_R_ADDRINUSE
  *	ISC_R_BOUND
  *	ISC_R_UNEXPECTED
+ */
+
+isc_result_t
+isc_socket_filter(isc_socket_t *sock, const char *filter);
+/*
+ * Inform the kernel that it should perform accept filtering.
+ * If filter is NULL the current filter will be removed.:w
  */
 
 isc_result_t
@@ -681,6 +688,16 @@ isc_socket_gettype(isc_socket_t *sock);
 
 isc_boolean_t
 isc_socket_isbound(isc_socket_t *sock);
+
+void
+isc_socket_ipv6only(isc_socket_t *sock, isc_boolean_t yes);
+/*
+ * If the socket is an IPv6 socket set/clear the IPV6_IPV6ONLY socket
+ * option if the host OS supports this option.
+ *
+ * Requires:
+ *	'sock' is a valid socket.
+ */
 
 ISC_LANG_ENDDECLS
 

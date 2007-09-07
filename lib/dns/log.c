@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: log.c,v 1.33.2.5 2004/03/09 06:11:02 marka Exp $ */
+/* $Id: log.c,v 1.33.2.2.10.3 2004/03/06 08:13:39 marka Exp $ */
 
 /* Principal Authors: DCL */
 
@@ -33,7 +33,7 @@ LIBDNS_EXTERNAL_DATA isc_logcategory_t dns_categories[] = {
 	{ "notify", 	0 },
 	{ "database", 	0 },
 	{ "security", 	0 },
-	{ "oldconfig",  0 }, /* Placeholder */
+	{ "_placeholder", 0 },
 	{ "dnssec",	0 },
 	{ "resolver",	0 },
 	{ "xfer-in",	0 },

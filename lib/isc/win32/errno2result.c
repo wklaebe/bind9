@@ -1,6 +1,6 @@
 /*
- * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
- * Copyright (C) 2000-2003  Internet Software Consortium.
+ * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2000-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: errno2result.c,v 1.4.2.9 2005/09/01 03:15:40 marka Exp $ */
+/* $Id: errno2result.c,v 1.4.2.5.2.3 2004/03/08 09:04:59 marka Exp $ */
 
 #include <config.h>
 
@@ -32,19 +32,23 @@
  * not already there.
  */
 isc_result_t
-isc__errno2resultx(int posixerrno, const char *file, int line) {
+isc__errno2result(int posixerrno) {
 	char strbuf[ISC_STRERRORSIZE];
 
 	switch (posixerrno) {
 	case ENOTDIR:
 	case WSAELOOP:
+	case WSAEINVAL:
 	case EINVAL:		/* XXX sometimes this is not for files */
 	case ENAMETOOLONG:
+	case WSAENAMETOOLONG:
 	case EBADF:
+	case WSAEBADF:
 		return (ISC_R_INVALIDFILE);
 	case ENOENT:
 		return (ISC_R_FILENOTFOUND);
 	case EACCES:
+	case WSAEACCES:
 	case EPERM:
 		return (ISC_R_NOPERM);
 	case EEXIST:
@@ -55,29 +59,14 @@ isc__errno2resultx(int posixerrno, const char *file, int line) {
 		return (ISC_R_NOMEMORY);
 	case ENFILE:
 	case EMFILE:
+	case WSAEMFILE:
 		return (ISC_R_TOOMANYOPENFILES);
-	case ERROR_OPERATION_ABORTED:
-		return (ISC_R_CONNECTIONRESET);
-	case ERROR_PORT_UNREACHABLE:
-		return (ISC_R_HOSTUNREACH);
-	case ERROR_HOST_UNREACHABLE:
-		return (ISC_R_HOSTUNREACH);
-	case ERROR_NETWORK_UNREACHABLE:
-		return (ISC_R_NETUNREACH);
-	case WSAEADDRNOTAVAIL:
-		return (ISC_R_ADDRNOTAVAIL);
-	case WSAEHOSTUNREACH:
-		return (ISC_R_HOSTUNREACH);
-	case WSAEHOSTDOWN:
-		return (ISC_R_HOSTUNREACH);
-	case WSAENETUNREACH:
-		return (ISC_R_NETUNREACH);
-	case WSAENOBUFS:
-		return (ISC_R_NORESOURCES);
 	default:
 		isc__strerror(posixerrno, strbuf, sizeof(strbuf));
-		UNEXPECTED_ERROR(file, line, "unable to convert errno "
-				 "to isc_result: %d: %s", posixerrno, strbuf);
+		UNEXPECTED_ERROR(__FILE__, __LINE__,
+				 "unable to convert errno "
+				 "to isc_result: %d: %s",
+				 posixerrno, strbuf);
 		/*
 		 * XXXDCL would be nice if perhaps this function could
 		 * return the system's error string, so the caller
@@ -87,3 +76,4 @@ isc__errno2resultx(int posixerrno, const char *file, int line) {
 		return (ISC_R_UNEXPECTED);
 	}
 }
+

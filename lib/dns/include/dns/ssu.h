@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
- * Copyright (C) 2000, 2001  Internet Software Consortium.
+ * Copyright (C) 2000, 2001, 2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: ssu.h,v 1.11.2.1 2004/03/09 06:11:22 marka Exp $ */
+/* $Id: ssu.h,v 1.11.206.3 2004/03/08 09:04:39 marka Exp $ */
 
 #ifndef DNS_SSU_H
 #define DNS_SSU_H 1
@@ -89,10 +89,10 @@ dns_ssutable_addrule(dns_ssutable_t *table, isc_boolean_t grant,
  *		to be updated matches the signing identity.
  *
  *		If 'ntypes' is 0, this rule applies to all types except
- *		NS, SOA, SIG, and NXT.
+ *		NS, SOA, RRSIG, and NSEC.
  *
  *		If 'types' includes ANY, this rule applies to all types
- *		except NXT.
+ *		except NSEC.
  *
  *	Requires:
  *		'table' is a valid SSU table

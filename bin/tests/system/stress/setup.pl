@@ -15,7 +15,7 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: setup.pl,v 1.2.2.1 2004/03/09 06:10:12 marka Exp $
+# $Id: setup.pl,v 1.2.12.3 2004/03/08 09:04:17 marka Exp $
 
 #
 # Set up test data for zone transfer quota tests.
@@ -33,13 +33,13 @@ my $rootdelegations =
     new FileHandle("ns1/root.db", "w") or die;
 
 print $rootdelegations <<END;
-$TTL 300
+\$TTL 300
 .                       IN SOA  gson.nominum.com. a.root.servers.nil. (
-								       2000042100      ; serial
-								       600             ; refresh
-								       600             ; retry
-								       1200            ; expire
-								       600             ; minimum
+					       2000042100      ; serial
+					       600             ; refresh
+					       600             ; retry
+					       1200            ; expire
+					       600             ; minimum
                                 )
 .                       NS      a.root-servers.nil.
 a.root-servers.nil.     A       10.53.0.1

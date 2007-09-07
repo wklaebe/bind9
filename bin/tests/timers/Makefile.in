@@ -1,5 +1,5 @@
 # Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
-# Copyright (C) 1999-2001  Internet Software Consortium.
+# Copyright (C) 1999-2002  Internet Software Consortium.
 #
 # Permission to use, copy, modify, and distribute this software for any
 # purpose with or without fee is hereby granted, provided that the above
@@ -13,13 +13,13 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: Makefile.in,v 1.21.2.3 2004/07/20 07:00:17 marka Exp $
+# $Id: Makefile.in,v 1.21.12.5 2004/03/08 09:04:20 marka Exp $
 
 srcdir =	@srcdir@
 VPATH =		@srcdir@
 top_srcdir =	@top_srcdir@
 
-@BIND9_INCLUDES@
+@BIND9_MAKE_INCLUDES@
 
 CINCLUDES =	${TEST_INCLUDES} ${ISC_INCLUDES}
 
@@ -36,20 +36,20 @@ LIBS =		${ISCLIBS} @LIBS@
 
 TLIB =		../../../lib/tests/libt_api.@A@
 
-TARGETS =	t_timers
+TARGETS =	t_timers@EXEEXT@
 
 SRCS =		t_timers.c
 
 @BIND9_MAKE_RULES@
 
-t_timers: t_timers.@O@ ${DEPLIBS} ${TLIB}
-	${LIBTOOL_MODE_LINK} ${PURIFY} ${CC} ${CFLAGS} ${LDFLAGS} -o $@ t_timers.@O@ ${TLIB} ${LIBS}
+t_timers@EXEEXT@: t_timers.@O@ ${DEPLIBS} ${TLIB}
+	${LIBTOOL_MODE_LINK} ${PURIFY} ${CC} ${CFLAGS} -o $@ t_timers.@O@ ${TLIB} ${LIBS}
 
-test: t_timers
-	-@./t_timers -c @top_srcdir@/t_config -b @srcdir@ -q 60 -a
+test: t_timers@EXEEXT@
+	-@./t_timers@EXEEXT@ -c @top_srcdir@/t_config -b @srcdir@ -q 60 -a
 
 testhelp:
-	@./t_timers -h
+	@./t_timers@EXEEXT@ -h
 
 clean distclean::
 	rm -f ${TARGETS}

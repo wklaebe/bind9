@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rdatasetiter.h,v 1.14.2.1 2004/03/09 06:11:20 marka Exp $ */
+/* $Id: rdatasetiter.h,v 1.14.206.1 2004/03/06 08:13:59 marka Exp $ */
 
 #ifndef DNS_RDATASETITER_H
 #define DNS_RDATASETITER_H 1

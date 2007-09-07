@@ -70,7 +70,7 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static const char sccsid[] = "@(#)res_init.c	8.1 (Berkeley) 6/7/93";
-static const char rcsid[] = "$Id: res_init.c,v 1.9.2.13 2007/07/09 01:54:50 marka Exp $";
+static const char rcsid[] = "$Id: res_init.c,v 1.9.2.5.4.2 2004/03/16 12:34:18 marka Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include "port_before.h"
@@ -101,10 +101,6 @@ static const char rcsid[] = "$Id: res_init.c,v 1.9.2.13 2007/07/09 01:54:50 mark
 /* Options.  Should all be left alone. */
 #define RESOLVSORT
 #define DEBUG
-
-#ifdef SOLARIS2
-#include <sys/systeminfo.h>
-#endif
 
 static void res_setoptions __P((res_state, const char *, const char *));
 
@@ -166,11 +162,6 @@ __res_vinit(res_state statp, int preinit) {
 #endif
 	int dots;
 	union res_sockaddr_union u[2];
-	int maxns = MAXNS;
-
-	RES_SET_H_ERRNO(statp, 0);
-	if (statp->_u._ext.ext != NULL)
-		res_ndestroy(statp);
 
 	if (!preinit) {
 		statp->retrans = RES_TIMEOUT;
@@ -178,6 +169,9 @@ __res_vinit(res_state statp, int preinit) {
 		statp->options = RES_DEFAULT;
 		statp->id = res_randomid();
 	}
+
+	if ((statp->options & RES_INIT) != 0U)
+		res_ndestroy(statp);
 
 	memset(u, 0, sizeof(u));
 #ifdef USELOOPBACK
@@ -218,48 +212,11 @@ __res_vinit(res_state statp, int preinit) {
 		statp->_u._ext.ext->nsaddrs[0].sin = statp->nsaddr;
 		strcpy(statp->_u._ext.ext->nsuffix, "ip6.arpa");
 		strcpy(statp->_u._ext.ext->nsuffix2, "ip6.int");
-	} else {
-		/*
-		 * Historically res_init() rarely, if at all, failed.
-		 * Examples and applications exist which do not check
-		 * our return code.  Furthermore several applications
-		 * simply call us to get the systems domainname.  So
-		 * rather then immediately fail here we store the
-		 * failure, which is returned later, in h_errno.  And
-		 * prevent the collection of 'nameserver' information
-		 * by setting maxns to 0.  Thus applications that fail
-		 * to check our return code wont be able to make
-		 * queries anyhow.
-		 */
-		RES_SET_H_ERRNO(statp, NETDB_INTERNAL);
-		maxns = 0;
 	}
 #ifdef RESOLVSORT
 	statp->nsort = 0;
 #endif
 	res_setservers(statp, u, nserv);
-
-#ifdef	SOLARIS2
-	/*
-	 * The old libresolv derived the defaultdomain from NIS/NIS+.
-	 * We want to keep this behaviour
-	 */
-	{
-		char buf[sizeof(statp->defdname)], *cp;
-		int ret;
-
-		if ((ret = sysinfo(SI_SRPC_DOMAIN, buf, sizeof(buf))) > 0 &&
-			(unsigned int)ret <= sizeof(buf)) {
-			if (buf[0] == '+')
-				buf[0] = '.';
-			cp = strchr(buf, '.');
-			cp = (cp == NULL) ? buf : (cp + 1);
-			strncpy(statp->defdname, cp,
-				sizeof(statp->defdname) - 1);
-			statp->defdname[sizeof(statp->defdname) - 1] = '\0';
-		}
-	}
-#endif	/* SOLARIS2 */
 
 	/* Allow user to override the local domain definition */
 	if ((cp = getenv("LOCALDOMAIN")) != NULL) {
@@ -362,7 +319,7 @@ __res_vinit(res_state statp, int preinit) {
 		    continue;
 		}
 		/* read nameservers to query */
-		if (MATCH(buf, "nameserver") && nserv < maxns) {
+		if (MATCH(buf, "nameserver") && nserv < MAXNS) {
 		    struct addrinfo hints, *ai;
 		    char sbuf[NI_MAXSERV];
 		    const size_t minsiz =
@@ -498,7 +455,7 @@ __res_vinit(res_state statp, int preinit) {
 	if ((cp = getenv("RES_OPTIONS")) != NULL)
 		res_setoptions(statp, cp, "env");
 	statp->options |= RES_INIT;
-	return (statp->res_h_errno);
+	return (0);
 }
 
 static void
@@ -538,22 +495,6 @@ res_setoptions(res_state statp, const char *options, const char *source)
 			if (statp->options & RES_DEBUG)
 				printf(";;\ttimeout=%d\n", statp->retrans);
 #endif
-#ifdef	SOLARIS2
-		} else if (!strncmp(cp, "retrans:", sizeof("retrans:") - 1)) {
-			/*
-		 	 * For backward compatibility, 'retrans' is
-		 	 * supported as an alias for 'timeout', though
-		 	 * without an imposed maximum.
-		 	 */
-			statp->retrans = atoi(cp + sizeof("retrans:") - 1);
-		} else if (!strncmp(cp, "retry:", sizeof("retry:") - 1)){
-			/*
-			 * For backward compatibility, 'retry' is
-			 * supported as an alias for 'attempts', though
-			 * without an imposed maximum.
-			 */
-			statp->retry = atoi(cp + sizeof("retry:") - 1);
-#endif	/* SOLARIS2 */
 		} else if (!strncmp(cp, "attempts:", sizeof("attempts:") - 1)){
 			i = atoi(cp + sizeof("attempts:") - 1);
 			if (i <= RES_MAXRETRY)

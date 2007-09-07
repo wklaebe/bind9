@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2006  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: taskpool.c,v 1.10.2.3 2006/01/04 23:50:17 marka Exp $ */
+/* $Id: taskpool.c,v 1.10.12.3 2004/03/08 09:04:50 marka Exp $ */
 
 #include <config.h>
 
@@ -46,16 +46,12 @@ isc_taskpool_create(isc_taskmgr_t *tmgr, isc_mem_t *mctx,
 	isc_result_t result;
 
 	INSIST(ntasks > 0);
-	pool = isc_mem_get(mctx, sizeof *pool);
+	pool = isc_mem_get(mctx, sizeof(*pool));
 	if (pool == NULL)
 		return (ISC_R_NOMEMORY);
 	pool->mctx = mctx;
 	pool->ntasks = ntasks;
 	pool->tasks = isc_mem_get(mctx, ntasks * sizeof(isc_task_t *));
-	if (pool->tasks == NULL) {
-		isc_mem_put(mctx, pool, sizeof(*pool));
-		return (ISC_R_NOMEMORY);
-	}
 	for (i = 0; i < ntasks; i++)
 		pool->tasks[i] = NULL;
 	for (i = 0; i < ntasks; i++) {

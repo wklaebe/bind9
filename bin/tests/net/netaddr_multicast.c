@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: netaddr_multicast.c,v 1.8.2.1 2004/03/09 06:09:39 marka Exp $ */
+/* $Id: netaddr_multicast.c,v 1.8.12.3 2004/03/08 04:04:31 marka Exp $ */
 
 #include <config.h>
 
@@ -86,7 +86,7 @@ netaddr_multicast(void) {
 	isc_boolean_t tf;
 
 	n_fail = 0;
-	for (i = 0 ; i < NADDRS ; i++) {
+	for (i = 0; i < NADDRS; i++) {
 		addr = &addrs[i];
 		result = to_netaddr(addr, &na);
 		if (result != ISC_R_SUCCESS) {

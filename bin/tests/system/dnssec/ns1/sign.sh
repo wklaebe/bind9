@@ -1,7 +1,7 @@
 #!/bin/sh
 #
 # Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
-# Copyright (C) 2000, 2001  Internet Software Consortium.
+# Copyright (C) 2000-2003  Internet Software Consortium.
 #
 # Permission to use, copy, modify, and distribute this software for any
 # purpose with or without fee is hereby granted, provided that the above
@@ -15,7 +15,7 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: sign.sh,v 1.12.2.1 2004/03/09 06:09:50 marka Exp $
+# $Id: sign.sh,v 1.12.12.4 2004/03/10 02:55:54 marka Exp $
 
 SYSTEMTESTTOP=../..
 . $SYSTEMTESTTOP/conf.sh
@@ -26,21 +26,17 @@ zone=.
 infile=root.db.in
 zonefile=root.db
 
-keyname=`$KEYGEN -a RSA -b 768 -n zone -r $RANDFILE $zone`
-
 (cd ../ns2 && sh sign.sh )
 
 cp ../ns2/keyset-example. .
+cp ../ns2/keyset-dlv. .
 
-$KEYSIGNER -r $RANDFILE keyset-example. $keyname > /dev/null
-
-cat signedkey-example. >> ../ns2/example.db.signed
-
-$KEYSETTOOL -r $RANDFILE -t 3600 $keyname > /dev/null
+keyname=`$KEYGEN -r $RANDFILE -a RSA -b 768 -n zone $zone`
 
 cat $infile $keyname.key > $zonefile
 
-$SIGNER -r $RANDFILE -o $zone $zonefile > /dev/null
+echo $SIGNER -g -r $RANDFILE -o $zone $zonefile
+$SIGNER -g -r $RANDFILE -o $zone $zonefile > /dev/null
 
 # Configure the resolving server with a trusted key.
 
@@ -56,3 +52,4 @@ EOF
 cp trusted.conf ../ns2/trusted.conf
 cp trusted.conf ../ns3/trusted.conf
 cp trusted.conf ../ns4/trusted.conf
+cp trusted.conf ../ns6/trusted.conf

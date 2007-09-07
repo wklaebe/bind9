@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: msgcat.c,v 1.10.2.1 2004/03/09 06:12:04 marka Exp $ */
+/* $Id: msgcat.c,v 1.10.12.4 2004/03/08 09:04:54 marka Exp $ */
 
 /*
  * Principal Author: Bob Halley
@@ -62,7 +62,7 @@ isc_msgcat_open(const char *name, isc_msgcat_t **msgcatp) {
 	REQUIRE(name != NULL);
 	REQUIRE(msgcatp != NULL && *msgcatp == NULL);
 
-	msgcat = malloc(sizeof *msgcat);
+	msgcat = malloc(sizeof(*msgcat));
 	if (msgcat == NULL) {
 		*msgcatp = NULL;
 		return;
@@ -96,7 +96,7 @@ isc_msgcat_close(isc_msgcat_t **msgcatp) {
 	if (msgcat != NULL) {
 #ifdef HAVE_CATGETS
 		if (msgcat->catalog != (nl_catd)(-1))
-			catclose(msgcat->catalog);
+			(void)catclose(msgcat->catalog);
 #endif
 		msgcat->magic = 0;
 		free(msgcat);

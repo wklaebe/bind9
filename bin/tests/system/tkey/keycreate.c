@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2006  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: keycreate.c,v 1.7.2.4 2006/01/04 23:50:17 marka Exp $ */
+/* $Id: keycreate.c,v 1.7.12.4 2004/03/08 09:04:17 marka Exp $ */
 
 #include <config.h>
 
@@ -66,6 +66,7 @@ static dns_tsig_keyring_t *ring;
 static unsigned char noncedata[16];
 static isc_buffer_t nonce;
 static dns_requestmgr_t *requestmgr;
+static const char *ownername_str = ".";
 
 static void
 recvquery(isc_task_t *task, isc_event_t *event) {
@@ -133,6 +134,7 @@ sendquery(isc_task_t *task, isc_event_t *event) {
 	isc_region_t r;
 	isc_result_t result;
 	dns_fixedname_t keyname;
+	dns_fixedname_t ownername;	
 	isc_buffer_t namestr, keybuf;
 	unsigned char keydata[9];
 	dns_message_t *query;
@@ -141,15 +143,20 @@ sendquery(isc_task_t *task, isc_event_t *event) {
 
 	isc_event_free(&event);
 
-	result = ISC_R_FAILURE;
-	if (inet_pton(AF_INET, "10.53.0.1", &inaddr) != 1)
-		CHECK("inet_pton", result);
+	inet_pton(AF_INET, "10.53.0.1", &inaddr);
 	isc_sockaddr_fromin(&address, &inaddr, PORT);
 
 	dns_fixedname_init(&keyname);
 	isc_buffer_init(&namestr, "tkeytest.", 9);
 	isc_buffer_add(&namestr, 9);
 	result = dns_name_fromtext(dns_fixedname_name(&keyname), &namestr,
+				   NULL, ISC_FALSE, NULL);
+	CHECK("dns_name_fromtext", result);
+
+	dns_fixedname_init(&ownername);
+	isc_buffer_init(&namestr, ownername_str, strlen(ownername_str));
+	isc_buffer_add(&namestr, strlen(ownername_str));
+	result = dns_name_fromtext(dns_fixedname_name(&ownername), &namestr,
 				   NULL, ISC_FALSE, NULL);
 	CHECK("dns_name_fromtext", result);
 
@@ -172,7 +179,8 @@ sendquery(isc_task_t *task, isc_event_t *event) {
 	result = dns_message_create(mctx, DNS_MESSAGE_INTENTRENDER, &query);
 	CHECK("dns_message_create", result);
 
-	result = dns_tkey_builddhquery(query, ourkey, dns_rootname,
+	result = dns_tkey_builddhquery(query, ourkey,
+				       dns_fixedname_name(&ownername),
 				       DNS_TSIG_HMACMD5_NAME, &nonce, 3600);
 	CHECK("dns_tkey_builddhquery", result);
 
@@ -209,6 +217,9 @@ main(int argc, char *argv[]) {
 		exit(-1);
 	}
 	ourkeyname = argv[1];
+
+	if (argc >= 3)
+		ownername_str = argv[2];
 
 	dns_result_register();
 

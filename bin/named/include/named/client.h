@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
- * Copyright (C) 1999-2001  Internet Software Consortium.
+ * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: client.h,v 1.60.2.4 2004/07/23 02:57:01 marka Exp $ */
+/* $Id: client.h,v 1.60.2.2.10.7 2004/03/08 04:04:20 marka Exp $ */
 
 #ifndef NAMED_CLIENT_H
 #define NAMED_CLIENT_H 1
@@ -68,10 +68,13 @@
 #include <isc/stdtime.h>
 #include <isc/quota.h>
 
-#include <dns/name.h>
-#include <dns/types.h>
-#include <dns/tcpmsg.h>
 #include <dns/fixedname.h>
+#include <dns/name.h>
+#include <dns/rdataclass.h>
+#include <dns/rdatatype.h>
+#include <dns/tcpmsg.h>
+#include <dns/types.h>
+
 #include <named/types.h>
 #include <named/query.h>
 
@@ -91,7 +94,6 @@ struct ns_client {
 	int			nreads;
 	int			nsends;
 	int			nrecvs;
-	int			nupdates;
 	int			nctls;
 	int			references;
 	unsigned int		attributes;
@@ -154,6 +156,8 @@ struct ns_client {
 #define NS_CLIENTATTR_RA		0x02 /* Client gets recusive service */
 #define NS_CLIENTATTR_PKTINFO		0x04 /* pktinfo is valid */
 #define NS_CLIENTATTR_MULTICAST		0x08 /* recv'd from multicast */
+#define NS_CLIENTATTR_WANTDNSSEC	0x10 /* include dnssec records */
+
 
 /***
  *** Functions
@@ -305,7 +309,28 @@ ns_client_log(ns_client_t *client, isc_logcategory_t *category,
 	      const char *fmt, ...) ISC_FORMAT_PRINTF(5, 6);
 
 void
-ns_client_aclmsg(const char *msg, dns_name_t *name, dns_rdataclass_t rdclass,
-                 char *buf, size_t len);
+ns_client_logv(ns_client_t *client, isc_logcategory_t *category,
+	       isc_logmodule_t *module, int level, const char *fmt, va_list ap) ISC_FORMAT_PRINTF(5, 0);
+
+void
+ns_client_aclmsg(const char *msg, dns_name_t *name, dns_rdatatype_t type,
+		 dns_rdataclass_t rdclass, char *buf, size_t len);
+
+#define NS_CLIENT_ACLMSGSIZE(x) \
+	(DNS_NAME_FORMATSIZE + DNS_RDATATYPE_FORMATSIZE + \
+	 DNS_RDATACLASS_FORMATSIZE + sizeof(x) + sizeof("'/'"))
+
+void
+ns_client_recursing(ns_client_t *client, isc_boolean_t killoldest);
+/*
+ * Add client to end of recursing list.  If 'killoldest' is true
+ * kill the oldest recursive client (list head). 
+ */
+
+void
+ns_client_dumprecursing(FILE *f, ns_clientmgr_t *manager);
+/*
+ * Dump the outstanding recursive queries to 'f'.
+ */
 
 #endif /* NAMED_CLIENT_H */

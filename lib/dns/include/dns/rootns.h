@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rootns.h,v 1.8.2.1 2004/03/09 06:11:21 marka Exp $ */
+/* $Id: rootns.h,v 1.8.206.1 2004/03/06 08:14:00 marka Exp $ */
 
 #ifndef DNS_ROOTNS_H
 #define DNS_ROOTNS_H 1

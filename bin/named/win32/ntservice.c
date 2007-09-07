@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
- * Copyright (C) 1999-2001  Internet Software Consortium.
+ * Copyright (C) 1999-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: ntservice.c,v 1.3.2.2 2004/03/09 06:09:24 marka Exp $ */
+/* $Id: ntservice.c,v 1.3.2.1.10.3 2004/03/08 04:04:22 marka Exp $ */
 
 #include <config.h>
 #include <stdio.h>
@@ -30,7 +30,7 @@
 
 /* Handle to SCM for updating service status */
 static SERVICE_STATUS_HANDLE hServiceStatus = 0;
-static int foreground = FALSE;
+static BOOL foreground = FALSE;
 static char ConsoleTitle[128];
 
 /*
@@ -122,7 +122,13 @@ void
 ntservice_shutdown() {
 	UpdateSCM(SERVICE_STOPPED);
 }
-
+/*
+ * Routine to check if this is a service or a foreground program
+ */
+BOOL
+ntservice_isservice() {
+	return(!foreground);
+}
 /* 
  * ServiceControl(): Handles requests from the SCM and passes them on
  * to named.
@@ -135,6 +141,7 @@ ServiceControl(DWORD dwCtrlCode) {
 		UpdateSCM(0);
 		break;
 
+        case SERVICE_CONTROL_SHUTDOWN:
         case SERVICE_CONTROL_STOP:
 		ns_server_flushonshutdown(ns_g_server, ISC_TRUE);
 		isc_app_shutdown();

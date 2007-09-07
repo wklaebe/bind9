@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005 by Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (c) 2004 by Internet Systems Consortium, Inc. ("ISC")
  * Copyright (c) 1995-1999 by Internet Software Consortium
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -18,7 +18,7 @@
 /* eventlib_p.h - private interfaces for eventlib
  * vix 09sep95 [initial]
  *
- * $Id: eventlib_p.h,v 1.3.2.5 2006/03/10 00:18:22 marka Exp $
+ * $Id: eventlib_p.h,v 1.3.2.1.4.1 2004/03/09 08:33:43 marka Exp $
  */
 
 #ifndef _EVENTLIB_P_H
@@ -45,8 +45,6 @@
 #define	EV_MASK_ALL	(EV_READ | EV_WRITE | EV_EXCEPT)
 #define EV_ERR(e)		return (errno = (e), -1)
 #define OK(x)		if ((x) < 0) EV_ERR(errno); else (void)NULL
-#define OKFREE(x, y)	if ((x) < 0) { FREE((y)); EV_ERR(errno); } \
-			else (void)NULL
 
 #define	NEW(p)		if (((p) = memget(sizeof *(p))) != NULL) \
 				FILL(p); \
@@ -64,13 +62,6 @@
 #else
 #define FILL(p)
 #endif
-
-#ifdef USE_POLL
-#ifdef HAVE_STROPTS_H
-#include <stropts.h>
-#endif
-#include <poll.h>
-#endif /* USE_POLL */
 
 typedef struct evConn {
 	evConnFunc	func;
@@ -175,40 +166,6 @@ typedef struct evEvent_p {
 	} u;
 } evEvent_p;
 
-#ifdef USE_POLL
-typedef struct { 
-	void		*ctx;	/* pointer to the evContext_p   */ 
-	uint32_t	type;	/* READ, WRITE, EXCEPT, nonblk  */ 
-	uint32_t	result;	/* 1 => revents, 0 => events    */ 
-} __evEmulMask; 
-
-#define emulMaskInit(ctx, field, ev, lastnext) \
-	ctx->field.ctx = ctx; \
-	ctx->field.type = ev; \
-	ctx->field.result = lastnext; 
-  
-extern short	*__fd_eventfield(int fd, __evEmulMask *maskp); 
-extern short	__poll_event(__evEmulMask *maskp); 
-extern void		__fd_clr(int fd, __evEmulMask *maskp); 
-extern void		__fd_set(int fd, __evEmulMask *maskp); 
-
-#undef  FD_ZERO 
-#define FD_ZERO(maskp) 
-  
-#undef  FD_SET 
-#define FD_SET(fd, maskp) \
-	__fd_set(fd, maskp) 
-
-#undef  FD_CLR 
-#define FD_CLR(fd, maskp) \
-	__fd_clr(fd, maskp) 
-
-#undef  FD_ISSET 
-#define FD_ISSET(fd, maskp) \
-	((*__fd_eventfield(fd, maskp) & __poll_event(maskp)) != 0) 
-
-#endif /* USE_POLL */
-
 typedef struct {
 	/* Global. */
 	const evEvent_p	*cur;
@@ -220,26 +177,12 @@ typedef struct {
 	LIST(evAccept)	accepts;
 	/* Files. */
 	evFile		*files, *fdNext;
-#ifndef USE_POLL
 	fd_set		rdLast, rdNext;
 	fd_set		wrLast, wrNext;
 	fd_set		exLast, exNext;
 	fd_set		nonblockBefore;
 	int		fdMax, fdCount, highestFD;
 	evFile		*fdTable[FD_SETSIZE];
-#else
-	struct pollfd	*pollfds;	/* Allocated as needed  */ 
-	evFile		**fdTable;	/* Ditto                */ 
-	int		maxnfds;	/* # elements in above  */ 
-	int		firstfd;	/* First active fd      */ 
-	int		fdMax;		/* Last active fd       */ 
-	int		fdCount;	/* # fd:s with I/O      */ 
-	int		highestFD;	/* max fd allowed by OS */ 
-	__evEmulMask	rdLast, rdNext; 
-	__evEmulMask	wrLast, wrNext; 
-	__evEmulMask	exLast, exNext; 
-	__evEmulMask	nonblockBefore; 
-#endif /* USE_POLL */
 #ifdef EVENTLIB_TIME_CHECKS
 	struct timespec	lastSelectTime;
 	int		lastFdCount;
@@ -260,10 +203,6 @@ typedef struct {
 void evPrintf(const evContext_p *ctx, int level, const char *fmt, ...)
      ISC_FORMAT_PRINTF(3, 4);
 
-#ifdef USE_POLL
-extern int evPollfdRealloc(evContext_p *ctx, int pollfd_chunk_size, int fd);
-#endif /* USE_POLL */
-
 /* ev_timers.c */
 #define evCreateTimers __evCreateTimers
 heap_context evCreateTimers(const evContext_p *);
@@ -275,6 +214,6 @@ void evDestroyTimers(const evContext_p *);
 evWait *evFreeWait(evContext_p *ctx, evWait *old);
 
 /* Global options */
-extern int	__evOptMonoTime;
+int		__evOptMonoTime;
 
 #endif /*_EVENTLIB_P_H*/

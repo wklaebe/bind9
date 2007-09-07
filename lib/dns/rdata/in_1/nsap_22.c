@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
- * Copyright (C) 1999-2001  Internet Software Consortium.
+ * Copyright (C) 1999-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: nsap_22.c,v 1.33.2.1 2004/03/09 06:11:38 marka Exp $ */
+/* $Id: nsap_22.c,v 1.33.12.5 2004/03/08 09:04:44 marka Exp $ */
 
 /* Reviewed: Fri Mar 17 10:41:07 PST 2000 by gson */
 
@@ -39,7 +39,7 @@ fromtext_in_nsap(ARGS_FROMTEXT) {
 
 	UNUSED(type);
 	UNUSED(origin);
-	UNUSED(downcase);
+	UNUSED(options);
 	UNUSED(rdclass);
 	UNUSED(callbacks);
 
@@ -77,7 +77,7 @@ fromtext_in_nsap(ARGS_FROMTEXT) {
 static inline isc_result_t
 totext_in_nsap(ARGS_TOTEXT) {
 	isc_region_t region;
-	char buf[sizeof "xx"];
+	char buf[sizeof("xx")];
 
 	REQUIRE(rdata->type == 22);
 	REQUIRE(rdata->rdclass == 1);
@@ -104,7 +104,7 @@ fromwire_in_nsap(ARGS_FROMWIRE) {
 
 	UNUSED(type);
 	UNUSED(dctx);
-	UNUSED(downcase);
+	UNUSED(options);
 	UNUSED(rdclass);
 
 	isc_buffer_activeregion(source, &region);
@@ -141,7 +141,7 @@ compare_in_nsap(ARGS_COMPARE) {
 
 	dns_rdata_toregion(rdata1, &r1);
 	dns_rdata_toregion(rdata2, &r2);
-	return (compare_region(&r1, &r2));
+	return (isc_region_compare(&r1, &r2));
 }
 
 static inline isc_result_t
@@ -223,6 +223,33 @@ digest_in_nsap(ARGS_DIGEST) {
 	dns_rdata_toregion(rdata, &r);
 
 	return ((digest)(arg, &r));
+}
+
+static inline isc_boolean_t
+checkowner_in_nsap(ARGS_CHECKOWNER) {
+
+	REQUIRE(type == 22);
+	REQUIRE(rdclass == 1);
+
+	UNUSED(name);
+	UNUSED(type);
+	UNUSED(rdclass);
+	UNUSED(wildcard);
+
+	return (ISC_TRUE);
+}
+
+static inline isc_boolean_t
+checknames_in_nsap(ARGS_CHECKNAMES) {
+
+	REQUIRE(rdata->type == 22);
+	REQUIRE(rdata->rdclass == 1);
+
+	UNUSED(rdata);
+	UNUSED(owner);
+	UNUSED(bad);
+
+	return (ISC_TRUE);
 }
 
 #endif	/* RDATA_IN_1_NSAP_22_C */

@@ -1,6 +1,6 @@
 /*
- * Copyright (C) 2004, 2006  Internet Systems Consortium, Inc. ("ISC")
- * Copyright (C) 1998-2001  Internet Software Consortium.
+ * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 1998-2001, 2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: t_master.c,v 1.30.2.3 2006/01/04 23:50:17 marka Exp $ */
+/* $Id: t_master.c,v 1.30.206.3 2004/03/08 04:04:29 marka Exp $ */
 
 #include <config.h>
 
@@ -153,10 +153,8 @@ test_master_x(const char *filename) {
 			/*
 			 * Skip comment lines.
 			 */
-			if ((isspace(*p & 0xff)) || (*p == '#')) {
-				(void)free(p);
+			if ((isspace(*p & 0xff)) || (*p == '#'))
 				continue;
-			}
 
 			/*
 			 * Name of data file, origin, zclass, expected result.
@@ -239,7 +237,7 @@ t5() {
 }
 
 static const char *a6 =
-	"dns_master_loadfile understands KEY RR specifications "
+	"dns_master_loadfile understands DNSKEY RR specifications "
 	"containing key material";
 
 static void
@@ -253,7 +251,7 @@ t6() {
 }
 
 static const char *a7 =
-	"dns_master_loadfile understands KEY RR specifications "
+	"dns_master_loadfile understands DNSKEY RR specifications "
 	"containing no key material";
 
 static void
@@ -325,8 +323,8 @@ testspec_t	T_testlist[] = {
 	{	t3,	"DNS_NOOWNER"		},
 	{	t4,	"DNS_NOTTL"		},
 	{	t5,	"DNS_BADCLASS"		},
-	{	t6,	"KEY RR 1"		},
-	{	t7,	"KEY RR 2"		},
+	{	t6,	"DNSKEY RR 1"		},
+	{	t7,	"DNSKEY RR 2"		},
 	{	t8,	"$INCLUDE"		},
 	{	t9,	"$INCLUDE w/ DNS_BADCLASS"	},
 	{	t10,	"non empty blank lines"	},

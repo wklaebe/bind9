@@ -1,7 +1,7 @@
 #!/bin/sh
 #
-# Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
-# Copyright (C) 2000, 2001, 2003  Internet Software Consortium.
+# Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+# Copyright (C) 2000-2003  Internet Software Consortium.
 #
 # Permission to use, copy, modify, and distribute this software for any
 # purpose with or without fee is hereby granted, provided that the above
@@ -15,7 +15,7 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: conf.sh.in,v 1.23.2.5 2005/06/24 00:02:40 marka Exp $
+# $Id: conf.sh.in,v 1.23.2.2.4.5 2004/03/08 04:04:32 marka Exp $
 
 #
 # Common configuration data for system tests, to be sourced into
@@ -37,21 +37,16 @@ RNDC=$TOP/bin/rndc/rndc
 NSUPDATE=$TOP/bin/nsupdate/nsupdate
 KEYGEN=$TOP/bin/dnssec/dnssec-keygen
 SIGNER=$TOP/bin/dnssec/dnssec-signzone
-KEYSIGNER=$TOP/bin/dnssec/dnssec-signkey
-KEYSETTOOL=$TOP/bin/dnssec/dnssec-makekeyset
-CHECKCONF=$TOP/bin/check/named-checkconf
 
 # The "stress" test is not run by default since it creates enough
 # load on the machine to make it unusable to other users.
-#
-# dnssec is missing from SUBDIRS as RFC 2535 support is disabled
-# 
-SUBDIRS="cacheclean checkconf forward glue ixfr limits lwresd \
+# v6synth
+SUBDIRS="cacheclean checknames dnssec forward glue ixfr limits lwresd \
     masterfile notify nsupdate resolver sortlist stub tkey \
-    unknown upforwd v6synth views xfer xferquota"
+    unknown upforwd views xfer xferquota"
 
 # PERL will be an empty string if no perl interpreter was found.
 PERL=@PERL@
 
 export NAMED LWRESD DIG NSUPDATE KEYGEN SIGNER KEYSIGNER KEYSETTOOL PERL \
-    SUBDIRS RNDC CHECKCONF
+    SUBDIRS RNDC

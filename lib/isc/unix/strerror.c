@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: strerror.c,v 1.1.2.2 2004/03/09 06:12:12 marka Exp $ */
+/* $Id: strerror.c,v 1.1.2.1.10.3 2004/03/08 09:04:57 marka Exp $ */
 
 #include <config.h>
 
@@ -41,7 +41,7 @@ extern const char * const sys_errlist[];
 extern const int sys_nerr;
 #endif
 
-char *
+void
 isc__strerror(int num, char *buf, size_t size) {
 #ifdef HAVE_STRERROR
 	char *msg;
@@ -59,7 +59,6 @@ isc__strerror(int num, char *buf, size_t size) {
 	else
 		snprintf(buf, size, "Unknown error: %u", unum);
 	UNLOCK(&isc_strerror_lock);
-	return (buf);
 #else
 	unsigned int unum = num;
 
@@ -69,6 +68,5 @@ isc__strerror(int num, char *buf, size_t size) {
 		snprintf(buf, size, "%s", sys_errlist[num]);
 	else
 		snprintf(buf, size, "Unknown error: %u", unum);
-	return (buf);
 #endif
 }

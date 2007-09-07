@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
- * Copyright (C) 1999-2001, 2003  Internet Software Consortium.
+ * Copyright (C) 1999-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rootns.c,v 1.20.2.5 2004/03/09 06:11:07 marka Exp $ */
+/* $Id: rootns.c,v 1.20.2.3.2.5 2004/03/08 09:04:32 marka Exp $ */
 
 #include <config.h>
 
@@ -107,7 +107,6 @@ check_node(dns_rdataset_t *rootns, dns_name_t *name,
 		switch (rdataset.type) {
 		case dns_rdatatype_a:
 		case dns_rdatatype_aaaa:
-		case dns_rdatatype_a6:
 			result = in_rootns(rootns, name);
 			if (result != ISC_R_SUCCESS)
 				goto cleanup;
@@ -215,14 +214,16 @@ dns_rootns_create(isc_mem_t *mctx, dns_rdataclass_t rdclass,
 		 * Load the hints from the specified filename.
 		 */
 		result = dns_master_loadfile(filename, &db->origin,
-					     &db->origin, db->rdclass, 0,
+					     &db->origin, db->rdclass,
+					     DNS_MASTER_HINT,
 					     &callbacks, db->mctx);
 	} else if (rdclass == dns_rdataclass_in) {
 		/*
 		 * Default to using the Internet root servers.
 		 */
 		result = dns_master_loadbuffer(&source, &db->origin,
-					       &db->origin, db->rdclass, 0,
+					       &db->origin, db->rdclass, 
+					       DNS_MASTER_HINT,
 					       &callbacks, db->mctx);
 	} else
 		result = ISC_R_NOTFOUND;

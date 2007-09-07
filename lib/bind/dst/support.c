@@ -1,4 +1,4 @@
-static const char rcsid[] = "$Header: /proj/cvs/prod/bind9/lib/bind/dst/support.c,v 1.2.2.3 2005/10/11 00:56:04 marka Exp $";
+static const char rcsid[] = "$Header: /proj/cvs/prod/bind9/lib/bind/dst/support.c,v 1.2.2.1 2001/11/02 22:25:29 gson Exp $";
 
 
 /*
@@ -103,7 +103,7 @@ dst_s_id_calc(const u_char *key, const int keysize)
 	int size = keysize;
 
 	if (!key || (keysize <= 0))
-		return (0xffffU);
+		return (-1);
  
 	for (ac = 0; size > 1; size -= 2, kp += 2)
 		ac += ((*kp) << 8) + *(kp + 1);
@@ -311,15 +311,19 @@ dst_s_fopen(const char *filename, const char *mode, int perm)
 {
 	FILE *fp;
 	char pathname[PATH_MAX];
-
-	if (strlen(filename) + strlen(dst_path) >= sizeof(pathname))
-		return (NULL);
+	size_t plen = sizeof(pathname);
 
 	if (*dst_path != '\0') {
 		strcpy(pathname, dst_path);
-		strcat(pathname, filename);
-	} else
-		strcpy(pathname, filename);
+		plen -= strlen(pathname);
+	}
+	else 
+		pathname[0] = '\0';
+
+	if (plen > strlen(filename))
+		strncpy(&pathname[PATH_MAX - plen], filename, plen-1);
+	else 
+		return (NULL);
 	
 	fp = fopen(pathname, mode);
 	if (perm)

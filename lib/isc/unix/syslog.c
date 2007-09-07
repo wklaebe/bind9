@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: syslog.c,v 1.1.2.1 2004/03/09 06:12:12 marka Exp $ */
+/* $Id: syslog.c,v 1.1.12.3 2004/03/08 09:04:57 marka Exp $ */
 
 #include <config.h>
 
@@ -71,7 +71,7 @@ isc_syslog_facilityfromstring(const char *str, int *facilityp) {
 	REQUIRE(str != NULL);
 	REQUIRE(facilityp != NULL);
 
-	for (i = 0 ; facilities[i].strval != NULL ; i++) {
+	for (i = 0; facilities[i].strval != NULL; i++) {
 		if (strcasecmp(facilities[i].strval, str) == 0) {
 			*facilityp = facilities[i].val;
 			return (ISC_R_SUCCESS);

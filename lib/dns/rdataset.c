@@ -1,6 +1,6 @@
 /*
- * Copyright (C) 2004, 2006  Internet Systems Consortium, Inc. ("ISC")
- * Copyright (C) 1999-2001, 2003  Internet Software Consortium.
+ * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rdataset.c,v 1.58.2.7 2006/03/02 00:37:17 marka Exp $ */
+/* $Id: rdataset.c,v 1.58.2.2.2.10 2004/03/08 09:04:31 marka Exp $ */
 
 #include <config.h>
 
@@ -50,11 +50,13 @@ dns_rdataset_init(dns_rdataset_t *rdataset) {
 	rdataset->trust = 0;
 	rdataset->covers = 0;
 	rdataset->attributes = 0;
+	rdataset->count = ISC_UINT32_MAX;
 	rdataset->private1 = NULL;
 	rdataset->private2 = NULL;
 	rdataset->private3 = NULL;
 	rdataset->privateuint4 = 0;
 	rdataset->private5 = NULL;
+	rdataset->private6 = NULL;
 }
 
 void
@@ -75,6 +77,7 @@ dns_rdataset_invalidate(dns_rdataset_t *rdataset) {
 	rdataset->trust = 0;
 	rdataset->covers = 0;
 	rdataset->attributes = 0;
+	rdataset->count = ISC_UINT32_MAX;
 	rdataset->private1 = NULL;
 	rdataset->private2 = NULL;
 	rdataset->private3 = NULL;
@@ -101,11 +104,13 @@ dns_rdataset_disassociate(dns_rdataset_t *rdataset) {
 	rdataset->trust = 0;
 	rdataset->covers = 0;
 	rdataset->attributes = 0;
+	rdataset->count = ISC_UINT32_MAX;
 	rdataset->private1 = NULL;
 	rdataset->private2 = NULL;
 	rdataset->private3 = NULL;
 	rdataset->privateuint4 = 0;
 	rdataset->private5 = NULL;
+	rdataset->private6 = NULL;
 }
 
 isc_boolean_t
@@ -167,7 +172,9 @@ static dns_rdatasetmethods_t question_methods = {
 	question_cursor,
 	question_current,
 	question_clone,
-	question_count
+	question_count,
+	NULL,
+	NULL
 };
 
 void
@@ -258,6 +265,7 @@ dns_rdataset_current(dns_rdataset_t *rdataset, dns_rdata_t *rdata) {
 
 #define MAX_SHUFFLE	32
 #define WANT_FIXED(r)	(((r)->attributes & DNS_RDATASETATTR_FIXEDORDER) != 0)
+#define WANT_RANDOM(r)	(((r)->attributes & DNS_RDATASETATTR_RANDOMIZE) != 0)
 
 struct towire_sort {
 	int key;
@@ -272,16 +280,16 @@ towire_compare(const void *av, const void *bv) {
 }
 
 static isc_result_t
-towiresorted(dns_rdataset_t *rdataset, const dns_name_t *owner_name,
+towiresorted(dns_rdataset_t *rdataset, dns_name_t *owner_name,
 	     dns_compress_t *cctx, isc_buffer_t *target,
-	     dns_rdatasetorderfunc_t order, const void *order_arg,
-	     isc_boolean_t partial, unsigned int *countp,
-	     void **state)
+	     dns_rdatasetorderfunc_t order, void *order_arg,
+	     isc_boolean_t partial, unsigned int options,
+	     unsigned int *countp, void **state)
 {
 	dns_rdata_t rdata = DNS_RDATA_INIT;
 	isc_region_t r;
 	isc_result_t result;
-	unsigned int i, count, added;
+	unsigned int i, count, added, choice;
 	isc_buffer_t savedbuffer, rdlen, rrbuffer;
 	unsigned int headlen;
 	isc_boolean_t question = ISC_FALSE;
@@ -311,7 +319,11 @@ towiresorted(dns_rdataset_t *rdataset, const dns_name_t *owner_name,
 		/*
 		 * This is a negative caching rdataset.
 		 */
-		return (dns_ncache_towire(rdataset, cctx, target, countp));
+		unsigned int ncache_opts = 0;
+		if ((options & DNS_RDATASETTOWIRE_OMITDNSSEC) != 0)
+			ncache_opts |= DNS_NCACHETOWIRE_OMITDNSSEC;
+		return (dns_ncache_towire(rdataset, cctx, target, ncache_opts,
+					  countp));
 	} else {
 		count = (rdataset->methods->count)(rdataset);
 		result = dns_rdataset_first(rdataset);
@@ -326,7 +338,7 @@ towiresorted(dns_rdataset_t *rdataset, const dns_name_t *owner_name,
 	 */
 	if (!question && count > 1 &&
 	    (!WANT_FIXED(rdataset) || order != NULL) &&
-	    rdataset->type != dns_rdatatype_sig)
+	    rdataset->type != dns_rdatatype_rrsig)
 		shuffle = ISC_TRUE;
 
 	if (shuffle && count > MAX_SHUFFLE) {
@@ -354,20 +366,40 @@ towiresorted(dns_rdataset_t *rdataset, const dns_name_t *owner_name,
 		if (result != ISC_R_NOMORE)
 			goto cleanup;
 		INSIST(i == count);
+
 		/*
 		 * Now we shuffle.
 		 */
-		if (order != NULL) {
+		if (WANT_FIXED(rdataset)) {
 			/*
-			 * Sorted order.
+			 * 'Fixed' order.
 			 */
+			INSIST(order != NULL);
 			for (i = 0; i < count; i++) {
 				sorted[i].key = (*order)(&shuffled[i],
 							 order_arg);
 				sorted[i].rdata = &shuffled[i];
 			}
-			qsort(sorted, count, sizeof(sorted[0]),
-			      towire_compare);
+		} else if (WANT_RANDOM(rdataset)) {
+			/*
+			 * 'Random' order.
+			 */
+			for (i = 0; i < count; i++) {
+				dns_rdata_t rdata;
+				isc_uint32_t val;
+
+				isc_random_get(&val);
+				choice = i + (val % (count - i));
+				rdata = shuffled[i];
+				shuffled[i] = shuffled[choice];
+				shuffled[choice] = rdata;
+				if (order != NULL)
+					sorted[i].key = (*order)(&shuffled[i],
+								 order_arg);
+				else
+					sorted[i].key = 0; /* Unused */
+				sorted[i].rdata = &shuffled[i];
+			}
 		} else {
 			/*
 			 * "Cyclic" order.
@@ -375,16 +407,29 @@ towiresorted(dns_rdataset_t *rdataset, const dns_name_t *owner_name,
 			isc_uint32_t val;
 			unsigned int j;
 
-			isc_random_get(&val);
+			val = rdataset->count;
+			if (val == ISC_UINT32_MAX)
+				isc_random_get(&val);
 			j = val % count;
 			for (i = 0; i < count; i++) {
-				sorted[j].key = 0; /* Unused */
+				if (order != NULL)
+					sorted[j].key = (*order)(&shuffled[i],
+								 order_arg);
+				else
+					sorted[j].key = 0; /* Unused */
 				sorted[j].rdata = &shuffled[i];
 				j++;
 				if (j == count)
 					j = 0; /* Wrap around. */
 			}
 		}
+
+		/*
+		 * Sorted order.
+		 */
+		if (order != NULL)
+			qsort(sorted, count, sizeof(sorted[0]),
+			      towire_compare);
 	}
 
 	savedbuffer = *target;
@@ -460,7 +505,7 @@ towiresorted(dns_rdataset_t *rdataset, const dns_name_t *owner_name,
 	result = ISC_R_SUCCESS;
 	goto cleanup;
 
-	rollback:
+ rollback:
 	if (partial && result == ISC_R_NOSPACE) {
 		INSIST(rrbuffer.used < 65536);
 		dns_compress_rollback(cctx, (isc_uint16_t)rrbuffer.used);
@@ -473,7 +518,7 @@ towiresorted(dns_rdataset_t *rdataset, const dns_name_t *owner_name,
 	*countp = 0;
 	*target = savedbuffer;
 
-	cleanup:
+ cleanup:
 	if (sorted != NULL && sorted != sorted_fixed)
 		isc_mem_put(cctx->mctx, sorted, count * sizeof(*sorted));
 	if (shuffled != NULL && shuffled != shuffled_fixed)
@@ -483,41 +528,46 @@ towiresorted(dns_rdataset_t *rdataset, const dns_name_t *owner_name,
 
 isc_result_t
 dns_rdataset_towiresorted(dns_rdataset_t *rdataset,
-			  const dns_name_t *owner_name,
+			  dns_name_t *owner_name,
 			  dns_compress_t *cctx,
 			  isc_buffer_t *target,
 			  dns_rdatasetorderfunc_t order,
-			  const void *order_arg,
+			  void *order_arg,
+			  unsigned int options,
 			  unsigned int *countp)
 {
 	return (towiresorted(rdataset, owner_name, cctx, target,
-			     order, order_arg, ISC_FALSE, countp, NULL));
+			     order, order_arg, ISC_FALSE, options,
+			     countp, NULL));
 }
 
 isc_result_t
 dns_rdataset_towirepartial(dns_rdataset_t *rdataset,
-			   const dns_name_t *owner_name,
+			   dns_name_t *owner_name,
 			   dns_compress_t *cctx,
 			   isc_buffer_t *target,
 			   dns_rdatasetorderfunc_t order,
-			   const void *order_arg,
+			   void *order_arg,
+			   unsigned int options,
 			   unsigned int *countp,
 			   void **state)
 {
 	REQUIRE(state == NULL);	/* XXX remove when implemented */
 	return (towiresorted(rdataset, owner_name, cctx, target,
-			     order, order_arg, ISC_TRUE, countp, state));
+			     order, order_arg, ISC_TRUE, options,
+			     countp, state));
 }
 
 isc_result_t
 dns_rdataset_towire(dns_rdataset_t *rdataset,
-		    const dns_name_t *owner_name,
+		    dns_name_t *owner_name,
 		    dns_compress_t *cctx,
 		    isc_buffer_t *target,
+		    unsigned int options,
 		    unsigned int *countp)
 {
 	return (towiresorted(rdataset, owner_name, cctx, target,
-			     NULL, NULL, ISC_FALSE, countp, NULL));
+			     NULL, NULL, ISC_FALSE, options, countp, NULL));
 }
 
 isc_result_t
@@ -552,4 +602,25 @@ dns_rdataset_additionaldata(dns_rdataset_t *rdataset,
 
 	return (ISC_R_SUCCESS);
 }
-	
+
+isc_result_t
+dns_rdataset_addnoqname(dns_rdataset_t *rdataset, dns_name_t *name) {
+
+	REQUIRE(DNS_RDATASET_VALID(rdataset));
+	REQUIRE(rdataset->methods != NULL);
+	if (rdataset->methods->addnoqname == NULL)
+		return (ISC_R_NOTIMPLEMENTED);
+	return((rdataset->methods->addnoqname)(rdataset, name));
+}
+
+isc_result_t
+dns_rdataset_getnoqname(dns_rdataset_t *rdataset, dns_name_t *name,
+		        dns_rdataset_t *nsec, dns_rdataset_t *nsecsig)
+{
+	REQUIRE(DNS_RDATASET_VALID(rdataset));
+	REQUIRE(rdataset->methods != NULL);
+
+	if (rdataset->methods->getnoqname == NULL)
+		return (ISC_R_NOTIMPLEMENTED);
+	return((rdataset->methods->getnoqname)(rdataset, name, nsec, nsecsig));
+}

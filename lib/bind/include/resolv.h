@@ -50,7 +50,7 @@
 
 /*
  *	@(#)resolv.h	8.1 (Berkeley) 6/2/93
- *	$Id: resolv.h,v 1.7.2.14 2005/08/25 04:44:38 marka Exp $
+ *	$Id: resolv.h,v 1.7.2.11.4.1 2004/03/09 08:33:29 marka Exp $
  */
 
 #ifndef _RESOLV_H_
@@ -254,7 +254,6 @@ union res_sockaddr_union {
 #define	RES_BLAST	0x00020000	/* blast all recursive servers */
 #define RES_NOTLDQUERY	0x00100000	/* don't unqualified name as a tld */
 #define RES_USE_DNSSEC	0x00200000	/* use DNSSEC using OK bit in OPT */
-/* #define RES_DEBUG2	0x00400000 */	/* nslookup internal */
 /* KAME extensions: use higher bit to avoid conflict with ISC use */
 #define RES_USE_DNAME	0x10000000	/* use DNAME */
 #define RES_USE_EDNS0	0x40000000	/* use EDNS0 if configured */
@@ -291,11 +290,6 @@ extern struct __res_state *__res_state(void);
 __END_DECLS
 #define _res (*__res_state())
 #else
-#ifdef __linux
-__BEGIN_DECLS
-extern struct __res_state * __res_state(void);
-__END_DECLS
-#endif
 #ifndef __BIND_NOSTATIC
 extern struct __res_state _res;
 #endif

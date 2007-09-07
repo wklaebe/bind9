@@ -1,6 +1,6 @@
 /*
- * Copyright (C) 2004, 2006, 2007  Internet Systems Consortium, Inc. ("ISC")
- * Copyright (C) 2000, 2001  Internet Software Consortium.
+ * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2000, 2001, 2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: lookup.c,v 1.9.2.7 2007/03/06 02:10:58 tbox Exp $ */
+/* $Id: lookup.c,v 1.9.12.4 2004/03/08 21:06:26 marka Exp $ */
 
 #include <config.h>
 
@@ -154,6 +154,11 @@ build_event(dns_lookup_t *lookup) {
 			dns_rdataset_disassociate(rdataset);
 		isc_mem_put(lookup->mctx, rdataset, sizeof(dns_rdataset_t));
 	}
+	if (sigrdataset != NULL) {
+		if (dns_rdataset_isassociated(sigrdataset))
+			dns_rdataset_disassociate(sigrdataset);
+		isc_mem_put(lookup->mctx, sigrdataset, sizeof(dns_rdataset_t));
+	}
 	return (result);
 }
 
@@ -163,7 +168,7 @@ view_find(dns_lookup_t *lookup, dns_name_t *foundname) {
 	dns_name_t *name = dns_fixedname_name(&lookup->name);
 	dns_rdatatype_t type;
 
-	if (lookup->type == dns_rdatatype_sig)
+	if (lookup->type == dns_rdatatype_rrsig)
 		type = dns_rdatatype_any;
 	else
 		type = lookup->type;
@@ -179,11 +184,11 @@ static void
 lookup_find(dns_lookup_t *lookup, dns_fetchevent_t *event) {
 	isc_result_t result;
 	isc_boolean_t want_restart;
-	isc_boolean_t send_event;
+	isc_boolean_t send_event = ISC_FALSE;
 	dns_name_t *name, *fname, *prefix;
 	dns_fixedname_t foundname, fixed;
 	dns_rdata_t rdata = DNS_RDATA_INIT;
-	unsigned int nlabels, nbits;
+	unsigned int nlabels;
 	int order;
 	dns_namereln_t namereln;
 	dns_rdata_cname_t cname;
@@ -199,7 +204,6 @@ lookup_find(dns_lookup_t *lookup, dns_fetchevent_t *event) {
 	do {
 		lookup->restarts++;
 		want_restart = ISC_FALSE;
-		send_event = ISC_TRUE;
 
 		if (event == NULL && !lookup->canceled) {
 			dns_fixedname_init(&foundname);
@@ -207,15 +211,6 @@ lookup_find(dns_lookup_t *lookup, dns_fetchevent_t *event) {
 			INSIST(!dns_rdataset_isassociated(&lookup->rdataset));
 			INSIST(!dns_rdataset_isassociated
 						(&lookup->sigrdataset));
-			/*
-			 * If we have restarted then clear the old node.				 */
-			if  (lookup->event->node != NULL) {
-				INSIST(lookup->event->db != NULL);
-				dns_db_detachnode(lookup->event->db,
-						 &lookup->event->node);
-			}
-			if (lookup->event->db != NULL)
-				dns_db_detach(&lookup->event->db);
 			result = view_find(lookup, fname);
 			if (result == ISC_R_NOTFOUND) {
 				/*
@@ -230,18 +225,17 @@ lookup_find(dns_lookup_t *lookup, dns_fetchevent_t *event) {
 				if (lookup->event->db != NULL)
 					dns_db_detach(&lookup->event->db);
 				result = start_fetch(lookup);
-				if (result == ISC_R_SUCCESS)
-					send_event = ISC_FALSE;
+				if (result != ISC_R_SUCCESS)
+					send_event = ISC_TRUE;
 				goto done;
 			}
-		} else if (event != NULL) {
+		} else {
 			result = event->result;
 			fname = dns_fixedname_name(&event->foundname);
 			dns_resolver_destroyfetch(&lookup->fetch);
 			INSIST(event->rdataset == &lookup->rdataset);
 			INSIST(event->sigrdataset == &lookup->sigrdataset);
-		} else
-			fname = NULL;	/* Silence compiler warning. */
+		}
 
 		/*
 		 * If we've been canceled, forget about the result.
@@ -252,6 +246,7 @@ lookup_find(dns_lookup_t *lookup, dns_fetchevent_t *event) {
 		switch (result) {
 		case ISC_R_SUCCESS:
 			result = build_event(lookup);
+			send_event = ISC_TRUE;
 			if (event == NULL)
 				break;
 			if (event->db != NULL)
@@ -276,14 +271,12 @@ lookup_find(dns_lookup_t *lookup, dns_fetchevent_t *event) {
 				break;
 			result = dns_name_copy(&cname.cname, name, NULL);
 			dns_rdata_freestruct(&cname);
-			if (result == ISC_R_SUCCESS) {
+			if (result == ISC_R_SUCCESS)
 				want_restart = ISC_TRUE;
-				send_event = ISC_FALSE;
-			}
 			break;
 		case DNS_R_DNAME:
 			namereln = dns_name_fullcompare(name, fname, &order,
-							&nlabels, &nbits);
+							&nlabels);
 			INSIST(namereln == dns_namereln_subdomain);
 			/*
 			 * Get the target name of the DNAME.
@@ -301,19 +294,12 @@ lookup_find(dns_lookup_t *lookup, dns_fetchevent_t *event) {
 			 */
 			dns_fixedname_init(&fixed);
 			prefix = dns_fixedname_name(&fixed);
-			result = dns_name_split(name, nlabels, nbits, prefix,
-						NULL);
-			if (result != ISC_R_SUCCESS) {
-				dns_rdata_freestruct(&dname);
-				break;
-			}
+			dns_name_split(name, nlabels, prefix, NULL);
 			result = dns_name_concatenate(prefix, &dname.dname,
 						      name, NULL);
 			dns_rdata_freestruct(&dname);
-			if (result == ISC_R_SUCCESS) {
+			if (result == ISC_R_SUCCESS)
 				want_restart = ISC_TRUE;
-				send_event = ISC_FALSE;
-			}
 			break;
 		default:
 			send_event = ISC_TRUE;
@@ -330,7 +316,7 @@ lookup_find(dns_lookup_t *lookup, dns_fetchevent_t *event) {
 				dns_db_detachnode(event->db, &event->node);
 			if (event->db != NULL)
 				dns_db_detach(&event->db);
-			isc_event_free(ISC_EVENT_PTR(&event));
+			isc_event_free((isc_event_t **) (void *)&event);
 		}
 
 		/*
@@ -384,6 +370,7 @@ levent_destroy(isc_event_t *event) {
 	isc_mem_put(mctx, event, event->ev_size);
 }
 
+
 isc_result_t
 dns_lookup_create(isc_mem_t *mctx, dns_name_t *name, dns_rdatatype_t type,
 		  dns_view_t *view, unsigned int options, isc_task_t *task,
@@ -393,14 +380,14 @@ dns_lookup_create(isc_mem_t *mctx, dns_name_t *name, dns_rdatatype_t type,
 	dns_lookup_t *lookup;
 	isc_event_t *ievent;
 
-	lookup = isc_mem_get(mctx, sizeof *lookup);
+	lookup = isc_mem_get(mctx, sizeof(*lookup));
 	if (lookup == NULL)
 		return (ISC_R_NOMEMORY);
 	lookup->mctx = mctx;
 	lookup->options = options;
 
 	ievent = isc_event_allocate(mctx, lookup, DNS_EVENT_LOOKUPDONE,
-				    action, arg, sizeof *lookup->event);
+				    action, arg, sizeof(*lookup->event));
 	if (ievent == NULL) {
 		result = ISC_R_NOMEMORY;
 		goto cleanup_lookup;
@@ -455,7 +442,7 @@ dns_lookup_create(isc_mem_t *mctx, dns_name_t *name, dns_rdatatype_t type,
 	isc_task_detach(&lookup->task);
 
  cleanup_lookup:
-	isc_mem_put(mctx, lookup, sizeof *lookup);
+	isc_mem_put(mctx, lookup, sizeof(*lookup));
 
 	return (result);
 }
@@ -494,7 +481,7 @@ dns_lookup_destroy(dns_lookup_t **lookupp) {
 
 	DESTROYLOCK(&lookup->lock);
 	lookup->magic = 0;
-	isc_mem_put(lookup->mctx, lookup, sizeof *lookup);
+	isc_mem_put(lookup->mctx, lookup, sizeof(*lookup));
 
 	*lookupp = NULL;
 }

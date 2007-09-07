@@ -1,5 +1,5 @@
 # Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
-# Copyright (C) 2000, 2001  Internet Software Consortium.
+# Copyright (C) 2000-2002  Internet Software Consortium.
 #
 # Permission to use, copy, modify, and distribute this software for any
 # purpose with or without fee is hereby granted, provided that the above
@@ -13,7 +13,7 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: Makefile.in,v 1.12.2.3 2004/07/20 07:00:16 marka Exp $
+# $Id: Makefile.in,v 1.12.12.5 2004/03/08 04:04:37 marka Exp $
 
 srcdir =	@srcdir@
 VPATH =		@srcdir@
@@ -21,7 +21,7 @@ top_srcdir =	@top_srcdir@
 
 @BIND9_VERSION@
 
-@BIND9_INCLUDES@
+@BIND9_MAKE_INCLUDES@
 
 CINCLUDES =	${LWRES_INCLUDES} ${ISC_INCLUDES}
 
@@ -38,7 +38,7 @@ DEPLIBS =	${LWRESDEPLIBS} ${ISCDEPLIBS}
 
 LIBS =		${LWRESLIBS} ${ISCLIBS} @LIBS@
 
-TARGETS =	lwtest
+TARGETS =	lwtest@EXEEXT@
 
 OBJS =		lwtest.@O@
 
@@ -46,10 +46,10 @@ SRCS =		lwtest.c
 
 @BIND9_MAKE_RULES@
 
-all: lwtest
+all: lwtest@EXEEXT@
 
-lwtest: ${OBJS} ${DEPLIBS}
-	${LIBTOOL_MODE_LINK} ${PURIFY} ${CC} ${CFLAGS} ${LDFLAGS} -o $@ ${OBJS} ${LIBS}
+lwtest@EXEEXT@: ${OBJS} ${DEPLIBS}
+	${LIBTOOL_MODE_LINK} ${PURIFY} ${CC} ${CFLAGS} -o $@ ${OBJS} ${LIBS}
 
 clean distclean::
 	rm -f ${TARGETS}

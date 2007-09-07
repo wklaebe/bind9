@@ -1,6 +1,6 @@
 /*
- * Copyright (C) 2004, 2007  Internet Systems Consortium, Inc. ("ISC")
- * Copyright (C) 1999-2001, 2003  Internet Software Consortium.
+ * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: db.h,v 1.67.2.6 2007/03/06 02:10:58 tbox Exp $ */
+/* $Id: db.h,v 1.67.12.7 2004/03/08 09:04:35 marka Exp $ */
 
 #ifndef DNS_DB_H
 #define DNS_DB_H 1
@@ -187,6 +187,7 @@ struct dns_db {
 #define DNS_DBFIND_NOWILD		0x04
 #define DNS_DBFIND_PENDINGOK		0x08
 #define DNS_DBFIND_NOEXACT		0x10
+#define DNS_DBFIND_FORCENSEC		0x20
 
 /*
  * Options that can be specified for dns_db_addrdataset().
@@ -288,7 +289,7 @@ dns_db_ondestroy(dns_db_t *db, isc_task_t *task, isc_event_t **eventp);
  * Causes 'eventp' to be sent to be sent to 'task' when the database is
  * destroyed.
  *
- * Note; ownrship of the eventp is taken from the caller (and *eventp is
+ * Note; ownership of the eventp is taken from the caller (and *eventp is
  * set to NULL). The sender field of the event is set to 'db' before it is
  * sent to the task.
  */
@@ -641,6 +642,11 @@ dns_db_find(dns_db_t *db, dns_name_t *name, dns_dbversion_t *version,
  *	If the DNS_DBFIND_NOWILD option is set, then wildcard matching will
  *	be disabled.  This option is only meaningful for zone databases.
  *
+ *	If the DNS_DBFIND_FORCENSEC option is set, the database is assumed to
+ *	have NSEC records, and these will be returned when appropriate.  This
+ *	is only necessary when querying a database that was not secure
+ *	when created.
+ *
  *	To respond to a query for SIG records, the caller should create a
  *	rdataset iterator and extract the signatures from each rdataset.
  *
@@ -683,6 +689,14 @@ dns_db_find(dns_db_t *db, dns_name_t *name, dns_dbversion_t *version,
  *
  *		ISC_R_SUCCESS			The desired node and type were
  *						found.
+ *
+ *		DNS_R_WILDCARD			The desired node and type were
+ *						found after performing
+ *						wildcard matching.  This is
+ *						only returned if the
+ *						DNS_DBFIND_INDICATEWILD
+ *						option is set; otherwise
+ *						ISC_R_SUCCESS is returned.
  *
  *		DNS_R_GLUE			The desired node and type were
  *						found, but are glue.  This
@@ -753,12 +767,15 @@ dns_db_find(dns_db_t *db, dns_name_t *name, dns_dbversion_t *version,
  *						name, and 'rdataset' contains
  *						the negative caching proof.
  *
+ *		DNS_R_EMPTYNAME			The name exists but there is
+ *						no data at the name. 
+ *
  *	Error results:
  *
  *		ISC_R_NOMEMORY
  *
  *		DNS_R_BADDB			Data that is required to be
- *						present in the DB, e.g. an NXT
+ *						present in the DB, e.g. an NSEC
  *						record in a secure zone, is not
  *						present.
  *
@@ -825,7 +842,7 @@ dns_db_attachnode(dns_db_t *db, dns_dbnode_t *source, dns_dbnode_t **targetp);
  *
  *	'source' is a valid node.
  *
- *	'targetp' points to a NULL dns_dbnode_t *.
+ *	'targetp' points to a NULL dns_node_t *.
  *
  * Ensures:
  *

@@ -21,7 +21,7 @@
  */
 
 #if !defined(lint) && !defined(SABER)
-static const char rcsid[] = "$Id: res_mkupdate.c,v 1.1.2.6 2005/10/14 05:43:07 marka Exp $";
+static const char rcsid[] = "$Id: res_mkupdate.c,v 1.1.2.1.4.2 2004/03/16 12:34:19 marka Exp $";
 #endif /* not lint */
 
 #include "port_before.h"
@@ -78,7 +78,7 @@ int
 res_nmkupdate(res_state statp, ns_updrec *rrecp_in, u_char *buf, int buflen) {
 	ns_updrec *rrecp_start = rrecp_in;
 	HEADER *hp;
-	u_char *cp, *sp2, *startp, *endp;
+	u_char *cp, *sp1, *sp2, *startp, *endp;
 	int n, i, soanum, multiline;
 	ns_updrec *rrecp;
 	struct in_addr ina;
@@ -101,6 +101,7 @@ res_nmkupdate(res_state statp, ns_updrec *rrecp_in, u_char *buf, int buflen) {
 	hp->id = htons(++statp->id);
 	hp->opcode = ns_o_update;
 	hp->rcode = NOERROR;
+	sp1 = buf + 2*INT16SZ;  /* save pointer to zocount */
 	cp = buf + HFIXEDSZ;
 	buflen -= HFIXEDSZ;
 	dpp = dnptrs;
@@ -349,13 +350,13 @@ res_nmkupdate(res_state statp, ns_updrec *rrecp_in, u_char *buf, int buflen) {
 				bm[i] = 0;
 
 			while (getword_str(buf2, sizeof buf2, &startp, endp)) {
-				if ((n = res_servicenumber(buf2)) <= 0)
+				if ((n1 = res_servicenumber(buf2)) <= 0)
 					return (-1);
 
-				if (n < MAXPORT) {
-					bm[n/8] |= (0x80>>(n%8));
-					if ((unsigned)n > maxbm)
-						maxbm = n;
+				if (n1 < MAXPORT) {
+					bm[n1/8] |= (0x80>>(n1%8));
+					if (n1 > maxbm)
+						maxbm = n1;
 				} else
 					return (-1);
 			}
@@ -921,10 +922,10 @@ res_mkupdrec(int section, const char *dname,
 	}
 	INIT_LINK(rrecp, r_link);
 	INIT_LINK(rrecp, r_glink);
- 	rrecp->r_class = (ns_class)class;
-	rrecp->r_type = (ns_type)type;
+ 	rrecp->r_class = class;
+	rrecp->r_type = type;
 	rrecp->r_ttl = ttl;
-	rrecp->r_section = (ns_sect)section;
+	rrecp->r_section = section;
 	return (rrecp);
 }
 

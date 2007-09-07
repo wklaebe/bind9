@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: stdtime.c,v 1.11.2.2 2004/03/09 06:12:12 marka Exp $ */
+/* $Id: stdtime.c,v 1.11.2.1.10.3 2004/03/08 09:04:57 marka Exp $ */
 
 #include <config.h>
 
@@ -55,7 +55,7 @@ fix_tv_usec(struct timeval *tv) {
 	 * Call syslog directly as we are called from the logging functions.
 	 */
 	if (fixed)
-		syslog(LOG_ERR, "gettimeofday returned bad tv_usec: corrected");
+		(void)syslog(LOG_ERR, "gettimeofday returned bad tv_usec: corrected");
 }
 #endif
 

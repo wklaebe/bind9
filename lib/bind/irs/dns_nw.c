@@ -16,7 +16,7 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static const char rcsid[] = "$Id: dns_nw.c,v 1.3.2.8 2004/09/16 00:57:45 marka Exp $";
+static const char rcsid[] = "$Id: dns_nw.c,v 1.3.2.4.4.2 2004/03/17 00:29:48 marka Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 /* Imports. */
@@ -349,7 +349,12 @@ get1101answer(struct irs_nw *this,
 				RES_SET_H_ERRNO(pvt->res, NO_RECOVERY);
 				return (NULL);
 			}
-			pvt->net.n_name = strcpy(bp, name);	/* (checked) */
+#ifdef HAVE_STRLCPY
+			strlcpy(bp, name, ep - bp);
+			pvt->net.n_name = bp;
+#else
+			pvt->net.n_name = strcpy(bp, name);
+#endif
 			bp += n;
 		}
 		break;
@@ -569,7 +574,7 @@ normalize_name(char *name) {
 	/* Make lower case. */
 	for (t = name; *t; t++)
 		if (isascii((unsigned char)*t) && isupper((unsigned char)*t))
-			*t = tolower((*t)&0xff);
+			*t = tolower(*t);
 
 	/* Remove trailing dots. */
 	while (t > name && t[-1] == '.')

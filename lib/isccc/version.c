@@ -15,10 +15,12 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: version.c,v 1.1.2.1 2004/03/09 06:12:26 marka Exp $ */
+/* $Id: version.c,v 1.1.12.3 2004/03/08 09:05:04 marka Exp $ */
 
-char isccc_version[] = VERSION;
+#include <isccc/version.h>
 
-unsigned int isccc_libinterface = LIBINTERFACE;
-unsigned int isccc_librevision = LIBREVISION;
-unsigned int isccc_libage = LIBAGE;
+const char isccc_version[] = VERSION;
+
+const unsigned int isccc_libinterface = LIBINTERFACE;
+const unsigned int isccc_librevision = LIBREVISION;
+const unsigned int isccc_libage = LIBAGE;

@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: event.c,v 1.15.2.1 2004/03/09 06:11:46 marka Exp $ */
+/* $Id: event.c,v 1.15.12.3 2004/03/08 09:04:48 marka Exp $ */
 
 /*
  * Principal Author: Bob Halley
@@ -45,7 +45,7 @@ isc_event_allocate(isc_mem_t *mctx, void *sender, isc_eventtype_t type,
 	isc_event_t *event;
 	void *deconst_arg;
 
-	REQUIRE(size >= sizeof (struct isc_event));
+	REQUIRE(size >= sizeof(struct isc_event));
 	REQUIRE(action != NULL);
 
 	event = isc_mem_get(mctx, size);

@@ -15,7 +15,7 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: setup.sh,v 1.2.2.3 2004/03/09 06:10:18 marka Exp $
+# $Id: setup.sh,v 1.2.2.2.10.1 2004/03/06 10:22:35 marka Exp $
 
 RANDFILE=../random.data
 

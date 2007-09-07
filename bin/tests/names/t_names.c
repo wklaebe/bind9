@@ -1,6 +1,6 @@
 /*
- * Copyright (C) 2004, 2006  Internet Systems Consortium, Inc. ("ISC")
- * Copyright (C) 1998-2002  Internet Software Consortium.
+ * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 1998-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: t_names.c,v 1.32.2.6 2006/12/07 13:25:58 marka Exp $ */
+/* $Id: t_names.c,v 1.32.2.2.8.3 2004/03/08 21:06:23 marka Exp $ */
 
 #include <config.h>
 
@@ -35,10 +35,6 @@
 #define	MAXTOKS		16
 #define	BUFLEN		256
 #define	BIGBUFLEN	4096
-
-static const char *a1 =
-	"dns_label_countbits returns the number of "
-	"bits in a bitstring label";
 
 static char	*Tokens[MAXTOKS + 1];
 
@@ -356,171 +352,6 @@ dname_from_tname(char *name, dns_name_t *dns_name) {
 	return (result);
 }
 
-static int
-test_dns_label_countbits(char *test_name, int pos, int expected_bits) {
-	dns_label_t	label;
-	dns_name_t	dns_name;
-	int		bits;
-	int		rval;
-	isc_result_t	result;
-
-	rval = T_UNRESOLVED;
-	t_info("testing name %s, label %d\n", test_name, pos);
-
-	result = dname_from_tname(test_name, &dns_name);
-	if (result == ISC_R_SUCCESS) {
-		dns_name_getlabel(&dns_name, pos, &label);
-		bits = dns_label_countbits(&label);
-		if (bits == expected_bits)
-			rval = T_PASS;
-		else {
-			t_info("got %d, expected %d\n", bits, expected_bits);
-			rval = T_FAIL;
-		}
-	} else {
-		t_info("dname_from_tname %s failed, result = %s\n",
-				test_name, dns_result_totext(result));
-		rval = T_UNRESOLVED;
-	}
-	return (rval);
-}
-
-static void
-t_dns_label_countbits(void) {
-	FILE		*fp;
-	char		*p;
-	int		line;
-	int		cnt;
-	int		result;
-
-	result = T_UNRESOLVED;
-	t_assert("dns_label_countbits", 1, T_REQUIRED, a1);
-
-	fp = fopen("dns_label_countbits_data", "r");
-	if (fp != NULL) {
-		line = 0;
-		while ((p = t_fgetbs(fp)) != NULL) {
-
-			++line;
-
-			/*
-			 * Skip comment lines.
-			 */
-			if ((isspace((unsigned char)*p)) || (*p == '#')) {
-				(void)free(p);
-				continue;
-			}
-
-			/*
-			 * testname, labelpos, bitpos, expected val.
-			 */
-			cnt = bustline(p, Tokens);
-			if (cnt == 3) {
-				result = test_dns_label_countbits(Tokens[0],
-							      atoi(Tokens[1]),
-							      atoi(Tokens[2]));
-			} else {
-				t_info("bad datafile format at line %d\n",
-				       line);
-			}
-
-			(void)free(p);
-			t_result(result);
-		}
-		(void)fclose(fp);
-	} else {
-		t_info("Missing datafile dns_label_countbits_data\n");
-		t_result(result);
-	}
-}
-
-static const char *a2 =	"dns_label_getbit returns the n'th most significant "
-			"bit of a bitstring label";
-
-static int
-test_dns_label_getbit(char *test_name, int label_pos, int bit_pos,
-		      int expected_bitval)
-{
-	dns_label_t	label;
-	dns_name_t	dns_name;
-	int		bitval;
-	int		rval;
-	isc_result_t	result;
-
-	rval = T_UNRESOLVED;
-
-	t_info("testing name %s, label %d, bit %d\n",
-		test_name, label_pos, bit_pos);
-
-	result = dname_from_tname(test_name, &dns_name);
-	if (result == ISC_R_SUCCESS) {
-		dns_name_getlabel(&dns_name, label_pos, &label);
-		bitval = dns_label_getbit(&label, bit_pos);
-		if (bitval == expected_bitval)
-			rval = T_PASS;
-		else {
-			t_info("got %d, expected %d\n", bitval,
-					expected_bitval);
-			rval = T_FAIL;
-		}
-	} else {
-		t_info("dname_from_tname %s failed, result = %s\n",
-				test_name, dns_result_totext(result));
-		rval = T_UNRESOLVED;
-	}
-	return (rval);
-}
-
-static void
-t_dns_label_getbit(void) {
-	int	line;
-	int	cnt;
-	int	result;
-	char	*p;
-	FILE	*fp;
-
-	t_assert("dns_label_getbit", 1, T_REQUIRED, a2);
-
-	result = T_UNRESOLVED;
-	fp = fopen("dns_label_getbit_data", "r");
-	if (fp != NULL) {
-		line = 0;
-		while ((p = t_fgetbs(fp)) != NULL) {
-
-			++line;
-
-			/*
-			 * Skip comment lines.
-			 */
-			if ((isspace((unsigned char)*p)) || (*p == '#')) {
-				(void)free(p);
-				continue;
-			}
-
-			cnt = bustline(p, Tokens);
-			if (cnt == 4) {
-				/*
-				 * label, bitpos, expected value.
-				 */
-				result = test_dns_label_getbit(Tokens[0],
-							      atoi(Tokens[1]),
-							      atoi(Tokens[2]),
-							      atoi(Tokens[3]));
-			} else {
-				t_info("bad datafile format at line %d\n",
-						line);
-			}
-
-			(void)free(p);
-			t_result(result);
-		}
-		(void)fclose(fp);
-	} else {
-		t_info("Missing datafile dns_label_getbit_data\n");
-		t_result(result);
-	}
-}
-
 static const char *a3 =	"dns_name_init initializes 'name' to the empty name";
 
 static void
@@ -735,10 +566,8 @@ t_dns_name_isabsolute(void) {
 			/*
 			 * Skip comment lines.
 			 */
-			if ((isspace((unsigned char)*p)) || (*p == '#')) {
-				(void)free(p);
+			if ((isspace((unsigned char)*p)) || (*p == '#'))
 				continue;
-			}
 
 			cnt = bustline(p, Tokens);
 			if (cnt == 2) {
@@ -848,10 +677,8 @@ t_dns_name_hash(void) {
 			/*
 			 * Skip comment lines.
 			 */
-			if ((isspace((unsigned char)*p)) || (*p == '#')) {
-				(void)free(p);
+			if ((isspace((unsigned char)*p)) || (*p == '#'))
 				continue;
-			}
 
 			cnt = bustline(p, Tokens);
 			if (cnt == 4) {
@@ -883,7 +710,7 @@ t_dns_name_hash(void) {
 }
 
 static const char *a10 =
-		"dns_name_fullcompare(name1, name2, orderp, nlabelsp, nbitsp) "
+		"dns_name_fullcompare(name1, name2, orderp, nlabelsp) "
 		"returns the DNSSEC ordering relationship between name1 and "
 		"name2, sets orderp to -1 if name1 < name2, to 0 if "
 		"name1 == name2, or to 1 if name1 > name2, sets nlabelsp "
@@ -917,13 +744,12 @@ dns_namereln_to_text(dns_namereln_t reln) {
 static int
 test_dns_name_fullcompare(char *name1, char *name2,
 			  dns_namereln_t exp_dns_reln,
-			  int exp_order, int exp_nlabels, int exp_nbits)
+			  int exp_order, int exp_nlabels)
 {
 	int		result;
 	int		nfails;
 	int		order;
 	unsigned int	nlabels;
-	unsigned int	nbits;
 	dns_name_t	dns_name1;
 	dns_name_t	dns_name2;
 	isc_result_t	dns_result;
@@ -941,7 +767,7 @@ test_dns_name_fullcompare(char *name1, char *name2,
 		dns_result = dname_from_tname(name2, &dns_name2);
 		if (dns_result == ISC_R_SUCCESS) {
 			dns_reln = dns_name_fullcompare(&dns_name1, &dns_name2,
-					&order, &nlabels, &nbits);
+					&order, &nlabels);
 
 			if (dns_reln != exp_dns_reln) {
 				++nfails;
@@ -966,12 +792,6 @@ test_dns_name_fullcompare(char *name1, char *name2,
 				++nfails;
 				t_info("expecting %d labels, got %d\n",
 				       exp_nlabels, nlabels);
-			}
-			if ((exp_nbits >= 0) &&
-			    (nbits != (unsigned int)exp_nbits)) {
-				++nfails;
-				t_info("expecting %d bits, got %d\n",
-				       exp_nbits, nbits);
 			}
 			if (nfails == 0)
 				result = T_PASS;
@@ -1011,16 +831,14 @@ t_dns_name_fullcompare(void) {
 			/*
 			 * Skip comment lines.
 			 */
-			if ((isspace((unsigned char)*p)) || (*p == '#')) {
-				(void)free(p);
+			if ((isspace((unsigned char)*p)) || (*p == '#'))
 				continue;
-			}
 
 			cnt = bustline(p, Tokens);
 			if (cnt == 6) {
 				/*
 				 * name1, name2, exp_reln, exp_order,
-				 * exp_nlabels, exp_nbits
+				 * exp_nlabels
 				 */
 				if (!strcmp(Tokens[2], "none"))
 					reln = dns_namereln_none;
@@ -1042,8 +860,7 @@ t_dns_name_fullcompare(void) {
 						Tokens[1],
 						reln,
 						atoi(Tokens[3]),
-						atoi(Tokens[4]),
-						atoi(Tokens[5]));
+						atoi(Tokens[4]));
 			} else {
 				t_info("bad format at line %d\n", line);
 			}
@@ -1132,10 +949,8 @@ t_dns_name_compare(void) {
 			/*
 			 * Skip comment lines.
 			 */
-			if ((isspace((unsigned char)*p)) || (*p == '#')) {
-				(void)free(p);
+			if ((isspace((unsigned char)*p)) || (*p == '#'))
 				continue;
-			}
 
 			cnt = bustline(p, Tokens);
 			if (cnt == 3) {
@@ -1234,10 +1049,8 @@ t_dns_name_rdatacompare(void) {
 			/*
 			 * Skip comment lines.
 			 */
-			if ((isspace((unsigned char)*p)) || (*p == '#')) {
-				(void)free(p);
+			if ((isspace((unsigned char)*p)) || (*p == '#'))
 				continue;
-			}
 
 			cnt = bustline(p, Tokens);
 			if (cnt == 3) {
@@ -1332,10 +1145,8 @@ t_dns_name_issubdomain(void) {
 			/*
 			 * Skip comment lines.
 			 */
-			if ((isspace((unsigned char)*p)) || (*p == '#')) {
-				(void)free(p);
+			if ((isspace((unsigned char)*p)) || (*p == '#'))
 				continue;
-			}
 
 			cnt = bustline(p, Tokens);
 			if (cnt == 3) {
@@ -1415,10 +1226,8 @@ t_dns_name_countlabels(void) {
 			/*
 			 * Skip comment lines.
 			 */
-			if ((isspace((unsigned char)*p)) || (*p == '#')) {
-				(void)free(p);
+			if ((isspace((unsigned char)*p)) || (*p == '#'))
 				continue;
-			}
 
 			cnt = bustline(p, Tokens);
 			if (cnt == 2) {
@@ -1527,10 +1336,8 @@ t_dns_name_getlabel(void) {
 			/*
 			 * Skip comment lines.
 			 */
-			if ((isspace((unsigned char)*p)) || (*p == '#')) {
-				(void)free(p);
+			if ((isspace((unsigned char)*p)) || (*p == '#'))
 				continue;
-			}
 
 			cnt = bustline(p, Tokens);
 			if (cnt == 4) {
@@ -1657,10 +1464,8 @@ t_dns_name_getlabelsequence(void) {
 			/*
 			 * Skip comment lines.
 			 */
-			if ((isspace((unsigned char)*p)) || (*p == '#')) {
-				(void)free(p);
+			if ((isspace((unsigned char)*p)) || (*p == '#'))
 				continue;
-			}
 
 			cnt = bustline(p, Tokens);
 			if (cnt == 5) {
@@ -1696,7 +1501,6 @@ test_dns_name_fromregion(char *test_name) {
 	int		result;
 	int		order;
 	unsigned int	nlabels;
-	unsigned int	nbits;
 	isc_result_t	dns_result;
 	dns_name_t	dns_name1;
 	dns_name_t	dns_name2;
@@ -1715,7 +1519,7 @@ test_dns_name_fromregion(char *test_name) {
 		dns_name_init(&dns_name2, NULL);
 		dns_name_fromregion(&dns_name2, &region);
 		dns_namereln = dns_name_fullcompare(&dns_name1, &dns_name2,
-						    &order, &nlabels, &nbits);
+						    &order, &nlabels);
 		if (dns_namereln == dns_namereln_equal)
 			result = T_PASS;
 		else
@@ -1748,10 +1552,8 @@ t_dns_name_fromregion(void) {
 			/*
 			 * Skip comment lines.
 			 */
-			if ((isspace((unsigned char)*p)) || (*p == '#')) {
-				(void)free(p);
+			if ((isspace((unsigned char)*p)) || (*p == '#'))
 				continue;
-			}
 
 			cnt = bustline(p, Tokens);
 			if (cnt == 1) {
@@ -1798,10 +1600,8 @@ t_dns_name_toregion(void) {
 			/*
 			 * Skip comment lines.
 			 */
-			if ((isspace((unsigned char)*p)) || (*p == '#')) {
-				(void)free(p);
+			if ((isspace((unsigned char)*p)) || (*p == '#'))
 				continue;
-			}
 
 			cnt = bustline(p, Tokens);
 			if (cnt == 1) {
@@ -1838,7 +1638,6 @@ test_dns_name_fromtext(char *test_name1, char *test_name2, char *test_origin,
 	int		result;
 	int		order;
 	unsigned int	nlabels;
-	unsigned int	nbits;
 	unsigned char	junk1[BUFLEN];
 	unsigned char	junk2[BUFLEN];
 	unsigned char	junk3[BUFLEN];
@@ -1902,7 +1701,7 @@ test_dns_name_fromtext(char *test_name1, char *test_name2, char *test_origin,
 	}
 
 	dns_namereln = dns_name_fullcompare(&dns_name1, &dns_name2, &order,
-					    &nlabels, &nbits);
+					    &nlabels);
 
 	if (dns_namereln == dns_namereln_equal)
 		result = T_PASS;
@@ -1936,10 +1735,8 @@ t_dns_name_fromtext(void) {
 			/*
 			 * Skip comment lines.
 			 */
-			if ((isspace((unsigned char)*p)) || (*p == '#')) {
-				(void)free(p);
+			if ((isspace((unsigned char)*p)) || (*p == '#'))
 				continue;
-			}
 
 			cnt = bustline(p, Tokens);
 			if (cnt == 4) {
@@ -1980,7 +1777,6 @@ test_dns_name_totext(char *test_name, isc_boolean_t omit_final) {
 	int		len;
 	int		order;
 	unsigned int	nlabels;
-	unsigned int	nbits;
 	unsigned char	junk1[BUFLEN];
 	unsigned char	junk2[BUFLEN];
 	unsigned char	junk3[BUFLEN];
@@ -2040,7 +1836,7 @@ test_dns_name_totext(char *test_name, isc_boolean_t omit_final) {
 	}
 
 	dns_namereln = dns_name_fullcompare(&dns_name1, &dns_name2,
-					    &order, &nlabels, &nbits);
+					    &order, &nlabels);
 	if (dns_namereln == dns_namereln_equal)
 		result = T_PASS;
 	else {
@@ -2073,10 +1869,8 @@ t_dns_name_totext(void) {
 			/*
 			 * Skip comment lines.
 			 */
-			if ((isspace((unsigned char)*p)) || (*p == '#')) {
-				(void)free(p);
+			if ((isspace((unsigned char)*p)) || (*p == '#'))
 				continue;
-			}
 
 			cnt = bustline(p, Tokens);
 			if (cnt == 2) {
@@ -2139,6 +1933,10 @@ static const char *a48 =
 		"returns ISC_R_UNEXPECTEDEND";
 
 static const char *a49 =
+		"when there are too many compression pointers, "
+		"dns_name_fromwire() returns DNS_R_TOOMANYHOPS";
+
+static const char *a50 =
 		"when there is not enough space in target, "
 		"dns_name_fromwire(name, source, dcts, downcase, target) "
 		"returns ISC_R_NOSPACE";
@@ -2151,7 +1949,6 @@ test_dns_name_fromwire(char *datafile_name, int testname_offset, int downcase,
 	int			result;
 	int			order;
 	unsigned int		nlabels;
-	unsigned int		nbits;
 	int			len;
 	unsigned char		buf1[BIGBUFLEN];
 	char			buf2[BUFLEN];
@@ -2185,8 +1982,7 @@ test_dns_name_fromwire(char *datafile_name, int testname_offset, int downcase,
 		if (dns_result == ISC_R_SUCCESS) {
 			dns_namereln = dns_name_fullcompare(&dns_name1,
 							    &dns_name2,
-							    &order, &nlabels,
-							    &nbits);
+							    &order, &nlabels);
 			if (dns_namereln != dns_namereln_equal) {
 				t_info("dns_name_fullcompare  returned %s\n",
 				       dns_namereln_to_text(dns_namereln));
@@ -2232,10 +2028,8 @@ t_dns_name_fromwire_x(const char *testfile, size_t buflen) {
 			/*
 			 * Skip comment lines.
 			 */
-			if ((isspace((unsigned char)*p)) || (*p == '#')) {
-				(void)free(p);
+			if ((isspace((unsigned char)*p)) || (*p == '#'))
 				continue;
-			}
 
 			cnt = bustline(p, Tokens);
 			if (cnt == 6) {
@@ -2323,8 +2117,11 @@ t_dns_name_fromwire(void) {
 	t_assert("dns_name_fromwire", 7, T_REQUIRED, a48);
 	t_dns_name_fromwire_x("dns_name_fromwire_7_data", BUFLEN);
 
-	t_assert("dns_name_fromwire", 9, T_REQUIRED, a49);
-	t_dns_name_fromwire_x("dns_name_fromwire_8_data", 2);
+	t_assert("dns_name_fromwire", 8, T_REQUIRED, a49);
+	t_dns_name_fromwire_x("dns_name_fromwire_8_data", BUFLEN);
+
+	t_assert("dns_name_fromwire", 9, T_REQUIRED, a50);
+	t_dns_name_fromwire_x("dns_name_fromwire_9_data", 2);
 }
 
 
@@ -2424,10 +2221,8 @@ t_dns_name_towire_x(const char *testfile, size_t buflen) {
 			/*
 			 * Skip comment lines.
 			 */
-			if ((isspace((unsigned char)*p)) || (*p == '#')) {
-				(void)free(p);
+			if ((isspace((unsigned char)*p)) || (*p == '#'))
 				continue;
-			}
 
 			cnt = bustline(p, Tokens);
 			if (cnt == 5) {
@@ -2495,8 +2290,6 @@ t_dns_name_concatenate(void) {
 #endif
 
 testspec_t T_testlist[] = {
-	{	t_dns_label_countbits,		"dns_label_countbits"	},
-	{	t_dns_label_getbit,		"dns_label_getbit"	},
 	{	t_dns_name_init,		"dns_name_init"		},
 	{	t_dns_name_invalidate,		"dns_name_invalidate"	},
 	{	t_dns_name_setbuffer,		"dns_name_setbuffer"	},

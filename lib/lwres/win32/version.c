@@ -15,12 +15,14 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: version.c,v 1.1.2.1 2004/03/09 06:12:42 marka Exp $ */
+/* $Id: version.c,v 1.1.12.3 2004/03/08 09:05:13 marka Exp $ */
 
 #include <versions.h>
 
-char lwres_version[] = VERSION;
+#include <lwres/version.h>
 
-unsigned int lwres_libinterface = LIBINTERFACE;
-unsigned int lwres_librevision = LIBREVISION;
-unsigned int lwres_libage = LIBAGE;
+LIBLWRES_EXTERNAL_DATA const char lwres_version[] = VERSION;
+
+LIBLWRES_EXTERNAL_DATA const unsigned int lwres_libinterface = LIBINTERFACE;
+LIBLWRES_EXTERNAL_DATA const unsigned int lwres_librevision = LIBREVISION;
+LIBLWRES_EXTERNAL_DATA const unsigned int lwres_libage = LIBAGE;

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2006  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: compress_test.c,v 1.24.2.3 2006/02/26 23:49:47 marka Exp $ */
+/* $Id: compress_test.c,v 1.24.12.4 2004/03/08 04:04:25 marka Exp $ */
 
 #include <config.h>
 
@@ -72,42 +72,42 @@ main(int argc, char *argv[]) {
 
 	dns_name_init(&name1, NULL);
 	region.base = plain1;
-	region.length = sizeof plain1;
+	region.length = sizeof(plain1);
 	dns_name_fromregion(&name1, &region);
 
 	dns_name_init(&name2, NULL);
 	region.base = plain2;
-	region.length = sizeof plain2;
+	region.length = sizeof(plain2);
 	dns_name_fromregion(&name2, &region);
 
 	dns_name_init(&name3, NULL);
 	region.base = plain3;
-	region.length = sizeof plain3;
+	region.length = sizeof(plain3);
 	dns_name_fromregion(&name3, &region);
 
-	test(DNS_COMPRESS_NONE, &name1, &name2, &name3, plain, sizeof plain);
+	test(DNS_COMPRESS_NONE, &name1, &name2, &name3, plain, sizeof(plain));
 	test(DNS_COMPRESS_GLOBAL14, &name1, &name2, &name3, plain,
-	     sizeof plain);
-	test(DNS_COMPRESS_ALL, &name1, &name2, &name3, plain, sizeof plain);
+	     sizeof(plain));
+	test(DNS_COMPRESS_ALL, &name1, &name2, &name3, plain, sizeof(plain));
 
 	dns_name_init(&name1, NULL);
 	region.base = bit1;
-	region.length = sizeof bit1;
+	region.length = sizeof(bit1);
 	dns_name_fromregion(&name1, &region);
 
 	dns_name_init(&name2, NULL);
 	region.base = bit2;
-	region.length = sizeof bit2;
+	region.length = sizeof(bit2);
 	dns_name_fromregion(&name2, &region);
 
 	dns_name_init(&name3, NULL);
 	region.base = bit3;
-	region.length = sizeof bit3;
+	region.length = sizeof(bit3);
 	dns_name_fromregion(&name3, &region);
 
-	test(DNS_COMPRESS_NONE, &name1, &name2, &name3, bit, sizeof bit);
-	test(DNS_COMPRESS_GLOBAL14, &name1, &name2, &name3, bit, sizeof bit);
-	test(DNS_COMPRESS_ALL, &name1, &name2, &name3, bit, sizeof bit);
+	test(DNS_COMPRESS_NONE, &name1, &name2, &name3, bit, sizeof(bit));
+	test(DNS_COMPRESS_GLOBAL14, &name1, &name2, &name3, bit, sizeof(bit));
+	test(DNS_COMPRESS_ALL, &name1, &name2, &name3, bit, sizeof(bit));
 
 	return (0);
 }
@@ -131,7 +131,7 @@ test(unsigned int allowed, dns_name_t *name1, dns_name_t *name2,
 		case DNS_COMPRESS_NONE: s = "DNS_COMPRESS_NONE"; break;
 		case DNS_COMPRESS_GLOBAL14: s = "DNS_COMPRESS_GLOBAL14"; break;
 		/* case DNS_COMPRESS_ALL: s = "DNS_COMPRESS_ALL"; break; */
-		default: s = "UNKNOWN"; break;
+		default: s = "UNKOWN"; break;
 		}
 		fprintf(stdout, "Allowed = %s\n", s);
 	}
@@ -158,7 +158,7 @@ test(unsigned int allowed, dns_name_t *name1, dns_name_t *name2,
 
 	if (raw) {
 		unsigned int i;
-		for (i = 0 ; i < source.used ; /* */ ) {
+		for (i = 0; i < source.used; /* */ ) {
 			fprintf(stdout, "%02x",
 				((unsigned char *)source.base)[i]);
 			if ((++i % 20) == 0)
@@ -195,7 +195,7 @@ test(unsigned int allowed, dns_name_t *name1, dns_name_t *name2,
 
 	if (raw) {
 		unsigned int i;
-		for (i = 0 ; i < target.used ; /* */ ) {
+		for (i = 0; i < target.used; /* */ ) {
 			fprintf(stdout, "%02x",
 				((unsigned char *)target.base)[i]);
 			if ((++i % 20) == 0)

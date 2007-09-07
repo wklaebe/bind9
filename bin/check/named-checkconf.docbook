@@ -1,9 +1,7 @@
-<!DOCTYPE book PUBLIC "-//OASIS//DTD DocBook XML V4.2//EN"
-               "http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd"
-	       [<!ENTITY mdash "&#8212;">]>
+<!DOCTYPE refentry PUBLIC "-//OASIS//DTD DocBook V4.1//EN">
 <!--
- - Copyright (C) 2004, 2005, 2007  Internet Systems Consortium, Inc. ("ISC")
- - Copyright (C) 2000-2002  Internet Software Consortium.
+ - Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2001, 2002  Internet Software Consortium.
  -
  - Permission to use, copy, modify, and distribute this software for any
  - purpose with or without fee is hereby granted, provided that the above
@@ -18,7 +16,7 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<!-- $Id: named-checkconf.docbook,v 1.3.2.9 2007/06/19 07:52:23 marka Exp $ -->
+<!-- $Id: named-checkconf.docbook,v 1.3.2.1.8.4 2004/03/08 04:04:13 marka Exp $ -->
 
 <refentry>
   <refentryinfo>
@@ -31,21 +29,6 @@
     <refmiscinfo>BIND9</refmiscinfo>
   </refmeta>
 
-  <docinfo>
-    <copyright>
-      <year>2004</year>
-      <year>2005</year>
-      <year>2007</year>
-      <holder>Internet Systems Consortium, Inc. ("ISC")</holder>
-    </copyright>
-    <copyright>
-      <year>2000</year>
-      <year>2001</year>
-      <year>2002</year>
-      <holder>Internet Software Consortium.</holder>
-    </copyright>
-  </docinfo>
-
   <refnamediv>
     <refname><application>named-checkconf</application></refname>
     <refpurpose>named configuration file syntax checking tool</refpurpose>
@@ -55,8 +38,10 @@
     <cmdsynopsis>
       <command>named-checkconf</command>
       <arg><option>-v</option></arg>
+      <arg><option>-j</option></arg>
       <arg><option>-t <replaceable class="parameter">directory</replaceable></option></arg>
       <arg choice="req">filename</arg>
+      <arg><option>-z</option></arg>
     </cmdsynopsis>
   </refsynopsisdiv>
 
@@ -76,7 +61,7 @@
         <term>-t <replaceable class="parameter">directory</replaceable></term>
 	<listitem>
 	  <para>
-	      Chroot to <filename>directory</filename> so that include
+	      chroot to <filename>directory</filename> so that include
 	      directives in the configuration file are processed as if
 	      run by a similarly chrooted named.
 	  </para>
@@ -89,6 +74,25 @@
 	  <para>
 	      Print the version of the <command>named-checkconf</command>
 	      program and exit.
+	  </para>
+	</listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>-z</term>
+	<listitem>
+	  <para>
+	      Perform a check load the master zonefiles found in
+	      <filename>named.conf</filename>.
+	  </para>
+	</listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>-j</term>
+	<listitem>
+	  <para>
+	      When loading a zonefile read the journal if it exists.
 	  </para>
 	</listitem>
       </varlistentry>
@@ -112,7 +116,6 @@
     <para>
         <command>named-checkconf</command> returns an exit status of 1 if
 	errors were detected and 0 otherwise.
-    </para>
   </refsect1>
 
   <refsect1>
@@ -122,9 +125,6 @@
         <refentrytitle>named</refentrytitle>
 	<manvolnum>8</manvolnum>
       </citerefentry>,
-      <citerefentry>
-        <refentrytitle>named-checkzone</refentrytitle><manvolnum>8</manvolnum>
-      </citerefentry>,
       <citetitle>BIND 9 Administrator Reference Manual</citetitle>.
     </para>
   </refsect1>
@@ -132,7 +132,7 @@
   <refsect1>
     <title>AUTHOR</title>
     <para>
-        <corpauthor>Internet Systems Consortium</corpauthor>
+        <corpauthor>Internet Software Consortium</corpauthor>
     </para>
   </refsect1>
 

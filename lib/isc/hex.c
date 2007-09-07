@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
- * Copyright (C) 2000-2002  Internet Software Consortium.
+ * Copyright (C) 2000-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: hex.c,v 1.8.2.3 2004/03/09 06:11:46 marka Exp $ */
+/* $Id: hex.c,v 1.8.2.2.8.3 2004/03/06 08:14:30 marka Exp $ */
 
 #include <config.h>
 
@@ -55,7 +55,7 @@ isc_hex_totext(isc_region_t *source, int wordlength,
 	if (wordlength < 2)
 		wordlength = 2;
 
-	memset(buf, 0, sizeof buf);
+	memset(buf, 0, sizeof(buf));
 	while (source->length > 0) {
 		buf[0] = hex[(source->base[0] >> 4) & 0xf];
 		buf[1] = hex[(source->base[0]) & 0xf];
@@ -144,7 +144,7 @@ isc_hex_tobuffer(isc_lex_t *lexer, isc_buffer_t *target, int length) {
 		if (token.type != isc_tokentype_string)
 			break;
 		tr = &token.value.as_textregion;
-		for (i = 0 ;i < tr->length; i++)
+		for (i = 0; i < tr->length; i++)
 			RETERR(hex_decode_char(&ctx, tr->base[i]));
 	}
 	if (ctx.length < 0)

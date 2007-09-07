@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2007  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dispatch.h,v 1.45.2.5 2007/06/26 23:45:22 tbox Exp $ */
+/* $Id: dispatch.h,v 1.45.2.2.4.2 2004/03/06 08:13:55 marka Exp $ */
 
 #ifndef DNS_DISPATCH_H
 #define DNS_DISPATCH_H 1
@@ -178,6 +178,28 @@ dns_dispatchmgr_getblackhole(dns_dispatchmgr_t *mgr);
  * Returns:
  *	A pointer to the current blackhole list, or NULL.
  */
+
+void
+dns_dispatchmgr_setblackportlist(dns_dispatchmgr_t *mgr,
+                                 dns_portlist_t *portlist);
+/*
+ * Sets a list of UDP ports that won't be used when creating a udp
+ * dispatch with a wildcard port.
+ *
+ * Requires:
+ *	mgr is a valid dispatchmgr
+ *	portlist to be NULL or a valid port list.
+ */
+
+dns_portlist_t *
+dns_dispatchmgr_getblackportlist(dns_dispatchmgr_t *mgr);
+/*
+ * Return the current port list.
+ *
+ * Requires:
+ *	mgr is a valid dispatchmgr
+ */
+
 
 
 isc_result_t
@@ -413,13 +435,6 @@ dns_dispatch_importrecv(dns_dispatch_t *disp, isc_event_t *event);
  * Requires:
  * 	disp is valid, and the attribute DNS_DISPATCHATTR_NOLISTEN is set.
  * 	event != NULL
- */
-
-void
-dns_dispatch_hash(void *data, size_t len);
-/*%<
- * Feed 'data' to the dispatch query id generator where 'len' is the size
- * of 'data'.
  */
 
 ISC_LANG_ENDDECLS

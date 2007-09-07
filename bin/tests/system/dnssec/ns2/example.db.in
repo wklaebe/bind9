@@ -1,5 +1,5 @@
 ; Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
-; Copyright (C) 2000, 2001  Internet Software Consortium.
+; Copyright (C) 2000-2002  Internet Software Consortium.
 ;
 ; Permission to use, copy, modify, and distribute this software for any
 ; purpose with or without fee is hereby granted, provided that the above
@@ -13,7 +13,7 @@
 ; OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 ; PERFORMANCE OF THIS SOFTWARE.
 
-; $Id: example.db.in,v 1.8.2.1 2004/03/09 06:09:51 marka Exp $
+; $Id: example.db.in,v 1.8.12.3 2004/03/08 04:04:34 marka Exp $
 
 $TTL 300	; 5 minutes
 @			IN SOA	mname1. . (
@@ -58,9 +58,17 @@ ns.secure		A	10.53.0.3
 insecure		NS	ns.insecure
 ns.insecure		A	10.53.0.3
 
-
 ; A secure subdomain we're going to inject bogus data into
 bogus			NS	ns.bogus
 ns.bogus		A	10.53.0.3
 
+; A dynamic secure subdomain
+dynamic			NS	dynamic
+dynamic			A	10.53.0.3
+
 z			A	10.0.0.26
+
+keyless			NS	ns.keyless
+ns.keyless		A	10.53.0.3
+
+*.wild			A	10.0.0.27

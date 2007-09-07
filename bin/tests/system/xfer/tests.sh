@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
+# Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
 # Copyright (C) 2000, 2001  Internet Software Consortium.
 #
 # Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: tests.sh,v 1.24.2.3 2005/11/03 00:02:53 marka Exp $
+# $Id: tests.sh,v 1.24.12.4 2004/03/08 09:04:18 marka Exp $
 
 SYSTEMTESTTOP=..
 . $SYSTEMTESTTOP/conf.sh
@@ -29,25 +29,13 @@ $DIG $DIGOPTS example. \
 	@10.53.0.2 axfr -p 5300 > dig.out.ns2 || status=1
 grep ";" dig.out.ns2
 
-#
-# Spin to allow the zone to tranfer.
-#
-for i in 1 2 3 4 5
-do
-tmp=0
 $DIG $DIGOPTS example. \
-	@10.53.0.3 axfr -p 5300 > dig.out.ns3 || tmp=1
-	grep ";" dig.out.ns3 > /dev/null
-	if test $? -ne 0 ; then break; fi
-	echo "I: plain zone re-transfer"
-	sleep 5
-done
-if test $tmp -eq 1 ; then status=1; fi
+	@10.53.0.3 axfr -p 5300 > dig.out.ns3 || status=1
 grep ";" dig.out.ns3
 
-$PERL ../digcomp.pl knowngood.dig.out dig.out.ns2 || status=1
+$PERL ../digcomp.pl dig1.good dig.out.ns2 || status=1
 
-$PERL ../digcomp.pl knowngood.dig.out dig.out.ns3 || status=1
+$PERL ../digcomp.pl dig1.good dig.out.ns3 || status=1
 
 echo "I:testing TSIG signed zone transfers"
 $DIG $DIGOPTS tsigzone. \
@@ -55,24 +43,36 @@ $DIG $DIGOPTS tsigzone. \
 	> dig.out.ns2 || status=1
 grep ";" dig.out.ns2
 
-#
-# Spin to allow the zone to tranfer.
-#
-for i in 1 2 3 4 5
-do
-tmp=0
 $DIG $DIGOPTS tsigzone. \
     	@10.53.0.3 axfr -y tsigzone.:1234abcd8765 -p 5300 \
-	> dig.out.ns3 || tmp=1
-	grep ";" dig.out.ns3 > /dev/null
-	if test $? -ne 0 ; then break; fi
-	echo "I: TSIG zone re-transfer"
-	sleep 5
-done
-if test $tmp -eq 1 ; then status=1; fi
+	> dig.out.ns3 || status=1
 grep ";" dig.out.ns3
 
 $PERL ../digcomp.pl dig.out.ns2 dig.out.ns3 || status=1
+
+echo "I:testing ixfr-from-differences"
+
+$PERL -i -p -e '
+	s/0\.0\.0\.0/0.0.0.1/;
+	s/1397051952/1397051953/
+' ns2/example.db
+
+$RNDC -c ../common/rndc.conf -s 10.53.0.2 -p 9953 reload 2>&1 | sed 's/^/I:ns2 /'
+
+sleep 5
+
+$RNDC -c ../common/rndc.conf -s 10.53.0.3 -p 9953 reload 2>&1 | sed 's/^/I:ns3 /'
+
+sleep 5
+
+$DIG $DIGOPTS example. \
+	@10.53.0.3 axfr -p 5300 > dig.out.ns3 || status=1
+grep ";" dig.out.ns3
+
+$PERL ../digcomp.pl dig2.good dig.out.ns3 || status=1
+
+# ns3 has a journal iff it received an IXFR.
+test -f ns3/example.bk.jnl || status=1 
 
 echo "I:exit status: $status"
 exit $status

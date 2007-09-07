@@ -16,7 +16,7 @@
  */
 
 #if !defined(LINT) && !defined(CODECENTER)
-static const char rcsid[] = "$Id: irs_data.c,v 1.3.2.7 2007/02/26 00:05:23 marka Exp $";
+static const char rcsid[] = "$Id: irs_data.c,v 1.3.2.2.4.2 2004/03/17 00:29:49 marka Exp $";
 #endif
 
 #include "port_before.h"
@@ -121,24 +121,14 @@ net_data_destroy(void *p) {
 struct net_data *
 net_data_init(const char *conf_file) {
 #ifdef	DO_PTHREADS
-#ifndef LIBBIND_MUTEX_INITIALIZER
-#define LIBBIND_MUTEX_INITIALIZER PTHREAD_MUTEX_INITIALIZER
-#endif
-	static pthread_mutex_t keylock = LIBBIND_MUTEX_INITIALIZER;
+	static pthread_mutex_t keylock = PTHREAD_MUTEX_INITIALIZER;
 	struct net_data *net_data;
 
 	if (!once) {
-		if (pthread_mutex_lock(&keylock) != 0)
-			return (NULL);
-		if (!once) {
-			if (pthread_key_create(&key, net_data_destroy) != 0) {
-				pthread_mutex_unlock(&keylock);
-				return (NULL);
-			}
-			once = 1;
-		}
-		if (pthread_mutex_unlock(&keylock) != 0)
-			return (NULL);
+		pthread_mutex_lock(&keylock);
+		if (!once++)
+			pthread_key_create(&key, net_data_destroy);
+		pthread_mutex_unlock(&keylock);
 	}
 	net_data = pthread_getspecific(key);
 #endif
@@ -148,10 +138,7 @@ net_data_init(const char *conf_file) {
 		if (net_data == NULL)
 			return (NULL);
 #ifdef	DO_PTHREADS
-		if (pthread_setspecific(key, net_data) != 0) {
-			net_data_destroy(net_data);
-			return (NULL);
-		}
+		pthread_setspecific(key, net_data);
 #endif
 	}
 

@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: callbacks.h,v 1.15.2.3 2004/03/09 06:11:14 marka Exp $ */
+/* $Id: callbacks.h,v 1.15.2.2.8.1 2004/03/06 08:13:51 marka Exp $ */
 
 #ifndef DNS_CALLBACKS_H
 #define DNS_CALLBACKS_H 1

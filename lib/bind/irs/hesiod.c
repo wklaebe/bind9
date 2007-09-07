@@ -1,5 +1,5 @@
 #if defined(LIBC_SCCS) && !defined(lint)
-static const char rcsid[] = "$Id: hesiod.c,v 1.1.2.5 2005/07/28 07:48:19 marka Exp $";
+static const char rcsid[] = "$Id: hesiod.c,v 1.1.2.1.4.2 2004/03/17 01:49:41 marka Exp $";
 #endif
 
 /*
@@ -83,21 +83,28 @@ hesiod_init(void **context) {
 		return (-1);
 	}
 
-	memset(ctx, 0, sizeof (*ctx));
+	ctx->LHS = NULL;
+	ctx->RHS = NULL;
+	ctx->res = NULL;
 
 	if (parse_config_file(ctx, _PATH_HESIOD_CONF) < 0) {
 #ifdef DEF_RHS
 		/*
 		 * Use compiled in defaults.
 		 */
-		ctx->LHS = malloc(strlen(DEF_LHS) + 1);
-		ctx->RHS = malloc(strlen(DEF_RHS) + 1);
-		if (ctx->LHS == NULL || ctx->RHS == NULL) {
+		ctx->LHS = malloc(strlen(DEF_LHS)+1);
+		ctx->RHS = malloc(strlen(DEF_RHS)+1);
+		if (ctx->LHS == 0 || ctx->RHS == 0) {
 			errno = ENOMEM;
 			goto cleanup;
 		}
-		strcpy(ctx->LHS, DEF_LHS);	/* (checked) */
-		strcpy(ctx->RHS, DEF_RHS);	/* (checked) */
+#ifdef HAVE_STRLCPY
+		strlcpy(ctx->LHS, DEF_LHS, strlen(DEF_LHS) + 1);
+		strlcpy(ctx->RHS, DEF_RHS, strlen(DEF_RHS) + 1);
+#else
+		strcpy(ctx->LHS, DEF_LHS);
+		strcpy(ctx->RHS, DEF_RHS);
+#endif
 #else
 		goto cleanup;
 #endif
@@ -116,10 +123,22 @@ hesiod_init(void **context) {
 			goto cleanup;
 		}
 		if (cp[0] == '.') {
-			strcpy(ctx->RHS, cp);	/* (checked) */
+#ifdef HAVE_STRLCPY
+			strlcpy(ctx->RHS, cp, RHSlen);
+#else
+			strcpy(ctx->RHS, cp);
+#endif
 		} else {
-			strcpy(ctx->RHS, ".");	/* (checked) */
-			strcat(ctx->RHS, cp);	/* (checked) */
+#ifdef HAVE_STRLCPY
+			strlcpy(ctx->RHS, ".", RHSlen);
+#else
+			strcpy(ctx->RHS, ".");
+#endif
+#ifdef HAVE_STRLCAT
+			strlcat(ctx->RHS, cp, RHSlen);
+#else
+			strcat(ctx->RHS, cp);
+#endif
 		}
 	}
 

@@ -52,7 +52,6 @@ res_nsendsigned(res_state statp, const u_char *msg, int msglen,
 	bufsize = msglen + 1024;
 	newmsg = (u_char *) malloc(bufsize);
 	if (newmsg == NULL) {
-		free(nstatp);
 		errno = ENOMEM;
 		return (-1);
 	}
@@ -103,11 +102,11 @@ res_nsendsigned(res_state statp, const u_char *msg, int msglen,
 retry:
 
 	len = res_nsend(nstatp, newmsg, newmsglen, answer, anslen);
-	if (len < 0) {
+	if (ret < 0) {
 		free (nstatp);
 		free (newmsg);
 		dst_free_key(dstkey);
-		return (len);
+		return (ret);
 	}
 
 	ret = ns_verify(answer, &len, dstkey, sig, siglen,
@@ -123,16 +122,8 @@ retry:
 			(stdout, "%s", ""),
 			answer, (anslen > len) ? len : anslen);
 
-		if (ret > 0) {
-			Dprint(statp->pfcode & RES_PRF_REPLY,
-			       (stdout, ";; server rejected TSIG (%s)\n",
-				p_rcode(ret)));
-		} else {
-			Dprint(statp->pfcode & RES_PRF_REPLY,
-			       (stdout, ";; TSIG invalid (%s)\n",
-				p_rcode(-ret)));
-		}
-
+		Dprint(statp->pfcode & RES_PRF_REPLY,
+		       (stdout, ";; TSIG invalid (%s)\n", p_rcode(ret)));
 		free (nstatp);
 		free (newmsg);
 		dst_free_key(dstkey);

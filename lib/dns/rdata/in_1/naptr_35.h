@@ -18,7 +18,7 @@
 #ifndef IN_1_NAPTR_35_H
 #define IN_1_NAPTR_35_H 1
 
-/* $Id: naptr_35.h,v 1.18.2.1 2004/03/09 06:11:37 marka Exp $ */
+/* $Id: naptr_35.h,v 1.18.206.1 2004/03/06 08:14:17 marka Exp $ */
 
 /* RFC 2915 */
 

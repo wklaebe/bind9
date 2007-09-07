@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2006  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2001  Internet Software Consortium.
  *
  * This code is derived from software contributed to ISC by
@@ -18,7 +18,7 @@
  * IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: getaddrinfo.c,v 1.41.2.4 2006/11/13 11:58:34 marka Exp $ */
+/* $Id: getaddrinfo.c,v 1.41.206.1 2004/03/06 08:15:30 marka Exp $ */
 
 #include <config.h>
 
@@ -325,10 +325,8 @@ lwres_getaddrinfo(const char *hostname, const char *servname,
 						      NULL, 0,
 						      NI_NUMERICHOST) == 0) {
 					ai->ai_canonname = strdup(nbuf);
-					if (ai->ai_canonname == NULL) {
-						lwres_freeaddrinfo(ai_list);
+					if (ai->ai_canonname == NULL)
 						return (EAI_MEMORY);
-					}
 				} else {
 					/* XXX raise error? */
 					ai->ai_canonname = NULL;
@@ -437,7 +435,7 @@ static char v4_loop[4] = { 127, 0, 0, 1 };
  * The test against 0 is there to keep the Solaris compiler
  * from complaining about "end-of-loop code not reached".
  */
-#define SETERROR(code) \
+#define ERR(code) \
 	do { result = (code);			\
 		if (result != 0) goto cleanup;	\
 	} while (0)
@@ -455,13 +453,13 @@ add_ipv4(const char *hostname, int flags, struct addrinfo **aip,
 
 	lwres = lwres_context_create(&lwrctx, NULL, NULL, NULL, 0);
 	if (lwres != LWRES_R_SUCCESS)
-		SETERROR(EAI_FAIL);
+		ERR(EAI_FAIL);
 	(void) lwres_conf_parse(lwrctx, lwres_resolv_conf);
 	if (hostname == NULL && (flags & AI_PASSIVE) == 0) {
 		ai = ai_clone(*aip, AF_INET);
 		if (ai == NULL) {
 			lwres_freeaddrinfo(*aip);
-			SETERROR(EAI_MEMORY);
+			ERR(EAI_MEMORY);
 		}
 
 		*aip = ai;
@@ -475,14 +473,14 @@ add_ipv4(const char *hostname, int flags, struct addrinfo **aip,
 			if (lwres == LWRES_R_NOTFOUND)
 				goto cleanup;
 			else
-				SETERROR(EAI_FAIL);
+				ERR(EAI_FAIL);
 		}
 		addr = LWRES_LIST_HEAD(by->addrs);
 		while (addr != NULL) {
 			ai = ai_clone(*aip, AF_INET);
 			if (ai == NULL) {
 				lwres_freeaddrinfo(*aip);
-				SETERROR(EAI_MEMORY);
+				ERR(EAI_MEMORY);
 			}
 			*aip = ai;
 			ai->ai_socktype = socktype;
@@ -492,7 +490,7 @@ add_ipv4(const char *hostname, int flags, struct addrinfo **aip,
 			if (flags & AI_CANONNAME) {
 				ai->ai_canonname = strdup(by->realname);
 				if (ai->ai_canonname == NULL)
-					SETERROR(EAI_MEMORY);
+					ERR(EAI_MEMORY);
 			}
 			addr = LWRES_LIST_NEXT(addr, link);
 		}
@@ -522,14 +520,14 @@ add_ipv6(const char *hostname, int flags, struct addrinfo **aip,
 
 	lwres = lwres_context_create(&lwrctx, NULL, NULL, NULL, 0);
 	if (lwres != LWRES_R_SUCCESS)
-		SETERROR(EAI_FAIL);
+		ERR(EAI_FAIL);
 	(void) lwres_conf_parse(lwrctx, lwres_resolv_conf);
 
 	if (hostname == NULL && (flags & AI_PASSIVE) == 0) {
 		ai = ai_clone(*aip, AF_INET6);
 		if (ai == NULL) {
 			lwres_freeaddrinfo(*aip);
-			SETERROR(EAI_MEMORY);
+			ERR(EAI_MEMORY);
 		}
 
 		*aip = ai;
@@ -543,14 +541,14 @@ add_ipv6(const char *hostname, int flags, struct addrinfo **aip,
 			if (lwres == LWRES_R_NOTFOUND)
 				goto cleanup;
 			else
-				SETERROR(EAI_FAIL);
+				ERR(EAI_FAIL);
 		}
 		addr = LWRES_LIST_HEAD(by->addrs);
 		while (addr != NULL) {
 			ai = ai_clone(*aip, AF_INET6);
 			if (ai == NULL) {
 				lwres_freeaddrinfo(*aip);
-				SETERROR(EAI_MEMORY);
+				ERR(EAI_MEMORY);
 			}
 			*aip = ai;
 			ai->ai_socktype = socktype;
@@ -560,7 +558,7 @@ add_ipv6(const char *hostname, int flags, struct addrinfo **aip,
 			if (flags & AI_CANONNAME) {
 				ai->ai_canonname = strdup(by->realname);
 				if (ai->ai_canonname == NULL)
-					SETERROR(EAI_MEMORY);
+					ERR(EAI_MEMORY);
 			}
 			addr = LWRES_LIST_NEXT(addr, link);
 		}

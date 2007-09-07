@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: entropy_test.c,v 1.16.2.1 2004/03/09 06:09:30 marka Exp $ */
+/* $Id: entropy_test.c,v 1.16.12.4 2004/03/08 09:04:16 marka Exp $ */
 
 #include <config.h>
 
@@ -36,7 +36,7 @@ hex_dump(const char *msg, void *data, unsigned int length) {
 	base = data;
 
         printf("DUMP of %d bytes:  %s\n\t", length, msg);
-        for (len = 0 ; len < length ; len++) {
+        for (len = 0; len < length; len++) {
                 if (len % 16 == 0 && !first)
 			printf("\n\t");
                 printf("%02x ", base[len]);
@@ -108,10 +108,10 @@ main(int argc, char **argv) {
 	flags = 0;
 	flags |= ISC_ENTROPY_GOODONLY;
 	flags |= ISC_ENTROPY_BLOCKING;
-	result = isc_entropy_getdata(ent, buffer, sizeof buffer, &returned,
+	result = isc_entropy_getdata(ent, buffer, sizeof(buffer), &returned,
 				     flags);
 	CHECK("good data only, blocking mode", result);
-	hex_dump("blocking mode data", buffer, sizeof buffer);
+	hex_dump("blocking mode data", buffer, sizeof(buffer));
 
 	{
 		isc_entropy_t *entcopy1 = NULL;

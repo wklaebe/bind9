@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1998-2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rwlock_test.c,v 1.20.2.3 2005/03/17 03:59:31 marka Exp $ */
+/* $Id: rwlock_test.c,v 1.20.206.1 2004/03/06 10:21:40 marka Exp $ */
 
 #include <config.h>
 
@@ -135,7 +135,7 @@ main(int argc, char *argv[]) {
 	UNUSED(argc);
 	UNUSED(argv);
 	fprintf(stderr, "This test requires threads.\n");
-	return(1);
+	exit(1);
 }
 
 #endif

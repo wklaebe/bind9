@@ -16,7 +16,7 @@
  */
 
 /*
- * $Id: pathnames.h,v 1.1.2.1 2004/03/09 09:17:34 marka Exp $
+ * $Id: pathnames.h,v 1.1.206.1 2004/03/09 08:33:39 marka Exp $
  */
 
 #ifndef _PATH_IRS_CONF

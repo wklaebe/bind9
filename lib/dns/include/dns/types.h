@@ -1,6 +1,6 @@
 /*
- * Copyright (C) 2004, 2006  Internet Systems Consortium, Inc. ("ISC")
- * Copyright (C) 1998-2001  Internet Software Consortium.
+ * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 1998-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: types.h,v 1.103.2.3 2006/03/02 00:37:17 marka Exp $ */
+/* $Id: types.h,v 1.103.12.7 2004/03/08 09:04:39 marka Exp $ */
 
 #ifndef DNS_TYPES_H
 #define DNS_TYPES_H 1
@@ -30,7 +30,6 @@
 
 #include <isc/types.h>
 
-typedef struct dns_a6context			dns_a6context_t;
 typedef struct dns_acl 				dns_acl_t;
 typedef struct dns_aclelement 			dns_aclelement_t;
 typedef struct dns_aclenv			dns_aclenv_t;
@@ -57,6 +56,7 @@ typedef struct dns_dispatchevent		dns_dispatchevent_t;
 typedef struct dns_dispatchlist			dns_dispatchlist_t;
 typedef struct dns_dispatchmgr			dns_dispatchmgr_t;
 typedef struct dns_dispentry			dns_dispentry_t;
+typedef struct dns_dumpctx			dns_dumpctx_t;
 typedef struct dns_fetch			dns_fetch_t;
 typedef struct dns_fixedname			dns_fixedname_t;
 typedef struct dns_forwarders			dns_forwarders_t;
@@ -75,8 +75,10 @@ typedef struct dns_name				dns_name_t;
 typedef ISC_LIST(dns_name_t)			dns_namelist_t;
 typedef isc_uint16_t				dns_opcode_t;
 typedef unsigned char				dns_offsets_t[128];
+typedef struct dns_order			dns_order_t;
 typedef struct dns_peer				dns_peer_t;
 typedef struct dns_peerlist			dns_peerlist_t;
+typedef struct dns_portlist			dns_portlist_t;
 typedef struct dns_rbt				dns_rbt_t;
 typedef isc_uint16_t				dns_rcode_t;
 typedef struct dns_rdata			dns_rdata_t;
@@ -110,20 +112,10 @@ typedef struct dns_zonemgr			dns_zonemgr_t;
 typedef struct dns_zt				dns_zt_t;
 
 typedef enum {
-	dns_bitlabel_0 = 0,
-	dns_bitlabel_1 = 1
-} dns_bitlabel_t;
-
-typedef enum {
 	dns_fwdpolicy_none = 0,
 	dns_fwdpolicy_first = 1,
 	dns_fwdpolicy_only = 2
 } dns_fwdpolicy_t;
-
-typedef enum {
-	dns_labeltype_ordinary = 0,
-	dns_labeltype_bitstring = 1
-} dns_labeltype_t;
 
 typedef enum {
 	dns_namereln_none = 0,
@@ -281,6 +273,9 @@ typedef enum {
  * Functions.
  */
 typedef void
+(*dns_dumpdonefunc_t)(void *, isc_result_t);
+
+typedef void
 (*dns_loaddonefunc_t)(void *, isc_result_t);
 
 typedef isc_result_t
@@ -299,6 +294,6 @@ typedef void
 (*dns_updatecallback_t)(void *, isc_result_t, dns_message_t *);
 
 typedef int 
-(*dns_rdatasetorderfunc_t)(const dns_rdata_t *rdata, const void *arg);
+(*dns_rdatasetorderfunc_t)(dns_rdata_t *rdata, void *arg);
 
 #endif /* DNS_TYPES_H */

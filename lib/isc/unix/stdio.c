@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: stdio.c,v 1.5.2.1 2004/03/09 06:12:12 marka Exp $ */
+/* $Id: stdio.c,v 1.5.206.1 2004/03/06 08:15:02 marka Exp $ */
 
 #include <config.h>
 

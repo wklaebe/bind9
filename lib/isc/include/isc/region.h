@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
- * Copyright (C) 1998-2001  Internet Software Consortium.
+ * Copyright (C) 1998-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: region.h,v 1.16.2.1 2004/03/09 06:12:00 marka Exp $ */
+/* $Id: region.h,v 1.16.12.3 2004/03/08 09:04:53 marka Exp $ */
 
 #ifndef ISC_REGION_H
 #define ISC_REGION_H 1
@@ -76,5 +76,20 @@ struct isc_consttextregion {
 		_r->base += _l; \
 		_r->length -= _l; \
 	} while (0)
+
+int
+isc_region_compare(isc_region_t *r1, isc_region_t *r2);
+/*
+ * Compares the contents of two regions 
+ *
+ * Requires: 
+ *	'r1' is a valid region
+ *	'r2' is a valid region
+ *
+ * Returns:
+ *	 < 0 if r1 is lexicographically less than r2
+ *	 = 0 if r1 is lexicographically identical to r2
+ *	 > 0 if r1 is lexicographically greater than r2
+ */
 
 #endif /* ISC_REGION_H */

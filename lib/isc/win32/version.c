@@ -15,12 +15,14 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: version.c,v 1.2.2.1 2004/03/09 06:12:21 marka Exp $ */
+/* $Id: version.c,v 1.2.12.3 2004/03/08 09:05:01 marka Exp $ */
 
 #include <versions.h>
 
-char isc_version[] = VERSION;
+#include <isc/version.h>
 
-unsigned int isc_libinterface = LIBINTERFACE;
-unsigned int isc_librevision = LIBREVISION;
-unsigned int isc_libage = LIBAGE;
+LIBISC_EXTERNAL_DATA const char isc_version[] = VERSION;
+
+LIBISC_EXTERNAL_DATA const unsigned int isc_libinterface = LIBINTERFACE;
+LIBISC_EXTERNAL_DATA const unsigned int isc_librevision = LIBREVISION;
+LIBISC_EXTERNAL_DATA const unsigned int isc_libage = LIBAGE;

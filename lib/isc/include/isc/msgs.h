@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
- * Copyright (C) 2000-2002  Internet Software Consortium.
+ * Copyright (C) 2000-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: msgs.h,v 1.5.2.3 2004/03/09 06:11:58 marka Exp $ */
+/* $Id: msgs.h,v 1.5.2.2.8.3 2004/03/06 08:14:44 marka Exp $ */
 
 #ifndef ISC_MSGS_H
 #define ISC_MSGS_H 1
@@ -48,6 +48,7 @@
 #define ISC_MSGSET_TASK		18
 #define ISC_MSGSET_TIMER	19
 #define ISC_MSGSET_UTIL		20
+#define ISC_MSGSET_IFITERGETIFADDRS 21
 
 /*
  * Message numbers.  They are only required to be unique per message set,
@@ -145,6 +146,7 @@
 #define ISC_MSG_ACCEPTRETURNED 1418 /* accept() returned %d/%s */
 #define ISC_MSG_TOOMANYFDS     1419 /* %s: too many open file descriptors */
 #define ISC_MSG_ZEROPORT       1420 /* dropping source port zero packet */
+#define ISC_MSG_FILTER	       1420 /* setsockopt(SO_ACCEPTFILTER): %s */
 
 #define ISC_MSG_AWAKE	       1502 /* "awake" */
 #define ISC_MSG_WORKING	       1503 /* "working" */
@@ -175,6 +177,7 @@
 #define ISC_MSG_UTILWAIT       1710 /* "WAIT" */
 #define ISC_MSG_WAITED	       1711 /* "WAITED" */
 
+#define ISC_MSG_GETIFADDRS     1801 /* "getting interface addresses: ..." */
 
 
 #endif /* ISC_MSGS_H */

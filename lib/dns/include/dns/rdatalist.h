@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rdatalist.h,v 1.13.2.1 2004/03/09 06:11:20 marka Exp $ */
+/* $Id: rdatalist.h,v 1.13.206.1 2004/03/06 08:13:59 marka Exp $ */
 
 #ifndef DNS_RDATALIST_H
 #define DNS_RDATALIST_H 1

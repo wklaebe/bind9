@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2007  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,10 +15,12 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: DLLMain.c,v 1.2.2.3 2007/06/18 23:45:28 tbox Exp $ */
+/* $Id: DLLMain.c,v 1.2.206.1 2004/03/06 08:15:44 marka Exp $ */
 
 #include <windows.h>
 #include <signal.h>
+
+BOOL InitSockets(void);
 
 /*
  * Called when we enter the DLL

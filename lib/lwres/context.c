@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2007  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000, 2001, 2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: context.c,v 1.41.2.6 2007/06/18 23:45:27 tbox Exp $ */
+/* $Id: context.c,v 1.41.2.1.2.3 2004/03/06 08:15:30 marka Exp $ */
 
 #include <config.h>
 
@@ -60,8 +60,8 @@ do { \
 } while (0)
 #endif
 
-lwres_uint16_t lwres_udp_port = LWRES_UDP_PORT;
-const char *lwres_resolv_conf = LWRES_RESOLV_CONF;
+LIBLWRES_EXTERNAL_DATA lwres_uint16_t lwres_udp_port = LWRES_UDP_PORT;
+LIBLWRES_EXTERNAL_DATA const char *lwres_resolv_conf = LWRES_RESOLV_CONF;
 
 static void *
 lwres_malloc(void *, size_t);
@@ -128,10 +128,7 @@ lwres_context_destroy(lwres_context_t **contextp) {
 	*contextp = NULL;
 
 	if (ctx->sock != -1) {
-#ifdef WIN32
-		DestroySockets();
-#endif
-		close(ctx->sock);
+		(void)close(ctx->sock);
 		ctx->sock = -1;
 	}
 
@@ -234,34 +231,19 @@ context_connect(lwres_context_t *ctx) {
 	} else
 		return (LWRES_R_IOERROR);
 
-#ifdef WIN32
-	InitSockets();
-#endif
-
 	s = socket(domain, SOCK_DGRAM, IPPROTO_UDP);
-	if (s < 0) {
-#ifdef WIN32
-		DestroySockets();
-#endif
+	if (s < 0)
 		return (LWRES_R_IOERROR);
-	}
 
 	ret = connect(s, sa, salen);
 	if (ret != 0) {
-#ifdef WIN32
-		DestroySockets();
-#endif
-		close(s);
+		(void)close(s);
 		return (LWRES_R_IOERROR);
 	}
 
 	MAKE_NONBLOCKING(s, ret);
-	if (ret < 0) {
-#ifdef WIN32
-		DestroySockets();
-#endif
+	if (ret < 0)
 		return (LWRES_R_IOERROR);
-	}
 
 	ctx->sock = s;
 
@@ -364,12 +346,13 @@ lwres_context_sendrecv(lwres_context_t *ctx,
 	struct timeval timeout;
 
 	/*
-	 * Type of tv_sec is 32 bits long. 
+	 * Type of tv_sec is long, so make sure the unsigned long timeout
+	 * does not overflow it.
 	 */
-	if (ctx->timeout <= 0x7FFFFFFFU)
-		timeout.tv_sec = (int)ctx->timeout;
+	if (ctx->timeout <= (unsigned int)LONG_MAX)
+		timeout.tv_sec = (long)ctx->timeout;
 	else
-		timeout.tv_sec = 0x7FFFFFFF;
+		timeout.tv_sec = LONG_MAX;
 
 	timeout.tv_usec = 0;
 

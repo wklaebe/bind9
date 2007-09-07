@@ -16,7 +16,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: ccmsg.h,v 1.3.2.1 2004/03/09 06:12:27 marka Exp $ */
+/* $Id: ccmsg.h,v 1.3.206.1 2004/03/06 08:15:21 marka Exp $ */
 
 #ifndef ISCCC_CCMSG_H
 #define ISCCC_CCMSG_H 1

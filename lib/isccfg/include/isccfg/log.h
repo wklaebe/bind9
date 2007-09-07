@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: log.h,v 1.3.2.2 2004/03/09 06:12:31 marka Exp $ */
+/* $Id: log.h,v 1.3.2.1.10.3 2004/03/08 09:05:07 marka Exp $ */
 
 #ifndef ISCCFG_LOG_H
 #define ISCCFG_LOG_H 1
@@ -28,7 +28,7 @@ LIBISCCFG_EXTERNAL_DATA extern isc_logmodule_t cfg_modules[];
 
 #define CFG_LOGCATEGORY_CONFIG	(&cfg_categories[0])
 
-#define CFG_LOGMODULE_PARSER		(&cfg_modules[0])
+#define CFG_LOGMODULE_PARSER	(&cfg_modules[0])
 
 ISC_LANG_BEGINDECLS
 

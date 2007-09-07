@@ -16,7 +16,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: lib.c,v 1.2.2.1 2004/03/09 06:12:25 marka Exp $ */
+/* $Id: lib.c,v 1.2.12.3 2004/03/08 09:05:04 marka Exp $ */
 
 #include <config.h>
 
@@ -32,7 +32,7 @@
  *** Globals
  ***/
 
-isc_msgcat_t *			isccc_msgcat = NULL;
+LIBISCCC_EXTERNAL_DATA isc_msgcat_t *		isccc_msgcat = NULL;
 
 
 /***

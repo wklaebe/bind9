@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: bind_registry.h,v 1.4.2.1 2004/03/09 06:12:22 marka Exp $ */
+/* $Id: bind_registry.h,v 1.4.12.3 2004/03/08 09:05:02 marka Exp $ */
 
 #ifndef ISC_BINDREGISTRY_H
 #define ISC_BINDREGISTRY_H
@@ -36,6 +36,10 @@
 #define BIND_MESSAGE_SUBKEY	\
 	"SYSTEM\\CurrentControlSet\\Services\\EventLog\\Application\\named"
 #define BIND_MESSAGE_NAME	"named"
+
+#define BIND_SERVICE_SUBKEY	\
+	"SYSTEM\\CurrentControlSet\\Services\\named"
+
 
 #define BIND_CONFIGFILE		0
 #define BIND_DEBUGLEVEL		1

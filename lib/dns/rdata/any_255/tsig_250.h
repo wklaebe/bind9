@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: tsig_250.h,v 1.20.2.1 2004/03/09 06:11:26 marka Exp $ */
+/* $Id: tsig_250.h,v 1.20.206.1 2004/03/06 08:14:02 marka Exp $ */
 
 /* RFC 2845 */
 

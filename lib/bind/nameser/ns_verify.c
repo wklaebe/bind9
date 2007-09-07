@@ -16,7 +16,7 @@
  */
 
 #ifndef lint
-static const char rcsid[] = "$Id: ns_verify.c,v 1.1.2.3 2006/03/10 00:18:22 marka Exp $";
+static const char rcsid[] = "$Id: ns_verify.c,v 1.1.206.1 2004/03/09 08:33:45 marka Exp $";
 #endif
 
 /* Import. */
@@ -144,7 +144,7 @@ ns_verify(u_char *msg, int *msglen, void *k,
 	int n;
 	int error;
 	u_int16_t type, length;
-	u_int16_t fudge, sigfieldlen, otherfieldlen;
+	u_int16_t fudge, sigfieldlen, id, otherfieldlen;
 
 	dst_init();
 	if (msg == NULL || msglen == NULL || *msglen < 0)
@@ -198,9 +198,9 @@ ns_verify(u_char *msg, int *msglen, void *k,
 	sigstart = cp;
 	cp += sigfieldlen;
 
-	/* Skip id and read error. */
+	/* Read the original id and error. */
 	BOUNDS_CHECK(cp, 2*INT16SZ);
-	cp += INT16SZ;
+	GETSHORT(id, cp);
 	GETSHORT(error, cp);
 
 	/* Parse the other data. */
@@ -341,18 +341,16 @@ ns_verify_tcp(u_char *msg, int *msglen, ns_tcp_tsig_state *state,
 	      int required)
 {
 	HEADER *hp = (HEADER *)msg;
-	u_char *recstart, *sigstart;
+	u_char *recstart, *rdatastart, *sigstart;
 	unsigned int sigfieldlen, otherfieldlen;
-	u_char *cp, *eom, *cp2;
+	u_char *cp, *eom = msg + *msglen, *cp2;
 	char name[MAXDNAME], alg[MAXDNAME];
 	u_char buf[MAXDNAME];
-	int n, type, length, fudge, error;
+	int n, type, length, fudge, id, error;
 	time_t timesigned;
 
 	if (msg == NULL || msglen == NULL || state == NULL)
 		return (-1);
-
-	eom = msg + *msglen;
 
 	state->counter++;
 	if (state->counter == 0)
@@ -405,6 +403,7 @@ ns_verify_tcp(u_char *msg, int *msglen, ns_tcp_tsig_state *state,
 		return (NS_TSIG_ERROR_FORMERR);
 
 	/* Read the algorithm name. */
+	rdatastart = cp;
 	n = dn_expand(msg, eom, cp, alg, MAXDNAME);
 	if (n < 0)
 		return (NS_TSIG_ERROR_FORMERR);
@@ -430,9 +429,9 @@ ns_verify_tcp(u_char *msg, int *msglen, ns_tcp_tsig_state *state,
 	sigstart = cp;
 	cp += sigfieldlen;
 
-	/* Skip id and read error. */
+	/* Read the original id and error. */
 	BOUNDS_CHECK(cp, 2*INT16SZ);
-	cp += INT16SZ;
+	GETSHORT(id, cp);
 	GETSHORT(error, cp);
 
 	/* Parse the other data. */

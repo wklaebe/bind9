@@ -18,7 +18,7 @@
 #ifndef GENERIC_MD_3_H
 #define GENERIC_MD_3_H 1
 
-/* $Id: md_3.h,v 1.23.2.1 2004/03/09 06:11:30 marka Exp $ */
+/* $Id: md_3.h,v 1.23.206.1 2004/03/06 08:14:07 marka Exp $ */
 
 typedef struct dns_rdata_md {
 	dns_rdatacommon_t	common;

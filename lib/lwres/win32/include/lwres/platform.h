@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2007  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000, 2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: platform.h,v 1.4.2.3 2007/06/18 23:45:28 tbox Exp $ */
+/* $Id: platform.h,v 1.4.206.1 2004/03/06 08:15:46 marka Exp $ */
 
 #ifndef LWRES_PLATFORM_H
 #define LWRES_PLATFORM_H 1
@@ -91,12 +91,5 @@ do { \
  */
 #undef  close
 #define close closesocket
-
-/*
- * Internal to liblwres.
- */
-void InitSockets(void);
-
-void DestroySockets(void);
 
 #endif /* LWRES_PLATFORM_H */

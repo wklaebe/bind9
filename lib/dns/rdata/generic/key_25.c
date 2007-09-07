@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
- * Copyright (C) 1999-2001  Internet Software Consortium.
+ * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: key_25.c,v 1.41.2.1 2004/03/09 06:11:29 marka Exp $ */
+/* $Id: key_25.c,v 1.41.12.7 2004/03/08 09:04:41 marka Exp $ */
 
 /*
  * Reviewed: Wed Mar 15 16:47:10 PST 2000 by halley.
@@ -28,7 +28,7 @@
 
 #include <dst/dst.h>
 
-#define RRTYPE_KEY_ATTRIBUTES (DNS_RDATATYPEATTR_DNSSEC)
+#define RRTYPE_KEY_ATTRIBUTES (0)
 
 static inline isc_result_t
 fromtext_key(ARGS_FROMTEXT) {
@@ -42,7 +42,7 @@ fromtext_key(ARGS_FROMTEXT) {
 	UNUSED(type);
 	UNUSED(rdclass);
 	UNUSED(origin);
-	UNUSED(downcase);
+	UNUSED(options);
 	UNUSED(callbacks);
 
 	/* flags */
@@ -73,7 +73,7 @@ fromtext_key(ARGS_FROMTEXT) {
 static inline isc_result_t
 totext_key(ARGS_TOTEXT) {
 	isc_region_t sr;
-	char buf[sizeof "64000"];
+	char buf[sizeof("64000")];
 	unsigned int flags;
 	unsigned char algorithm;
 
@@ -140,7 +140,7 @@ fromwire_key(ARGS_FROMWIRE) {
 	UNUSED(type);
 	UNUSED(rdclass);
 	UNUSED(dctx);
-	UNUSED(downcase);
+	UNUSED(options);
 
 	isc_buffer_activeregion(source, &sr);
 	if (sr.length < 4)
@@ -176,7 +176,7 @@ compare_key(ARGS_COMPARE) {
 
 	dns_rdata_toregion(rdata1, &r1);
 	dns_rdata_toregion(rdata2, &r2);
-	return (compare_region(&r1, &r2));
+	return (isc_region_compare(&r1, &r2));
 }
 
 static inline isc_result_t
@@ -282,6 +282,31 @@ digest_key(ARGS_DIGEST) {
 	dns_rdata_toregion(rdata, &r);
 
 	return ((digest)(arg, &r));
+}
+
+static inline isc_boolean_t
+checkowner_key(ARGS_CHECKOWNER) {
+
+	REQUIRE(type == 25);
+
+	UNUSED(name);
+	UNUSED(type);
+	UNUSED(rdclass);
+	UNUSED(wildcard);
+
+	return (ISC_TRUE);
+}
+
+static inline isc_boolean_t
+checknames_key(ARGS_CHECKNAMES) {
+
+	REQUIRE(rdata->type == 25);
+
+	UNUSED(rdata);
+	UNUSED(owner);
+	UNUSED(bad);
+
+	return (ISC_TRUE);
 }
 
 #endif	/* RDATA_GENERIC_KEY_25_C */

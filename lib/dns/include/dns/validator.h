@@ -1,6 +1,6 @@
 /*
- * Copyright (C) 2004, 2007  Internet Systems Consortium, Inc. ("ISC")
- * Copyright (C) 2000, 2001  Internet Software Consortium.
+ * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2000-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: validator.h,v 1.18.2.3 2007/01/08 02:45:02 marka Exp $ */
+/* $Id: validator.h,v 1.18.12.5 2004/03/10 02:55:58 marka Exp $ */
 
 #ifndef DNS_VALIDATOR_H
 #define DNS_VALIDATOR_H 1
@@ -51,9 +51,10 @@
 #include <isc/event.h>
 #include <isc/mutex.h>
 
+#include <dns/fixedname.h>
 #include <dns/types.h>
 #include <dns/rdataset.h>
-#include <dns/rdatastruct.h> /* for dns_rdata_sig_t */
+#include <dns/rdatastruct.h> /* for dns_rdata_rrsig_t */
 
 #include <dst/dst.h>
 
@@ -73,8 +74,12 @@ typedef struct dns_validatorevent {
 	dns_rdataset_t *		rdataset;
 	dns_rdataset_t *		sigrdataset;
 	dns_message_t *			message;
+	dns_name_t *			proofs[3];
 } dns_validatorevent_t;
 
+#define DNS_VALIDATOR_NOQNAMEPROOF 0
+#define DNS_VALIDATOR_NODATAPROOF 1
+#define DNS_VALIDATOR_NOWILDCARDPROOF 2
 
 /*
  * A validator object represents a validation in procgress.
@@ -93,12 +98,12 @@ struct dns_validator {
 	unsigned int			attributes;
 	dns_validatorevent_t *		event;
 	dns_fetch_t *			fetch;
-	dns_validator_t *		keyvalidator;
-	dns_validator_t *		authvalidator;
+	dns_validator_t *		subvalidator;
+	dns_validator_t *		parent;
 	dns_keytable_t *		keytable;
 	dns_keynode_t *			keynode;
 	dst_key_t *			key;
-	dns_rdata_sig_t *		siginfo;
+	dns_rdata_rrsig_t *		siginfo;
 	isc_task_t *			task;
 	isc_taskaction_t		action;
 	void *				arg;
@@ -106,15 +111,17 @@ struct dns_validator {
 	dns_rdataset_t *		currentset;
 	isc_boolean_t			seensig;
 	dns_rdataset_t *		keyset;
+	dns_rdataset_t *		dsset;
+	dns_rdataset_t *		soaset;
+	dns_rdataset_t *		nsecset;
+	dns_name_t *			soaname;
 	dns_rdataset_t			frdataset;
 	dns_rdataset_t			fsigrdataset;
+	dns_fixedname_t			fname;
+	dns_fixedname_t			wild;
 	ISC_LINK(dns_validator_t)	link;
+	dns_rdataset_t *		dlv;
 };
-
-/*%
- * dns_validator_create() options.
- */
-#define DNS_VALIDATOR_DEFER 2U
 
 ISC_LANG_BEGINDECLS
 
@@ -137,7 +144,7 @@ dns_validator_create(dns_view_t *view, dns_name_t *name, dns_rdatatype_t type,
  * null key.
  *
  * The complete response message may be given in 'message',
- * to make available any authority section NXTs that may be
+ * to make available any authority section NSECs that may be
  * needed for validation of a response resulting from a
  * wildcard expansion (though no such wildcard validation
  * is implemented yet).  If the complete response message
@@ -156,15 +163,6 @@ dns_validator_create(dns_view_t *view, dns_name_t *name, dns_rdatatype_t type,
  * Its 'result' field will be ISC_R_SUCCESS iff the
  * response was successfully proven to be either secure or
  * part of a known insecure domain.
- */
-
-void
-dns_validator_send(dns_validator_t *validator);
-/*%<
- * Send a deferred validation request
- *
- * Requires:
- *	'validator' to points to a valid DNSSEC validator.
  */
 
 void

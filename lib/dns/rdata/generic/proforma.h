@@ -18,7 +18,7 @@
 #ifndef GENERIC_PROFORMA_H
 #define GENERIC_PROFORMA_H 1
 
-/* $Id: proforma.h,v 1.18.2.1 2004/03/09 06:11:33 marka Exp $ */
+/* $Id: proforma.h,v 1.18.206.1 2004/03/06 08:14:11 marka Exp $ */
 
 typedef struct dns_rdata_# {
 	dns_rdatacommon_t	common;

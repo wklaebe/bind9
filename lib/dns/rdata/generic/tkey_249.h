@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
- * Copyright (C) 1999-2001  Internet Software Consortium.
+ * Copyright (C) 1999-2001, 2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -18,11 +18,11 @@
 #ifndef GENERIC_TKEY_249_H
 #define GENERIC_TKEY_249_H 1
 
-/* $Id: tkey_249.h,v 1.18.2.1 2004/03/09 06:11:34 marka Exp $ */
+/* $Id: tkey_249.h,v 1.18.206.2 2004/03/06 08:14:13 marka Exp $ */
 
 /* draft-ietf-dnsind-tkey-00.txt */
 
-typedef struct dns_rdata_key {
+typedef struct dns_rdata_tkey {
         dns_rdatacommon_t	common;
         isc_mem_t *		mctx;
         dns_name_t		algorithm;

@@ -52,10 +52,7 @@ gai_strerror(int ecode) {
 #ifndef DO_PTHREADS
 	static char buf[EAI_BUFSIZE];
 #else	/* DO_PTHREADS */
-#ifndef LIBBIND_MUTEX_INITIALIZER
-#define LIBBIND_MUTEX_INITIALIZER PTHREAD_MUTEX_INITIALIZER
-#endif
-	static pthread_mutex_t lock = LIBBIND_MUTEX_INITIALIZER;
+	static pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
 	static pthread_key_t key;
 	static int once = 0;
 	char *buf;
@@ -66,28 +63,18 @@ gai_strerror(int ecode) {
 
 #ifdef DO_PTHREADS
         if (!once) {
-                if (pthread_mutex_lock(&lock) != 0)
-			goto unknown;
-                if (!once) {
-                        if (pthread_key_create(&key, free) != 0) {
-				pthread_mutex_unlock(&lock);
-				goto unknown;
-			}
-			once = 1;
-		}
-                if (pthread_mutex_unlock(&lock) != 0)
-			goto unknown;
+                pthread_mutex_lock(&lock);
+                if (!once++)
+                        pthread_key_create(&key, free);
+                pthread_mutex_unlock(&lock);
         }
 
 	buf = pthread_getspecific(key);
         if (buf == NULL) {
 		buf = malloc(EAI_BUFSIZE);
                 if (buf == NULL)
-                        goto unknown;
-                if (pthread_setspecific(key, buf) != 0) {
-			free(buf);
-			goto unknown;
-		}
+                        return ("unknown error");
+                pthread_setspecific(key, buf);
         }
 #endif
 	/* 
@@ -96,9 +83,4 @@ gai_strerror(int ecode) {
 	 */
 	sprintf(buf, "%s: %d", gai_errlist[gai_nerr - 1], ecode);
 	return (buf);
-
-#ifdef DO_PTHREADS
- unknown:
-	return ("unknown error");
-#endif
 }

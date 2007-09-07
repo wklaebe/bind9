@@ -45,9 +45,8 @@ isc_gethexstring(unsigned char *buf, size_t len, int count, FILE *fp,
 			goto formerr;
 		/* comment */
 		if (c == ';') {
-			do {
-				c = fgetc(fp);
-			} while (c != EOF && c != '\n');
+			while ((c = fgetc(fp)) != EOF && c != '\n')
+				/* empty */
 			if (c == '\n' && *multiline)
 				continue;
 			goto formerr;

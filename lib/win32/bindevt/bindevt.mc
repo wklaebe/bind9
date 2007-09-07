@@ -13,7 +13,7 @@
 ; OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 ; PERFORMANCE OF THIS SOFTWARE.
 
-; $Id: bindevt.mc,v 1.1.2.1 2004/03/15 04:45:05 marka Exp $
+; $Id: bindevt.mc,v 1.1.206.1 2004/03/15 01:02:55 marka Exp $
 
 MessageIdTypedef=DWORD
 

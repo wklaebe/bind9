@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
- * Copyright (C) 2000, 2001, 2003  Internet Software Consortium.
+ * Copyright (C) 2000-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: byaddr.c,v 1.29.2.3 2004/03/09 06:10:59 marka Exp $ */
+/* $Id: byaddr.c,v 1.29.2.1.2.7 2004/03/09 05:21:08 marka Exp $ */
 
 #include <config.h>
 
@@ -68,12 +68,13 @@ isc_result_t
 dns_byaddr_createptrname(isc_netaddr_t *address, isc_boolean_t nibble,
 			 dns_name_t *name)
 {
-	unsigned int options = DNS_BYADDROPT_IPV6INT;
-	
-	if (nibble)
-		options |= DNS_BYADDROPT_IPV6NIBBLE;
+	/*
+	 * We dropped bitstring labels, so all lookups will use nibbles.
+	 */
+	UNUSED(nibble);
 
-	return (dns_byaddr_createptrname2(address, options, name));
+	return (dns_byaddr_createptrname2(address,
+					  DNS_BYADDROPT_IPV6INT, name));
 }
 
 isc_result_t
@@ -97,37 +98,24 @@ dns_byaddr_createptrname2(isc_netaddr_t *address, unsigned int options,
 
 	bytes = (unsigned char *)(&address->type);
 	if (address->family == AF_INET) {
-		(void)sprintf(textname, "%u.%u.%u.%u.in-addr.arpa.",
-			      (bytes[3] & 0xff),
-			      (bytes[2] & 0xff),
-			      (bytes[1] & 0xff),
-			      (bytes[0] & 0xff));
+		(void)snprintf(textname, sizeof(textname),
+			       "%u.%u.%u.%u.in-addr.arpa.",
+			       (bytes[3] & 0xff),
+			       (bytes[2] & 0xff),
+			       (bytes[1] & 0xff),
+			       (bytes[0] & 0xff));
 	} else if (address->family == AF_INET6) {
-		if ((options & DNS_BYADDROPT_IPV6NIBBLE) != 0) {
-			cp = textname;
-			for (i = 15; i >= 0; i--) {
-				*cp++ = hex_digits[bytes[i] & 0x0f];
-				*cp++ = '.';
-				*cp++ = hex_digits[(bytes[i] >> 4) & 0x0f];
-				*cp++ = '.';
-			}
-			if ((options & DNS_BYADDROPT_IPV6INT) != 0)
-				strcpy(cp, "ip6.int.");
-			else
-				strcpy(cp, "ip6.arpa.");
-		} else {
-			cp = textname;
-			*cp++ = '\\';
-			*cp++ = '[';
-			*cp++ = 'x';
-			for (i = 0; i < 16; i += 2) {
-				*cp++ = hex_digits[(bytes[i] >> 4) & 0x0f];
-				*cp++ = hex_digits[bytes[i] & 0x0f];
-				*cp++ = hex_digits[(bytes[i+1] >> 4) & 0x0f];
-				*cp++ = hex_digits[bytes[i+1] & 0x0f];
-			}
-			strcpy(cp, "].ip6.arpa.");
+		cp = textname;
+		for (i = 15; i >= 0; i--) {
+			*cp++ = hex_digits[bytes[i] & 0x0f];
+			*cp++ = '.';
+			*cp++ = hex_digits[(bytes[i] >> 4) & 0x0f];
+			*cp++ = '.';
 		}
+		if ((options & DNS_BYADDROPT_IPV6INT) != 0)
+			strcpy(cp, "ip6.int.");
+		else
+			strcpy(cp, "ip6.arpa.");
 	} else
 		return (ISC_R_NOTIMPLEMENTED);
 
@@ -155,7 +143,7 @@ copy_ptr_targets(dns_byaddr_t *byaddr, dns_rdataset_t *rdataset) {
 		result = dns_rdata_tostruct(&rdata, &ptr, NULL);
 		if (result != ISC_R_SUCCESS)
 			return (result);
-		name = isc_mem_get(byaddr->mctx, sizeof *name);
+		name = isc_mem_get(byaddr->mctx, sizeof(*name));
 		if (name == NULL) {
 			dns_rdata_freestruct(&ptr);
 			return (ISC_R_NOMEMORY);
@@ -164,7 +152,7 @@ copy_ptr_targets(dns_byaddr_t *byaddr, dns_rdataset_t *rdataset) {
 		result = dns_name_dup(&ptr.ptr, byaddr->mctx, name);
 		dns_rdata_freestruct(&ptr);
 		if (result != ISC_R_SUCCESS) {
-			isc_mem_put(byaddr->mctx, name, sizeof *name);
+			isc_mem_put(byaddr->mctx, name, sizeof(*name));
 			return (ISC_R_NOMEMORY);
 		}
 		ISC_LIST_APPEND(byaddr->event->names, name, link);
@@ -216,7 +204,7 @@ bevent_destroy(isc_event_t *event) {
 		next_name = ISC_LIST_NEXT(name, link);
 		ISC_LIST_UNLINK(bevent->names, name, link);
 		dns_name_free(name, mctx);
-		isc_mem_put(mctx, name, sizeof *name);
+		isc_mem_put(mctx, name, sizeof(*name));
 	}
 	isc_mem_put(mctx, event, event->ev_size);
 }
@@ -230,18 +218,18 @@ dns_byaddr_create(isc_mem_t *mctx, isc_netaddr_t *address, dns_view_t *view,
 	dns_byaddr_t *byaddr;
 	isc_event_t *ievent;
 
-	byaddr = isc_mem_get(mctx, sizeof *byaddr);
+	byaddr = isc_mem_get(mctx, sizeof(*byaddr));
 	if (byaddr == NULL)
 		return (ISC_R_NOMEMORY);
 	byaddr->mctx = mctx;
 	byaddr->options = options;
 
-	byaddr->event = isc_mem_get(mctx, sizeof *byaddr->event);
+	byaddr->event = isc_mem_get(mctx, sizeof(*byaddr->event));
 	if (byaddr->event == NULL) {
 		result = ISC_R_NOMEMORY;
 		goto cleanup_byaddr;
 	}
-	ISC_EVENT_INIT(byaddr->event, sizeof *byaddr->event, 0, NULL,
+	ISC_EVENT_INIT(byaddr->event, sizeof(*byaddr->event), 0, NULL,
 		       DNS_EVENT_BYADDRDONE, action, arg, byaddr,
 		       bevent_destroy, mctx);
 	byaddr->event->result = ISC_R_FAILURE;
@@ -256,7 +244,7 @@ dns_byaddr_create(isc_mem_t *mctx, isc_netaddr_t *address, dns_view_t *view,
 
 	dns_fixedname_init(&byaddr->name);
 
-	result = dns_byaddr_createptrname2(address, byaddr->options,
+	result = dns_byaddr_createptrname2(address, options,
 					   dns_fixedname_name(&byaddr->name));
 	if (result != ISC_R_SUCCESS)
 		goto cleanup_lock;
@@ -286,7 +274,7 @@ dns_byaddr_create(isc_mem_t *mctx, isc_netaddr_t *address, dns_view_t *view,
 	isc_task_detach(&byaddr->task);
 
  cleanup_byaddr:
-	isc_mem_put(mctx, byaddr, sizeof *byaddr);
+	isc_mem_put(mctx, byaddr, sizeof(*byaddr));
 
 	return (result);
 }
@@ -319,7 +307,7 @@ dns_byaddr_destroy(dns_byaddr_t **byaddrp) {
 
 	DESTROYLOCK(&byaddr->lock);
 	byaddr->magic = 0;
-	isc_mem_put(byaddr->mctx, byaddr, sizeof *byaddr);
+	isc_mem_put(byaddr->mctx, byaddr, sizeof(*byaddr));
 
 	*byaddrp = NULL;
 }

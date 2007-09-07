@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: log.c,v 1.2.2.2 2004/03/09 06:12:30 marka Exp $ */
+/* $Id: log.c,v 1.2.2.1.10.3 2004/03/08 09:05:06 marka Exp $ */
 
 #include <config.h>
 
@@ -37,7 +37,7 @@ LIBISCCFG_EXTERNAL_DATA isc_logcategory_t cfg_categories[] = {
  * #define to <isccfg/log.h>.
  */
 LIBISCCFG_EXTERNAL_DATA isc_logmodule_t cfg_modules[] = {
-	{ "isccfg/parser",	 0 },
+	{ "isccfg/parser",	0 },
 	{ NULL, 		0 }
 };
 

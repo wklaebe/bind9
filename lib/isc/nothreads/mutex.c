@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2006  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000, 2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,16 +15,9 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: mutex.c,v 1.4.2.3 2006/08/25 05:25:49 marka Exp $ */
+/* $Id: mutex.c,v 1.4.12.3 2004/03/08 09:04:54 marka Exp $ */
 
-#include <config.h>
+#include <isc/util.h>
 
-/*
- * Well, not completely.  The stupid hack below shuts up compilers
- * from complaining about an empty file.
- */
-static void
-isc_mutex_nothreads(void) {
-	isc_mutex_nothreads();
-}
+EMPTY_TRANSLATION_UNIT
 

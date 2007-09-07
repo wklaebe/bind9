@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
- * Copyright (C) 1999-2001  Internet Software Consortium.
+ * Copyright (C) 1999-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: zt.c,v 1.33.2.3 2004/04/15 01:38:09 marka Exp $ */
+/* $Id: zt.c,v 1.33.12.6 2004/03/08 21:06:28 marka Exp $ */
 
 #include <config.h>
 
@@ -58,7 +58,7 @@ dns_zt_create(isc_mem_t *mctx, dns_rdataclass_t rdclass, dns_zt_t **ztp) {
 
 	REQUIRE(ztp != NULL && *ztp == NULL);
 
-	zt = isc_mem_get(mctx, sizeof *zt);
+	zt = isc_mem_get(mctx, sizeof(*zt));
 	if (zt == NULL)
 		return (ISC_R_NOMEMORY);
 
@@ -88,7 +88,7 @@ dns_zt_create(isc_mem_t *mctx, dns_rdataclass_t rdclass, dns_zt_t **ztp) {
 	dns_rbt_destroy(&zt->table);
 
    cleanup_zt:
-	isc_mem_put(mctx, zt, sizeof *zt);
+	isc_mem_put(mctx, zt, sizeof(*zt));
 
 	return (result);
 }
@@ -204,7 +204,7 @@ zt_flushanddetach(dns_zt_t **ztp, isc_boolean_t need_flush) {
 		dns_rbt_destroy(&zt->table);
 		isc_rwlock_destroy(&zt->rwlock);
 		zt->magic = 0;
-		isc_mem_put(zt->mctx, zt, sizeof *zt);
+		isc_mem_put(zt->mctx, zt, sizeof(*zt));
 	}
 
 	*ztp = NULL;
@@ -234,8 +234,12 @@ dns_zt_load(dns_zt_t *zt, isc_boolean_t stop) {
 
 static isc_result_t
 load(dns_zone_t *zone, void *uap) {
+	isc_result_t result;
 	UNUSED(uap);
-	return (dns_zone_load(zone));
+	result = dns_zone_load(zone);
+	if (result == DNS_R_CONTINUE || result == DNS_R_UPTODATE)
+		result = ISC_R_SUCCESS;
+	return (result);
 }
 
 isc_result_t

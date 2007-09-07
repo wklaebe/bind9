@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: base64.c,v 1.23.2.3 2004/03/09 06:11:45 marka Exp $ */
+/* $Id: base64.c,v 1.23.2.2.2.3 2004/03/06 08:14:27 marka Exp $ */
 
 #include <config.h>
 
@@ -55,7 +55,7 @@ isc_base64_totext(isc_region_t *source, int wordlength,
 	if (wordlength < 4)
 		wordlength = 4;
 
-	memset(buf, 0, sizeof buf);
+	memset(buf, 0, sizeof(buf));
 	while (source->length > 2) {
 		buf[0] = base64[(source->base[0]>>2)&0x3f];
 		buf[1] = base64[((source->base[0]<<4)&0x30)|
@@ -191,7 +191,7 @@ isc_base64_tobuffer(isc_lex_t *lexer, isc_buffer_t *target, int length) {
 		if (token.type != isc_tokentype_string)
 			break;
 		tr = &token.value.as_textregion;
-		for (i = 0 ;i < tr->length; i++)
+		for (i = 0; i < tr->length; i++)
 			RETERR(base64_decode_char(&ctx, tr->base[i]));
 	}
 	if (ctx.length < 0 && !ctx.seen_end)

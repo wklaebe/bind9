@@ -15,10 +15,13 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: version.c,v 1.1.2.1 2004/03/09 06:12:30 marka Exp $ */
+/* $Id: version.c,v 1.1.12.3 2004/03/08 09:05:06 marka Exp $ */
 
-char cfg_version[] = VERSION;
+#include <isccfg/version.h>
 
-unsigned int cfg_libinterface = LIBINTERFACE;
-unsigned int cfg_librevision = LIBREVISION;
-unsigned int cfg_libage = LIBAGE;
+const char cfg_version[] = VERSION;
+
+const unsigned int cfg_libinterface = LIBINTERFACE;
+const unsigned int cfg_librevision = LIBREVISION;
+const unsigned int cfg_libage = LIBAGE;
+

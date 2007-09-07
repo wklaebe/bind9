@@ -16,7 +16,7 @@
  */
 
 /*
- * $Id: dns_p.h,v 1.1.2.2 2004/03/17 00:40:12 marka Exp $
+ * $Id: dns_p.h,v 1.1.206.2 2004/03/17 00:29:48 marka Exp $
  */
 
 #ifndef _DNS_P_H_INCLUDED

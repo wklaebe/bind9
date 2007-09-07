@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
- * Copyright (C) 2000, 2001  Internet Software Consortium.
+ * Copyright (C) 2000-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: net.h,v 1.3.2.1 2004/03/09 06:12:42 marka Exp $ */
+/* $Id: net.h,v 1.3.12.3 2004/03/08 09:05:12 marka Exp $ */
 
 #ifndef LWRES_NET_H
 #define LWRES_NET_H 1
@@ -52,8 +52,10 @@
 
 #include <lwres/platform.h>	/* Required for LWRES_PLATFORM_*. */
 
+#include <unistd.h>
 #include <sys/types.h>
 #include <sys/socket.h>		/* Contractual promise. */
+#include <sys/ioctl.h>
 #include <sys/time.h>
 #include <sys/un.h>
 
@@ -65,6 +67,7 @@
 #ifdef LWRES_PLATFORM_NEEDNETINET6IN6H
 #include <netinet6/in6.h>	/* Required on BSD/OS for in6_pktinfo. */
 #endif
+#include <net/if.h>	
 
 #include <lwres/lang.h>
 

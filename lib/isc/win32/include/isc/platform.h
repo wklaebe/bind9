@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: platform.h,v 1.5.2.1 2004/03/09 06:12:24 marka Exp $ */
+/* $Id: platform.h,v 1.5.12.5 2004/03/11 05:58:43 marka Exp $ */
 
 #ifndef ISC_PLATFORM_H
 #define ISC_PLATFORM_H 1
@@ -31,6 +31,7 @@
  ***/
 
 #define ISC_PLATFORM_HAVEIPV6
+#define ISC_PLATFORM_HAVEIN6PKTINFO
 #define ISC_PLATFORM_NEEDPORTT
 #undef MSG_TRUNC
 #define ISC_PLATFORM_NEEDNTOP
@@ -40,6 +41,7 @@
 #define ISC_PLATFORM_QUADFORMAT "I64"
 
 #define ISC_PLATFORM_NEEDSTRSEP
+#define ISC_PLATFORM_NEEDSTRLCPY
 
 /*
  * Used to control how extern data is linked; needed for Win32 platforms.
@@ -56,27 +58,33 @@
  */
 
 #ifdef LIBISC_EXPORTS
-#define LIBISC_EXTERNAL_DATA __declspec( dllexport )
+#define LIBISC_EXTERNAL_DATA __declspec(dllexport)
 #else
-#define LIBISC_EXTERNAL_DATA __declspec( dllimport ) 
+#define LIBISC_EXTERNAL_DATA __declspec(dllimport) 
 #endif
 
 #ifdef LIBISCCFG_EXPORTS
-#define LIBISCCFG_EXTERNAL_DATA __declspec( dllexport )
+#define LIBISCCFG_EXTERNAL_DATA __declspec(dllexport)
 #else
-#define LIBISCCFG_EXTERNAL_DATA __declspec( dllimport ) 
+#define LIBISCCFG_EXTERNAL_DATA __declspec(dllimport) 
 #endif
 
 #ifdef LIBISCCC_EXPORTS
-#define LIBISCCC_EXTERNAL_DATA __declspec( dllexport )
+#define LIBISCCC_EXTERNAL_DATA __declspec(dllexport)
 #else
-#define LIBISCCC_EXTERNAL_DATA __declspec( dllimport ) 
+#define LIBISCCC_EXTERNAL_DATA __declspec(dllimport) 
 #endif
 
 #ifdef LIBDNS_EXPORTS
-#define LIBDNS_EXTERNAL_DATA __declspec( dllexport )
+#define LIBDNS_EXTERNAL_DATA __declspec(dllexport)
 #else
-#define LIBDNS_EXTERNAL_DATA __declspec( dllimport )
+#define LIBDNS_EXTERNAL_DATA __declspec(dllimport)
+#endif
+
+#ifdef LIBBIND9_EXPORTS
+#define LIBBIND9_EXTERNAL_DATA __declspec(dllexport)
+#else
+#define LIBBIND9_EXTERNAL_DATA __declspec(dllimport)
 #endif
 
 #endif /* ISC_PLATFORM_H */

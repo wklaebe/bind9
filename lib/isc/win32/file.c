@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: file.c,v 1.20.2.5 2004/03/09 06:12:17 marka Exp $ */
+/* $Id: file.c,v 1.20.2.4.8.3 2004/03/08 09:04:59 marka Exp $ */
 
 #include <config.h>
 
@@ -183,9 +183,8 @@ isc_file_safemovefile(const char *oldname, const char *newname) {
 		 */
 		if (exists == TRUE) {
 			filestatus = MoveFile(buf, newname);
-			if (filestatus == 0) {
+			if (filestatus == 0)
 				errno = EACCES;
-			}
 		}
 		return (-1);
 	}
@@ -486,5 +485,23 @@ isc_file_absolutepath(const char *filename, char *path, size_t pathlen) {
 	/* Caller needs to provide a larger buffer to contain the string */
 	if (retval >= pathlen)
 		return (ISC_R_NOSPACE);
+	return (ISC_R_SUCCESS);
+}
+
+isc_result_t
+isc_file_truncate(const char *filename, isc_offset_t size) {
+	int fh;
+
+	REQUIRE(filename != NULL && size >= 0);
+
+	if ((fh = open(filename, _O_RDWR | _O_BINARY)) < 0)
+		return (isc__errno2result(errno));
+
+	if(_chsize(fh, size) != 0) {
+		close(fh);
+		return (isc__errno2result(errno));
+	}
+	close(fh);
+
 	return (ISC_R_SUCCESS);
 }

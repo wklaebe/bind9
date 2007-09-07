@@ -26,90 +26,25 @@ NULL=nul
 !ENDIF 
 
 !IF  "$(CFG)" == "libdns - Win32 Release"
-_VC_MANIFEST_INC=0
-_VC_MANIFEST_BASENAME=__VC80
-!ELSE
-_VC_MANIFEST_INC=1
-_VC_MANIFEST_BASENAME=__VC80.Debug
-!ENDIF
-
-####################################################
-# Specifying name of temporary resource file used only in incremental builds:
-
-!if "$(_VC_MANIFEST_INC)" == "1"
-_VC_MANIFEST_AUTO_RES=$(_VC_MANIFEST_BASENAME).auto.res
-!else
-_VC_MANIFEST_AUTO_RES=
-!endif
-
-####################################################
-# _VC_MANIFEST_EMBED_EXE - command to embed manifest in EXE:
-
-!if "$(_VC_MANIFEST_INC)" == "1"
-
-#MT_SPECIAL_RETURN=1090650113
-#MT_SPECIAL_SWITCH=-notify_resource_update
-MT_SPECIAL_RETURN=0
-MT_SPECIAL_SWITCH=
-_VC_MANIFEST_EMBED_EXE= \
-if exist $@.manifest mt.exe -manifest $@.manifest -out:$(_VC_MANIFEST_BASENAME).auto.manifest $(MT_SPECIAL_SWITCH) & \
-if "%ERRORLEVEL%" == "$(MT_SPECIAL_RETURN)" \
-rc /r $(_VC_MANIFEST_BASENAME).auto.rc & \
-link $** /out:$@ $(LFLAGS)
-
-!else
-
-_VC_MANIFEST_EMBED_EXE= \
-if exist $@.manifest mt.exe -manifest $@.manifest -outputresource:$@;1
-
-!endif
-
-####################################################
-# _VC_MANIFEST_EMBED_DLL - command to embed manifest in DLL:
-
-!if "$(_VC_MANIFEST_INC)" == "1"
-
-#MT_SPECIAL_RETURN=1090650113
-#MT_SPECIAL_SWITCH=-notify_resource_update
-MT_SPECIAL_RETURN=0
-MT_SPECIAL_SWITCH=
-_VC_MANIFEST_EMBED_EXE= \
-if exist $@.manifest mt.exe -manifest $@.manifest -out:$(_VC_MANIFEST_BASENAME).auto.manifest $(MT_SPECIAL_SWITCH) & \
-if "%ERRORLEVEL%" == "$(MT_SPECIAL_RETURN)" \
-rc /r $(_VC_MANIFEST_BASENAME).auto.rc & \
-link $** /out:$@ $(LFLAGS)
-
-!else
-
-_VC_MANIFEST_EMBED_EXE= \
-if exist $@.manifest mt.exe -manifest $@.manifest -outputresource:$@;2
-
-!endif
-####################################################
-# _VC_MANIFEST_CLEAN - command to clean resources files generated temporarily:
-
-!if "$(_VC_MANIFEST_INC)" == "1"
-
-_VC_MANIFEST_CLEAN=-del $(_VC_MANIFEST_BASENAME).auto.res \
-    $(_VC_MANIFEST_BASENAME).auto.rc \
-    $(_VC_MANIFEST_BASENAME).auto.manifest
-
-!else
-
-_VC_MANIFEST_CLEAN=
-
-!endif
-
-!IF  "$(CFG)" == "libdns - Win32 Release"
 
 OUTDIR=.\Release
 INTDIR=.\Release
 
+!IF "$(RECURSE)" == "0" 
+
 ALL : "..\..\..\Build\Release\libdns.dll"
 
+!ELSE 
 
+ALL : "libisc - Win32 Release" "..\..\..\Build\Release\libdns.dll"
+
+!ENDIF 
+
+!IF "$(RECURSE)" == "1" 
+CLEAN :"libisc - Win32 ReleaseCLEAN" 
+!ELSE 
 CLEAN :
-	-@erase "$(INTDIR)\a6.obj"
+!ENDIF 
 	-@erase "$(INTDIR)\acl.obj"
 	-@erase "$(INTDIR)\adb.obj"
 	-@erase "$(INTDIR)\byaddr.obj"
@@ -123,6 +58,7 @@ CLEAN :
 	-@erase "$(INTDIR)\dispatch.obj"
 	-@erase "$(INTDIR)\DLLMain.obj"
 	-@erase "$(INTDIR)\dnssec.obj"
+	-@erase "$(INTDIR)\ds.obj"
 	-@erase "$(INTDIR)\dst_api.obj"
 	-@erase "$(INTDIR)\dst_lib.obj"
 	-@erase "$(INTDIR)\dst_parse.obj"
@@ -142,15 +78,18 @@ CLEAN :
 	-@erase "$(INTDIR)\message.obj"
 	-@erase "$(INTDIR)\name.obj"
 	-@erase "$(INTDIR)\ncache.obj"
-	-@erase "$(INTDIR)\nxt.obj"
+	-@erase "$(INTDIR)\nsec.obj"
 	-@erase "$(INTDIR)\openssl_link.obj"
 	-@erase "$(INTDIR)\openssldh_link.obj"
 	-@erase "$(INTDIR)\openssldsa_link.obj"
 	-@erase "$(INTDIR)\opensslrsa_link.obj"
+	-@erase "$(INTDIR)\order.obj"
 	-@erase "$(INTDIR)\peer.obj"
+	-@erase "$(INTDIR)\portlist.obj"
 	-@erase "$(INTDIR)\rbt.obj"
 	-@erase "$(INTDIR)\rbtdb.obj"
 	-@erase "$(INTDIR)\rbtdb64.obj"
+	-@erase "$(INTDIR)\rcode.obj"
 	-@erase "$(INTDIR)\rdata.obj"
 	-@erase "$(INTDIR)\rdatalist.obj"
 	-@erase "$(INTDIR)\rdataset.obj"
@@ -181,13 +120,12 @@ CLEAN :
 	-@erase "$(OUTDIR)\libdns.exp"
 	-@erase "$(OUTDIR)\libdns.lib"
 	-@erase "..\..\..\Build\Release\libdns.dll"
-	-@$(_VC_MANIFEST_CLEAN)
 
 "$(OUTDIR)" :
     if not exist "$(OUTDIR)/$(NULL)" mkdir "$(OUTDIR)"
 
 CPP=cl.exe
-CPP_PROJ=/nologo /MD /W3 /GX /O2 /I "../../../../../openssl-0.9.8d/inc32/openssl/include" /I "./" /I "../../../" /I "include" /I "../include" /I "../../isc/win32" /I "../../isc/win32/include" /I "../../isc/include" /I "../../../../openssl-0.9.8d/inc32" /D "NDEBUG" /D "WIN32" /D "_WINDOWS" /D "__STDC__" /D "_MBCS" /D "_USRDLL" /D "USE_MD5" /D "OPENSSL" /D "DST_USE_PRIVATE_OPENSSL" /D "LIBDNS_EXPORTS" /Fp"$(INTDIR)\libdns.pch" /YX /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /c 
+CPP_PROJ=/nologo /MD /W3 /GX /O2 /I "../../../../../openssl-0.9.6k/inc32/openssl/include" /I "./" /I "../../../" /I "include" /I "../include" /I "../../isc/win32" /I "../../isc/win32/include" /I "../../isc/include" /I "../../dns/sec/dst/include" /I "../../../../openssl-0.9.6k/inc32" /D "NDEBUG" /D "WIN32" /D "_WINDOWS" /D "__STDC__" /D "_MBCS" /D "_USRDLL" /D "USE_MD5" /D "OPENSSL" /D "DST_USE_PRIVATE_OPENSSL" /D "LIBDNS_EXPORTS" /Fp"$(INTDIR)\libdns.pch" /YX /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /c 
 
 .c{$(INTDIR)}.obj::
    $(CPP) @<<
@@ -227,11 +165,10 @@ BSC32_FLAGS=/nologo /o"$(OUTDIR)\libdns.bsc"
 BSC32_SBRS= \
 	
 LINK32=link.exe
-LINK32_FLAGS=user32.lib advapi32.lib ws2_32.lib ../../isc/win32/Release/libisc.lib ../../../../openssl-0.9.8d/out32dll/libeay32.lib /nologo /dll /incremental:no /pdb:"$(OUTDIR)\libdns.pdb" /machine:I386 /def:".\libdns.def" /out:"../../../Build/Release/libdns.dll" /implib:"$(OUTDIR)\libdns.lib" 
+LINK32_FLAGS=user32.lib advapi32.lib ws2_32.lib ../../isc/win32/Release/libisc.lib ../../../../openssl-0.9.6k/out32dll/libeay32.lib /nologo /dll /incremental:no /pdb:"$(OUTDIR)\libdns.pdb" /machine:I386 /def:".\libdns.def" /out:"../../../Build/Release/libdns.dll" /implib:"$(OUTDIR)\libdns.lib" 
 DEF_FILE= \
 	".\libdns.def"
 LINK32_OBJS= \
-	"$(INTDIR)\a6.obj" \
 	"$(INTDIR)\acl.obj" \
 	"$(INTDIR)\adb.obj" \
 	"$(INTDIR)\byaddr.obj" \
@@ -245,6 +182,7 @@ LINK32_OBJS= \
 	"$(INTDIR)\dispatch.obj" \
 	"$(INTDIR)\DLLMain.obj" \
 	"$(INTDIR)\dnssec.obj" \
+	"$(INTDIR)\ds.obj" \
 	"$(INTDIR)\forward.obj" \
 	"$(INTDIR)\journal.obj" \
 	"$(INTDIR)\keytable.obj" \
@@ -256,11 +194,14 @@ LINK32_OBJS= \
 	"$(INTDIR)\message.obj" \
 	"$(INTDIR)\name.obj" \
 	"$(INTDIR)\ncache.obj" \
-	"$(INTDIR)\nxt.obj" \
+	"$(INTDIR)\nsec.obj" \
+	"$(INTDIR)\order.obj" \
 	"$(INTDIR)\peer.obj" \
+	"$(INTDIR)\portlist.obj" \
 	"$(INTDIR)\rbt.obj" \
 	"$(INTDIR)\rbtdb.obj" \
 	"$(INTDIR)\rbtdb64.obj" \
+	"$(INTDIR)\rcode.obj" \
 	"$(INTDIR)\rdata.obj" \
 	"$(INTDIR)\rdatalist.obj" \
 	"$(INTDIR)\rdataset.obj" \
@@ -298,13 +239,13 @@ LINK32_OBJS= \
 	"$(INTDIR)\openssl_link.obj" \
 	"$(INTDIR)\openssldh_link.obj" \
 	"$(INTDIR)\openssldsa_link.obj" \
-	"$(INTDIR)\opensslrsa_link.obj"
+	"$(INTDIR)\opensslrsa_link.obj" \
+	"..\..\isc\win32\Release\libisc.lib"
 
 "..\..\..\Build\Release\libdns.dll" : "$(OUTDIR)" $(DEF_FILE) $(LINK32_OBJS)
     $(LINK32) @<<
   $(LINK32_FLAGS) $(LINK32_OBJS)
 <<
-  $(_VC_MANIFEST_EMBED_DLL)
 
 !ELSEIF  "$(CFG)" == "libdns - Win32 Debug"
 
@@ -314,12 +255,21 @@ INTDIR=.\Debug
 OutDir=.\Debug
 # End Custom Macros
 
+!IF "$(RECURSE)" == "0" 
+
 ALL : "..\..\..\Build\Debug\libdns.dll" "$(OUTDIR)\libdns.bsc"
 
+!ELSE 
 
+ALL : "libisc - Win32 Debug" "..\..\..\Build\Debug\libdns.dll" "$(OUTDIR)\libdns.bsc"
+
+!ENDIF 
+
+!IF "$(RECURSE)" == "1" 
+CLEAN :"libisc - Win32 DebugCLEAN" 
+!ELSE 
 CLEAN :
-	-@erase "$(INTDIR)\a6.obj"
-	-@erase "$(INTDIR)\a6.sbr"
+!ENDIF 
 	-@erase "$(INTDIR)\acl.obj"
 	-@erase "$(INTDIR)\acl.sbr"
 	-@erase "$(INTDIR)\adb.obj"
@@ -346,6 +296,8 @@ CLEAN :
 	-@erase "$(INTDIR)\DLLMain.sbr"
 	-@erase "$(INTDIR)\dnssec.obj"
 	-@erase "$(INTDIR)\dnssec.sbr"
+	-@erase "$(INTDIR)\ds.obj"
+	-@erase "$(INTDIR)\ds.sbr"
 	-@erase "$(INTDIR)\dst_api.obj"
 	-@erase "$(INTDIR)\dst_api.sbr"
 	-@erase "$(INTDIR)\dst_lib.obj"
@@ -384,8 +336,8 @@ CLEAN :
 	-@erase "$(INTDIR)\name.sbr"
 	-@erase "$(INTDIR)\ncache.obj"
 	-@erase "$(INTDIR)\ncache.sbr"
-	-@erase "$(INTDIR)\nxt.obj"
-	-@erase "$(INTDIR)\nxt.sbr"
+	-@erase "$(INTDIR)\nsec.obj"
+	-@erase "$(INTDIR)\nsec.sbr"
 	-@erase "$(INTDIR)\openssl_link.obj"
 	-@erase "$(INTDIR)\openssl_link.sbr"
 	-@erase "$(INTDIR)\openssldh_link.obj"
@@ -394,14 +346,20 @@ CLEAN :
 	-@erase "$(INTDIR)\openssldsa_link.sbr"
 	-@erase "$(INTDIR)\opensslrsa_link.obj"
 	-@erase "$(INTDIR)\opensslrsa_link.sbr"
+	-@erase "$(INTDIR)\order.obj"
+	-@erase "$(INTDIR)\order.sbr"
 	-@erase "$(INTDIR)\peer.obj"
 	-@erase "$(INTDIR)\peer.sbr"
+	-@erase "$(INTDIR)\portlist.obj"
+	-@erase "$(INTDIR)\portlist.sbr"
 	-@erase "$(INTDIR)\rbt.obj"
 	-@erase "$(INTDIR)\rbt.sbr"
 	-@erase "$(INTDIR)\rbtdb.obj"
 	-@erase "$(INTDIR)\rbtdb.sbr"
 	-@erase "$(INTDIR)\rbtdb64.obj"
 	-@erase "$(INTDIR)\rbtdb64.sbr"
+	-@erase "$(INTDIR)\rcode.obj"
+	-@erase "$(INTDIR)\rcode.sbr"
 	-@erase "$(INTDIR)\rdata.obj"
 	-@erase "$(INTDIR)\rdata.sbr"
 	-@erase "$(INTDIR)\rdatalist.obj"
@@ -463,13 +421,12 @@ CLEAN :
 	-@erase "$(OUTDIR)\libdns.pdb"
 	-@erase "..\..\..\Build\Debug\libdns.dll"
 	-@erase "..\..\..\Build\Debug\libdns.ilk"
-	-@$(_VC_MANIFEST_CLEAN)
 
 "$(OUTDIR)" :
     if not exist "$(OUTDIR)/$(NULL)" mkdir "$(OUTDIR)"
 
 CPP=cl.exe
-CPP_PROJ=/nologo /MDd /W3 /Gm /GX /ZI /Od /I "./" /I "../../../" /I "include" /I "../include" /I "../../isc/win32" /I "../../isc/win32/include" /I "../../isc/include" /I "../../../../openssl-0.9.8d/inc32" /D "_DEBUG" /D "WIN32" /D "_WINDOWS" /D "__STDC__" /D "_MBCS" /D "_USRDLL" /D "USE_MD5" /D "OPENSSL" /D "DST_USE_PRIVATE_OPENSSL" /D "LIBDNS_EXPORTS" /FR"$(INTDIR)\\" /Fp"$(INTDIR)\libdns.pch" /YX /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /GZ /c 
+CPP_PROJ=/nologo /MDd /W3 /Gm /GX /ZI /Od /I "./" /I "../../../" /I "include" /I "../include" /I "../../isc/win32" /I "../../isc/win32/include" /I "../../isc/include" /I "../../dns/sec/dst/include" /I "../../../../openssl-0.9.6k/inc32" /D "_DEBUG" /D "WIN32" /D "_WINDOWS" /D "__STDC__" /D "_MBCS" /D "_USRDLL" /D "USE_MD5" /D "OPENSSL" /D "DST_USE_PRIVATE_OPENSSL" /D "LIBDNS_EXPORTS" /FR"$(INTDIR)\\" /Fp"$(INTDIR)\libdns.pch" /YX /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /GZ /c 
 
 .c{$(INTDIR)}.obj::
    $(CPP) @<<
@@ -507,7 +464,6 @@ RSC=rc.exe
 BSC32=bscmake.exe
 BSC32_FLAGS=/nologo /o"$(OUTDIR)\libdns.bsc" 
 BSC32_SBRS= \
-	"$(INTDIR)\a6.sbr" \
 	"$(INTDIR)\acl.sbr" \
 	"$(INTDIR)\adb.sbr" \
 	"$(INTDIR)\byaddr.sbr" \
@@ -521,6 +477,7 @@ BSC32_SBRS= \
 	"$(INTDIR)\dispatch.sbr" \
 	"$(INTDIR)\DLLMain.sbr" \
 	"$(INTDIR)\dnssec.sbr" \
+	"$(INTDIR)\ds.sbr" \
 	"$(INTDIR)\forward.sbr" \
 	"$(INTDIR)\journal.sbr" \
 	"$(INTDIR)\keytable.sbr" \
@@ -532,11 +489,14 @@ BSC32_SBRS= \
 	"$(INTDIR)\message.sbr" \
 	"$(INTDIR)\name.sbr" \
 	"$(INTDIR)\ncache.sbr" \
-	"$(INTDIR)\nxt.sbr" \
+	"$(INTDIR)\nsec.sbr" \
+	"$(INTDIR)\order.sbr" \
 	"$(INTDIR)\peer.sbr" \
+	"$(INTDIR)\portlist.sbr" \
 	"$(INTDIR)\rbt.sbr" \
 	"$(INTDIR)\rbtdb.sbr" \
 	"$(INTDIR)\rbtdb64.sbr" \
+	"$(INTDIR)\rcode.sbr" \
 	"$(INTDIR)\rdata.sbr" \
 	"$(INTDIR)\rdatalist.sbr" \
 	"$(INTDIR)\rdataset.sbr" \
@@ -582,11 +542,10 @@ BSC32_SBRS= \
 <<
 
 LINK32=link.exe
-LINK32_FLAGS=user32.lib advapi32.lib ws2_32.lib ../../isc/win32/debug/libisc.lib ../../../../openssl-0.9.8d/out32dll/libeay32.lib /nologo /dll /incremental:yes /pdb:"$(OUTDIR)\libdns.pdb" /map:"$(INTDIR)\libdns.map" /debug /machine:I386 /def:".\libdns.def" /out:"../../../Build/Debug/libdns.dll" /implib:"$(OUTDIR)\libdns.lib" /pdbtype:sept 
+LINK32_FLAGS=user32.lib advapi32.lib ws2_32.lib ../../isc/win32/debug/libisc.lib ../../../../openssl-0.9.6k/out32dll/libeay32.lib /nologo /dll /incremental:yes /pdb:"$(OUTDIR)\libdns.pdb" /map:"$(INTDIR)\libdns.map" /debug /machine:I386 /def:".\libdns.def" /out:"../../../Build/Debug/libdns.dll" /implib:"$(OUTDIR)\libdns.lib" /pdbtype:sept 
 DEF_FILE= \
 	".\libdns.def"
 LINK32_OBJS= \
-	"$(INTDIR)\a6.obj" \
 	"$(INTDIR)\acl.obj" \
 	"$(INTDIR)\adb.obj" \
 	"$(INTDIR)\byaddr.obj" \
@@ -600,6 +559,7 @@ LINK32_OBJS= \
 	"$(INTDIR)\dispatch.obj" \
 	"$(INTDIR)\DLLMain.obj" \
 	"$(INTDIR)\dnssec.obj" \
+	"$(INTDIR)\ds.obj" \
 	"$(INTDIR)\forward.obj" \
 	"$(INTDIR)\journal.obj" \
 	"$(INTDIR)\keytable.obj" \
@@ -611,11 +571,14 @@ LINK32_OBJS= \
 	"$(INTDIR)\message.obj" \
 	"$(INTDIR)\name.obj" \
 	"$(INTDIR)\ncache.obj" \
-	"$(INTDIR)\nxt.obj" \
+	"$(INTDIR)\nsec.obj" \
+	"$(INTDIR)\order.obj" \
 	"$(INTDIR)\peer.obj" \
+	"$(INTDIR)\portlist.obj" \
 	"$(INTDIR)\rbt.obj" \
 	"$(INTDIR)\rbtdb.obj" \
 	"$(INTDIR)\rbtdb64.obj" \
+	"$(INTDIR)\rcode.obj" \
 	"$(INTDIR)\rdata.obj" \
 	"$(INTDIR)\rdatalist.obj" \
 	"$(INTDIR)\rdataset.obj" \
@@ -653,13 +616,13 @@ LINK32_OBJS= \
 	"$(INTDIR)\openssl_link.obj" \
 	"$(INTDIR)\openssldh_link.obj" \
 	"$(INTDIR)\openssldsa_link.obj" \
-	"$(INTDIR)\opensslrsa_link.obj"
+	"$(INTDIR)\opensslrsa_link.obj" \
+	"..\..\isc\win32\Debug\libisc.lib"
 
 "..\..\..\Build\Debug\libdns.dll" : "$(OUTDIR)" $(DEF_FILE) $(LINK32_OBJS)
     $(LINK32) @<<
   $(LINK32_FLAGS) $(LINK32_OBJS)
 <<
-  $(_VC_MANIFEST_EMBED_DLL)
 
 !ENDIF 
 
@@ -674,24 +637,6 @@ LINK32_OBJS= \
 
 
 !IF "$(CFG)" == "libdns - Win32 Release" || "$(CFG)" == "libdns - Win32 Debug"
-SOURCE=..\a6.c
-
-!IF  "$(CFG)" == "libdns - Win32 Release"
-
-
-"$(INTDIR)\a6.obj" : $(SOURCE) "$(INTDIR)"
-	$(CPP) $(CPP_PROJ) $(SOURCE)
-
-
-!ELSEIF  "$(CFG)" == "libdns - Win32 Debug"
-
-
-"$(INTDIR)\a6.obj"	"$(INTDIR)\a6.sbr" : $(SOURCE) "$(INTDIR)"
-	$(CPP) $(CPP_PROJ) $(SOURCE)
-
-
-!ENDIF 
-
 SOURCE=..\acl.c
 
 !IF  "$(CFG)" == "libdns - Win32 Release"
@@ -876,7 +821,7 @@ SOURCE=..\dispatch.c
 
 !IF  "$(CFG)" == "libdns - Win32 Release"
 
-CPP_SWITCHES=/nologo /MD /W3 /GX /O2 /I "../../../../../openssl-0.9.8d/inc32/openssl/include" /I "./" /I "../../../" /I "include" /I "../include" /I "../../isc/win32" /I "../../isc/win32/include" /I "../../isc/include" /I "../../../../openssl-0.9.8d/inc32" /D "NDEBUG" /D "WIN32" /D "_WINDOWS" /D "__STDC__" /D "_MBCS" /D "_USRDLL" /D "USE_MD5" /D "OPENSSL" /D "DST_USE_PRIVATE_OPENSSL" /D "LIBDNS_EXPORTS" /Fp"$(INTDIR)\libdns.pch" /YX /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /c 
+CPP_SWITCHES=/nologo /MD /W3 /GX /O2 /I "../../../../../openssl-0.9.6k/inc32/openssl/include" /I "./" /I "../../../" /I "include" /I "../include" /I "../../isc/win32" /I "../../isc/win32/include" /I "../../isc/include" /I "../../dns/sec/dst/include" /I "../../../../openssl-0.9.6k/inc32" /D "NDEBUG" /D "WIN32" /D "_WINDOWS" /D "__STDC__" /D "_MBCS" /D "_USRDLL" /D "USE_MD5" /D "OPENSSL" /D "DST_USE_PRIVATE_OPENSSL" /D "LIBDNS_EXPORTS" /Fp"$(INTDIR)\libdns.pch" /YX /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /c 
 
 "$(INTDIR)\dispatch.obj" : $(SOURCE) "$(INTDIR)"
 	$(CPP) @<<
@@ -886,7 +831,7 @@ CPP_SWITCHES=/nologo /MD /W3 /GX /O2 /I "../../../../../openssl-0.9.8d/inc32/ope
 
 !ELSEIF  "$(CFG)" == "libdns - Win32 Debug"
 
-CPP_SWITCHES=/nologo /MDd /W3 /Gm /GX /ZI /Od /I "./" /I "../../../" /I "include" /I "../include" /I "../../isc/win32" /I "../../isc/win32/include" /I "../../isc/include" /I "../../../../openssl-0.9.8d/inc32" /D "_DEBUG" /D "WIN32" /D "_WINDOWS" /D "__STDC__" /D "_MBCS" /D "_USRDLL" /D "USE_MD5" /D "OPENSSL" /D "DST_USE_PRIVATE_OPENSSL" /D "LIBDNS_EXPORTS" /FR"$(INTDIR)\\" /Fp"$(INTDIR)\libdns.pch" /YX /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /GZ /c 
+CPP_SWITCHES=/nologo /MDd /W3 /Gm /GX /ZI /Od /I "./" /I "../../../" /I "include" /I "../include" /I "../../isc/win32" /I "../../isc/win32/include" /I "../../isc/include" /I "../../dns/sec/dst/include" /I "../../../../openssl-0.9.6k/inc32" /I "../sec/dst/include" /D "_DEBUG" /D "WIN32" /D "_WINDOWS" /D "__STDC__" /D "_MBCS" /D "_USRDLL" /D "USE_MD5" /D "OPENSSL" /D "DST_USE_PRIVATE_OPENSSL" /D "LIBDNS_EXPORTS" /FR"$(INTDIR)\\" /Fp"$(INTDIR)\libdns.pch" /YX /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /GZ /c 
 
 "$(INTDIR)\dispatch.obj"	"$(INTDIR)\dispatch.sbr" : $(SOURCE) "$(INTDIR)"
 	$(CPP) @<<
@@ -925,6 +870,24 @@ SOURCE=..\dnssec.c
 
 
 "$(INTDIR)\dnssec.obj"	"$(INTDIR)\dnssec.sbr" : $(SOURCE) "$(INTDIR)"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
+!ENDIF 
+
+SOURCE=..\ds.c
+
+!IF  "$(CFG)" == "libdns - Win32 Release"
+
+
+"$(INTDIR)\ds.obj" : $(SOURCE) "$(INTDIR)"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
+!ELSEIF  "$(CFG)" == "libdns - Win32 Debug"
+
+
+"$(INTDIR)\ds.obj"	"$(INTDIR)\ds.sbr" : $(SOURCE) "$(INTDIR)"
 	$(CPP) $(CPP_PROJ) $(SOURCE)
 
 
@@ -1128,19 +1091,37 @@ SOURCE=..\ncache.c
 
 !ENDIF 
 
-SOURCE=..\nxt.c
+SOURCE=..\nsec.c
 
 !IF  "$(CFG)" == "libdns - Win32 Release"
 
 
-"$(INTDIR)\nxt.obj" : $(SOURCE) "$(INTDIR)"
+"$(INTDIR)\nsec.obj" : $(SOURCE) "$(INTDIR)"
 	$(CPP) $(CPP_PROJ) $(SOURCE)
 
 
 !ELSEIF  "$(CFG)" == "libdns - Win32 Debug"
 
 
-"$(INTDIR)\nxt.obj"	"$(INTDIR)\nxt.sbr" : $(SOURCE) "$(INTDIR)"
+"$(INTDIR)\nsec.obj"	"$(INTDIR)\nsec.sbr" : $(SOURCE) "$(INTDIR)"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
+!ENDIF 
+
+SOURCE=..\order.c
+
+!IF  "$(CFG)" == "libdns - Win32 Release"
+
+
+"$(INTDIR)\order.obj" : $(SOURCE) "$(INTDIR)"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
+!ELSEIF  "$(CFG)" == "libdns - Win32 Debug"
+
+
+"$(INTDIR)\order.obj"	"$(INTDIR)\order.sbr" : $(SOURCE) "$(INTDIR)"
 	$(CPP) $(CPP_PROJ) $(SOURCE)
 
 
@@ -1159,6 +1140,25 @@ SOURCE=..\peer.c
 
 
 "$(INTDIR)\peer.obj"	"$(INTDIR)\peer.sbr" : $(SOURCE) "$(INTDIR)"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
+!ENDIF 
+
+
+SOURCE=..\portlist.c
+
+!IF  "$(CFG)" == "libdns - Win32 Release"
+
+
+"$(INTDIR)\portlist.obj" : $(SOURCE) "$(INTDIR)"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
+!ELSEIF  "$(CFG)" == "libdns - Win32 Debug"
+
+
+"$(INTDIR)\portlist.obj"	"$(INTDIR)\portlist.sbr" : $(SOURCE) "$(INTDIR)"
 	$(CPP) $(CPP_PROJ) $(SOURCE)
 
 
@@ -1205,7 +1205,7 @@ SOURCE=..\rbtdb64.c
 !IF  "$(CFG)" == "libdns - Win32 Release"
 
 
-"$(INTDIR)\rbtdb64.obj" : $(SOURCE) "$(INTDIR)"
+"$(INTDIR)\rbtdb64.obj" : $(SOURCE) "$(INTDIR)" "..\rbtdb.c"
 	$(CPP) $(CPP_PROJ) $(SOURCE)
 
 
@@ -1213,6 +1213,24 @@ SOURCE=..\rbtdb64.c
 
 
 "$(INTDIR)\rbtdb64.obj"	"$(INTDIR)\rbtdb64.sbr" : $(SOURCE) "$(INTDIR)"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
+!ENDIF 
+
+SOURCE=..\rcode.c
+
+!IF  "$(CFG)" == "libdns - Win32 Release"
+
+
+"$(INTDIR)\rcode.obj" : $(SOURCE) "$(INTDIR)"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
+!ELSEIF  "$(CFG)" == "libdns - Win32 Debug"
+
+
+"$(INTDIR)\rcode.obj"	"$(INTDIR)\rcode.sbr" : $(SOURCE) "$(INTDIR)"
 	$(CPP) $(CPP_PROJ) $(SOURCE)
 
 
@@ -1684,7 +1702,7 @@ SOURCE=..\zt.c
 
 !ENDIF 
 
-SOURCE=..\dst_api.c
+SOURCE=..\sec\dst\dst_api.c
 
 !IF  "$(CFG)" == "libdns - Win32 Release"
 
@@ -1702,7 +1720,7 @@ SOURCE=..\dst_api.c
 
 !ENDIF 
 
-SOURCE=..\dst_lib.c
+SOURCE=..\sec\dst\dst_lib.c
 
 !IF  "$(CFG)" == "libdns - Win32 Release"
 
@@ -1720,7 +1738,7 @@ SOURCE=..\dst_lib.c
 
 !ENDIF 
 
-SOURCE=..\dst_parse.c
+SOURCE=..\sec\dst\dst_parse.c
 
 !IF  "$(CFG)" == "libdns - Win32 Release"
 
@@ -1738,7 +1756,7 @@ SOURCE=..\dst_parse.c
 
 !ENDIF 
 
-SOURCE=..\dst_result.c
+SOURCE=..\sec\dst\dst_result.c
 
 !IF  "$(CFG)" == "libdns - Win32 Release"
 
@@ -1756,7 +1774,7 @@ SOURCE=..\dst_result.c
 
 !ENDIF 
 
-SOURCE=..\gssapi_link.c
+SOURCE=..\sec\dst\gssapi_link.c
 
 !IF  "$(CFG)" == "libdns - Win32 Release"
 
@@ -1774,7 +1792,7 @@ SOURCE=..\gssapi_link.c
 
 !ENDIF 
 
-SOURCE=..\gssapictx.c
+SOURCE=..\sec\dst\gssapictx.c
 
 !IF  "$(CFG)" == "libdns - Win32 Release"
 
@@ -1792,7 +1810,7 @@ SOURCE=..\gssapictx.c
 
 !ENDIF 
 
-SOURCE=..\hmac_link.c
+SOURCE=..\sec\dst\hmac_link.c
 
 !IF  "$(CFG)" == "libdns - Win32 Release"
 
@@ -1810,7 +1828,7 @@ SOURCE=..\hmac_link.c
 
 !ENDIF 
 
-SOURCE=..\key.c
+SOURCE=..\sec\dst\key.c
 
 !IF  "$(CFG)" == "libdns - Win32 Release"
 
@@ -1828,7 +1846,7 @@ SOURCE=..\key.c
 
 !ENDIF 
 
-SOURCE=..\openssl_link.c
+SOURCE=..\sec\dst\openssl_link.c
 
 !IF  "$(CFG)" == "libdns - Win32 Release"
 
@@ -1846,7 +1864,7 @@ SOURCE=..\openssl_link.c
 
 !ENDIF 
 
-SOURCE=..\openssldh_link.c
+SOURCE=..\sec\dst\openssldh_link.c
 
 !IF  "$(CFG)" == "libdns - Win32 Release"
 
@@ -1864,7 +1882,7 @@ SOURCE=..\openssldh_link.c
 
 !ENDIF 
 
-SOURCE=..\openssldsa_link.c
+SOURCE=..\sec\dst\openssldsa_link.c
 
 !IF  "$(CFG)" == "libdns - Win32 Release"
 
@@ -1882,7 +1900,7 @@ SOURCE=..\openssldsa_link.c
 
 !ENDIF 
 
-SOURCE=..\opensslrsa_link.c
+SOURCE=..\sec\dst\opensslrsa_link.c
 
 !IF  "$(CFG)" == "libdns - Win32 Release"
 
@@ -1900,24 +1918,32 @@ SOURCE=..\opensslrsa_link.c
 
 !ENDIF 
 
+!IF  "$(CFG)" == "libdns - Win32 Release"
+
+"libisc - Win32 Release" : 
+   cd "..\..\isc\win32"
+   $(MAKE) /$(MAKEFLAGS) /F ".\libisc.mak" CFG="libisc - Win32 Release" 
+   cd "..\..\dns\win32"
+
+"libisc - Win32 ReleaseCLEAN" : 
+   cd "..\..\isc\win32"
+   $(MAKE) /$(MAKEFLAGS) /F ".\libisc.mak" CFG="libisc - Win32 Release" RECURSE=1 CLEAN 
+   cd "..\..\dns\win32"
+
+!ELSEIF  "$(CFG)" == "libdns - Win32 Debug"
+
+"libisc - Win32 Debug" : 
+   cd "..\..\isc\win32"
+   $(MAKE) /$(MAKEFLAGS) /F ".\libisc.mak" CFG="libisc - Win32 Debug" 
+   cd "..\..\dns\win32"
+
+"libisc - Win32 DebugCLEAN" : 
+   cd "..\..\isc\win32"
+   $(MAKE) /$(MAKEFLAGS) /F ".\libisc.mak" CFG="libisc - Win32 Debug" RECURSE=1 CLEAN 
+   cd "..\..\dns\win32"
 
 !ENDIF 
 
-####################################################
-# Commands to generate initial empty manifest file and the RC file
-# that references it, and for generating the .res file:
 
-$(_VC_MANIFEST_BASENAME).auto.res : $(_VC_MANIFEST_BASENAME).auto.rc
+!ENDIF 
 
-$(_VC_MANIFEST_BASENAME).auto.rc : $(_VC_MANIFEST_BASENAME).auto.manifest
-    type <<$@
-#include <winuser.h>
-1RT_MANIFEST"$(_VC_MANIFEST_BASENAME).auto.manifest"
-<< KEEP
-
-$(_VC_MANIFEST_BASENAME).auto.manifest :
-    type <<$@
-<?xml version='1.0' encoding='UTF-8' standalone='yes'?>
-<assembly xmlns='urn:schemas-microsoft-com:asm.v1' manifestVersion='1.0'>
-</assembly>
-<< KEEP

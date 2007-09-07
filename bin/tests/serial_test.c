@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
- * Copyright (C) 1999-2001  Internet Software Consortium.
+ * Copyright (C) 1999-2001, 2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -15,14 +15,14 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: serial_test.c,v 1.10.2.1 2004/03/09 06:09:34 marka Exp $ */
+/* $Id: serial_test.c,v 1.10.12.3 2004/03/06 10:21:40 marka Exp $ */
 
 #include <config.h>
 
 #include <stdio.h>
-#include <stdlib.h>
 
 #include <isc/serial.h>
+#include <isc/stdlib.h>
 
 int
 main() {
@@ -30,8 +30,8 @@ main() {
 	char buf[1024];
 	char *s, *e;
 
-	while (fgets(buf, sizeof buf, stdin) != NULL) {
-		buf[sizeof buf - 1] = '\0';
+	while (fgets(buf, sizeof(buf), stdin) != NULL) {
+		buf[sizeof(buf) - 1] = '\0';
 		s = buf;
 		a = strtoul(s, &e, 0);
 		if (s == e)

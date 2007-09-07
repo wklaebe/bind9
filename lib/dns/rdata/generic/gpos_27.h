@@ -18,7 +18,7 @@
 #ifndef GENERIC_GPOS_27_H
 #define GENERIC_GPOS_27_H 1
 
-/* $Id: gpos_27.h,v 1.12.2.1 2004/03/09 06:11:28 marka Exp $ */
+/* $Id: gpos_27.h,v 1.12.206.1 2004/03/06 08:14:04 marka Exp $ */
 
 /* RFC 1712 */
 

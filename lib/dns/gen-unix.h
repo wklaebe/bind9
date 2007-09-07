@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: gen-unix.h,v 1.12.2.1 2004/03/09 06:11:01 marka Exp $ */
+/* $Id: gen-unix.h,v 1.12.12.3 2004/03/08 09:04:29 marka Exp $ */
 
 /*
  * This file is responsible for defining two operations that are not
@@ -82,7 +82,7 @@ next_file(isc_dir_t *dir) {
 static void
 end_directory(isc_dir_t *dir) {
 	if (dir->handle != NULL)
-		closedir(dir->handle);
+		(void)closedir(dir->handle);
 
 	dir->handle = NULL;
 }

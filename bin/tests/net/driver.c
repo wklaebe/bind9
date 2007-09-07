@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: driver.c,v 1.7.2.1 2004/03/09 06:09:39 marka Exp $ */
+/* $Id: driver.c,v 1.7.12.3 2004/03/08 04:04:31 marka Exp $ */
 
 #include <config.h>
 
@@ -87,7 +87,7 @@ main(int argc, char **argv) {
 	printf("S:%s:%s\n", SUITENAME, gettime());
 
 	n_failed = 0;
-	for (testno = 0 ; testno < NTESTS ; testno++) {
+	for (testno = 0; testno < NTESTS; testno++) {
 		test = &tests[testno];
 		printf("T:%s:%u:A\n", test->tag, testno + 1);
 		printf("A:%s\n", test->description);

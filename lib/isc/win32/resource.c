@@ -15,9 +15,11 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: resource.c,v 1.2.2.1 2004/03/09 06:12:19 marka Exp $ */
+/* $Id: resource.c,v 1.2.12.3 2004/03/08 09:05:00 marka Exp $ */
 
 #include <config.h>
+
+#include <stdio.h>
 
 #include <isc/platform.h>
 #include <isc/resource.h>
@@ -26,13 +28,40 @@
 
 #include "errno2result.h"
 
+/*
+ * Windows limits the maximum number of open files to 2048
+ */
+
+#define WIN32_MAX_OPEN_FILES	2048
+
 isc_result_t
 isc_resource_setlimit(isc_resource_t resource, isc_resourcevalue_t value) {
-	return (ISC_R_NOTIMPLEMENTED);
+	isc_resourcevalue_t rlim_value;
+	int wresult;
 
+	if (resource != isc_resource_openfiles)
+		return (ISC_R_NOTIMPLEMENTED);
+
+
+	if (value == ISC_RESOURCE_UNLIMITED)
+		rlim_value = WIN32_MAX_OPEN_FILES;
+	else
+		rlim_value = min(value, WIN32_MAX_OPEN_FILES);
+
+	wresult = _setmaxstdio((int) rlim_value);
+
+	if (wresult > 0)
+		return (ISC_R_SUCCESS);
+	else
+		return (isc__errno2result(errno));
 }
 
 isc_result_t
 isc_resource_getlimit(isc_resource_t resource, isc_resourcevalue_t *value) {
-	return (ISC_R_NOTIMPLEMENTED);
+
+	if (resource != isc_resource_openfiles)
+		return (ISC_R_NOTIMPLEMENTED);
+
+	*value = WIN32_MAX_OPEN_FILES;
+	return (ISC_R_SUCCESS);
 }

@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: int.h,v 1.1.2.1 2004/03/09 06:12:43 marka Exp $ */
+/* $Id: int.h,v 1.1.206.1 2004/03/06 08:15:45 marka Exp $ */
 
 #ifndef LWRES_INT_H
 #define LWRES_INT_H 1

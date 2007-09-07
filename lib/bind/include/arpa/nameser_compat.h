@@ -32,7 +32,7 @@
 
 /*
  *      from nameser.h	8.1 (Berkeley) 6/2/93
- *	$Id: nameser_compat.h,v 1.1.2.6 2006/05/19 02:38:58 marka Exp $
+ *	$Id: nameser_compat.h,v 1.1.2.3.4.1 2004/03/09 08:33:30 marka Exp $
  */
 
 #ifndef _ARPA_NAMESER_COMPAT_
@@ -52,9 +52,8 @@
 #define	PDP_ENDIAN	3412	/* LSB first in word, MSW first in long (pdp)*/
 
 #if defined(vax) || defined(ns32000) || defined(sun386) || defined(i386) || \
-    defined(__i386__) || defined(__i386) || defined(__amd64__) || \
-    defined(__x86_64__) || defined(MIPSEL) || defined(_MIPSEL) || \
-    defined(BIT_ZERO_ON_RIGHT) || defined(__alpha__) || defined(__alpha) || \
+    defined(MIPSEL) || defined(_MIPSEL) || defined(BIT_ZERO_ON_RIGHT) || \
+    defined(__alpha__) || defined(__alpha) || \
     (defined(__Lynx__) && defined(__x86__))
 #define BYTE_ORDER	LITTLE_ENDIAN
 #endif
@@ -66,7 +65,7 @@
     defined(__hppa) || defined(__hp9000) || \
     defined(__hp9000s300) || defined(__hp9000s700) || \
     defined(__hp3000s900) || defined(__hpux) || defined(MPE) || \
-    defined (BIT_ZERO_ON_LEFT) || defined(m68k) || defined(__sparc) ||  \
+    defined (BIT_ZERO_ON_LEFT) || defined(m68k) || \
     (defined(__Lynx__) && \
      (defined(__68k__) || defined(__sparc__) || defined(__powerpc__)))
 #define BYTE_ORDER	BIG_ENDIAN

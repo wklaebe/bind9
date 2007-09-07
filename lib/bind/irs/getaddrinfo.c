@@ -244,24 +244,13 @@ do { \
 		goto free; \
 } while (/*CONSTCOND*/0)
 
-#ifndef SOLARIS2
-#define SETERROR(err) \
+#define ERR(err) \
 do { \
 	/* external reference: error, and label bad */ \
 	error = (err); \
 	goto bad; \
 	/*NOTREACHED*/ \
 } while (/*CONSTCOND*/0)
-#else
-#define SETERROR(err) \
-do { \
-	/* external reference: error, and label bad */ \
-	error = (err); \
-	if (error == error) \
-		goto bad; \
-} while (/*CONSTCOND*/0)
-#endif
-
 
 #define MATCH_FAMILY(x, y, w) \
 	((x) == (y) || (/*CONSTCOND*/(w) && ((x) == PF_UNSPEC || (y) == PF_UNSPEC)))
@@ -332,15 +321,6 @@ getaddrinfo(hostname, servname, hints, res)
 	pai->ai_family = PF_UNSPEC;
 	pai->ai_socktype = ANY;
 	pai->ai_protocol = ANY;
-#if defined(sun) && defined(_SOCKLEN_T) && defined(__sparcv9)
-	/*
-	 * clear _ai_pad to preserve binary
-	 * compatibility with previously compiled 64-bit
-	 * applications in a pre-SUSv3 environment by
-	 * guaranteeing the upper 32-bits are empty.
-	 */
-	pai->_ai_pad = 0;
-#endif
 	pai->ai_addrlen = 0;
 	pai->ai_canonname = NULL;
 	pai->ai_addr = NULL;
@@ -352,26 +332,19 @@ getaddrinfo(hostname, servname, hints, res)
 		/* error check for hints */
 		if (hints->ai_addrlen || hints->ai_canonname ||
 		    hints->ai_addr || hints->ai_next)
-			SETERROR(EAI_BADHINTS); /* xxx */
+			ERR(EAI_BADHINTS); /* xxx */
 		if (hints->ai_flags & ~AI_MASK)
-			SETERROR(EAI_BADFLAGS);
+			ERR(EAI_BADFLAGS);
 		switch (hints->ai_family) {
 		case PF_UNSPEC:
 		case PF_INET:
 		case PF_INET6:
 			break;
 		default:
-			SETERROR(EAI_FAMILY);
+			ERR(EAI_FAMILY);
 		}
 		memcpy(pai, hints, sizeof(*pai));
 
-#if defined(sun) && defined(_SOCKLEN_T) && defined(__sparcv9)
-		/*
-		 * We need to clear _ai_pad to preserve binary
-		 * compatibility.  See prior comment.
-		 */
-		pai->_ai_pad = 0;
-#endif
 		/*
 		 * if both socktype/protocol are specified, check if they
 		 * are meaningful combination.
@@ -386,7 +359,7 @@ getaddrinfo(hostname, servname, hints, res)
 					continue;
 				if (pai->ai_socktype == ex->e_socktype &&
 				    pai->ai_protocol != ex->e_protocol) {
-					SETERROR(EAI_BADHINTS);
+					ERR(EAI_BADHINTS);
 				}
 			}
 		}
@@ -406,7 +379,7 @@ getaddrinfo(hostname, servname, hints, res)
 	case AI_ALL:
 #if 1
 		/* illegal */
-		SETERROR(EAI_BADFLAGS);
+		ERR(EAI_BADFLAGS);
 #else
 		pai->ai_flags &= ~(AI_ALL | AI_V4MAPPED);
 		break;
@@ -434,7 +407,7 @@ getaddrinfo(hostname, servname, hints, res)
 		}
 		error = get_portmatch(pai, servname);
 		if (error)
-			SETERROR(error);
+			ERR(error);
 
 		*pai = ai0;
 	}
@@ -493,9 +466,9 @@ getaddrinfo(hostname, servname, hints, res)
 		goto good;
 
 	if (pai->ai_flags & AI_NUMERICHOST)
-		SETERROR(EAI_NONAME);
+		ERR(EAI_NONAME);
 	if (hostname == NULL)
-		SETERROR(EAI_NONAME);
+		ERR(EAI_NONAME);
 
 	/*
 	 * hostname as alphabetical name.
@@ -575,6 +548,10 @@ getaddrinfo(hostname, servname, hints, res)
 	}
 
 	freeaddrinfo(afai);	/* afai must not be NULL at this point. */
+
+	/* we must not have got any errors. */
+	if (error != 0) /* just for diagnosis */
+		abort();
 
 	if (sentinel.ai_next) {
 good:
@@ -800,10 +777,10 @@ explore_numeric(pai, hostname, servname, res)
 			    pai->ai_family == PF_UNSPEC /*?*/) {
 				GET_AI(cur->ai_next, afd, pton);
 				GET_PORT(cur->ai_next, servname);
-				while (cur->ai_next)
+				while (cur && cur->ai_next)
 					cur = cur->ai_next;
 			} else
-				SETERROR(EAI_FAMILY);	/*xxx*/
+				ERR(EAI_FAMILY);	/*xxx*/
 		}
 		break;
 #endif
@@ -813,10 +790,10 @@ explore_numeric(pai, hostname, servname, res)
 			    pai->ai_family == PF_UNSPEC /*?*/) {
 				GET_AI(cur->ai_next, afd, pton);
 				GET_PORT(cur->ai_next, servname);
-				while (cur->ai_next)
+				while (cur && cur->ai_next)
 					cur = cur->ai_next;
 			} else
-				SETERROR(EAI_FAMILY);	/*xxx*/
+				ERR(EAI_FAMILY);	/*xxx*/
 		}
 		break;
 	}
@@ -960,7 +937,11 @@ copy_ai(pai)
 			free(ai);
 			return NULL;
 		}
-		strcpy(ai->ai_canonname, pai->ai_canonname);	/* (checked) */
+#ifdef HAVE_STRLCPY
+		strlcpy(ai->ai_canonname, pai->ai_canonname, l);
+#else
+		strncpy(ai->ai_canonname, pai->ai_canonname, l);
+#endif
 	} else {
 		/* just to make sure */
 		ai->ai_canonname = NULL;
@@ -1115,8 +1096,7 @@ ip6_str2scopeid(char *scope, struct sockaddr_in6 *sin6,
 		return (0);
 
 #ifdef USE_IFNAMELINKID
-	if (IN6_IS_ADDR_LINKLOCAL(a6) || IN6_IS_ADDR_MC_LINKLOCAL(a6) ||
-	    IN6_IS_ADDR_MC_NODELOCAL(a6)) {
+	if (IN6_IS_ADDR_LINKLOCAL(a6) || IN6_IS_ADDR_MC_LINKLOCAL(a6)) {
 		/*
 		 * Using interface names as link indices can be allowed
 		 * only when we can assume a one-to-one mappings between
@@ -1124,7 +1104,6 @@ ip6_str2scopeid(char *scope, struct sockaddr_in6 *sin6,
 		 */
 		scopeid = if_nametoindex(scope);
 		if (scopeid == 0)
-			goto trynumeric;
 		*scopeidp = scopeid;
 		return (1);
 	}
@@ -1198,7 +1177,7 @@ hostent2addrinfo(hp, pai)
 			 */
 			GET_CANONNAME(cur->ai_next, hp->h_name);
 		}
-		while (cur->ai_next) /* no need to loop, actually. */
+		while (cur && cur->ai_next) /* no need to loop, actually. */
 			cur = cur->ai_next;
 		continue;
 

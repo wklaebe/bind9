@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: gethost.c,v 1.29.2.1 2004/03/09 06:12:33 marka Exp $ */
+/* $Id: gethost.c,v 1.29.206.1 2004/03/06 08:15:30 marka Exp $ */
 
 #include <config.h>
 

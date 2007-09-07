@@ -37,7 +37,7 @@
 #
 #    perl -MCPAN -e "install Net::DNS"
 #
-# $Id: update.pl,v 1.2.2.1 2004/03/09 06:10:12 marka Exp $
+# $Id: update.pl,v 1.2.206.1 2004/03/06 10:22:26 marka Exp $
 #
 
 use Getopt::Std;

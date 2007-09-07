@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
- * Copyright (C) 1999-2001  Internet Software Consortium.
+ * Copyright (C) 1999-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: interfacemgr.h,v 1.23.2.1 2004/03/09 06:09:21 marka Exp $ */
+/* $Id: interfacemgr.h,v 1.23.24.6 2004/03/08 04:04:20 marka Exp $ */
 
 #ifndef NAMED_INTERFACEMGR_H
 #define NAMED_INTERFACEMGR_H 1
@@ -121,6 +121,20 @@ ns_interfacemgr_scan(ns_interfacemgr_t *mgr, isc_boolean_t verbose);
  */
 
 void
+ns_interfacemgr_adjust(ns_interfacemgr_t *mgr, ns_listenlist_t *list,
+		       isc_boolean_t verbose);
+/*
+ * Similar to ns_interfacemgr_scan(), but this function also tries to see the
+ * need for an explicit listen-on when a list element in 'list' is going to
+ * override an already-listening a wildcard interface.
+ *
+ * This function does not update localhost and localnets ACLs.
+ *
+ * This should be called once on server startup, after configuring views and
+ * zones.
+ */
+
+void
 ns_interfacemgr_setlistenon4(ns_interfacemgr_t *mgr, ns_listenlist_t *value);
 /*
  * Set the IPv4 "listen-on" list of 'mgr' to 'value'.
@@ -149,5 +163,8 @@ ns_interface_shutdown(ns_interface_t *ifp);
  * Stop listening for queries on interface 'ifp'.
  * May safely be called multiple times.
  */
+
+void
+ns_interfacemgr_dumprecursing(FILE *f, ns_interfacemgr_t *mgr);
 
 #endif /* NAMED_INTERFACEMGR_H */

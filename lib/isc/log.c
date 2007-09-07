@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: log.c,v 1.70.2.14 2004/06/11 00:36:39 marka Exp $ */
+/* $Id: log.c,v 1.70.2.8.2.10 2004/04/10 04:31:40 marka Exp $ */
 
 /* Principal Authors: DCL */
 
@@ -27,7 +27,6 @@
 #include <time.h>
 
 #include <sys/types.h>	/* dev_t FreeBSD 2.1 */
-#include <sys/stat.h>
 
 #include <isc/dir.h>
 #include <isc/file.h>
@@ -202,6 +201,8 @@ LIBISC_EXTERNAL_DATA isc_logcategory_t isc_categories[] = {
 LIBISC_EXTERNAL_DATA isc_logmodule_t isc_modules[] = {
 	{ "socket", 0 },
 	{ "time", 0 },
+	{ "interface", 0 },
+	{ "timer", 0 },
 	{ NULL, 0 }
 };
 
@@ -1016,7 +1017,7 @@ isc_log_gettag(isc_logconfig_t *lcfg) {
 /* XXXDCL NT  -- This interface will assuredly be changing. */
 void
 isc_log_opensyslog(const char *tag, int options, int facility) {
-	openlog(tag, options, facility);
+	(void)openlog(tag, options, facility);
 }
 
 void
@@ -1139,10 +1140,6 @@ greatest_version(isc_logchannel_t *channel, int *greatestp) {
 	unsigned int basenamelen;
 	isc_dir_t dir;
 	isc_result_t result;
-	char sep = '/';
-#ifdef _WIN32
-	char *basename2;
-#endif
 
 	REQUIRE(channel->type == ISC_LOG_TOFILE);
 
@@ -1150,15 +1147,7 @@ greatest_version(isc_logchannel_t *channel, int *greatestp) {
 	 * It is safe to DE_CONST the file.name because it was copied
 	 * with isc_mem_strdup in isc_log_createchannel.
 	 */
-	basename = strrchr(FILE_NAME(channel), sep);
-#ifdef _WIN32
-	basename2 = strrchr(FILE_NAME(channel), '\\');
-	if ((basename != NULL && basename2 != NULL && basename2 > basename) ||
-	    (basename == NULL && basename2 != NULL)) {
-		basename = basename2;
-		sep = '\\';
-	}
-#endif
+	basename = strrchr(FILE_NAME(channel), '/');
 	if (basename != NULL) {
 		*basename++ = '\0';
 		dirname = FILE_NAME(channel);
@@ -1175,7 +1164,7 @@ greatest_version(isc_logchannel_t *channel, int *greatestp) {
 	 * Replace the file separator if it was taken out.
 	 */
 	if (basename != FILE_NAME(channel))
-		*(basename - 1) = sep;
+		*(basename - 1) = '/';
 
 	/*
 	 * Return if the directory open failed.
@@ -1328,11 +1317,8 @@ isc_log_open(isc_logchannel_t *channel) {
 	if (stat(path, &statbuf) == 0) {
 		regular_file = S_ISREG(statbuf.st_mode) ? ISC_TRUE : ISC_FALSE;
 		/* XXXDCL if not regular_file complain? */
-		if ((FILE_MAXSIZE(channel) == 0 &&
-		     FILE_VERSIONS(channel) != ISC_LOG_ROLLNEVER) ||
-		    (FILE_MAXSIZE(channel) > 0 &&
-		     statbuf.st_size >= FILE_MAXSIZE(channel)))
-			roll = regular_file;
+		roll = ISC_TF(regular_file && FILE_MAXSIZE(channel) > 0 &&
+			      statbuf.st_size >= FILE_MAXSIZE(channel));
 	} else if (errno == ENOENT)
 		regular_file = ISC_TRUE;
 	else
@@ -1498,39 +1484,29 @@ isc_log_doit(isc_log_t *lctx, isc_logcategory_t *category,
 
 		if ((channel->flags & ISC_LOG_PRINTTIME) != 0 &&
 		    time_string[0] == '\0') {
-		    isc_time_t isctime;
-
-		    result = isc_time_now(&isctime);
-			if (result == ISC_R_SUCCESS)
-				isc_time_formattimestamp(&isctime, time_string,
-							 sizeof(time_string));
-			else
-				/*
-				 * "Should never happen."
-				 */
-				snprintf(time_string, sizeof(time_string),
-					 isc_msgcat_get(isc_msgcat,
-						      ISC_MSGSET_LOG,
-						      ISC_MSG_BADTIME,
-						      "Bad 00 99:99:99.999"));
-
+			isc_time_t isctime;
+			
+			TIME_NOW(&isctime);
+			isc_time_formattimestamp(&isctime, time_string,
+						 sizeof(time_string));
 		}
 
 		if ((channel->flags & ISC_LOG_PRINTLEVEL) != 0 &&
 		    level_string[0] == '\0') {
 			if (level < ISC_LOG_CRITICAL)
-				sprintf(level_string,
-					isc_msgcat_get(isc_msgcat,
-						       ISC_MSGSET_LOG,
-						       ISC_MSG_LEVEL,
-						       "level %d: "),
-					level);
+				snprintf(level_string, sizeof(level_string),
+					 isc_msgcat_get(isc_msgcat,
+						        ISC_MSGSET_LOG,
+						        ISC_MSG_LEVEL,
+						        "level %d: "),
+					 level);
 			else if (level > ISC_LOG_DYNAMIC)
-				sprintf(level_string, "%s %d: ",
-					log_level_strings[0], level);
+				snprintf(level_string, sizeof(level_string),
+					 "%s %d: ", log_level_strings[0],
+					 level);
 			else
-				sprintf(level_string, "%s: ",
-					log_level_strings[-level]);
+				snprintf(level_string, sizeof(level_string),
+					 "%s: ", log_level_strings[-level]);
 		}
 
 		/*
@@ -1556,10 +1532,9 @@ isc_log_doit(isc_log_t *lctx, isc_logcategory_t *category,
 				 * which fall within the duplicate_interval
 				 * range.
 				 */
-				if (isc_time_now(&oldest) != ISC_R_SUCCESS ||
-				    isc_time_subtract(&oldest, &interval,
-						      &oldest) !=
-				    ISC_R_SUCCESS)
+				TIME_NOW(&oldest);
+				if (isc_time_subtract(&oldest, &interval, &oldest)
+				    != ISC_R_SUCCESS)
 					/*
 					 * Can't effectively do the checking
 					 * without having a valid time.
@@ -1631,16 +1606,7 @@ isc_log_doit(isc_log_t *lctx, isc_logcategory_t *category,
 					new->text = (char *)(new + 1);
 					strcpy(new->text, lctx->buffer);
 
-					if (isc_time_now(&new->time) !=
-					    ISC_R_SUCCESS)
-						/*
-						 * This will cause the message
-						 * to immediately expire on
-						 * the next call to [v]write1.
-						 * What's a fella to do if
-						 * getting the time fails?
-						 */
-					       isc_time_settoepoch(&new->time);
+					TIME_NOW(&new->time);
 
 					ISC_LIST_APPEND(lctx->messages,
 							new, link);
@@ -1676,7 +1642,7 @@ isc_log_doit(isc_log_t *lctx, isc_logcategory_t *category,
 				    (stat(FILE_NAME(channel), &statbuf) != 0 &&
 				     errno == ENOENT) ||
 				    statbuf.st_size < FILE_MAXSIZE(channel)) {
-					fclose(FILE_STREAM(channel));
+					(void)fclose(FILE_STREAM(channel));
 					FILE_STREAM(channel) = NULL;
 					FILE_MAXREACHED(channel) = ISC_FALSE;
 				} else
@@ -1746,10 +1712,9 @@ isc_log_doit(isc_log_t *lctx, isc_logcategory_t *category,
 			else
 				syslog_level = syslog_map[-level];
 
-			syslog(FACILITY(channel) | syslog_level,
-			       "%s%s%s%s%s%s%s%s%s%s",
+			(void)syslog(FACILITY(channel) | syslog_level,
+			       "%s%s%s%s%s%s%s%s%s",
 			       printtime     ? time_string	: "",
-			       printtime     ? " "		: "",
 			       printtag      ? lcfg->tag	: "",
 			       printtag      ? ": "		: "",
 			       printcategory ? category->name	: "",

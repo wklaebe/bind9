@@ -1,6 +1,6 @@
 /*
- * Copyright (C) 2004, 2006  Internet Systems Consortium, Inc. ("ISC")
- * Copyright (C) 1998-2001  Internet Software Consortium.
+ * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 1998-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: sockaddr.h,v 1.35.2.4 2006/03/02 00:37:17 marka Exp $ */
+/* $Id: sockaddr.h,v 1.35.12.6 2004/03/08 09:04:53 marka Exp $ */
 
 #ifndef ISC_SOCKADDR_H
 #define ISC_SOCKADDR_H 1
@@ -64,6 +64,9 @@ isc_sockaddr_hash(const isc_sockaddr_t *sockaddr, isc_boolean_t address_only);
 /*
  * Return a hash value for the socket address 'sockaddr'.  If 'address_only'
  * is ISC_TRUE, the hash value will not depend on the port.
+ *
+ * IPv6 addresses containing mapped IPv4 addresses generate the same hash
+ * value as the equivalent IPv4 address.
  */
 
 void
@@ -138,7 +141,7 @@ isc_sockaddr_setport(isc_sockaddr_t *sockaddr, in_port_t port);
  */
 
 in_port_t
-isc_sockaddr_getport(const isc_sockaddr_t *sockaddr);
+isc_sockaddr_getport(isc_sockaddr_t *sockaddr);
 /*
  * Get the port stored in 'sockaddr'.
  */
@@ -165,15 +168,27 @@ isc_sockaddr_format(const isc_sockaddr_t *sa, char *array, unsigned int size);
  */
 
 isc_boolean_t
-isc_sockaddr_ismulticast(const isc_sockaddr_t *sa);
+isc_sockaddr_ismulticast(isc_sockaddr_t *sa);
 /*
- * Returns ISC_TRUE if the address is a multicast address
+ * Returns ISC_TRUE if the address is a multicast address.
  */
 
 isc_boolean_t
-isc_sockaddr_isexperimental(const isc_sockaddr_t *sa);
+isc_sockaddr_isexperimental(isc_sockaddr_t *sa);
 /*
  * Returns ISC_TRUE if the address is a experimental (CLASS E) address.
+ */
+
+isc_boolean_t
+isc_sockaddr_islinklocal(isc_sockaddr_t *sa);
+/*
+ * Returns ISC_TRUE if the address is a link local addresss.
+ */
+
+isc_boolean_t
+isc_sockaddr_issitelocal(isc_sockaddr_t *sa);
+/*
+ * Returns ISC_TRUE if the address is a sitelocal address.
  */
 
 #define ISC_SOCKADDR_FORMATSIZE \

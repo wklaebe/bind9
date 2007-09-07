@@ -15,12 +15,14 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: version.c,v 1.1.2.1 2004/03/09 06:11:44 marka Exp $ */
+/* $Id: version.c,v 1.1.12.3 2004/03/08 09:04:47 marka Exp $ */
 
 #include <versions.h>
 
-char dns_version[] = VERSION;
+#include <dns/version.h>
 
-unsigned int dns_libinterface = LIBINTERFACE;
-unsigned int dns_librevision = LIBREVISION;
-unsigned int dns_libage = LIBAGE;
+LIBDNS_EXTERNAL_DATA const char dns_version[] = VERSION;
+
+LIBDNS_EXTERNAL_DATA const unsigned int dns_libinterface = LIBINTERFACE;
+LIBDNS_EXTERNAL_DATA const unsigned int dns_librevision = LIBREVISION;
+LIBDNS_EXTERNAL_DATA const unsigned int dns_libage = LIBAGE;

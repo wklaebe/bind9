@@ -1,9 +1,7 @@
-<!DOCTYPE book PUBLIC "-//OASIS//DTD DocBook XML V4.2//EN"
-               "http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd"
-	       [<!ENTITY mdash "&#8212;">]>
+<!DOCTYPE refentry PUBLIC "-//OASIS//DTD DocBook V4.1//EN">
 <!--
- - Copyright (C) 2004, 2005, 2007  Internet Systems Consortium, Inc. ("ISC")
- - Copyright (C) 2000-2003  Internet Software Consortium.
+ - Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2000-2002  Internet Software Consortium.
  -
  - Permission to use, copy, modify, and distribute this software for any
  - purpose with or without fee is hereby granted, provided that the above
@@ -18,7 +16,7 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<!-- $Id: host.docbook,v 1.2.2.8 2007/05/09 02:11:44 marka Exp $ -->
+<!-- $Id: host.docbook,v 1.2.2.2.4.5 2004/04/13 01:26:26 marka Exp $ -->
 
 <refentry>
 
@@ -31,22 +29,6 @@
 <manvolnum>1</manvolnum>
 <refmiscinfo>BIND9</refmiscinfo>
 </refmeta>
-
-  <docinfo>
-    <copyright>
-      <year>2004</year>
-      <year>2005</year>
-      <year>2007</year>
-      <holder>Internet Systems Consortium, Inc. ("ISC")</holder>
-    </copyright>
-    <copyright>
-      <year>2000</year>
-      <year>2001</year>
-      <year>2002</year>
-      <year>2003</year>
-      <holder>Internet Software Consortium.</holder>
-    </copyright>
-  </docinfo>
 
 <refnamediv>
 <refname>host</refname>
@@ -62,8 +44,10 @@
   <arg><option>-R <replaceable class="parameter">number</replaceable></option></arg>
   <arg><option>-t <replaceable class="parameter">type</replaceable></option></arg>
   <arg><option>-W <replaceable class="parameter">wait</replaceable></option></arg>
-  <arg choice="req">name</arg>
-  <arg choice="opt">server</arg>
+  <arg><option>-4</option></arg>
+  <arg><option>-6</option></arg>
+  <arg choice=req>name</arg>
+  <arg choice=opt>server</arg>
 </cmdsynopsis>
 </refsynopsisdiv>
 
@@ -121,16 +105,16 @@ output.
 <para>
 List mode is selected by the <option>-l</option> option.  This makes
 <command>host</command> perform a zone transfer for zone
-<parameter>name</parameter>.  The argument is provided for
-compatibility with older implementations.  This option is equivalent
-to making a query of type AXFR.
+<parameter>name</parameter>.  Transfer the zone printing out the NS, PTR
+and address records (A/AAAA).  If combined with <option>-a</option>
+all records will be printed.  
 </para>
 
 <para>
-The <option>-n</option>
+The <option>-i</option>
 option specifies that reverse lookups of IPv6 addresses should
-use the IP6.INT domain and "nibble" labels as defined in RFC1886.
-The default is to use IP6.ARPA and binary labels as defined in RFC2874.
+use the IP6.INT domain as defined in RFC1886.
+The default is to use IP6.ARPA.
 </para>
 
 <para>
@@ -160,7 +144,7 @@ desired &mdash; bit in the query which <command>host</command> makes.
 This should mean that the name server receiving the query will not
 attempt to resolve <parameter>name</parameter>.  The
 <option>-r</option> option enables <command>host</command> to mimic
-the behavior of a name server by making non-recursive queries and
+the behaviour of a name server by making non-recursive queries and
 expecting to receive answers to those queries that are usually
 referrals to other name servers.
 </para>
@@ -173,15 +157,23 @@ require it, such as zone transfer (AXFR) requests.
 </para>
 
 <para>
+The <option>-4</option> option forces <command>host</command> to only
+use IPv4 query transport.  The <option>-6</option> option forces
+<command>host</command> to only use IPv6 query transport.
+</para>
+
+<para>
 The <option>-t</option> option is used to select the query type.
-<parameter>type</parameter> can be any recognized query type: CNAME,
+<parameter>type</parameter> can be any recognised query type: CNAME,
 NS, SOA, SIG, KEY, AXFR, etc.  When no query type is specified,
 <command>host</command> automatically selects an appropriate query
 type.  By default it looks for A records, but if the
 <option>-C</option> option was given, queries will be made for SOA
 records, and if <parameter>name</parameter> is a dotted-decimal IPv4
 address or colon-delimited IPv6 address, <command>host</command> will
-query for PTR records.
+query for PTR records.  If a query type of IXFR is chosen the starting
+serial number can be specified by appending an equal followed by the
+starting serial number (e.g. -t IXFR=12345678).
 </para>
 
 <para>

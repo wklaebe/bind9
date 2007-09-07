@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
- * Copyright (C) 1999-2001  Internet Software Consortium.
+ * Copyright (C) 1999-2001, 2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: print.h,v 1.17.2.1 2004/03/09 06:11:59 marka Exp $ */
+/* $Id: print.h,v 1.17.188.2 2004/03/06 08:14:46 marka Exp $ */
 
 #ifndef ISC_PRINT_H
 #define ISC_PRINT_H 1
@@ -38,6 +38,10 @@
 #define ISC_PLATFORM_NEEDVSNPRINTF
 #endif
 
+#if !defined(ISC_PLATFORM_NEEDSPRINTF) && defined(ISC__PRINT_SOURCE)
+#define ISC_PLATFORM_NEEDSPRINTF
+#endif
+
 /***
  *** Macros
  ***/
@@ -50,9 +54,11 @@
 #ifdef ISC_PLATFORM_NEEDVSNPRINTF
 #include <stdarg.h>
 #include <stddef.h>
+#endif
 
 ISC_LANG_BEGINDECLS
 
+#ifdef ISC_PLATFORM_NEEDVSNPRINTF
 int
 isc_print_vsnprintf(char *str, size_t size, const char *format, va_list ap)
      ISC_FORMAT_PRINTF(3, 0);
@@ -62,8 +68,14 @@ int
 isc_print_snprintf(char *str, size_t size, const char *format, ...)
      ISC_FORMAT_PRINTF(3, 4);
 #define snprintf isc_print_snprintf
+#endif /* ISC_PLATFORM_NEEDVSNPRINTF */
+
+#ifdef ISC_PLATFORM_NEEDSPRINTF
+int
+isc_print_sprintf(char *str, const char *format, ...) ISC_FORMAT_PRINTF(2, 3);
+#define sprintf isc_print_sprintf
+#endif
 
 ISC_LANG_ENDDECLS
-#endif /* ISC_PLATFORM_NEEDVSNPRINTF */
 
 #endif /* ISC_PRINT_H */

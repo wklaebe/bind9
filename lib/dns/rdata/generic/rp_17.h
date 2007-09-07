@@ -18,7 +18,7 @@
 #ifndef GENERIC_RP_17_H
 #define GENERIC_RP_17_H 1
 
-/* $Id: rp_17.h,v 1.16.2.1 2004/03/09 06:11:33 marka Exp $ */
+/* $Id: rp_17.h,v 1.16.206.1 2004/03/06 08:14:11 marka Exp $ */
 
 /* RFC 1183 */
 

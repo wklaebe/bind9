@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
- * Copyright (C) 2000, 2001  Internet Software Consortium.
+ * Copyright (C) 2000, 2001, 2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dnssectool.h,v 1.15.2.1 2004/03/09 06:09:16 marka Exp $ */
+/* $Id: dnssectool.h,v 1.15.12.3 2004/03/08 04:04:18 marka Exp $ */
 
 #ifndef DNSSECTOOL_H
 #define DNSSECTOOL_H 1
@@ -48,7 +48,7 @@ alg_format(const dns_secalg_t alg, char *cp, unsigned int size);
 #define ALG_FORMATSIZE 10
 
 void
-sig_format(dns_rdata_sig_t *sig, char *cp, unsigned int size);
+sig_format(dns_rdata_rrsig_t *sig, char *cp, unsigned int size);
 #define SIG_FORMATSIZE (DNS_NAME_FORMATSIZE + ALG_FORMATSIZE + sizeof("65535"))
 
 void
@@ -68,6 +68,9 @@ void
 cleanup_entropy(isc_entropy_t **ectx);
 
 isc_stdtime_t
-strtotime(char *str, isc_int64_t now, isc_int64_t base);
+strtotime(const char *str, isc_int64_t now, isc_int64_t base);
+
+dns_rdataclass_t
+strtoclass(const char *str);
 
 #endif /* DNSSEC_DNSSECTOOL_H */

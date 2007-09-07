@@ -1,6 +1,6 @@
 /*
- * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
- * Copyright (C) 1999-2001, 2003  Internet Software Consortium.
+ * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 1999-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: lfsr.c,v 1.11.2.5 2005/10/14 02:13:04 marka Exp $ */
+/* $Id: lfsr.c,v 1.11.2.2.2.3 2004/03/08 09:04:49 marka Exp $ */
 
 #include <config.h>
 
@@ -55,6 +55,9 @@ isc_lfsr_init(isc_lfsr_t *lfsr, isc_uint32_t state, unsigned int bits,
 static inline isc_uint32_t
 lfsr_generate(isc_lfsr_t *lfsr)
 {
+	unsigned int highbit;
+
+	highbit = 1 << (lfsr->bits - 1);
 
 	/*
 	 * If the previous state is zero, we must fill it with something
@@ -95,7 +98,7 @@ isc_lfsr_generate(isc_lfsr_t *lfsr, void *data, unsigned int count)
 
 	while (byte--) {
 		*p = 0;
-		for (bit = 0 ; bit < 7 ; bit++) {
+		for (bit = 0; bit < 7; bit++) {
 			*p |= lfsr_generate(lfsr);
 			*p <<= 1;
 		}

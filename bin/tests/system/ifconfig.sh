@@ -15,11 +15,29 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: ifconfig.sh,v 1.35.2.12 2004/10/05 03:18:53 marka Exp $
+# $Id: ifconfig.sh,v 1.35.2.8.2.5 2004/03/16 19:23:29 explorer Exp $
 
 #
 # Set up interface aliases for bind9 system tests.
 #
+
+config_guess=""
+for f in ./config.guess ../../../config.guess
+do
+	if test -f $f
+	then
+		config_guess=$f
+	fi
+done
+
+if test "X$config_guess" = "X"
+then
+	echo <<EOF >&2
+$0: must be run from the top level source directory or the
+bin/tests/system directory
+EOF
+	exit 1
+fi
 
 # If running on hp-ux, don't even try to run config.guess.
 # It will try to create a temporary file in the current directory,
@@ -28,7 +46,7 @@
 
 case `uname -a` in
   *HP-UX*) sys=hpux ;;
-  *) sys=`../../../config.guess` ;;
+  *) sys=`sh $config_guess` ;;
 esac
 
 case "$2" in
@@ -39,7 +57,7 @@ esac
 case "$1" in
 
     start|up)
-	for ns in 1 2 3 4 5
+	for ns in 1 2 3 4 5 6
 	do
 		if test -n "$base"
 		then
@@ -54,9 +72,9 @@ case "$1" in
 		    *-sun-solaris2.[6-7])
 			ifconfig lo0:$int 10.53.0.$ns netmask 0xffffffff up
 			;;
-		    *-*-solaris2.[8-9]|*-*-solaris2.10)
-    			ifconfig lo0:$int plumb
-			ifconfig lo0:$int 10.53.0.$ns up
+		    *-*-solaris2.[8-9])
+    			/sbin/ifconfig lo0:$int plumb
+			/sbin/ifconfig lo0:$int 10.53.0.$ns up
 			;;
 		    *-*-linux*)
 			ifconfig lo:$int 10.53.0.$ns up netmask 255.255.255.0
@@ -76,10 +94,10 @@ case "$1" in
 		    *-sgi-irix6.*)
 			ifconfig lo0 alias 10.53.0.$ns
 			;;
-		    *-*-sysv5uw[7-8]*)
+		    *-*-sysv5uw7*|*-*-sysv*UnixWare*|*-*-sysv*OpenUNIX*)
 			ifconfig lo0 10.53.0.$ns alias netmask 0xffffffff
 			;;
-		    *-ibm-aix4.*|*-ibm-aix5.*)
+		    *-ibm-aix4.*)
 			ifconfig lo0 alias 10.53.0.$ns
 			;;
 		    hpux)
@@ -88,7 +106,7 @@ case "$1" in
 		    *-sco3.2v*)
 			ifconfig lo0 alias 10.53.0.$ns
 			;;
-		    *-darwin*)
+		    *-darwin5*)
 			ifconfig lo0 alias 10.53.0.$ns
 			;;
 	            *)
@@ -99,7 +117,7 @@ case "$1" in
 	;;
 
     stop|down)
-	for ns in 5 4 3 2 1
+	for ns in 6 5 4 3 2 1
 	do
 		if test -n "$base"
 		then
@@ -114,7 +132,7 @@ case "$1" in
 		    *-sun-solaris2.[6-7])
 			ifconfig lo0:$int 10.53.0.$ns down
 			;;
-		    *-*-solaris2.[8-9]|*-*-solaris2.10)
+		    *-*-solaris2.8)
 			ifconfig lo0:$int 10.53.0.$ns down
 			ifconfig lo0:$int 10.53.0.$ns unplumb
 			;;
@@ -136,10 +154,10 @@ case "$1" in
 		    *-sgi-irix6.*)
 			ifconfig lo0 -alias 10.53.0.$ns
 			;;
-		    *-*-sysv5uw[7-8]*)
+		    *-*-sysv5uw7*|*-*-sysv*UnixWare*|*-*-sysv*OpenUNIX*)
 			ifconfig lo0 -alias 10.53.0.$ns
 			;;
-		    *-ibm-aix4.*|*-ibm-aix5.*)
+		    *-ibm-aix4.*)
 			ifconfig lo0 delete 10.53.0.$ns
 			;;
 		    hpux)
@@ -148,7 +166,7 @@ case "$1" in
 		    *-sco3.2v*)
 			ifconfig lo0 -alias 10.53.0.$ns
 			;;
-		    *darwin*)
+		    *darwin5*)
 			ifconfig lo0 -alias 10.53.0.$ns
 			;;
 	            *)

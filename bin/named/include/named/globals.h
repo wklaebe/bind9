@@ -1,6 +1,6 @@
 /*
- * Copyright (C) 2004, 2006  Internet Systems Consortium, Inc. ("ISC")
- * Copyright (C) 1999-2001  Internet Software Consortium.
+ * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: globals.h,v 1.59.2.3 2006/03/02 00:37:17 marka Exp $ */
+/* $Id: globals.h,v 1.59.68.5 2004/03/08 04:04:20 marka Exp $ */
 
 #ifndef NAMED_GLOBALS_H
 #define NAMED_GLOBALS_H 1
@@ -45,6 +45,8 @@ EXTERN unsigned int		ns_g_cpus		INIT(0);
 EXTERN isc_taskmgr_t *		ns_g_taskmgr		INIT(NULL);
 EXTERN dns_dispatchmgr_t *	ns_g_dispatchmgr	INIT(NULL);
 EXTERN isc_entropy_t *		ns_g_entropy		INIT(NULL);
+EXTERN isc_entropy_t *		ns_g_fallbackentropy	INIT(NULL);
+
 /*
  * XXXRTH  We're going to want multiple timer managers eventually.  One
  *         for really short timers, another for client timers, and one
@@ -73,7 +75,7 @@ EXTERN unsigned int		ns_g_debuglevel		INIT(0);
  * Current configuration information.
  */
 EXTERN cfg_obj_t *		ns_g_config		INIT(NULL);
-EXTERN const cfg_obj_t *	ns_g_defaults		INIT(NULL);
+EXTERN cfg_obj_t *		ns_g_defaults		INIT(NULL);
 EXTERN const char *		ns_g_conffile		INIT(NS_SYSCONFDIR
 							     "/named.conf");
 EXTERN const char *		ns_g_keyfile		INIT(NS_SYSCONFDIR
@@ -84,6 +86,7 @@ EXTERN const char *		lwresd_g_resolvconffile	INIT("/etc"
 							     "/resolv.conf");
 EXTERN isc_boolean_t		ns_g_conffileset	INIT(ISC_FALSE);
 EXTERN isc_boolean_t		lwresd_g_useresolvconf	INIT(ISC_FALSE);
+EXTERN isc_uint16_t		ns_g_udpsize		INIT(4096);
 
 /*
  * Initial resource limits.
@@ -106,6 +109,8 @@ EXTERN const char *		ns_g_defaultpidfile 	INIT(NS_LOCALSTATEDIR
 EXTERN const char *		lwresd_g_defaultpidfile INIT(NS_LOCALSTATEDIR
 							    "/run/lwresd.pid");
 EXTERN const char *		ns_g_username		INIT(NULL);
+
+EXTERN int			ns_g_listen		INIT(3);
 
 #undef EXTERN
 #undef INIT

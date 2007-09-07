@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: zt.h,v 1.27.2.3 2004/03/09 06:11:25 marka Exp $ */
+/* $Id: zt.h,v 1.27.2.2.8.1 2004/03/06 08:14:01 marka Exp $ */
 
 #ifndef DNS_ZT_H
 #define DNS_ZT_H 1

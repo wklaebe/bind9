@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: timer_p.h,v 1.4.2.1 2004/03/09 06:11:53 marka Exp $ */
+/* $Id: timer_p.h,v 1.4.12.3 2004/03/08 09:04:50 marka Exp $ */
 
 #ifndef ISC_TIMER_P_H
 #define ISC_TIMER_P_H
@@ -23,7 +23,7 @@
 isc_result_t
 isc__timermgr_nextevent(isc_time_t *when);
 
-isc_result_t
+void
 isc__timermgr_dispatch(void);
 
 #endif /* ISC_TIMER_P_H */

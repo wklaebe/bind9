@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
- * Copyright (C) 2000, 2001  Internet Software Consortium.
+ * Copyright (C) 2000-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: entropy.c,v 1.3.2.1 2004/03/09 06:12:17 marka Exp $ */
+/* $Id: entropy.c,v 1.3.12.4 2004/03/08 09:04:58 marka Exp $ */
 
 /*
  * This is the system depenedent part of the ISC entropy API.
@@ -38,6 +38,10 @@
  * is defined here.
  */
 #define FILESOURCE_HANDLE_TYPE	HCRYPTPROV
+
+typedef struct {
+	int dummy;
+} isc_entropyusocketsource_t;
 
 #include "../entropy.c"
 
@@ -157,7 +161,7 @@ fillpool(isc_entropy_t *ent, unsigned int desired, isc_boolean_t blocking) {
 	 */
 	firstsource = source;
  again_file:
-	for (nsource = 0 ; nsource < ent->nsources ; nsource++) {
+	for (nsource = 0; nsource < ent->nsources; nsource++) {
 		unsigned int got;
 
 		if (remaining == 0)
@@ -225,6 +229,11 @@ fillpool(isc_entropy_t *ent, unsigned int desired, isc_boolean_t blocking) {
 static void
 destroyfilesource(isc_entropyfilesource_t *source) {
 	CryptReleaseContext(source->handle, 0);
+}
+
+static void
+destroyusocketsource(isc_entropyusocketsource_t *source) {
+	UNUSED(source);
 }
 
 

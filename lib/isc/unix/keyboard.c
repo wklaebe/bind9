@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: keyboard.c,v 1.9.2.1 2004/03/09 06:12:10 marka Exp $ */
+/* $Id: keyboard.c,v 1.9.12.3 2004/03/08 09:04:56 marka Exp $ */
 
 #include <config.h>
 
@@ -87,7 +87,7 @@ isc_keyboard_close(isc_keyboard_t *keyboard, unsigned int sleeptime) {
 		(void)sleep(sleeptime);
 
 	(void)tcsetattr(keyboard->fd, TCSAFLUSH, &keyboard->saved_mode);
-	close(keyboard->fd);
+	(void)close(keyboard->fd);
 
 	keyboard->fd = -1;
 

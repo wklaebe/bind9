@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: context_p.h,v 1.12.2.1 2004/03/09 06:12:32 marka Exp $ */
+/* $Id: context_p.h,v 1.12.206.1 2004/03/06 08:15:30 marka Exp $ */
 
 #ifndef LWRES_CONTEXT_P_H
 #define LWRES_CONTEXT_P_H 1

@@ -1,5 +1,5 @@
 /*
- * Portions Copyright (C) 2004, 2006  Internet Systems Consortium, Inc. ("ISC")
+ * Portions Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
  * Portions Copyright (C) 2001-2003  Internet Software Consortium.
  * Portions Copyright (C) 2001  Nominum, Inc.
  *
@@ -16,20 +16,21 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: cc.c,v 1.4.2.7 2006/12/07 23:57:56 marka Exp $ */
+/* $Id: cc.c,v 1.4.2.3.2.4 2004/03/06 08:15:19 marka Exp $ */
 
 #include <config.h>
 
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 #include <errno.h>
 
-#include <isccc/alist.h>
 #include <isc/assertions.h>
+#include <isc/hmacmd5.h>
+#include <isc/stdlib.h>
+
+#include <isccc/alist.h>
 #include <isccc/base64.h>
 #include <isccc/cc.h>
-#include <isc/hmacmd5.h>
 #include <isccc/result.h>
 #include <isccc/sexpr.h>
 #include <isccc/symtab.h>
@@ -218,7 +219,7 @@ isccc_cc_towire(isccc_sexpr_t *alist, isccc_region_t *target,
 	unsigned char *hmd5_rstart, *signed_rstart;
 	isc_result_t result;
 
-	if (REGION_SIZE(*target) < 4 + sizeof auth_hmd5)
+	if (REGION_SIZE(*target) < 4 + sizeof(auth_hmd5))
 		return (ISC_R_NOSPACE);
 	/*
 	 * Emit protocol version.
@@ -231,7 +232,7 @@ isccc_cc_towire(isccc_sexpr_t *alist, isccc_region_t *target,
 		 * we know what it is.
 		 */
 		hmd5_rstart = target->rstart + HMD5_OFFSET;
-		PUT_MEM(auth_hmd5, sizeof auth_hmd5, target->rstart);
+		PUT_MEM(auth_hmd5, sizeof(auth_hmd5), target->rstart);
 	} else
 		hmd5_rstart = NULL;
 	signed_rstart = target->rstart;
@@ -464,21 +465,12 @@ createmessage(isc_uint32_t version, const char *from, const char *to,
 	result = ISC_R_NOMEMORY;
 
 	_ctrl = isccc_alist_create();
-	if (_ctrl == NULL)
-		goto bad;
-	if (isccc_alist_define(alist, "_ctrl", _ctrl) == NULL) {
-		isccc_sexpr_free(&_ctrl);
-		goto bad;
-	}
-
 	_data = isccc_alist_create();
-	if (_data == NULL)
+	if (_ctrl == NULL || _data == NULL)
 		goto bad;
-	if (isccc_alist_define(alist, "_data", _data) == NULL) {
-		isccc_sexpr_free(&_data);
+	if (isccc_alist_define(alist, "_ctrl", _ctrl) == NULL ||
+	    isccc_alist_define(alist, "_data", _data) == NULL)
 		goto bad;
-	}
-
 	if (isccc_cc_defineuint32(_ctrl, "_ser", serial) == NULL ||
 	    isccc_cc_defineuint32(_ctrl, "_tim", now) == NULL ||
 	    (want_expires &&
@@ -656,7 +648,7 @@ isccc_cc_defineuint32(isccc_sexpr_t *alist, const char *key, isc_uint32_t i)
 	size_t len;
 	isccc_region_t r;
 
-	sprintf(b, "%u", i);
+	snprintf(b, sizeof(b), "%u", i);
 	len = strlen(b);
 	r.rstart = (unsigned char *)b;
 	r.rend = (unsigned char *)b + len;
@@ -801,7 +793,7 @@ isccc_cc_checkdup(isccc_symtab_t *symtab, isccc_sexpr_t *message,
 	key = malloc(len);
 	if (key == NULL)
 		return (ISC_R_NOMEMORY);
-	sprintf(key, "%s;%s;%s;%s", _frm, _to, _ser, _tim);
+	snprintf(key, len, "%s;%s;%s;%s", _frm, _to, _ser, _tim);
 	value.as_uinteger = now;
 	result = isccc_symtab_define(symtab, key, ISCCC_SYMTYPE_CCDUP, value,
 				   isccc_symexists_reject);

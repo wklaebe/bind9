@@ -66,16 +66,12 @@
 		INSIST(LINKED(elt, link));\
 		if ((elt)->link.next != NULL) \
 			(elt)->link.next->link.prev = (elt)->link.prev; \
-		else { \
-			INSIST((list).tail == (elt)); \
+		else \
 			(list).tail = (elt)->link.prev; \
-		} \
 		if ((elt)->link.prev != NULL) \
 			(elt)->link.prev->link.next = (elt)->link.next; \
-		else { \
-			INSIST((list).head == (elt)); \
+		else \
 			(list).head = (elt)->link.next; \
-		} \
 		INIT_LINK_TYPE(elt, link, type); \
 	} while (0)
 #define UNLINK(list, elt, link) \

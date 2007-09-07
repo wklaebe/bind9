@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
- * Copyright (C) 1998-2002  Internet Software Consortium.
+ * Copyright (C) 1998-2001, 2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: result.c,v 1.56.2.5 2004/06/11 00:35:05 marka Exp $ */
+/* $Id: result.c,v 1.56.2.2.8.5 2004/03/08 09:04:50 marka Exp $ */
 
 #include <config.h>
 
@@ -120,11 +120,11 @@ register_table(unsigned int base, unsigned int nresults, const char **text,
 	 * We use malloc() here because we we want to be able to use
 	 * isc_result_totext() even if there is no memory context.
 	 */
-	table = malloc(sizeof *table);
+	table = malloc(sizeof(*table));
 	if (table == NULL)
 		return (ISC_R_NOMEMORY);
 	table->base = base;
-	table->last = base + nresults - 1;
+	table->last = base + nresults;
 	table->text = text;
 	table->msgcat = msgcat;
 	table->set = set;

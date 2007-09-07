@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1996-2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -16,7 +16,7 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static char rcsid[] = "$Id: lwinetpton.c,v 1.6.2.3 2005/03/31 23:58:02 marka Exp $";
+static char rcsid[] = "$Id: lwinetpton.c,v 1.6.206.1 2004/03/06 08:15:32 marka Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <config.h>
@@ -129,7 +129,7 @@ inet_pton6(const char *src, unsigned char *dst) {
 			  xdigits_u[] = "0123456789ABCDEF";
 	unsigned char tmp[NS_IN6ADDRSZ], *tp, *endp, *colonp;
 	const char *xdigits, *curtok;
-	int ch, seen_xdigits;
+	int ch, saw_xdigit;
 	unsigned int val;
 
 	memset((tp = tmp), '\0', NS_IN6ADDRSZ);
@@ -140,7 +140,7 @@ inet_pton6(const char *src, unsigned char *dst) {
 		if (*++src != ':')
 			return (0);
 	curtok = src;
-	seen_xdigits = 0;
+	saw_xdigit = 0;
 	val = 0;
 	while ((ch = *src++) != '\0') {
 		const char *pch;
@@ -150,13 +150,14 @@ inet_pton6(const char *src, unsigned char *dst) {
 		if (pch != NULL) {
 			val <<= 4;
 			val |= (pch - xdigits);
-			if (++seen_xdigits > 4)
+			if (val > 0xffff)
 				return (0);
+			saw_xdigit = 1;
 			continue;
 		}
 		if (ch == ':') {
 			curtok = src;
-			if (!seen_xdigits) {
+			if (!saw_xdigit) {
 				if (colonp)
 					return (0);
 				colonp = tp;
@@ -166,19 +167,19 @@ inet_pton6(const char *src, unsigned char *dst) {
 				return (0);
 			*tp++ = (unsigned char) (val >> 8) & 0xff;
 			*tp++ = (unsigned char) val & 0xff;
-			seen_xdigits = 0;
+			saw_xdigit = 0;
 			val = 0;
 			continue;
 		}
 		if (ch == '.' && ((tp + NS_INADDRSZ) <= endp) &&
 		    inet_pton4(curtok, tp) > 0) {
 			tp += NS_INADDRSZ;
-			seen_xdigits = 0;
+			saw_xdigit = 0;
 			break;	/* '\0' was seen by inet_pton4(). */
 		}
 		return (0);
 	}
-	if (seen_xdigits) {
+	if (saw_xdigit) {
 		if (tp + NS_INT16SZ > endp)
 			return (0);
 		*tp++ = (unsigned char) (val >> 8) & 0xff;

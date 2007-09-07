@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
- * Copyright (C) 1998-2001  Internet Software Consortium.
+ * Copyright (C) 1998-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: mutex.h,v 1.23.2.1 2004/03/09 06:12:08 marka Exp $ */
+/* $Id: mutex.h,v 1.23.26.3 2004/03/08 09:04:55 marka Exp $ */
 
 #ifndef ISC_MUTEX_H
 #define ISC_MUTEX_H 1
@@ -65,9 +65,14 @@ typedef pthread_mutex_t	isc_mutex_t;
 #define isc_mutex_init(mp) \
 	isc_mutex_init_profile((mp), __FILE__, __LINE__)
 #else
+#if ISC_MUTEX_DEBUG && defined(PTHREAD_MUTEX_ERRORCHECK)
+#define isc_mutex_init(mp) \
+        isc_mutex_init_errcheck((mp))
+#else
 #define isc_mutex_init(mp) \
 	((pthread_mutex_init((mp), ISC__MUTEX_ATTRS) == 0) ? \
 	 ISC_R_SUCCESS : ISC_R_UNEXPECTED)
+#endif
 #endif
 
 #if ISC_MUTEX_PROFILE
@@ -125,6 +130,9 @@ isc_mutex_unlock_profile(isc_mutex_t *mp, const char * _file, int _line);
 
 void
 isc_mutex_statsprofile(FILE *fp);
+
+isc_result_t
+isc_mutex_init_errcheck(isc_mutex_t *mp);
 
 #endif /* ISC_MUTEX_PROFILE */
 

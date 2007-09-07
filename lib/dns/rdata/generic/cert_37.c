@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
- * Copyright (C) 1999-2001, 2003  Internet Software Consortium.
+ * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: cert_37.c,v 1.40.2.3 2004/03/09 06:11:26 marka Exp $ */
+/* $Id: cert_37.c,v 1.40.2.1.2.5 2004/03/08 09:04:40 marka Exp $ */
 
 /* Reviewed: Wed Mar 15 21:14:32 EST 2000 by tale */
 
@@ -37,7 +37,7 @@ fromtext_cert(ARGS_FROMTEXT) {
 	UNUSED(type);
 	UNUSED(rdclass);
 	UNUSED(origin);
-	UNUSED(downcase);
+	UNUSED(options);
 	UNUSED(callbacks);
 
 	/*
@@ -71,7 +71,7 @@ fromtext_cert(ARGS_FROMTEXT) {
 static inline isc_result_t
 totext_cert(ARGS_TOTEXT) {
 	isc_region_t sr;
-	char buf[sizeof "64000 "];
+	char buf[sizeof("64000 ")];
 	unsigned int n;
 
 	REQUIRE(rdata->type == 37);
@@ -125,7 +125,7 @@ fromwire_cert(ARGS_FROMWIRE) {
 	UNUSED(type);
 	UNUSED(rdclass);
 	UNUSED(dctx);
-	UNUSED(downcase);
+	UNUSED(options);
 
 	isc_buffer_activeregion(source, &sr);
 	if (sr.length < 5)
@@ -161,7 +161,7 @@ compare_cert(ARGS_COMPARE) {
 
 	dns_rdata_toregion(rdata1, &r1);
 	dns_rdata_toregion(rdata2, &r2);
-	return (compare_region(&r1, &r2));
+	return (isc_region_compare(&r1, &r2));
 }
 
 static inline isc_result_t
@@ -251,4 +251,30 @@ digest_cert(ARGS_DIGEST) {
 	return ((digest)(arg, &r));
 }
 
+static inline isc_boolean_t
+checkowner_cert(ARGS_CHECKOWNER) {
+
+	REQUIRE(type == 37);
+
+	UNUSED(name);
+	UNUSED(type);
+	UNUSED(rdclass);
+	UNUSED(wildcard);
+
+	return (ISC_TRUE);
+}
+
+static inline isc_boolean_t
+checknames_cert(ARGS_CHECKNAMES) {
+
+	REQUIRE(rdata->type == 37);
+
+	UNUSED(rdata);
+	UNUSED(owner);
+	UNUSED(bad);
+
+	return (ISC_TRUE);
+}
+
 #endif	/* RDATA_GENERIC_CERT_37_C */
+

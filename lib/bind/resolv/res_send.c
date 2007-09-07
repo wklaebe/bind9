@@ -52,7 +52,7 @@
  */
 
 /*
- * Copyright (c) 2005 by Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (c) 2004 by Internet Systems Consortium, Inc. ("ISC")
  * Portions Copyright (c) 1996-1999 by Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -70,7 +70,7 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static const char sccsid[] = "@(#)res_send.c	8.1 (Berkeley) 6/4/93";
-static const char rcsid[] = "$Id: res_send.c,v 1.5.2.11 2006/10/16 23:02:41 marka Exp $";
+static const char rcsid[] = "$Id: res_send.c,v 1.5.2.2.4.3 2004/04/12 06:54:59 marka Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 /*
@@ -103,13 +103,6 @@ static const char rcsid[] = "$Id: res_send.c,v 1.5.2.11 2006/10/16 23:02:41 mark
 
 #include "port_after.h"
 
-#ifdef USE_POLL
-#ifdef HAVE_STROPTS_H
-#include <stropts.h>
-#endif
-#include <poll.h>
-#endif /* USE_POLL */
-
 /* Options.  Leave them on. */
 #define DEBUG
 #include "res_debug.h"
@@ -117,11 +110,7 @@ static const char rcsid[] = "$Id: res_send.c,v 1.5.2.11 2006/10/16 23:02:41 mark
 
 #define EXT(res) ((res)->_u._ext)
 
-#ifndef USE_POLL
 static const int highestFD = FD_SETSIZE - 1;
-#else
-static int highestFD = 0;
-#endif
 
 /* Forward. */
 
@@ -130,13 +119,13 @@ static struct sockaddr * get_nsaddr __P((res_state, size_t));
 static int		send_vc(res_state, const u_char *, int,
 				u_char *, int, int *, int);
 static int		send_dg(res_state, const u_char *, int,
-				u_char *, int, int *, int, int,
+				u_char *, int, int *, int,
 				int *, int *);
 static void		Aerror(const res_state, FILE *, const char *, int,
 			       const struct sockaddr *, int);
 static void		Perror(const res_state, FILE *, const char *, int);
 static int		sock_eq(struct sockaddr *, struct sockaddr *);
-#if defined(NEED_PSELECT) && !defined(USE_POLL)
+#ifdef NEED_PSELECT
 static int		pselect(int, void *, void *, void *,
 				struct timespec *,
 				const sigset_t *);
@@ -183,8 +172,7 @@ res_ourserver_p(const res_state statp, const struct sockaddr *sa) {
 			if (srv6->sin6_family == in6p->sin6_family &&
 			    srv6->sin6_port == in6p->sin6_port &&
 #ifdef HAVE_SIN6_SCOPE_ID
-			    (srv6->sin6_scope_id == 0 ||
-			     srv6->sin6_scope_id == in6p->sin6_scope_id) &&
+			    srv6->sin6_scope_id == in6p->sin6_scope_id &&
 #endif
 			    (IN6_IS_ADDR_UNSPECIFIED(&srv6->sin6_addr) ||
 			     IN6_ARE_ADDR_EQUAL(&srv6->sin6_addr, &in6p->sin6_addr)))
@@ -291,12 +279,7 @@ res_nsend(res_state statp,
 	int gotsomewhere, terrno, try, v_circuit, resplen, ns, n;
 	char abuf[NI_MAXHOST];
 
-#ifdef USE_POLL
-	highestFD = sysconf(_SC_OPEN_MAX) - 1;
-#endif
-
-	/* No name servers or res_init() failure */
-	if (statp->nscount == 0 || EXT(statp).ext == NULL) {
+	if (statp->nscount == 0) {
 		errno = ESRCH;
 		return (-1);
 	}
@@ -459,7 +442,7 @@ res_nsend(res_state statp,
 		} else {
 			/* Use datagrams. */
 			n = send_dg(statp, buf, buflen, ans, anssiz, &terrno,
-				    ns, try, &v_circuit, &gotsomewhere);
+				    ns, &v_circuit, &gotsomewhere);
 			if (n < 0)
 				goto fail;
 			if (n == 0)
@@ -673,7 +656,7 @@ send_vc(res_state statp,
 	len = INT16SZ;
 	while ((n = read(statp->_vcsock, (char *)cp, (int)len)) > 0) {
 		cp += n;
-		if ((len -= n) == 0)
+		if ((len -= n) <= 0)
 			break;
 	}
 	if (n <= 0) {
@@ -767,24 +750,19 @@ send_vc(res_state statp,
 }
 
 static int
-send_dg(res_state statp, const u_char *buf, int buflen, u_char *ans,
-	int anssiz, int *terrno, int ns, int try, int *v_circuit,
-	int *gotsomewhere)
+send_dg(res_state statp,
+	const u_char *buf, int buflen, u_char *ans, int anssiz,
+	int *terrno, int ns, int *v_circuit, int *gotsomewhere)
 {
 	const HEADER *hp = (const HEADER *) buf;
 	HEADER *anhp = (HEADER *) ans;
 	const struct sockaddr *nsap;
 	int nsaplen;
 	struct timespec now, timeout, finish;
+	fd_set dsmask;
 	struct sockaddr_storage from;
 	ISC_SOCKLEN_T fromlen;
 	int resplen, seconds, n, s;
-#ifdef USE_POLL
-	int     polltimeout;
-	struct pollfd   pollfd;
-#else
-	fd_set dsmask;
-#endif
 
 	nsap = get_nsaddr(statp, ns);
 	nsaplen = get_salen(nsap);
@@ -850,7 +828,7 @@ send_dg(res_state statp, const u_char *buf, int buflen, u_char *ans,
 	/*
 	 * Wait for reply.
 	 */
-	seconds = (statp->retrans << try);
+	seconds = (statp->retrans << ns);
 	if (ns > 0)
 		seconds /= statp->nscount;
 	if (seconds <= 0)
@@ -862,7 +840,6 @@ send_dg(res_state statp, const u_char *buf, int buflen, u_char *ans,
  wait:
 	now = evNowTime();
  nonow:
-#ifndef USE_POLL
 	FD_ZERO(&dsmask);
 	FD_SET(s, &dsmask);
 	if (evCmpTime(finish, now) > 0)
@@ -870,17 +847,6 @@ send_dg(res_state statp, const u_char *buf, int buflen, u_char *ans,
 	else
 		timeout = evConsTime(0, 0);
 	n = pselect(s + 1, &dsmask, NULL, NULL, &timeout, NULL);
-#else
-	timeout = evSubTime(finish, now);
-	if (timeout.tv_sec < 0)
-		timeout = evConsTime(0, 0);
-	polltimeout = 1000*timeout.tv_sec +
-		timeout.tv_nsec/1000000;
-	pollfd.fd = s;
-	pollfd.events = POLLRDNORM;
-	n = poll(&pollfd, 1, polltimeout);
-#endif /* USE_POLL */
-
 	if (n == 0) {
 		Dprint(statp->options & RES_DEBUG, (stdout, ";; timeout\n"));
 		*gotsomewhere = 1;
@@ -889,11 +855,7 @@ send_dg(res_state statp, const u_char *buf, int buflen, u_char *ans,
 	if (n < 0) {
 		if (errno == EINTR)
 			goto wait;
-#ifndef USE_POLL
 		Perror(statp, stderr, "select", errno);
-#else
-		Perror(statp, stderr, "poll", errno);
-#endif /* USE_POLL */
 		res_nclose(statp);
 		return (0);
 	}
@@ -1062,7 +1024,7 @@ sock_eq(struct sockaddr *a, struct sockaddr *b) {
 	}
 }
 
-#if defined(NEED_PSELECT) && !defined(USE_POLL)
+#ifdef NEED_PSELECT
 /* XXX needs to move to the porting library. */
 static int
 pselect(int nfds, void *rfds, void *wfds, void *efds,

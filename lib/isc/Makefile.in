@@ -1,5 +1,5 @@
 # Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
-# Copyright (C) 1998-2001, 2003  Internet Software Consortium.
+# Copyright (C) 1998-2003  Internet Software Consortium.
 #
 # Permission to use, copy, modify, and distribute this software for any
 # purpose with or without fee is hereby granted, provided that the above
@@ -13,7 +13,7 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: Makefile.in,v 1.71.2.6 2004/07/20 07:00:19 marka Exp $
+# $Id: Makefile.in,v 1.71.2.2.2.7 2004/03/08 09:04:48 marka Exp $
 
 srcdir =	@srcdir@
 VPATH =		@srcdir@
@@ -53,12 +53,12 @@ OBJS =		@ISC_EXTRA_OBJS@ \
 		assertions.@O@ base64.@O@ bitstring.@O@ buffer.@O@ \
 		bufferlist.@O@ commandline.@O@ error.@O@ event.@O@ \
 		hash.@O@ heap.@O@ hex.@O@ hmacmd5.@O@ \
-		lex.@O@ lfsr.@O@ lib.@O@ log.@O@ \
-		md5.@O@ mem.@O@ mutexblock.@O@ netaddr.@O@ ondestroy.@O@ \
-		quota.@O@ random.@O@ \
-		ratelimiter.@O@ result.@O@ rwlock.@O@ \
-		serial.@O@ sha1.@O@ sockaddr.@O@ string.@O@ symtab.@O@ \
-		task.@O@ taskpool.@O@ timer.@O@ version.@O@ \
+		lex.@O@ lfsr.@O@ lib.@O@ log.@O@ md5.@O@ \
+		mem.@O@ mutexblock.@O@ netaddr.@O@ netscope.@O@ ondestroy.@O@ \
+		parseint.@O@ quota.@O@ random.@O@ \
+		ratelimiter.@O@ region.@O@ result.@O@ rwlock.@O@ \
+		serial.@O@ sha1.@O@ sockaddr.@O@ string.@O@ strtoul.@O@ \
+		symtab.@O@ task.@O@ taskpool.@O@ timer.@O@ version.@O@ \
 		${UNIXOBJS} ${NLSOBJS} ${THREADOBJS}
 
 # Alphabetically
@@ -67,10 +67,10 @@ SRCS =		@ISC_EXTRA_SRCS@ \
 		bufferlist.c commandline.c error.c event.c \
 		heap.c hex.c hmacmd5.c \
 		lex.c lfsr.c lib.c log.c \
-		md5.c mem.c mutexblock.c netaddr.c ondestroy.c \
-		quota.c random.c \
+		md5.c mem.c mutexblock.c netaddr.c netscope.c ondestroy.c \
+		parseint.c quota.c random.c \
 		ratelimiter.c result.c rwlock.c \
-		serial.c sha1.c sockaddr.c string.c symtab.c \
+		serial.c sha1.c sockaddr.c string.c strtoul.c symtab.c \
 		task.c taskpool.c timer.c version.c
 
 LIBS =		@LIBS@
@@ -94,7 +94,7 @@ libisc.@SA@: ${OBJS}
 
 libisc.la: ${OBJS}
 	${LIBTOOL_MODE_LINK} \
-		${CC} ${ALL_CFLAGS} ${LDFLAGS} -o libisc.la -rpath ${libdir} \
+		${CC} ${ALL_CFLAGS} -o libisc.la -rpath ${libdir} \
 		-version-info ${LIBINTERFACE}:${LIBREVISION}:${LIBAGE} \
 		${OBJS} ${LIBS}
 

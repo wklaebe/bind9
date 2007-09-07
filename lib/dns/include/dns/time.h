@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: time.h,v 1.9.2.1 2004/03/09 06:11:23 marka Exp $ */
+/* $Id: time.h,v 1.9.12.3 2004/03/08 09:04:39 marka Exp $ */
 
 #ifndef DNS_TIME_H
 #define DNS_TIME_H 1
@@ -34,7 +34,7 @@ ISC_LANG_BEGINDECLS
  ***/
 
 isc_result_t
-dns_time64_fromtext(char *source, isc_int64_t *target);
+dns_time64_fromtext(const char *source, isc_int64_t *target);
 /*
  * Convert a date and time in YYYYMMDDHHMMSS text format at 'source'
  * into to a 64-bit count of seconds since Jan 1 1970 0:00 GMT.
@@ -42,7 +42,7 @@ dns_time64_fromtext(char *source, isc_int64_t *target);
  */
 
 isc_result_t
-dns_time32_fromtext(char *source, isc_uint32_t *target);
+dns_time32_fromtext(const char *source, isc_uint32_t *target);
 /*
  * Like dns_time64_fromtext, but returns the second count modulo 2^32
  * as per RFC2535.

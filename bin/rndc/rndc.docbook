@@ -1,9 +1,7 @@
-<!DOCTYPE book PUBLIC "-//OASIS//DTD DocBook XML V4.2//EN"
-               "http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd"
-	       [<!ENTITY mdash "&#8212;">]>
+<!DOCTYPE refentry PUBLIC "-//OASIS//DTD DocBook V4.1//EN">
 <!--
- - Copyright (C) 2004, 2005, 2007  Internet Systems Consortium, Inc. ("ISC")
- - Copyright (C) 2000, 2001  Internet Software Consortium.
+ - Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2001  Internet Software Consortium.
  -
  - Permission to use, copy, modify, and distribute this software for any
  - purpose with or without fee is hereby granted, provided that the above
@@ -18,7 +16,7 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<!-- $Id: rndc.docbook,v 1.7.2.9 2007/06/19 07:52:23 marka Exp $ -->
+<!-- $Id: rndc.docbook,v 1.7.206.1 2004/03/06 10:21:32 marka Exp $ -->
 
 <refentry>
   <refentryinfo>
@@ -30,20 +28,6 @@
     <manvolnum>8</manvolnum>
     <refmiscinfo>BIND9</refmiscinfo>
   </refmeta>
-
-  <docinfo>
-    <copyright>
-      <year>2004</year>
-      <year>2005</year>
-      <year>2007</year>
-      <holder>Internet Systems Consortium, Inc. ("ISC")</holder>
-    </copyright>
-    <copyright>
-      <year>2000</year>
-      <year>2001</year>
-      <holder>Internet Software Consortium.</holder>
-    </copyright>
-  </docinfo>
 
   <refnamediv>
     <refname><application>rndc</application></refname>
@@ -78,7 +62,7 @@
         <command>rndc</command> communicates with the name server
 	over a TCP connection, sending commands authenticated with
 	digital signatures.  In the current versions of
-      <command>rndc</command> and <command>named</command>,
+	<command>rndc</command> and <command>named</command> named
         the only supported authentication algorithm is HMAC-MD5,
 	which uses a shared secret on each end of the connection.
 	This provides TSIG-style authentication for the command
@@ -125,13 +109,14 @@
       <varlistentry>
         <term>-s <replaceable class="parameter">server</replaceable></term>
 	<listitem>
-	  <para><replaceable class="parameter">server</replaceable> is
-	      the name or address of the server which matches a
-	      server statement in the configuration file for
-	      <command>rndc</command>.  If no server is supplied on the
-	      command line, the host named by the default-server clause
-	      in the options statement of the <command>rndc</command>
-	    configuration file will be used.
+	  <para>
+	       <replaceable class="parameter">server</replaceable> is
+	       the name or address of the server which matches a
+	       server statement in the configuration file for
+	       <command>rndc</command>.  If no server is supplied on the
+	       command line, the host named by the default-server clause
+	       in the option statement of the configuration file will be
+	       used.
 	  </para>
 	</listitem>
       </varlistentry>
@@ -157,15 +142,15 @@
       </varlistentry>
 
       <varlistentry>
-        <term>-y <replaceable class="parameter">key_id</replaceable></term>
+        <term>-y <replaceable class="parameter">keyid</replaceable></term>
 	<listitem>
 	  <para>
-	       Use the key <replaceable class="parameter">key_id</replaceable>
+	       Use the key <replaceable class="parameter">keyid</replaceable>
 	       from the configuration file.
-	       <replaceable class="parameter">key_id</replaceable> must be
+	       <replaceable class="parameter">keyid</replaceable> must be
 	       known by named with the same algorithm and secret string
 	       in order for control message validation to succeed.
-	       If no <replaceable class="parameter">key_id</replaceable>
+	       If no <replaceable class="parameter">keyid</replaceable>
 	       is specified, <command>rndc</command> will first look
 	       for a key clause in the server statement of the server
 	       being used, or if no server statement is present for that
@@ -217,7 +202,7 @@
       <citerefentry>
         <refentrytitle>named.conf</refentrytitle>
 	<manvolnum>5</manvolnum>
-      </citerefentry>,
+      </citerefentry>
       <citerefentry>
         <refentrytitle>ndc</refentrytitle>
 	<manvolnum>8</manvolnum>
@@ -229,7 +214,7 @@
   <refsect1>
     <title>AUTHOR</title>
     <para>
-        <corpauthor>Internet Systems Consortium</corpauthor>
+        <corpauthor>Internet Software Consortium</corpauthor>
     </para>
   </refsect1>
 

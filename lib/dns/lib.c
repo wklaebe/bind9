@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: lib.c,v 1.9.2.1 2004/03/09 06:11:02 marka Exp $ */
+/* $Id: lib.c,v 1.9.12.3 2004/03/08 09:04:30 marka Exp $ */
 
 #include <config.h>
 
@@ -31,7 +31,7 @@
  *** Globals
  ***/
 
-isc_msgcat_t *			dns_msgcat = NULL;
+LIBDNS_EXTERNAL_DATA isc_msgcat_t *			dns_msgcat = NULL;
 
 
 /***

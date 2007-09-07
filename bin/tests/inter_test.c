@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
- * Copyright (C) 2000, 2001  Internet Software Consortium.
+ * Copyright (C) 2000, 2001, 2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: inter_test.c,v 1.8.2.1 2004/03/09 06:09:31 marka Exp $ */
+/* $Id: inter_test.c,v 1.8.206.2 2004/03/06 10:21:36 marka Exp $ */
 
 #include <config.h>
 
@@ -54,7 +54,13 @@ main(int argc, char **argv) {
 		INSIST(ifdata.af == AF_INET || ifdata.af == AF_INET6);
 		res = inet_ntop(ifdata.af, &ifdata.address.type, buf,
 				sizeof(buf));
-		fprintf(stdout, "address = %s\n", res == NULL ? "BAD" : res);
+		if (ifdata.address.zone != 0)
+			fprintf(stdout, "address = %s (zone %u)\n",
+				res == NULL ? "BAD" : res,
+				ifdata.address.zone);
+		else
+			fprintf(stdout, "address = %s\n",
+				res == NULL ? "BAD" : res);
 		INSIST(ifdata.address.family == ifdata.af);
 		res = inet_ntop(ifdata.af, &ifdata.netmask.type, buf,
 				sizeof(buf));

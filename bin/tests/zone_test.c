@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: zone_test.c,v 1.26.2.5 2005/03/17 03:59:31 marka Exp $ */
+/* $Id: zone_test.c,v 1.26.2.2.8.3 2004/03/08 04:04:28 marka Exp $ */
 
 #include <config.h>
 
@@ -120,7 +120,7 @@ setup(const char *zonename, const char *filename, const char *classname) {
 	region.base = classname;
 	region.length = strlen(classname);
 	result = dns_rdataclass_fromtext(&rdclass,
-					 (isc_textregion_t *)(void*)&region);
+					 (isc_textregion_t *)&region);
 	ERRRET(result, "dns_rdataclass_fromtext");
 
 	dns_zone_setclass(zone, rdclass);
@@ -184,7 +184,7 @@ query(void) {
 		FD_ZERO(&rfdset);
 		FD_SET(0, &rfdset);
 		select(1, &rfdset, NULL, NULL, NULL);
-		if (fgets(buf, sizeof buf, stdin) == NULL) {
+		if (fgets(buf, sizeof(buf), stdin) == NULL) {
 			fprintf(stdout, "\n");
 			break;
 		}
@@ -200,7 +200,7 @@ query(void) {
 			dns_zone_dumptostream(zone, stdout);
 			continue;
 		}
-		if (strlen(buf) == 0U)
+		if (strlen(buf) == 0)
 			continue;
 		dns_fixedname_init(&name);
 		isc_buffer_init(&buffer, buf, strlen(buf));
@@ -259,7 +259,7 @@ main(int argc, char **argv) {
 			filename = isc_commandline_argument;
 			break;
 		case 'm':
-			memset(&addr, 0, sizeof addr);
+			memset(&addr, 0, sizeof(addr));
 			addr.type.sin.sin_family = AF_INET;
 			inet_pton(AF_INET, isc_commandline_argument,
 				  &addr.type.sin.sin_addr);

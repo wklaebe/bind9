@@ -1,7 +1,7 @@
 #!/bin/sh
 #
 # Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
-# Copyright (C) 2000, 2001  Internet Software Consortium.
+# Copyright (C) 2000, 2001, 2003  Internet Software Consortium.
 #
 # Permission to use, copy, modify, and distribute this software for any
 # purpose with or without fee is hereby granted, provided that the above
@@ -15,7 +15,7 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: tests.sh,v 1.5.2.1 2004/03/09 06:09:55 marka Exp $
+# $Id: tests.sh,v 1.5.206.2 2004/03/06 10:22:05 marka Exp $
 
 SYSTEMTESTTOP=..
 . $SYSTEMTESTTOP/conf.sh
@@ -34,7 +34,7 @@ echo "I:testing that we find glue A RRs we are authoritative for"
 $DIG +norec @10.53.0.1 -p 5300 foo.bar.xx. a >dig.out || status=1
 $PERL ../digcomp.pl xx.good dig.out || status=1
 
-echo "I:testing that we find glue A/AAAA/A6 RRs in the cache"
+echo "I:testing that we find glue A/AAAA RRs in the cache"
 $DIG +norec @10.53.0.1 -p 5300 foo.bar.yy. a >dig.out || status=1
 $PERL ../digcomp.pl yy.good dig.out || status=1
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000, 2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: lwres_test.c,v 1.25.2.3 2005/03/17 03:59:31 marka Exp $ */
+/* $Id: lwres_test.c,v 1.25.12.3 2004/03/08 04:04:26 marka Exp $ */
 
 #include <config.h>
 
@@ -47,7 +47,7 @@ hexdump(const char *msg, void *base, size_t len) {
 	p = base;
 	cnt = 0;
 
-	printf("*** %s (%lu bytes @ %p)\n", msg, (unsigned long)len, base);
+	printf("*** %s (%u bytes @ %p)\n", msg, len, base);
 
 	while (cnt < len) {
 		if (cnt % 16 == 0)
@@ -172,11 +172,11 @@ test_gabn(const char *target) {
 	printf("Returned real name: (%u, %s)\n",
 	       res->realnamelen, res->realname);
 	printf("%u aliases:\n", res->naliases);
-	for (i = 0 ; i < res->naliases ; i++)
+	for (i = 0; i < res->naliases; i++)
 		printf("\t(%u, %s)\n", res->aliaslen[i], res->aliases[i]);
 	printf("%u addresses:\n", res->naddrs);
 	addr = LWRES_LIST_HEAD(res->addrs);
-	for (i = 0 ; i < res->naddrs ; i++) {
+	for (i = 0; i < res->naddrs; i++) {
 		INSIST(addr != NULL);
 
 		if (addr->family == LWRES_ADDRTYPE_V4)
@@ -220,7 +220,7 @@ test_gnba(const char *target, lwres_uint32_t af) {
 	printf("Returned real name: (%u, %s)\n",
 	       res->realnamelen, res->realname);
 	printf("%u aliases:\n", res->naliases);
-	for (i = 0 ; i < res->naliases ; i++)
+	for (i = 0; i < res->naliases; i++)
 		printf("\t(%u, %s)\n", res->aliaslen[i], res->aliases[i]);
 
 	lwres_gnbaresponse_free(ctx, &res);

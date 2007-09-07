@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2006  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000, 2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,21 +15,8 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: condition.c,v 1.4.2.3 2006/08/25 05:25:49 marka Exp $ */
+/* $Id: condition.c,v 1.4.12.3 2004/03/08 09:04:54 marka Exp $ */
 
-#include <config.h>
+#include <isc/util.h>
 
-/*
- * This file intentionally left blank.
- */
-
-/*
- * Well, not completely.  The stupid hack below shuts up compilers
- * from complaining about an empty file.
- */
-
-static void
-isc_condition_nothreads(void) {
-	isc_condition_nothreads();
-}
-
+EMPTY_TRANSLATION_UNIT

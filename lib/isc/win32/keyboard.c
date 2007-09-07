@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: keyboard.c,v 1.4.2.1 2004/03/09 06:12:18 marka Exp $ */
+/* $Id: keyboard.c,v 1.4.206.1 2004/03/06 08:15:08 marka Exp $ */
 
 #include <config.h>
 

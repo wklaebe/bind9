@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: sockaddr_multicast.c,v 1.5.2.1 2004/03/09 06:09:39 marka Exp $ */
+/* $Id: sockaddr_multicast.c,v 1.5.206.1 2004/03/06 10:21:45 marka Exp $ */
 
 #include <config.h>
 

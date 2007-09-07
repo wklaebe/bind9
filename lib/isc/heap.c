@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1997-2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,15 +15,15 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: heap.c,v 1.28.2.2 2006/04/17 18:27:07 explorer Exp $ */
+/* $Id: heap.c,v 1.28.12.3 2004/03/08 09:04:48 marka Exp $ */
 
-/*! \file
+/*
  * Heap implementation of priority queues adapted from the following:
  *
- *	\li "Introduction to Algorithms," Cormen, Leiserson, and Rivest,
+ *	_Introduction to Algorithms_, Cormen, Leiserson, and Rivest,
  *	MIT Press / McGraw Hill, 1990, ISBN 0-262-03141-8, chapter 7.
  *
- *	\li "Algorithms," Second Edition, Sedgewick, Addison-Wesley, 1988,
+ *	_Algorithms_, Second Edition, Sedgewick, Addison-Wesley, 1988,
  *	ISBN 0-201-06673-4, chapter 11.
  */
 
@@ -35,23 +35,20 @@
 #include <isc/string.h>		/* Required for memcpy. */
 #include <isc/util.h>
 
-/*@{*/
-/*%
+/*
  * Note: to make heap_parent and heap_left easy to compute, the first
  * element of the heap array is not used; i.e. heap subscripts are 1-based,
- * not 0-based.  The parent is index/2, and the left-child is index*2.
- * The right child is index*2+1.
+ * not 0-based.
  */
 #define heap_parent(i)			((i) >> 1)
 #define heap_left(i)			((i) << 1)
-/*@}*/
 
 #define SIZE_INCREMENT			1024
 
 #define HEAP_MAGIC			ISC_MAGIC('H', 'E', 'A', 'P')
 #define VALID_HEAP(h)			ISC_MAGIC_VALID(h, HEAP_MAGIC)
 
-/*%
+/*
  * When the heap is in a consistent state, the following invariant
  * holds true: for every element i > 1, heap_parent(i) has a priority
  * higher than or equal to that of i.
@@ -60,7 +57,6 @@
 			  ! heap->compare(heap->array[(i)], \
 					  heap->array[heap_parent(i)]))
 
-/*% ISC heap structure. */
 struct isc_heap {
 	unsigned int			magic;
 	isc_mem_t *			mctx;
@@ -145,8 +141,8 @@ static void
 float_up(isc_heap_t *heap, unsigned int i, void *elt) {
 	unsigned int p;
 
-	for (p = heap_parent(i) ;
-	     i > 1 && heap->compare(elt, heap->array[p]) ;
+	for (p = heap_parent(i);
+	     i > 1 && heap->compare(elt, heap->array[p]);
 	     i = p, p = heap_parent(i)) {
 		heap->array[i] = heap->array[p];
 		if (heap->index != NULL)
@@ -200,48 +196,48 @@ isc_heap_insert(isc_heap_t *heap, void *elt) {
 }
 
 void
-isc_heap_delete(isc_heap_t *heap, unsigned int index) {
+isc_heap_delete(isc_heap_t *heap, unsigned int i) {
 	void *elt;
 	isc_boolean_t less;
 
 	REQUIRE(VALID_HEAP(heap));
-	REQUIRE(index >= 1 && index <= heap->last);
+	REQUIRE(i >= 1 && i <= heap->last);
 
-	if (index == heap->last) {
+	if (i == heap->last) {
 		heap->last--;
 	} else {
 		elt = heap->array[heap->last--];
-		less = heap->compare(elt, heap->array[index]);
-		heap->array[index] = elt;
+		less = heap->compare(elt, heap->array[i]);
+		heap->array[i] = elt;
 		if (less)
-			float_up(heap, index, heap->array[index]);
+			float_up(heap, i, heap->array[i]);
 		else
-			sink_down(heap, index, heap->array[index]);
+			sink_down(heap, i, heap->array[i]);
 	}
 }
 
 void
-isc_heap_increased(isc_heap_t *heap, unsigned int index) {
+isc_heap_increased(isc_heap_t *heap, unsigned int i) {
 	REQUIRE(VALID_HEAP(heap));
-	REQUIRE(index >= 1 && index <= heap->last);
+	REQUIRE(i >= 1 && i <= heap->last);
 
-	float_up(heap, index, heap->array[index]);
+	float_up(heap, i, heap->array[i]);
 }
 
 void
-isc_heap_decreased(isc_heap_t *heap, unsigned int index) {
+isc_heap_decreased(isc_heap_t *heap, unsigned int i) {
 	REQUIRE(VALID_HEAP(heap));
-	REQUIRE(index >= 1 && index <= heap->last);
+	REQUIRE(i >= 1 && i <= heap->last);
 
-	sink_down(heap, index, heap->array[index]);
+	sink_down(heap, i, heap->array[i]);
 }
 
 void *
-isc_heap_element(isc_heap_t *heap, unsigned int index) {
+isc_heap_element(isc_heap_t *heap, unsigned int i) {
 	REQUIRE(VALID_HEAP(heap));
-	REQUIRE(index >= 1 && index <= heap->last);
+	REQUIRE(i >= 1 && i <= heap->last);
 
-	return (heap->array[index]);
+	return (heap->array[i]);
 }
 
 void
@@ -251,6 +247,6 @@ isc_heap_foreach(isc_heap_t *heap, isc_heapaction_t action, void *uap) {
 	REQUIRE(VALID_HEAP(heap));
 	REQUIRE(action != NULL);
 
-	for (i = 1 ; i <= heap->last ; i++)
+	for (i = 1; i <= heap->last; i++)
 		(action)(heap->array[i], uap);
 }

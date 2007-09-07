@@ -1,5 +1,5 @@
 # Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
-# Copyright (C) 2000, 2001  Internet Software Consortium.
+# Copyright (C) 2000-2002  Internet Software Consortium.
 #
 # Permission to use, copy, modify, and distribute this software for any
 # purpose with or without fee is hereby granted, provided that the above
@@ -13,7 +13,7 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: Makefile.in,v 1.15.2.3 2004/07/20 07:00:10 marka Exp $
+# $Id: Makefile.in,v 1.15.12.9 2004/03/08 09:04:15 marka Exp $
 
 srcdir =	@srcdir@
 VPATH =		@srcdir@
@@ -21,28 +21,33 @@ top_srcdir =	@top_srcdir@
 
 @BIND9_VERSION@
 
-@BIND9_INCLUDES@
+@BIND9_MAKE_INCLUDES@
 
-CINCLUDES =	${LWRES_INCLUDES} ${DNS_INCLUDES} ${ISC_INCLUDES}
+CINCLUDES =	${LWRES_INCLUDES} ${DNS_INCLUDES} ${BIND9_INCLUDES} \
+		${ISC_INCLUDES}
 
 CDEFINES =
 CWARNINGS =
 
 LWRESLIBS =	../../lib/lwres/liblwres.@A@
-DNSLIBS =	../../lib/dns/libdns.@A@ @DNS_OPENSSL_LIBS@ @DNS_GSSAPI_LIBS@
+DNSLIBS =	../../lib/dns/libdns.@A@ @DNS_CRYPTO_LIBS@
+BIND9LIBS =	../../lib/bind9/libbind9.@A@
 ISCLIBS =	../../lib/isc/libisc.@A@
+ISCCFGLIBS =	../../lib/isccfg/libisccfg.@A@
 
 LWRESDEPLIBS =	../../lib/lwres/liblwres.@A@
 DNSDEPLIBS =	../../lib/dns/libdns.@A@
+BIND9DEPLIBS =	../../lib/bind9/libbind9.@A@
 ISCDEPLIBS =	../../lib/isc/libisc.@A@
+ISCCFGDEPLIBS =	../../lib/isccfg/libisccfg.@A@
 
-DEPLIBS =	${DNSDEPLIBS} ${ISCDEPLIBS}
+DEPLIBS =	${DNSDEPLIBS} ${BIND9DEPLIBS} ${ISCDEPLIBS} ${ISCCFGDEPLIBS}
 
-LIBS =		${LWRESLIBS} ${DNSLIBS} ${ISCLIBS} @LIBS@
+LIBS =		${LWRESLIBS} ${DNSLIBS} ${BIND9LIBS} ${ISCLIBS} ${ISCCFGLIBS} @LIBS@
 
 SUBDIRS =
 
-TARGETS =	nsupdate
+TARGETS =	nsupdate@EXEEXT@
 
 OBJS =		nsupdate.@O@
 
@@ -58,8 +63,8 @@ MANOBJS =	${MANPAGES} ${HTMLPAGES}
 
 @BIND9_MAKE_RULES@
 
-nsupdate: nsupdate.@O@ ${UOBJS} ${DEPLIBS}
-	${LIBTOOL_MODE_LINK} ${PURIFY} ${CC} ${CFLAGS} ${LDFLAGS} -o $@ nsupdate.@O@ ${UOBJS} ${LIBS}
+nsupdate@EXEEXT@: nsupdate.@O@ ${UOBJS} ${DEPLIBS}
+	${LIBTOOL_MODE_LINK} ${PURIFY} ${CC} ${CFLAGS} -o $@ nsupdate.@O@ ${UOBJS} ${LIBS}
 
 doc man:: ${MANOBJS}
 
@@ -73,6 +78,6 @@ installdirs:
 	$(SHELL) ${top_srcdir}/mkinstalldirs ${DESTDIR}${bindir}
 	$(SHELL) ${top_srcdir}/mkinstalldirs ${DESTDIR}${mandir}/man8
 
-install:: nsupdate installdirs
-	${LIBTOOL_MODE_INSTALL} ${INSTALL_PROGRAM} nsupdate ${DESTDIR}${bindir}
+install:: nsupdate@EXEEXT@ installdirs
+	${LIBTOOL_MODE_INSTALL} ${INSTALL_PROGRAM} nsupdate@EXEEXT@ ${DESTDIR}${bindir}
 	${INSTALL_DATA} ${srcdir}/nsupdate.8 ${DESTDIR}${mandir}/man8

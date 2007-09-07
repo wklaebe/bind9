@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: xfrout.h,v 1.7.2.1 2004/03/09 06:09:23 marka Exp $ */
+/* $Id: xfrout.h,v 1.7.208.1 2004/03/06 10:21:27 marka Exp $ */
 
 #ifndef NAMED_XFROUT_H
 #define NAMED_XFROUT_H 1

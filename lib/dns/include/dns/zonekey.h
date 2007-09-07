@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: zonekey.h,v 1.3.2.1 2004/03/09 06:11:25 marka Exp $ */
+/* $Id: zonekey.h,v 1.3.206.1 2004/03/06 08:14:01 marka Exp $ */
 
 #ifndef DNS_ZONEKEY_H
 #define DNS_ZONEKEY_H 1

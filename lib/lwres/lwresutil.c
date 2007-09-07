@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: lwresutil.c,v 1.29.2.1 2004/03/09 06:12:35 marka Exp $ */
+/* $Id: lwresutil.c,v 1.29.206.1 2004/03/06 08:15:33 marka Exp $ */
 
 #include <config.h>
 

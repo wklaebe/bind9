@@ -95,7 +95,7 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static const char sccsid[] = "@(#)res_debug.c	8.1 (Berkeley) 6/4/93";
-static const char rcsid[] = "$Id: res_debug.c,v 1.3.2.11 2005/07/28 07:48:21 marka Exp $";
+static const char rcsid[] = "$Id: res_debug.c,v 1.3.2.5.4.4 2004/04/13 06:53:20 marka Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include "port_before.h"
@@ -113,7 +113,6 @@ static const char rcsid[] = "$Id: res_debug.c,v 1.3.2.11 2005/07/28 07:48:21 mar
 #include <math.h>
 #include <netdb.h>
 #include <resolv.h>
-#include <resolv_mt.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -505,7 +504,7 @@ sym_ston(const struct res_sym *syms, const char *name, int *success) {
 
 const char *
 sym_ntos(const struct res_sym *syms, int number, int *success) {
-	char *unname = sym_ntos_unname;
+	static char unname[20];
 
 	for ((void)NULL; syms->name != 0; syms++) {
 		if (number == syms->number) {
@@ -523,7 +522,7 @@ sym_ntos(const struct res_sym *syms, int number, int *success) {
 
 const char *
 sym_ntop(const struct res_sym *syms, int number, int *success) {
-	char *unname = sym_ntop_unname;
+	static char unname[20];
 
 	for ((void)NULL; syms->name != 0; syms++) {
 		if (number == syms->number) {
@@ -550,7 +549,7 @@ p_type(int type) {
 	result = sym_ntos(__p_type_syms, type, &success);
 	if (success)
 		return (result);
-	if (type < 0 || type > 0xffff)
+	if (type < 0 || type > 0xfff)
 		return ("BADTYPE");
 	sprintf(typebuf, "TYPE%d", type);
 	return (typebuf);
@@ -586,7 +585,7 @@ p_class(int class) {
 	result = sym_ntos(__p_class_syms, class, &success);
 	if (success)
 		return (result);
-	if (class < 0 || class > 0xffff)
+	if (class < 0 || class > 0xfff)
 		return ("BADCLASS");
 	sprintf(classbuf, "CLASS%d", class);
 	return (classbuf);
@@ -597,7 +596,7 @@ p_class(int class) {
  */
 const char *
 p_option(u_long option) {
-	char *nbuf = p_option_nbuf;
+	static char nbuf[40];
 
 	switch (option) {
 	case RES_INIT:		return "init";
@@ -640,7 +639,7 @@ p_option(u_long option) {
  */
 const char *
 p_time(u_int32_t value) {
-	char *nbuf = p_time_nbuf;
+	static char nbuf[40];		/* XXX nonreentrant */
 
 	if (ns_format_ttl(value, nbuf, sizeof nbuf) < 0)
 		sprintf(nbuf, "%u", value);
@@ -696,7 +695,7 @@ static const char *
 precsize_ntoa(prec)
 	u_int8_t prec;
 {
-	char *retbuf = precsize_ntoa_retbuf;
+	static char retbuf[sizeof "90000000.00"];	/* XXX nonreentrant */
 	unsigned long val;
 	int mantissa, exponent;
 
@@ -1098,7 +1097,8 @@ dn_count_labels(const char *name) {
  */
 char *
 p_secstodate (u_long secs) {
-	char *output = p_secstodate_output;
+	/* XXX nonreentrant */
+	static char output[15];		/* YYYYMMDDHHMMSS and null */
 	time_t clock = secs;
 	struct tm *time;
 #ifdef HAVE_TIME_R

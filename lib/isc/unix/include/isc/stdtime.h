@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: stdtime.h,v 1.8.2.1 2004/03/09 06:12:14 marka Exp $ */
+/* $Id: stdtime.h,v 1.8.206.1 2004/03/06 08:15:05 marka Exp $ */
 
 #ifndef ISC_STDTIME_H
 #define ISC_STDTIME_H 1

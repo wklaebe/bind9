@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rdatastructsuf.h,v 1.7.2.1 2004/03/09 06:11:25 marka Exp $ */
+/* $Id: rdatastructsuf.h,v 1.7.206.1 2004/03/06 08:14:02 marka Exp $ */
 
 ISC_LANG_ENDDECLS
 

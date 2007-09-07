@@ -1,6 +1,6 @@
 /*
- * Copyright (C) 2004, 2006  Internet Systems Consortium, Inc. ("ISC")
- * Copyright (C) 1999-2001  Internet Software Consortium.
+ * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 1999-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: acl.h,v 1.20.2.3 2006/03/02 00:37:17 marka Exp $ */
+/* $Id: acl.h,v 1.20.52.3 2004/03/08 09:04:34 marka Exp $ */
 
 #ifndef DNS_ACL_H
 #define DNS_ACL_H 1
@@ -104,7 +104,7 @@ dns_acl_create(isc_mem_t *mctx, int n, dns_acl_t **target);
  */
 
 isc_result_t
-dns_acl_appendelement(dns_acl_t *acl, const dns_aclelement_t *elt);
+dns_acl_appendelement(dns_acl_t *acl, dns_aclelement_t *elt);
 /*
  * Append an element to an existing ACL.
  */
@@ -128,13 +128,13 @@ void
 dns_acl_detach(dns_acl_t **aclp);
 
 isc_boolean_t
-dns_aclelement_equal(const dns_aclelement_t *ea, const dns_aclelement_t *eb);
+dns_aclelement_equal(dns_aclelement_t *ea, dns_aclelement_t *eb);
 
 isc_boolean_t
-dns_acl_equal(const dns_acl_t *a, const dns_acl_t *b);
+dns_acl_equal(dns_acl_t *a, dns_acl_t *b);
 
 isc_boolean_t
-dns_acl_isinsecure(const dns_acl_t *a);
+dns_acl_isinsecure(dns_acl_t *a);
 /*
  * Return ISC_TRUE iff the acl 'a' is considered insecure, that is,
  * if it contains IP addresses other than those of the local host.
@@ -154,12 +154,12 @@ void
 dns_aclenv_destroy(dns_aclenv_t *env);
 
 isc_result_t
-dns_acl_match(const isc_netaddr_t *reqaddr,
-	      const dns_name_t *reqsigner,
-	      const dns_acl_t *acl,
-	      const dns_aclenv_t *env,
+dns_acl_match(isc_netaddr_t *reqaddr,
+	      dns_name_t *reqsigner,
+	      dns_acl_t *acl,
+	      dns_aclenv_t *env,
 	      int *match,
-	      const dns_aclelement_t **matchelt);
+	      dns_aclelement_t **matchelt);
 /*
  * General, low-level ACL matching.  This is expected to
  * be useful even for weird stuff like the topology and sortlist statements.
@@ -185,11 +185,11 @@ dns_acl_match(const isc_netaddr_t *reqaddr,
  */
 
 isc_boolean_t
-dns_aclelement_match(const isc_netaddr_t *reqaddr,
-		     const dns_name_t *reqsigner,
-		     const dns_aclelement_t *e,
-		     const dns_aclenv_t *env,		     
-		     const dns_aclelement_t **matchelt);
+dns_aclelement_match(isc_netaddr_t *reqaddr,
+		     dns_name_t *reqsigner,
+		     dns_aclelement_t *e,
+		     dns_aclenv_t *env,		     
+		     dns_aclelement_t **matchelt);
 /*
  * Like dns_acl_match, but matches against the single ACL element 'e'
  * rather than a complete list and returns ISC_TRUE iff it matched.
@@ -197,6 +197,23 @@ dns_aclelement_match(const isc_netaddr_t *reqaddr,
  * caller should examine e->negative.  Since the element 'e' may be
  * a reference to a named ACL or a nested ACL, the matching element
  * returned through 'matchelt' is not necessarily 'e' itself.
+ */
+
+isc_result_t
+dns_acl_elementmatch(dns_acl_t *acl,
+		     dns_aclelement_t *elt,
+		     dns_aclelement_t **matchelt);
+/*
+ * Search for an ACL element in 'acl' which is exactly the same as 'elt'.
+ * If there is one, and 'matchelt' is non NULL, then '*matchelt' will point
+ * to the entry.
+ *
+ * This function is intended to be used for avoiding duplicated ACL entries
+ * before adding an entry.
+ *
+ * Returns:
+ *	ISC_R_SUCCESS		Match succeeds.
+ *	ISC_R_NOTFOUND		Match fails.
  */
 
 ISC_LANG_ENDDECLS

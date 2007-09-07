@@ -1,12 +1,12 @@
 echo off
 rem
 rem Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
-rem Copyright (C) 2001,2003  Internet Software Consortium.
+rem Copyright (C) 2001-2002  Internet Software Consortium.
 rem
 rem Permission to use, copy, modify, and distribute this software for any
 rem purpose with or without fee is hereby granted, provided that the above
 rem copyright notice and this permission notice appear in all copies.
-rem
+rem 
 rem THE SOFTWARE IS PROVIDED "AS IS" AND ISC DISCLAIMS ALL WARRANTIES WITH
 rem REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
 rem AND FITNESS.  IN NO EVENT SHALL ISC BE LIABLE FOR ANY SPECIAL, DIRECT,
@@ -30,7 +30,6 @@ rem a future release of BIND 9 for Windows NT/2000/XP.
 
 echo Setting up the BIND files required for the build
 
-rem Setup the files
 call BuildSetup.bat
 
 echo Build all of the Library files
@@ -53,6 +52,10 @@ cd isccc\win32
 nmake /nologo -f libisccc.mak CFG="libisccc - Win32 Release"  NO_EXTERNAL_DEPS="1"
 cd ..\..
 
+cd bind9\win32
+nmake /nologo -f libbind9.mak CFG="libbind9 - Win32 Release"  NO_EXTERNAL_DEPS="1"
+cd ..\..
+
 cd lwres\win32
 nmake /nologo -f liblwres.mak CFG="liblwres - Win32 Release"  NO_EXTERNAL_DEPS="1"
 cd ..\..
@@ -72,27 +75,32 @@ cd bin
 cd named\win32
 nmake /nologo -f named.mak CFG="named - Win32 Release"  NO_EXTERNAL_DEPS="1"
 
+copy ..\named.html ..\..\..\Build\Release
 cd ..\..
 
 cd rndc\win32
 nmake /nologo -f rndc.mak CFG="rndc - Win32 Release"  NO_EXTERNAL_DEPS="1"
 nmake /nologo -f confgen.mak CFG="rndcconfgen - Win32 Release"  NO_EXTERNAL_DEPS="1"
 
+copy ..\*.html ..\..\..\Build\Release
 cd ..\..
 
 cd dig\win32
 nmake /nologo -f dig.mak CFG="dig - Win32 Release"  NO_EXTERNAL_DEPS="1"
 nmake /nologo /nologo -f host.mak CFG="host - Win32 Release"  NO_EXTERNAL_DEPS="1"
 nmake /nologo -f nslookup.mak CFG="nslookup - Win32 Release"  NO_EXTERNAL_DEPS="1"
+copy ..\*.html ..\..\..\Build\Release
 cd ..\..
 
 cd nsupdate\win32
 nmake /nologo -f nsupdate.mak CFG="nsupdate - Win32 Release"  NO_EXTERNAL_DEPS="1"
+copy ..\*.html ..\..\..\Build\Release
 cd ..\..
 
 cd check\win32
 nmake /nologo -f namedcheckconf.mak CFG="namedcheckconf - Win32 Release"  NO_EXTERNAL_DEPS="1"
 nmake /nologo -f namedcheckzone.mak CFG="namedcheckzone - Win32 Release"  NO_EXTERNAL_DEPS="1"
+copy ..\*.html ..\..\..\Build\Release
 cd ..\..
 
 cd dnssec\win32
@@ -100,6 +108,7 @@ nmake /nologo -f keygen.mak CFG="keygen - Win32 Release"  NO_EXTERNAL_DEPS="1"
 nmake /nologo -f makekeyset.mak CFG="makekeyset - Win32 Release"  NO_EXTERNAL_DEPS="1"
 nmake /nologo -f signkey.mak CFG="signkey - Win32 Release"  NO_EXTERNAL_DEPS="1"
 nmake /nologo -f signzone.mak CFG="signzone - Win32 Release"  NO_EXTERNAL_DEPS="1"
+copy ..\*.html ..\..\..\Build\Release
 cd ..\..
 
 rem This is the BIND 9 Installer

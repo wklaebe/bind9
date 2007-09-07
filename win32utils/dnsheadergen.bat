@@ -1,12 +1,12 @@
 echo off
 rem
 rem Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
-rem Copyright (C) 2001,2003  Internet Software Consortium.
-rem
+rem Copyright (C) 2001-2002  Internet Software Consortium.
+rem 
 rem Permission to use, copy, modify, and distribute this software for any
 rem purpose with or without fee is hereby granted, provided that the above
 rem copyright notice and this permission notice appear in all copies.
-rem
+rem 
 rem THE SOFTWARE IS PROVIDED "AS IS" AND ISC DISCLAIMS ALL WARRANTIES WITH
 rem REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
 rem AND FITNESS.  IN NO EVENT SHALL ISC BE LIABLE FOR ANY SPECIAL, DIRECT,

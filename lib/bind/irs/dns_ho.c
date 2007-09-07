@@ -52,7 +52,7 @@
 /* BIND Id: gethnamaddr.c,v 8.15 1996/05/22 04:56:30 vixie Exp $ */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static const char rcsid[] = "$Id: dns_ho.c,v 1.5.2.16 2006/12/07 04:00:29 marka Exp $";
+static const char rcsid[] = "$Id: dns_ho.c,v 1.5.2.7.4.3 2004/03/17 01:13:34 marka Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 /* Imports. */
@@ -218,7 +218,8 @@ ho_close(struct irs_ho *this) {
 	ho_minimize(this);
 	if (pvt->res && pvt->free_res)
 		(*pvt->free_res)(pvt->res);
-	memput(pvt, sizeof *pvt);
+	if (pvt)
+		memput(pvt, sizeof *pvt);
 	memput(this, sizeof *this);
 }
 
@@ -259,7 +260,7 @@ ho_byname2(struct irs_ho *this, const char *name, int af)
 		errno = ENOMEM;
 		goto cleanup;
 	}
-	memset(q, 0, sizeof(*q));
+	memset(q, 0, sizeof(q));
 
 	switch (af) {
 	case AF_INET:
@@ -351,8 +352,8 @@ ho_byaddr(struct irs_ho *this, const void *addr, int len, int af)
 		errno = ENOMEM;
 		goto cleanup;
 	}
-	memset(q, 0, sizeof(*q));
-	memset(q2, 0, sizeof(*q2));
+	memset(q, 0, sizeof(q));
+	memset(q2, 0, sizeof(q2));
 
 	if (af == AF_INET6 && len == IN6ADDRSZ &&
 	    (!memcmp(uaddr, mapped, sizeof mapped) ||
@@ -413,44 +414,38 @@ ho_byaddr(struct irs_ho *this, const void *addr, int len, int af)
 		break;
 	case AF_INET6:
 		if (q->action != RESTGT_IGNORE) {
-			const char *nibsuff = res_get_nibblesuffix(pvt->res);
 			qp = q->qname;
 			for (n = IN6ADDRSZ - 1; n >= 0; n--) {
 				i = SPRINTF((qp, "%x.%x.",
 					       uaddr[n] & 0xf,
 					       (uaddr[n] >> 4) & 0xf));
-				if (i != 4)
+				if (i < 0)
 					abort();
 				qp += i;
 			}
-			if (strlen(q->qname) + strlen(nibsuff) + 1 >
-			    sizeof q->qname) {
-				errno = ENAMETOOLONG;
-				RES_SET_H_ERRNO(pvt->res, NETDB_INTERNAL);
-				hp = NULL;
-				goto cleanup;
-			}
-			strcpy(qp, nibsuff);	/* (checked) */
+#ifdef HAVE_STRLCAT
+			strlcat(q->qname, res_get_nibblesuffix(pvt->res),
+			    sizeof(q->qname));
+#else
+			strcpy(qp, res_get_nibblesuffix(pvt->res));
+#endif
 		}
 		if (q2->action != RESTGT_IGNORE) {
-			const char *nibsuff2 = res_get_nibblesuffix2(pvt->res);
 			qp = q2->qname;
 			for (n = IN6ADDRSZ - 1; n >= 0; n--) {
 				i = SPRINTF((qp, "%x.%x.",
 					       uaddr[n] & 0xf,
 					       (uaddr[n] >> 4) & 0xf));
-				if (i != 4)
+				if (i < 0)
 					abort();
 				qp += i;
 			}
-			if (strlen(q2->qname) + strlen(nibsuff2) + 1 >
-			    sizeof q2->qname) {
-				errno = ENAMETOOLONG;
-				RES_SET_H_ERRNO(pvt->res, NETDB_INTERNAL);
-				hp = NULL;
-				goto cleanup;
-			}
-			strcpy(qp, nibsuff2);	/* (checked) */
+#ifdef HAVE_STRLCAT
+			strlcat(q->qname, res_get_nibblesuffix2(pvt->res),
+			    sizeof(q->qname));
+#else
+			strcpy(qp, res_get_nibblesuffix2(pvt->res));
+#endif
 		}
 		break;
 	default:
@@ -577,8 +572,8 @@ ho_addrinfo(struct irs_ho *this, const char *name, const struct addrinfo *pai)
 		errno = ENOMEM;
 		goto cleanup;
 	}
-	memset(q, 0, sizeof(*q2));
-	memset(q2, 0, sizeof(*q2));
+	memset(q, 0, sizeof(q2));
+	memset(q2, 0, sizeof(q2));
 
 	switch (pai->ai_family) {
 	case AF_UNSPEC:
@@ -648,9 +643,10 @@ ho_addrinfo(struct irs_ho *this, const char *name, const struct addrinfo *pai)
 		if (ai) {
 			querystate = RESQRY_SUCCESS;
 			cur->ai_next = ai;
-			while (cur->ai_next)
+			while (cur && cur->ai_next)
 				cur = cur->ai_next;
-		} else
+		}
+		else
 			querystate = RESQRY_FAIL;
 	}
 
@@ -686,7 +682,7 @@ gethostans(struct irs_ho *this,
 {
 	struct pvt *pvt = (struct pvt *)this->private;
 	int type, class, ancount, qdcount, n, haveanswer, had_error;
-	int error = NETDB_SUCCESS;
+	int error = NETDB_SUCCESS, arcount;
 	int (*name_ok)(const char *);
 	const HEADER *hp;
 	const u_char *eom;
@@ -733,6 +729,7 @@ gethostans(struct irs_ho *this,
 	hp = (const HEADER *)ansbuf;
 	ancount = ntohs(hp->ancount);
 	qdcount = ntohs(hp->qdcount);
+	arcount = ntohs(hp->arcount);
 	bp = pvt->hostbuf;
 	ep = pvt->hostbuf + sizeof(pvt->hostbuf);
 	cp = ansbuf + HFIXEDSZ;
@@ -823,7 +820,11 @@ gethostans(struct irs_ho *this,
 				had_error++;
 				continue;
 			}
-			strcpy(bp, tbuf);	/* (checked) */
+#ifdef HAVE_STRLCPY
+			strlcpy(bp, tbuf, ep - bp);
+#else
+			strcpy(bp, tbuf);
+#endif
 			pvt->host.h_name = bp;
 			hname = bp;
 			bp += n;
@@ -855,7 +856,11 @@ gethostans(struct irs_ho *this,
 				had_error++;
 				continue;
 			}
-			strcpy(bp, tbuf);	/* (checked) */
+#ifdef HAVE_STRLCPY
+			strlcpy(bp, tbuf, ep - bp);
+#else
+			strcpy(bp, tbuf);
+#endif
 			tname = bp;
 			bp += n;
 			continue;
@@ -941,12 +946,12 @@ gethostans(struct irs_ho *this,
 			bp = (char *)(((u_long)bp + (sizeof(align) - 1)) &
 				      ~(sizeof(align) - 1));
 			/* Avoid overflows. */
-			if (bp + n > &pvt->hostbuf[sizeof(pvt->hostbuf) - 1]) {
+			if (bp + n >= &pvt->hostbuf[sizeof pvt->hostbuf]) {
 				had_error++;
 				continue;
 			}
 			if (ret_aip) { /* need addrinfo. keep it. */
-				while (cur->ai_next)
+				while (cur && cur->ai_next)
 					cur = cur->ai_next;
 			} else if (cur->ai_next) { /* need hostent */
 				struct addrinfo *aip = cur->ai_next;
@@ -991,7 +996,11 @@ gethostans(struct irs_ho *this,
 				n = strlen(qname) + 1;	/* for the \0 */
 				if (n > (ep - bp) || n >= MAXHOSTNAMELEN)
 					goto no_recovery;
-				strcpy(bp, qname);	/* (checked) */
+#ifdef HAVE_STRLCPY
+				strlcpy(bp, qname, ep - bp);
+#else
+				strcpy(bp, qname);
+#endif
 				pvt->host.h_name = bp;
 				bp += n;
 			}
@@ -1051,7 +1060,7 @@ add_hostent(struct pvt *pvt, char *bp, char **hap, struct addrinfo *ai)
 	bp = (char *)(((u_long)bp + (sizeof(align) - 1)) &
 		      ~(sizeof(align) - 1));
 	/* Avoid overflows. */
-	if (bp + addrlen > &pvt->hostbuf[sizeof(pvt->hostbuf) - 1])
+	if (bp + addrlen >= &pvt->hostbuf[sizeof pvt->hostbuf])
 		return(-1);
 	if (hap >= &pvt->h_addr_ptrs[MAXADDRS-1])
 		return(0); /* fail, but not treat it as an error. */

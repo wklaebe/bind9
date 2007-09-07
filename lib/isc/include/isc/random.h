@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: random.h,v 1.11.2.1 2004/03/09 06:12:00 marka Exp $ */
+/* $Id: random.h,v 1.11.206.1 2004/03/06 08:14:46 marka Exp $ */
 
 #ifndef ISC_RANDOM_H
 #define ISC_RANDOM_H 1

@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: os.h,v 1.14.2.6 2004/09/29 06:38:43 marka Exp $ */
+/* $Id: os.h,v 1.14.2.2.8.8 2004/03/08 04:04:21 marka Exp $ */
 
 #ifndef NS_OS_H
 #define NS_OS_H 1
@@ -52,10 +52,13 @@ ns_os_writepidfile(const char *filename, isc_boolean_t first_time);
 void
 ns_os_shutdown(void);
 
-void
-ns_os_tzset(void);
+isc_result_t
+ns_os_gethostname(char *buf, size_t len);
 
 void
-ns_os_started(void);
+ns_os_shutdownmsg(char *command, isc_buffer_t *text);
+
+void
+ns_os_tzset(void);
 
 #endif /* NS_OS_H */

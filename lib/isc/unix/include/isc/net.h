@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
- * Copyright (C) 1999-2001  Internet Software Consortium.
+ * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: net.h,v 1.31.2.4 2004/03/09 06:12:14 marka Exp $ */
+/* $Id: net.h,v 1.31.2.2.10.7 2004/03/08 09:04:57 marka Exp $ */
 
 #ifndef ISC_NET_H
 #define ISC_NET_H 1
@@ -74,6 +74,8 @@
 
 #include <sys/types.h>
 #include <sys/socket.h>		/* Contractual promise. */
+
+#include <net/if.h>
 
 #include <netinet/in.h>		/* Contractual promise. */
 #include <arpa/inet.h>		/* Contractual promise. */
@@ -136,6 +138,17 @@
 #ifndef IN6_IS_ADDR_MULTICAST
 #define IN6_IS_ADDR_MULTICAST(a)        ((a)->s6_addr[0] == 0xff)
 #endif
+
+#ifndef IN6_IS_ADDR_LINKLOCAL
+#define IN6_IS_ADDR_LINKLOCAL(a) \
+	(((a)->s6_addr[0] == 0xfe) && (((a)->s6_addr[1] & 0xc0) == 0x80))
+#endif
+
+#ifndef IN6_IS_ADDR_SITELOCAL
+#define IN6_IS_ADDR_SITELOCAL(a) \
+	(((a)->s6_addr[0] == 0xfe) && (((a)->s6_addr[1] & 0xc0) == 0xc0))
+#endif
+
 
 #ifndef IN6_IS_ADDR_LOOPBACK
 #define IN6_IS_ADDR_LOOPBACK(x) \
@@ -236,6 +249,7 @@ isc_net_probeipv4(void);
  *
  *	ISC_R_SUCCESS		IPv4 is supported.
  *	ISC_R_NOTFOUND		IPv4 is not supported.
+ *	ISC_R_DISABLED		IPv4 is disabled.
  *	ISC_R_UNEXPECTED
  */
 
@@ -248,8 +262,33 @@ isc_net_probeipv6(void);
  *
  *	ISC_R_SUCCESS		IPv6 is supported.
  *	ISC_R_NOTFOUND		IPv6 is not supported.
+ *	ISC_R_DISABLED		IPv6 is disabled.
  *	ISC_R_UNEXPECTED
  */
+
+isc_result_t
+isc_net_probe_ipv6only(void);
+/*
+ * Check if the system's kernel supports the IPV6_V6ONLY socket option.
+ *
+ * Returns:
+ *
+ *	ISC_R_SUCCESS		the option is supported for both TCP and UDP.
+ *	ISC_R_NOTFOUND		IPv6 itself or the option is not supported.
+ *	ISC_R_UNEXPECTED
+ */
+
+void
+isc_net_disableipv4(void);
+
+void
+isc_net_disableipv6(void);
+
+void
+isc_net_enableipv4(void);
+
+void
+isc_net_enableipv6(void);
 
 #ifdef ISC_PLATFORM_NEEDNTOP
 const char *

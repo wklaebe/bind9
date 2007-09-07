@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2006  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000, 2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,9 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: gai_strerror.c,v 1.14.2.4 2006/08/25 05:25:49 marka Exp $ */
-
-#include <config.h>
+/* $Id: gai_strerror.c,v 1.14.2.1.10.1 2004/03/06 08:15:30 marka Exp $ */
 
 #include <lwres/netdb.h>
 

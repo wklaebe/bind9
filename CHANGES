@@ -1,4 +1,67 @@
 
+	--- 9.3.0rc1 released ---
+
+1664.	[bug]		nsupdate needed KEY for SIG(0), not DNSKEY.
+
+1662.	[bug]		Change #1658 failed to change one use of 'type'
+			to 'keytype'.
+
+1659.	[cleanup]	Cleanup some messages that were referring to KEY vs
+			DNSKEY, NXT vs NSEC and SIG vs RRSIG.
+
+1658.	[func]		Update dnssec-keygen to default to KEY for HMAC-MD5
+			and DH.  Tighten which options apply to KEY and
+			DNSKEY records.
+
+1657.	[doc]		ARM: document query log output.
+
+1656.	[doc]		Update DNSSEC description in ARM to cover DS, NSEC
+			DNSKEY and RRSIG.  [RT #11542]
+
+1655.	[bug]		Logging multiple versions w/o a size was broken.
+			[RT #11446]
+
+1654.	[bug]		isc_result_totext() contained array bounds read
+			error.
+
+1653.	[func]		Add key type checking to dst_key_fromfilename(),
+			DST_TYPE_KEY should be used to read TSIG, TKEY and
+			SIG(0) keys.
+
+1652.	[bug]		TKEY still uses KEY.
+
+1651.	[bug]		dig: process multiple dash options.
+
+1650.	[bug]		dig, nslookup: flush standard out after each command.
+
+1649.	[bug]		Silence "unexpected non-minimal diff" message.
+			[RT #11206]
+
+1648.	[func]		Update dnssec-lookaside named.conf syntax to support
+			multiple dnssec-lookaside namespaces (not yet
+			implemented).  
+
+1647.	[bug]		It was possible trigger a INSIST when chasing a DS
+			record that required walking back over a empty node.
+			[RT #11445]
+
+1646.	[bug]		win32: logging file versions didn't work with
+			non-UNC filenames.  [RT#11486]
+
+1645.	[bug]		named could trigger a REQUIRE failure if multiple
+			masters with keys are specified.
+
+1644.	[bug]		Update the journal modification time after a
+			sucessfull refresh query. [RT #11436]
+
+1643.	[bug]		dns_db_closeversion() could leak memory / node
+			references. [RT #11163]
+
+1642.	[port]		Support OpenSSL implementations which don't have
+			DSA support. [RT #11360]
+
+1641.	[bug]		Update the check-names description in ARM. [RT #11389]
+
 	--- 9.3.0beta4 released ---
 
 1640.	[bug]		win32: isc_socket_cancel(ISC_SOCKCANCEL_ACCEPT) was

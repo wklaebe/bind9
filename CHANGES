@@ -1,4 +1,33 @@
 
+	--- 9.1.1rc4 released ---
+
+ 767.	[bug]		The configuration parser handled invalid ports badly.
+			[RT #961]
+
+ 766.	[bug]		A few cases in query_find() could leak fname.
+			This would trigger the mpctx->allocated == 0
+			assertion when the server exited.
+			[RT #739, #776, #798, #812, #818, #821, #845,
+			#892, #935, #966]
+
+ 759.	[bug]		The resolver didn't turn off "avoid fetches" mode
+			when restarting, possibly causing resolution
+			to fail when it should not.  This bug only affected
+			platforms which support both IPv4 and IPv6. [RT #927]
+
+ 758.	[bug]		The "avoid fetches" code did not treat negative
+			cache entries correctly, causing fetches that would
+			be useful to be avoided.  This bug only affected
+			platforms which support both IPv4 and IPv6. [RT #927]
+
+ 756.	[bug]		dns_zone_load() could "return" success when no master
+			file was configured.
+
+ 755.	[bug]		Fix incorrectly formatted log messages in zone.c.
+
+ 709.	[bug]		ANY or SIG queries for data with a TTL of 0
+			would return SERVFAIL. [RT #620]
+
 	--- 9.1.1rc3 released ---
 
  754.	[bug]		Certain failure conditions sending UDP packets

@@ -15,18 +15,21 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: server.h,v 1.57 2001/05/31 01:21:09 bwelling Exp $ */
+/* $Id: server.h,v 1.58.2.1 2001/09/04 19:38:46 gson Exp $ */
 
 #ifndef NAMED_SERVER_H
 #define NAMED_SERVER_H 1
 
 #include <isc/log.h>
 #include <isc/sockaddr.h>
+#include <isc/magic.h>
 #include <isc/types.h>
 #include <isc/quota.h>
 
 #include <dns/types.h>
 #include <dns/acl.h>
+
+#include <named/types.h>
 
 #define NS_EVENTCLASS		ISC_EVENTCLASS(0x4E43)
 #define NS_EVENT_RELOAD		(NS_EVENTCLASS + 0)
@@ -36,7 +39,7 @@
  * Name server state.  Better here than in lots of separate global variables.
  */
 struct ns_server {
-	isc_uint32_t		magic;
+	unsigned int		magic;
 	isc_mem_t *		mctx;
 
 	isc_task_t *		task;
@@ -81,9 +84,8 @@ struct ns_server {
 	ns_controls_t *		controls;	/* Control channels */
 };
 
-#define NS_SERVER_MAGIC			0x53564552	/* SVER */
-#define NS_SERVER_VALID(s)		((s) != NULL && \
-					 (s)->magic == NS_SERVER_MAGIC)
+#define NS_SERVER_MAGIC			ISC_MAGIC('S','V','E','R')
+#define NS_SERVER_VALID(s)		ISC_MAGIC_VALID(s, NS_SERVER_MAGIC)
 
 void
 ns_server_create(isc_mem_t *mctx, ns_server_t **serverp);

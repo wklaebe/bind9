@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: master.c,v 1.121 2001/08/01 17:58:45 gson Exp $ */
+/* $Id: master.c,v 1.122.2.2 2001/09/11 23:32:55 gson Exp $ */
 
 #include <config.h>
 
@@ -91,7 +91,7 @@ typedef struct dns_incctx dns_incctx_t;
  */
 
 struct dns_loadctx {
-	isc_uint32_t		magic;
+	unsigned int		magic;
 	isc_mem_t		*mctx;
 	isc_lex_t		*lex;
 	dns_rdatacallbacks_t	*callbacks;
@@ -242,11 +242,22 @@ loadctx_destroy(dns_loadctx_t *lctx);
 #define MANYERRS(lctx, result) \
 		((result != ISC_R_SUCCESS) && \
 		((lctx)->options & DNS_MASTER_MANYERRORS) != 0)
+
 #define SETRESULT(lctx, r) \
 		do { \
 			if ((lctx)->result == ISC_R_SUCCESS) \
 				(lctx)->result = r; \
 		} while (0)
+
+#define LOGITFILE(result, filename) \
+	if (result == ISC_R_INVALIDFILE || result == ISC_R_FILENOTFOUND || \
+	    result == ISC_R_IOERROR || result == ISC_R_TOOMANYOPENFILES || \
+	    result == ISC_R_NOPERM) \
+		(*callbacks->error)(callbacks, "%s: %s:%lu: %s: %s", \
+				    "dns_master_load", source, line, \
+				    filename, dns_result_totext(result)); \
+	else LOGIT(result)
+
 #define LOGIT(result) \
 	if (result == ISC_R_NOMEMORY) \
 		(*callbacks->error)(callbacks, "dns_master_load: %s", \
@@ -944,10 +955,12 @@ load(dns_loadctx_t *lctx) {
 							  ictx->origin, lctx);
 					if (MANYERRS(lctx, result)) {
 						SETRESULT(lctx, result);
-						LOGIT(result);
+						LOGITFILE(result, include_file);
 						continue;
-					} else if (result != ISC_R_SUCCESS)
-						goto log_and_cleanup;
+					} else if (result != ISC_R_SUCCESS) {
+						LOGITFILE(result, include_file);
+						goto insist_and_cleanup;
+					}
 					ictx = lctx->inc;
 					line = isc_lex_getsourceline(lctx->lex);
 					source =
@@ -1121,10 +1134,12 @@ load(dns_loadctx_t *lctx) {
 				result = pushfile(include_file, new_name, lctx);
 				if (MANYERRS(lctx, result)) {
 					SETRESULT(lctx, result);
-					LOGIT(result);
+					LOGITFILE(result, include_file);
 					continue;
-				} else if (result != ISC_R_SUCCESS)
-					goto log_and_cleanup;
+				} else if (result != ISC_R_SUCCESS) {
+					LOGITFILE(result, include_file);
+					goto insist_and_cleanup;
+				}
 				ictx = lctx->inc;
 				line = isc_lex_getsourceline(lctx->lex);
 				source = isc_lex_getsourcename(lctx->lex);
@@ -1395,6 +1410,27 @@ load(dns_loadctx_t *lctx) {
 			target = target_ft;
 			continue;
 		}
+
+		if (type == dns_rdatatype_soa &&
+		    (lctx->options & DNS_MASTER_ZONE) != 0 &&
+		    dns_name_compare(ictx->current, lctx->top) != 0) {
+			char namebuf[DNS_NAME_FORMATSIZE];
+			dns_name_format(ictx->current, namebuf,
+					sizeof(namebuf));
+			(*callbacks->error)(callbacks,
+				            "dns_master_load: %s:%lu: SOA "
+			                    "record not at top of zone (%s)",
+				            source, line, namebuf);
+			result = DNS_R_NOTZONETOP;
+			if (MANYERRS(lctx, result)) {
+				SETRESULT(lctx, result);
+				read_till_eol = ISC_TRUE;
+				target = target_ft;
+				continue;
+			} else if (result != ISC_R_SUCCESS)
+				goto insist_and_cleanup;
+		}
+
 
 		if (type == dns_rdatatype_sig)
 			covers = dns_rdata_covers(&rdata[rdcount]);

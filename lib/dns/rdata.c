@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rdata.c,v 1.147 2001/08/08 22:54:41 gson Exp $ */
+/* $Id: rdata.c,v 1.147.2.3 2001/10/03 02:07:34 marka Exp $ */
 
 #include <config.h>
 #include <ctype.h>
@@ -502,6 +502,9 @@ dns_rdata_fromwire(dns_rdata_t *rdata, dns_rdataclass_t rdclass,
 		REQUIRE(DNS_RDATA_VALIDFLAGS(rdata));
 	}
 
+	if (type == 0)
+		return (DNS_R_FORMERR);
+
 	ss = *source;
 	st = *target;
 
@@ -611,7 +614,7 @@ unknown_fromtext(dns_rdataclass_t rdclass, dns_rdatatype_t type,
 	isc_buffer_t *buf = NULL;
 	isc_token_t token;
 
-	if (dns_rdatatype_ismeta(type))
+	if (type == 0 || dns_rdatatype_ismeta(type))
 		return (DNS_R_METATYPE);
 
 	result = isc_lex_getmastertoken(lexer, &token, isc_tokentype_number,
@@ -1053,6 +1056,7 @@ dns_rdataclass_fromtext(dns_rdataclass_t *classp, isc_textregion_t *source) {
 		break;
 	case 'h':
 		COMPARE("hs", dns_rdataclass_hs);
+		COMPARE("hesiod", dns_rdataclass_hs);
 		break;
 	case 'i':
 		COMPARE("in", dns_rdataclass_in);

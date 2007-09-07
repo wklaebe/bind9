@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: zone.h,v 1.105 2001/05/14 19:06:45 bwelling Exp $ */
+/* $Id: zone.h,v 1.106.2.1 2001/11/13 18:57:14 gson Exp $ */
 
 #ifndef DNS_ZONE_H
 #define DNS_ZONE_H 1
@@ -38,8 +38,6 @@ typedef enum {
 	dns_zone_slave,
 	dns_zone_stub
 } dns_zonetype_t;
-
-#define DNS_STATS_NCOUNTERS      6
 
 #define DNS_ZONEOPT_SERVERS	0x00000001U	/* perform server checks */
 #define DNS_ZONEOPT_PARENTS	0x00000002U	/* perform parent checks */
@@ -1171,7 +1169,7 @@ dns_zonemgr_releasezone(dns_zonemgr_t *zmgr, dns_zone_t *zone);
  */
 
 void
-dns_zonemgr_settransfersin(dns_zonemgr_t *zmgr, int value);
+dns_zonemgr_settransfersin(dns_zonemgr_t *zmgr, isc_uint32_t value);
 /*
  *	Set the maximum number of simultanious transfers in allowed by
  *	the zone manager.
@@ -1180,7 +1178,7 @@ dns_zonemgr_settransfersin(dns_zonemgr_t *zmgr, int value);
  *	'zmgr' to be a valid zone manager.
  */
 
-int
+isc_uint32_t
 dns_zonemgr_getttransfersin(dns_zonemgr_t *zmgr);
 /*
  *	Return the the maximum number of simultanious transfers in allowed.
@@ -1190,7 +1188,7 @@ dns_zonemgr_getttransfersin(dns_zonemgr_t *zmgr);
  */
 
 void
-dns_zonemgr_settransfersperns(dns_zonemgr_t *zmgr, int value);
+dns_zonemgr_settransfersperns(dns_zonemgr_t *zmgr, isc_uint32_t value);
 /*
  *	Set the number of zone transfers allowed per nameserver.
  *
@@ -1198,7 +1196,7 @@ dns_zonemgr_settransfersperns(dns_zonemgr_t *zmgr, int value);
  *	'zmgr' to be a valid zone manager
  */
 
-int
+isc_uint32_t
 dns_zonemgr_getttransfersperns(dns_zonemgr_t *zmgr);
 /*
  *	Return the number of transfers allowed per nameserver.

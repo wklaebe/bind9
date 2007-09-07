@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: entropy.c,v 1.2 2001/06/22 17:05:52 tale Exp $ */
+/* $Id: entropy.c,v 1.3.2.1 2001/09/06 00:14:17 gson Exp $ */
 
 /*
  * This is the system independent part of the entropy module.  It is
@@ -87,7 +87,6 @@
 #define RND_INITIALIZE	128
 
 typedef struct {
-	isc_uint32_t	magic;
 	isc_uint32_t	cursor;		/* current add point in the pool */
 	isc_uint32_t	entropy;	/* current entropy estimate in bits */
 	isc_uint32_t	pseudo;		/* bits extracted in pseudorandom */
@@ -96,7 +95,7 @@ typedef struct {
 } isc_entropypool_t;
 
 struct isc_entropy {
-	isc_uint32_t			magic;
+	unsigned int			magic;
 	isc_mem_t		       *mctx;
 	isc_mutex_t			lock;
 	unsigned int			refcnt;
@@ -135,7 +134,7 @@ typedef struct {
 } isc_entropyfilesource_t;
 
 struct isc_entropysource {
-	isc_uint32_t	magic;
+	unsigned int	magic;
 	unsigned int	type;
 	isc_entropy_t  *ent;
 	isc_uint32_t	total;		/* entropy from this source */
@@ -1202,6 +1201,7 @@ isc_entropy_usebestsource(isc_entropy_t *ectx, isc_entropysource_t **source,
 {
 	isc_result_t result;
 	isc_result_t final_result = ISC_R_NOENTROPY;
+	isc_boolean_t userfile = ISC_TRUE;
 
 	REQUIRE(VALID_ENTROPY(ectx));
 	REQUIRE(source != NULL && *source == NULL);
@@ -1210,15 +1210,19 @@ isc_entropy_usebestsource(isc_entropy_t *ectx, isc_entropysource_t **source,
 		use_keyboard == ISC_ENTROPY_KEYBOARDMAYBE);
 
 #ifdef PATH_RANDOMDEV
-	if (randomfile == NULL)
+	if (randomfile == NULL) {
 		randomfile = PATH_RANDOMDEV;
+		userfile = ISC_FALSE;
+	}
 #endif
 
-	if (randomfile != NULL) {
+	if (randomfile != NULL && use_keyboard != ISC_ENTROPY_KEYBOARDYES) {
 		result = isc_entropy_createfilesource(ectx, randomfile);
 		if (result == ISC_R_SUCCESS &&
 		    use_keyboard == ISC_ENTROPY_KEYBOARDMAYBE)
 			use_keyboard = ISC_ENTROPY_KEYBOARDNO;
+		if (result != ISC_R_SUCCESS && userfile)
+			return (result);
 
 		final_result = result;
 	}

@@ -16,7 +16,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: config.h.in,v 1.44 2001/07/14 01:55:05 gson Exp $ */
+/* $Id: config.h.in,v 1.47.2.1 2001/10/22 23:28:08 gson Exp $ */
 
 /***
  *** This file is not to be included by any public header files, because
@@ -42,6 +42,9 @@
    byte first (like Motorola and SPARC, unlike Intel and VAX).  */
 #undef WORDS_BIGENDIAN
 
+/* define to `int' if <sys/types.h> doesn't define.  */
+#undef ssize_t
+
 /* define on DEC OSF to enable 4.4BSD style sa_len support */
 #undef _SOCKADDR_LEN
 
@@ -62,6 +65,9 @@
 
 /* define if sysconf() is available */
 #undef HAVE_SYSCONF
+
+/* define if sysctlbyname() is available */
+#undef HAVE_SYSCTLBYNAME
 
 /* define if catgets() is available */
 #undef HAVE_CATGETS
@@ -132,6 +138,9 @@ int sigwait(const unsigned int *set, int *sig);
 /* define if pthread_attr_getstacksize() is available */
 #undef HAVE_PTHREAD_ATTR_GETSTACKSIZE
 
+/* define if you have strerror in the C library. */
+#undef HAVE_STRERROR
+
 /* Define if you have the <dlfcn.h> header file.  */
 #undef HAVE_DLFCN_H
 
@@ -149,6 +158,9 @@ int sigwait(const unsigned int *set, int *sig);
 
 /* Define if you have the <sys/sockio.h> header file.  */
 #undef HAVE_SYS_SOCKIO_H
+
+/* Define if you have the <sys/sysctl.h> header file.  */
+#undef HAVE_SYS_SYSCTL_H
 
 /* Define if you have the <sys/time.h> header file.  */
 #undef HAVE_SYS_TIME_H

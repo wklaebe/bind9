@@ -65,12 +65,13 @@ A: This is often caused by TXT records with missing close quotes.  Check that
 all TXT records containing quoted strings have both open and close quotes.
 
 
-Q: How do I produce a usable core file from a multithreaded named
-on Linux?
+Q: How do I produce a usable core file from a multithreaded named on Linux?
 
-A: Apply the kernel patch found in bind9/linux/coredump-patch and rebuild
-the kernel.  This patch causes multithreaded programs to dump the correct
-thread.
+A: If the Linux kernel is 2.4.7 or newer, multithreaded core dumps
+are usable (that is, the correct thread is dumped).  Otherwise, if using
+a 2.2 kernel, apply the kernel patch found in contrib/linux/coredump-patch
+and rebuild the kernel.  This patch will cause multithreaded programs to dump
+the correct thread.
 
 
 Q: How do I restrict people from looking up the server version?
@@ -144,7 +145,7 @@ Q: I keep getting log messages like the following.  Why?
 
    Jun 21 12:00:00.000 client 10.0.0.1#1234: update denied
 
-Someone is trying to update your DNS data using the RFC2136 Dynamic
+A: Someone is trying to update your DNS data using the RFC2136 Dynamic
 Update protocol.  Windows 2000 machines have a habit of sending dynamic
 update requests to DNS servers without being specifically configured to
 do so.  If the update requests are coming from a Windows 2000 machine,
@@ -156,7 +157,7 @@ Q: I see a log message like the following.  Why?
 
    couldn't open pid file '/var/run/named.pid': Permission denied
 
-You are most likely running named as a non-root user, and that user
+A: You are most likely running named as a non-root user, and that user
 does not have permission to write in /var/run.  The common ways of
 fixing this are to create a /var/run/named directory owned by the named
 user and set pid-file to "/var/run/named/named.pid", or set
@@ -187,3 +188,80 @@ depending on whether they were last received as answers or as glue.
 You can always look up the addresses with explicit queries like
 "dig a.root-servers.net A".
 
+
+Q: Zone transfers from my BIND 9 master to my Windows 2000 slave
+fail.  Why?
+
+A: This may be caused by a bug in the Windows 2000 DNS server where
+DNS messages larger than 16K are not handled properly.  This can be
+worked around by setting the option "transfer-format one-answer;".
+Also check whether your zone contains domain names with embedded
+spaces or other special characters, like "John\032Doe\213s\032Computer",
+since such names have been known to cause Windows 2000 slaves to
+incorrectly reject the zone.
+
+
+Q: Why don't my zones reload when I do an "rndc reload" or SIGHUP?
+
+A: A zone can be updated either by editing zone files and reloading
+the server or by dynamic update, but not both.  If you have enabled
+dynamic update for a zone using the "allow-update" option, you are not
+supposed to edit the zone file by hand, and the server will not
+attempt to reload it.
+
+
+Q: I can query the nameserver from the nameserver but not from other
+machines.  Why?
+
+A: This is usually the result of the firewall configuration stopping
+the queries and / or the replies.
+
+
+Q: How can I make a server a slave for both an internal and
+an external view at the same time?  When I tried, both views
+on the slave were transfered from the same view on the master.
+
+A: You will need to give the master and slave multiple IP addresses and
+use those to make sure you reach the correct view on the other machine.
+
+	e.g.
+	Master: 10.0.1.1 (internal), 10.0.1.2 (external, IP alias)
+	    internal:
+		match-clients { !10.0.1.2; !10.0.1.4; 10.0.1/24; };
+		notify-source 10.0.1.1;
+		transfer-source 10.0.1.1;
+		query-source 10.0.1.1;
+	    external:
+		match-clients { any; };
+		recursion no;	// don't offer recursion to the world
+		notify-source 10.0.1.2;
+		transfer-source 10.0.1.2;
+		query-source 10.0.1.2;
+
+	Slave: 10.0.1.3 (internal), 10.0.1.4 (external, IP alias)
+	    internal:
+		match-clients { !10.0.1.2; !10.0.1.4; 10.0.1/24; };
+		notify-source 10.0.1.3;
+		transfer-source 10.0.1.3;
+		query-source 10.0.1.3;
+	    external:
+		match-clients { any; };
+		recursion no;	// don't offer recursion to the world
+		notify-source 10.0.1.4;
+		transfer-source 10.0.1.4;
+		query-source 10.0.1.4;
+
+	You put the external address on the alias so that all the other
+	dns clients on these boxes see the internal view by default.
+
+
+Q: When I try to use rndc, I get the error message "network
+unreachable" or "connection refused", even though I know named is
+running.
+
+A: You probably have "default-server localhost" in /etc/rndc.conf,
+your /etc/hosts or DNS maps "localhost" to both the IPv4 loopback
+address 127.0.0.1 and the IPv6 loopback address ::1, and you do not
+have IPv6 fully operational.  Change the "default-server localhost" to
+"default-server 127.0.0.1" to make sure rdnc does not try to contact
+the name server using IPv6.

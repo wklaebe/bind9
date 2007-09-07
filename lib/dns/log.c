@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: log.c,v 1.32 2001/07/16 05:10:21 mayer Exp $ */
+/* $Id: log.c,v 1.33.2.2 2001/10/11 23:07:00 gson Exp $ */
 
 /* Principal Authors: DCL */
 
@@ -33,7 +33,7 @@ LIBDNS_EXTERNAL_DATA isc_logcategory_t dns_categories[] = {
 	{ "notify", 	0 },
 	{ "database", 	0 },
 	{ "security", 	0 },
-	{ "config",	0 },
+	{ "oldconfig",  0 }, /* Placeholder */
 	{ "dnssec",	0 },
 	{ "resolver",	0 },
 	{ "xfer-in",	0 },
@@ -72,6 +72,7 @@ LIBDNS_EXTERNAL_DATA isc_logmodule_t dns_modules[] = {
 	{ "dns/tkey",		0 },
 	{ "dns/sdb",		0 },
 	{ "dns/diff",		0 },
+	{ "dns/hints",		0 },
 	{ NULL, 		0 }
 };
 

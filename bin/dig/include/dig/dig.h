@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dig.h,v 1.71 2001/08/08 22:54:15 gson Exp $ */
+/* $Id: dig.h,v 1.71.2.3 2001/11/15 01:24:13 marka Exp $ */
 
 #ifndef DIG_H
 #define DIG_H
@@ -40,7 +40,9 @@
 #define MXRD 32
 #define BUFSIZE 512
 #define COMMSIZE 0xffff
-#define RESOLVCONF "/etc/resolv.conf"
+#ifndef RESOLV_CONF
+#define RESOLV_CONF "/etc/resolv.conf"
+#endif
 #define OUTPUTBUF 32767
 #define MAXRRLIMIT 0xffffffff
 #define MAXTIMEOUT 0xffff
@@ -187,7 +189,7 @@ void
 get_address(char *host, in_port_t port, isc_sockaddr_t *sockaddr);
 
 isc_result_t
-get_reverse(char reverse[MXNAME], char *value, isc_boolean_t nibble);
+get_reverse(char *reverse, char *value, isc_boolean_t nibble);
 
 void
 fatal(const char *format, ...) ISC_FORMAT_PRINTF(1, 2);

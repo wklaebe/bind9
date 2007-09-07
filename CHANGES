@@ -1,4 +1,20 @@
 
+	--- 9.1.1rc6 released ---
+
+ 785.	[bug]		A race condition in the resolver could cause
+			an assertion failure. [RT #673, #872, #1048]
+
+ 784.	[bug]		nsupdate and other programs would not quit properly
+			if some signals were blocked by the caller. [RT #1081]
+
+ 783.	[bug]		Following CNAMEs could cause an assertion failure
+			when either using an sdb database or under very
+			rare conditions.
+
+ 780.	[bug]		Error handling code dealing with out of memory or
+			other rare errors could lead to assertion failures
+			by calling functions on unitialized names. [RT #1065]
+
 	--- 9.1.1rc5 released ---
 
  778.	[bug]		When starting cache cleaning, cleaning_timer_action()

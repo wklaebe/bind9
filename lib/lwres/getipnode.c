@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: getipnode.c,v 1.30.2.6 2004/03/09 06:12:33 marka Exp $ */
+/* $Id: getipnode.c,v 1.30.2.8 2005/04/28 23:59:13 marka Exp $ */
 
 #include <config.h>
 
@@ -330,6 +330,8 @@ lwres_getipnodebyaddr(const void *src, size_t len, int af, int *error_num) {
 		n = lwres_getnamebyaddr(lwrctx, LWRES_ADDRTYPE_V6, IN6ADDRSZ,
 					src, &by);
 	if (n != 0) {
+		lwres_conf_clear(lwrctx);
+		lwres_context_destroy(&lwrctx);
 		*error_num = HOST_NOT_FOUND;
 		return (NULL);
 	}
@@ -337,6 +339,7 @@ lwres_getipnodebyaddr(const void *src, size_t len, int af, int *error_num) {
 	lwres_gnbaresponse_free(lwrctx, &by);
 	if (he1 == NULL)
 		*error_num = NO_RECOVERY;
+	lwres_conf_clear(lwrctx);
 	lwres_context_destroy(&lwrctx);
 	return (he1);
 }

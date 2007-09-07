@@ -8,6 +8,9 @@
 #if (!defined(BSD)) || (BSD < 199306)
 #include <sys/bitypes.h>
 #endif
+#ifdef HAVE_INTTYPES_H
+#include <inttypes.h>
+#endif
 
 @NEED_PSELECT@
 @HAVE_SA_LEN@
@@ -27,9 +30,7 @@
 @INNETGR_ARGS@
 @SETNETGRENT_ARGS@
 @USE_IFNAMELINKID@
-
-/* XXX sunos and cygwin needs O_NDELAY */
-#define PORT_NONBLOCK O_NONBLOCK
+@PORT_NONBLOCK@
 
 /*
  * We need to know the IPv6 address family number even on IPv4-only systems.
@@ -255,7 +256,7 @@ char * strsep(char **stringp, const char *delim);
 #endif
 
 #ifndef ALIGN
-#define ALIGN(p) (((unsigned int)(p) + (sizeof(int) - 1)) & ~(sizeof(int) - 1))
+#define ALIGN(p) (((uintptr_t)(p) + (sizeof(long) - 1)) & ~(sizeof(long) - 1))
 #endif
 
 #ifdef NEED_SETGROUPENT

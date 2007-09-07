@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: host.c,v 1.76.2.7 2004/09/16 02:19:38 marka Exp $ */
+/* $Id: host.c,v 1.76.2.10 2005/07/04 03:22:04 marka Exp $ */
 
 #include <config.h>
 #include <stdlib.h>
@@ -38,20 +38,6 @@
 #include <dns/rdatatype.h>
 
 #include <dig/dig.h>
-
-extern ISC_LIST(dig_lookup_t) lookup_list;
-extern ISC_LIST(dig_server_t) server_list;
-extern ISC_LIST(dig_searchlist_t) search_list;
-
-extern isc_boolean_t usesearch;
-extern isc_boolean_t debugging;
-extern unsigned int timeout;
-extern isc_mem_t *mctx;
-extern int ndots;
-extern int tries;
-extern char *progname;
-extern isc_task_t *global_task;
-extern int fatalexit;
 
 static isc_boolean_t short_form = ISC_TRUE, listed_server = ISC_FALSE;
 static isc_boolean_t list_addresses = ISC_TRUE;
@@ -207,7 +193,7 @@ show_usage(void) {
 	fputs(
 "Usage: host [-aCdlrTwv] [-c class] [-n] [-N ndots] [-t type] [-W time]\n"
 "            [-R number] hostname [server]\n"
-"       -a is equivalent to -v -t *\n"
+"       -a is equivalent to -v -t ANY\n"
 "       -c specifies query class for non-IN data\n"
 "       -C compares SOA records on authoritative nameservers\n"
 "       -d is equivalent to -v\n"

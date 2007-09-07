@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1998-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rdata.c,v 1.147.2.12 2004/03/09 06:11:05 marka Exp $ */
+/* $Id: rdata.c,v 1.147.2.16 2005/07/22 05:26:44 marka Exp $ */
 
 #include <config.h>
 #include <ctype.h>
@@ -1366,8 +1366,11 @@ txt_totext(isc_region_t *source, isc_buffer_t *target) {
 		if (*sp < 0x20 || *sp >= 0x7f) {
 			if (tl < 4)
 				return (ISC_R_NOSPACE);
-			sprintf(tp, "\\%03u", *sp++);
-			tp += 4;
+			*tp++ = 0x5c;
+			*tp++ = 0x30 + ((*sp / 100) % 10);
+			*tp++ = 0x30 + ((*sp / 10) % 10);
+			*tp++ = 0x30 + (*sp % 10);
+			sp++;
 			tl -= 4;
 			continue;
 		}
@@ -1593,7 +1596,7 @@ name_tobuffer(dns_name_t *name, isc_buffer_t *target) {
 
 static isc_uint32_t
 uint32_fromregion(isc_region_t *region) {
-	unsigned long value;
+	isc_uint32_t value;
 
 	REQUIRE(region->length >= 4);
 	value = region->base[0] << 24;

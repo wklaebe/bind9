@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1998-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: name.c,v 1.127.2.10 2004/09/01 05:22:51 marka Exp $ */
+/* $Id: name.c,v 1.127.2.12 2005/07/23 04:34:21 marka Exp $ */
 
 #include <config.h>
 
@@ -1814,9 +1814,12 @@ dns_name_totext(dns_name_t *name, isc_boolean_t omit_final_dot,
 					} else {
 						if (trem < 4)
 							return (ISC_R_NOSPACE);
-						sprintf(tdata, "\\%03u",
-							c);
-						tdata += 4;
+						*tdata++ = 0x5c;
+						*tdata++ = 0x30 +
+							   ((c / 100) % 10);
+						*tdata++ = 0x30 +
+							   ((c / 10) % 10);
+						*tdata++ = 0x30 + (c % 10);
 						trem -= 4;
 						ndata++;
 						nlen--;

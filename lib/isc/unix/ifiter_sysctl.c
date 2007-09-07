@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: ifiter_sysctl.c,v 1.14.2.1 2004/03/09 06:12:10 marka Exp $ */
+/* $Id: ifiter_sysctl.c,v 1.14.2.3 2005/03/16 00:57:44 marka Exp $ */
 
 /*
  * Obtain the list of network interfaces using sysctl.
@@ -245,7 +245,7 @@ internal_current(isc_interfaceiter_t *iter) {
 			get_addr(family, &iter->current.netmask, mask_sa);
 
 		if (dst_sa != NULL &&
-		    (iter->current.flags & IFF_POINTOPOINT) != 0)
+		    (iter->current.flags & INTERFACE_F_POINTTOPOINT) != 0)
 			get_addr(family, &iter->current.dstaddress, dst_sa);
 
 		return (ISC_R_SUCCESS);

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dighost.c,v 1.221.2.24 2004/09/16 05:00:38 marka Exp $ */
+/* $Id: dighost.c,v 1.221.2.28 2005/09/01 03:15:38 marka Exp $ */
 
 /*
  * Notice to programmers:  Do not use this code as an example of how to
@@ -50,6 +50,7 @@
 #include <isc/app.h>
 #include <isc/base64.h>
 #include <isc/entropy.h>
+#include <isc/file.h>
 #include <isc/lang.h>
 #include <isc/netaddr.h>
 #include <isc/netdb.h>
@@ -78,9 +79,9 @@ extern int h_errno;
 #endif
 #endif
 
-ISC_LIST(dig_lookup_t) lookup_list;
+dig_lookuplist_t lookup_list;
 dig_serverlist_t server_list;
-ISC_LIST(dig_searchlist_t) search_list;
+dig_searchlistlist_t search_list;
 
 isc_boolean_t
 	have_ipv4 = ISC_FALSE,
@@ -1119,6 +1120,8 @@ followup_lookup(dns_message_t *msg, dig_query_t *query, dns_section_t section)
 				lookup->ns_search_only =
 					query->lookup->ns_search_only;
 				lookup->trace_root = ISC_FALSE;
+				if (lookup->ns_search_only)
+					lookup->recurse = ISC_FALSE;
 			}
 			srv = make_server(namestr, namestr);
 			debug("adding server %s", srv->servername);

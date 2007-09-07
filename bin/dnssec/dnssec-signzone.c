@@ -1,5 +1,5 @@
 /*
- * Portions Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Portions Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
  * Portions Copyright (C) 1999-2001, 2003  Internet Software Consortium.
  * Portions Copyright (C) 1995-2000 by Network Associates, Inc.
  *
@@ -16,7 +16,7 @@
  * IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dnssec-signzone.c,v 1.139.2.6 2004/10/25 01:45:25 marka Exp $ */
+/* $Id: dnssec-signzone.c,v 1.139.2.8 2005/03/17 03:59:29 marka Exp $ */
 
 #include <config.h>
 
@@ -1458,9 +1458,9 @@ usage(void) {
 	fprintf(stderr, "\t-c class (IN)\n");
 	fprintf(stderr, "\t-d directory\n");
 	fprintf(stderr, "\t\tdirectory to find signedkey files (.)\n");
-	fprintf(stderr, "\t-s YYYYMMDDHHMMSS|+offset:\n");
+	fprintf(stderr, "\t-s [YYYYMMDDHHMMSS|+offset]:\n");
 	fprintf(stderr, "\t\tSIG start time - absolute|offset (now)\n");
-	fprintf(stderr, "\t-e YYYYMMDDHHMMSS|+offset|\"now\"+offset]:\n");
+	fprintf(stderr, "\t-e [YYYYMMDDHHMMSS|+offset|\"now\"+offset]:\n");
 	fprintf(stderr, "\t\tSIG end time  - absolute|from start|from now "
 				"(now + 30 days)\n");
 	fprintf(stderr, "\t-i interval:\n");

@@ -1,5 +1,5 @@
 /*
- * Portions Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Portions Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
  * Portions Copyright (C) 2000, 2001  Internet Software Consortium.
  * Portions Copyright (C) 1995-2000 by Network Associates, Inc.
  *
@@ -16,7 +16,7 @@
  * IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dnssec-makekeyset.c,v 1.52.2.2 2004/03/09 06:09:15 marka Exp $ */
+/* $Id: dnssec-makekeyset.c,v 1.52.2.4 2005/06/08 00:12:17 marka Exp $ */
 
 #include <config.h>
 
@@ -24,6 +24,7 @@
 
 #include <isc/commandline.h>
 #include <isc/entropy.h>
+#include <isc/hash.h>
 #include <isc/mem.h>
 #include <isc/string.h>
 #include <isc/util.h>
@@ -211,6 +212,11 @@ main(int argc, char *argv[]) {
 	eflags = ISC_ENTROPY_BLOCKING;
 	if (!pseudorandom)
 		eflags |= ISC_ENTROPY_GOODONLY;
+
+	result = isc_hash_create(mctx, ectx, DNS_NAME_MAXWIRE);
+	if (result != ISC_R_SUCCESS)
+		fatal("could not create hash context");
+
 	result = dst_lib_init(mctx, ectx, eflags);
 	if (result != ISC_R_SUCCESS)
 		fatal("could not initialize dst: %s",
@@ -455,6 +461,7 @@ main(int argc, char *argv[]) {
 	}
 
 	cleanup_logging(&log);
+	isc_hash_destroy();
 	cleanup_entropy(&ectx);
 
 	isc_mem_free(mctx, output);

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: wire_test.c,v 1.60.2.1 2004/03/09 06:09:35 marka Exp $ */
+/* $Id: wire_test.c,v 1.60.2.4 2005/03/20 23:42:26 marka Exp $ */
 
 #include <config.h>
 
@@ -139,10 +139,10 @@ main(int argc, char *argv[]) {
 			}
 			rp++;
 		}
-		if (len == 0)
+		if (len == 0U)
 			break;
-		if (len % 2 != 0) {
-			printf("bad input format: %d\n", len);
+		if (len % 2 != 0U) {
+			printf("bad input format: %lu\n", (unsigned long)len);
 			exit(1);
 		}
 		if (len > (sizeof b) * 2) {
@@ -194,8 +194,8 @@ main(int argc, char *argv[]) {
 		memset(b, 0, sizeof(b));
 		isc_buffer_clear(&source);
 
-		for (i = 0 ; i < DNS_SECTION_MAX ; i++)
-			message->counts[i] = 0;  /* Another hack XXX */
+		for (n = 0 ; n < DNS_SECTION_MAX ; n++)
+			message->counts[n] = 0;  /* Another hack XXX */
 
 		result = dns_compress_init(&cctx, -1, mctx);
 		CHECKRESULT(result, "dns_compress_init() failed");

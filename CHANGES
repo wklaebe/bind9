@@ -1,4 +1,160 @@
 
+	--- 9.2.6b1 released ---
+
+1917.	[doc]		funcsynopsisinfo wasn't being treated as verbatim
+			when generating man pages. [RT #15385]
+
+1911.	[bug]		Update windows socket code. [RT #14965]
+
+1905.	[bug]		Strings returned from cfg_obj_asstring() should be
+                        treated as read-only.  [RT #15256]
+
+1895.	[bug]		A escaped character is, potentially, converted to
+			the output character set too early. [RT #14666]
+
+1893.	[port]		Use uintptr_t if available. [RT #14606]
+
+1889.	[port]		sunos: non blocking i/o support. [RT #14951]
+
+1887.	[bug]		The cache could delete expired records too fast for
+			clients with a virtual time in the past. [RT #14991]
+
+1886.	[bug]		fctx_create() could return success even though it
+			failed. [RT #14993]
+
+1884.	[cleanup]	dighost.c: move external declarations into <dig/dig.h>.
+
+1883.	[bug]		dnssec-signzone, dnssec-keygen, dnssec-signkey,
+			dnssec-makekeyset: handle negative debug levels.
+			[RT #14962]
+
+1881.	[func]		Add a system test for named-checkconf. [RT #14931]
+
+1877.	[bug]		Fix unreasonably low quantum on call to
+			dns_rbt_destroy2().  Remove unnecessay unhash_node()
+			call. [RT #14919]
+
+1875.	[bug]		process_dhtkey() was using the wrong memory context
+			to free some memory. [RT #14890]
+
+1873.	[port]		win32: isc__errno2result() now reports its caller.
+			[RT #13753]
+
+1872.	[port]		win32: Handle ERROR_NETNAME_DELETED.  [RT #13753]
+
+1871.	[bug]		dnssec_makekeyset and dnssec-signkey failed to
+			initalize the hash context. [RT #13771]
+
+1865.	[bug]		Silently ignore nameservers in /etc/resolv.conf with
+			bad addresses. [RT #14841]
+
+1861.	[bug]		dig could trigger a INSIST on certain malformed
+			responses. [RT #14801]
+
+1860.	[port]		solaris 2.8: hack_shutup_pthreadmutexinit was
+			incorrectly set. [RT #14775]
+
+1856.	[doc]		Switch Docbook toolchain from DSSSL to XSL.
+			[RT #11398]
+
+1854.	[bug]		lwres also needs to know the print format for
+			(long long).  [RT #13754]
+
+1850.	[bug]		Memory leak in lwres_getipnodebyaddr(). [RT #14591]
+
+1849.	[doc]		All forms of the man pages (docbook, man, html) should
+			have consistant copyright dates.
+
+1848.	[bug]		Improve SMF integration. [RT #13238]
+
+1847.	[bug]		isc_ondestroy_init() is called too late in
+			dns_rbtdb_create()/dns_rbtdb64_create(). 
+			[RT #13661]
+			
+1846.	[contrib]	query-loc-0.3.0 from Stephane Bortzmeyer
+			<bortzmeyer@nic.fr>.
+
+1845.	[bug]		Improve error reporting to distingish between
+			accept()/fcntl() and socket()/fcntl() errors.
+			[RT #13745]
+
+1844.	[bug]		inet_pton() accepted more that 4 hexadecimal digits
+			for each 16 bit piece of the IPv6 address.  The text
+			representation of a IPv6 address has been tighted
+			to disallow this (draft-ietf-ipv6-addr-arch-v4-02.txt).
+			[RT #5662]
+
+1843.	[cleanup]	CINCLUDES takes precedence over CFLAGS.  This helps
+			when CFLAGS contains "-I /usr/local/include"
+			resulting in old header files being used.
+
+1842.	[port]		cmsg_len() could produce incorrect results on
+			some platform. [RT #13744]
+
+1841.	[bug]		"dig +nssearch" now makes a recursive query to
+			find the list of nameservers to query. [RT #13694]
+
+1839.	[bug]		<isc/hash.h> was not being installed.
+
+1838.	[cleanup]	Don't allow Linux capabilities to be inherited.
+			[RT #13707]
+
+1836.	[cleanup]	Silence compiler warnings in hash_test.c.
+
+1835.	[bug]		Update dnssec-signzone's usage message. [RT #13657]
+
+1834.	[bug]		Bad memset in rdata_test.c. [RT #13658]
+
+1833.	[bug]		Race condition in isc_mutex_lock_profile(). [RT #13660]
+
+1832.	[bug]		named fails to return BADKEY on unknown TSIG algorithm.
+			[RT #13620]
+
+1830.	[bug]		adb lame cache has sence of test reversed. [RT #13600]
+
+1828.	[bug]		isc_rwlock_init() failed to properly cleanup if it
+			encountered a error. [RT #13549]
+
+1827.	[bug]		host: update usage message for '-a'. [RT #37116]
+
+1826.	[bug]		Missing DESTROYLOCK() in isc_mem_createx() on out
+			of memory error. [RT #13537]
+
+1825.	[bug]		Missing UNLOCK() on out of memory error from in
+			rbtdb.c:subtractrdataset(). [RT #13519]
+
+1824.	[bug]		Memory leak on dns_zone_setdbtype() failure.
+			[RT #13510]
+
+1823.	[bug]		Wrong macro used to check for point to point interface.
+			[RT#13418]
+
+1821.	[doc]		acls definitions are no longer required to be
+			in named.conf prior to reference.  They can be
+			defined after being referenced.
+
+1820.	[bug]		Gracefully handle acl loops. [RT #13659]
+
+1815.	[bug]		nsupdate triggered a REQUIRE if the server was set
+			without also setting the zone and it encountered
+			a CNAME and was using TSIG.  [RT #13086]
+
+1810.	[bug]		configure, lib/bind/configure make different default
+			decisions about whether to do a threaded build.
+			[RT #13212]
+
+1809.	[bug]		"make distclean" failed for libbind if the platform
+			is not supported.
+
+1807.	[bug]		When forwarding (forward only) set the active domain
+			from the forward zone name. [RT #13526]
+			
+1804.	[bug]		Ensure that if we are queried for glue that it fits
+			in the additional section or TC is set to tell the
+			client to retry using TCP. [RT #10114]
+
+1802.	[bug]		Handle connection resets better. [RT #11280]
+
 	--- 9.2.5 released ---
 
 	--- 9.2.5rc1 released ---

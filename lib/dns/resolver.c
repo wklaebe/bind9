@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: resolver.c,v 1.218.2.39 2005/01/19 23:59:15 marka Exp $ */
+/* $Id: resolver.c,v 1.218.2.42 2005/07/04 23:19:17 marka Exp $ */
 
 #include <config.h>
 
@@ -1315,6 +1315,7 @@ resquery_connected(isc_task_t *task, isc_event_t *event) {
 		case ISC_R_CONNREFUSED:
 		case ISC_R_NOPERM:
 		case ISC_R_ADDRNOTAVAIL:
+		case ISC_R_CONNECTIONRESET:
 			/*
 			 * No route to remote.
 			 */
@@ -2266,10 +2267,10 @@ fctx_create(dns_resolver_t *res, dns_name_t *name, dns_rdatatype_t type,
 	    unsigned int options, unsigned int bucketnum, fetchctx_t **fctxp)
 {
 	fetchctx_t *fctx;
-	isc_result_t result = ISC_R_SUCCESS;
+	isc_result_t result;
 	isc_result_t iresult;
 	isc_interval_t interval;
-	dns_fixedname_t qdomain;
+	dns_fixedname_t fixed;
 	unsigned int findoptions = 0;
 
 	/*
@@ -2283,8 +2284,10 @@ fctx_create(dns_resolver_t *res, dns_name_t *name, dns_rdatatype_t type,
 	FCTXTRACE("create");
 	dns_name_init(&fctx->name, NULL);
 	result = dns_name_dup(name, res->mctx, &fctx->name);
-	if (result != ISC_R_SUCCESS)
+	if (result != ISC_R_SUCCESS) {
+		result = ISC_R_NOMEMORY;
 		goto cleanup_fetch;
+	}
 	dns_name_init(&fctx->domain, NULL);
 	dns_rdataset_init(&fctx->nameservers);
 
@@ -2319,8 +2322,10 @@ fctx_create(dns_resolver_t *res, dns_name_t *name, dns_rdatatype_t type,
 
 	if (domain == NULL) {
 		dns_forwarders_t *forwarders = NULL;
-		result = dns_fwdtable_find(fctx->res->view->fwdtable,
-					   &fctx->name, &forwarders);
+		dns_fixedname_init(&fixed);
+		domain = dns_fixedname_name(&fixed);
+		result = dns_fwdtable_find2(fctx->res->view->fwdtable,
+					    &fctx->name, domain, &forwarders);
 		if (result == ISC_R_SUCCESS)
 			fctx->fwdpolicy = forwarders->fwdpolicy;
 
@@ -2332,27 +2337,22 @@ fctx_create(dns_resolver_t *res, dns_name_t *name, dns_rdatatype_t type,
 			 */
 			if (type == dns_rdatatype_key)
 				findoptions |= DNS_DBFIND_NOEXACT;
-			dns_fixedname_init(&qdomain);
-			result = dns_view_findzonecut(res->view, name,
-					      dns_fixedname_name(&qdomain), 0,
-						      findoptions, ISC_TRUE,
+			result = dns_view_findzonecut(res->view, name, domain,
+						      0, findoptions, ISC_TRUE,
 						      &fctx->nameservers,
 						      NULL);
 			if (result != ISC_R_SUCCESS)
 				goto cleanup_name;
-			result = dns_name_dup(dns_fixedname_name(&qdomain),
-					      res->mctx, &fctx->domain);
+			result = dns_name_dup(domain, res->mctx, &fctx->domain);
 			if (result != ISC_R_SUCCESS) {
 				dns_rdataset_disassociate(&fctx->nameservers);
 				goto cleanup_name;
 			}
 		} else {
 			/*
-			 * We're in forward-only mode.  Set the query domain
-			 * to ".".
+			 * We're in forward-only mode.  Set the query domain.
 			 */
-			result = dns_name_dup(dns_rootname, res->mctx,
-					      &fctx->domain);
+			result = dns_name_dup(domain, res->mctx, &fctx->domain);
 			if (result != ISC_R_SUCCESS)
 				goto cleanup_name;
 		}

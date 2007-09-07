@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000, 2001, 2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dnssectool.c,v 1.31.2.5 2004/03/09 06:09:16 marka Exp $ */
+/* $Id: dnssectool.c,v 1.31.2.7 2005/07/02 02:42:29 marka Exp $ */
 
 #include <config.h>
 
@@ -134,6 +134,8 @@ setup_logging(int verbose, isc_mem_t *mctx, isc_log_t **logp) {
 	isc_log_t *log = NULL;
 	int level;
 
+	if (verbose < 0)
+		verbose = 0;
 	switch (verbose) {
 	case 0:
 		/*

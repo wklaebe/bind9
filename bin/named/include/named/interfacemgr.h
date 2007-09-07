@@ -1,21 +1,21 @@
 /*
  * Copyright (C) 1999, 2000  Internet Software Consortium.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
- * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
- * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
- * SOFTWARE.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+ * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+ * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: interfacemgr.h,v 1.17 2000/06/22 21:49:40 tale Exp $ */
+/* $Id: interfacemgr.h,v 1.21 2000/09/26 18:26:20 gson Exp $ */
 
 #ifndef NAMED_INTERFACEMGR_H
 #define NAMED_INTERFACEMGR_H 1
@@ -27,8 +27,8 @@
 /*
  * Interface manager
  *
- * The interface manager monitors the operating system's list 
- * of network interfaces, creating and destroying listeners 
+ * The interface manager monitors the operating system's list
+ * of network interfaces, creating and destroying listeners
  * as needed.
  *
  * Reliability:
@@ -62,7 +62,7 @@
  *** Types
  ***/
 
-#define IFACE_MAGIC		0x493A2D29U	/* I:-). */	
+#define IFACE_MAGIC		0x493A2D29U	/* I:-). */
 #define NS_INTERFACE_VALID(t)	ISC_MAGIC_VALID(t, IFACE_MAGIC)
 
 struct ns_interface {
@@ -73,13 +73,12 @@ struct ns_interface {
 	unsigned int		generation;     /* Generation number. */
 	isc_sockaddr_t		addr;           /* Address and port. */
 	char 			name[32];	/* Null terminated. */
-	isc_socket_t *		udpsocket; 	/* UDP socket. */
 	dns_dispatch_t *	udpdispatch;	/* UDP dispatcher. */
 	isc_socket_t *		tcpsocket;	/* TCP socket. */
-	isc_task_t *		task;
 	int			ntcptarget;	/* Desired number of concurrent
 						   TCP accepts */
 	int			ntcpcurrent;	/* Current ditto, locked */
+	ns_clientmgr_t *	clientmgr;	/* Client manager. */
 	ISC_LINK(ns_interface_t) link;
 };
 
@@ -91,7 +90,7 @@ isc_result_t
 ns_interfacemgr_create(isc_mem_t *mctx, isc_taskmgr_t *taskmgr,
 		       isc_socketmgr_t *socketmgr,
 		       dns_dispatchmgr_t *dispatchmgr,
-		       ns_clientmgr_t *clientmgr, ns_interfacemgr_t **mgrp);
+		       ns_interfacemgr_t **mgrp);
 /*
  * Create a new interface manager.
  *
@@ -103,7 +102,7 @@ ns_interfacemgr_create(isc_mem_t *mctx, isc_taskmgr_t *taskmgr,
 void
 ns_interfacemgr_attach(ns_interfacemgr_t *source, ns_interfacemgr_t **target);
 
-void 
+void
 ns_interfacemgr_detach(ns_interfacemgr_t **targetp);
 
 void
@@ -135,21 +134,20 @@ ns_interfacemgr_setlistenon6(ns_interfacemgr_t *mgr, ns_listenlist_t *value);
  * The previous IPv6 listen-on list is freed.
  */
 
-isc_result_t
-ns_interfacemgr_findudpdispatcher(ns_interfacemgr_t *mgr,
-				  isc_sockaddr_t *address,
-				  dns_dispatch_t **dispatchp);
-/*
- * Find a UDP dispatcher matching 'address', if it exists.
- */
-
 dns_aclenv_t *
 ns_interfacemgr_getaclenv(ns_interfacemgr_t *mgr);
 
 void
 ns_interface_attach(ns_interface_t *source, ns_interface_t **target);
 
-void 
+void
 ns_interface_detach(ns_interface_t **targetp);
+
+void
+ns_interface_shutdown(ns_interface_t *ifp);
+/*
+ * Stop listening for queries on interface 'ifp'.
+ * May safely be called multiple times.
+ */
 
 #endif /* NAMED_INTERFACEMGR_H */

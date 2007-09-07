@@ -1,21 +1,21 @@
 /*
  * Copyright (C) 1999, 2000  Internet Software Consortium.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
- * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
- * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
- * SOFTWARE.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+ * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+ * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: nsap_22.c,v 1.23 2000/06/01 18:26:47 tale Exp $ */
+/* $Id: nsap_22.c,v 1.28 2000/12/01 01:40:56 gson Exp $ */
 
 /* Reviewed: Fri Mar 17 10:41:07 PST 2000 by gson */
 
@@ -39,9 +39,11 @@ fromtext_in_nsap(ARGS_FROMTEXT) {
 
 	UNUSED(origin);
 	UNUSED(downcase);
+	UNUSED(rdclass);
 
 	/* 0x<hex.string.with.periods> */
-	RETERR(gettoken(lexer, &token, isc_tokentype_string, ISC_FALSE));
+	RETERR(isc_lex_getmastertoken(lexer, &token, isc_tokentype_string,
+				      ISC_FALSE));
 	sr = &token.value.as_textregion;
 	if (sr->length < 2)
 		return (ISC_R_UNEXPECTEDEND);
@@ -78,6 +80,7 @@ totext_in_nsap(ARGS_TOTEXT) {
 
 	REQUIRE(rdata->type == 22);
 	REQUIRE(rdata->rdclass == 1);
+	REQUIRE(rdata->length != 0);
 
 	UNUSED(tctx);
 
@@ -100,6 +103,7 @@ fromwire_in_nsap(ARGS_FROMWIRE) {
 
 	UNUSED(dctx);
 	UNUSED(downcase);
+	UNUSED(rdclass);
 
 	isc_buffer_activeregion(source, &region);
 	if (region.length < 1)
@@ -114,6 +118,7 @@ static inline isc_result_t
 towire_in_nsap(ARGS_TOWIRE) {
 	REQUIRE(rdata->type == 22);
 	REQUIRE(rdata->rdclass == 1);
+	REQUIRE(rdata->length != 0);
 
 	UNUSED(cctx);
 
@@ -124,11 +129,13 @@ static inline int
 compare_in_nsap(ARGS_COMPARE) {
 	isc_region_t r1;
 	isc_region_t r2;
-	
+
 	REQUIRE(rdata1->type == rdata2->type);
 	REQUIRE(rdata1->rdclass == rdata2->rdclass);
 	REQUIRE(rdata1->type == 22);
 	REQUIRE(rdata1->rdclass == 1);
+	REQUIRE(rdata1->length != 0);
+	REQUIRE(rdata2->length != 0);
 
 	dns_rdata_toregion(rdata1, &r1);
 	dns_rdata_toregion(rdata2, &r2);
@@ -147,6 +154,8 @@ fromstruct_in_nsap(ARGS_FROMSTRUCT) {
 	REQUIRE((nsap->nsap == NULL && nsap->nsap_len == 0) ||
 		(nsap->nsap != NULL && nsap->nsap_len != 0));
 
+	UNUSED(rdclass);
+
 	return (mem_tobuffer(target, nsap->nsap, nsap->nsap_len));
 }
 
@@ -158,6 +167,7 @@ tostruct_in_nsap(ARGS_TOSTRUCT) {
 	REQUIRE(rdata->type == 22);
 	REQUIRE(rdata->rdclass == 1);
 	REQUIRE(target != NULL);
+	REQUIRE(rdata->length != 0);
 
 	nsap->common.rdclass = rdata->rdclass;
 	nsap->common.rdtype = rdata->type;

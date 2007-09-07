@@ -1,21 +1,21 @@
 /*
  * Copyright (C) 1999, 2000  Internet Software Consortium.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
- * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
- * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
- * SOFTWARE.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+ * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+ * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: kx_36.c,v 1.27 2000/06/01 18:26:44 tale Exp $ */
+/* $Id: kx_36.c,v 1.32 2000/12/01 01:40:52 gson Exp $ */
 
 /* Reviewed: Thu Mar 16 17:24:54 PST 2000 by explorer */
 
@@ -35,12 +35,16 @@ fromtext_in_kx(ARGS_FROMTEXT) {
 	REQUIRE(type == 36);
 	REQUIRE(rdclass == 1);
 
-	RETERR(gettoken(lexer, &token, isc_tokentype_number, ISC_FALSE));
+	UNUSED(rdclass);
+
+	RETERR(isc_lex_getmastertoken(lexer, &token, isc_tokentype_number,
+				      ISC_FALSE));
 	if (token.value.as_ulong > 0xffff)
 		return (ISC_R_RANGE);
 	RETERR(uint16_tobuffer(token.value.as_ulong, target));
 
-	RETERR(gettoken(lexer, &token, isc_tokentype_string, ISC_FALSE));
+	RETERR(isc_lex_getmastertoken(lexer, &token, isc_tokentype_string,
+				      ISC_FALSE));
 	dns_name_init(&name, NULL);
 	buffer_fromregion(&buffer, &token.value.as_region);
 	origin = (origin != NULL) ? origin : dns_rootname;
@@ -58,6 +62,7 @@ totext_in_kx(ARGS_TOTEXT) {
 
 	REQUIRE(rdata->type == 36);
 	REQUIRE(rdata->rdclass == 1);
+	REQUIRE(rdata->length != 0);
 
 	dns_name_init(&name, NULL);
 	dns_name_init(&prefix, NULL);
@@ -83,8 +88,10 @@ fromwire_in_kx(ARGS_FROMWIRE) {
 	REQUIRE(type == 36);
 	REQUIRE(rdclass == 1);
 
+	UNUSED(rdclass);
+
 	dns_decompress_setmethods(dctx, DNS_COMPRESS_NONE);
-        
+
         dns_name_init(&name, NULL);
 
 	isc_buffer_activeregion(source, &sregion);
@@ -102,6 +109,7 @@ towire_in_kx(ARGS_TOWIRE) {
 
 	REQUIRE(rdata->type == 36);
 	REQUIRE(rdata->rdclass == 1);
+	REQUIRE(rdata->length != 0);
 
 	dns_compress_setmethods(cctx, DNS_COMPRESS_NONE);
 	dns_rdata_toregion(rdata, &region);
@@ -126,6 +134,8 @@ compare_in_kx(ARGS_COMPARE) {
 	REQUIRE(rdata1->rdclass == rdata2->rdclass);
 	REQUIRE(rdata1->type == 36);
 	REQUIRE(rdata1->rdclass == 1);
+	REQUIRE(rdata1->length != 0);
+	REQUIRE(rdata2->length != 0);
 
 	order = memcmp(rdata1->data, rdata2->data, 2);
 	if (order != 0)
@@ -157,6 +167,8 @@ fromstruct_in_kx(ARGS_FROMSTRUCT) {
 	REQUIRE(kx->common.rdtype == type);
 	REQUIRE(kx->common.rdclass == rdclass);
 
+	UNUSED(rdclass);
+
 	RETERR(uint16_tobuffer(kx->preference, target));
 	dns_name_toregion(&kx->exchange, &region);
 	return (isc_buffer_copyregion(target, &region));
@@ -171,6 +183,7 @@ tostruct_in_kx(ARGS_TOSTRUCT) {
 	REQUIRE(rdata->type == 36);
 	REQUIRE(rdata->rdclass == 1);
 	REQUIRE(target != NULL);
+	REQUIRE(rdata->length != 0);
 
 	kx->common.rdclass = rdata->rdclass;
 	kx->common.rdtype = rdata->type;

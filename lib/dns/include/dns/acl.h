@@ -1,21 +1,21 @@
 /*
  * Copyright (C) 1999, 2000  Internet Software Consortium.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
- * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
- * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
- * SOFTWARE.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+ * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+ * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: acl.h,v 1.11 2000/06/22 21:55:05 tale Exp $ */
+/* $Id: acl.h,v 1.16 2000/12/01 18:22:17 gson Exp $ */
 
 #ifndef DNS_ACL_H
 #define DNS_ACL_H 1
@@ -52,16 +52,20 @@ typedef enum {
 	dns_aclelementtype_any
 } dns_aclelemettype_t;
 
+typedef struct dns_aclipprefix dns_aclipprefix_t;
+
+struct dns_aclipprefix {
+	isc_netaddr_t address; /* IP4/IP6 */
+	unsigned int prefixlen;
+};
+
 struct dns_aclelement {
 	dns_aclelemettype_t type;
 	isc_boolean_t negative;
 	union {
-		struct {
-			isc_netaddr_t address; /* IP4/IP6 */
-			unsigned int prefixlen;
-		} ip_prefix;
-		dns_name_t keyname;
-		dns_acl_t *nestedacl;
+		dns_aclipprefix_t ip_prefix;
+		dns_name_t 	  keyname;
+		dns_acl_t 	  *nestedacl;
 	} u;
 };
 
@@ -78,7 +82,7 @@ struct dns_acl {
 
 struct dns_aclenv {
 	dns_acl_t *localhost;
-	dns_acl_t *localnets;	
+	dns_acl_t *localnets;
 };
 
 #define DNS_ACL_MAGIC		0x4461636c	/* Dacl */
@@ -127,12 +131,23 @@ dns_aclelement_equal(dns_aclelement_t *ea, dns_aclelement_t *eb);
 isc_boolean_t
 dns_acl_equal(dns_acl_t *a, dns_acl_t *b);
 
+isc_boolean_t
+dns_acl_isinsecure(dns_acl_t *a);
+/*
+ * Return ISC_TRUE iff the acl 'a' is considered insecure, that is,
+ * if it contains IP addresses other than those of the local host.
+ * This is intended for applications such as printing warning 
+ * messages for suspect ACLs; it is not intended for making access
+ * control decisions.  We make no guarantee that an ACL for which
+ * this function returns ISC_FALSE is safe.
+ */
+
 isc_result_t
 dns_aclenv_init(isc_mem_t *mctx, dns_aclenv_t *env);
 
 void
 dns_aclenv_copy(dns_aclenv_t *t, dns_aclenv_t *s);
-	
+
 void
 dns_aclenv_destroy(dns_aclenv_t *env);
 
@@ -154,10 +169,10 @@ dns_acl_match(isc_netaddr_t *reqaddr,
  * indicating the distance from the beginning of the list.
  *
  * If there is a negative match, '*match' will be set to a negative value
- * whose absoluate value indicates the distance from the beginning of
+ * whose absolute value indicates the distance from the beginning of
  * the list.
  *
- * If there is a match (either positive or negative) and 'matchelt' is  
+ * If there is a match (either positive or negative) and 'matchelt' is
  * non-NULL, *matchelt will be attached to the primitive
  * (non-indirect) address match list element that matched.
  *
@@ -165,6 +180,21 @@ dns_acl_match(isc_netaddr_t *reqaddr,
  *
  * Returns:
  *	ISC_R_SUCCESS		Always succeeds.
+ */
+
+isc_boolean_t
+dns_aclelement_match(isc_netaddr_t *reqaddr,
+		     dns_name_t *reqsigner,
+		     dns_aclelement_t *e,
+		     dns_aclenv_t *env,		     
+		     dns_aclelement_t **matchelt);
+/*
+ * Like dns_acl_match, but matches against the single ACL element 'e'
+ * rather than a complete list and returns ISC_TRUE iff it matched.
+ * To determine whether the match was prositive or negative, the 
+ * caller should examine e->negative.  Since the element 'e' may be
+ * a reference to a named ACL or a nested ACL, the matching element
+ * returned through 'matchelt' is not necessarily 'e' itself.
  */
 
 ISC_LANG_ENDDECLS

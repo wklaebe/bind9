@@ -1,21 +1,21 @@
 /*
  * Copyright (C) 1999, 2000  Internet Software Consortium.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
- * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
- * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
- * SOFTWARE.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+ * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+ * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: client.h,v 1.37.2.1 2000/07/26 23:51:33 bwelling Exp $ */
+/* $Id: client.h,v 1.48 2000/12/02 04:29:24 gson Exp $ */
 
 #ifndef NAMED_CLIENT_H
 #define NAMED_CLIENT_H 1
@@ -35,21 +35,22 @@
  * Each ns_client_t object can handle only one TCP connection or UDP
  * request at a time.  Therefore, several ns_client_t objects are
  * typically created to serve each network interface, e.g., one
- * for handling TCP requests and a few (one per CPU) for handling 
+ * for handling TCP requests and a few (one per CPU) for handling
  * UDP requests.
  *
  * Incoming requests are classified as queries, zone transfer
- * requests, update requests, notify requests, etc, and handed off 
+ * requests, update requests, notify requests, etc, and handed off
  * to the appropriate request handler.  When the request has been
- * fully handled (which can be much later), the ns_client_t must be 
- * notified of this by calling one of the following functions 
+ * fully handled (which can be much later), the ns_client_t must be
+ * notified of this by calling one of the following functions
  * exactly once in the context of its task:
  *
  *   ns_client_send()	(sending a non-error response)
+ *   ns_client_sendraw() (sending a raw response)
  *   ns_client_error()	(sending an error response)
  *   ns_client_next()	(sending no response)
  *
- * This will release any resources used by the request and 
+ * This will release any resources used by the request and
  * and allow the ns_client_t to listen for the next request.
  *
  * A ns_clientmgr_t manages a number of ns_client_t objects.
@@ -69,7 +70,7 @@
 #include <dns/name.h>
 #include <dns/types.h>
 #include <dns/tcpmsg.h>
-
+#include <dns/fixedname.h>
 #include <named/types.h>
 #include <named/query.h>
 
@@ -107,6 +108,7 @@ struct ns_client {
 	unsigned char *		sendbuf;
 	dns_rdataset_t *	opt;
 	isc_uint16_t		udpsize;
+	isc_uint16_t		extflags;
 	void			(*next)(ns_client_t *);
 	void			(*shutdown)(void *arg, isc_result_t result);
 	void 			*shutdown_arg;
@@ -129,6 +131,7 @@ struct ns_client {
 	 */
 	client_list_t		*list;
 };
+
 
 #define NS_CLIENT_MAGIC			0x4E534363U	/* NSCc */
 #define NS_CLIENT_VALID(c)		ISC_MAGIC_VALID(c, NS_CLIENT_MAGIC)
@@ -155,6 +158,13 @@ ns_client_send(ns_client_t *client);
  */
 
 void
+ns_client_sendraw(ns_client_t *client, dns_message_t *msg);
+/*
+ * Finish processing the current client request and
+ * send msg as a response using client->message->id for the id.
+ */
+
+void
 ns_client_error(ns_client_t *client, isc_result_t result);
 /*
  * Finish processing the current client request and return
@@ -165,7 +175,7 @@ ns_client_error(ns_client_t *client, isc_result_t result);
 void
 ns_client_next(ns_client_t *client, isc_result_t result);
 /*
- * Finish processing the current client request, 
+ * Finish processing the current client request,
  * return no response to the client.
  */
 
@@ -229,7 +239,7 @@ isc_result_t
 ns_client_checkacl(ns_client_t  *client,
 		   const char *opname, dns_acl_t *acl,
 		   isc_boolean_t default_allow,
-		   isc_boolean_t logfailure);
+		   int log_level);
 /*
  * Convenience function for client request ACL checking.
  *
@@ -239,7 +249,7 @@ ns_client_checkacl(ns_client_t  *client,
  * Log messages will refer to the request as an 'opname' request.
  *
  * Notes:
- *	This is appropriate for checking allow-update, 
+ *	This is appropriate for checking allow-update,
  * 	allow-query, allow-transfer, etc.  It is not appropriate
  * 	for checking the blackhole list because we treat positive
  * 	matches as "allow" and negative matches as "deny"; in

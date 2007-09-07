@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: nslookup.c,v 1.20.2.11 2000/10/30 17:21:45 mws Exp $ */
+/* $Id: nslookup.c,v 1.63 2000/10/31 03:21:39 marka Exp $ */
 
 #include <config.h>
 
@@ -194,7 +194,7 @@ printsection(dig_query_t *query, dns_message_t *msg, isc_boolean_t headers,
 	isc_buffer_t *b = NULL;
 	dns_name_t *name;
 	dns_rdataset_t *rdataset = NULL;
-	dns_rdata_t rdata;
+	dns_rdata_t rdata = DNS_RDATA_INIT;
 	char *ptr;
 	char *input;
 
@@ -327,6 +327,7 @@ printsection(dig_query_t *query, dns_message_t *msg, isc_boolean_t headers,
 					       (int)isc_buffer_usedlength(b),
 					       (char*)isc_buffer_base(b));
 				}
+				dns_rdata_reset(&rdata);
 				loopresult = dns_rdataset_next(rdataset);
 			}
 		}
@@ -349,7 +350,7 @@ detailsection(dig_query_t *query, dns_message_t *msg, isc_boolean_t headers,
 	isc_buffer_t *b = NULL;
 	dns_name_t *name;
 	dns_rdataset_t *rdataset = NULL;
-	dns_rdata_t rdata;
+	dns_rdata_t rdata = DNS_RDATA_INIT;
 	char *ptr;
 	char *input;
 
@@ -466,6 +467,7 @@ detailsection(dig_query_t *query, dns_message_t *msg, isc_boolean_t headers,
 					       (int)isc_buffer_usedlength(b),
 					       (char*)isc_buffer_base(b));
 				}
+				dns_rdata_reset(&rdata);
 				loopresult = dns_rdataset_next(rdataset);
 			}
 		}
@@ -524,7 +526,7 @@ printmessage(dig_query_t *query, dns_message_t *msg, isc_boolean_t headers) {
 	}
 
 	if ((msg->flags & DNS_MESSAGEFLAG_AA) == 0)
-		puts("Non-authorative answer:");
+		puts("Non-authoritative answer:");
 	if (!ISC_LIST_EMPTY(msg->sections[DNS_SECTION_ANSWER]))
 		printsection(query, msg, headers, DNS_SECTION_ANSWER);
 	else
@@ -700,6 +702,7 @@ addlookup(char *opt) {
 	isc_textregion_t tr;
 	dns_rdatatype_t rdtype;
 	dns_rdataclass_t rdclass;
+	char store[MXNAME];
 
 	debug("addlookup()");
 	tr.base = deftype;
@@ -717,49 +720,11 @@ addlookup(char *opt) {
 		rdclass = dns_rdataclass_in;
 	}
 	lookup = make_empty_lookup();
-	if (strspn(opt, "0123456789.") == strlen(opt)) {
-		int n, i, adrs[4];
-		char store[MXNAME];
-
-		lookup->textname[0] = 0;
-		n = sscanf(opt, "%d.%d.%d.%d", &adrs[0], &adrs[1],
-				   &adrs[2], &adrs[3]);
-		if (n == 0) {
-			show_usage();
-		}
-		for (i = n - 1; i >= 0; i--) {
-			snprintf(store, MXNAME/8, "%d.",
-				 adrs[i]);
-			strncat(lookup->textname, store, MXNAME);
-		}
-		strncat(lookup->textname, "in-addr.arpa.", MXNAME);
-		lookup->rdtype = dns_rdatatype_ptr;
-	} else if (strspn(opt, "0123456789abcdef.:") == strlen(opt))
-	{
-		isc_netaddr_t addr;
-		dns_fixedname_t fname;
-		isc_buffer_t b;
-		int n;
-
-		addr.family = AF_INET6;
-		n = inet_pton(AF_INET6, opt, &addr.type.in6);
-		if (n <= 0)
-			goto notv6;
-		dns_fixedname_init(&fname);
-		result = dns_byaddr_createptrname(&addr, lookup->nibble,
-						  dns_fixedname_name(&fname));
-		if (result != ISC_R_SUCCESS)
-			show_usage();
-		isc_buffer_init(&b, lookup->textname, sizeof lookup->textname);
-		result = dns_name_totext(dns_fixedname_name(&fname),
-					 ISC_FALSE, &b);
-		isc_buffer_putuint8(&b, 0);
-		if (result != ISC_R_SUCCESS)
-			show_usage();
+	if (get_reverse(store, opt, lookup->nibble) == ISC_R_SUCCESS) {
+		safecpy(lookup->textname, store, sizeof(lookup->textname));
 		lookup->rdtype = dns_rdatatype_ptr;
 	} else {
-	notv6:
-		safecpy(lookup->textname, opt, MXNAME-1);
+		safecpy(lookup->textname, opt, sizeof(lookup->textname));
 		lookup->rdtype = rdtype;
 	}
 	lookup->rdclass = rdclass;
@@ -780,6 +745,7 @@ addlookup(char *opt) {
 	lookup->section_additional = section_additional;
 	lookup->new_search = ISC_TRUE;
 	ISC_LIST_INIT(lookup->q);
+	ISC_LINK_INIT(lookup, link);
 	ISC_LIST_APPEND(lookup_list, lookup, link);
 	lookup->origin = NULL;
 	ISC_LIST_INIT(lookup->my_server_list);
@@ -817,7 +783,7 @@ setsrv(char *opt) {
 	if (srv == NULL)
 		fatal("Memory allocation failure.");
 	safecpy(srv->servername, opt, MXNAME-1);
-	ISC_LIST_APPEND(server_list, srv, link);
+	ISC_LIST_APPENDUNSAFE(server_list, srv, link);
 }
 
 static void

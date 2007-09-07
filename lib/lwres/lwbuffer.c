@@ -1,30 +1,29 @@
 /*
  * Copyright (C) 2000  Internet Software Consortium.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
- * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
- * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
- * SOFTWARE.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+ * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+ * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: lwbuffer.c,v 1.6 2000/06/22 21:59:30 tale Exp $ */
-
-/* XXXMLG */
-#define REQUIRE(x)
+/* $Id: lwbuffer.c,v 1.9 2000/08/01 01:32:18 tale Exp $ */
 
 #include <config.h>
 
 #include <string.h>
 
 #include <lwres/lwbuffer.h>
+
+#include "assert_p.h"
 
 void
 lwres_buffer_init(lwres_buffer_t *b, void *base, unsigned int length)
@@ -51,7 +50,7 @@ lwres_buffer_invalidate(lwres_buffer_t *b)
 	 */
 
 	REQUIRE(LWRES_BUFFER_VALID(b));
-	
+
 	b->magic = 0;
 	b->base = NULL;
 	b->length = 0;
@@ -269,7 +268,7 @@ lwres_buffer_putmem(lwres_buffer_t *b, const unsigned char *base,
 	cp = (unsigned char *)b->base + b->used;
 	memcpy(cp, base, length);
 	b->used += length;
-}	
+}
 
 void
 lwres_buffer_getmem(lwres_buffer_t *b, unsigned char *base,
@@ -285,4 +284,4 @@ lwres_buffer_getmem(lwres_buffer_t *b, unsigned char *base,
 	b->current += length;
 
 	memcpy(base, cp, length);
-}	
+}

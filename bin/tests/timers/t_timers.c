@@ -1,21 +1,21 @@
 /*
  * Copyright (C) 1999, 2000  Internet Software Consortium.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
- * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
- * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
- * SOFTWARE.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+ * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+ * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: t_timers.c,v 1.11 2000/06/22 21:53:28 tale Exp $ */
+/* $Id: t_timers.c,v 1.15 2000/08/30 01:35:42 bwelling Exp $ */
 
 #include <config.h>
 
@@ -140,9 +140,15 @@ tx_te(isc_task_t *task, isc_event_t *event) {
 	}
 
 	if (isc_result == ISC_R_SUCCESS) {
-		if ((isc_time_compare(&llim, &now) > 0) ||
-		    (isc_time_compare(&ulim, &now) < 0)) {
-			t_info("timer range error\n");
+		if (isc_time_compare(&llim, &now) > 0) {
+			t_info("timer range error: early by "
+			       "%lu microseconds\n",
+			       (unsigned long)isc_time_microdiff(&base, &now));
+			++Tx_nfails;
+		} else if (isc_time_compare(&ulim, &now) < 0) {
+			t_info("timer range error: late by "
+			       "%lu microseconds\n",
+			       (unsigned long)isc_time_microdiff(&now, &base));
 			++Tx_nfails;
 		}
 		Tx_lasttime = now;
@@ -205,7 +211,7 @@ t_timers_x(isc_timertype_t timertype, isc_time_t *expires,
 	if (isc_result != ISC_R_SUCCESS) {
 		t_info("isc_condition_init failed %s\n",
 		       isc_result_totext(isc_result));
-		isc_mutex_destroy(&Tx_mx);
+		DESTROYLOCK(&Tx_mx);
 		isc_mem_destroy(&mctx);
 		++Tx_nprobs;
 		return;
@@ -216,7 +222,7 @@ t_timers_x(isc_timertype_t timertype, isc_time_t *expires,
 	if (isc_result != ISC_R_SUCCESS) {
 		t_info("isc_taskmgr_create failed %s\n",
 		       isc_result_totext(isc_result));
-		isc_mutex_destroy(&Tx_mx);
+		DESTROYLOCK(&Tx_mx);
 		isc_condition_destroy(&Tx_cv);
 		isc_mem_destroy(&mctx);
 		++Tx_nprobs;
@@ -229,7 +235,7 @@ t_timers_x(isc_timertype_t timertype, isc_time_t *expires,
 		t_info("isc_timermgr_create failed %s\n",
 		       isc_result_totext(isc_result));
 		isc_taskmgr_destroy(&tmgr);
-		isc_mutex_destroy(&Tx_mx);
+		DESTROYLOCK(&Tx_mx);
 		isc_condition_destroy(&Tx_cv);
 		isc_mem_destroy(&mctx);
 		++Tx_nprobs;
@@ -242,7 +248,7 @@ t_timers_x(isc_timertype_t timertype, isc_time_t *expires,
 		       isc_result_totext(isc_result));
 		isc_timermgr_destroy(&timermgr);
 		isc_taskmgr_destroy(&tmgr);
-		isc_mutex_destroy(&Tx_mx);
+		DESTROYLOCK(&Tx_mx);
 		isc_condition_destroy(&Tx_cv);
 		isc_mem_destroy(&mctx);
 		++Tx_nprobs;
@@ -256,7 +262,7 @@ t_timers_x(isc_timertype_t timertype, isc_time_t *expires,
 		       isc_result_totext(isc_result));
 		isc_timermgr_destroy(&timermgr);
 		isc_taskmgr_destroy(&tmgr);
-		isc_mutex_destroy(&Tx_mx);
+		DESTROYLOCK(&Tx_mx);
 		isc_condition_destroy(&Tx_cv);
 		isc_mem_destroy(&mctx);
 		++Tx_nprobs;
@@ -270,7 +276,7 @@ t_timers_x(isc_timertype_t timertype, isc_time_t *expires,
 		isc_timermgr_destroy(&timermgr);
 		isc_task_destroy(&task);
 		isc_taskmgr_destroy(&tmgr);
-		isc_mutex_destroy(&Tx_mx);
+		DESTROYLOCK(&Tx_mx);
 		isc_condition_destroy(&Tx_cv);
 		isc_mem_destroy(&mctx);
 		++Tx_nprobs;
@@ -282,7 +288,7 @@ t_timers_x(isc_timertype_t timertype, isc_time_t *expires,
 		isc_timermgr_destroy(&timermgr);
 		isc_task_destroy(&task);
 		isc_taskmgr_destroy(&tmgr);
-		isc_mutex_destroy(&Tx_mx);
+		DESTROYLOCK(&Tx_mx);
 		isc_condition_destroy(&Tx_cv);
 		isc_mem_destroy(&mctx);
 		++Tx_nprobs;
@@ -298,7 +304,7 @@ t_timers_x(isc_timertype_t timertype, isc_time_t *expires,
 		isc_timermgr_destroy(&timermgr);
 		isc_task_destroy(&task);
 		isc_taskmgr_destroy(&tmgr);
-		isc_mutex_destroy(&Tx_mx);
+		DESTROYLOCK(&Tx_mx);
 		isc_condition_destroy(&Tx_cv);
 		isc_mem_destroy(&mctx);
 		++Tx_nprobs;
@@ -327,7 +333,7 @@ t_timers_x(isc_timertype_t timertype, isc_time_t *expires,
 	isc_task_detach(&task);
 	isc_taskmgr_destroy(&tmgr);
 	isc_timermgr_destroy(&timermgr);
-	isc_mutex_destroy(&Tx_mx);
+	DESTROYLOCK(&Tx_mx);
 	isc_condition_destroy(&Tx_cv);
 	isc_mem_destroy(&mctx);
 
@@ -467,9 +473,15 @@ t3_te(isc_task_t *task, isc_event_t *event) {
 	}
 
 	if (isc_result == ISC_R_SUCCESS) {
-		if ((isc_time_compare(&llim, &now) > 0) ||
-		    (isc_time_compare(&ulim, &now) < 0)) {
-			t_info("timer range error\n");
+		if (isc_time_compare(&llim, &now) > 0) {
+			t_info("timer range error: early by "
+			       "%lu microseconds\n",
+			       (unsigned long)isc_time_microdiff(&base, &now));
+			++Tx_nfails;
+		} else if (isc_time_compare(&ulim, &now) < 0) {
+			t_info("timer range error: late by "
+			       "%lu microseconds\n",
+			       (unsigned long)isc_time_microdiff(&now, &base));
 			++Tx_nfails;
 		}
 		Tx_lasttime = now;
@@ -593,9 +605,15 @@ t4_te(isc_task_t *task, isc_event_t *event) {
 	}
 
 	if (isc_result == ISC_R_SUCCESS) {
-		if ((isc_time_compare(&llim, &now) > 0) ||
-		    (isc_time_compare(&ulim, &now) < 0)) {
-			t_info("timer range error\n");
+		if (isc_time_compare(&llim, &now) > 0) {
+			t_info("timer range error: early by "
+			       "%lu microseconds\n",
+			       (unsigned long)isc_time_microdiff(&base, &now));
+			++Tx_nfails;
+		} else if (isc_time_compare(&ulim, &now) < 0) {
+			t_info("timer range error: late by "
+			       "%lu microseconds\n",
+			       (unsigned long)isc_time_microdiff(&now, &base));
 			++Tx_nfails;
 		}
 		Tx_lasttime = now;
@@ -872,7 +890,7 @@ t_timers5(void) {
 	if (isc_result != ISC_R_SUCCESS) {
 		t_info("isc_condition_init failed %s\n",
 		       isc_result_totext(isc_result));
-		isc_mutex_destroy(&T5_mx);
+		DESTROYLOCK(&T5_mx);
 		isc_mem_destroy(&mctx);
 		return(T_UNRESOLVED);
 	}
@@ -882,7 +900,7 @@ t_timers5(void) {
 	if (isc_result != ISC_R_SUCCESS) {
 		t_info("isc_taskmgr_create failed %s\n",
 		       isc_result_totext(isc_result));
-		isc_mutex_destroy(&T5_mx);
+		DESTROYLOCK(&T5_mx);
 		isc_condition_destroy(&T5_cv);
 		isc_mem_destroy(&mctx);
 		return(T_UNRESOLVED);
@@ -894,7 +912,7 @@ t_timers5(void) {
 		t_info("isc_timermgr_create failed %s\n",
 		       isc_result_totext(isc_result));
 		isc_taskmgr_destroy(&tmgr);
-		isc_mutex_destroy(&T5_mx);
+		DESTROYLOCK(&T5_mx);
 		isc_condition_destroy(&T5_cv);
 		isc_mem_destroy(&mctx);
 		return(T_UNRESOLVED);
@@ -907,7 +925,7 @@ t_timers5(void) {
 		       isc_result_totext(isc_result));
 		isc_timermgr_destroy(&timermgr);
 		isc_taskmgr_destroy(&tmgr);
-		isc_mutex_destroy(&T5_mx);
+		DESTROYLOCK(&T5_mx);
 		isc_condition_destroy(&T5_cv);
 		isc_mem_destroy(&mctx);
 		return(T_UNRESOLVED);
@@ -920,7 +938,7 @@ t_timers5(void) {
 		isc_timermgr_destroy(&timermgr);
 		isc_task_destroy(&T5_task1);
 		isc_taskmgr_destroy(&tmgr);
-		isc_mutex_destroy(&T5_mx);
+		DESTROYLOCK(&T5_mx);
 		isc_condition_destroy(&T5_cv);
 		isc_mem_destroy(&mctx);
 		return(T_UNRESOLVED);
@@ -934,7 +952,7 @@ t_timers5(void) {
 		isc_timermgr_destroy(&timermgr);
 		isc_task_destroy(&T5_task1);
 		isc_taskmgr_destroy(&tmgr);
-		isc_mutex_destroy(&T5_mx);
+		DESTROYLOCK(&T5_mx);
 		isc_condition_destroy(&T5_cv);
 		isc_mem_destroy(&mctx);
 		return(T_UNRESOLVED);
@@ -946,7 +964,7 @@ t_timers5(void) {
 		       isc_result_totext(isc_result));
 		isc_timermgr_destroy(&timermgr);
 		isc_taskmgr_destroy(&tmgr);
-		isc_mutex_destroy(&T5_mx);
+		DESTROYLOCK(&T5_mx);
 		isc_condition_destroy(&T5_cv);
 		isc_mem_destroy(&mctx);
 		return(T_UNRESOLVED);
@@ -971,7 +989,7 @@ t_timers5(void) {
 		isc_task_destroy(&T5_task1);
 		isc_task_destroy(&T5_task2);
 		isc_taskmgr_destroy(&tmgr);
-		isc_mutex_destroy(&T5_mx);
+		DESTROYLOCK(&T5_mx);
 		isc_condition_destroy(&T5_cv);
 		isc_mem_destroy(&mctx);
 		return(T_UNRESOLVED);
@@ -988,7 +1006,7 @@ t_timers5(void) {
 		isc_task_destroy(&T5_task1);
 		isc_task_destroy(&T5_task2);
 		isc_taskmgr_destroy(&tmgr);
-		isc_mutex_destroy(&T5_mx);
+		DESTROYLOCK(&T5_mx);
 		isc_condition_destroy(&T5_cv);
 		isc_mem_destroy(&mctx);
 		return(T_UNRESOLVED);
@@ -1007,7 +1025,7 @@ t_timers5(void) {
 		isc_task_destroy(&T5_task1);
 		isc_task_destroy(&T5_task2);
 		isc_taskmgr_destroy(&tmgr);
-		isc_mutex_destroy(&T5_mx);
+		DESTROYLOCK(&T5_mx);
 		isc_condition_destroy(&T5_cv);
 		isc_mem_destroy(&mctx);
 		++T5_nprobs;
@@ -1044,7 +1062,7 @@ t_timers5(void) {
 	isc_task_destroy(&T5_task1);
 	isc_task_destroy(&T5_task2);
 	isc_taskmgr_destroy(&tmgr);
-	isc_mutex_destroy(&T5_mx);
+	DESTROYLOCK(&T5_mx);
 	isc_condition_destroy(&T5_cv);
 	isc_mem_destroy(&mctx);
 

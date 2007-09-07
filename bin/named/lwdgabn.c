@@ -1,24 +1,28 @@
 /*
  * Copyright (C) 2000  Internet Software Consortium.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
- * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
- * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
- * SOFTWARE.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+ * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+ * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: lwdgabn.c,v 1.3.2.1 2000/06/26 21:47:33 gson Exp $ */
+/* $Id: lwdgabn.c,v 1.10 2000/11/15 23:56:20 bwelling Exp $ */
 
 #include <config.h>
 
+#include <stdlib.h>
+
+#include <isc/netaddr.h>
+#include <isc/sockaddr.h>
 #include <isc/socket.h>
 #include <isc/string.h>		/* Required for HP/UX (and others?) */
 #include <isc/util.h>
@@ -28,14 +32,20 @@
 #include <dns/result.h>
 
 #include <named/types.h>
+#include <named/lwaddr.h>
 #include <named/lwdclient.h>
+#include <named/lwresd.h>
+#include <named/lwsearch.h>
+#include <named/sortlist.h>
 
 #define NEED_V4(c)	((((c)->find_wanted & LWRES_ADDRTYPE_V4) != 0) \
 			 && ((c)->v4find == NULL))
 #define NEED_V6(c)	((((c)->find_wanted & LWRES_ADDRTYPE_V6) != 0) \
 			 && ((c)->v6find == NULL))
 
-static void start_find(ns_lwdclient_t *);
+static isc_result_t start_find(ns_lwdclient_t *);
+static void restart_find(ns_lwdclient_t *);
+static void init_gabn(ns_lwdclient_t *);
 
 /*
  * Destroy any finds.  This can be used to "start over from scratch" and
@@ -43,20 +53,16 @@ static void start_find(ns_lwdclient_t *);
  */
 static void
 cleanup_gabn(ns_lwdclient_t *client) {
-	dns_adbfind_t *v4;
-
 	ns_lwdclient_log(50, "cleaning up client %p", client);
 
-	v4 = client->v4find;
-
-	if (client->v4find != NULL)
-		dns_adb_destroyfind(&client->v4find);
 	if (client->v6find != NULL) {
-		if (client->v6find == v4)
+		if (client->v6find == client->v4find)
 			client->v6find = NULL;
 		else
 			dns_adb_destroyfind(&client->v6find);
 	}
+	if (client->v4find != NULL)
+		dns_adb_destroyfind(&client->v4find);
 }
 
 static void
@@ -65,8 +71,7 @@ setup_addresses(ns_lwdclient_t *client, dns_adbfind_t *find, unsigned int at) {
 	lwres_addr_t *addr;
 	int af;
 	const struct sockaddr *sa;
-	const struct sockaddr_in *sin;
-	const struct sockaddr_in6 *sin6;
+	isc_result_t result;
 
 	if (at == DNS_ADBFIND_INET)
 		af = AF_INET;
@@ -81,22 +86,9 @@ setup_addresses(ns_lwdclient_t *client, dns_adbfind_t *find, unsigned int at) {
 
 		addr = &client->addrs[client->gabn.naddrs];
 
-		switch (sa->sa_family) {
-		case AF_INET:
-			sin = &ai->sockaddr.type.sin;
-			addr->family = LWRES_ADDRTYPE_V4;
-			memcpy(addr->address, &sin->sin_addr, 4);
-			addr->length = 4;
-			break;
-		case AF_INET6:
-			sin6 = &ai->sockaddr.type.sin6;
-			addr->family = LWRES_ADDRTYPE_V6;
-			memcpy(addr->address, &sin6->sin6_addr, 16);
-			addr->length = 16;
-			break;
-		default:
+		result = lwaddr_lwresaddr_fromsockaddr(addr, &ai->sockaddr);
+		if (result != ISC_R_SUCCESS)
 			goto next;
-		}
 
 		ns_lwdclient_log(50, "adding address %p, family %d, length %d",
 				 addr->address, addr->family, addr->length);
@@ -108,6 +100,62 @@ setup_addresses(ns_lwdclient_t *client, dns_adbfind_t *find, unsigned int at) {
 	next:
 		ai = ISC_LIST_NEXT(ai, publink);
 	}
+}
+
+typedef struct {
+	isc_netaddr_t address;
+	int rank;
+} rankedaddress;
+
+static int
+addr_compare(const void *av, const void *bv) {
+	const rankedaddress *a = (const rankedaddress *) av;
+	const rankedaddress *b = (const rankedaddress *) bv;
+	return (a->rank - b->rank);
+}
+
+static void
+sort_addresses(ns_lwdclient_t *client) {
+	unsigned int naddrs;
+	rankedaddress *addrs;
+	isc_netaddr_t remote;
+	dns_addressorderfunc_t order;
+	void *arg;
+	ns_lwresd_t *lwresd = client->clientmgr->listener->manager;
+	unsigned int i;
+	isc_result_t result;
+
+	naddrs = client->gabn.naddrs;
+
+	if (naddrs <= 1 || lwresd->view->sortlist == NULL)
+		return;
+
+	addrs = isc_mem_get(lwresd->mctx, sizeof(rankedaddress) * naddrs);
+	if (addrs == NULL)
+		return;
+
+	isc_netaddr_fromsockaddr(&remote, &client->address);
+	ns_sortlist_byaddrsetup(lwresd->view->sortlist,
+				&remote, &order, &arg);
+	if (order == NULL) {
+		isc_mem_put(lwresd->mctx, addrs,
+			    sizeof(rankedaddress) * naddrs);
+		return;
+	}
+	for (i = 0; i < naddrs; i++) {
+		result = lwaddr_netaddr_fromlwresaddr(&addrs[i].address,
+						      &client->addrs[i]);
+		INSIST(result == ISC_R_SUCCESS);
+		addrs[i].rank = (*order)(&addrs[i].address, arg);
+	}
+	qsort(addrs, naddrs, sizeof(rankedaddress), addr_compare);
+	for (i = 0; i < naddrs; i++) {
+		result = lwaddr_lwresaddr_fromnetaddr(&client->addrs[i],
+						      &addrs[i].address);
+		INSIST(result == ISC_R_SUCCESS);
+	}
+
+	isc_mem_put(lwresd->mctx, addrs, sizeof(rankedaddress) * naddrs);
 }
 
 static void
@@ -151,6 +199,23 @@ generate_reply(ns_lwdclient_t *client) {
 		setup_addresses(client, client->v6find, DNS_ADBFIND_INET6);
 
 	/*
+	 * If there are no addresses, try the next element in the search
+	 * path, if there are any more.  Otherwise, fall through into
+	 * the error handling code below.
+	 */
+	if (client->gabn.naddrs == 0) {
+		do {
+			result = ns_lwsearchctx_next(&client->searchctx);
+			if (result == ISC_R_SUCCESS) {
+				cleanup_gabn(client);
+				result = start_find(client);
+				if (result == ISC_R_SUCCESS)
+					return;
+			}
+		} while (result == ISC_R_SUCCESS);
+	}
+
+	/*
 	 * Render the packet.
 	 */
 	client->pkt.recvlength = LWRES_RECVLENGTH;
@@ -158,15 +223,14 @@ generate_reply(ns_lwdclient_t *client) {
 	client->pkt.authlength = 0;
 
 	/*
-	 * If there are no addresses, return incomplete or failure , depending
-	 * on whether or not there are aliases.
+	 * If there are no addresses, return failure.
 	 */
 	if (client->gabn.naddrs != 0)
 		client->pkt.result = LWRES_R_SUCCESS;
-	else if (client->gabn.naliases != 0)
-		client->pkt.result = LWRES_R_INCOMPLETE;
 	else
 		client->pkt.result = LWRES_R_NOTFOUND;
+
+	sort_addresses(client);
 
 	lwres = lwres_gabnresponse_render(cm->lwctx, &client->gabn,
 					  &client->pkt, &lwb);
@@ -177,8 +241,7 @@ generate_reply(ns_lwdclient_t *client) {
 	r.length = lwb.used;
 	client->sendbuf = r.base;
 	client->sendlength = r.length;
-	result = isc_socket_sendto(cm->sock, &r, cm->task, ns_lwdclient_send,
-				   client, &client->address, NULL);
+	result = ns_lwdclient_sendreply(client, &r);
 	if (result != ISC_R_SUCCESS)
 		goto out;
 
@@ -247,14 +310,19 @@ static isc_result_t
 store_realname(ns_lwdclient_t *client) {
 	isc_buffer_t b;
 	isc_result_t result;
+	dns_name_t *tname;
 
 	b = client->recv_buffer;
+
+	tname = dns_fixedname_name(&client->target_name);
+	result = ns_lwsearchctx_current(&client->searchctx, tname);
+	if (result != ISC_R_SUCCESS)
+		return (result);
 
 	/*
 	 * Render the new name to the buffer.
 	 */
-	result = dns_name_totext(dns_fixedname_name(&client->target_name),
-				 ISC_TRUE, &client->recv_buffer);
+	result = dns_name_totext(tname, ISC_TRUE, &client->recv_buffer);
 	if (result != ISC_R_SUCCESS)
 		return (result);
 
@@ -297,7 +365,7 @@ process_gabn_finddone(isc_task_t *task, isc_event_t *ev) {
 				client->find = NULL;
 			else
 				dns_adb_destroyfind(&client->find);
-				
+
 		}
 		generate_reply(client);
 		return;
@@ -320,7 +388,7 @@ process_gabn_finddone(isc_task_t *task, isc_event_t *ev) {
 	 * it.
 	 */
 	if (evtype == DNS_EVENT_ADBMOREADDRESSES) {
-		start_find(client);
+		restart_find(client);
 		return;
 	}
 
@@ -332,7 +400,7 @@ process_gabn_finddone(isc_task_t *task, isc_event_t *ev) {
 }
 
 static void
-start_find(ns_lwdclient_t *client) {
+restart_find(ns_lwdclient_t *client) {
 	unsigned int options;
 	isc_result_t result;
 	isc_boolean_t claimed;
@@ -452,15 +520,32 @@ start_find(ns_lwdclient_t *client) {
 	generate_reply(client);
 }
 
+static isc_result_t
+start_find(ns_lwdclient_t *client) {
+	isc_result_t result;
 
-static void            
+	/*
+	 * Initialize the real name and alias arrays in the reply we're
+	 * going to build up.
+	 */
+	init_gabn(client);
+
+	result = store_realname(client);
+	if (result != ISC_R_SUCCESS)
+		return (result);
+	restart_find(client);
+	return (ISC_R_SUCCESS);
+
+}
+
+static void
 init_gabn(ns_lwdclient_t *client) {
 	int i;
 
 	/*
 	 * Initialize the real name and alias arrays in the reply we're
 	 * going to build up.
-	 */     
+	 */
 	for (i = 0 ; i < LWRES_MAX_ALIASES ; i++) {
 		client->aliases[i] = NULL;
 		client->aliaslen[i] = 0;
@@ -511,10 +596,12 @@ void
 ns_lwdclient_processgabn(ns_lwdclient_t *client, lwres_buffer_t *b) {
 	isc_result_t result;
 	lwres_gabnrequest_t *req;
+	ns_lwdclientmgr_t *cm;
 	isc_buffer_t namebuf;
 
 	REQUIRE(NS_LWDCLIENT_ISRECVDONE(client));
 
+	cm = client->clientmgr;
 	req = NULL;
 
 	result = lwres_gabnrequest_parse(client->clientmgr->lwctx,
@@ -526,10 +613,16 @@ ns_lwdclient_processgabn(ns_lwdclient_t *client, lwres_buffer_t *b) {
 	isc_buffer_add(&namebuf, req->namelen);
 
 	dns_fixedname_init(&client->target_name);
-	result = dns_name_fromtext(dns_fixedname_name(&client->target_name),
-				   &namebuf, dns_rootname, ISC_FALSE, NULL);
+	dns_fixedname_init(&client->query_name);
+	result = dns_name_fromtext(dns_fixedname_name(&client->query_name),
+				   &namebuf, NULL, ISC_FALSE, NULL);
 	if (result != ISC_R_SUCCESS)
 		goto out;
+	ns_lwsearchctx_init(&client->searchctx,
+			    cm->listener->manager->search,
+			    dns_fixedname_name(&client->query_name),
+			    cm->listener->manager->ndots);
+	ns_lwsearchctx_first(&client->searchctx);
 
 	client->find_wanted = req->addrtypes;
 	ns_lwdclient_log(50, "client %p looking for addrtypes %08x",
@@ -541,19 +634,11 @@ ns_lwdclient_processgabn(ns_lwdclient_t *client, lwres_buffer_t *b) {
 	lwres_gabnrequest_free(client->clientmgr->lwctx, &req);
 
 	/*
-	 * Initialize the real name and alias arrays in the reply we're
-	 * going to build up.
-	 */
-	init_gabn(client);
-
-	result = store_realname(client);
-	if (result != ISC_R_SUCCESS)
-		goto out;
-
-	/*
 	 * Start the find.
 	 */
-	start_find(client);
+	result = start_find(client);
+	if (result != ISC_R_SUCCESS)
+		goto out;
 
 	return;
 

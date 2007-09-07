@@ -1,21 +1,21 @@
 /*
  * Copyright (C) 1999, 2000  Internet Software Consortium.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
- * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
- * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
- * SOFTWARE.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+ * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+ * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: db.h,v 1.50.2.1 2000/07/24 23:23:16 gson Exp $ */
+/* $Id: db.h,v 1.62 2000/12/01 01:22:44 marka Exp $ */
 
 #ifndef DNS_DB_H
 #define DNS_DB_H 1
@@ -75,7 +75,7 @@ typedef struct dns_dbmethods {
 	isc_result_t	(*beginload)(dns_db_t *db, dns_addrdatasetfunc_t *addp,
 				     dns_dbload_t **dbloadp);
 	isc_result_t	(*endload)(dns_db_t *db, dns_dbload_t **dbloadp);
-	isc_result_t	(*dump)(dns_db_t *db, dns_dbversion_t *version, 
+	isc_result_t	(*dump)(dns_db_t *db, dns_dbversion_t *version,
 				const char *filename);
 	void		(*currentversion)(dns_db_t *db,
 					  dns_dbversion_t **versionp);
@@ -134,14 +134,24 @@ typedef struct dns_dbmethods {
 	isc_result_t	(*subtractrdataset)(dns_db_t *db, dns_dbnode_t *node,
 					    dns_dbversion_t *version,
 					    dns_rdataset_t *rdataset,
+					    unsigned int options,
 					    dns_rdataset_t *newrdataset);
 	isc_result_t	(*deleterdataset)(dns_db_t *db, dns_dbnode_t *node,
 					  dns_dbversion_t *version,
 					  dns_rdatatype_t type,
 					  dns_rdatatype_t covers);
 	isc_boolean_t	(*issecure)(dns_db_t *db);
+	unsigned int	(*nodecount)(dns_db_t *db);
+	isc_boolean_t	(*ispersistent)(dns_db_t *db);
+	void		(*overmem)(dns_db_t *db, isc_boolean_t overmem);
 } dns_dbmethods_t;
 
+typedef isc_result_t
+(*dns_dbcreatefunc_t)(isc_mem_t *mctx, dns_name_t *name,
+		      dns_dbtype_t type, dns_rdataclass_t rdclass,
+		      unsigned int argc, char *argv[], void *driverarg,
+		      dns_db_t **dbp);
+					
 #define DNS_DB_MAGIC		0x444E5344U		/* DNSD. */
 #define DNS_DB_VALID(db)	ISC_MAGIC_VALID(db, DNS_DB_MAGIC)
 
@@ -182,6 +192,12 @@ struct dns_db {
  */
 #define DNS_DBADD_MERGE			0x01
 #define DNS_DBADD_FORCE			0x02
+#define DNS_DBADD_EXACT			0x04
+
+/*
+ * Options that can be specified for dns_db_subtractrdataset().
+ */
+#define DNS_DBSUB_EXACT			0x01
 
 /*****
  ***** Methods
@@ -498,7 +514,7 @@ dns_db_newversion(dns_db_t *db, dns_dbversion_t **versionp);
  * Ensures:
  *
  *	On success, '*versionp' is attached to the current version.
- * 
+ *
  * Returns:
  *
  *	ISC_R_SUCCESS
@@ -943,7 +959,7 @@ dns_db_findrdataset(dns_db_t *db, dns_dbnode_t *node, dns_dbversion_t *version,
  *
  *	ISC_R_SUCCESS
  *	ISC_R_NOTFOUND
- *	
+ *
  *	Other results are possible, depending upon the database
  *	implementation used.
  */
@@ -981,7 +997,7 @@ dns_db_allrdatasets(dns_db_t *db, dns_dbnode_t *node, dns_dbversion_t *version,
  *
  *	ISC_R_SUCCESS
  *	ISC_R_NOTFOUND
- *	
+ *
  *	Other results are possible, depending upon the database
  *	implementation used.
  */
@@ -1004,6 +1020,8 @@ dns_db_addrdataset(dns_db_t *db, dns_dbnode_t *node, dns_dbversion_t *version,
  *	without regard to trust levels.  If not forcing the data, then the
  *	rdataset will only be added if its trust level is >= the trust level of
  *	any existing rdataset.  Forcing is only meaningful for cache databases.
+ *	If DNS_DBADD_EXACT is set then there must be no rdata in common between
+ *	the old and new rdata sets.
  *
  *	The 'now' field is ignored if 'db' is a zone database.  If 'db' is
  *	a cache database, then the added rdataset will expire no later than
@@ -1036,7 +1054,8 @@ dns_db_addrdataset(dns_db_t *db, dns_dbnode_t *node, dns_dbversion_t *version,
  *	ISC_R_SUCCESS
  *	DNS_R_UNCHANGED			The operation did not change anything.
  *	ISC_R_NOMEMORY
- *	
+ *	DNS_R_NOTEXACT
+ *
  *	Other results are possible, depending upon the database
  *	implementation used.
  */
@@ -1044,7 +1063,7 @@ dns_db_addrdataset(dns_db_t *db, dns_dbnode_t *node, dns_dbversion_t *version,
 isc_result_t
 dns_db_subtractrdataset(dns_db_t *db, dns_dbnode_t *node,
 			dns_dbversion_t *version, dns_rdataset_t *rdataset,
-			dns_rdataset_t *newrdataset);
+			unsigned int options, dns_rdataset_t *newrdataset);
 /*
  * Remove any rdata in 'rdataset' from 'node' in version 'version' of
  * 'db'.
@@ -1052,8 +1071,9 @@ dns_db_subtractrdataset(dns_db_t *db, dns_dbnode_t *node,
  * Notes:
  *
  *	If 'newrdataset' is not NULL, then it will be attached to the
- *	resulting new rdataset in the database, unless the rdataset has 
- *	become nonexistent.
+ *	resulting new rdataset in the database, unless the rdataset has
+ *	become nonexistent.  If DNS_DBSUB_EXACT is set then all elements
+ *	of 'rdataset' must exist at 'node'.
  *
  * Requires:
  *
@@ -1075,7 +1095,9 @@ dns_db_subtractrdataset(dns_db_t *db, dns_dbnode_t *node,
  *	DNS_R_UNCHANGED			The operation did not change anything.
  *	DNS_R_NXRRSET			All rdata of the same type as those
  *					in 'rdataset' have been deleted.
- *	
+ *	DNS_R_NOTEXACT			Some part of 'rdataset' did not
+ *					exist and DNS_DBSUB_EXACT was set.
+ *
  *	Other results are possible, depending upon the database
  *	implementation used.
  */
@@ -1114,7 +1136,7 @@ dns_db_deleterdataset(dns_db_t *db, dns_dbnode_t *node,
  *	ISC_R_SUCCESS
  *	DNS_R_UNCHANGED			No rdatasets of 'type' existed before
  *					the operation was attempted.
- *	
+ *
  *	Other results are possible, depending upon the database
  *	implementation used.
  */
@@ -1127,6 +1149,81 @@ dns_db_getsoaserial(dns_db_t *db, dns_dbversion_t *ver, isc_uint32_t *serialp);
  * Requires:
  *      'db' is a valid database with zone semantics.
  *      'ver' is a valid version.
+ */
+
+void
+dns_db_overmem(dns_db_t *db, isc_boolean_t overmem);
+/*
+ * Enable / disable agressive cache cleaning.
+ */
+
+unsigned int
+dns_db_nodecount(dns_db_t *db);
+/*
+ * Count the number of nodes in 'db'.
+ *
+ * Requires:
+ *
+ *	'db' is a valid database.
+ *
+ * Returns:
+ * 	The number of nodes in the database
+ */
+
+isc_boolean_t
+dns_db_ispersistent(dns_db_t *db);
+/*
+ * Is 'db' persistent?  A persistent database does not need to be loaded
+ * from disk or written to disk.
+ *
+ * Requires:
+ *
+ *	'db' is a valid database.
+ *
+ * Returns:
+ *	ISC_TRUE	'db' is persistent.
+ *	ISC_FALSE	'db' is not persistent.
+ */
+
+isc_result_t
+dns_db_register(const char *name, dns_dbcreatefunc_t create, void *driverarg,
+		isc_mem_t *mctx, dns_dbimplementation_t **dbimp);
+
+/*
+ * Register a new database implementation and add it to the list of
+ * supported implementations.
+ *
+ * Requires:
+ *
+ * 	'name' is not NULL
+ * 	'order' is a valid function pointer
+ * 	'mctx' is a valid memory context
+ * 	dbimp != NULL && *dbimp == NULL
+ *
+ * Returns:
+ * 	ISC_R_SUCCESS	The registration succeeded
+ * 	ISC_R_NOMEMORY	Out of memory
+ * 	ISC_R_EXISTS	A database implementation with the same name exists
+ *
+ * Ensures:
+ *
+ *	*dbimp points to an opaque structure which must be passed to
+ *	dns_db_unregister().
+ */
+
+void
+dns_db_unregister(dns_dbimplementation_t **dbimp);
+/*
+ * Remove a database implementation from the the list of supported
+ * implementations.  No databases of this type can be active when this
+ * is called.
+ *
+ * Requires:
+ * 	dbimp != NULL && *dbimp == NULL
+ *
+ * Ensures:
+ *
+ * 	Any memory allocated in *dbimp will be freed.
  */
 
 ISC_LANG_ENDDECLS

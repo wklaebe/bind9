@@ -1,23 +1,25 @@
 /*
  * Copyright (C) 2000  Internet Software Consortium.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
- * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
- * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
- * SOFTWARE.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+ * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+ * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: quota.c,v 1.6 2000/06/22 21:57:07 tale Exp $ */
+/* $Id: quota.c,v 1.10 2000/08/26 01:23:13 bwelling Exp $ */
 
 #include <config.h>
+
+#include <stddef.h>
 
 #include <isc/quota.h>
 #include <isc/util.h>
@@ -34,7 +36,7 @@ isc_quota_destroy(isc_quota_t *quota) {
 	INSIST(quota->used == 0);
 	quota->max = -1;
 	quota->used = -1;
-	RUNTIME_CHECK(isc_mutex_destroy(&quota->lock) == ISC_R_SUCCESS);
+	DESTROYLOCK(&quota->lock);
 }
 
 isc_result_t
@@ -56,7 +58,7 @@ isc_quota_release(isc_quota_t *quota) {
 	LOCK(&quota->lock);
 	INSIST(quota->used > 0);
 	quota->used--;
-	UNLOCK(&quota->lock);	
+	UNLOCK(&quota->lock);
 }
 
 isc_result_t

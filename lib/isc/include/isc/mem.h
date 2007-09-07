@@ -1,21 +1,21 @@
 /*
  * Copyright (C) 1997-2000  Internet Software Consortium.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
- * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
- * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
- * SOFTWARE.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+ * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+ * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: mem.h,v 1.36 2000/06/22 21:57:46 tale Exp $ */
+/* $Id: mem.h,v 1.45 2000/12/01 00:32:02 gson Exp $ */
 
 #ifndef ISC_MEM_H
 #define ISC_MEM_H 1
@@ -28,32 +28,131 @@
 
 ISC_LANG_BEGINDECLS
 
+#define ISC_MEM_LOWATER 0
+#define ISC_MEM_HIWATER 1
+typedef void (*isc_mem_water_t)(void *, int);
+
 typedef void * (*isc_memalloc_t)(void *, size_t);
 typedef void (*isc_memfree_t)(void *, void *);
 
-#define ISC_MEM_DEBUG
-extern isc_boolean_t isc_mem_debugging;
+/*
+ * ISC_MEM_DEBUG is enabled by default; set ISC_MEM_DEBUG=0 to disable it.
+ */
+#ifndef ISC_MEM_DEBUG
+#define ISC_MEM_DEBUG 1
+#endif
 
-#ifdef ISC_MEM_DEBUG
-#define isc_mem_get(c, s)	isc__mem_getdebug(c, s, __FILE__, __LINE__)
-#define isc_mem_put(c, p, s)	isc__mem_putdebug(c, p, s, __FILE__, __LINE__)
-#define isc_mem_allocate(c, s)	isc__mem_allocatedebug(c, s, \
-							    __FILE__, __LINE__)
-#define isc_mem_free(c, p)	isc__mem_freedebug(c, p, __FILE__, __LINE__)
-#define isc_mem_strdup(c, p)	isc__mem_strdupdebug(c, p, \
-						      __FILE__, __LINE__)
-#define isc_mempool_get(c)	isc__mempool_getdebug(c, __FILE__, __LINE__)
-#define isc_mempool_put(c, p)	isc__mempool_putdebug(c, p, \
-						       __FILE__, __LINE__)
+/*
+ * Define ISC_MEM_TRACKLINES=1 to turn on detailed tracing of memory allocation
+ * and freeing by file and line number.
+ */
+#ifndef ISC_MEM_TRACKLINES
+#define ISC_MEM_TRACKLINES 0
+#endif
+
+/*
+ * Define ISC_MEM_CHECKOVERRUN=1 to turn on checks for using memory outside
+ * the requested space.  This will increase the size of each allocation.
+ */
+#ifndef ISC_MEM_CHECKOVERRUN
+#define ISC_MEM_CHECKOVERRUN 0
+#endif
+
+/*
+ * Define ISC_MEM_FILL to fill each block of memory returned to the system
+ * with the byte string '0xbe'.  This helps track down uninitialized pointers
+ * and the like.  On freeing memory, the space is filled with '0xde' for
+ * the same reasons.
+ */
+#ifndef ISC_MEM_FILL
+#define ISC_MEM_FILL 1
+#endif
+
+/*
+ * Define this to turn on memory pool names.
+ */
+#ifndef ISC_MEMPOOL_NAMES
+#define ISC_MEMPOOL_NAMES 1
+#endif
+
+/*
+ * _DEBUGTRACE
+ *	log (to isc_lctx) each allocation and free.
+ *
+ * _DEBUGRECORD
+ *	remember each allocation, and match them up on free.  Crash if
+ *	a free doesn't match an allocation
+ */
+extern unsigned int isc_mem_debugging;
+#define ISC_MEM_DEBUGTRACE		0x00000001U
+#define ISC_MEM_DEBUGRECORD		0x00000002U
+
+#if ISC_MEM_TRACKLINES
+#define _ISC_MEM_FILELINE	, __FILE__, __LINE__
+#define _ISC_MEM_FLARG		, const char *, int
 #else
-#define isc_mem_get		isc__mem_get
-#define isc_mem_put		isc__mem_put
-#define isc_mem_allocate	isc__mem_allocate
-#define isc_mem_free		isc__mem_free
-#define isc_mem_strdup		isc__mem_strdup
-#define isc_mempool_get		isc__mempool_get
-#define isc_mempool_put		isc__mempool_put
-#endif /* ISC_MEM_DEBUG */
+#define _ISC_MEM_FILELINE
+#define _ISC_MEM_FLARG
+#endif
+
+#define isc_mem_get(c, s)	isc__mem_get((c), (s) _ISC_MEM_FILELINE)
+#define isc_mem_allocate(c, s)	isc__mem_allocate((c), (s) _ISC_MEM_FILELINE)
+#define isc_mem_strdup(c, p)	isc__mem_strdup((c), (p) _ISC_MEM_FILELINE)
+#define isc_mempool_get(c)	isc__mempool_get((c) _ISC_MEM_FILELINE)
+
+/*
+ * isc_mem_putanddetach() is a convienence function for use where you
+ * have a structure with an attached memory context.
+ *
+ * Given:
+ *
+ * struct {
+ *	...
+ *	isc_mem_t *mctx;
+ *	...
+ * } *ptr;
+ *
+ * isc_mem_t *mctx;
+ *
+ * isc_mem_putanddetach(&ptr->mctx, ptr, sizeof(*ptr));
+ *
+ * is the equivalent of:
+ *
+ * mctx = NULL;
+ * isc_mem_attach(ptr->mctx, &mctx);
+ * isc_mem_detach(&ptr->mctx);
+ * isc_mem_put(mctx, ptr, sizeof(*ptr));
+ * isc_mem_detach(&mctx);
+ */
+
+#if ISC_MEM_DEBUG
+#define isc_mem_put(c, p, s) \
+	do { \
+		isc__mem_put((c), (p), (s) _ISC_MEM_FILELINE); \
+		(p) = NULL; \
+	} while (0)
+#define isc_mem_putanddetach(c, p, s) \
+	do { \
+		isc__mem_putanddetach((c), (p), (s) _ISC_MEM_FILELINE); \
+		(p) = NULL; \
+	} while (0)
+#define isc_mem_free(c, p) \
+	do { \
+		isc__mem_free((c), (p) _ISC_MEM_FILELINE); \
+		(p) = NULL; \
+	} while (0)
+#define isc_mempool_put(c, p) \
+	do { \
+		isc__mempool_put((c), (p) _ISC_MEM_FILELINE); \
+		(p) = NULL; \
+	} while (0)
+#else
+#define isc_mem_put(c, p, s)	isc__mem_put((c), (p), (s) _ISC_MEM_FILELINE)
+#define isc_mem_putanddetach(c, p, s) \
+	isc__mem_putanddetach((c), (p), (s) _ISC_MEM_FILELINE)
+#define isc_mem_free(c, p)	isc__mem_free((c), (p) _ISC_MEM_FILELINE)
+#define isc_mempool_put(c, p)	isc__mempool_put((c), (p) _ISC_MEM_FILELINE)
+#endif
 
 isc_result_t			isc_mem_create(size_t, size_t, isc_mem_t **);
 void				isc_mem_attach(isc_mem_t *, isc_mem_t **);
@@ -62,25 +161,21 @@ void				isc_mem_destroy(isc_mem_t **);
 isc_result_t			isc_mem_ondestroy(isc_mem_t *ctx,
 						  isc_task_t *task,
 						  isc_event_t **event);
-void *				isc__mem_get(isc_mem_t *, size_t);
-void 				isc__mem_put(isc_mem_t *, void *, size_t);
-void *				isc__mem_getdebug(isc_mem_t *, size_t,
-						  const char *, int);
-void 				isc__mem_putdebug(isc_mem_t *, void *,
-						  size_t, const char *, int);
+void *				isc__mem_get(isc_mem_t *, size_t
+					     _ISC_MEM_FLARG);
+void 				isc__mem_putanddetach(isc_mem_t **, void *,
+						      size_t _ISC_MEM_FLARG);
+void 				isc__mem_put(isc_mem_t *, void *,
+					     size_t _ISC_MEM_FLARG);
 isc_result_t			isc_mem_preallocate(isc_mem_t *);
 void 				isc_mem_stats(isc_mem_t *, FILE *);
 isc_boolean_t			isc_mem_valid(isc_mem_t *, void *);
-void *				isc__mem_allocate(isc_mem_t *, size_t);
-void *				isc__mem_allocatedebug(isc_mem_t *, size_t,
-						       const char *, int);
-void				isc__mem_free(isc_mem_t *, void *);
-void				isc__mem_freedebug(isc_mem_t *, void *,
-						   const char *, int);
-char *				isc__mem_strdup(isc_mem_t *, const char *);
-char *				isc__mem_strdupdebug(isc_mem_t *,
-						     const char *,
-						     const char *, int);
+void *				isc__mem_allocate(isc_mem_t *, size_t
+						  _ISC_MEM_FLARG);
+void				isc__mem_free(isc_mem_t *, void *
+					      _ISC_MEM_FLARG);
+char *				isc__mem_strdup(isc_mem_t *, const char *
+						_ISC_MEM_FLARG);
 void				isc_mem_setdestroycheck(isc_mem_t *,
 							isc_boolean_t);
 void				isc_mem_setsplit(isc_mem_t *, isc_boolean_t);
@@ -94,37 +189,24 @@ isc_result_t			isc_mem_createx(size_t, size_t,
 						void *arg, isc_mem_t **);
 isc_result_t			isc_mem_restore(isc_mem_t *);
 
-#ifdef ISC_MEMCLUSTER_LEGACY
-
+void
+isc_mem_setwater(isc_mem_t *mctx, isc_mem_water_t water, void *water_arg,
+		 size_t hiwater, size_t lowater);
 /*
- * Legacy.
+ * Set high and low water marks for this memory context.  When the memory
+ * usage of 'mctx' exceeds 'hiwater', '(water)(water_arg, ISC_MEM_HIWATER)'
+ * will be called.  When the usage drops below 'lowater', 'water' will
+ * again be called, this time with ISC_MEM_LOWATER.
+ *
+ * Requires:
+ * 	If 'water' is NULL then 'water_arg', 'hi_water' and 'lo_water' are
+ *	ignored and the state is reset.  Otherwise, requires
+ *
+ *	'water' to point to a valid function.
+ *	'hi_water > lo_water'
+ *	'lo_water != 0'
+ *	'hi_water != 0'
  */
-
-#define meminit			isc__legacy_meminit
-#define mem_default_context	isc__legacy_mem_default_context
-#ifdef MEMCLUSTER_DEBUG
-#define memget(s)		isc__legacy_memget_debug(s, __FILE__, __LINE__)
-#define memput(p, s)		isc__legacy_memput_debug(p, s, \
-							 __FILE__, __LINE__)
-#else
-#define memget			isc__legacy_memget
-#define memput			isc__legacy_memput
-#endif
-#define memvalid		isc__legacy_memvalid
-#define memstats		isc__legacy_memstats
-
-int				meminit(size_t, size_t);
-isc_mem_t *			mem_default_context(void);
-void *				isc__legacy_memget(size_t);
-void 				isc__legacy_memput(void *, size_t);
-void *				isc__legacy_memget_debug(size_t, const char *,
-							 int);
-void				isc__legacy_memput_debug(void *, size_t,
-							 const char *, int);
-int				memvalid(void *);
-void 				memstats(FILE *);
-
-#endif /* ISC_MEMCLUSTER_LEGACY */
 
 /*
  * Memory pools
@@ -134,11 +216,8 @@ void 				memstats(FILE *);
  * Internal (but public) functions.  Don't call these from application
  * code.  Use isc_mempool_get() and isc_mempool_put() instead.
  */
-void *		isc__mempool_get(isc_mempool_t *);
-void 		isc__mempool_put(isc_mempool_t *, void *);
-void *		isc__mempool_getdebug(isc_mempool_t *, const char *, int);
-void 		isc__mempool_putdebug(isc_mempool_t *, void *,
-				      const char *, int);
+void *		isc__mempool_get(isc_mempool_t * _ISC_MEM_FLARG);
+void 		isc__mempool_put(isc_mempool_t *, void * _ISC_MEM_FLARG);
 
 isc_result_t
 isc_mempool_create(isc_mem_t *mctx, size_t size, isc_mempool_t **mpctxp);

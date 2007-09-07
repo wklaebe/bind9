@@ -1,24 +1,24 @@
 # Copyright (C) 1998-2000  Internet Software Consortium.
-# 
+#
 # Permission to use, copy, modify, and distribute this software for any
 # purpose with or without fee is hereby granted, provided that the above
 # copyright notice and this permission notice appear in all copies.
-# 
-# THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
-# ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
-# OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
-# CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
-# DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
-# PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
-# ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
-# SOFTWARE.
+#
+# THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+# DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+# INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+# INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+# FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+# NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+# WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 dnl
 AC_DIVERT_PUSH(AC_DIVERSION_NOTICE)dnl
 esyscmd([sed "s/^/# /" COPYRIGHT])dnl
 AC_DIVERT_POP()dnl
 
-AC_REVISION($Revision: 1.165.2.3 $)
+AC_REVISION($Revision: 1.195 $)
 
 AC_INIT(lib/dns/name.c)
 AC_PREREQ(2.13)
@@ -127,6 +127,33 @@ case "$INSTALL" in
 esac
 
 #
+# Decide whether to use multithreading or not.
+#
+AC_MSG_CHECKING(whether to use threads)
+AC_ARG_ENABLE(threads,
+	[  --enable-threads	use multithreading])
+case "$enable_threads" in
+	yes|'')
+		AC_MSG_RESULT(yes)
+		use_threads=true
+		ISC_PLATFORM_USETHREADS="#define ISC_PLATFORM_USETHREADS 1"
+		;;
+	no)
+		AC_MSG_RESULT(no)	
+		use_threads=false
+#ifdef ISC_PLATFORM_USETHREADS
+		ISC_PLATFORM_USETHREADS="#undef ISC_PLATFORM_USETHREADS"
+#else /* ISC_PLATFORM_USETHREADS */
+#+		AC_MSG_ERROR(["--enable-threads is not implemented"])
+#endif /* ISC_PLATFORM_USETHREADS */
+		;;
+	*)
+	    	AC_MSG_ERROR(["--enable-threads takes yes or no"])
+		;;
+esac
+AC_SUBST(ISC_PLATFORM_USETHREADS)
+
+#
 # On these hosts, we really want to use cc, not gcc, even if it is
 # found.  The gcc that these systems have will not correctly handle
 # pthreads.
@@ -178,18 +205,43 @@ fi
 AC_C_BIGENDIAN
 
 #
-# If the user didn't specify where openssl is, and we didn't find or it
-# is imcompatible with our code, use our internal one.
-# XXXMLG Implement this check!
+# was --with-openssl specified?
 #
 AC_MSG_CHECKING(for compatible OpenSSL library)
+AC_ARG_WITH(openssl,
+[  --with-openssl=PATH  Specify path for system-supplied openssl
+                        (rather than using bind-9 internal openssl)],
+    use_openssl="$withval", use_openssl="no")
 
-DST_PRIVATEOPENSSL='-DDST_USE_PRIVATE_OPENSSL'
-dst_privateopenssl='openssl'
-DST_OPENSSL_INC='-I${srcdir}/../openssl/include'
-DST_OPENSSL_LIB=''
-DST_OPENSSL_OBJS='${OPENSSLOBJS}'
-AC_MSG_RESULT(using private library)
+#
+# If the user didn't specify where openssl is, and we didn't find or it
+# is incompatible with our code, use our internal one.
+#
+# XXX This appears to assume that the user specified path is correct,
+# and does no checking.
+#
+
+case "$use_openssl" in
+	no)
+		DST_PRIVATEOPENSSL='-DDST_USE_PRIVATE_OPENSSL'
+		dst_privateopenssl='openssl'
+		DST_OPENSSL_INC='-I${srcdir}/../openssl/include'
+		DST_OPENSSL_LIB=''
+		DST_OPENSSL_OBJS='${OPENSSLOBJS}'
+		AC_MSG_RESULT(using private library)
+		;;
+	yes)
+		AC_MSG_ERROR([--with-openssl must specify a path])
+		;;
+	*)
+		DST_PRIVATEOPENSSL=''
+		dst_privateopenssl=''
+		DST_OPENSSL_INC="-I$use_openssl/include"
+		DNS_OPENSSL_LIBS="-L$use_openssl/lib -lcrypto"
+		DST_OPENSSL_LIB=''
+		AC_MSG_RESULT(using openssl from $use_openssl/lib and $use_openssl/include)
+		;;
+esac
 
 AC_SUBST(DST_PRIVATEOPENSSL)
 AC_SUBST(dst_privateopenssl)
@@ -202,64 +254,69 @@ AC_SUBST(DST_OPENSSL_OBJS)
 # it as needed) if it is found.
 #
 
-DNS_OPENSSL_LIBS=""
 AC_SUBST(DNS_OPENSSL_LIBS)
 
 #
-# testing with alternate openssl libraries...  XXXMLG
+# was --with-gssapi specified?
 #
-# DNS_OPENSSL_LIBS="-L/usr/pkg/lib -lssl -lcrypto"
-# DST_PRIVATEOPENSSL=''
-# dst_privateopenssl=''
-# DST_OPENSSL_INC='-I/usr/pkg/include'
-# DST_OPENSSL_LIB=''
-#
+AC_MSG_CHECKING(for GSSAPI library)
+AC_ARG_WITH(gssapi,
+[  --with-gssapi=PATH   Specify path for system-supplied GSSAPI],
+    use_gssapi="$withval", use_gssapi="no")
+
+case "$use_gssapi" in
+	no)
+		USE_GSSAPI=''
+		DST_GSSAPI_INC=''
+		DNS_GSSAPI_LIBS=''
+		AC_MSG_RESULT(not specified)
+		;;
+	yes)
+		AC_MSG_ERROR([--with-gssapi must specify a path])
+		;;
+	*)
+		USE_GSSAPI='-DGSSAPI'
+		DST_GSSAPI_INC="-I$use_gssapi/include"
+		DNS_GSSAPI_LIBS="-L$use_gssapi/lib -lgssapi_krb5"
+		AC_MSG_RESULT(using gssapi from $use_gssapi/lib and $use_gssapi/include)
+		;;
+esac
+
+AC_SUBST(USE_GSSAPI)
+AC_SUBST(DST_GSSAPI_INC)
+AC_SUBST(DNS_GSSAPI_LIBS)
 
 #
-# NetBSD has multiple pthreads implementations.  The recommended
-# one to use is "unproven-pthreads".  The older "mit-pthreads" 
-# may also work on some NetBSD versions.  The PTL2 thread
-# library does not currently work with bind9, but can be
-# chosen with the --with-ptl2 option for those who wish to
-# experiment with it.
+# was --with-randomdev specified?
 #
+AC_MSG_CHECKING(for random device)
+AC_ARG_WITH(randomdev,
+[  --with-randomdev=PATH Specify path for random device],
+    use_randomdev="$withval", use_randomdev="unspec")
 
-case "$host" in
-  *-netbsd*)
-	CC="gcc"
-	AC_MSG_CHECKING(which NetBSD thread library to use)
-
-	AC_ARG_WITH(ptl2,
-[  --with-ptl2		on NetBSD, use the ptl2 thread library (experimental)],
-	    use_ptl2="$withval", use_ptl2="no")
-
-        : ${LOCALBASE:=/usr/pkg}
-
-	if test "X$use_ptl2" = "Xyes"
-	then
-		AC_MSG_RESULT(PTL2)
-		AC_MSG_WARN(
-[linking with PTL2 is highly experimental and not expected to work])
-		CC=ptlgcc
-	else
-		AC_MSG_RESULT(mit-pthreads/unproven-pthreads)
-
-		if test ! -d $LOCALBASE/pthreads
-		then
-			AC_MSG_ERROR([no thread library found.
-
-Please install the devel/unproven-pthreads package and rerun configure.
-])
-		fi
-
-		pkg="$LOCALBASE/pthreads"
-		lib1="-L$pkg/lib -Wl,-R$pkg/lib"
-		lib2="-lpthread -lm -lgcc -lpthread"
-		LIBS="$lib1 $lib2 $LIBS"
-		CPPFLAGS="$CPPFLAGS -I$pkg/include"
-		STD_CINCLUDES="$STD_CINCLUDES -I$pkg/include"
-	fi
-	;;
+case "$use_randomdev" in
+	unspec)
+		case "$host" in
+			*-openbsd*)
+				AC_DEFINE(PATH_RANDOMDEV, "/dev/srandom")
+				AC_MSG_RESULT(using /dev/srandom)
+				;;
+			*-linux*|*-freebsd*|*-netbsd*)
+				AC_DEFINE(PATH_RANDOMDEV, "/dev/random")
+				AC_MSG_RESULT(using /dev/random)
+				;;
+			*)
+				AC_MSG_RESULT(not found)
+				;;
+		esac
+		;;
+	yes)
+		AC_MSG_ERROR([--with-randomdev must specify a path])
+		;;
+	*)
+		AC_DEFINE_UNQUOTED(PATH_RANDOMDEV, "$use_randomdev")
+		AC_MSG_RESULT(using "$use_randomdev")
+		;;
 esac
 
 AC_PROG_CC
@@ -274,70 +331,178 @@ AC_C_INLINE
 AC_TYPE_SIZE_T
 AC_HEADER_TIME
 
-case "$host" in
-	*-netbsd*)
+if $use_threads
+then
+	#
+	# Search for / configure pthreads in a system-dependent fashion.
+	#
+	case "$host" in
+	  *-netbsd*)
+		# NetBSD has multiple pthreads implementations.	 The
+		# recommended one to use is "unproven-pthreads".  The
+		# older "mit-pthreads" may also work on some NetBSD
+		# versions.  The PTL2 thread library does not
+		# currently work with bind9, but can be chosen with
+		# the --with-ptl2 option for those who wish to
+		# experiment with it.
+		CC="gcc"
+		AC_MSG_CHECKING(which NetBSD thread library to use)
+
+		AC_ARG_WITH(ptl2,
+[  --with-ptl2		on NetBSD, use the ptl2 thread library (experimental)],
+		    use_ptl2="$withval", use_ptl2="no")
+
+		: ${LOCALBASE:=/usr/pkg}
+
+		if test "X$use_ptl2" = "Xyes"
+		then
+			AC_MSG_RESULT(PTL2)
+			AC_MSG_WARN(
+[linking with PTL2 is highly experimental and not expected to work])
+			CC=ptlgcc
+		else
+			AC_MSG_RESULT(mit-pthreads/unproven-pthreads)
+
+			if test ! -d $LOCALBASE/pthreads
+			then
+				AC_MSG_ERROR([no thread library found.
+
+Please install the devel/unproven-pthreads package and rerun configure.
+])
+			fi
+
+			pkg="$LOCALBASE/pthreads"
+			lib1="-L$pkg/lib -Wl,-R$pkg/lib"
+			lib2="-lpthread -lm -lgcc -lpthread"
+			LIBS="$lib1 $lib2 $LIBS"
+			CPPFLAGS="$CPPFLAGS -I$pkg/include"
+			STD_CINCLUDES="$STD_CINCLUDES -I$pkg/include"
+		fi
 		;;
-	*)
-		AC_CHECK_LIB(pthread, pthread_create,,
-	             AC_CHECK_LIB(pthread, __pthread_create)
-        	     AC_CHECK_LIB(pthread, __pthread_create_system))
+		*)
+			AC_CHECK_LIB(pthread, pthread_create,,
+			     AC_CHECK_LIB(pthread, __pthread_create)
+			     AC_CHECK_LIB(pthread, __pthread_create_system)
+			     AC_CHECK_LIB(pthreads, pthread_create))
 		;;
-esac
+	esac
+
+	#
+	# We'd like to use sigwait() too
+	#
+	AC_CHECK_LIB(c, sigwait,
+		     AC_DEFINE(HAVE_SIGWAIT),
+		     AC_CHECK_LIB(pthread, sigwait,
+				  AC_DEFINE(HAVE_SIGWAIT),
+				  AC_CHECK_LIB(pthread, _Psigwait,
+					       AC_DEFINE(HAVE_SIGWAIT),))
+	)
+
+	#
+	# Additional OS-specific issues related to pthreads and sigwait.
+	#
+	case "$host" in
+		#
+		# One more place to look for sigwait.
+		#
+		*-freebsd*)
+			AC_CHECK_LIB(c_r, sigwait, AC_DEFINE(HAVE_SIGWAIT),)
+			;;
+		#
+		# BSDI 3.1 through 4.0.1 needs pthread_init() to be
+		# called before certain pthreads calls.	 This is deprecated
+		# in BSD/OS 4.1.
+		#
+		*-bsdi3.1*|*-bsdi4.0*)
+			AC_DEFINE(NEED_PTHREAD_INIT)
+			;;
+		#
+		# LinuxThreads requires some changes to the way we
+		# deal with signals.
+		#
+		*-linux*)
+			AC_DEFINE(HAVE_LINUXTHREADS)
+			;;
+		#
+		# Ensure the right sigwait() semantics on Solaris and make
+		# sure we call pthread_setconcurrency.
+		#
+		*-solaris*)
+			AC_DEFINE(_POSIX_PTHREAD_SEMANTICS)
+			AC_CHECK_FUNC(pthread_setconcurrency,
+				      AC_DEFINE(CALL_PTHREAD_SETCONCURRENCY))
+			;;
+		#
+		# UnixWare does things its own way.
+		#
+		*-UnixWare*)
+			AC_DEFINE(HAVE_UNIXWARE_SIGWAIT)
+			;;
+	esac
+
+	#
+	# Look for sysconf to allow detection of the number of processors.
+	#
+	AC_CHECK_FUNC(sysconf, AC_DEFINE(HAVE_SYSCONF),)
+
+	if test "X$GCC" = "Xyes"; then
+		case "$host" in
+		*-freebsd*)
+			CC="$CC -pthread"
+			CCOPT="$CCOPT -pthread"
+			STD_CDEFINES="$STD_CDEFINES -D_THREAD_SAFE"
+			;;
+		*-openbsd*)
+			CC="$CC -pthread"
+			CCOPT="$CCOPT -pthread"
+			;;
+		*-solaris*)
+			LIBS="$LIBS -lthread"
+			;;
+		*-ibm-aix*)
+			STD_CDEFINES="$STD_CDEFINES -D_THREAD_SAFE"
+			;;
+		esac
+	else
+		case $host in
+		*-dec-osf*)
+			CC="$CC -std -pthread"
+			CCOPT="$CCOPT -std -pthread"
+			MKDEPCC="$CC"
+			;;
+		*-solaris*)
+			CC="$CC -mt"
+			CCOPT="$CCOPT -mt"
+			;;
+		*-hp-hpux*)
+			CC="$CC -Ae -z +w1"
+			CCOPT="$CCOPT -Ae -z"
+			;;
+		*-ibm-aix*)
+			STD_CDEFINES="$STD_CDEFINES -D_THREAD_SAFE"
+			;;
+		*-UnixWare*)
+			CC="$CC -Kthread -w"
+			CCOPT="$CCOPT -Kthread"
+			;;
+		esac
+	fi
+	thread_dir=pthreads
+else
+	thread_dir=nothreads
+fi
+# 
+# End of pthreads stuff.
+#
+
+ISC_THREAD_DIR=$thread_dir
+AC_SUBST(ISC_THREAD_DIR)
 
 #
-# We'd like to use sigwait() too
+# flockfile is usually provided by pthreads, but we may want to use it
+# even if compiled with --disable-threads.
 #
-AC_CHECK_LIB(c, sigwait,
-	     AC_DEFINE(HAVE_SIGWAIT),
-             AC_CHECK_LIB(pthread, sigwait,
-			  AC_DEFINE(HAVE_SIGWAIT),
-			  AC_CHECK_LIB(pthread, _Psigwait,
-				       AC_DEFINE(HAVE_SIGWAIT),))
-)
-
-#
-# Additional OS-specific issues related to pthreads and sigwait.
-#
-case "$host" in
-        #
-        # One more place to look for sigwait.
-        #
-	*-freebsd*)
-		AC_CHECK_LIB(c_r, sigwait, AC_DEFINE(HAVE_SIGWAIT),)
-		;;
-        #
-        # BSDI 3.1 through 4.0.1 needs pthread_init() to be called before
-        # certain pthreads calls.  This is deprecated in BSD/OS 4.1.
-        #
-	*-bsdi3.1*|*-bsdi4.0*)
-		AC_DEFINE(NEED_PTHREAD_INIT)
-		;;
-        #
-        # LinuxThreads requires some changes to the way we deal with signals.
-        #
-	*-linux*)
-		AC_DEFINE(HAVE_LINUXTHREADS)
-		;;
-        #
-        # Ensure the right sigwait() semantics on Solaris.
-        #
-	*-solaris*)
-		AC_DEFINE(_POSIX_PTHREAD_SEMANTICS)
-		AC_CHECK_FUNC(pthread_setconcurrency,
-			      AC_DEFINE(CALL_PTHREAD_SETCONCURRENCY))
-		;;
-        #
-        # UnixWare does things its own way.
-        #
-        *-UnixWare*)
-		AC_DEFINE(HAVE_UNIXWARE_SIGWAIT)
-		;;
-esac
-
-#
-# Look for sysconf to allow detection of the number of processors.
-#
-AC_CHECK_FUNC(sysconf, AC_DEFINE(HAVE_SYSCONF),)
+AC_CHECK_FUNC(flockfile, AC_DEFINE(HAVE_FLOCKFILE),)
 
 #
 # NLS
@@ -368,39 +533,13 @@ MKDEPCFLAGS="-M"
 IRIX_DNSSEC_WARNINGS_HACK=""
 if test "X$GCC" = "Xyes"; then
 	STD_CWARNINGS="$STD_CWARNINGS -W -Wall -Wmissing-prototypes -Wcast-qual -Wwrite-strings"
-	case "$host" in
-		*-freebsd*)
-			CC="$CC -pthread"
-			CCOPT="$CCOPT -pthread"
-			STD_CDEFINES="$STD_CDEFINES -D_THREAD_SAFE"
-			;;
-		*-openbsd*)
-			CC="$CC -pthread"
-			CCOPT="$CCOPT -pthread"
-			;;
-		*-solaris*)
-			LIBS="$LIBS -lthread"
-			;;
-		*-ibm-aix*)
-			STD_CDEFINES="$STD_CDEFINES -D_THREAD_SAFE"
-			;;
-	esac
 else
 	case "$host" in
-		*-dec-osf*)
-			CC="$CC -std -pthread"
-			CCOPT="$CCOPT -std -pthread"
-			MKDEPCC="$CC"
-			;;
 		*-solaris*)
-			CC="$CC -mt"
-			CCOPT="$CCOPT -mt"
 			MKDEPCC="$CC"
 			MKDEPCFLAGS="-xM"
 			;;
-		*-hp-hpux*)
-			CC="$CC -Ae -z +w1"
-			CCOPT="CCOPT -Ae -z"
+		*-hp-hpux*)	
                         LIBS="-Wl,+vnocompatwarnings $LIBS"
 			MKDEPPROG='cc -Ae -E -Wp,-M >/dev/null 2>>$TMP'
 			;;
@@ -411,16 +550,11 @@ else
                         #   "prototyped function redeclared without prototype"
                         # and 11 instances of
                         #   "variable ... was set but never used"
-                        # from lib/dns/sec/{dnssafe,openssl}.
+                        # from lib/dns/sec/openssl.
                         #
                         IRIX_DNSSEC_WARNINGS_HACK="-woff 1692,1552"
                         ;;
-		*-ibm-aix*)
-			STD_CDEFINES="$STD_CDEFINES -D_THREAD_SAFE"
-			;;
 		*-UnixWare*)
-			CC="$CC -Kthread -w"
-			CCOPT="$CCOPT -Kthread"
 			MKDEPCC="$CC"
 			YACC="yacc"	# bison calls alloca, avoid on UnixWare
 			;;
@@ -431,6 +565,7 @@ AC_SUBST(MKDEPCFLAGS)
 AC_SUBST(MKDEPPROG)
 AC_SUBST(IRIX_DNSSEC_WARNINGS_HACK)
 
+#
 #
 # GNU libtool support
 #
@@ -461,32 +596,38 @@ AC_SUBST(A)
 AC_SUBST(SA)
 
 #
+# Here begins a very long section to determine the system's networking
+# capabilities.  The order of the tests is signficant.
+#
+
+#
 # IPv6
 #
 AC_ARG_ENABLE(ipv6,
 	[  --enable-ipv6		use IPv6 [default=autodetect]])
 
+case "$enable_ipv6" in
+	yes|''|autodetect)
+		AC_DEFINE(WANT_IPV6)
+		;;
+	no)
+		;;
+esac
+
 #
 # We do the IPv6 compilation checking after libtool so that we can put
 # the right suffix on the files.
 #
-case "$enable_ipv6" in
-	yes|''|autodetect)
-		AC_MSG_CHECKING(for IPv6 structures)
-		AC_TRY_COMPILE([
+AC_MSG_CHECKING(for IPv6 structures)
+AC_TRY_COMPILE([
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>],
-		[struct sockaddr_in6 sin6; return (0);],
-			[AC_MSG_RESULT(yes)
-			 found_ipv6=yes],
-			[AC_MSG_RESULT(no)
-			 found_ipv6=no])
-		;;
-	no)
-		found_ipv6=no
-		;;
-esac
+[struct sockaddr_in6 sin6; return (0);],
+	[AC_MSG_RESULT(yes)
+	 found_ipv6=yes],
+	[AC_MSG_RESULT(no)
+	 found_ipv6=no])
 
 #
 # See whether IPv6 support is provided via a Kame add-on.
@@ -645,10 +786,12 @@ AC_SUBST(ISC_IPV6_O)
 AC_SUBST(ISC_ISCIPV6_O)
 AC_SUBST(ISC_IPV6_C)
 AC_SUBST(LWRES_HAVE_SIN6_SCOPE_ID)
+
 #
 # Check for network functions that are often missing.  We do this
 # after the libtool checking, so we can put the right suffix on
-# the files.
+# the files.  It also needs to come after checking for a Kame add-on,
+# which provides some (all?) of the desired functions.
 #
 AC_MSG_CHECKING([for inet_ntop])
 AC_TRY_LINK([
@@ -695,7 +838,7 @@ AC_SUBST(ISC_PLATFORM_NEEDPTON)
 AC_SUBST(ISC_PLATFORM_NEEDATON)
 
 #
-# Networking specifics.
+# Look for a 4.4BSD-style sa_len member in struct sockaddr.
 #
 case "$host" in
 	*-dec-osf*)
@@ -704,9 +847,6 @@ case "$host" in
 		;;
 esac
 
-#
-# Look for a 4.4BSD-style sa_len member in struct sockaddr.
-#
 AC_MSG_CHECKING(for sa_len in struct sockaddr)
 AC_TRY_COMPILE([
 #include <sys/types.h>
@@ -814,7 +954,7 @@ AC_TRY_COMPILE([
 	ISC_LWRES_ENDNETENTINT="#undef ISC_LWRES_ENDNETENTINT"])
 AC_SUBST(ISC_LWRES_ENDNETENTINT)
 
-AC_MSG_CHECKING(for gethostbyadd(const void *, size_t, ...))
+AC_MSG_CHECKING(for gethostbyaddr(const void *, size_t, ...))
 AC_TRY_COMPILE([
 #include <netdb.h>
 struct hostent *gethostbyaddr(const void *, size_t, int);],
@@ -865,7 +1005,9 @@ found_rt_iflist
 	 AC_DEFINE(HAVE_IFLIST_SYSCTL)],
 	[AC_MSG_RESULT(no)])
 
+#
 # Check for some other useful functions that are not ever-present.
+#
 AC_CHECK_FUNC(strsep,
 	[ISC_PLATFORM_NEEDSTRSEP="#undef ISC_PLATFORM_NEEDSTRSEP"],
 	[ISC_PLATFORM_NEEDSTRSEP="#define ISC_PLATFORM_NEEDSTRSEP 1"])
@@ -933,7 +1075,7 @@ case "$hack_shutup_sigwait" in
 	yes)
 		#
 		# Shut up a -Wmissing-prototypes warning for sigwait().
-		# 
+		#
 		AC_DEFINE(SHUTUP_SIGWAIT)
 		;;
 esac
@@ -955,6 +1097,65 @@ case "$hack_shutup_stdargcast" in
 		AC_DEFINE(SHUTUP_STDARG_CAST)
 		;;
 esac
+
+
+#
+# Look for jade, preferring openjade if installed.
+#
+
+AC_PATH_PROGS(JADE, openjade jade, jade)
+AC_SUBST(JADE)
+
+#
+# Look for SGML files.  NetBSD has them under /usr/pkg/share 
+# (if installed), FreeBSD has them under /usr/local/share.
+#
+
+SGMLDIR=""
+
+AC_MSG_CHECKING(for SGML files)
+for d in /usr/pkg/share/sgml /usr/local/share/sgml 
+do
+	if test -f $d/docbook/dsssl/modular/html/docbook.dsl
+	then
+		SGMLDIR=$d
+		AC_MSG_RESULT(in $SGMLDIR)
+		break
+	fi
+done
+
+if test "X$SGMLDIR" = "X"
+then
+	AC_MSG_RESULT("not found");
+	SGMLDIR=/usr/local/share/sgml
+fi
+
+AC_SUBST(SGMLDIR)
+
+#
+# Look for XML files.
+#
+
+XGMLDIR=""
+
+AC_MSG_CHECKING(for XML files)
+for d in /usr/pkg/share/xml /usr/local/share/xml
+do
+	if test -f $d/dtd/docbook/docbookx.dtd
+	then
+		XMLDIR=$d
+		AC_MSG_RESULT(in $XMLDIR)
+		break
+	fi
+done
+
+if test "X$XMLDIR" = "X"
+then
+	AC_MSG_RESULT("not found");
+	XMLDIR=/usr/local/share/xml
+fi
+
+AC_SUBST(XMLDIR)
 
 #
 # Substitutions
@@ -1015,9 +1216,9 @@ AC_OUTPUT(
 	lib/isc/unix/include/Makefile
 	lib/isc/unix/include/isc/Makefile
 	lib/isc/nls/Makefile
-	lib/isc/pthreads/Makefile
-	lib/isc/pthreads/include/Makefile
-	lib/isc/pthreads/include/isc/Makefile
+	lib/isc/$thread_dir/Makefile
+	lib/isc/$thread_dir/include/Makefile
+	lib/isc/$thread_dir/include/isc/Makefile
 	lib/dns/Makefile
 	lib/dns/include/Makefile
 	lib/dns/include/dns/Makefile
@@ -1025,7 +1226,6 @@ AC_OUTPUT(
 	lib/dns/sec/openssl/Makefile
 	lib/dns/sec/openssl/include/Makefile
 	lib/dns/sec/openssl/include/openssl/Makefile
-	lib/dns/sec/dnssafe/Makefile
 	lib/dns/sec/dst/Makefile
 	lib/dns/sec/dst/include/Makefile
 	lib/dns/sec/dst/include/dst/Makefile
@@ -1063,6 +1263,16 @@ AC_OUTPUT(
 	bin/tests/system/lwresd/Makefile
 	bin/tests/headerdep_test.sh
 	bin/dnssec/Makefile
+	doc/Makefile
+	doc/arm/catalog
+	doc/arm/nominum-docbook-html.dsl
+	doc/arm/validate.sh
+	doc/arm/genhtml.sh
 	isc-config.sh
 )
 chmod a+x isc-config.sh
+
+# Tell Emacs to edit this file in shell mode.
+# Local Variables:
+# mode: sh
+# End:

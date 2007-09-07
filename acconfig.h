@@ -1,21 +1,21 @@
 /*
  * Copyright (C) 1999, 2000  Internet Software Consortium.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
- * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
- * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
- * SOFTWARE.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+ * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+ * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: acconfig.h,v 1.23 2000/06/22 21:48:56 tale Exp $ */
+/* $Id: acconfig.h,v 1.29 2000/09/22 18:52:32 bwelling Exp $ */
 
 /***
  *** This file is not to be included by any public header files, because
@@ -72,6 +72,12 @@
  */
 #undef CALL_PTHREAD_SETCONCURRENCY
 
+/* define if IPv6 is not disabled */
+#undef WANT_IPV6
+
+/* define if flockfile() is available */
+#undef HAVE_FLOCKFILE
+
 /* Shut up warnings about sputaux in stdio.h on BSD/OS pre-4.1 */
 #undef SHUTUP_SPUTAUX
 #ifdef SHUTUP_SPUTAUX
@@ -102,3 +108,6 @@ int sigwait(const unsigned int *set, int *sig);
 		ap = (va_list)(_u.var + __va_words(__typeof(last))); \
 	} while (0)
 #endif /* SHUTUP_STDARG_CAST && __GNUC__ */
+
+/* define if the system has a random number generating device */
+#undef PATH_RANDOMDEV

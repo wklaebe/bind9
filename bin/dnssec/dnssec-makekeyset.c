@@ -1,11 +1,11 @@
 /*
  * Portions Copyright (C) 2000  Internet Software Consortium.
  * Portions Copyright (C) 1995-2000 by Network Associates, Inc.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM AND
  * NETWORK ASSOCIATES DISCLAIM ALL WARRANTIES WITH REGARD TO THIS
  * SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
@@ -17,7 +17,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dnssec-makekeyset.c,v 1.28.2.2 2000/08/15 01:20:32 gson Exp $ */
+/* $Id: dnssec-makekeyset.c,v 1.44 2000/11/09 18:55:16 bwelling Exp $ */
 
 #include <config.h>
 
@@ -64,31 +64,6 @@ static isc_entropy_t *ectx = NULL;
 
 static keylist_t keylist;
 
-static isc_stdtime_t
-strtotime(char *str, isc_int64_t now, isc_int64_t base) {
-	isc_int64_t val, offset;
-	isc_result_t result;
-	char *endp;
-
-	if (str[0] == '+') {
-		offset = strtol(str + 1, &endp, 0);
-		if (*endp != '\0')
-			fatal("time value %s is invalid", str);
-		val = base + offset;
-	} else if (strncmp(str, "now+", 4) == 0) {
-		offset = strtol(str + 4, &endp, 0);
-		if (*endp != '\0')
-			fatal("time value %s is invalid", str);
-		val = now + offset;
-	} else {
-		result = dns_time64_fromtext(str, &val);
-		if (result != ISC_R_SUCCESS)
-			fatal("time %s must be numeric", str);
-	}
-
-	return ((isc_stdtime_t) val);
-}
-
 static void
 usage(void) {
 	fprintf(stderr, "Usage:\n");
@@ -97,12 +72,16 @@ usage(void) {
 	fprintf(stderr, "\n");
 
 	fprintf(stderr, "Options: (default value in parenthesis) \n");
+	fprintf(stderr, "\t-a\n");
+	fprintf(stderr, "\t\tverify generated signatures\n");
 	fprintf(stderr, "\t-s YYYYMMDDHHMMSS|+offset:\n");
 	fprintf(stderr, "\t\tSIG start time - absolute|offset (now)\n");
 	fprintf(stderr, "\t-e YYYYMMDDHHMMSS|+offset|\"now\"+offset]:\n");
 	fprintf(stderr, "\t\tSIG end time  - "
 			     "absolute|from start|from now (now + 30 days)\n");
 	fprintf(stderr, "\t-t ttl\n");
+	fprintf(stderr, "\t-p\n");
+	fprintf(stderr, "\t\tuse pseudorandom data (faster but less secure)\n");
 	fprintf(stderr, "\t-r randomdev:\n");
 	fprintf(stderr, "\t\ta file containing random data\n");
 	fprintf(stderr, "\t-v level:\n");
@@ -112,6 +91,11 @@ usage(void) {
 
 	fprintf(stderr, "keys:\n");
 	fprintf(stderr, "\tkeyfile (Kname+alg+tag)\n");
+
+	fprintf(stderr, "\n");
+
+	fprintf(stderr, "Output:\n");
+	fprintf(stderr, "\tkeyset (keyset-<name>)\n");
 	exit(0);
 }
 
@@ -138,6 +122,9 @@ main(int argc, char *argv[]) {
 	isc_log_t *log = NULL;
 	keynode_t *keynode;
 	dns_name_t *savedname = NULL;
+	unsigned int eflags;
+	isc_boolean_t pseudorandom = ISC_FALSE;
+	isc_boolean_t tryverify = ISC_FALSE;
 
 	result = isc_mem_create(0, 0, &mctx);
 	if (result != ISC_R_SUCCESS)
@@ -146,21 +133,18 @@ main(int argc, char *argv[]) {
 
 	dns_result_register();
 
-	while ((ch = isc_commandline_parse(argc, argv, "s:e:t:r:v:h")) != -1)
+	while ((ch = isc_commandline_parse(argc, argv, "as:e:t:r:v:ph")) != -1)
 	{
 		switch (ch) {
+		case 'a':
+			tryverify = ISC_TRUE;
+			break;
 		case 's':
-			startstr = isc_mem_strdup(mctx,
-						  isc_commandline_argument);
-			if (startstr == NULL)
-				fatal("out of memory");
+			startstr = isc_commandline_argument;
 			break;
 
 		case 'e':
-			endstr = isc_mem_strdup(mctx,
-						isc_commandline_argument);
-			if (endstr == NULL)
-				fatal("out of memory");
+			endstr = isc_commandline_argument;
 			break;
 
 		case 't':
@@ -171,10 +155,7 @@ main(int argc, char *argv[]) {
 			break;
 
 		case 'r':
-			randomfile = isc_mem_strdup(mctx,
-						    isc_commandline_argument);
-			if (randomfile == NULL)
-				fatal("out of memory");
+			randomfile = isc_commandline_argument;
 			break;
 
 		case 'v':
@@ -182,6 +163,10 @@ main(int argc, char *argv[]) {
 			verbose = strtol(isc_commandline_argument, &endp, 0);
 			if (*endp != '\0')
 				fatal("verbose level must be numeric");
+			break;
+
+		case 'p':
+			pseudorandom = ISC_TRUE;
 			break;
 
 		case 'h':
@@ -198,26 +183,22 @@ main(int argc, char *argv[]) {
 		usage();
 
 	setup_entropy(mctx, randomfile, &ectx);
-	if (randomfile != NULL)
-		isc_mem_free(mctx, randomfile);
-	result = dst_lib_init(mctx, ectx,
-			      ISC_ENTROPY_BLOCKING | ISC_ENTROPY_GOODONLY);
+	eflags = ISC_ENTROPY_BLOCKING;
+	if (!pseudorandom)
+		eflags |= ISC_ENTROPY_GOODONLY;
+	result = dst_lib_init(mctx, ectx, eflags);
 	if (result != ISC_R_SUCCESS)
 		fatal("could not initialize dst");
 
 	isc_stdtime_get(&now);
 
-	if (startstr != NULL) {
+	if (startstr != NULL)
 		starttime = strtotime(startstr, now, now);
-		isc_mem_free(mctx, startstr);
-	}
 	else
 		starttime = now;
 
-	if (endstr != NULL) {
+	if (endstr != NULL)
 		endtime = strtotime(endstr, now, starttime);
-		isc_mem_free(mctx, endstr);
-	}
 	else
 		endtime = starttime + (30 * 24 * 60 * 60);
 
@@ -230,7 +211,7 @@ main(int argc, char *argv[]) {
 	setup_logging(verbose, mctx, &log);
 
 	dns_rdatalist_init(&rdatalist);
-	rdatalist.rdclass = dns_rdataclass_in;
+	rdatalist.rdclass = 0;
 	rdatalist.type = dns_rdatatype_key;
 	rdatalist.covers = 0;
 	rdatalist.ttl = ttl;
@@ -238,17 +219,23 @@ main(int argc, char *argv[]) {
 	ISC_LIST_INIT(keylist);
 
 	for (i = 0; i < argc; i++) {
-		char namestr[1025];
+		char namestr[DNS_NAME_FORMATSIZE];
+		isc_buffer_t namebuf;
+
 		key = NULL;
 		result = dst_key_fromnamedfile(argv[i], DST_TYPE_PUBLIC,
 					       mctx, &key);
 		if (result != ISC_R_SUCCESS)
 			fatal("error loading key from %s", argv[i]);
+		if (rdatalist.rdclass == 0)
+			rdatalist.rdclass = dst_key_class(key);
 
-		strncpy(namestr, nametostr(dst_key_name(key)),
-			sizeof(namestr) - 1);
-		namestr[sizeof(namestr) - 1] = 0;
-
+		isc_buffer_init(&namebuf, namestr, sizeof namestr);
+		result = dns_name_totext(dst_key_name(key), ISC_FALSE,
+					 &namebuf);
+		check_result(result, "dns_name_totext");
+		isc_buffer_putuint8(&namebuf, 0);
+		
 		if (savedname == NULL) {
 			savedname = isc_mem_get(mctx, sizeof(dns_name_t));
 			if (savedname == NULL)
@@ -259,19 +246,22 @@ main(int argc, char *argv[]) {
 			if (result != ISC_R_SUCCESS)
 				fatal("out of memory");
 		} else {
+			char savednamestr[DNS_NAME_FORMATSIZE];
+			dns_name_format(savedname, savednamestr,
+					sizeof savednamestr);
 			if (!dns_name_equal(savedname, dst_key_name(key)) != 0)
 				fatal("all keys must have the same owner - %s "
 				      "and %s do not match",
-				      nametostr(savedname), namestr);
+				      savednamestr, namestr);
 		}
 		if (output == NULL) {
 			output = isc_mem_allocate(mctx,
-						  strlen(namestr) +
-						  strlen("keyset") + 1);
+						  strlen("keyset-") +
+						  strlen(namestr) + 1);
 			if (output == NULL)
 				fatal("out of memory");
-			strcpy(output, namestr);
-			strcat(output, "keyset");
+			strcpy(output, "keyset-");
+			strcat(output, namestr);
 		}
 		if (domain == NULL) {
 			dns_fixedname_init(&fdomain);
@@ -290,18 +280,18 @@ main(int argc, char *argv[]) {
 						       DST_TYPE_PRIVATE,
 						       mctx, &zonekey);
 			if (result != ISC_R_SUCCESS)
-				fatal("failed to read key %s: %s",
+				fatal("failed to read private key %s: %s",
 				      argv[i], isc_result_totext(result));
 			keynode = isc_mem_get(mctx, sizeof (keynode_t));
 			if (keynode == NULL)
 				fatal("out of memory");
 			keynode->key = zonekey;
-			ISC_LINK_INIT(keynode, link);
-			ISC_LIST_APPEND(keylist, keynode, link);
+			ISC_LIST_APPENDUNSAFE(keylist, keynode, link);
 		}
 		rdata = isc_mem_get(mctx, sizeof(dns_rdata_t));
 		if (rdata == NULL)
 			fatal("out of memory");
+		dns_rdata_init(rdata);
 		data = isc_mem_get(mctx, BUFSIZE);
 		if (data == NULL)
 			fatal("out of memory");
@@ -311,7 +301,7 @@ main(int argc, char *argv[]) {
 			fatal("failed to convert key %s to a DNS KEY: %s",
 			      argv[i], isc_result_totext(result));
 		isc_buffer_usedregion(&b, &r);
-		dns_rdata_fromregion(rdata, dns_rdataclass_in,
+		dns_rdata_fromregion(rdata, rdatalist.rdclass,
 				     dns_rdatatype_key, &r);
 		ISC_LIST_APPEND(rdatalist.rdata, rdata, link);
 		dst_key_free(&key);
@@ -322,7 +312,7 @@ main(int argc, char *argv[]) {
 	check_result(result, "dns_rdatalist_tordataset()");
 
 	dns_rdatalist_init(&sigrdatalist);
-	sigrdatalist.rdclass = dns_rdataclass_in;
+	sigrdatalist.rdclass = rdatalist.rdclass;
 	sigrdatalist.type = dns_rdatatype_sig;
 	sigrdatalist.covers = dns_rdatatype_key;
 	sigrdatalist.ttl = ttl;
@@ -338,6 +328,7 @@ main(int argc, char *argv[]) {
 		rdata = isc_mem_get(mctx, sizeof(dns_rdata_t));
 		if (rdata == NULL)
 			fatal("out of memory");
+		dns_rdata_init(rdata);
 		data = isc_mem_get(mctx, BUFSIZE);
 		if (data == NULL)
 			fatal("out of memory");
@@ -346,12 +337,24 @@ main(int argc, char *argv[]) {
 					 &starttime, &endtime, mctx, &b,
 					 rdata);
 		isc_entropy_stopcallbacksources(ectx);
-		if (result != ISC_R_SUCCESS)
-			fatal("failed to sign keyset with key %s/%s/%d: %s",
-			      nametostr(dst_key_name(keynode->key)),
-			      algtostr(dst_key_alg(keynode->key)),
-			      dst_key_id(keynode->key),
-			      isc_result_totext(result));
+		if (result != ISC_R_SUCCESS) {
+			char keystr[KEY_FORMATSIZE];
+			key_format(keynode->key, keystr, sizeof keystr);
+			fatal("failed to sign keyset with key %s: %s",
+			      keystr, isc_result_totext(result));
+		}
+		if (tryverify) {
+			result = dns_dnssec_verify(domain, &rdataset,
+						   keynode->key, ISC_TRUE,
+						   mctx, rdata);
+			if (result != ISC_R_SUCCESS) {
+				char keystr[KEY_FORMATSIZE];
+				key_format(keynode->key, keystr, sizeof keystr);
+				fatal("signature from key '%s' failed to "
+				      "verify: %s",
+				      keystr, isc_result_totext(result));
+			}
+		}
 		ISC_LIST_APPEND(sigrdatalist.rdata, rdata, link);
 		dns_rdataset_init(&sigrdataset);
 		result = dns_rdatalist_tordataset(&sigrdatalist, &sigrdataset);
@@ -360,9 +363,12 @@ main(int argc, char *argv[]) {
 
 	db = NULL;
 	result = dns_db_create(mctx, "rbt", domain, dns_dbtype_zone,
-			       dns_rdataclass_in, 0, NULL, &db);
-	if (result != ISC_R_SUCCESS)
-		fatal("failed to create a database for %s", nametostr(domain));
+			       rdataset.rdclass, 0, NULL, &db);
+	if (result != ISC_R_SUCCESS) {
+		char domainstr[DNS_NAME_FORMATSIZE];
+		dns_name_format(domain, domainstr, sizeof domainstr);
+		fatal("failed to create a database for %s", domainstr);
+	}
 
 	version = NULL;
 	dns_db_newversion(db, &version);
@@ -379,9 +385,14 @@ main(int argc, char *argv[]) {
 	dns_db_detachnode(db, &node);
 	dns_db_closeversion(db, &version, ISC_TRUE);
 	result = dns_db_dump(db, version, output);
-	if (result != ISC_R_SUCCESS)
+	if (result != ISC_R_SUCCESS) {
+		char domainstr[DNS_NAME_FORMATSIZE];
+		dns_name_format(domain, domainstr, sizeof domainstr);
 		fatal("failed to write database for %s to %s",
-		      nametostr(domain), output);
+		      domainstr, output);
+	}
+
+	printf("%s\n", output);
 
 	dns_db_detach(&db);
 
@@ -411,8 +422,7 @@ main(int argc, char *argv[]) {
 		isc_mem_put(mctx, savedname, sizeof(dns_name_t));
 	}
 
-	if (log != NULL)
-		isc_log_destroy(&log);
+	cleanup_logging(&log);
 	cleanup_entropy(&ectx);
 
 	isc_mem_free(mctx, output);

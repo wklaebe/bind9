@@ -1,21 +1,21 @@
 /*
  * Copyright (C) 2000  Internet Software Consortium.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
- * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
- * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
- * SOFTWARE.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+ * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+ * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: file.c,v 1.17.2.1 2000/09/11 19:27:52 explorer Exp $ */
+/* $Id: file.c,v 1.26 2000/10/20 22:09:01 gson Exp $ */
 
 #include <config.h>
 
@@ -45,10 +45,10 @@
 static isc_result_t
 file_stats(const char *file, struct stat *stats) {
 	isc_result_t result = ISC_R_SUCCESS;
-	
+
 	if (stat(file, stats) != 0)
 		result = isc__errno2result(errno);
-		
+
 	return (result);
 }
 
@@ -90,12 +90,10 @@ isc_file_settime(const char *file, isc_time_t *time) {
 	times[0].tv_sec = times[1].tv_sec = (long)isc_time_seconds(time);
 
 	/*
-	 * Solaris 5.6 gives this warning about the left shift:
-	 *	warning: integer overflow detected: op "<<"
-	 * if the U(nsigned) qualifier is not on the 1.
+	 * Here is the real check for the high bit being set.
 	 */
 	if ((times[0].tv_sec &
-	     (1U << (sizeof(times[0].tv_sec) * CHAR_BIT - 1))) != 0)
+	     (1ULL << (sizeof(times[0].tv_sec) * CHAR_BIT - 1))) != 0)
 		return (ISC_R_RANGE);
 
 	/*
@@ -119,29 +117,61 @@ isc_file_settime(const char *file, isc_time_t *time) {
 
 isc_result_t
 isc_file_mktemplate(const char *path, char *buf, size_t buflen) {
+	return (isc_file_template(path, TEMPLATE, buf, buflen));
+}
+
+isc_result_t
+isc_file_template(const char *path, const char *templet, char *buf,
+			size_t buflen) {
 	char *s;
 
 	REQUIRE(buf != NULL);
 
+	s = strrchr(templet, '/');
+	if (s != NULL)
+		templet = s + 1;
+
 	s = strrchr(path, '/');
 
 	if (s != NULL) {
-		if ((s - path + 1 + sizeof(TEMPLATE)) > buflen)
+		if ((s - path + 1 + strlen(templet) + 1) > buflen)
 			return (ISC_R_NOSPACE);
-		
+
 		strncpy(buf, path, s - path + 1);
 		buf[s - path + 1] = '\0';
-		strcat(buf, TEMPLATE);
+		strcat(buf, templet);
 	} else {
-		if (sizeof(TEMPLATE) > buflen)
+		if ((strlen(templet) + 1) > buflen)
 			return (ISC_R_NOSPACE);
-		
-		strcpy(buf, TEMPLATE);
+
+		strcpy(buf, templet);
 	}
-	
+
 	return (ISC_R_SUCCESS);
 }
- 
+
+isc_result_t
+isc_file_renameunique(const char *file, char *templet) {
+	int fd = -1;
+	int res = 0;
+	isc_result_t result = ISC_R_SUCCESS;
+
+	fd = mkstemp(templet);
+	if (fd == -1) {
+		result = isc__errno2result(errno);
+	}
+	if (result == ISC_R_SUCCESS) {
+		res = rename(file, templet);
+		if (res != 0) {
+			(void)unlink(templet);
+			result = isc__errno2result(errno);
+		}
+	}
+	if (fd != -1)
+		close(fd);
+	return (result);
+}
+
 isc_result_t
 isc_file_openunique(char *templet, FILE **fp) {
 	int fd;
@@ -175,7 +205,7 @@ isc_file_openunique(char *templet, FILE **fp) {
 isc_result_t
 isc_file_remove(const char *filename) {
 	int r;
-	
+
 	r = unlink(filename);
 	if (r == 0)
 		return (ISC_R_SUCCESS);
@@ -192,4 +222,9 @@ isc_file_rename(const char *oldname, const char *newname) {
 		return (ISC_R_SUCCESS);
 	else
 		return (isc__errno2result(errno));
+}
+
+isc_boolean_t
+isc_file_isabsolute(const char *filename) {
+	return (ISC_TF(filename[0] == '/'));
 }

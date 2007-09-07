@@ -1,24 +1,25 @@
 /*
  * Copyright (C) 1999, 2000  Internet Software Consortium.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
- * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
- * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
- * SOFTWARE.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+ * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+ * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: main.c,v 1.71.2.2 2000/07/11 17:23:02 gson Exp $ */
+/* $Id: main.c,v 1.95 2000/11/27 19:12:23 gson Exp $ */
 
 #include <config.h>
 
+#include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -26,6 +27,7 @@
 #include <isc/commandline.h>
 #include <isc/entropy.h>
 #include <isc/os.h>
+#include <isc/resource.h>
 #include <isc/task.h>
 #include <isc/timer.h>
 #include <isc/util.h>
@@ -35,10 +37,10 @@
 #include <dns/view.h>
 
 /*
- * Defining NS_MAIN provides storage declaratons (rather than extern)
+ * Defining NS_MAIN provides storage declarations (rather than extern)
  * for variables in named/globals.h.
  */
-#define NS_MAIN 1		
+#define NS_MAIN 1
 
 #include <named/globals.h>	/* Explicit, though named/log.h includes it. */
 #include <named/interfacemgr.h>
@@ -49,9 +51,14 @@
 #include <named/lwresd.h>
 #include <named/main.h>
 
+/*
+ * Include header files for database drivers here.
+ */
+/* #include <xxdb.h> */
+
 static isc_boolean_t	want_stats = ISC_FALSE;
-static isc_boolean_t	lwresd_only = ISC_FALSE;
 static const char *	program_name = "named";
+static char    		saved_command_line[512];
 
 void
 ns_main_earlyfatal(const char *format, ...) {
@@ -96,8 +103,8 @@ assertion_failed(const char *file, int line, isc_assertiontype_t type,
 			      "%s:%d: %s(%s) failed", file, line,
 			      isc_assertion_typetotext(type), cond);
 		isc_log_write(ns_g_lctx, NS_LOGCATEGORY_GENERAL,
-			       NS_LOGMODULE_MAIN, ISC_LOG_CRITICAL,
-			       "exiting (due assertion failure)");
+			      NS_LOGMODULE_MAIN, ISC_LOG_CRITICAL,
+			      "exiting (due to assertion failure)");
 	} else {
 		fprintf(stderr, "%s:%d: %s(%s) failed\n",
 			file, line, isc_assertion_typetotext(type), cond);
@@ -171,121 +178,123 @@ library_unexpected_error(const char *file, int line, const char *format,
 static void
 lwresd_usage(void) {
 	fprintf(stderr,
-		"usage: lwresd [-C conffile] [-d debuglevel] "
-		"[-f|-g] [-n number_of_cpus]\n"
-		"              [-p listen-port] [-P query-port] [-s] "
-		"[-t chrootdir] [-u username] [-i pidfile]\n");
+		"usage: lwresd [-c conffile | -C resolvconffile] "
+		"[-d debuglevel] [-f|-g]\n"
+		"              [-n number_of_cpus] [-p port]"
+		"[-P listen-port] [-s]\n"
+		"              [-t chrootdir] [-u username] [-i pidfile]\n");
 }
 
 static void
 usage(void) {
+	if (ns_g_lwresdonly) {
+		lwresd_usage();
+		return;
+	}
 	fprintf(stderr,
 		"usage: named [-c conffile] [-d debuglevel] "
 		"[-f|-g] [-n number_of_cpus]\n"
 		"             [-p port] [-s] [-t chrootdir] [-u username]\n");
 }
 
-static void 
-parse_lwresd_command_line(int argc, char *argv[]) {
-	int ch;
-	unsigned int port;
+static void
+save_command_line(int argc, char *argv[]) {
+	int i;
+	char *src;
+	char *dst;
+	char *eob;
+	const char truncated[] = "...";
+	isc_boolean_t quoted = ISC_FALSE;
 
-	isc_commandline_errprint = ISC_FALSE;
-	while ((ch = isc_commandline_parse(argc, argv,
-					   "C:d:fgi:n:p:P:st:u:")) !=
-	       -1) {
-		switch (ch) {
-		case 'C':
-			lwresd_g_conffile = isc_commandline_argument;
-			break;
-		case 'd':
-			ns_g_debuglevel = atoi(isc_commandline_argument);
-			break;
-		case 'f':
-			ns_g_foreground = ISC_TRUE;
-			break;
-		case 'g':
-			ns_g_foreground = ISC_TRUE;
-			ns_g_logstderr = ISC_TRUE;
-			break;
-		case 'i':
-			lwresd_g_defaultpidfile = isc_commandline_argument;
-			break;
-		case 'n':
-			ns_g_cpus = atoi(isc_commandline_argument);
-			if (ns_g_cpus == 0)
-				ns_g_cpus = 1;
-			break;
-		case 'p':
-			port = atoi(isc_commandline_argument);
-			if (port < 1 || port > 65535)
-				ns_main_earlyfatal("port '%s' out of range",
-						   isc_commandline_argument);
-			ns_g_port = port;
-			break;
-		case 'P':
-			port = atoi(isc_commandline_argument);
-			if (port < 1 || port > 65535)
-				ns_main_earlyfatal("port '%s' out of range",
-						   isc_commandline_argument);
-			lwresd_g_queryport = port;
-			break;
-		case 's':
-			/* XXXRTH temporary syntax */
-			want_stats = ISC_TRUE;
-			break;
-		case 't':
-			/* XXXJAB should we make a copy? */
-			ns_g_chrootdir = isc_commandline_argument;
-			break;
-		case 'u':
-			ns_g_username = isc_commandline_argument;
-			break;
-		case '?':
-			lwresd_usage();
-			ns_main_earlyfatal("unknown option '-%c'",
-					   isc_commandline_option);
-		default:
-			ns_main_earlyfatal("parsing options returned %d", ch);
+	dst = saved_command_line;
+	eob = saved_command_line + sizeof(saved_command_line);
+
+	for (i = 1; i < argc && dst < eob; i++) {
+		*dst++ = ' ';
+
+		src = argv[i];
+		while (*src != '\0' && dst < eob) {
+			/*
+			 * This won't perfectly produce a shell-independent
+			 * pastable command line in all circumstances, but
+			 * comes close, and for practical purposes will
+			 * nearly always be fine.
+			 */
+			if (quoted || isalnum(*src & 0xff) ||
+			    *src == '-' || *src == '_' ||
+			    *src == '.' || *src == '/') {
+				*dst++ = *src++;
+				quoted = ISC_FALSE;
+			} else {
+				*dst++ = '\\';
+				quoted = ISC_TRUE;
+			}
 		}
 	}
 
-	argc -= isc_commandline_index;
-	argv += isc_commandline_index;
+	INSIST(sizeof(saved_command_line) >= sizeof(truncated));
 
-	if (argc > 0) {
-		lwresd_usage();
-		ns_main_earlyfatal("extra command line arguments");
-	}
+	if (dst == eob)
+		strcpy(eob - sizeof(truncated), truncated);
+	else
+		*dst = '\0';
 }
 
-static void 
+static int
+parse_int(char *arg, const char *desc) {
+	char *endp;
+	int tmp;
+	long int ltmp;
+
+	ltmp = strtol(arg, &endp, 10);
+	tmp = (int) ltmp;
+	if (*endp != '\0')
+		ns_main_earlyfatal("%s '%s' must be numeric", desc, arg);
+	if (tmp < 0 || tmp != ltmp)
+		ns_main_earlyfatal("%s '%s' out of range", desc, arg);
+	return (tmp);
+}
+
+static void
 parse_command_line(int argc, char *argv[]) {
 	int ch;
-	unsigned int port;
+	int port;
 	char *s;
 
+	save_command_line(argc, argv);
+
+	/*
+	 * See if we should run as lwresd.
+	 */
 	s = strrchr(argv[0], '/');
 	if (s == NULL)
 		s = argv[0];
 	else
 		s++;
-	if (strcmp(s, "lwresd") == 0) {
-		lwresd_only = ISC_TRUE;
-		parse_lwresd_command_line(argc, argv);
-		return;
-	}
+	if (strcmp(s, "lwresd") == 0)
+		ns_g_lwresdonly = ISC_TRUE;
 
 	isc_commandline_errprint = ISC_FALSE;
 	while ((ch = isc_commandline_parse(argc, argv,
-					   "c:d:fgn:N:p:st:u:x:")) !=
+					   "c:C:d:fgi:ln:N:p:P:st:u:vx:")) !=
 	       -1) {
 		switch (ch) {
 		case 'c':
 			ns_g_conffile = isc_commandline_argument;
+			lwresd_g_conffile = isc_commandline_argument;
+			if (lwresd_g_useresolvconf)
+				ns_main_earlyfatal("cannot specify -c and -C");
+			ns_g_conffileset = ISC_TRUE;
+			break;
+		case 'C':
+			lwresd_g_resolvconffile = isc_commandline_argument;
+			if (ns_g_conffileset)
+				ns_main_earlyfatal("cannot specify -c and -C");
+			lwresd_g_useresolvconf = ISC_TRUE;
 			break;
 		case 'd':
-			ns_g_debuglevel = atoi(isc_commandline_argument);
+			ns_g_debuglevel = parse_int(isc_commandline_argument,
+						    "debug level");
 			break;
 		case 'f':
 			ns_g_foreground = ISC_TRUE;
@@ -294,18 +303,34 @@ parse_command_line(int argc, char *argv[]) {
 			ns_g_foreground = ISC_TRUE;
 			ns_g_logstderr = ISC_TRUE;
 			break;
+		/* XXXBEW -i should be removed */
+		case 'i':
+			lwresd_g_defaultpidfile = isc_commandline_argument;
+			break;
+		case 'l':
+			ns_g_lwresdonly = ISC_TRUE;
+			break;
 		case 'N': /* Deprecated. */
 		case 'n':
-			ns_g_cpus = atoi(isc_commandline_argument);
+			ns_g_cpus = parse_int(isc_commandline_argument,
+					      "number of cpus");
 			if (ns_g_cpus == 0)
 				ns_g_cpus = 1;
 			break;
 		case 'p':
-			port = atoi(isc_commandline_argument);
+			port = parse_int(isc_commandline_argument, "port");
 			if (port < 1 || port > 65535)
 				ns_main_earlyfatal("port '%s' out of range",
 						   isc_commandline_argument);
 			ns_g_port = port;
+			break;
+		/* XXXBEW Should -P be removed? */
+		case 'P':
+			port = parse_int(isc_commandline_argument, "port");
+			if (port < 1 || port > 65535)
+				ns_main_earlyfatal("port '%s' out of range",
+						   isc_commandline_argument);
+			lwresd_g_listenport = port;
 			break;
 		case 's':
 			/* XXXRTH temporary syntax */
@@ -318,6 +343,9 @@ parse_command_line(int argc, char *argv[]) {
 		case 'u':
 			ns_g_username = isc_commandline_argument;
 			break;
+		case 'v':
+			printf("BIND %s\n", ns_g_version);
+			exit(0);
 		case 'x':
 			/* XXXRTH temporary syntax */
 			ns_g_cachefile = isc_commandline_argument;
@@ -346,6 +374,9 @@ create_managers(void) {
 
 	if (ns_g_cpus == 0)
 		ns_g_cpus = isc_os_ncpus();
+	isc_log_write(ns_g_lctx, NS_LOGCATEGORY_GENERAL, NS_LOGMODULE_SERVER,
+		      ISC_LOG_INFO, "using %u CPU%s",
+		      ns_g_cpus, ns_g_cpus == 1 ? "" : "s");
 	result = isc_taskmgr_create(ns_g_mctx, ns_g_cpus, 0, &ns_g_taskmgr);
 	if (result != ISC_R_SUCCESS) {
 		UNEXPECTED_ERROR(__FILE__, __LINE__,
@@ -378,19 +409,23 @@ create_managers(void) {
 		return (ISC_R_UNEXPECTED);
 	}
 
-	(void)isc_entropy_createfilesource(ns_g_entropy, "/dev/random");
+#ifdef PATH_RANDOMDEV
+	(void)isc_entropy_createfilesource(ns_g_entropy, PATH_RANDOMDEV);
+#endif
 
 	return (ISC_R_SUCCESS);
 }
 
 static void
 destroy_managers(void) {
-	if (!lwresd_only)
+	if (!ns_g_lwresdonly)
 		/*
 		 * The omapi listeners need to be stopped here so that
 		 * isc_taskmgr_destroy() won't block on the omapi task.
 		 */
 		ns_omapi_shutdown(ISC_TRUE);
+
+	ns_lwresd_shutdown();
 
 	isc_entropy_detach(&ns_g_entropy);
 	/*
@@ -440,19 +475,34 @@ setup(void) {
 		ns_os_daemonize();
 
 	isc_log_write(ns_g_lctx, NS_LOGCATEGORY_GENERAL, NS_LOGMODULE_MAIN,
-		      ISC_LOG_NOTICE, "starting BIND %s", ns_g_version);
+		      ISC_LOG_NOTICE, "starting BIND %s%s", ns_g_version,
+		      saved_command_line);
+
+	/*
+	 * Get the initial resource limits.
+	 */
+	(void)isc_resource_getlimit(isc_resource_stacksize,
+				    &ns_g_initstacksize);
+	(void)isc_resource_getlimit(isc_resource_datasize,
+				    &ns_g_initdatasize);
+	(void)isc_resource_getlimit(isc_resource_coresize,
+				    &ns_g_initcoresize);
+	(void)isc_resource_getlimit(isc_resource_openfiles,
+				    &ns_g_initopenfiles);
 
 	result = create_managers();
 	if (result != ISC_R_SUCCESS)
 		ns_main_earlyfatal("create_managers() failed: %s",
 				   isc_result_totext(result));
 
-	if (lwresd_only)
-		ns_lwresd_create(ns_g_mctx, NULL, &ns_g_lwresd);
-	else
-		ns_server_create(ns_g_mctx, &ns_g_server);
+	/*
+	 * Add calls to register sdb drivers here.
+	 */
+	/* xxdb_init(); */
 
-	if (!lwresd_only) {
+	ns_server_create(ns_g_mctx, &ns_g_server);
+
+	if (!ns_g_lwresdonly) {
 		result = ns_omapi_init();
 		if (result != ISC_R_SUCCESS)
 			ns_main_earlyfatal("ns_omapi_init() failed: %s",
@@ -464,10 +514,12 @@ static void
 cleanup(void) {
 	destroy_managers();
 
-	if (lwresd_only)
-		ns_lwresd_destroy(&ns_g_lwresd);
-	else
-		ns_server_destroy(&ns_g_server);
+	ns_server_destroy(&ns_g_server);
+
+	/*
+	 * Add calls to unregister sdb drivers here.
+	 */
+	/* xxdb_clear(); */
 
 	isc_log_write(ns_g_lctx, NS_LOGCATEGORY_GENERAL, NS_LOGMODULE_MAIN,
 		      ISC_LOG_NOTICE, "exiting");
@@ -483,7 +535,7 @@ main(int argc, char *argv[]) {
 	isc_error_setfatal(library_fatal_error);
 	isc_error_setunexpected(library_unexpected_error);
 
-	ns_os_init();
+	ns_os_init(program_name);
 
 	result = isc_app_start();
 	if (result != ISC_R_SUCCESS)
@@ -508,7 +560,7 @@ main(int argc, char *argv[]) {
 	 */
 	do {
 		result = isc_app_run();
-		
+
 		if (result == ISC_R_RELOAD) {
 			ns_server_reloadwanted(ns_g_server);
 		} else if (result != ISC_R_SUCCESS) {

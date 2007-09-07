@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dighost.c,v 1.58.2.14 2000/10/30 17:21:43 mws Exp $ */
+/* $Id: dighost.c,v 1.168 2000/12/02 05:13:37 gson Exp $ */
 
 /*
  * Notice to programmers:  Do not use this code as an example of how to
@@ -36,6 +36,7 @@
 extern int h_errno;
 #endif
 
+#include <dns/byaddr.h>
 #include <dns/fixedname.h>
 #include <dns/message.h>
 #include <dns/name.h>
@@ -54,7 +55,9 @@ extern int h_errno;
 #include <isc/base64.h>
 #include <isc/entropy.h>
 #include <isc/lang.h>
+#include <isc/netaddr.h>
 #include <isc/netdb.h>
+#include <isc/print.h>
 #include <isc/result.h>
 #include <isc/string.h>
 #include <isc/task.h>
@@ -69,6 +72,7 @@ dig_serverlist_t server_list;
 ISC_LIST(dig_searchlist_t) search_list;
 
 isc_boolean_t
+	have_ipv4 = ISC_FALSE,
 	have_ipv6 = ISC_FALSE,
 	specified_source = ISC_FALSE,
 	free_now = ISC_FALSE,
@@ -77,7 +81,7 @@ isc_boolean_t
 	qr = ISC_FALSE,
 	is_dst_up = ISC_FALSE,
 	have_domain = ISC_FALSE,
-	is_blocking =ISC_FALSE;
+	is_blocking = ISC_FALSE;
 
 in_port_t port = 53;
 unsigned int timeout = 0;
@@ -121,7 +125,6 @@ isc_boolean_t memdebugging = ISC_FALSE;
 char *progname = NULL;
 isc_mutex_t lookup_lock;
 dig_lookup_t *current_lookup = NULL;
-isc_uint32_t name_limit = INT_MAX;
 isc_uint32_t rr_limit = INT_MAX;
 
 /*
@@ -191,6 +194,55 @@ hex_dump(isc_buffer_t *b) {
 		printf("\n");
 }
 
+
+isc_result_t
+get_reverse(char reverse[MXNAME], char *value, isc_boolean_t nibble) {
+	int adrs[4];
+	char working[MXNAME];
+	int i, n;
+	isc_result_t result;
+
+	result = DNS_R_BADDOTTEDQUAD;
+
+	debug("get_reverse(%s)", value);
+	if (strspn(value, "0123456789.") == strlen(value)) {
+		n = sscanf(value, "%d.%d.%d.%d",
+			   &adrs[0], &adrs[1],
+			   &adrs[2], &adrs[3]);
+		if (n == 0) {
+			return (DNS_R_BADDOTTEDQUAD);
+		}
+		for (i = n - 1; i >= 0; i--) {
+			snprintf(working, MXNAME/8, "%d.",
+				 adrs[i]);
+			strncat(reverse, working, MXNAME);
+		}
+		strncat(reverse, "in-addr.arpa.", MXNAME);
+		result = ISC_R_SUCCESS;
+	} else if (strspn(value, "0123456789abcdefABCDEF:") 
+		   == strlen(value)) {
+		isc_netaddr_t addr;
+		dns_fixedname_t fname;
+		dns_name_t *name;
+		isc_buffer_t b;
+		
+		addr.family = AF_INET6;
+		n = inet_pton(AF_INET6, value, &addr.type.in6);
+		if (n <= 0)
+			return (DNS_R_BADDOTTEDQUAD);
+		dns_fixedname_init(&fname);
+		name = dns_fixedname_name(&fname);
+		result = dns_byaddr_createptrname(&addr, nibble,
+						  name);
+		if (result != ISC_R_SUCCESS)
+			return (result);
+		isc_buffer_init(&b, reverse, MXNAME);
+		result = dns_name_totext(name, ISC_FALSE, &b);
+		isc_buffer_putuint8(&b, 0);
+	}
+	return (result);
+}
+
 void
 fatal(const char *format, ...) {
 	va_list args;
@@ -235,13 +287,14 @@ make_server(const char *servname) {
 
 	REQUIRE(servname != NULL);
 
-	debug("make_server(%s)",servname);
+	debug("make_server(%s)", servname);
 	srv = isc_mem_allocate(mctx, sizeof(struct dig_server));
 	if (srv == NULL)
 		fatal("Memory allocation failure in %s:%d",
 		      __FILE__, __LINE__);
 	strncpy(srv->servername, servname, MXNAME);
 	srv->servername[MXNAME-1] = 0;
+	ISC_LINK_INIT(srv, link);
 	return (srv);
 }
 
@@ -259,6 +312,7 @@ clone_server_list(dig_serverlist_t src,
 	srv = ISC_LIST_HEAD(src);
 	while (srv != NULL) {
 		newsrv = make_server(srv->servername);
+		ISC_LINK_INIT(newsrv, link);
 		ISC_LIST_ENQUEUE(*dest, newsrv, link);
 		srv = ISC_LIST_NEXT(srv, link);
 	}
@@ -302,6 +356,8 @@ make_empty_lookup(void) {
 	looknew->identify = ISC_FALSE;
 	looknew->ignore = ISC_FALSE;
 	looknew->servfail_stops = ISC_FALSE;
+	looknew->besteffort = ISC_TRUE;
+	looknew->dnssec = ISC_FALSE;
 	looknew->udpsize = 0;
 	looknew->recurse = ISC_TRUE;
 	looknew->aaonly = ISC_FALSE;
@@ -321,6 +377,7 @@ make_empty_lookup(void) {
 	looknew->section_authority = ISC_TRUE;
 	looknew->section_additional = ISC_TRUE;
 	looknew->new_search = ISC_FALSE;
+	ISC_LINK_INIT(looknew, link);
 	ISC_LIST_INIT(looknew->q);
 	ISC_LIST_INIT(looknew->my_server_list);
 	return (looknew);
@@ -355,6 +412,8 @@ clone_lookup(dig_lookup_t *lookold, isc_boolean_t servers) {
 	looknew->identify = lookold->identify;
 	looknew->ignore = lookold->ignore;
 	looknew->servfail_stops = lookold->servfail_stops;
+	looknew->besteffort = lookold->besteffort;
+	looknew->dnssec = lookold->dnssec;
 	looknew->udpsize = lookold->udpsize;
 	looknew->recurse = lookold->recurse;
         looknew->aaonly = lookold->aaonly;
@@ -578,7 +637,7 @@ setup_system(void) {
 							ptr,
 							MXNAME);
 						search->origin[MXNAME-1]=0;
-						ISC_LIST_APPEND
+						ISC_LIST_APPENDUNSAFE
 							(search_list,
 							 search,
 							 link);
@@ -602,7 +661,7 @@ setup_system(void) {
 							ptr,
 							MXNAME - 1);
 						search->origin[MXNAME-1]=0;
-						ISC_LIST_PREPEND
+						ISC_LIST_PREPENDUNSAFE
 							(search_list,
 							 search,
 							 link);
@@ -644,11 +703,14 @@ setup_libs(void) {
 	srandom(getpid() + (int)&setup_libs);
 
 	result = isc_net_probeipv4();
-	check_result(result, "isc_net_probeipv4");
+	if (result == ISC_R_SUCCESS)
+		have_ipv4 = ISC_TRUE;
 
 	result = isc_net_probeipv6();
 	if (result == ISC_R_SUCCESS)
 		have_ipv6 = ISC_TRUE;
+	if (!have_ipv6 && !have_ipv4)
+		fatal("can't find either v4 or v6 networking");
 
 	result = isc_mem_create(0, 0, &mctx);
 	check_result(result, "isc_mem_create");
@@ -693,7 +755,9 @@ setup_libs(void) {
  * option is UDP buffer size.
  */
 static void
-add_opt(dns_message_t *msg, isc_uint16_t udpsize) {
+add_opt(dns_message_t *msg, isc_uint16_t udpsize, isc_boolean_t dnssec
+	)
+{
 	dns_rdataset_t *rdataset = NULL;
 	dns_rdatalist_t *rdatalist = NULL;
 	dns_rdata_t *rdata = NULL;
@@ -713,6 +777,8 @@ add_opt(dns_message_t *msg, isc_uint16_t udpsize) {
 	rdatalist->covers = 0;
 	rdatalist->rdclass = udpsize;
 	rdatalist->ttl = 0;
+	if (dnssec)
+		rdatalist->ttl = DNS_MESSAGEEXTFLAG_DO;
 	rdata->data = NULL;
 	rdata->length = 0;
 	ISC_LIST_INIT(rdatalist->rdata);
@@ -773,7 +839,7 @@ clear_query(dig_query_t *query) {
 
 	REQUIRE(query != NULL);
 
-	debug("clear_query(%p)",query);
+	debug("clear_query(%p)", query);
 
 	lookup = query->lookup;
 
@@ -920,7 +986,7 @@ followup_lookup(dns_message_t *msg, dig_query_t *query,
 	dig_lookup_t *lookup = NULL;
 	dig_server_t *srv = NULL;
 	dns_rdataset_t *rdataset = NULL;
-	dns_rdata_t rdata;
+	dns_rdata_t rdata = DNS_RDATA_INIT;
 	dns_name_t *name = NULL;
 	isc_result_t result, loopresult;
 	isc_buffer_t *b = NULL;
@@ -931,7 +997,7 @@ followup_lookup(dns_message_t *msg, dig_query_t *query,
 	INSIST(!free_now);
 
 	debug("followup_lookup()");
-	result = dns_message_firstname(msg,section);
+	result = dns_message_firstname(msg, section);
 
 	if (result != ISC_R_SUCCESS) {
 		debug("firstname returned %s",
@@ -1012,6 +1078,7 @@ followup_lookup(dns_message_t *msg, dig_query_t *query,
 						 srv, link);
 					isc_buffer_free(&b);
 				}
+				dns_rdata_reset(&rdata);
 				loopresult = dns_rdataset_next(rdataset);
 			}
 		}
@@ -1193,7 +1260,7 @@ setup_lookup(dig_lookup_t *lookup) {
 			if (fixedsearch != NULL)
 				isc_mem_free(mctx, fixedsearch);
 			fixedsearch = isc_mem_allocate(mctx,
-						sizeof(struct dig_searchlist));
+						sizeof(struct dig_server));
 			if (fixedsearch == NULL)
 				fatal("Memory allocation failure in %s:%d",
 				      __FILE__, __LINE__);
@@ -1340,8 +1407,13 @@ setup_lookup(dig_lookup_t *lookup) {
 	isc_buffer_init(&lookup->sendbuf, lookup->sendspace, COMMSIZE);
 	result = dns_message_renderbegin(lookup->sendmsg, &lookup->sendbuf);
 	check_result(result, "dns_message_renderbegin");
-	if (lookup->udpsize > 0)
-		add_opt(lookup->sendmsg, lookup->udpsize);
+	if (lookup->udpsize > 0 || lookup->dnssec) {
+
+		if (lookup->udpsize == 0)
+			lookup->udpsize = 2048;
+
+		add_opt(lookup->sendmsg, lookup->udpsize, lookup->dnssec);
+	}
 
 	result = dns_message_rendersection(lookup->sendmsg,
 					   DNS_SECTION_QUESTION, 0);
@@ -1372,8 +1444,8 @@ setup_lookup(dig_lookup_t *lookup) {
 		query->second_rr_rcvd = ISC_FALSE;
 		query->second_rr_serial = 0;
 		query->servname = serv->servername;
-		query->name_count = 0;
 		query->rr_count = 0;
+		ISC_LINK_INIT(query, link);
 		ISC_LIST_INIT(query->recvlist);
 		ISC_LIST_INIT(query->lengthlist);
 		query->sock = NULL;
@@ -1385,6 +1457,7 @@ setup_lookup(dig_lookup_t *lookup) {
 		isc_buffer_init(&query->lengthbuf, query->lengthspace, 2);
 		isc_buffer_init(&query->slbuf, query->slspace, 2);
 
+		ISC_LINK_INIT(query, link);
 		ISC_LIST_ENQUEUE(lookup->q, query, link);
 	}
 	/* XXX qrflag, print_query, etc... */
@@ -1523,11 +1596,12 @@ send_tcp_connect(dig_query_t *query) {
 				   isc_sockettype_tcp, &query->sock) ;
 	check_result(result, "isc_socket_create");
 	sockcount++;
-	debug("sockcount=%d",sockcount);
+	debug("sockcount=%d", sockcount);
 	if (specified_source)
 		result = isc_socket_bind(query->sock, &bind_address);
 	else {
-		if (isc_sockaddr_pf(&query->sockaddr) == AF_INET)
+		if ((isc_sockaddr_pf(&query->sockaddr) == AF_INET) &&
+		    have_ipv4)
 			isc_sockaddr_any(&bind_any);
 		else
 			isc_sockaddr_any6(&bind_any);
@@ -1589,6 +1663,7 @@ send_udp(dig_query_t *query) {
 		check_result(result, "isc_socket_bind");
 
 		query->recv_made = ISC_TRUE;
+		ISC_LINK_INIT(&query->recvbuf, link);
 		ISC_LIST_ENQUEUE(query->recvlist, &query->recvbuf,
 				 link);
 		debug("recving with lookup=%p, query=%p, sock=%p",
@@ -1603,6 +1678,7 @@ send_udp(dig_query_t *query) {
 		debug("recvcount=%d", recvcount);
 	}
 	ISC_LIST_INIT(query->sendlist);
+	ISC_LINK_INIT(&l->sendbuf, link);
 	ISC_LIST_ENQUEUE(query->sendlist, &l->sendbuf,
 			 link);
 	debug("sending a request");
@@ -1674,6 +1750,7 @@ connect_timeout(isc_task_t *task, isc_event_t *event) {
 		}
 	}
 	else {
+		fputs(l->cmdline, stdout);
 		printf(";; connection timed out; no servers could be "
 		       "reached\n");
 		cancel_lookup(l);
@@ -1730,7 +1807,7 @@ tcp_length_done(isc_task_t *task, isc_event_t *event) {
 		l = query->lookup;
 		isc_socket_detach(&query->sock);
 		sockcount--;
-		debug("sockcount=%d",sockcount);
+		debug("sockcount=%d", sockcount);
 		INSIST(sockcount >= 0);
 		isc_event_free(&event);
 		clear_query(query);
@@ -1753,6 +1830,7 @@ tcp_length_done(isc_task_t *task, isc_event_t *event) {
 	isc_buffer_invalidate(&query->recvbuf);
 	isc_buffer_init(&query->recvbuf, query->recvspace, length);
 	ENSURE(ISC_LIST_EMPTY(query->recvlist));
+	ISC_LINK_INIT(&query->recvbuf, link);
 	ISC_LIST_ENQUEUE(query->recvlist, &query->recvbuf, link);
 	debug("recving with lookup=%p, query=%p",
 	       query->lookup, query);
@@ -1796,11 +1874,14 @@ launch_next_query(dig_query_t *query, isc_boolean_t include_question) {
 	isc_buffer_clear(&query->lengthbuf);
 	isc_buffer_putuint16(&query->slbuf, query->lookup->sendbuf.used);
 	ISC_LIST_INIT(query->sendlist);
+	ISC_LINK_INIT(&query->slbuf, link);
 	ISC_LIST_ENQUEUE(query->sendlist, &query->slbuf, link);
 	if (include_question) {
+		ISC_LINK_INIT(&query->lookup->sendbuf, link);
 		ISC_LIST_ENQUEUE(query->sendlist, &query->lookup->sendbuf,
 				 link);
 	}
+	ISC_LINK_INIT(&query->lengthbuf, link);
 	ISC_LIST_ENQUEUE(query->lengthlist, &query->lengthbuf, link);
 
 	result = isc_socket_recvv(query->sock, &query->lengthlist, 0,
@@ -1923,7 +2004,7 @@ check_for_more_data(dig_query_t *query, dns_message_t *msg,
 		    isc_socketevent_t *sevent)
 {
 	dns_rdataset_t *rdataset = NULL;
-	dns_rdata_t rdata;
+	dns_rdata_t rdata = DNS_RDATA_INIT;
 	dns_rdata_soa_t soa;
 	isc_result_t result;
 	isc_buffer_t b;
@@ -1962,6 +2043,7 @@ check_for_more_data(dig_query_t *query, dns_message_t *msg,
 				query->rr_count++;
 				if (query->rr_count >= rr_limit)
 					atlimit = ISC_TRUE;
+				dns_rdata_reset(&rdata);
 				dns_rdataset_current(rdataset, &rdata);
 				/*
 				 * If this is the first rr, make sure
@@ -2067,12 +2149,6 @@ check_for_more_data(dig_query_t *query, dns_message_t *msg,
 				result = dns_rdataset_next(rdataset);
 			} while (result == ISC_R_SUCCESS);
 		}
-		query->name_count++;
-		if (query->name_count >= name_limit) {
-			debug("name_count(%d) > name_limit(%d)",
-			      query->name_count, name_limit);
-			atlimit = ISC_TRUE;
-		}
 		result = dns_message_nextname(msg, DNS_SECTION_ANSWER);
 	} while (result == ISC_R_SUCCESS);
 	if (atlimit) {
@@ -2171,8 +2247,15 @@ recv_done(isc_task_t *task, isc_event_t *event) {
 			l->msgcounter++;
 		}
 		debug("before parse starts");
-		result = dns_message_parse(msg, b, ISC_TRUE);
-		if (result != ISC_R_SUCCESS) {
+		if (l->besteffort)
+			result = dns_message_parse(msg, b,
+					   DNS_MESSAGEPARSE_PRESERVEORDER
+					   |DNS_MESSAGEPARSE_BESTEFFORT);
+		else
+			result = dns_message_parse(msg, b,
+					   DNS_MESSAGEPARSE_PRESERVEORDER);
+		if (result != ISC_R_SUCCESS && 
+		    result != DNS_R_RECOVERABLE ) {
 			printf(";; Got bad packet: %s\n",
 			       dns_result_totext(result));
 			hex_dump(b);
@@ -2185,6 +2268,9 @@ recv_done(isc_task_t *task, isc_event_t *event) {
 			UNLOCK_LOOKUP;
 			return;
 		}
+		if (result == DNS_R_RECOVERABLE)
+			printf(";; Warning: Message parser reports malformed "
+			       "message packet.\n");
 		if (((msg->flags & DNS_MESSAGEFLAG_TC) != 0) 
 		    && ! l->ignore && !l->tcp_mode) {
 			printf(";; Truncated, retrying in TCP mode.\n");
@@ -2404,7 +2490,7 @@ recv_done(isc_task_t *task, isc_event_t *event) {
 	       isc_result_totext(sevent->result));
 	isc_socket_detach(&query->sock);
 	sockcount--;
-	debug("sockcount=%d",sockcount);
+	debug("sockcount=%d", sockcount);
 	INSIST(sockcount >= 0);
 	isc_event_free(&event);
 	clear_query(query);
@@ -2431,6 +2517,10 @@ get_address(char *host, in_port_t port, isc_sockaddr_t *sockaddr) {
 
 	debug("get_address()");
 
+	/*
+	 * Assume we have v4 if we don't have v6, since setup_libs
+	 * fatal()'s out if we don't have either.
+	 */
 	if (have_ipv6 && inet_pton(AF_INET6, host, &in6) == 1)
 		isc_sockaddr_fromin6(sockaddr, &in6, port);
 	else if (inet_pton(AF_INET, host, &in4) == 1)
@@ -2513,7 +2603,7 @@ cancel_all(void) {
 		 * way to get the system down now is to just exit out,
 		 * and trust the OS to clean up for us.
 		 */
-		fputs ("Abort.\n",stderr);
+		fputs("Abort.\n", stderr);
 		exit(1);
 	}
 	LOCK_LOOKUP;
@@ -2568,7 +2658,7 @@ destroy_libs(void) {
 		 * way to get the system down now is to just exit out,
 		 * and trust the OS to clean up for us.
 		 */
-		fputs ("Abort.\n",stderr);
+		fputs("Abort.\n", stderr);
 		exit(1);
 	}
 	if (global_task != NULL) {

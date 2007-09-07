@@ -1,26 +1,226 @@
 
-	--- 9.0.1 released ---
+	--- 9.1.0b1 released ---
 
- 547.	[bug]		dnssafe doesn't correctly handle RSA keys longer
-			than 2000 bits.  Disable support for long keys.
+ 591.	[bug]		Work around non-reentrancy in openssl by disabling
+			precomputation in keys.
 
-	--- 9.0.1rc2 released ---
+ 590.	[doc]		There are now man pages for the lwres library in
+			doc/man/lwres.
 
- 527.	[bug]		When a hint zone was configured, the spurious warning
-			messages "Hint zones do not have a forward field" and
-			"Hint zones do not have a forwarders field" were
-			printed. [RT #439]
+ 589.	[bug]		The server could deadlock if a zone was updated 
+			while being transferred out.
 
-	--- 9.0.1rc1 released ---
+ 588.	[bug]		ctx->in_use was not being correctly initalised when
+			when pushing a file for $INCLUDE. [RT #523]
+
+ 587.	[func]		A warning is now printed if the "allow-update"
+			option allows updates based on the source IP
+			address, to alert users to the fact that this
+			is insecure and becoming increasingly so as
+			servers capable of update forwarding are being
+			deployed.
+
+ 586.	[bug]		multiple views with the same name were fatal. [RT #516]
+
+ 585.	[func]		dns_db_addrdataset() and and dns_rdataslab_merge()
+			now support 'exact' additions in a similar manner to
+			dns_db_subtractrdataset() and dns_rdataslab_subtract().
+
+ 584.	[func]		You can now say 'notify explicit'; to suppress
+			notification of the servers listed in NS records
+			and notify only those servers listed in the
+			'also-notify' option.
+
+ 583.	[func]		"rndc querylog" will now toggle logging of
+			queries, like "ndc querylog" in BIND 8.
+
+ 582.	[bug]		dns_zone_idetach() failed to lock the zone.
+			[RT #199, #463]
+
+ 581.	[bug]		log severity was not being correctly processed.
+			[RT #485]
+
+ 580.	[func]		Ignore trailing garbage on incoming DNS packets,
+			for interoperability with broken server
+			implementations. [RT #491]
+
+ 579.	[bug]		nsupdate did not take a filename to read update from.
+			[RT #492]
+
+ 578.	[func]		New config option "notify-source", to specify the
+			source address for notify messages.
+
+ 577.	[func]		Log illegal RDATA combinations. e.g. multiple
+			singlton types, cname and other data.
+
+ 576.	[doc]		isc_log_create() description did not match reality.
+
+ 575.	[bug]		isc_log_create() was not setting internal state
+			correctly to reflect the default channels created.
+
+ 574.	[bug]		TSIG signed queries sent by the resolver would fail to
+			have their responses validated and would leak memory.
+
+ 573.	[bug]		The journal files of IXFRed slave zones were
+			inadvertantly discarded on server reload, causing
+			"journal out of sync with zone" errors on subsequent
+			reloads. [RT #482]
+
+ 572.	[bug]		Quoted strings were not accepted as key names in
+			address match lists.
+
+ 571.	[bug]		It was possible to create an rdataset of singleton
+			type which had more than one rdata.  [RT #154]
+			[RT #279]
+
+ 570.	[bug]		rbtdb.c allowed zones containing nodes which had
+			both a CNAME and "other data". [RT #154]
+
+ 569.	[func]		The DNSSEC AD bit will not be set on queries which
+			have not requested a DNSSEC response.
+
+ 568.	[func]		Add sample simple database drivers in contrib/sdb.
+
+ 567.	[bug]		Setting the zone transfer timeout to zero caused an
+			assertion failure. [RT #302]
+
+ 566.	[func]		New public function dns_timer_setidle().
+
+ 565.	[func]		Log queries more like BIND 8: query logging is now
+			done to category "queries", level "info". [RT #169]
+
+ 564.	[func]		Add sortlist support to lwresd.
+
+ 563.	[func]		New public functions dns_rdatatype_format() and
+			dns_rdataclass_format(), for convenient formatting
+			of rdata type/class mnemonics in log messages.
+
+ 562.	[cleanup]	Moved lib/dns/*conf.c to bin/named where they belong.
+
+ 561.	[func]		The 'datasize', 'stacksize', 'coresize' and 'files'
+			clauses of the options{} statement are now implemented.
+
+ 560.	[bug]		dns_name_split did not properly the resulting prefix
+			when a maximal length bitstring label was split which
+			was preceded by another bitstring label. [RT #429]
+
+ 559.	[bug]		dns_name_split did not properly create the suffix
+			when splitting within a maximal length bitstring label.
+
+ 558.	[func]		New functions, isc_resource_getlimit and
+			isc_resource_setlimit.
+
+ 557.	[func]		Symbolic constants for libisc integral types.
+
+ 556.	[func]		The DNSSEC OK bit in the EDNS extended flags
+			is now implemented.  Responses to queries without
+			this bit set will not contain any DNSSEC records.
+
+ 555.	[bug]		A slave server attempting a zone transfer could 
+			crash with an assertion failure on certain
+			malformed responses from the master. [RT #457]
+
+ 554.	[bug]		In some cases, not all of the dnssec tools were
+			properly installed.
+
+ 553.	[bug]		Incoming zone transfers deferred due to quota 
+			were not started when quota was increased but 
+			only when a transfer in progress finished. [RT #456]
+
+ 552.	[bug]		We were not correctly detecting the end of all c-style
+			comments.  [RT #455]
+
+ 551.	[func]		Implemented the 'sortlist' option.
+
+ 550.	[func]		Support unknown rdata types and classes.
+
+ 549.	[bug]		"make" did not immediately abort the build when a
+			subdirectory make failed [RT #450].
+
+ 548.	[func]		The lexer now ungets tokens more correctly.
+
+ 546.	[func]		Option 'lame-ttl' is now implemented.
+
+ 545.	[func]		Name limit and counting options removed from dig;
+			they didn't work properly, and cannot be correctly
+			implemented without significant changes.
+
+ 544.	[func]		Add statistics option, enable statistics-file option,
+			add RNDC option "dump-statistics" to write out a
+			query statistics file.
+
+ 543.	[doc]		The 'port' option is now documented.
+
+ 542.	[func]		Add support for update forwarding as required for
+			full compliance with RFC2136.  It is turned off
+			by default and can be enabled using the
+			'allow-update-forwarding' option.
+
+ 541.	[func]		Add bogus server support.
+
+ 540.	[func]		Add dialup support.
+
+ 539.	[func]		Support the blackhole option.
+
+ 538.	[bug]		fix buffer overruns by 1 in lwres_getnameinfo().
+
+ 536.	[func]		Use transfer-source{-v6} when sending refresh queries.
+			Transfer-source{-v6} now take a optional port
+			parameter for setting the UDP source port.  The port
+			parameter is ignored for TCP.
+
+ 535.	[func]		Use transfer-source{-v6} when forwarding update
+			requests.
+
+ 534.	[func]		Ancestors have been removed from RBT chains.  Ancestor
+			information can be discerned via node parent pointers.
+
+ 533.	[func]		Incorporated name hashing into the RBT database to
+			improve search speed.
+
+ 532.	[func]		Implement DNS UPDATE pseudo records using
+			DNS_RDATA_UPDATE flag.
+
+ 531.	[func]		Rdata really should be initalized before being assigned
+			to (dns_rdata_fromwire(), dns_rdata_fromtext(),
+			dns_rdata_clone(), dns_rdata_fromregion()),
+			check that it is.
+
+ 530.	[func]		New function dns_rdata_invalidate().
+
+ 529.	[bug]		521 contained a bug which caused zones to always
+			reload.  [RT #410]
+	
+ 528.	[func]		The ISC_LIST_XXXX macros now perform sanity checks
+			on their arguements.  ISC_LIST_XXXXUNSAFE can be use
+			to skip the checks however use with caution.
+
+ 527.	[func]		New function dns_rdata_clone().
 
  526.	[bug]		nsupdate incorrectly refused to add RRs with a TTL
 			of 0.
+
+ 525.	[func]		New arguments 'options' for dns_db_subtractrdataset(),
+			and 'flags' for dns_rdataslab_subtract() allowing you
+			to request that the RR's must exist prior to deletion.
+			DNS_R_NOTEXACT is returned if the condition is not met.
+
+ 524.	[func]		The 'forward' and 'forwarders' statement in
+			non-forward zones should work now.
 
  523.	[doc]		The source to the Administrator Reference Manual is
 			now an XML file using the DocBook DTD, and is included
 			in the distribution.  The plain text version of the
 			ARM is temporarily unavailable while we figure out
 			how to generate readable plain text from the XML.
+
+ 522.	[func]		The lightweight resolver daemon can now use
+			a real configuration file, and its functionality
+			can be provided by a name server.  Also, the -p and -P
+			options to lwresd have been reversed.
+
+ 521.	[bug]		Detect master files which contain $INCLUDE and always
+			reload. [RT #196]
 
  520.	[bug]		Upgraded libtool to 1.3.5, which makes shared
 			library builds almost work on AIX (and possibly 
@@ -49,12 +249,38 @@
  515.	[bug]		The ssu table was not being attached / detached
 			by dns_zone_[sg]etssutable. [RT#397]
 
+ 514.	[func]		Retry refresh and notify queries if they timeout.
+			[RT #388]
+
+ 513.	[func]		New functionality added to rdnc and server to allow
+			individual zones to be refreshed or reloaded.
+
+ 512.	[bug]		The zone transfer code could throw an execption with
+			an invalid IXFR stream.
+
  511.	[bug]		The message code could throw an assertion on an
 			out of memory failure. [RT #392]
 
  510.	[bug]		Remove spurious view notify warning. [RT #376]
 
+ 509.	[func]		Add support for write of zone files on shutdown.
+
+ 508.	[func]		dns_message_parse() can now do a best-effort
+			attempt, which should allow dig to print more invalid
+			messages.
+
+ 507.	[func]		New functions dns_zone_flush(), dns_zt_flushanddetach()
+			and dns_view_flushanddetach().
+
+ 506.	[func]		Do not fail to start on errors in zone files.
+
  505.	[bug]		nsupdate was printing "unknown result code". [RT #373]
+
+ 504.	[bug]		The zone was not being marked as dirty when updated via
+			IXFR.
+
+ 503.	[bug]		dumptime was not being set along with
+			DNS_ZONEFLG_NEEDDUMP.
 
  502.	[func]		On a SERVFAIL reply, DiG will now try the next server
 			in the list, unless the +fail option is specified.
@@ -73,12 +299,37 @@
  498.	[doc]		There is now a man page for "dig" 
 			in doc/man/bin/dig.1.
 
+ 497.	[bug]		The error messages printed when an IP match list
+			contained a network address with a nonzero host
+			part where not sufficiently detailed. [RT #365]
+
+ 496.	[bug]		named didn't sanity check numeric parameters. [RT #361]
+
  495.	[bug]		nsupdate was unable to handle large records. [RT #368]
+
+ 494.	[func]		Do not cache NXDOMAIN responses for SOA queries.
+
+ 493.	[func]		Return non-cachable (ttl = 0) NXDOMAIN responses
+			for SOA queries.  This makes it easier to locate
+			the containing zone without polluting intermediate
+			caches.
+
+ 492.	[bug]		attempting to reload a zone caused the server fail
+			to shutdown cleanly. [RT #360]
 
  491.	[bug]		nsupdate would segfault when sending certain
 			prerequisites with empty RDATA. [RT #356]
 
+ 490.	[func]		When a slave/stub zone has not yet successfully
+			obtained an SOA containing the zone's configured
+			retry time, perform the SOA query retries using
+			exponential backoff. [RT #337]
+
+ 489.	[func]		The zone manager now has a "i/o" queue.
+
  488.	[bug]		Locks weren't properly destroyed in some cases.
+
+ 487.	[port]		flockfile() is not defined on all systems.
 
  486.	[bug]		nslookup: "set all" and "server" commands showed
 			the incorrect port number if a port other than 53
@@ -87,6 +338,11 @@
  485.	[func]		When dig had more than one server to query, it would
 			send all of the messages at the same time.  Add
 			rate limiting of the transmitted messages.
+
+ 484.	[bug]		When the server was reloaded after removing addresses 
+			from the named.conf "listen-on" statement, sockets
+			were still listening on the removed addresses due
+			to reference count loops. [RT #325]
 
  483.	[bug]		nslookup: "set all" showed a "search" option but it 
 			was not settable.
@@ -98,6 +354,15 @@
 			per thread limit.
 
  480.	[bug]		strtok() is not thread safe. [RT #349]
+
+ 479.	[func]		The test suite can now be run by typing "make check"
+			or "make test" at the top level.
+
+ 478.	[bug]		"make install" failed if the directory specified with
+			--prefix did not already exist.
+
+ 477.	[bug]		The the isc-config.sh script could be installed before
+			its directory was created. [RT #324]
 
  476.	[bug]		A zone could expire while a zone transfer was in
 			progress triggering a INSIST failure. [RT #329]
@@ -124,55 +389,35 @@
 
  471.	[bug]		nsupdate didn't compile on HP/UX 10.20
 
- 463.	[bug]		nsupdate sent malformed SOA queries to the second
-			and subsequent name servers in resolv.conf if the
-			query sent to the first one failed.
+ 470.	[feature]	$GENERATE is now supported.  See also
+			doc/misc/migration.
 
- 459.	[bug]		Nslookup processed the "set" command incorrectly.
+ 469.	[bug]		"query-source address * port 53;" now works.
 
- 458.	[bug]		Nslookup didn't properly check class and type values.
-			[RT #305]
+ 468.	[bug]		dns_master_load*() failed to report file and line
+			number in certain error conditions.
 
- 457.	[bug]		Dig/host/hslookup didn't properly handle connect
-			timeouts in certain situations, causing an 
-			unnecessary warning message to be printed.
+ 467.	[bug]		dns_master_load*() failed to log an error if
+			pushfile() failed.
 
- 447.	[bug]		Dig didn't properly retry in TCP mode after
-			a truncated reply.  [RT #277]
+ 466.	[bug]		dns_master_load*() could return success when it failed.
 
- 403.	[bug]		"host" did not use the search list.
+ 465.	[cleanup]	Allow 0 to be set as an omapi_value_t value by
+			omapi_value_storeint().
 
- 395.	[bug]		nslookup printed incorrect RR type mnemonics
-			for RRs of type >= 21 [RT #237].
-
- 388.	[func]		dig and host can now do reverse ipv6 lookups.
-
- 387.	[func]		Add dns_byaddr_createptrname(), which converts
-			an address into the name used by a PTR query.
-
- 379.	[func]		New library function isc_sockaddr_anyofpf().
-
- 347.	[bug]		Don't crash if an argument is left off options in dig.
-
- 346.	[func]		Add support for .digrc config file, in the
-			user's current directory
-
- 345.	[bug]		Large-scale changes/cleanups to dig:
-			* Significantly improve structure handling
-			* Don't pre-load entire batch files
-			* Add name/rr counting/limiting
-			* Fix SIGINT handling
-			* Shorten timeouts to match v8's behavior
-
-	--- 9.0.0 released ---
+ 464.	[cleanup]	Build with openssl's RSA code instead of dnssafe.
 
  463.	[bug]		nsupdate sent malformed SOA queries to the second
 			and subsequent name servers in resolv.conf if the
 			query sent to the first one failed.
+
+ 462.	[bug]		--disable-ipv6 should work now.
 
  461.	[bug]		Specifying an unknown key in the "keys" clause of the
 			"controls" statement caused a NULL pointer dereference.
 			[RT #316]
+
+ 460.	[bug]		Much of the DNSSEC code only worked with class IN.
 
  459.	[bug]		Nslookup processed the "set" command incorrectly.
 
@@ -189,7 +434,11 @@
 			This disabled further refreshing of the stub zone,
 			causing it to eventually expire. [RT #300]
 
-	--- 9.0.0rc6 released ---
+ 455.	[doc]		Document IPv4 prefix notation does not require a
+			dotted decimal quad but may be just dotted decimal.
+
+ 454.	[bug]		Enforce dotted decimal and dotted decimal quad where
+			documented as such in named.conf. [RT #304, RT #311]
 
  453.	[bug]		Warn if the obsolete option "maintain-ixfr-base"
 			is specified in named.conf. [RT #306]
@@ -197,9 +446,30 @@
  452.	[bug]		Warn if the unimplemented option "statistics-file"
 			is specified in named.conf. [RT #301]
 
+ 451.	[func]		Update forwarding implememted.
+
+ 450.	[func]		New function ns_client_sendraw().
+
+ 449.	[bug]		isc_bitstring_copy() only works correctly if the
+			two bitstrings have the same lsb0 value, but this
+			requirement was not documented, nor was there a
+			REQUIRE for it.
+
+ 448.	[bug]		Host output formatting change, to match v8. [RT #255]
+
+ 447.	[bug]		Dig didn't properly retry in TCP mode after
+			a truncated reply.  [RT #277]
+
+ 446.	[bug]		Confusing notify log message. [RT #298]
+
  445.	[bug]		Doing a 0 bit isc_bitstring_copy() of an lsb0
 			bitstring triggered a REQUIRE statement.  The REQUIRE
 			statement was incorrect. [RT #297]
+
+ 444.	[func]		"recursion denied" messages are always logged at
+			debug level 1, now, rather than sometimes at ERROR.
+			This silences these warnings in the usual case, where
+			some clients set the RD bit in all queries.
 
  443.	[bug]		When loading a master file failed because of an
 			unrecognized RR type name, the error message
@@ -211,6 +481,14 @@
 
  441.	[bug]		Nodes obscured by a DNAME were inaccessible even
 			when DNS_DBFIND_GLUEOK was set.
+
+ 440.	[func]		New function dns_zone_forwardupdate().
+
+ 439.	[func]		New function dns_request_createraw().
+
+ 438.	[func]		New function dns_message_getrawmessage().
+
+ 437.	[func]		Log NOTIFY activity to the notify channel.
 
  436.	[bug]		If recvmsg() returned EHOSTUNREACH or ENETUNREACH,
 			which sometimes happens on Linux, named would enter
@@ -225,6 +503,24 @@
 			conditions involving the initial transfer of a
 			slave zone, interfering with subsequent server
 			startup. [RT #282]
+
+ 434.	[func]		New function isc_file_isabsolute().
+
+ 433.	[func]		isc_base64_decodestring() now accepts newlines
+			within the base64 data.	 This makes it possible 
+			to break up the key data in a "trusted-keys"
+			statement into multiple lines. [RT #284]
+
+ 432.	[func]		Added refresh/retry jitter.  The actual refresh/
+			retry time is now a random value between 75% and
+			100% of the configured value.
+
+ 431.	[func]		Log at ISC_LOG_INFO when a zone is successfully
+			loaded.
+
+ 430.	[bug]		Rewrote the lightweight resolver client management
+			code to handle shutdown correctly and general
+			cleanup.
 
  429.	[bug]		The space reserved for a TSIG record in a response
 			was 2 bytes too short, leading to message
@@ -246,9 +542,20 @@
 			if there is no auth-nxdomain statement in the
 			config file. [RT #287]
 
- 424.	[bug]		notify_createmessage() could trigger an assertion failure
-			when creating the notify message failed, e.g. due to
-			corrupt zones with multiple SOA records. [RT #279]
+ 424.	[bug]		notify_createmessage() could trigger an assertion
+			failure when creating the notify message failed,
+			e.g. due to corrupt zones with multiple SOA records.
+			[RT #279]
+
+ 423.	[bug]		When responding to a recusive query, errors that occur
+			after following a CNAME should cause the query to fail.
+			[RT #274]
+
+ 422.	[func]		get rid of isc_random_t, and make isc_random_get()
+			and isc_random_jitter() use rand() internally
+			instead of local state.	 Note that isc_random_*()
+			functions are only for weak, non-critical "randomness"
+			such as timing jitter and such.
 
  421.	[bug]		nslookup would exit when given a blank line as input.
 
@@ -260,16 +567,23 @@
 			socket receive error would crash the server
 			while trying to log the error message.
 
+ 417.	[func]		Add isc_app_block() and isc_app_unblock(), which
+			allow an application to handle signals while
+			blocking.		
+
  416.	[bug]		Slave zones with no master file tried to use a
 			NULL pointer for a journal file name when they
 			received an IXFR. [RT #273]
 
  415.	[bug]		The logging code leaked file descriptors.
 
+ 414.	[bug]		Server did not shut down until all incoming zone 
+			transfers were finished.
+
  413.	[bug]		Notify could attempt to use the zone database after
 			it had been unloaded. [RT#267]
 
-	--- 9.0.0rc5 released ---
+ 412.	[bug]		named -v didn't print the version.
 
  411.	[bug]		A typo in the HS A code caused an assertion failure.
 
@@ -290,12 +604,9 @@
  406.	[bug]		Log messages were occasionally lost or corrupted
 			due to a race condition in isc_log_doit().
 
+ 405.	[func]		Add support for selective forwarding (forward zones)
+
  404.	[bug]		The request library didn't completely work with IPv6.
-
- 381.	[bug]		Check for IPV6_RECVPKTINFO and use it instead of
-			IPV6_PKTINFO if found. [RT #229]
-
-	--- 9.0.0rc4 released ---
 
  403.	[bug]		"host" did not use the search list.
 
@@ -310,18 +621,15 @@
 			containing a syntax error, it could catch an
 			assertion failure trying to perform zone
 			maintenance on, or sending notifies from,
-			tentatively created zones whose views were
-			never fully configured and lacked an address
+			tentatively created zones whose	views were
+			never fully configured and lacked an address 
 			database and request manager.
 
  398.	[bug]		"dig" sometimes caught an assertion failure when
 			using TSIG, depending on the key length.
 
- 330.	[bug]		Many debugging messages were partially formatted
-			even when debugging was turned off, causing a
-			significant decrease in query performance.
-
-	--- 9.0.0rc3 released ---
+ 397.	[func]		Added utility functions dns_view_gettsig() and
+			dns_view_getpeertsig().
 
  396.	[doc]		There is now a man page for "nsupdate" 
 			in doc/man/bin/nsupdate.8.
@@ -329,12 +637,40 @@
  395.	[bug]		nslookup printed incorrect RR type mnemonics
 			for RRs of type >= 21 [RT #237].
 
- 389.	[bug]		Attempting to send a reqeust over IPv6 using
+ 394.	[bug]		Current name was not propagated via $INCLUDE.
+
+ 393.	[func]		Initial answer while loading (awl) support.
+			Entry points: dns_master_loadfileinc(),
+			dns_master_loadstreaminc(), dns_master_loadbufferinc().
+			Note: calls to dns_master_load*inc() should be rate
+			be rate limited so as to not use up all file
+			descriptors.
+
+ 392.	[func]		Add ISC_R_FAMILYNOSUPPORT.  Returned when OS does
+			not support the given address family requested. 
+
+ 391.	[clarity]	ISC_R_FAMILY -> ISC_R_FAMILYMISMATCH.
+
+ 390.	[func]		The function dns_zone_setdbtype() now takes
+			an argc/argv style vector of words and sets 
+			both the zone database type and its arguments,
+			making the functions dns_zone_adddbarg()
+			and dns_zone_cleardbargs() unnecessary.
+
+ 389.	[bug]		Attempting to send a reqeust over IPv6 using 
 			dns_request_create() on a system without IPv6
 			support caused an assertion failure [RT #235].
 
+ 388.	[func]		dig and host can now do reverse ipv6 lookups.
+
+ 387.	[func]		Add dns_byaddr_createptrname(), which converts
+			an address into the name used by a PTR query.
+
  386.	[bug]		Missing strdup() of ACL name caused random
 			ACL matching failures [RT #228].
+
+ 385.	[cleanup]	Removed functions dns_zone_equal(), dns_zone_print(),
+			and dns_zt_print().
 
  384.	[bug]		nsupdate was incorrectly limiting TTLs to 65535 instead
 			of 2147483647.
@@ -346,9 +682,15 @@
 			libc provided kernel headers do not match
 			the current kernel.
 
+ 381.	[bug]		Check for IPV6_RECVPKTINFO and use it instead of
+			IPV6_PKTINFO if found. [RT #229]
+
  380.	[bug]		nsupdate didn't work with IPv6.
 
-	--- 9.0.0rc2 released ---
+ 379.	[func]		New library function isc_sockaddr_anyofpf().
+
+ 378.	[func]		named and lwresd will log the command line arguments
+			they were started with in the "starting ..." message.
 
  377.	[bug]		When additional data lookups were refused due to 
 			"allow-query", the databases were still being
@@ -357,7 +699,7 @@
  376.	[bug]		The server should always use good entropy when
 			performing cryptographic functions needing entropy.
 
- 375.	[bug]		Per-zone allow-query did not properly override the
+ 375.	[bug]		Per-zone "allow-query" did not properly override the
 			view/global one for CNAME targets and additional
 			data [RT #220].
 
@@ -375,18 +717,49 @@
  370.	[bug]		The error messages for rollforward failures were
 			overly terse.
 
+ 369.	[func]		Support new named.conf options, view and zone 
+			statements: 
+
+				max-retry-time, min-retry-time, 
+				max-refresh-time, min-refresh-time.
+
+ 368.	[func]		Restructure the internal ".bind" view so that more
+			zones can be added to it.
+
  367.	[bug]		Allow proper selection of server on nslookup command
 			line.
 
+ 366.	[func]		Allow use of '-' batch file in dig for stdin.
+
  365.	[bug]		nsupdate -k leaked memory.
+
+ 364.	[func]		Added additional-from-{cache,auth}
 
  362.	[bug]		rndc no longer aborts if the configuration file is
 			missing an options statement. [RT #209]
 
+ 361.	[func]		When the RBT find or chain functions set the name and
+			origin for a node that stores the root label
+			the name is now set to an empty name, instead of ".",
+			to simplify later use of the name and origin by
+			dns_name_concatenate(), dns_name_totext() or
+			dns_name_format().
+
+ 360.	[func]		dns_name_totext() and dns_name_format() now allow
+			an empty name to be passed, which is formatted as "@".
+
  359.	[bug]		dnssec-signzone occasionally signed glue records.
+
+ 358.	[cleanup]	Rename the intermediate files used by the dnssec
+			programs.
 
  357.	[bug]		The zone file parser crashed if the argument
 			to $INCLUDE was a quoted string.
+
+ 356.	[cleanup]	isc_task_send no longer requires event->sender to
+			be non-null.
+
+ 355.	[func]		Added isc_dir_createunique(), similar to mkdtemp().
 
  354.	[doc]		Man pages for the dnssec tools are now included in
 			the distribution, in doc/man/dnssec.
@@ -407,8 +780,24 @@
  349.	[bug]		Processing a query with the CD bit set now works
 			as expected.
 
+ 348.	[func]		New boolean named.conf options 'additional-from-auth'
+			and 'additional-from-cache' now supported in view and
+			global options statement.
+
+ 347.	[bug]		Don't crash if an argument is left off options in dig.
+
+ 346.	[func]		Add support for .digrc config file, in the
+			user's current directory
+
+ 345.	[bug]		Large-scale changes/cleanups to dig:
+			* Significantly improve structure handling
+			* Don't pre-load entire batch files
+			* Add name/rr counting/limiting
+			* Fix SIGINT handling
+			* Shorten timeouts to match v8's behavior
+
  344.	[bug]		When shutting down, lwresd sometimes tried
-			to shut down its client tasks twice, 
+			to shut down its client tasks twice,
 			triggering an assertion.
 
  343.	[bug]		Although zone maintenance SOA queries and
@@ -427,6 +816,8 @@
 			query at a name with a CNAME RR in a secure
 			zone triggered an assertion failure.
 
+ 338.	[bug]		lwresd logged to syslog as named, not lwresd.
+
  337.	[bug]		"dig" did not recognize "nsap-ptr" as an RR type
 			on the command line.
 
@@ -437,19 +828,33 @@
  335.	[bug]		named would occasionally attempt recursion when
 			it was disallowed or undesired.
 
+ 334.	[func]		Added hmac-md5 to libisc.
+
  333.	[bug]		The resolver incorrectly accepted referrals to
 			domains that were not parents of the query name,
 			causing assertion failures.
 
+ 332.	[func]		New function dns_name_reset().
+
  331.	[bug]		Only log "recursion denied" if RD is set. (RT #178)
 
-	--- 9.0.0rc1 released ---
+ 330.	[bug]		Many debugging messages were partially formatted
+			even when debugging was turned off, causing a
+			significant decrease in query performance.
 
  329.	[func]		omapi_auth_register() now takes a size_t argument for
 			the length of a key's secret data.  Previously
 			OMAPI only stored secrets up to the first NUL byte.
 
  328.	[func]		Added isc_base64_decodestring().
+
+ 327.	[bug]		rndc.conf parser wasn't correctly recognising an IP
+			address where a host specification was required.
+
+ 326.	[func]		'keys' in an 'inet' control statement is now
+			required and must have at least one item in it.
+			A "not supported" warning is now issued if a 'unix'
+			control channel is defined.
 
  325.	[bug]		isc_lex_gettoken was processing octal strings when
 			ISC_LEXOPT_CNUMBER was not set.
@@ -458,16 +863,16 @@
 			response after a number of retransmissions.
 			This is to allow queries some chance of succeeding
 			even if all the authoritative servers of a zone
-			silently discard EDNS0 requests instead of 
+			silently discard EDNS0 requests instead of
 			sending an error response like they ought to.
 
  323.	[bug]		dns_rbt_findname() did not ignore empty rbt nodes.
-			Because of this, servers authoritative for a parent 
+			Because of this, servers authoritative for a parent
 			and grandchild zone but not authoritative for the
 			intervening child zone did not correctly issue
 			referrals to the servers of the child zone.
 
- 322.	[bug]		Queries for KEY RRs are now sent to the parent 
+ 322.	[bug]		Queries for KEY RRs are now sent to the parent
 			server before the authoritative one, making
 			DNSSEC insecurity proofs work in many cases
 			where they previously didn't.
@@ -497,7 +902,7 @@
 
  315.	[bug]		Handle non-empty blanks lines. (RT #163)
 
- 314.	[func]		The named.conf controls statement can now have 
+ 314.	[func]		The named.conf controls statement can now have
 			more than one key specified for the inet clause.
 
  313.	[bug]		When parsing resolv.conf, don't terminate on an
@@ -525,7 +930,7 @@
 			  - allow "port xxx" to be left out of statement,
 			    in which case it defaults to omapi's default port
 			    of 953.
- 
+
  309.	[bug]		When sending a referral, the server did not look
 			for name server addresses as glue in the zone
 			holding the NS RRset in the case where this zone
@@ -556,10 +961,10 @@
 			are listed in resolv.conf, silently ignore them
 			instead of returning failure.
 
- 303.	[bug]		add additional sanity checks to differentiate a AXFR
+ 303.	[bug]		Add additional sanity checks to differentiate a AXFR
 			response vs a IXFR response. (RT #157)
 
- 302.	[bug]		In dig, host, and nslookup, MXNAME should be large 
+ 302.	[bug]		In dig, host, and nslookup, MXNAME should be large
 			enough to hold any legal domain name in presentation
 			format + terminating NULL.
 
@@ -575,8 +980,6 @@
 			root directory, so the administrator does not need to
 			keep a copy of the user and group databases in the
 			chroot'ed environment.	Suggested by Hakan Olsson.
-
-	--- 9.0.0b5 released ---
 
  298.	[bug]		A mutex deadlock occurred during shutdown of the
 			interface manager under certain conditions.
@@ -603,6 +1006,8 @@
 			reverts to "name_current" instead of staying as
 			"name_glue".
 
+ 293.	[port]		Add support for FreeBSD 4.0 system tests.
+
  292.	[bug]		Due to problems with the way some operating systems
 			handle simultaneous listening on IPv4 and IPv6
 			addresses, the server no longer listens on IPv6
@@ -628,7 +1033,7 @@
 			disabled until named supports the "controls" statement,
 			post-9.0.0.
 
- 286.	[bug]		On Solaris 2, when named inherited a signal state 
+ 286.	[bug]		On Solaris 2, when named inherited a signal state
 			where SIGHUP had the SIG_IGN action, SIGHUP would
 			be ignored rather than causing the server to reload
 			its configuration.
@@ -643,7 +1048,7 @@
 
  283.	[cleanup]	The 'lwresd' program is now a link to 'named'.
 
- 282.	[bug]		The lexer now returns ISC_R_RANGE if parsed integer is 
+ 282.	[bug]		The lexer now returns ISC_R_RANGE if parsed integer is
 			too big for an unsigned long.
 
  281.	[bug]		Fixed list of recognized config file category names.
@@ -670,7 +1075,7 @@
 
  276.	[bug]		dig now supports maximum sized TCP messages.
 
- 275.	[bug]		The definition of lwres_gai_strerror() was missing 
+ 275.	[bug]		The definition of lwres_gai_strerror() was missing
 			the lwres_ prefix.
 
  274.	[bug]		TSIG AXFR verify failed when talking to a BIND 8
@@ -696,7 +1101,7 @@
 			failure by causing clone_results() to be called with
 			with hevent->node == NULL.
 
- 268.	[doc]		A plain text version of the Administrator 
+ 268.	[doc]		A plain text version of the Administrator
 			Reference Manual is now included in the distribution,
 			as doc/arm/Bv9ARM.txt.
 
@@ -793,7 +1198,7 @@
  240.	[func]		databases now come in three flavours: zone, cache
 			and stub.
 
- 239.	[feature]	If ISC_MEM_DEBUG is enabled, the variable
+ 239.	[func]		If ISC_MEM_DEBUG is enabled, the variable
 			isc_mem_debugging controls whether messages
 			are printed or not.
 
@@ -806,14 +1211,14 @@
 
  237.	[bug]		If connect() returned ENOBUFS when the resolver was
 			initiating a TCP query, the socket didn't get
-			destroyed, and the server did not shut down cleanly. 
+			destroyed, and the server did not shut down cleanly.
 
  236.	[func]		Added new listen-on-v6 config file statement.
 
- 235.	[func]		Consider it a config file error if a listen-on 
-			statement has an IPv6 address in it, or a 
+ 235.	[func]		Consider it a config file error if a listen-on
+			statement has an IPv6 address in it, or a
 			listen-on-v6 statement has an IPv4 address in it.
-			
+
  234.	[bug]		Allow a trusted-key's first field (domain-name) be
 			either a quoted or an unquoted string, instead of
 			requiring a quoted string.
@@ -830,11 +1235,11 @@
 
  230.	[func]		Replace the dst sign/verify API with a cleaner one.
 
- 229.	[func]		Support config file sig-validity-interval statement 
-			in options, views and zone statements (master 
+ 229.	[func]		Support config file sig-validity-interval statement
+			in options, views and zone statements (master
 			zones only).
 
- 228.	[cleanup]	Logging messages in config module stripped of 
+ 228.	[cleanup]	Logging messages in config module stripped of
 			trailing period.
 
  227.	[cleanup]	The enumerated identifiers dns_rdataclass_*,
@@ -880,7 +1285,7 @@
  217.	[func]		Also-notify and trusted-keys can now be used in
 			the 'view' statement.
 
- 216.	[func]		The 'max-cache-ttl' and 'max-ncache-ttl' options 
+ 216.	[func]		The 'max-cache-ttl' and 'max-ncache-ttl' options
 			now work.
 
  215.	[bug]		Failures at certain points in request processing
@@ -967,14 +1372,14 @@
 
  193.	[func]		changed dst_key_free() prototype.
 
- 192.	[bug]		Zone configuration validation is now done at end 
+ 192.	[bug]		Zone configuration validation is now done at end
 			of config file parsing, and before loading
 			callbacks.
 
  191.	[func]		Patched to compile on UnixWare 7.x.  This platform
 			is not directly supported by the ISC.
 
- 190.	[cleanup]	The DNSSEC tools have been moved to a separate 
+ 190.	[cleanup]	The DNSSEC tools have been moved to a separate
 			directory dnssec/ and given the following new,
 			more descriptive names:
 
@@ -1042,7 +1447,7 @@
 			to comment out the entire zone statement.
 
  176.	[func]		New global and per-view option:
-				
+
 				max-cache-ttl number
 
  175.	[func]		New global and per-view option:
@@ -1056,7 +1461,7 @@
 			quota so that a new transfer can be dispatched
 			immediately whenever quota becomes available.
 
- 172.	[bug]		$TTL directive was sometimes missing from dumped 
+ 172.	[bug]		$TTL directive was sometimes missing from dumped
 			master files because totext_ctx_init() failed to
 			initialize ctx->current_ttl_valid.
 
@@ -1128,7 +1533,7 @@
  153.	[func]		dns_rdata_tostruct() 'mctx' is now optional.  If 'mctx'
 			is NULL then you need to preserve the 'rdata' until
 			you have finished using the structure as there may be
-			references to the associated memory.  If 'mctx' is 
+			references to the associated memory.  If 'mctx' is
 			non-NULL it is guaranteed that there are no references
 			to memory associated with 'rdata'.
 
@@ -1143,7 +1548,7 @@
 			come after the 'type' clause.
 
  150.	[func]		Support optional ports in masters and also-notify
-			statements: 
+			statements:
 
 				masters [ port xxx ] { y.y.y.y [ port zzz ] ; }
 
@@ -1264,7 +1669,7 @@
 			are replaced by dns_zone_setnotifyalso().
 			dns_zone_clearmasters() and dns_zone_addmaster()
 			are replaced by dns_zone_setmasters().
-			
+
  116.	[func]		Added <isc/offset.h> for isc_offset_t (aka off_t
 			on Unix systems).
 
@@ -1346,7 +1751,7 @@
 			<isc/mutex.h>.	isc_random_t moved to <isc/types.h>.
 
   99.	[cleanup]	Rate limiter now has separate shutdown() and
-			destroy() functions, and it guarantees that all 
+			destroy() functions, and it guarantees that all
 			queued events are delivered even in the shutdown case.
 
   98.	[cleanup]	<isc/print.h> does not need <stdarg.h> or <stddef.h>
@@ -1410,7 +1815,7 @@
 			consistency with other *_test programs.
 
   77.	[cleanup]	typedef of isc_time_t and isc_interval_t moved from
-			<isc/time.h> to <isc/types.h>.	
+			<isc/time.h> to <isc/types.h>.
 
   76.	[cleanup]	Rewrote keygen.
 
@@ -1528,12 +1933,12 @@
   40.	[func]		Introduced new logging category "dnssec" and
 			logging module "dns/validator".
 
-  39.	[cleanup]	Moved the typedefs for isc_region_t, isc_textregion_t, 
+  39.	[cleanup]	Moved the typedefs for isc_region_t, isc_textregion_t,
 			and isc_lex_t to <isc/types.h>.
 
   38.	[bug]		TSIG signed incoming zone transfers work now.
 
-  37.	[bug]		If the first RR in an incoming zone transfer was 
+  37.	[bug]		If the first RR in an incoming zone transfer was
 			not an SOA, the server died with an assertion failure
 			instead of just reporting an error.
 
@@ -1552,7 +1957,7 @@
 
   31.	[bug]		Use ${LIBTOOL} to compile bin/named/main.@O@.
 
-  30.	[func]		config file grammer change to support optional 
+  30.	[func]		config file grammer change to support optional
 			class type for a view.
 
   29.	[func]		support new config file view options:
@@ -1565,9 +1970,9 @@
 				fetch-glue notify rfc2308-type1 lame-ttl
 				max-ncache-ttl min-roots
 
-  28.	[func]		support lame-ttl, min-roots and serial-queries 
+  28.	[func]		support lame-ttl, min-roots and serial-queries
 			config global options.
-			
+
   27.	[bug]		Only include <netinet6/in6.h> on BSD/OS 4.[01]*.
 			Including it on other platforms (eg, NetBSD) can
 			cause a forced #error from the C preprocessor.
@@ -1604,7 +2009,7 @@
 
   17.	[func]		Do configuration file post-load validation of zones.
 
-  16.	[bug]		put quotes around key names on config file 
+  16.	[bug]		put quotes around key names on config file
 			output to avoid possible keyword clashes.
 
   15.	[func]		Add dns_name_dupwithoffsets().	This function is
@@ -1634,11 +2039,11 @@
 
    7.	[cleanup]	removed 'listen-on' from view statement.
 
-   6.	[bug]		quote RR names when generating config file to 
-			prevent possible clash with config file keywords 
+   6.	[bug]		quote RR names when generating config file to
+			prevent possible clash with config file keywords
 			(such as 'key').
 
-   5.	[func]		syntax change to named.conf file: new ssu grant/deny 
+   5.	[func]		syntax change to named.conf file: new ssu grant/deny
 			statements must now be enclosed by an 'update-policy'
 			block.
 

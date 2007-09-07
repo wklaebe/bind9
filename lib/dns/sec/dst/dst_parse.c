@@ -1,11 +1,11 @@
 /*
  * Portions Copyright (C) 1999, 2000  Internet Software Consortium.
  * Portions Copyright (C) 1995-2000 by Network Associates, Inc.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM AND
  * NETWORK ASSOCIATES DISCLAIM ALL WARRANTIES WITH REGARD TO THIS
  * SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
@@ -19,7 +19,7 @@
 
 /*
  * Principal Author: Brian Wellington
- * $Id: dst_parse.c,v 1.22 2000/06/20 04:13:40 tale Exp $
+ * $Id: dst_parse.c,v 1.26 2000/11/01 00:17:18 bwelling Exp $
  */
 
 #include <config.h>
@@ -106,7 +106,7 @@ check_rsa(const dst_private_t *priv) {
 		return (-1);
 	for (i = 0; i < RSA_NTAGS; i++) {
 		for (j = 0; j < priv->nelements; j++)
-			if (priv->elements[j].tag == TAG(DST_ALG_RSA, i))
+			if (priv->elements[j].tag == TAG(DST_ALG_RSAMD5, i))
 				break;
 		if (j == priv->nelements)
 			return (-1);
@@ -156,7 +156,7 @@ check_hmac_md5(const dst_private_t *priv) {
 static int
 check_data(const dst_private_t *priv, const unsigned int alg) {
 	switch (alg) {
-		case DST_ALG_RSA:
+		case DST_ALG_RSAMD5:
 			return (check_rsa(priv));
 		case DST_ALG_DH:
 			return (check_dh(priv));
@@ -189,18 +189,18 @@ dst__privstruct_parsefile(dst_key_t *key, const isc_uint16_t id,
 			  const char *filename, isc_mem_t *mctx,
 			  dst_private_t *priv)
 {
-	int n = 0, ret, major, minor;
+	int n = 0, major, minor;
 	isc_buffer_t b;
 	isc_lex_t *lex = NULL;
 	isc_token_t token;
 	unsigned int opt = ISC_LEXOPT_EOL;
 	char *newfilename;
-	isc_result_t iret;
+	isc_result_t ret;
 
 	REQUIRE(priv != NULL);
 
 	if (strlen(filename) < 8)
-		return (DST_R_INVALIDPUBLICKEY);
+		return (DST_R_INVALIDPRIVATEKEY);
 
 	newfilename = isc_mem_get(mctx, strlen(filename) + 9);
 	if (newfilename == NULL)
@@ -209,6 +209,8 @@ dst__privstruct_parsefile(dst_key_t *key, const isc_uint16_t id,
 
 	if (strcmp(filename + strlen(filename) - 4, ".key") == 0)
 		sprintf(newfilename + strlen(filename) - 4, ".private");
+	else if (strcmp(filename + strlen(filename) - 1, ".") == 0)
+		sprintf(newfilename + strlen(filename), "private");
 	else if (strcmp(filename + strlen(filename) - 8, ".private") != 0)
 		sprintf(newfilename + strlen(filename), ".private");
 
@@ -216,18 +218,18 @@ dst__privstruct_parsefile(dst_key_t *key, const isc_uint16_t id,
 
 	key->key_id = id;
 
-	iret = isc_lex_create(mctx, 1024, &lex);
-	if (iret != ISC_R_SUCCESS)
-		return (ISC_R_NOMEMORY);
+	ret = isc_lex_create(mctx, 1024, &lex);
+	if (ret != ISC_R_SUCCESS)
+		return (ret);
 
-	iret = isc_lex_openfile(lex, newfilename);
-	if (iret != ISC_R_SUCCESS)
+	ret = isc_lex_openfile(lex, newfilename);
+	if (ret != ISC_R_SUCCESS)
 		goto fail;
 
 #define NEXTTOKEN(lex, opt, token) \
 	{ \
-		iret = isc_lex_gettoken(lex, opt, token); \
-		if (iret != ISC_R_SUCCESS) \
+		ret = isc_lex_gettoken(lex, opt, token); \
+		if (ret != ISC_R_SUCCESS) \
 			goto fail; \
 	}
 
@@ -242,18 +244,30 @@ dst__privstruct_parsefile(dst_key_t *key, const isc_uint16_t id,
 	NEXTTOKEN(lex, opt, &token);
 	if (token.type != isc_tokentype_string ||
 	    strcmp(token.value.as_pointer, PRIVATE_KEY_STR) != 0)
+	{
+		ret = DST_R_INVALIDPRIVATEKEY;
 		goto fail;
-	
+	}
+
 	NEXTTOKEN(lex, opt, &token);
 	if (token.type != isc_tokentype_string ||
 	    ((char *)token.value.as_pointer)[0] != 'v')
+	{
+		ret = DST_R_INVALIDPRIVATEKEY;
 		goto fail;
+	}
 	if (sscanf(token.value.as_pointer, "v%d.%d", &major, &minor) != 2)
+	{
+		ret = DST_R_INVALIDPRIVATEKEY;
 		goto fail;
+	}
 
 	if (major > MAJOR_VERSION ||
 	    (major == MAJOR_VERSION && minor > MINOR_VERSION))
+	{
+		ret = DST_R_INVALIDPRIVATEKEY;
 		goto fail;
+	}
 
 	READLINE(lex, opt, &token);
 
@@ -263,12 +277,18 @@ dst__privstruct_parsefile(dst_key_t *key, const isc_uint16_t id,
 	NEXTTOKEN(lex, opt, &token);
 	if (token.type != isc_tokentype_string ||
 	    strcmp(token.value.as_pointer, ALGORITHM_STR) != 0)
+	{
+		ret = DST_R_INVALIDPRIVATEKEY;
 		goto fail;
+	}
 
 	NEXTTOKEN(lex, opt | ISC_LEXOPT_NUMBER, &token);
 	if (token.type != isc_tokentype_number ||
 	    token.value.as_ulong != (unsigned long) dst_key_alg(key))
+	{
+		ret = DST_R_INVALIDPRIVATEKEY;
 		goto fail;
+	}
 
 	READLINE(lex, opt, &token);
 
@@ -280,13 +300,15 @@ dst__privstruct_parsefile(dst_key_t *key, const isc_uint16_t id,
 		unsigned char *data;
 		isc_region_t r;
 
-		iret = isc_lex_gettoken(lex, opt, &token); 
-		if (iret == ISC_R_EOF)
+		ret = isc_lex_gettoken(lex, opt, &token);
+		if (ret == ISC_R_EOF)
 			break;
-		if (iret != ISC_R_SUCCESS)
+		if (ret != ISC_R_SUCCESS)
 			goto fail;
-		if (token.type != isc_tokentype_string)
+		if (token.type != isc_tokentype_string) {
+			ret = DST_R_INVALIDPRIVATEKEY;
 			goto fail;
+		}
 
 		memset(&priv->elements[n], 0, sizeof(dst_private_element_t));
 		tag = find_value(token.value.as_pointer, dst_key_alg(key));
@@ -329,7 +351,7 @@ fail:
 
 	priv->nelements = n;
 	dst__privstruct_free(priv, mctx);
-	return (DST_R_INVALIDPRIVATEKEY);
+	return (ret);
 }
 
 int
@@ -369,7 +391,7 @@ dst__privstruct_writefile(const dst_key_t *key, const dst_private_t *priv,
 
 	fprintf(fp, "%s %d ", ALGORITHM_STR, dst_key_alg(key));
 	switch (dst_key_alg(key)) {
-		case DST_ALG_RSA: fprintf(fp, "(RSA)\n"); break;
+		case DST_ALG_RSAMD5: fprintf(fp, "(RSA)\n"); break;
 		case DST_ALG_DH: fprintf(fp, "(DH)\n"); break;
 		case DST_ALG_DSA: fprintf(fp, "(DSA)\n"); break;
 		case DST_ALG_HMACMD5: fprintf(fp, "(HMAC_MD5)\n"); break;
@@ -397,7 +419,7 @@ dst__privstruct_writefile(const dst_key_t *key, const dst_private_t *priv,
 		fwrite(r.base, 1, r.length, fp);
 		fprintf(fp, "\n");
 	}
-	
+
 	fclose(fp);
 	return (ISC_R_SUCCESS);
 }

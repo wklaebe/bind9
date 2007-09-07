@@ -1,22 +1,22 @@
 /*
  * Copyright (C) 1999, 2000  Internet Software Consortium.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
- * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
- * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
- * SOFTWARE.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+ * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+ * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
 /*
- * $Id: dbtable.c,v 1.18 2000/05/08 14:34:31 tale Exp $
+ * $Id: dbtable.c,v 1.22 2000/08/26 01:36:48 bwelling Exp $
  */
 
 /*
@@ -56,7 +56,7 @@ static void
 dbdetach(void *data, void *arg) {
 	dns_db_t *db = data;
 
-	(void)arg;
+	UNUSED(arg);
 
 	dns_db_detach(&db);
 }
@@ -110,7 +110,7 @@ dns_dbtable_create(isc_mem_t *mctx, dns_rdataclass_t rdclass,
 	return (ISC_R_SUCCESS);
 
  clean3:
-	(void)isc_mutex_destroy(&dbtable->lock);
+	DESTROYLOCK(&dbtable->lock);
 
  clean2:
 	dns_rbt_destroy(&dbtable->rbt);
@@ -147,7 +147,7 @@ void
 dns_dbtable_attach(dns_dbtable_t *source, dns_dbtable_t **targetp) {
 	REQUIRE(VALID_DBTABLE(source));
 	REQUIRE(targetp != NULL && *targetp == NULL);
-	
+
 	LOCK(&source->lock);
 
 	INSIST(source->references > 0);
@@ -167,7 +167,7 @@ dns_dbtable_detach(dns_dbtable_t **dbtablep) {
 	REQUIRE(dbtablep != NULL);
 	dbtable = *dbtablep;
 	REQUIRE(VALID_DBTABLE(dbtable));
-	
+
 	LOCK(&dbtable->lock);
 
 	INSIST(dbtable->references > 0);
@@ -208,7 +208,7 @@ dns_dbtable_remove(dns_dbtable_t *dbtable, dns_db_t *db) {
 	dns_name_t *name;
 
 	REQUIRE(VALID_DBTABLE(dbtable));
-	
+
 	name = dns_db_origin(db);
 
 	/*

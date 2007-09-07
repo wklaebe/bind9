@@ -1,21 +1,21 @@
 /*
  * Copyright (C) 1999, 2000  Internet Software Consortium.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
- * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
- * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
- * SOFTWARE.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+ * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+ * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rp_17.c,v 1.25 2000/06/01 18:26:29 tale Exp $ */
+/* $Id: rp_17.c,v 1.30 2000/12/01 01:40:39 gson Exp $ */
 
 /* RFC 1183 */
 
@@ -38,8 +38,9 @@ fromtext_rp(ARGS_FROMTEXT) {
 	origin = (origin != NULL) ? origin : dns_rootname;
 
 	for (i = 0; i < 2 ; i++) {
-		RETERR(gettoken(lexer, &token, isc_tokentype_string,
-				ISC_FALSE));
+		RETERR(isc_lex_getmastertoken(lexer, &token,
+					      isc_tokentype_string,
+					      ISC_FALSE));
 		dns_name_init(&name, NULL);
 		buffer_fromregion(&buffer, &token.value.as_region);
 		RETERR(dns_name_fromtext(&name, &buffer, origin,
@@ -57,6 +58,7 @@ totext_rp(ARGS_TOTEXT) {
 	isc_boolean_t sub;
 
 	REQUIRE(rdata->type == 17);
+	REQUIRE(rdata->length != 0);
 
 	dns_name_init(&rmail, NULL);
 	dns_name_init(&email, NULL);
@@ -85,7 +87,7 @@ fromwire_rp(ARGS_FROMWIRE) {
         dns_name_t email;
 
 	UNUSED(rdclass);
-        
+
 	REQUIRE(type == 17);
 
 	dns_decompress_setmethods(dctx, DNS_COMPRESS_NONE);
@@ -104,6 +106,7 @@ towire_rp(ARGS_TOWIRE) {
 	dns_name_t email;
 
 	REQUIRE(rdata->type == 17);
+	REQUIRE(rdata->length != 0);
 
 	dns_compress_setmethods(cctx, DNS_COMPRESS_NONE);
 	dns_name_init(&rmail, NULL);
@@ -133,6 +136,8 @@ compare_rp(ARGS_COMPARE) {
 	REQUIRE(rdata1->type == rdata2->type);
 	REQUIRE(rdata1->rdclass == rdata2->rdclass);
 	REQUIRE(rdata1->type == 17);
+	REQUIRE(rdata1->length != 0);
+	REQUIRE(rdata2->length != 0);
 
 	dns_name_init(&name1, NULL);
 	dns_name_init(&name2, NULL);
@@ -169,6 +174,8 @@ fromstruct_rp(ARGS_FROMSTRUCT) {
 	REQUIRE(rp->common.rdtype == type);
 	REQUIRE(rp->common.rdclass == rdclass);
 
+	UNUSED(rdclass);
+
 	dns_name_toregion(&rp->mail, &region);
 	RETERR(isc_buffer_copyregion(target, &region));
 	dns_name_toregion(&rp->text, &region);
@@ -184,6 +191,7 @@ tostruct_rp(ARGS_TOSTRUCT) {
 
 	REQUIRE(rdata->type == 17);
 	REQUIRE(target != NULL);
+	REQUIRE(rdata->length != 0);
 
 	rp->common.rdclass = rdata->rdclass;
 	rp->common.rdtype = rdata->type;

@@ -1,21 +1,21 @@
 /*
  * Copyright (C) 1999, 2000  Internet Software Consortium.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
- * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
- * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
- * SOFTWARE.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+ * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+ * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: a6.c,v 1.14 2000/06/22 21:54:15 tale Exp $ */
+/* $Id: a6.c,v 1.18 2000/10/31 03:21:48 marka Exp $ */
 
 #include <config.h>
 
@@ -42,7 +42,7 @@ static isc_result_t
 foreach(dns_a6context_t *a6ctx, dns_rdataset_t *parent, unsigned int depth,
 	unsigned int oprefixlen)
 {
-	dns_rdata_t rdata;
+	dns_rdata_t rdata = DNS_RDATA_INIT;
 	isc_region_t r;
 	dns_name_t name;
 	dns_rdataset_t child;
@@ -55,7 +55,7 @@ foreach(dns_a6context_t *a6ctx, dns_rdataset_t *parent, unsigned int depth,
 	expiration = a6ctx->now + parent->ttl;
 	if (expiration < a6ctx->expiration || a6ctx->expiration == 0)
 		a6ctx->expiration = expiration;
-	
+
 	depth++;
 	result = dns_rdataset_first(parent);
 	while (result == ISC_R_SUCCESS) {
@@ -152,6 +152,7 @@ foreach(dns_a6context_t *a6ctx, dns_rdataset_t *parent, unsigned int depth,
 				(a6ctx->address)(a6ctx);
 		}
 	next_a6:
+		dns_rdata_reset(&rdata);
 		result = dns_rdataset_next(parent);
 		if (result == ISC_R_SUCCESS) {
 			a6ctx->chains++;

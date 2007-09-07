@@ -1,21 +1,21 @@
 /*
  * Copyright (C) 1999, 2000  Internet Software Consortium.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
- * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
- * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
- * SOFTWARE.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+ * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+ * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rbt_test.c,v 1.31 2000/06/22 21:50:44 tale Exp $ */
+/* $Id: rbt_test.c,v 1.41 2000/11/20 22:05:35 gson Exp $ */
 
 #include <config.h>
 
@@ -24,6 +24,7 @@
 #include <isc/commandline.h>
 #include <isc/mem.h>
 #include <isc/string.h>
+#include <isc/util.h>
 
 #include <dns/rbt.h>
 #include <dns/fixedname.h>
@@ -86,7 +87,7 @@ static void
 delete_name(void *data, void *arg) {
 	dns_name_t *name;
 
-	(void)arg;
+	UNUSED(arg);
 	name = data;
 	isc_mem_put(mctx, data, sizeof(dns_name_t) + DNSNAMELEN);
 }
@@ -94,7 +95,7 @@ delete_name(void *data, void *arg) {
 static void
 print_name(dns_name_t *name) {
 	isc_buffer_t target;
-	char *buffer[256];
+	char buffer[1024];
 
 	isc_buffer_init(&target, buffer, sizeof(buffer));
 
@@ -166,14 +167,7 @@ detail(dns_rbt_t *rbt, dns_name_t *name) {
 	if (result == ISC_R_SUCCESS) {
 		printf("\n  name from dns_rbtnodechain_current: ");
 
-		/*
-		 * If foundname is absolute, it includes the origin (which
-		 * is intrinsically known here to be just ".").
-		 */
-
-		result = dns_name_concatenate(foundname,
-					      dns_name_isabsolute(foundname) ?
-					          NULL : origin,
+		result = dns_name_concatenate(foundname, origin,
 					      fullname, NULL);
 		if (result == ISC_R_SUCCESS)
 			print_name(fullname);
@@ -214,7 +208,7 @@ iterate(dns_rbt_t *rbt, isc_boolean_t forward) {
 	if (forward) {
 		printf("iterating forward\n" );
 		move = dns_rbtnodechain_next;
-		
+
 		result = dns_rbtnodechain_first(&chain, rbt, &foundname,
 						origin);
 
@@ -260,12 +254,12 @@ iterate(dns_rbt_t *rbt, isc_boolean_t forward) {
 				printf("... %s\n", dns_result_totext(r));
 
 int
-main (int argc, char **argv) {
+main(int argc, char **argv) {
 	char *command, *arg, buffer[1024];
 	const char *whitespace;
 	dns_name_t *name, *foundname;
 	dns_fixedname_t fixedname;
-	dns_rbt_t *rbt;
+	dns_rbt_t *rbt = NULL;
 	int length, ch;
 	isc_boolean_t show_final_mem = ISC_FALSE;
 	isc_result_t result;
@@ -294,6 +288,11 @@ main (int argc, char **argv) {
 	}
 
 	setbuf(stdout, NULL);
+
+	/*
+	 * So isc_mem_stats() can report any allocation leaks.
+	 */
+	isc_mem_debugging = 2;
 
 	result = isc_mem_create(0, 0, &mctx);
 	if (result != ISC_R_SUCCESS) {
@@ -446,7 +445,7 @@ main (int argc, char **argv) {
 
 			}
 		}
-			
+
 	}
 
 	dns_rbt_destroy(&rbt);

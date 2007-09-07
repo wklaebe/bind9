@@ -1,22 +1,39 @@
 %{
 /*
  * Copyright (C) 1996-2000  Internet Software Consortium.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
- * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
- * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
- * SOFTWARE.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+ * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+ * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: confparser.y,v 1.99.2.5 2000/09/13 23:13:25 explorer Exp $ */
+/*
+ * Copyright (C) 1996-2000  Internet Software Consortium.
+ *
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+ * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+ * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
+
+/* $Id: confparser.y.dirty,v 1.36 2000/12/02 00:57:43 marka Exp $ */
 
 #include <config.h>
 
@@ -97,9 +114,9 @@ static isc_lexspecials_t	specials;
  * XXXJAB The #define for the default OMAPI port is not available
  * to us, so we make our own.
  */
- 
+
 #define OMAPI_DEFAULT_PORT 953
- 
+
 #define CONF_MAX_IDENT 1024
 
 /* This should be sufficient to permit multiple parsers and lexers if needed */
@@ -143,7 +160,9 @@ static isc_boolean_t	keydefinedinscope(dns_c_ctx_t *cfg,
 
 
 
-/* returns true if (base * mult) would be too big.*/
+/*
+ * Returns true if (base * mult) would be too big.
+ */
 static isc_boolean_t	int_too_big(isc_uint32_t base, isc_uint32_t mult);
 
 /*
@@ -214,6 +233,8 @@ static isc_boolean_t	int_too_big(isc_uint32_t base, isc_uint32_t mult);
 	dns_severity_t		severity;
 	dns_c_trans_t		transport;
 	dns_transfer_format_t	tformat;
+	dns_notifytype_t	notifytype;
+	dns_dialuptype_t	dialuptype;
 
 	dns_c_ipmatchelement_t	*ime;
 	dns_c_ipmatchlist_t	*iml;
@@ -226,6 +247,7 @@ static isc_boolean_t	int_too_big(isc_uint32_t base, isc_uint32_t mult);
 	dns_c_ordering_t	ordering;
 	dns_c_iplist_t	       *iplist;
 	dns_c_kidlist_t	       *kidlist;
+	dns_c_searchlist_t     *searchlist;
 }
 
 /* Misc */
@@ -233,6 +255,7 @@ static isc_boolean_t	int_too_big(isc_uint32_t base, isc_uint32_t mult);
 %token <text>		L_QSTRING
 %token <l_int>		L_INTEGER
 %token <ip4_addr>	L_IP4ADDR
+%token <ip4_addr>	L_IP4PREFIX
 %token <ip6_addr>	L_IP6ADDR
 
 %token		L_ACL
@@ -258,6 +281,7 @@ static isc_boolean_t	int_too_big(isc_uint32_t base, isc_uint32_t mult);
 %token		L_CLEAN_INTERVAL
 %token		L_CONTROLS
 %token		L_CORESIZE
+%token		L_ZONE_STATISTICS
 %token		L_DATASIZE
 %token		L_DATABASE
 %token		L_DEALLOC_ON_EXIT
@@ -282,6 +306,8 @@ static isc_boolean_t	int_too_big(isc_uint32_t base, isc_uint32_t mult);
 %token		L_FIRST
 %token		L_FORWARD
 %token		L_FORWARDERS
+%token		L_ADDITIONAL_FROM_AUTH
+%token		L_ADDITIONAL_FROM_CACHE
 %token		L_GRANT
 %token		L_GROUP
 %token		L_HAS_OLD_CLIENTS
@@ -302,27 +328,36 @@ static isc_boolean_t	int_too_big(isc_uint32_t base, isc_uint32_t mult);
 %token		L_LISTEN_ON
 %token		L_LISTEN_ON_V6
 %token		L_LOGGING
+%token		L_LWRES
 %token		L_MAINTAIN_IXFR_BASE
 %token		L_MANY_ANSWERS
 %token		L_MASTER
 %token		L_MASTERS
 %token		L_MATCH_CLIENTS
-%token		L_MAX_LOG_SIZE_IXFR
+%token		L_MAXIMAL
 %token		L_MAX_CACHE_TTL
+%token		L_MAX_LOG_SIZE_IXFR
 %token		L_MAX_NCACHE_TTL
+%token		L_MAX_REFRESH_TIME
+%token		L_MAX_RETRY_TIME
 %token		L_MAX_TRANSFER_IDLE_IN
 %token		L_MAX_TRANSFER_IDLE_OUT
 %token		L_MAX_TRANSFER_TIME_IN
 %token		L_MAX_TRANSFER_TIME_OUT
-%token		L_MAXIMAL
 %token		L_MEMSTATS_FILE
-%token		L_MIN_ROOTS
 %token		L_MINIMAL
+%token		L_MIN_REFRESH_TIME
+%token		L_MIN_RETRY_TIME
+%token		L_MIN_ROOTS
 %token		L_MULTIPLE_CNAMES
 %token		L_NAME
 %token		L_NAMED_XFER
+%token		L_NDOTS
 %token		L_NO
 %token		L_NOTIFY
+%token		L_NOTIFY_SOURCE
+%token		L_NOTIFY_SOURCE_V6
+%token		L_NOTIFY_PASSIVE
 %token		L_NULL_OUTPUT
 %token		L_ONE_ANSWER
 %token		L_ONLY
@@ -331,6 +366,7 @@ static isc_boolean_t	int_too_big(isc_uint32_t base, isc_uint32_t mult);
 %token		L_OWNER
 %token		L_RANDOM_DEVICE
 %token		L_RANDOM_SEED_FILE
+%token		L_PASSIVE
 %token		L_PERM
 %token		L_PIDFILE
 %token		L_PORT
@@ -344,10 +380,12 @@ static isc_boolean_t	int_too_big(isc_uint32_t base, isc_uint32_t mult);
 %token		L_RBRACE
 %token		L_RECURSION
 %token		L_RECURSIVE_CLIENTS
+%token		L_REFRESH
 %token		L_REQUEST_IXFR
 %token		L_RESPONSE
 %token		L_RFC2308_TYPE1
 %token		L_RRSET_ORDER
+%token		L_SEARCHLIST	/* L_SEARCH is defined by <sys/lkup.h> on AIX */
 %token		L_SECRET
 %token		L_SEC_KEY
 %token		L_SELF
@@ -370,6 +408,7 @@ static isc_boolean_t	int_too_big(isc_uint32_t base, isc_uint32_t mult);
 %token		L_TCP_CLIENTS
 %token		L_TKEY_DHKEY
 %token		L_TKEY_DOMAIN
+%token		L_TKEY_GSSAPI_CREDENTIAL
 %token		L_TOPOLOGY
 %token		L_TRANSFERS
 %token		L_TRANSFERS_IN
@@ -394,11 +433,14 @@ static isc_boolean_t	int_too_big(isc_uint32_t base, isc_uint32_t mult);
 %token		L_WILDCARD
 %token		L_YES
 %token		L_ZONE
+%token		L_EXPLICIT
 
 
 %type <addata>		additional_data
 %type <boolean>		grantp
 %type <boolean>		yea_or_nay
+%type <notifytype>	notify_setting
+%type <dialuptype>	dialup_setting
 %type <forward>		forward_opt
 %type <forward>		zone_forward_opt
 %type <ime>		address_match_element
@@ -407,8 +449,10 @@ static isc_boolean_t	int_too_big(isc_uint32_t base, isc_uint32_t mult);
 %type <iml>		address_match_list
 %type <ipaddress>	in_addr_elem
 %type <ipaddress>	ip4_address
+%type <ipaddress>	ip4_prefix
 %type <ipaddress>	ip6_address
 %type <ipaddress>	ip_address
+%type <ipaddress>	ip_prefix
 %type <ipaddress>	maybe_wild_addr
 %type <ipaddress>	maybe_wild_ip4_only_addr
 %type <ipaddress>	maybe_wild_ip6_only_addr
@@ -445,6 +489,7 @@ static isc_boolean_t	int_too_big(isc_uint32_t base, isc_uint32_t mult);
 %type <text>		key_value
 %type <kidlist>		control_keys
 %type <kidlist>		keyid_list
+%type <searchlist>	searchlist
 %type <text>		ordering_name
 %type <text>		secret
 %type <tformat>		transfer_format
@@ -475,6 +520,7 @@ statement: include_stmt
 	| acl_stmt L_EOS
 	| key_stmt L_EOS
 	| view_stmt L_EOS
+	| lwres_stmt L_EOS
 	| L_END_INCLUDE
 	;
 
@@ -505,7 +551,7 @@ options_stmt: L_OPTIONS
 				     "zones and views");
 			YYABORT;
 		}
-		
+
 		tmpres = dns_c_ctx_getoptions(currcfg, &options);
 		if (tmpres == ISC_R_SUCCESS) {
 			parser_error(ISC_FALSE, "cannot redefine options");
@@ -660,6 +706,23 @@ option: /* Empty */
 
 		isc_mem_free(memctx, $2);
 	}
+	| L_TKEY_GSSAPI_CREDENTIAL L_QSTRING
+	{
+		tmpres = dns_c_ctx_settkeygsscred(currcfg, $2);
+
+		if (tmpres == ISC_R_EXISTS) {
+			parser_error(ISC_FALSE,
+				     "cannot redefine tkey-gssapi-credential");
+			YYABORT;
+		} else if (tmpres != ISC_R_SUCCESS) {
+			parser_error(ISC_FALSE,
+				     "set tkey-gssapi-credential error: %s: %s",
+				     isc_result_totext(tmpres), $2);
+			YYABORT;
+		}
+
+		isc_mem_free(memctx, $2);
+	}
 	| L_PIDFILE L_QSTRING
 	{
 		tmpres = dns_c_ctx_setpidfilename(currcfg, $2);
@@ -754,7 +817,7 @@ option: /* Empty */
 			YYABORT;
 		}
 	}
-	| L_NOTIFY yea_or_nay
+	| L_NOTIFY notify_setting
 	{
 		tmpres = dns_c_ctx_setnotify(currcfg, $2);
 		if (tmpres == ISC_R_EXISTS) {
@@ -878,11 +941,29 @@ option: /* Empty */
 			YYABORT;
 		}
 	}
+	| L_ADDITIONAL_FROM_CACHE yea_or_nay
+	{
+		tmpres = dns_c_ctx_setadditionalfromcache(currcfg, $2);
+		if (tmpres == ISC_R_EXISTS) {
+			parser_error(ISC_FALSE,
+				     "cannot redefine additional-from-cache");
+			YYABORT;
+		}
+	}
+	| L_ADDITIONAL_FROM_AUTH yea_or_nay
+	{
+		tmpres = dns_c_ctx_setadditionalfromauth(currcfg, $2);
+		if (tmpres == ISC_R_EXISTS) {
+			parser_error(ISC_FALSE,
+				     "cannot redefine additional-from-auth");
+			YYABORT;
+		}
+	}
 	| L_LISTEN_ON maybe_port L_LBRACE address_match_list L_RBRACE
 	{
 		if ($4 == NULL) {
 			parser_warning(ISC_FALSE,
-				       "address-match-list empty implies"
+				       "address-match-list empty implies "
 				       "listen statement ignored");
 		} else {
 			tmpres = dns_c_ctx_addlisten_on(currcfg, $2, $4,
@@ -899,7 +980,7 @@ option: /* Empty */
 	{
 		if ($4 == NULL) {
 			parser_warning(ISC_FALSE,
-				       "address-match-list empty implies"
+				       "address-match-list empty implies "
 				       "listen statement ignored");
 		} else {
 			tmpres = dns_c_ctx_addv6listen_on(currcfg, $2, $4,
@@ -985,6 +1066,20 @@ option: /* Empty */
 			YYABORT;
 		}
 	}
+	| L_TRANSFER_SOURCE maybe_wild_ip4_only_addr L_PORT maybe_wild_port
+	{
+		isc_sockaddr_setport(&$2, $4);
+		tmpres = dns_c_ctx_settransfersource(currcfg, $2);
+		if (tmpres == ISC_R_EXISTS) {
+			parser_error(ISC_FALSE,
+				     "cannot redefine transfer-source");
+			YYABORT;
+		} else if (tmpres != ISC_R_SUCCESS) {
+			parser_error(ISC_FALSE,
+				     "failed to set transfer-source");
+			YYABORT;
+		}
+	}
 	| L_TRANSFER_SOURCE_V6 maybe_wild_ip6_only_addr
 	{
 		tmpres = dns_c_ctx_settransfersourcev6(currcfg, $2);
@@ -995,6 +1090,74 @@ option: /* Empty */
 		} else if (tmpres != ISC_R_SUCCESS) {
 			parser_error(ISC_FALSE,
 				     "failed to set transfer-source-v6");
+			YYABORT;
+		}
+	}
+	| L_TRANSFER_SOURCE_V6 maybe_wild_ip6_only_addr L_PORT maybe_wild_port
+	{
+		isc_sockaddr_setport(&$2, $4);
+		tmpres = dns_c_ctx_settransfersourcev6(currcfg, $2);
+		if (tmpres == ISC_R_EXISTS) {
+			parser_error(ISC_FALSE,
+				     "cannot redefine transfer-source-v6");
+			YYABORT;
+		} else if (tmpres != ISC_R_SUCCESS) {
+			parser_error(ISC_FALSE,
+				     "failed to set transfer-source-v6");
+			YYABORT;
+		}
+	}
+	| L_NOTIFY_SOURCE maybe_wild_ip4_only_addr
+	{
+		tmpres = dns_c_ctx_setnotifysource(currcfg, $2);
+		if (tmpres == ISC_R_EXISTS) {
+			parser_error(ISC_FALSE,
+				     "cannot redefine notify-source");
+			YYABORT;
+		} else if (tmpres != ISC_R_SUCCESS) {
+			parser_error(ISC_FALSE,
+				     "failed to set notify-source");
+			YYABORT;
+		}
+	}
+	| L_NOTIFY_SOURCE maybe_wild_ip4_only_addr L_PORT maybe_wild_port
+	{
+		isc_sockaddr_setport(&$2, $4);
+		tmpres = dns_c_ctx_setnotifysource(currcfg, $2);
+		if (tmpres == ISC_R_EXISTS) {
+			parser_error(ISC_FALSE,
+				     "cannot redefine notify-source");
+			YYABORT;
+		} else if (tmpres != ISC_R_SUCCESS) {
+			parser_error(ISC_FALSE,
+				     "failed to set notify-source");
+			YYABORT;
+		}
+	}
+	| L_NOTIFY_SOURCE_V6 maybe_wild_ip6_only_addr
+	{
+		tmpres = dns_c_ctx_setnotifysourcev6(currcfg, $2);
+		if (tmpres == ISC_R_EXISTS) {
+			parser_error(ISC_FALSE,
+				     "cannot redefine notify-source-v6");
+			YYABORT;
+		} else if (tmpres != ISC_R_SUCCESS) {
+			parser_error(ISC_FALSE,
+				     "failed to set notify-source-v6");
+			YYABORT;
+		}
+	}
+	| L_NOTIFY_SOURCE_V6 maybe_wild_ip6_only_addr L_PORT maybe_wild_port
+	{
+		isc_sockaddr_setport(&$2, $4);
+		tmpres = dns_c_ctx_setnotifysourcev6(currcfg, $2);
+		if (tmpres == ISC_R_EXISTS) {
+			parser_error(ISC_FALSE,
+				     "cannot redefine notify-source-v6");
+			YYABORT;
+		} else if (tmpres != ISC_R_SUCCESS) {
+			parser_error(ISC_FALSE,
+				     "failed to set notify-source-v6");
 			YYABORT;
 		}
 	}
@@ -1375,6 +1538,58 @@ option: /* Empty */
 			YYABORT;
 		}
 	}
+	| L_MAX_RETRY_TIME L_INTEGER
+	{
+		tmpres = dns_c_ctx_setmaxretrytime(currcfg, $2);
+		if (tmpres == ISC_R_EXISTS) {
+			parser_error(ISC_FALSE,
+				     "cannot redefine max-retry-time");
+			YYABORT;
+		} else if (tmpres != ISC_R_SUCCESS) {
+			parser_error(ISC_FALSE,
+				     "failed to set max-retry-time");
+			YYABORT;
+		}
+	}
+	| L_MIN_RETRY_TIME L_INTEGER
+	{
+		tmpres = dns_c_ctx_setminretrytime(currcfg, $2);
+		if (tmpres == ISC_R_EXISTS) {
+			parser_error(ISC_FALSE,
+				     "cannot redefine min-retry-time");
+			YYABORT;
+		} else if (tmpres != ISC_R_SUCCESS) {
+			parser_error(ISC_FALSE,
+				     "failed to set min-retry-time");
+			YYABORT;
+		}
+	}
+	| L_MAX_REFRESH_TIME L_INTEGER
+	{
+		tmpres = dns_c_ctx_setmaxrefreshtime(currcfg, $2);
+		if (tmpres == ISC_R_EXISTS) {
+			parser_error(ISC_FALSE,
+				     "cannot redefine max-refresh-time");
+			YYABORT;
+		} else if (tmpres != ISC_R_SUCCESS) {
+			parser_error(ISC_FALSE,
+				     "failed to set max-refresh-time");
+			YYABORT;
+		}
+	}
+	| L_MIN_REFRESH_TIME L_INTEGER
+	{
+		tmpres = dns_c_ctx_setminrefreshtime(currcfg, $2);
+		if (tmpres == ISC_R_EXISTS) {
+			parser_error(ISC_FALSE,
+				     "cannot redefine min-refresh-time");
+			YYABORT;
+		} else if (tmpres != ISC_R_SUCCESS) {
+			parser_error(ISC_FALSE,
+				     "failed to set min-refresh-time");
+			YYABORT;
+		}
+	}
 	| L_HEARTBEAT L_INTEGER
 	{
 		if ( int_too_big($2, 60) ) {
@@ -1394,7 +1609,20 @@ option: /* Empty */
 			YYABORT;
 		}
 	}
-	| L_DIALUP yea_or_nay
+	| L_ZONE_STATISTICS yea_or_nay
+	{
+		tmpres = dns_c_ctx_setstatistics(currcfg, $2);
+		if (tmpres == ISC_R_EXISTS) {
+			parser_error(ISC_FALSE,
+				     "cannot redefine zone-statistics");
+			YYABORT;
+		} else if (tmpres != ISC_R_SUCCESS) {
+			parser_error(ISC_FALSE,
+				     "failed to set zone-statistics");
+			YYABORT;
+		}
+	}
+	| L_DIALUP dialup_setting
 	{
 		tmpres = dns_c_ctx_setdialup(currcfg, $2);
 		if (tmpres == ISC_R_EXISTS) {
@@ -1531,8 +1759,8 @@ control_keys: /* nothing */
 		$$ = $3;
 	};
 
-		
-			
+
+
 control_port: /* nothing */
 	{
 		$$ = OMAPI_DEFAULT_PORT;
@@ -1762,6 +1990,7 @@ ip_and_port_list: ip_and_port_element L_EOS
 			YYABORT;
 		}
 
+
 		$$ = list;
 	}
 	| ip_and_port_list ip_and_port_element L_EOS
@@ -1772,6 +2001,7 @@ ip_and_port_list: ip_and_port_element L_EOS
 				     "failed to append master address");
 			YYABORT;
 		}
+
 
 		$$ = $1;
 	}
@@ -1890,6 +2120,44 @@ yea_or_nay: L_YES
 			$$ = isc_boolean_true;
 		}
 	}
+
+notify_setting: yea_or_nay
+	{
+		if ($1)
+			$$ = dns_notifytype_yes;
+		else
+			$$ = dns_notifytype_no;
+
+	}
+	| L_EXPLICIT
+	{
+		$$ = dns_notifytype_explicit;
+	}
+	;
+
+dialup_setting: yea_or_nay
+	{
+		if ($1)
+			$$ = dns_dialuptype_yes;
+		else
+			$$ = dns_dialuptype_no;
+	}
+	| L_NOTIFY
+	{
+		$$ = dns_dialuptype_notify;
+	}
+	| L_NOTIFY_PASSIVE
+	{
+		$$ = dns_dialuptype_notifypassive;
+	}
+	| L_REFRESH
+	{
+		$$ = dns_dialuptype_refresh;
+	}
+	| L_PASSIVE
+	{
+		$$ = dns_dialuptype_passive;
+	}
 	;
 
 check_names_type: L_MASTER
@@ -1927,14 +2195,6 @@ forward_opt: L_ONLY
 	| L_FIRST
 	{
 		$$ = dns_c_forw_first;
-	}
-	| L_IF_NO_ANSWER
-	{
-		$$ = dns_c_forw_noanswer;
-	}
-	| L_IF_NO_DOMAIN
-	{
-		$$ = dns_c_forw_nodomain;
 	}
 	;
 
@@ -1992,7 +2252,7 @@ size_clause: L_DATASIZE size_spec
 				     "'max-cache-size'");
 			YYABORT;
 		}
-		
+
 		tmpres = dns_c_ctx_setmaxcachesize(currcfg, $2);
 		if (tmpres == ISC_R_EXISTS) {
 			parser_error(ISC_FALSE,
@@ -2030,7 +2290,7 @@ size_spec: any_string
 				       isc_result_totext(tmpres));
 			$$ = DNS_C_SIZE_SPEC_DEFAULT;
 		}
-			
+
 		isc_mem_free(memctx, $1);
 	}
 	| L_INTEGER
@@ -2109,7 +2369,8 @@ forwarders_in_addr_list: forwarders_in_addr L_EOS
 
 forwarders_in_addr: ip_address
 	{
-		tmpres = dns_c_iplist_append(currcfg->options->forwarders, $1);
+		tmpres = dns_c_iplist_append(currcfg->options->forwarders,
+					     $1);
 		if (tmpres != ISC_R_SUCCESS) {
 			parser_error(ISC_FALSE,
 				     "failed to add forwarders "
@@ -2885,11 +3146,41 @@ keyid_list: /* nothing */
 		}
 
 		isc_mem_free(memctx, $2);
-			
+
 		dns_c_kidlist_append($$, kid);
 	};
 
-	
+
+searchlist: /* nothing */
+	{
+		dns_c_searchlist_t *searchlist = NULL;
+
+		tmpres = dns_c_searchlist_new(currcfg->mem, &searchlist);
+		if (tmpres != ISC_R_SUCCESS) {
+			parser_error(ISC_FALSE, "failed to create searchlist");
+			YYABORT;
+		}
+
+		$$ = searchlist;
+	}
+	| searchlist any_string L_EOS
+	{
+		dns_c_search_t *search = NULL;
+
+		tmpres = dns_c_search_new($$->mem, $2, &search);
+		if (tmpres != ISC_R_SUCCESS) {
+			parser_error(ISC_FALSE, "failed to create searchlist item");
+			dns_c_searchlist_delete(&$$);
+			$$ = NULL;
+			YYABORT;
+		}
+
+		isc_mem_free(memctx, $2);
+
+		dns_c_searchlist_append($$, search);
+	};
+
+
 /*
  * Address Matching
  */
@@ -2942,7 +3233,7 @@ address_match_element: address_match_simple
 		}
 		$$ = $2;
 	}
-	| L_SEC_KEY L_STRING
+	| L_SEC_KEY any_string
 	{
 		dns_c_ipmatchelement_t *ime = NULL;
 
@@ -3002,7 +3293,7 @@ address_match_simple: ip_address
 
 		$$ = ime;
 	}
-	| ip_address L_SLASH L_INTEGER
+	| ip_prefix L_SLASH L_INTEGER
 	{
 		dns_c_ipmatchelement_t *ime = NULL;
 
@@ -3289,6 +3580,7 @@ view_stmt: L_VIEW any_string optional_class L_LBRACE
 			tmpres = dns_c_viewtable_new(currcfg->mem,
 						     &currcfg->views);
 			if (tmpres != ISC_R_SUCCESS) {
+				isc_mem_free(memctx, $2);
 				parser_error(ISC_FALSE,
 					     "failed to create viewtable");
 				YYABORT;
@@ -3297,12 +3589,20 @@ view_stmt: L_VIEW any_string optional_class L_LBRACE
 
 		tmpres = dns_c_view_new(currcfg->mem, $2, $3, &view);
 		if (tmpres != ISC_R_SUCCESS) {
+			isc_mem_free(memctx, $2);
 			parser_error(ISC_FALSE,
 				     "failed to create view %s", $2);
 			YYABORT;
 		}
 
-		dns_c_viewtable_addview(currcfg->views, view);
+		tmpres = dns_c_viewtable_addview(currcfg->views, view);
+		if (tmpres != ISC_R_SUCCESS) {
+			dns_c_view_delete(&view);
+			parser_error(ISC_FALSE,
+				     "view '%s' already exists", $2);
+			isc_mem_free(memctx, $2);
+			YYABORT;
+		}
 		dns_c_ctx_setcurrview(currcfg, view);
 
 		isc_mem_free(memctx, $2);
@@ -3590,7 +3890,7 @@ view_option: L_FORWARD zone_forward_opt
 			YYABORT;
 		}
 	}
-	| L_NOTIFY yea_or_nay
+	| L_NOTIFY notify_setting
 	{
 		dns_c_view_t *view = dns_c_ctx_getcurrview(currcfg);
 
@@ -3621,6 +3921,40 @@ view_option: L_FORWARD zone_forward_opt
 		} else if (tmpres != ISC_R_SUCCESS) {
 			parser_error(ISC_FALSE,
 				     "failed to set view rfc2308-type1");
+			YYABORT;
+		}
+	}
+	| L_ADDITIONAL_FROM_CACHE yea_or_nay
+	{
+		dns_c_view_t *view = dns_c_ctx_getcurrview(currcfg);
+
+		INSIST(view != NULL);
+
+		tmpres = dns_c_view_setadditionalfromcache(view, $2);
+		if (tmpres == ISC_R_EXISTS) {
+			parser_error(ISC_FALSE,
+				     "cannot redefine view additional-from-cache");
+			YYABORT;
+		} else if (tmpres != ISC_R_SUCCESS) {
+			parser_error(ISC_FALSE,
+				     "failed to set view additional-from-cache");
+			YYABORT;
+		}
+	}
+	| L_ADDITIONAL_FROM_AUTH yea_or_nay
+	{
+		dns_c_view_t *view = dns_c_ctx_getcurrview(currcfg);
+
+		INSIST(view != NULL);
+
+		tmpres = dns_c_view_setadditionalfromauth(view, $2);
+		if (tmpres == ISC_R_EXISTS) {
+			parser_error(ISC_FALSE,
+				     "cannot redefine view additional-from-auth");
+			YYABORT;
+		} else if (tmpres != ISC_R_SUCCESS) {
+			parser_error(ISC_FALSE,
+				     "failed to set view additional-from-auth");
 			YYABORT;
 		}
 	}
@@ -3675,6 +4009,24 @@ view_option: L_FORWARD zone_forward_opt
 			YYABORT;
 		}
 	}
+	| L_TRANSFER_SOURCE maybe_wild_ip4_only_addr L_PORT maybe_wild_port
+	{
+		dns_c_view_t *view = dns_c_ctx_getcurrview(currcfg);
+
+		INSIST(view != NULL);
+
+		isc_sockaddr_setport(&$2, $4);
+		tmpres = dns_c_view_settransfersource(view, $2);
+		if (tmpres == ISC_R_EXISTS) {
+			parser_error(ISC_FALSE,
+				     "cannot redefine view transfer-source");
+			YYABORT;
+		} else if (tmpres != ISC_R_SUCCESS) {
+			parser_error(ISC_FALSE,
+				     "failed to set view transfer-source");
+			YYABORT;
+		}
+	}
 	| L_TRANSFER_SOURCE_V6 maybe_wild_ip6_only_addr
 	{
 		dns_c_view_t *view = dns_c_ctx_getcurrview(currcfg);
@@ -3690,6 +4042,97 @@ view_option: L_FORWARD zone_forward_opt
 		} else if (tmpres != ISC_R_SUCCESS) {
 			parser_error(ISC_FALSE,
 				     "failed to set view transfer-source-v6");
+			YYABORT;
+		}
+	}
+	| L_TRANSFER_SOURCE_V6 maybe_wild_ip6_only_addr L_PORT maybe_wild_port
+	{
+		dns_c_view_t *view = dns_c_ctx_getcurrview(currcfg);
+
+		INSIST(view != NULL);
+
+		isc_sockaddr_setport(&$2, $4);
+		tmpres = dns_c_view_settransfersourcev6(view, $2);
+		if (tmpres == ISC_R_EXISTS) {
+			parser_error(ISC_FALSE,
+				     "cannot redefine view "
+				     "transfer-source-v6");
+			YYABORT;
+		} else if (tmpres != ISC_R_SUCCESS) {
+			parser_error(ISC_FALSE,
+				     "failed to set view transfer-source-v6");
+			YYABORT;
+		}
+	}
+	| L_NOTIFY_SOURCE maybe_wild_ip4_only_addr
+	{
+		dns_c_view_t *view = dns_c_ctx_getcurrview(currcfg);
+
+		INSIST(view != NULL);
+
+		tmpres = dns_c_view_setnotifysource(view, $2);
+		if (tmpres == ISC_R_EXISTS) {
+			parser_error(ISC_FALSE,
+				     "cannot redefine view notify-source");
+			YYABORT;
+		} else if (tmpres != ISC_R_SUCCESS) {
+			parser_error(ISC_FALSE,
+				     "failed to set view notify-source");
+			YYABORT;
+		}
+	}
+	| L_NOTIFY_SOURCE maybe_wild_ip4_only_addr L_PORT maybe_wild_port
+	{
+		dns_c_view_t *view = dns_c_ctx_getcurrview(currcfg);
+
+		INSIST(view != NULL);
+
+		isc_sockaddr_setport(&$2, $4);
+		tmpres = dns_c_view_setnotifysource(view, $2);
+		if (tmpres == ISC_R_EXISTS) {
+			parser_error(ISC_FALSE,
+				     "cannot redefine view notify-source");
+			YYABORT;
+		} else if (tmpres != ISC_R_SUCCESS) {
+			parser_error(ISC_FALSE,
+				     "failed to set view notify-source");
+			YYABORT;
+		}
+	}
+	| L_NOTIFY_SOURCE_V6 maybe_wild_ip6_only_addr
+	{
+		dns_c_view_t *view = dns_c_ctx_getcurrview(currcfg);
+
+		INSIST(view != NULL);
+
+		tmpres = dns_c_view_setnotifysourcev6(view, $2);
+		if (tmpres == ISC_R_EXISTS) {
+			parser_error(ISC_FALSE,
+				     "cannot redefine view "
+				     "notify-source-v6");
+			YYABORT;
+		} else if (tmpres != ISC_R_SUCCESS) {
+			parser_error(ISC_FALSE,
+				     "failed to set view notify-source-v6");
+			YYABORT;
+		}
+	}
+	| L_NOTIFY_SOURCE_V6 maybe_wild_ip6_only_addr L_PORT maybe_wild_port
+	{
+		dns_c_view_t *view = dns_c_ctx_getcurrview(currcfg);
+
+		INSIST(view != NULL);
+
+		isc_sockaddr_setport(&$2, $4);
+		tmpres = dns_c_view_setnotifysourcev6(view, $2);
+		if (tmpres == ISC_R_EXISTS) {
+			parser_error(ISC_FALSE,
+				     "cannot redefine view "
+				     "notify-source-v6");
+			YYABORT;
+		} else if (tmpres != ISC_R_SUCCESS) {
+			parser_error(ISC_FALSE,
+				     "failed to set view notify-source-v6");
 			YYABORT;
 		}
 	}
@@ -3835,6 +4278,74 @@ view_option: L_FORWARD zone_forward_opt
 			YYABORT;
 		}
 	}
+	| L_MAX_RETRY_TIME L_INTEGER
+	{
+		dns_c_view_t *view = dns_c_ctx_getcurrview(currcfg);
+
+		INSIST(view != NULL);
+
+		tmpres = dns_c_view_setmaxretrytime(view, $2);
+		if (tmpres == ISC_R_EXISTS) {
+			parser_error(ISC_FALSE,
+				     "cannot redefine view max-retry-time");
+			YYABORT;
+		} else if (tmpres != ISC_R_SUCCESS) {
+			parser_error(ISC_FALSE,
+				     "failed to set view max-retry-time");
+			YYABORT;
+		}
+	}
+	| L_MIN_RETRY_TIME L_INTEGER
+	{
+		dns_c_view_t *view = dns_c_ctx_getcurrview(currcfg);
+
+		INSIST(view != NULL);
+
+		tmpres = dns_c_view_setminretrytime(view, $2);
+		if (tmpres == ISC_R_EXISTS) {
+			parser_error(ISC_FALSE,
+				     "cannot redefine view min-retry-time");
+			YYABORT;
+		} else if (tmpres != ISC_R_SUCCESS) {
+			parser_error(ISC_FALSE,
+				     "failed to set view min-retry-time");
+			YYABORT;
+		}
+	}
+	| L_MAX_REFRESH_TIME L_INTEGER
+	{
+		dns_c_view_t *view = dns_c_ctx_getcurrview(currcfg);
+
+		INSIST(view != NULL);
+
+		tmpres = dns_c_view_setmaxrefreshtime(view, $2);
+		if (tmpres == ISC_R_EXISTS) {
+			parser_error(ISC_FALSE,
+				     "cannot redefine view max-refresh-time");
+			YYABORT;
+		} else if (tmpres != ISC_R_SUCCESS) {
+			parser_error(ISC_FALSE,
+				     "failed to set view max-refresh-time");
+			YYABORT;
+		}
+	}
+	| L_MIN_REFRESH_TIME L_INTEGER
+	{
+		dns_c_view_t *view = dns_c_ctx_getcurrview(currcfg);
+
+		INSIST(view != NULL);
+
+		tmpres = dns_c_view_setminrefreshtime(view, $2);
+		if (tmpres == ISC_R_EXISTS) {
+			parser_error(ISC_FALSE,
+				     "cannot redefine view min-refresh-time");
+			YYABORT;
+		} else if (tmpres != ISC_R_SUCCESS) {
+			parser_error(ISC_FALSE,
+				     "failed to set view min-refresh-time");
+			YYABORT;
+		}
+	}
 	| L_SIG_VALIDITY_INTERVAL L_INTEGER
 	{
 		dns_c_view_t *view = dns_c_ctx_getcurrview(currcfg);
@@ -3919,7 +4430,7 @@ view_option: L_FORWARD zone_forward_opt
 				     "'max-cache-size'");
 			YYABORT;
 		}
-		
+
 		tmpres = dns_c_view_setmaxcachesize(view, $2);
 		if (tmpres == ISC_R_EXISTS) {
 			parser_error(ISC_FALSE,
@@ -4209,7 +4720,7 @@ zone_stmt: L_ZONE domain_name optional_class L_LBRACE L_TYPE zone_type L_EOS
 			isc_log_write(dns_lctx, DNS_LOGCATEGORY_CONFIG,
 				      DNS_LOGMODULE_CONFIG,
 				      ISC_LOG_ERROR,
-				      "Error creating new zone");
+				      "error creating new zone");
 			YYABORT;
 		}
 
@@ -4219,7 +4730,7 @@ zone_stmt: L_ZONE domain_name optional_class L_LBRACE L_TYPE zone_type L_EOS
 			isc_log_write(dns_lctx, DNS_LOGCATEGORY_CONFIG,
 				      DNS_LOGMODULE_CONFIG,
 				      ISC_LOG_ERROR,
-				      "Error adding new zone to list");
+				      "error adding new zone to list");
 			YYABORT;
 		}
 
@@ -4247,7 +4758,7 @@ zone_stmt: L_ZONE domain_name optional_class L_LBRACE L_TYPE zone_type L_EOS
 			if (tmpres != ISC_R_SUCCESS) {
 				YYABORT;
 			}
-			
+
 			tmpres = callbacks->zonecbk(currcfg,
 						    zone,
 						    view,
@@ -4277,6 +4788,7 @@ zone_stmt: L_ZONE domain_name optional_class L_LBRACE L_TYPE zone_type L_EOS
 	{
 		parser_warning(ISC_FALSE,
 			       "references to zones not implemented yet");
+		isc_mem_free(memctx, $2);
 	}
 	;
 
@@ -4373,7 +4885,10 @@ zone_non_type_keywords: L_FILE | L_FILE_IXFR | L_IXFR_TMP | L_MASTERS |
 	L_MAX_TRANSFER_TIME_OUT | L_MAX_TRANSFER_IDLE_IN |
 	L_MAX_TRANSFER_IDLE_OUT | L_MAX_LOG_SIZE_IXFR | L_NOTIFY |
 	L_MAINTAIN_IXFR_BASE | L_PUBKEY | L_ALSO_NOTIFY | L_DIALUP |
-	L_ENABLE_ZONE | L_DATABASE | L_PORT
+	L_ENABLE_ZONE | L_DATABASE | L_PORT | L_MIN_RETRY_TIME |
+	L_MAX_RETRY_TIME | L_MIN_REFRESH_TIME | L_MAX_REFRESH_TIME |
+	L_ZONE_STATISTICS | L_NOTIFY_SOURCE |
+	L_NOTIFY_SOURCE_V6
 	;
 
 
@@ -4465,6 +4980,24 @@ zone_option: L_FILE L_QSTRING
 			YYABORT;
 		}
 	}
+	| L_TRANSFER_SOURCE maybe_wild_ip4_only_addr L_PORT maybe_wild_port
+	{
+		dns_c_zone_t *zone = dns_c_ctx_getcurrzone(currcfg);
+
+		INSIST(zone != NULL);
+
+		isc_sockaddr_setport(&$2, $4);
+		tmpres = dns_c_zone_settransfersource(zone, $2);
+		if (tmpres == ISC_R_EXISTS) {
+			parser_error(ISC_FALSE,
+				     "cannot redefine zone transfer-source");
+			YYABORT;
+		} else if (tmpres != ISC_R_SUCCESS) {
+			parser_error(ISC_FALSE,
+				     "failed to set zone transfer-source");
+			YYABORT;
+		}
+	}
 	| L_TRANSFER_SOURCE_V6 maybe_wild_ip6_only_addr
 	{
 		dns_c_zone_t *zone = dns_c_ctx_getcurrzone(currcfg);
@@ -4480,6 +5013,97 @@ zone_option: L_FILE L_QSTRING
 		} else if (tmpres != ISC_R_SUCCESS) {
 			parser_error(ISC_FALSE,
 				     "failed to set zone transfer-source-v6");
+			YYABORT;
+		}
+	}
+	| L_TRANSFER_SOURCE_V6 maybe_wild_ip6_only_addr L_PORT maybe_wild_port
+	{
+		dns_c_zone_t *zone = dns_c_ctx_getcurrzone(currcfg);
+
+		INSIST(zone != NULL);
+
+		isc_sockaddr_setport(&$2, $4);
+		tmpres = dns_c_zone_settransfersourcev6(zone, $2);
+		if (tmpres == ISC_R_EXISTS) {
+			parser_error(ISC_FALSE,
+				     "cannot redefine zone "
+				     "transfer-source-v6");
+			YYABORT;
+		} else if (tmpres != ISC_R_SUCCESS) {
+			parser_error(ISC_FALSE,
+				     "failed to set zone transfer-source-v6");
+			YYABORT;
+		}
+	}
+	| L_NOTIFY_SOURCE maybe_wild_ip4_only_addr
+	{
+		dns_c_zone_t *zone = dns_c_ctx_getcurrzone(currcfg);
+
+		INSIST(zone != NULL);
+
+		tmpres = dns_c_zone_setnotifysource(zone, $2);
+		if (tmpres == ISC_R_EXISTS) {
+			parser_error(ISC_FALSE,
+				     "cannot redefine zone notify-source");
+			YYABORT;
+		} else if (tmpres != ISC_R_SUCCESS) {
+			parser_error(ISC_FALSE,
+				     "failed to set zone notify-source");
+			YYABORT;
+		}
+	}
+	| L_NOTIFY_SOURCE maybe_wild_ip4_only_addr L_PORT maybe_wild_port
+	{
+		dns_c_zone_t *zone = dns_c_ctx_getcurrzone(currcfg);
+
+		INSIST(zone != NULL);
+
+		isc_sockaddr_setport(&$2, $4);
+		tmpres = dns_c_zone_setnotifysource(zone, $2);
+		if (tmpres == ISC_R_EXISTS) {
+			parser_error(ISC_FALSE,
+				     "cannot redefine zone notify-source");
+			YYABORT;
+		} else if (tmpres != ISC_R_SUCCESS) {
+			parser_error(ISC_FALSE,
+				     "failed to set zone notify-source");
+			YYABORT;
+		}
+	}
+	| L_NOTIFY_SOURCE_V6 maybe_wild_ip6_only_addr
+	{
+		dns_c_zone_t *zone = dns_c_ctx_getcurrzone(currcfg);
+
+		INSIST(zone != NULL);
+
+		tmpres = dns_c_zone_setnotifysourcev6(zone, $2);
+		if (tmpres == ISC_R_EXISTS) {
+			parser_error(ISC_FALSE,
+				     "cannot redefine zone "
+				     "notify-source-v6");
+			YYABORT;
+		} else if (tmpres != ISC_R_SUCCESS) {
+			parser_error(ISC_FALSE,
+				     "failed to set zone notify-source-v6");
+			YYABORT;
+		}
+	}
+	| L_NOTIFY_SOURCE_V6 maybe_wild_ip6_only_addr L_PORT maybe_wild_port
+	{
+		dns_c_zone_t *zone = dns_c_ctx_getcurrzone(currcfg);
+
+		INSIST(zone != NULL);
+
+		isc_sockaddr_setport(&$2, $4);
+		tmpres = dns_c_zone_setnotifysourcev6(zone, $2);
+		if (tmpres == ISC_R_EXISTS) {
+			parser_error(ISC_FALSE,
+				     "cannot redefine zone "
+				     "notify-source-v6");
+			YYABORT;
+		} else if (tmpres != ISC_R_SUCCESS) {
+			parser_error(ISC_FALSE,
+				     "failed to set zone notify-source-v6");
 			YYABORT;
 		}
 	}
@@ -4742,6 +5366,74 @@ zone_option: L_FILE L_QSTRING
 			YYABORT;
 		}
 	}
+	| L_MIN_RETRY_TIME L_INTEGER
+	{
+		dns_c_zone_t *zone = dns_c_ctx_getcurrzone(currcfg);
+
+		INSIST(zone != NULL);
+
+		tmpres = dns_c_zone_setminretrytime(zone, $2);
+		if (tmpres == ISC_R_EXISTS) {
+			parser_error(ISC_FALSE,
+				     "cannot redefine zone min-retry-time");
+			YYABORT;
+		} else if (tmpres != ISC_R_SUCCESS) {
+			parser_error(ISC_FALSE,
+				     "failed to set zone min-retry-time");
+			YYABORT;
+		}
+	}
+	| L_MAX_RETRY_TIME L_INTEGER
+	{
+		dns_c_zone_t *zone = dns_c_ctx_getcurrzone(currcfg);
+
+		INSIST(zone != NULL);
+
+		tmpres = dns_c_zone_setmaxretrytime(zone, $2);
+		if (tmpres == ISC_R_EXISTS) {
+			parser_error(ISC_FALSE,
+				     "cannot redefine zone max-retry-time");
+			YYABORT;
+		} else if (tmpres != ISC_R_SUCCESS) {
+			parser_error(ISC_FALSE,
+				     "failed to set zone max-retry-time");
+			YYABORT;
+		}
+	}
+	| L_MIN_REFRESH_TIME L_INTEGER
+	{
+		dns_c_zone_t *zone = dns_c_ctx_getcurrzone(currcfg);
+
+		INSIST(zone != NULL);
+
+		tmpres = dns_c_zone_setminrefreshtime(zone, $2);
+		if (tmpres == ISC_R_EXISTS) {
+			parser_error(ISC_FALSE,
+				     "cannot redefine zone min-refresh-time");
+			YYABORT;
+		} else if (tmpres != ISC_R_SUCCESS) {
+			parser_error(ISC_FALSE,
+				     "failed to set zone min-refresh-time");
+			YYABORT;
+		}
+	}
+	| L_MAX_REFRESH_TIME L_INTEGER
+	{
+		dns_c_zone_t *zone = dns_c_ctx_getcurrzone(currcfg);
+
+		INSIST(zone != NULL);
+
+		tmpres = dns_c_zone_setmaxrefreshtime(zone, $2);
+		if (tmpres == ISC_R_EXISTS) {
+			parser_error(ISC_FALSE,
+				     "cannot redefine zone max-refresh-time");
+			YYABORT;
+		} else if (tmpres != ISC_R_SUCCESS) {
+			parser_error(ISC_FALSE,
+				     "failed to set zone max-refresh-time");
+			YYABORT;
+		}
+	}
 	| L_MAX_LOG_SIZE_IXFR L_INTEGER
 	{
 		dns_c_zone_t *zone = dns_c_ctx_getcurrzone(currcfg);
@@ -4760,7 +5452,7 @@ zone_option: L_FILE L_QSTRING
 			YYABORT;
 		}
 	}
-	| L_NOTIFY yea_or_nay
+	| L_NOTIFY notify_setting
 	{
 		dns_c_zone_t *zone = dns_c_ctx_getcurrzone(currcfg);
 
@@ -4838,7 +5530,7 @@ zone_option: L_FILE L_QSTRING
 			YYABORT;
 		}
 	}
-	| L_DIALUP yea_or_nay
+	| L_DIALUP dialup_setting
 	{
 		dns_c_zone_t *zone = dns_c_ctx_getcurrzone(currcfg);
 
@@ -4852,6 +5544,23 @@ zone_option: L_FILE L_QSTRING
 		} else if (tmpres != ISC_R_SUCCESS) {
 			parser_error(ISC_FALSE,
 				     "failed to set zone dialup");
+			YYABORT;
+		}
+	}
+	| L_ZONE_STATISTICS yea_or_nay
+	{
+		dns_c_zone_t *zone = dns_c_ctx_getcurrzone(currcfg);
+
+		INSIST(zone != NULL);
+
+		tmpres = dns_c_zone_setstatistics(zone, $2);
+		if (tmpres == ISC_R_EXISTS) {
+			parser_error(ISC_FALSE,
+				     "cannot redefine zone statistics");
+			YYABORT;
+		} else if (tmpres != ISC_R_SUCCESS) {
+			parser_error(ISC_FALSE,
+				     "failed to set zone statistics");
 			YYABORT;
 		}
 	}
@@ -4902,11 +5611,20 @@ ip4_address: L_IP4ADDR
 	}
 	;
 
+ip4_prefix: L_IP4PREFIX
+	{
+		isc_sockaddr_fromin(&$$, &$1, 0);
+	}
+	;
+
 ip6_address: L_IP6ADDR
 	{
 		isc_sockaddr_fromin6(&$$, &$1, 0);
 	};
 
+
+ip_prefix: ip4_address | ip4_prefix | ip6_address
+	;
 
 ip_address: ip4_address | ip6_address
 	;
@@ -4991,7 +5709,7 @@ trusted_keys_stmt: L_TRUSTED_KEYS
 		} else {
 			tmpres = dns_c_view_gettrustedkeys(view, &newlist);
 		}
-		
+
 		if (tmpres == ISC_R_NOTFOUND) {
 			tmpres = dns_c_tkeylist_new(currcfg->mem, &newlist);
 			if (tmpres != ISC_R_SUCCESS) {
@@ -5012,7 +5730,7 @@ trusted_keys_stmt: L_TRUSTED_KEYS
 								   newlist,
 								   ISC_FALSE);
 			}
-			
+
 			if (tmpres != ISC_R_SUCCESS) {
 				isc_log_write(dns_lctx, DNS_LOGCATEGORY_CONFIG,
 					      DNS_LOGMODULE_CONFIG,
@@ -5043,7 +5761,7 @@ trusted_key: any_string L_INTEGER L_INTEGER L_INTEGER L_QSTRING
 			tmpres = dns_c_view_gettrustedkeys(view, &list);
 			mem = view->mem;
 		}
-		
+
 		if (tmpres != ISC_R_SUCCESS) {
 			isc_log_write(dns_lctx, DNS_LOGCATEGORY_CONFIG,
 				      DNS_LOGMODULE_CONFIG,
@@ -5077,6 +5795,98 @@ trusted_key: any_string L_INTEGER L_INTEGER L_INTEGER L_QSTRING
 	}
 	;
 
+/*
+ * Lightweight resolver daemon
+ */
+
+
+lwres_stmt: L_LWRES
+	{
+		dns_c_lwres_t *lwres = NULL;
+		tmpres = dns_c_lwres_new(currcfg->mem, &lwres);
+		if (tmpres != ISC_R_SUCCESS) {
+			YYABORT;
+		}
+		if (currcfg->lwres == NULL) {
+			tmpres = dns_c_lwreslist_new(currcfg->mem,
+						     &currcfg->lwres);
+			if (tmpres != ISC_R_SUCCESS) {
+				YYABORT;
+			}
+		}
+		ISC_LIST_APPEND(currcfg->lwres->lwreslist, lwres, next);
+		
+	} L_LBRACE optional_lwres_options_list L_RBRACE
+	;
+
+optional_lwres_options_list: /* empty */
+	| lwres_options_list
+	;
+
+lwres_options_list: lwres_option L_EOS
+	| lwres_options_list lwres_option L_EOS;
+
+lwres_option: L_LISTEN_ON port_ip_list
+	{
+		dns_c_lwres_t *lwres;
+		lwres = ISC_LIST_TAIL(currcfg->lwres->lwreslist);
+		tmpres = dns_c_lwres_setlistenon(lwres, $2);
+		dns_c_iplist_detach(&$2);
+
+		if (tmpres == ISC_R_EXISTS) {
+			parser_error(ISC_FALSE, "cannot redefine listen-on");
+			YYABORT;
+		} else if (tmpres != ISC_R_SUCCESS) {
+			parser_error(ISC_FALSE, "failed to set listen-on");
+			YYABORT;
+		}
+	}
+	| L_VIEW any_string optional_class
+	{
+		dns_c_lwres_t *lwres;
+		lwres = ISC_LIST_TAIL(currcfg->lwres->lwreslist);
+		tmpres = dns_c_lwres_setview(lwres, $2, $3);
+		if (tmpres == ISC_R_EXISTS) {
+			parser_error(ISC_FALSE, "cannot redefine view");
+			YYABORT;
+		} else if (tmpres != ISC_R_SUCCESS) {
+			parser_error(ISC_FALSE, "failed to set view");
+			YYABORT;
+		}
+		isc_mem_free(memctx, $2);
+	}
+	| L_SEARCHLIST L_LBRACE searchlist L_RBRACE
+	{
+		dns_c_lwres_t *lwres;
+		lwres = ISC_LIST_TAIL(currcfg->lwres->lwreslist);
+		tmpres = dns_c_lwres_setsearchlist(lwres, $3);
+		if (tmpres == ISC_R_EXISTS) {
+			parser_error(ISC_FALSE, "cannot redefine searchlist");
+			dns_c_searchlist_delete(&$3);
+			YYABORT;
+		} else if (tmpres != ISC_R_SUCCESS) {
+			parser_error(ISC_FALSE, "failed to set searchlist");
+			dns_c_searchlist_delete(&$3);
+			YYABORT;
+		}
+	}
+	| L_NDOTS L_INTEGER
+	{
+		dns_c_lwres_t *lwres;
+		lwres = ISC_LIST_TAIL(currcfg->lwres->lwreslist);
+		tmpres = dns_c_lwres_setndots(lwres, $2);
+		if (tmpres == ISC_R_EXISTS) {
+			parser_error(ISC_FALSE, "cannot redefine ndots");
+			YYABORT;
+		} else if (tmpres != ISC_R_SUCCESS) {
+			parser_error(ISC_FALSE, "failed to set ndots");
+			YYABORT;
+		} else if ($2 <= 0) {
+			parser_error(ISC_FALSE, "ndots must be >= 1");
+			YYABORT;
+		}
+	}
+	;
 
 
 /*
@@ -5108,6 +5918,7 @@ maybe_eos: | L_EOS ;
 static int		intuit_token(const char *string);
 
 static isc_boolean_t	is_ip4addr(const char *string, struct in_addr *addr);
+static isc_boolean_t	is_ip4prefix(const char *string, struct in_addr *addr);
 static isc_boolean_t	is_ip6addr(const char *string, struct in6_addr *addr);
 static isc_result_t	keyword_init(void);
 static char *		token_to_text(int token, YYSTYPE lval);
@@ -5142,33 +5953,35 @@ static struct token keyword_tokens [] = {
 	{ "algorithm",			L_ALGID },
 	{ "allow",			L_ALLOW },
 	{ "allow-query",		L_ALLOW_QUERY },
-	{ "allow-transfer",		L_ALLOW_TRANSFER },
 	{ "allow-recursion",		L_ALLOW_RECURSION },
+	{ "allow-transfer",		L_ALLOW_TRANSFER },
 	{ "allow-update",		L_ALLOW_UPDATE },
 	{ "allow-update-forwarding",	L_ALLOW_UPDATE_FORWARDING },
 	{ "also-notify",		L_ALSO_NOTIFY },
 	{ "auth-nxdomain",		L_AUTH_NXDOMAIN },
 	{ "blackhole",			L_BLACKHOLE },
 	{ "bogus",			L_BOGUS },
-	{ "max-cache-size",		L_MAX_CACHE_SIZE },
 	{ "category",			L_CATEGORY },
-	{ "class",			L_CLASS },
 	{ "channel",			L_CHANNEL },
 	{ "check-names",		L_CHECK_NAMES },
+	{ "class",			L_CLASS },
 	{ "cleaning-interval",		L_CLEAN_INTERVAL },
 	{ "controls",			L_CONTROLS },
 	{ "coresize",			L_CORESIZE },
+	{ "zone-statistics",		L_ZONE_STATISTICS },
 	{ "database",			L_DATABASE },
 	{ "datasize",			L_DATASIZE },
 	{ "deallocate-on-exit",		L_DEALLOC_ON_EXIT },
 	{ "debug",			L_DEBUG },
 	{ "default",			L_DEFAULT },
+	{ "deny",			L_DENY },
 	{ "dialup",			L_DIALUP },
 	{ "directory",			L_DIRECTORY },
 	{ "dump-file",			L_DUMP_FILE },
 	{ "dynamic",			L_DYNAMIC },
 	{ "enable-zone",		L_ENABLE_ZONE },
 	{ "expert-mode",		L_EXPERT_MODE },
+	{ "explicit",			L_EXPLICIT },
 	{ "fail",			L_FAIL },
 	{ "fake-iquery",		L_FAKE_IQUERY },
 	{ "false",			L_FALSE },
@@ -5178,11 +5991,9 @@ static struct token keyword_tokens [] = {
 	{ "first",			L_FIRST },
 	{ "forward",			L_FORWARD },
 	{ "forwarders",			L_FORWARDERS },
+	{ "additional-from-auth",	L_ADDITIONAL_FROM_AUTH },
+	{ "additional-from-cache",	L_ADDITIONAL_FROM_CACHE },
 	{ "grant",			L_GRANT },
-	{ "deny",			L_DENY },
-	{ "subdomain",			L_SUBDOMAIN },
-	{ "self",			L_SELF },
-	{ "wildcard",			L_WILDCARD },
 	{ "group",			L_GROUP },
 	{ "has-old-clients",		L_HAS_OLD_CLIENTS },
 	{ "heartbeat-interval",		L_HEARTBEAT },
@@ -5203,33 +6014,44 @@ static struct token keyword_tokens [] = {
 	{ "listen-on",			L_LISTEN_ON },
 	{ "listen-on-v6",		L_LISTEN_ON_V6 },
 	{ "logging",			L_LOGGING },
+	{ "lwres",			L_LWRES },
 	{ "maintain-ixfr-base",		L_MAINTAIN_IXFR_BASE },
 	{ "many-answers",		L_MANY_ANSWERS },
 	{ "master",			L_MASTER },
 	{ "masters",			L_MASTERS },
 	{ "match-clients",		L_MATCH_CLIENTS },
-	{ "max-ixfr-log-size",		L_MAX_LOG_SIZE_IXFR },
+	{ "max-cache-size",		L_MAX_CACHE_SIZE },
 	{ "max-cache-ttl",		L_MAX_CACHE_TTL },
+	{ "max-ixfr-log-size",		L_MAX_LOG_SIZE_IXFR },
 	{ "max-ncache-ttl",		L_MAX_NCACHE_TTL },
-	{ "max-transfer-time-in",	L_MAX_TRANSFER_TIME_IN },
-	{ "max-transfer-time-out",	L_MAX_TRANSFER_TIME_OUT },
 	{ "max-transfer-idle-in",	L_MAX_TRANSFER_IDLE_IN },
 	{ "max-transfer-idle-out",	L_MAX_TRANSFER_IDLE_OUT },
+	{ "max-transfer-time-in",	L_MAX_TRANSFER_TIME_IN },
+	{ "max-transfer-time-out",	L_MAX_TRANSFER_TIME_OUT },
+	{ "min-retry-time",		L_MIN_RETRY_TIME },
+	{ "max-retry-time",		L_MAX_RETRY_TIME },
+	{ "min-refresh-time",		L_MIN_REFRESH_TIME },
+	{ "max-refresh-time",		L_MAX_REFRESH_TIME },
 	{ "maximal",			L_MAXIMAL },
 	{ "memstatistics-file",		L_MEMSTATS_FILE },
-	{ "multiple-cnames",		L_MULTIPLE_CNAMES },
 	{ "min-roots",			L_MIN_ROOTS },
 	{ "minimal",			L_MINIMAL },
+	{ "multiple-cnames",		L_MULTIPLE_CNAMES },
 	{ "name",			L_NAME },
 	{ "named-xfer",			L_NAMED_XFER },
+	{ "ndots",			L_NDOTS },
 	{ "no",				L_NO },
 	{ "notify",			L_NOTIFY },
+	{ "notify-source",		L_NOTIFY_SOURCE },
+	{ "notify-source-v6",		L_NOTIFY_SOURCE_V6 },
+	{ "notify-passive",		L_NOTIFY_PASSIVE },
 	{ "null",			L_NULL_OUTPUT },
 	{ "one-answer",			L_ONE_ANSWER },
 	{ "only",			L_ONLY },
-	{ "order",			L_ORDER },
 	{ "options",			L_OPTIONS },
+	{ "order",			L_ORDER },
 	{ "owner",			L_OWNER },
+	{ "passive",			L_PASSIVE },
 	{ "perm",			L_PERM },
 	{ "pid-file",			L_PIDFILE },
 	{ "port",			L_PORT },
@@ -5242,15 +6064,18 @@ static struct token keyword_tokens [] = {
 	{ "query-source-v6",		L_QUERY_SOURCE_V6 },
 	{ "random-device",		L_RANDOM_DEVICE },
 	{ "random-seed-file",		L_RANDOM_SEED_FILE },
-	{ "request-ixfr",		L_REQUEST_IXFR },
-	{ "rfc2308-type1",		L_RFC2308_TYPE1 },
-	{ "rrset-order",		L_RRSET_ORDER },
 	{ "recursion",			L_RECURSION },
 	{ "recursive-clients",		L_RECURSIVE_CLIENTS },
+	{ "refresh",			L_REFRESH },
+	{ "request-ixfr",		L_REQUEST_IXFR },
 	{ "response",			L_RESPONSE },
+	{ "rfc2308-type1",		L_RFC2308_TYPE1 },
+	{ "rrset-order",		L_RRSET_ORDER },
+	{ "search",			L_SEARCHLIST },
 	{ "secret",			L_SECRET },
-	{ "server",			L_SERVER },
+	{ "self",			L_SELF },
 	{ "serial-queries",		L_SERIAL_QUERIES },
+	{ "server",			L_SERVER },
 	{ "severity",			L_SEVERITY },
 	{ "sig-validity-interval",	L_SIG_VALIDITY_INTERVAL },
 	{ "size",			L_SIZE },
@@ -5261,11 +6086,13 @@ static struct token keyword_tokens [] = {
 	{ "statistics-interval",	L_STATS_INTERVAL },
 	{ "stderr",			L_STDERR },
 	{ "stub",			L_STUB },
+	{ "subdomain",			L_SUBDOMAIN },
 	{ "support-ixfr",		L_SUPPORT_IXFR },
 	{ "syslog",			L_SYSLOG },
 	{ "tcp-clients",		L_TCP_CLIENTS },
-	{ "tkey-domain",		L_TKEY_DOMAIN },
 	{ "tkey-dhkey",			L_TKEY_DHKEY },
+	{ "tkey-domain",		L_TKEY_DOMAIN },
+	{ "tkey-gssapi-credential",	L_TKEY_GSSAPI_CREDENTIAL },
 	{ "topology",			L_TOPOLOGY },
 	{ "transfer-format",		L_TRANSFER_FORMAT },
 	{ "transfer-source",		L_TRANSFER_SOURCE },
@@ -5287,6 +6114,7 @@ static struct token keyword_tokens [] = {
 	{ "versions",			L_VERSIONS },
 	{ "view",			L_VIEW },
 	{ "warn",			L_WARN },
+	{ "wildcard",			L_WILDCARD },
 	{ "yes",			L_YES },
 	{ "zone",			L_ZONE },
 
@@ -5365,7 +6193,7 @@ dns_c_parse_namedconf(const char *filename, isc_mem_t *mem,
 	if (res != ISC_R_SUCCESS) {
 		isc_log_write(dns_lctx, DNS_LOGCATEGORY_CONFIG,
 			      DNS_LOGMODULE_CONFIG, ISC_LOG_CRITICAL,
-			      "%s: Error creating mem context",
+			      "%s: error creating mem context",
 			      funcname);
 		goto done;
 	}
@@ -5374,7 +6202,7 @@ dns_c_parse_namedconf(const char *filename, isc_mem_t *mem,
 	if (res != ISC_R_SUCCESS) {
 		isc_log_write(dns_lctx, DNS_LOGCATEGORY_CONFIG,
 			      DNS_LOGMODULE_CONFIG, ISC_LOG_CRITICAL,
-			      "%s: Error initializing keywords",
+			      "%s: error initializing keywords",
 			      funcname);
 		goto done;
 	}
@@ -5383,7 +6211,7 @@ dns_c_parse_namedconf(const char *filename, isc_mem_t *mem,
 	if (res != ISC_R_SUCCESS) {
 		isc_log_write(dns_lctx, DNS_LOGCATEGORY_CONFIG,
 			      DNS_LOGMODULE_CONFIG, ISC_LOG_CRITICAL,
-			      "%s: Error creating config context",
+			      "%s: error creating config context",
 			      funcname);
 		goto done;
 	}
@@ -5392,7 +6220,7 @@ dns_c_parse_namedconf(const char *filename, isc_mem_t *mem,
 	if (res != ISC_R_SUCCESS) {
 		isc_log_write(dns_lctx, DNS_LOGCATEGORY_CONFIG,
 			      DNS_LOGMODULE_CONFIG, ISC_LOG_CRITICAL,
-			      "%s: Error creating lexer",
+			      "%s: error creating lexer",
 			      funcname);
 		goto done;
 	}
@@ -5443,7 +6271,8 @@ dns_c_parse_namedconf(const char *filename, isc_mem_t *mem,
 		if (res != ISC_R_SUCCESS) {
 			dns_c_ctx_delete(&currcfg);
 		}
-	}
+	} else if (currcfg != NULL)
+		dns_c_ctx_delete(&currcfg);
 
 	*configctx = currcfg;
 
@@ -5606,6 +6435,21 @@ token_to_text(int token, YYSTYPE lval) {
 			inet_ntop(AF_INET, &lval.ip4_addr.s_addr,
 				  buffer, sizeof buffer);
 			break;
+		case L_IP4PREFIX: {
+			int i;
+			strcpy(buffer, "UNAVAILABLE-IPV4-ADDRESS");
+			inet_ntop(AF_INET, &lval.ip4_addr.s_addr,
+				  buffer, sizeof buffer);
+			/*
+			 * Remove trailing zeros added in. We may remove too
+			 * many but we need to remove at least one.
+			 */
+			for (i = 0; i < 3; i++)
+				if (strcmp(&buffer[strlen(buffer) - 2],
+				   	   ".0") == 0)
+					buffer[strlen(buffer) - 2] = '\0';
+			break;
+		}
 		case L_INTEGER:
 			sprintf(buffer, "%lu", (unsigned long)lval.ul_int);
 			break;
@@ -5832,6 +6676,8 @@ intuit_token(const char *string)
 
 	if (is_ip4addr(string, &yylval.ip4_addr)) {
 		resval = L_IP4ADDR;
+	} else if (is_ip4prefix(string, &yylval.ip4_addr)) {
+		resval = L_IP4PREFIX;
 	} else if (is_ip6addr(string, &yylval.ip6_addr)) {
 		resval = L_IP6ADDR;
 	} else {
@@ -5917,8 +6763,6 @@ is_ip6addr(const char *string, struct in6_addr *addr)
 	return ISC_TRUE;
 }
 
-
-
 static isc_boolean_t
 is_ip4addr(const char *string, struct in_addr *addr)
 {
@@ -5926,12 +6770,57 @@ is_ip4addr(const char *string, struct in_addr *addr)
 	const char *p = string;
 	int dots = 0;
 	char dot = '.';
+	isc_boolean_t lastdot = ISC_TRUE;
 
 	while (*p) {
 		if (!isdigit(*p & 0xff) && *p != dot) {
 			return (ISC_FALSE);
+		} else if (lastdot && p[0] == '0' &&
+			   (p[1] != '.' && p[1] != '\0')) {
+			return (ISC_FALSE);
 		} else if (!isdigit(*p & 0xff)) {
 			dots++;
+			lastdot = ISC_TRUE;
+		} else {
+			lastdot = ISC_FALSE;
+		}
+		p++;
+	}
+
+	if (dots != 3)
+		return (ISC_FALSE);
+
+	if (strlen(string) < sizeof addrbuf)
+		strcpy (addrbuf, string);
+	else
+		return (ISC_FALSE);
+
+	if (inet_pton(AF_INET, addrbuf, addr) != 1) {
+		return ISC_FALSE;
+	}
+	return ISC_TRUE;
+}
+
+static isc_boolean_t
+is_ip4prefix(const char *string, struct in_addr *addr)
+{
+	char addrbuf[sizeof "xxx.xxx.xxx.xxx" + 1];
+	const char *p = string;
+	int dots = 0;
+	char dot = '.';
+	isc_boolean_t lastdot = ISC_TRUE;
+
+	while (*p) {
+		if (!isdigit(*p & 0xff) && *p != dot) {
+			return (ISC_FALSE);
+		} else if (lastdot && p[0] == '0' &&
+			   (p[1] != '.' && p[1] != '\0')) {
+			return (ISC_FALSE);
+		} else if (!isdigit(*p & 0xff)) {
+			dots++;
+			lastdot = ISC_TRUE;
+		} else {
+			lastdot = ISC_FALSE;
 		}
 		p++;
 	}
@@ -6022,7 +6911,3 @@ keydefinedinscope(dns_c_ctx_t *cfg, const char *name)
 
 	return (rval);
 }
-
-
-
-

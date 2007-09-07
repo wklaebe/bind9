@@ -1,21 +1,21 @@
 /*
  * Copyright (C) 1999, 2000  Internet Software Consortium.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
- * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
- * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
- * SOFTWARE.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+ * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+ * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: nxt_30.c,v 1.36 2000/06/01 18:26:25 tale Exp $ */
+/* $Id: nxt_30.c,v 1.44 2000/12/01 01:40:35 gson Exp $ */
 
 /* reviewed: Wed Mar 15 18:21:15 PST 2000 by brister */
 
@@ -45,11 +45,12 @@ fromtext_nxt(ARGS_FROMTEXT) {
 	REQUIRE(type == 30);
 
 	UNUSED(rdclass);
-	
+
 	/*
 	 * Next domain.
 	 */
-	RETERR(gettoken(lexer, &token, isc_tokentype_string, ISC_FALSE));
+	RETERR(isc_lex_getmastertoken(lexer, &token, isc_tokentype_string,
+				      ISC_FALSE));
 	dns_name_init(&name, NULL);
 	buffer_fromregion(&buffer, &token.value.as_region);
 	origin = (origin != NULL) ? origin : dns_rootname;
@@ -57,14 +58,14 @@ fromtext_nxt(ARGS_FROMTEXT) {
 
 	memset(bm, 0, sizeof bm);
 	do {
-		RETERR(gettoken(lexer, &token, isc_tokentype_string,
-				  ISC_TRUE));
+		RETERR(isc_lex_getmastertoken(lexer, &token,
+					      isc_tokentype_string, ISC_TRUE));
 		if (token.type != isc_tokentype_string)
 			break;
 		n = strtol(token.value.as_pointer, &e, 10);
 		if (e != (char *)token.value.as_pointer && *e == '\0') {
 			covered = (dns_rdatatype_t)n;
-		} else if (dns_rdatatype_fromtext(&covered, 
+		} else if (dns_rdatatype_fromtext(&covered,
 				&token.value.as_textregion) == DNS_R_UNKNOWN)
 			return (DNS_R_UNKNOWN);
 		/*
@@ -78,7 +79,7 @@ fromtext_nxt(ARGS_FROMTEXT) {
 		bm[covered/8] |= (0x80>>(covered%8));
 	} while (1);
 	isc_lex_ungettoken(lexer, &token);
-	if (first) 
+	if (first)
 		return (ISC_R_SUCCESS);
 	n = (maxcovered + 8) / 8;
 	return (mem_tobuffer(target, bm, n));
@@ -93,6 +94,7 @@ totext_nxt(ARGS_TOTEXT) {
 	isc_boolean_t sub;
 
 	REQUIRE(rdata->type == 30);
+	REQUIRE(rdata->length != 0);
 
 	dns_name_init(&name, NULL);
 	dns_name_init(&prefix, NULL);
@@ -102,13 +104,12 @@ totext_nxt(ARGS_TOTEXT) {
 	sub = name_prefix(&name, tctx->origin, &prefix);
 	RETERR(dns_name_totext(&prefix, sub, target));
 
-	RETERR(str_totext(" ( ", target));
-
 	for (i = 0 ; i < sr.length ; i++) {
 		if (sr.base[i] != 0)
 			for (j = 0; j < 8; j++)
 				if ((sr.base[i] & (0x80 >> j)) != 0) {
 					dns_rdatatype_t t = i * 8 + j;
+					RETERR(str_totext(" ", target));
 					if (dns_rdatatype_isknown(t)) {
 						RETERR(dns_rdatatype_totext(t,
 								      target));
@@ -118,10 +119,9 @@ totext_nxt(ARGS_TOTEXT) {
 						RETERR(str_totext(buf,
 								  target));
 					}
-					RETERR(str_totext(" ", target));
 				}
 	}
-	return (str_totext(")", target));
+	return (ISC_R_SUCCESS);
 }
 
 static inline isc_result_t
@@ -137,7 +137,7 @@ fromwire_nxt(ARGS_FROMWIRE) {
 
 	dns_name_init(&name, NULL);
 	RETERR(dns_name_fromwire(&name, source, dctx, downcase, target));
-	
+
 	isc_buffer_activeregion(source, &sr);
 	/* XXXRTH  Enforce RFC 2535 length rules if bit 0 is not set. */
 	if (sr.length > 8 * 1024)
@@ -153,6 +153,7 @@ towire_nxt(ARGS_TOWIRE) {
 	dns_name_t name;
 
 	REQUIRE(rdata->type == 30);
+	REQUIRE(rdata->length != 0);
 
 	dns_compress_setmethods(cctx, DNS_COMPRESS_NONE);
 	dns_name_init(&name, NULL);
@@ -175,6 +176,8 @@ compare_nxt(ARGS_COMPARE) {
 	REQUIRE(rdata1->type == rdata2->type);
 	REQUIRE(rdata1->rdclass == rdata2->rdclass);
 	REQUIRE(rdata1->type == 30);
+	REQUIRE(rdata1->length != 0);
+	REQUIRE(rdata2->length != 0);
 
 	dns_name_init(&name1, NULL);
 	dns_name_init(&name2, NULL);
@@ -192,40 +195,55 @@ compare_nxt(ARGS_COMPARE) {
 static inline isc_result_t
 fromstruct_nxt(ARGS_FROMSTRUCT) {
 	dns_rdata_nxt_t *nxt = source;
+	isc_region_t region;
 
 	REQUIRE(type == 30);
 	REQUIRE(source != NULL);
 	REQUIRE(nxt->common.rdtype == type);
 	REQUIRE(nxt->common.rdclass == rdclass);
-	REQUIRE((nxt->nxt != NULL && nxt->len != 0) ||
-		(nxt->nxt == NULL && nxt->len == 0));
+	REQUIRE(nxt->typebits != NULL || nxt->len == 0);
 
-	return (mem_tobuffer(target, nxt->nxt, nxt->len));
+	UNUSED(rdclass);
+
+	dns_name_toregion(&nxt->next, &region);
+	RETERR(isc_buffer_copyregion(target, &region));
+
+	return (mem_tobuffer(target, nxt->typebits, nxt->len));
 }
 
 static inline isc_result_t
 tostruct_nxt(ARGS_TOSTRUCT) {
+	isc_region_t region;
 	dns_rdata_nxt_t *nxt = target;
-	isc_region_t r;
+	dns_name_t name;
 
 	REQUIRE(rdata->type == 30);
 	REQUIRE(target != NULL);
+	REQUIRE(rdata->length != 0);
 
 	nxt->common.rdclass = rdata->rdclass;
 	nxt->common.rdtype = rdata->type;
 	ISC_LINK_INIT(&nxt->common, link);
 
-	dns_rdata_toregion(rdata, &r);
-	nxt->len = r.length;
-	if (nxt->len != 0) {
-		nxt->nxt = mem_maybedup(mctx, r.base, r.length);
-		if (nxt->nxt == NULL)
-			return (ISC_R_NOMEMORY);
-	} else
-		nxt->nxt = NULL;
+	dns_name_init(&name, NULL);
+	dns_rdata_toregion(rdata, &region);
+	dns_name_fromregion(&name, &region);
+	isc_region_consume(&region, name_length(&name));
+	dns_name_init(&nxt->next, NULL);
+	RETERR(name_duporclone(&name, mctx, &nxt->next));
+
+	nxt->len = region.length;
+	nxt->typebits = mem_maybedup(mctx, region.base, region.length);
+	if (nxt->typebits == NULL)
+		goto cleanup;
 
 	nxt->mctx = mctx;
 	return (ISC_R_SUCCESS);
+
+ cleanup:
+	if (mctx != NULL)
+		dns_name_free(&nxt->next, mctx);
+	return (ISC_R_NOMEMORY);
 }
 
 static inline void
@@ -238,8 +256,9 @@ freestruct_nxt(ARGS_FREESTRUCT) {
 	if (nxt->mctx == NULL)
 		return;
 
-	if (nxt->nxt != NULL)
-		isc_mem_free(nxt->mctx, nxt->nxt);
+	dns_name_free(&nxt->next, nxt->mctx);
+	if (nxt->typebits != NULL)
+		isc_mem_free(nxt->mctx, nxt->typebits);
 	nxt->mctx = NULL;
 }
 

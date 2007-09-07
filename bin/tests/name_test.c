@@ -1,21 +1,21 @@
 /*
  * Copyright (C) 1998-2000  Internet Software Consortium.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
- * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
- * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
- * SOFTWARE.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+ * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+ * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: name_test.c,v 1.29 2000/06/22 21:50:33 tale Exp $ */
+/* $Id: name_test.c,v 1.32 2000/11/22 00:14:55 halley Exp $ */
 
 #include <config.h>
 
@@ -31,7 +31,7 @@
 static void
 print_wirename(isc_region_t *name) {
 	unsigned char *ccurr, *cend;
-		
+
 	if (name->length == 0) {
 		printf("<empty wire name>\n");
 		return;
@@ -143,11 +143,11 @@ main(int argc, char *argv[]) {
 		origin = dns_rootname;
 
 	if (argc >= 1) {
-		if (strcasecmp("none", argv[0]) == 0)
+		if (strcasecmp("none", argv[1]) == 0)
 			comp = NULL;
 		else {
-			len = strlen(argv[0]);
-			isc_buffer_init(&source, argv[0], len);
+			len = strlen(argv[1]);
+			isc_buffer_init(&source, argv[1], len);
 			isc_buffer_add(&source, len);
 			dns_fixedname_init(&compname);
 			comp = &compname.name;
@@ -194,7 +194,7 @@ main(int argc, char *argv[]) {
 				dns_fixedname_init(&wname2);
 			continue;
 		}
-			
+
 		if (check_absolute && dns_name_countlabels(name) > 0) {
 			if (dns_name_isabsolute(name))
 				printf("absolute\n");
@@ -354,6 +354,6 @@ main(int argc, char *argv[]) {
 				name = &wname.name;
 		}
 	}
-	
+
 	return (0);
 }

@@ -1,26 +1,27 @@
 /*
  * Copyright (C) 1999, 2000  Internet Software Consortium.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
- * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
- * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
- * SOFTWARE.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+ * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+ * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: tsig.h,v 1.24.2.4 2000/07/28 23:39:23 gson Exp $ */
+/* $Id: tsig.h,v 1.36 2000/10/12 00:40:52 bwelling Exp $ */
 
 #ifndef DNS_TSIG_H
 #define DNS_TSIG_H 1
 
 #include <isc/lang.h>
+#include <isc/mutex.h>
 #include <isc/rwlock.h>
 #include <isc/stdtime.h>
 
@@ -30,11 +31,14 @@
 #include <dst/dst.h>
 
 /*
- * Standard algorithm.
+ * Algorithms.
  */
-#define DNS_TSIG_HMACMD5		"HMAC-MD5.SIG-ALG.REG.INT."
 extern dns_name_t *dns_tsig_hmacmd5_name;
 #define DNS_TSIG_HMACMD5_NAME		dns_tsig_hmacmd5_name
+extern dns_name_t *dns_tsig_gssapi_name;
+#define DNS_TSIG_GSSAPI_NAME		dns_tsig_gssapi_name
+extern dns_name_t *dns_tsig_gssapims_name;
+#define DNS_TSIG_GSSAPIMS_NAME		dns_tsig_gssapims_name
 
 /*
  * Default fudge value.
@@ -45,7 +49,7 @@ struct dns_tsig_keyring {
 	dns_rbt_t *keys;
 	isc_rwlock_t lock;
 	isc_mem_t *mctx;
-}; 
+};
 
 struct dns_tsigkey {
 	/* Unlocked */
@@ -53,7 +57,7 @@ struct dns_tsigkey {
 	isc_mem_t		*mctx;
 	dst_key_t		*key;		/* Key */
 	dns_name_t		name;		/* Key name */
-	dns_name_t		algorithm;	/* Algorithm name */
+	dns_name_t		*algorithm;	/* Algorithm name */
 	dns_name_t		*creator;	/* name that created secret */
 	isc_boolean_t		generated;	/* was this generated? */
 	isc_stdtime_t		inception;	/* start of validity period */
@@ -65,7 +69,6 @@ struct dns_tsigkey {
 	/* Unlocked */
 };
 
-#define dns_tsigkey_empty(tsigkey) ((tsigkey)->key == NULL)
 #define dns_tsigkey_identity(tsigkey) \
 	((tsigkey)->generated ? ((tsigkey)->creator) : (&((tsigkey)->name)))
 
@@ -77,13 +80,20 @@ dns_tsigkey_create(dns_name_t *name, dns_name_t *algorithm,
 		   dns_name_t *creator, isc_stdtime_t inception,
 		   isc_stdtime_t expire, isc_mem_t *mctx,
 		   dns_tsig_keyring_t *ring, dns_tsigkey_t **key);
+
+isc_result_t
+dns_tsigkey_createfromkey(dns_name_t *name, dns_name_t *algorithm,
+			  dst_key_t *dstkey, isc_boolean_t generated,
+			  dns_name_t *creator, isc_stdtime_t inception,
+			  isc_stdtime_t expire, isc_mem_t *mctx,
+			  dns_tsig_keyring_t *ring, dns_tsigkey_t **key);
 /*
  *	Creates a tsig key structure and saves it in the keyring.  If key is
  *	not NULL, *key will contain a copy of the key.  The keys validity
  *	period is specified by (inception, expire), and will not expire if
  *	inception == expire.  If the key was generated, the creating identity,
  *	if there is one, should be in the creator parameter.  Specifying an
- *	unimplemented algorithm will cause failure only if length > 0; this
+ *	unimplemented algorithm will cause failure only if dstkey != NULL; this
  *	allows a transient key with an invalid algorithm to exist long enough
  *	to generate a BADKEY response.
  *
@@ -92,6 +102,7 @@ dns_tsigkey_create(dns_name_t *name, dns_name_t *algorithm,
  *		'algorithm' is a valid dns_name_t
  *		'secret' is a valid pointer
  *		'length' is an integer >= 0
+ *		'key' is a valid dst key or NULL
  *		'creator' points to a valid dns_name_t or is NULL
  *		'mctx' is a valid memory context
  *		'ring' is a valid TSIG keyring or NULL
@@ -132,7 +143,7 @@ void
 dns_tsigkey_setdeleted(dns_tsigkey_t *key);
 /*
  *	Prevents this key from being used again.  It will be deleted when
- *	no references *	exist.
+ *	no references exist.
  *
  *	Requires:
  *		'key' is a valid TSIG key on a keyring

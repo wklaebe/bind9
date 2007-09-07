@@ -1,21 +1,21 @@
 /*
  * Copyright (C) 1999, 2000  Internet Software Consortium.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
- * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
- * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
- * SOFTWARE.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+ * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+ * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: x25_19.c,v 1.21 2000/06/01 18:26:37 tale Exp $ */
+/* $Id: x25_19.c,v 1.26 2000/12/01 01:40:46 gson Exp $ */
 
 /* Reviewed: Thu Mar 16 16:15:57 PST 2000 by bwelling */
 
@@ -37,7 +37,8 @@ fromtext_x25(ARGS_FROMTEXT) {
 
 	REQUIRE(type == 19);
 
-	RETERR(gettoken(lexer, &token, isc_tokentype_qstring, ISC_FALSE));
+	RETERR(isc_lex_getmastertoken(lexer, &token, isc_tokentype_qstring,
+				      ISC_FALSE));
 	if (token.value.as_textregion.length < 4)
 		return (DNS_R_SYNTAX);
 	for (i = 0; i < token.value.as_textregion.length; i++)
@@ -53,6 +54,7 @@ totext_x25(ARGS_TOTEXT) {
 	UNUSED(tctx);
 
 	REQUIRE(rdata->type == 19);
+	REQUIRE(rdata->length != 0);
 
 	dns_rdata_toregion(rdata, &region);
 	return (txt_totext(&region, target));
@@ -79,6 +81,7 @@ towire_x25(ARGS_TOWIRE) {
 	UNUSED(cctx);
 
 	REQUIRE(rdata->type == 19);
+	REQUIRE(rdata->length != 0);
 
 	return (mem_tobuffer(target, rdata->data, rdata->length));
 }
@@ -87,10 +90,12 @@ static inline int
 compare_x25(ARGS_COMPARE) {
 	isc_region_t r1;
 	isc_region_t r2;
-	
+
 	REQUIRE(rdata1->type == rdata2->type);
 	REQUIRE(rdata1->rdclass == rdata2->rdclass);
 	REQUIRE(rdata1->type == 19);
+	REQUIRE(rdata1->length != 0);
+	REQUIRE(rdata2->length != 0);
 
 	dns_rdata_toregion(rdata1, &r1);
 	dns_rdata_toregion(rdata2, &r2);
@@ -109,6 +114,8 @@ fromstruct_x25(ARGS_FROMSTRUCT) {
 	REQUIRE((x25->x25 == NULL && x25->x25_len == 0) ||
 		(x25->x25 != NULL && x25->x25_len != 0));
 
+	UNUSED(rdclass);
+
 	for (i = 0; i < x25->x25_len; i++)
 		if (!isdigit(x25->x25[i] & 0xff))
 			return (ISC_R_RANGE);
@@ -124,6 +131,7 @@ tostruct_x25(ARGS_TOSTRUCT) {
 
 	REQUIRE(rdata->type == 19);
 	REQUIRE(target != NULL);
+	REQUIRE(rdata->length != 0);
 
 	x25->common.rdclass = rdata->rdclass;
 	x25->common.rdtype = rdata->type;

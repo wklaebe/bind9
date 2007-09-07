@@ -1,21 +1,21 @@
 /*
  * Copyright (C) 2000  Internet Software Consortium.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
- * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
- * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
- * SOFTWARE.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+ * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+ * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: auth.c,v 1.8.2.2 2000/07/12 00:02:12 gson Exp $ */
+/* $Id: auth.c,v 1.14 2000/09/12 09:59:28 bwelling Exp $ */
 
 /* Principal Author: DCL */
 
@@ -147,8 +147,8 @@ auth_makekey(const char *name, unsigned int algorithm, dst_key_t **key) {
 					   ISC_FALSE, &dstb);
 		if (result == ISC_R_SUCCESS)
 			result = dst_key_frombuffer(&dnsname, dst_algorithm,
-						    0, 0, &secret,
-						    omapi_mctx, key);
+						    0, 0, dns_rdataclass_in,
+						    &secret, omapi_mctx, key);
 	}
 
 	UNLOCK(&mutex);
@@ -197,7 +197,7 @@ omapi_auth_register(const char *name, unsigned int algorithms,
 		new->name = isc_mem_strdup(omapi_mctx, name);
 		if (new->name == NULL)
 			result = ISC_R_NOMEMORY;
-	
+
 		new->secret = isc_mem_allocate(omapi_mctx, secretlen);
 		if (new->secret == NULL)
 			result = ISC_R_NOMEMORY;
@@ -357,5 +357,5 @@ void
 auth_destroy(void) {
 	omapi_auth_deregister(NULL);
 
-	RUNTIME_CHECK(isc_mutex_destroy(&mutex) == ISC_R_SUCCESS);
+	DESTROYLOCK(&mutex);
 }

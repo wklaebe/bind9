@@ -1,21 +1,21 @@
 /*
  * Copyright (C) 1999, 2000  Internet Software Consortium.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
- * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
- * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
- * SOFTWARE.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+ * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+ * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: t_db.c,v 1.22 2000/06/22 21:51:03 tale Exp $ */
+/* $Id: t_db.c,v 1.25 2000/08/01 01:13:35 tale Exp $ */
 
 #include <config.h>
 
@@ -156,6 +156,10 @@ t_dns_db_load(char **av) {
 		isc_mem_destroy(&mctx);
 		return(T_FAIL);
 	}
+	if (dns_result != ISC_R_SUCCESS) {
+		result = T_PASS;
+		goto cleanup_db;
+	}
 
 	dns_fixedname_init(&dns_findname);
 	len = strlen(findname);
@@ -217,6 +221,7 @@ t_dns_db_load(char **av) {
 
 	if (dns_db_iszone(db))
 		dns_db_closeversion(db, &versionp, ISC_FALSE);
+ cleanup_db:
 	dns_db_detach(&db);
 	isc_mem_destroy(&mctx);
 	return(result);
@@ -231,7 +236,7 @@ t1(void) {
 	int	result;
 
 	t_assert("dns_db_load", 1, T_REQUIRED, a1);
-	result = t_eval("dns_db_load_data", t_dns_db_load, 9); 
+	result = t_eval("dns_db_load_data", t_dns_db_load, 9);
 	t_result(result);
 }
 
@@ -1449,7 +1454,7 @@ t_dns_db_closeversion_1(char **av) {
 		t_info("dns_rdata_compare returned %d\n", rval);
 		++nfails;
 	}
-	
+
 	/*
 	 * Now check the rdata deletion.
 	 */
@@ -1803,7 +1808,7 @@ t_dns_db_closeversion_2(char **av) {
 		t_info("dns_rdata_compare returned %d\n", rval);
 		++nfails;
 	}
-	
+
 	/*
 	 * Now check the rdata deletion.
 	 */
@@ -1871,7 +1876,7 @@ t_dns_db_closeversion_2(char **av) {
 		isc_mem_destroy(&mctx);
 		return(T_FAIL);
 	}
-	
+
 	/*
 	 * Now check the rdata deletion.
 	 */
@@ -2078,7 +2083,7 @@ t_dns_db_expirenode(char **av) {
 		 */
 		dns_db_detachnode(db, &nodep);
 	}
-	
+
 
 	dns_db_detach(&db);
 	isc_mem_destroy(&mctx);
@@ -2208,7 +2213,7 @@ t_dns_db_findnode_1(char **av) {
 		cversionp = NULL;
 		dns_db_currentversion(db, &cversionp);
 		dns_rdataset_init(&rdataset);
-	
+
 		dns_result = dns_db_findrdataset(db, nodep, cversionp,
 						 rdatatype, 0,
 						 0, &rdataset, NULL);
@@ -2225,7 +2230,7 @@ t_dns_db_findnode_1(char **av) {
 	} else {
 		result = T_PASS;
 	}
-		
+
 	dns_db_detach(&db);
 	isc_mem_destroy(&mctx);
 
@@ -2704,6 +2709,19 @@ t24(void) {
 	t_result(result);
 }
 
+static const char *a25 =
+	"A call to dns_db_load(db, filename) returns DNS_R_NOTZONETOP "
+	"when the zone data contains a SOA not at the zone apex.";
+
+static void
+t25(void) {
+	int	result;
+
+	t_assert("dns_db_load", 25, T_REQUIRED, a25);
+	result = t_eval("dns_db_load_soa_not_top", t_dns_db_load, 9);
+	t_result(result);
+}
+
 testspec_t	T_testlist[] = {
 	{	t1,		"dns_db_load"		},
 	{	t2,		"dns_db_iscache"	},
@@ -2729,5 +2747,6 @@ testspec_t	T_testlist[] = {
 	{	t22,		"dns_db_find"		},
 	{	t23,		"dns_db_find"		},
 	{	t24,		"dns_db_find"		},
+	{	t25,		"dns_db_load"		},
 	{	NULL,		NULL			}
 };

@@ -1,21 +1,21 @@
 /*
  * Copyright (C) 1999, 2000  Internet Software Consortium.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
- * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
- * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
- * SOFTWARE.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+ * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+ * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: view.h,v 1.43 2000/06/22 21:56:23 tale Exp $ */
+/* $Id: view.h,v 1.56 2000/11/10 03:16:26 gson Exp $ */
 
 #ifndef DNS_VIEW_H
 #define DNS_VIEW_H 1
@@ -31,9 +31,6 @@
  * forwarding policy.  A "DNS namespace" is a (possibly empty) set of
  * authoritative zones together with an optional cache and optional
  * "hints" information.
- *
- * XXXRTH  Not all of this items can be set currently, but future revisions
- * of this code will support them.
  *
  * Views start out "unfrozen".  In this state, core attributes like
  * the cache, set of zones, and forwarding policy may be set.  While
@@ -59,11 +56,13 @@
  *	No anticipated impact.
  *
  * Standards:
- * None.  */
+ *	None.
+ */
 
 #include <isc/lang.h>
 #include <isc/magic.h>
 #include <isc/event.h>
+#include <isc/mutex.h>
 #include <isc/net.h>
 #include <isc/rwlock.h>
 #include <isc/stdtime.h>
@@ -81,6 +80,7 @@ struct dns_view {
 	dns_zt_t *			zonetable;
 	dns_resolver_t *		resolver;
 	dns_adb_t *			adb;
+	dns_loadmgr_t *			loadmgr;
 	dns_requestmgr_t *		requestmgr;
 	dns_cache_t *			cache;
 	dns_db_t *			cachedb;
@@ -98,11 +98,15 @@ struct dns_view {
 	dns_tsig_keyring_t *		statickeys;
 	dns_tsig_keyring_t *		dynamickeys;
 	dns_peerlist_t *		peers;
+	dns_fwdtable_t *		fwdtable;
 	isc_boolean_t			recursion;
 	isc_boolean_t			auth_nxdomain;
+	isc_boolean_t			additionalfromcache;
+	isc_boolean_t			additionalfromauth;
 	dns_transfer_format_t		transfer_format;
 	dns_acl_t *			queryacl;
 	dns_acl_t *			recursionacl;
+	dns_acl_t *			sortlist;
 	isc_boolean_t			requestixfr;
 	isc_boolean_t			provideixfr;
 	dns_ttl_t			maxcachettl;
@@ -114,7 +118,7 @@ struct dns_view {
 	 * locked by server configuration lock.
 	 */
 	dns_acl_t *			matchclients;
-	
+
 	/* Locked by lock. */
 	unsigned int			references;
 	unsigned int			weakrefs;
@@ -181,6 +185,21 @@ void
 dns_view_detach(dns_view_t **viewp);
 /*
  * Detach '*viewp' from its view.
+ *
+ * Requires:
+ *
+ *	'viewp' points to a valid dns_view_t *
+ *
+ * Ensures:
+ *
+ *	*viewp is NULL.
+ */
+
+void
+dns_view_flushanddetach(dns_view_t **viewp);
+/*
+ * Detach '*viewp' from its view.  If this was the last reference
+ * uncommited changed in zones will be flushed to disk.
  *
  * Requires:
  *
@@ -388,7 +407,7 @@ dns_view_find(dns_view_t *view, dns_name_t *name, dns_rdatatype_t type,
  *	'type' is a valid dns_rdatatype_t, and is not a meta query type
  *	(e.g. dns_rdatatype_any), or dns_rdatatype_sig.
  *
- *	'foundname' is 
+ *	'foundname' is
  *
  *	'rdataset' is a valid, disassociated rdataset.
  *
@@ -485,6 +504,9 @@ dns_view_findzonecut(dns_view_t *view, dns_name_t *name, dns_name_t *fname,
  *	If 'sigrdataset' is not NULL, and there is a SIG rdataset which
  *	covers 'type', then 'sigrdataset' will be bound to it.
  *
+ *	If the DNS_DBFIND_NOEXACT option is set, then the zonecut returned
+ *	(if any) will be the deepest known ancestor of 'name'.
+ *
  * Requires:
  *
  *	'view' is a valid, frozen view.
@@ -506,13 +528,34 @@ isc_result_t
 dns_viewlist_find(dns_viewlist_t *list, const char *name,
 		  dns_rdataclass_t rdclass, dns_view_t **viewp);
 /*
- * XXX
+ * Search for a view with name 'name' and class 'rdclass' in 'list'.
+ * If found, '*viewp' is (strongly) attached to it.
+ *
+ * Requires:
+ *
+ *	'viewp' points to a NULL dns_view_t *.
+ *
+ * Returns:
+ *
+ *	ISC_R_SUCCESS		A matching view was found.
+ *	ISC_R_NOTFOUND		No matching view was found.
  */
 
 isc_result_t
-dns_view_findzone(dns_view_t *view, dns_name_t *name, dns_zone_t **zone);
+dns_view_findzone(dns_view_t *view, dns_name_t *name, dns_zone_t **zonep);
 /*
- * XXX
+ * Search for the zone 'name' in the zone table of 'view'.
+ * If found, 'zonep' is (strongly) attached to it.  There
+ * are no partial matches.
+ *
+ * Requires:
+ *
+ *	'zonep' points to a NULL dns_zone_t *.
+ *
+ * Returns:
+ *	ISC_R_SUCCESS		A matching zone was found.
+ *	ISC_R_NOTFOUND		No matching zone was found.
+ *	others			An error occurred.
  */
 
 isc_result_t
@@ -520,11 +563,43 @@ dns_view_load(dns_view_t *view, isc_boolean_t stop);
 /*
  * Load all zones attached to this view.  If 'stop' is ISC_TRUE,
  * stop on the first error and return it.  If 'stop'
- * is ISC_FALSE, ignore errors. 
+ * is ISC_FALSE, ignore errors.
  *
  * Requires:
  *
- *	'view' is a valid.
+ *	'view' is valid.
+ */
+
+isc_result_t
+dns_view_gettsig(dns_view_t *view, dns_name_t *keyname,
+		 dns_tsigkey_t **keyp);
+/*
+ * Find the TSIG key configured in 'view' with name 'keyname',
+ * if any.
+ *
+ * Reqires:
+ *	keyp points to a NULL dns_tsigkey_t *.
+ *
+ * Returns:
+ *	ISC_R_SUCCESS	A key was found and '*keyp' now points to it.
+ *	ISC_R_NOTFOUND	No key was found.
+ *	others		An error occurred.
+ */
+
+isc_result_t
+dns_view_getpeertsig(dns_view_t *view, isc_netaddr_t *peeraddr,
+		     dns_tsigkey_t **keyp);
+/*
+ * Find the TSIG key configured in 'view' for the server whose
+ * address is 'peeraddr', if any.
+ *
+ * Reqires:
+ *	keyp points to a NULL dns_tsigkey_t *.
+ *
+ * Returns:
+ *	ISC_R_SUCCESS	A key was found and '*keyp' now points to it.
+ *	ISC_R_NOTFOUND	No key was found.
+ *	others		An error occurred.
  */
 
 isc_result_t
@@ -540,6 +615,15 @@ dns_view_checksig(dns_view_t *view, isc_buffer_t *source, dns_message_t *msg);
  *
  * Returns:
  *	see dns_tsig_verify()
+ */
+
+void
+dns_view_setloadmgr(dns_view_t *view, dns_loadmgr_t *loadmgr);
+
+void
+dns_view_dialup(dns_view_t *view);
+/*
+ * Perform dialup-time maintenance on the zones of 'view'.
  */
 
 ISC_LANG_ENDDECLS

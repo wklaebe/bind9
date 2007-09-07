@@ -1,21 +1,21 @@
 /*
  * Copyright (C) 2000  Internet Software Consortium.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
- * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
- * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
- * SOFTWARE.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+ * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+ * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dnssectool.c,v 1.12.2.1 2000/08/07 16:41:38 gson Exp $ */
+/* $Id: dnssectool.c,v 1.24 2000/11/27 22:19:37 gson Exp $ */
 
 #include <config.h>
 
@@ -27,12 +27,15 @@
 #include <isc/string.h>
 #include <isc/time.h>
 #include <isc/util.h>
+#include <isc/print.h>
 
 #include <dns/log.h>
 #include <dns/name.h>
+#include <dns/rdatastruct.h>
 #include <dns/rdatatype.h>
 #include <dns/result.h>
 #include <dns/secalg.h>
+#include <dns/time.h>
 
 #include "dnssectool.h"
 
@@ -75,57 +78,58 @@ vbprintf(int level, const char *fmt, ...) {
 	va_end(ap);
 }
 
-char *
-nametostr(dns_name_t *name) {
+void
+type_format(const dns_rdatatype_t type, char *cp, unsigned int size) {
 	isc_buffer_t b;
 	isc_region_t r;
 	isc_result_t result;
-	static char data[1025];
 
-	isc_buffer_init(&b, data, sizeof(data));
-	result = dns_name_totext(name, ISC_FALSE, &b);
-	check_result(result, "dns_name_totext()");
-	isc_buffer_usedregion(&b, &r);
-	r.base[r.length] = 0;
-	return (char *) r.base;
-}
-
-char *
-typetostr(const dns_rdatatype_t type) {
-	isc_buffer_t b;
-	isc_region_t r;
-	isc_result_t result;
-	static char data[20];
-
-	isc_buffer_init(&b, data, sizeof(data));
+	isc_buffer_init(&b, cp, size - 1);
 	result = dns_rdatatype_totext(type, &b);
 	check_result(result, "dns_rdatatype_totext()");
 	isc_buffer_usedregion(&b, &r);
 	r.base[r.length] = 0;
-	return (char *) r.base;
 }
 
-char *
-algtostr(const dns_secalg_t alg) {
+void
+alg_format(const dns_secalg_t alg, char *cp, unsigned int size) {
 	isc_buffer_t b;
 	isc_region_t r;
 	isc_result_t result;
-	static char data[10];
 
-	isc_buffer_init(&b, data, sizeof(data));
+	isc_buffer_init(&b, cp, size - 1);
 	result = dns_secalg_totext(alg, &b);
 	check_result(result, "dns_secalg_totext()");
 	isc_buffer_usedregion(&b, &r);
 	r.base[r.length] = 0;
-	return ((char *)r.base);
+}
+
+void
+sig_format(dns_rdata_sig_t *sig, char *cp, unsigned int size) {
+	char namestr[DNS_NAME_FORMATSIZE];
+	char algstr[DNS_NAME_FORMATSIZE];
+
+	dns_name_format(&sig->signer, namestr, sizeof namestr);
+	alg_format(sig->algorithm, algstr, sizeof algstr);
+	snprintf(cp, size, "%s/%s/%d", namestr, algstr, sig->keyid);
+}
+
+void
+key_format(const dst_key_t *key, char *cp, unsigned int size) {
+	char namestr[DNS_NAME_FORMATSIZE];
+	char algstr[DNS_NAME_FORMATSIZE];
+
+	dns_name_format(dst_key_name(key), namestr, sizeof namestr);
+	alg_format(dst_key_alg(key), algstr, sizeof algstr);
+	snprintf(cp, size, "%s/%s/%d", namestr, algstr, dst_key_id(key));
 }
 
 void
 setup_logging(int verbose, isc_mem_t *mctx, isc_log_t **logp) {
 	isc_result_t result;
 	isc_logdestination_t destination;
-	isc_logconfig_t *logconfig;
-	isc_log_t *log = 0;
+	isc_logconfig_t *logconfig = NULL;
+	isc_log_t *log = NULL;
 	int level;
 
 	switch (verbose) {
@@ -143,7 +147,7 @@ setup_logging(int verbose, isc_mem_t *mctx, isc_log_t **logp) {
 		level = ISC_LOG_DEBUG(verbose - 2 + 1);
 		break;
 	}
-	
+
 	RUNTIME_CHECK(isc_log_create(mctx, &log, &logconfig) == ISC_R_SUCCESS);
 	isc_log_setcontext(log);
 	dns_log_init(log);
@@ -167,11 +171,26 @@ setup_logging(int verbose, isc_mem_t *mctx, isc_log_t **logp) {
 				       &destination,
 				       ISC_LOG_PRINTTAG|ISC_LOG_PRINTLEVEL);
 	check_result(result, "isc_log_createchannel()");
-	
+
 	RUNTIME_CHECK(isc_log_usechannel(logconfig, "stderr",
 					 NULL, NULL) == ISC_R_SUCCESS);
 
 	*logp = log;
+}
+
+void
+cleanup_logging(isc_log_t **logp) {
+	isc_log_t *log;
+
+	REQUIRE(logp != NULL);
+
+	log = *logp;
+	if (log == NULL)
+		return;
+	isc_log_destroy(&log);
+	isc_log_setcontext(NULL);
+	dns_log_setcontext(NULL);
+	logp = NULL;
 }
 
 static isc_result_t
@@ -187,7 +206,7 @@ kbdstart(isc_entropysource_t *source, void *arg, isc_boolean_t blocking) {
 		if (!wantkeyboard) {
 			fprintf(stderr, "You must use the keyboard to create "
 				"entropy, since your system is lacking\n");
-			fprintf(stderr, "/dev/random\n\n");
+			fprintf(stderr, "/dev/random (or equivalent)\n\n");
 		}
 		first = ISC_FALSE;
 	}
@@ -255,13 +274,15 @@ setup_entropy(isc_mem_t *mctx, const char *randomfile, isc_entropy_t **ectx) {
 			      isc_result_totext(result));
 	}
 	else {
+#ifdef PATH_RANDOMDEV
 		if (randomfile == NULL) {
 			result = isc_entropy_createfilesource(*ectx,
-							      "/dev/random");
+							      PATH_RANDOMDEV);
 			if (result == ISC_R_SUCCESS)
 				return;
 		}
 		else
+#endif
 			wantkeyboard = ISC_TRUE;
 		result = isc_entropy_createcallbacksource(*ectx, kbdstart,
 							  kbdget, kbdstop,
@@ -277,4 +298,35 @@ cleanup_entropy(isc_entropy_t **ectx) {
 	if (source != NULL)
 		isc_entropy_destroysource(&source);
 	isc_entropy_detach(ectx);
+}
+
+isc_stdtime_t
+strtotime(char *str, isc_int64_t now, isc_int64_t base) {
+	isc_int64_t val, offset;
+	isc_result_t result;
+	char *endp;
+
+	if (str[0] == '+') {
+		offset = strtol(str + 1, &endp, 0);
+		if (*endp != '\0')
+			fatal("time value %s is invalid", str);
+		val = base + offset;
+	} else if (strncmp(str, "now+", 4) == 0) {
+		offset = strtol(str + 4, &endp, 0);
+		if (*endp != '\0')
+			fatal("time value %s is invalid", str);
+		val = now + offset;
+	} else if (strlen(str) == 8) {
+		char timestr[15];
+		sprintf(timestr, "%s000000", str);
+		result = dns_time64_fromtext(timestr, &val);
+		if (result != ISC_R_SUCCESS)
+			fatal("time value %s is invalid", str);
+	} else {
+		result = dns_time64_fromtext(str, &val);
+		if (result != ISC_R_SUCCESS)
+			fatal("time value %s is invalid", str);
+	}
+
+	return ((isc_stdtime_t) val);
 }

@@ -1,25 +1,26 @@
 /*
  * Copyright (C) 1999, 2000  Internet Software Consortium.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
- * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
- * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
- * SOFTWARE.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+ * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+ * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: adb_test.c,v 1.54.2.1 2000/06/28 16:45:22 gson Exp $ */
+/* $Id: adb_test.c,v 1.59 2000/11/10 05:34:07 bwelling Exp $ */
 
 #include <config.h>
 
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 
 #include <isc/app.h>
@@ -40,6 +41,7 @@
 typedef struct client client_t;
 struct client {
 	dns_name_t		name;
+	char		       *target;
 	ISC_LINK(client_t)	link;
 	dns_adbfind_t	       *find;
 };
@@ -67,10 +69,10 @@ check_result(isc_result_t result, const char *format, ...) {
 	if (result == ISC_R_SUCCESS)
 		return;
 
-	va_start(args, format);	
+	va_start(args, format);
 	vfprintf(stderr, format, args);
 	va_end(args);
-	fprintf(stderr, "\n");
+	fprintf(stderr, ": %s\n", isc_result_totext(result));
 	exit(1);
 }
 
@@ -119,10 +121,14 @@ lookup_callback(isc_task_t *task, isc_event_t *ev) {
 	client = ev->ev_arg;
 	INSIST(client->find == ev->ev_sender);
 
-	printf("Task %p got event %p type %08x from %p, client %p\n",
-	       task, ev, ev->ev_type, client->find, client);
+	printf("NAME %s:\n\tTask %p got event %p type %08x from %p, client %p\n\terr4: %s  err6: %s\n",
+	       client->target,
+	       task, ev, ev->ev_type, client->find, client,
+	       isc_result_totext(client->find->result_v4),
+	       isc_result_totext(client->find->result_v6));
 
 	isc_event_free(&ev);
+	ev = NULL;
 
 	CLOCK();
 
@@ -140,7 +146,7 @@ create_managers(void) {
 	isc_result_t result;
 
 	taskmgr = NULL;
-	result = isc_taskmgr_create(mctx, 2, 0, &taskmgr);
+	result = isc_taskmgr_create(mctx, 5, 0, &taskmgr);
 	check_result(result, "isc_taskmgr_create");
 
 	timermgr = NULL;
@@ -182,7 +188,7 @@ create_view(void) {
 		unsigned int attrs;
 		isc_sockaddr_t any4, any6;
 		dns_dispatch_t *disp4 = NULL;
-		dns_dispatch_t *disp6 = NULL;		
+		dns_dispatch_t *disp6 = NULL;
 
 		isc_sockaddr_any(&any4);
 		isc_sockaddr_any6(&any6);
@@ -250,12 +256,19 @@ lookup(const char *target) {
 	result = dns_adb_createfind(adb, t2, lookup_callback, client,
 				    &client->name, dns_rootname, options,
 				    now, NULL, view->dstport, &client->find);
+#if 0
 	check_result(result, "dns_adb_createfind()");
+#endif
 	dns_adb_dumpfind(client->find, stderr);
 
-	if ((client->find->options & DNS_ADBFIND_WANTEVENT) != 0)
+	if ((client->find->options & DNS_ADBFIND_WANTEVENT) != 0) {
+		client->target = target;
 		ISC_LIST_APPEND(clients, client, link);
-	else {
+	} else {
+		printf("NAME %s:  err4 %s, err6 %s\n",
+		       target, isc_result_totext(client->find->result_v4),
+		       isc_result_totext(client->find->result_v6));
+
 		dns_adb_destroyfind(&client->find);
 		free_client(&client);
 	}
@@ -348,6 +361,8 @@ main(int argc, char **argv) {
 	lookup("nonexistant.flame.org.");	/* should fail to be found */
 	lookup("foobar.badns.flame.org.");	/* should fail utterly (NS) */
 	lookup("i.root-servers.net.");		/* Should be in hints */
+	lookup("www.firstcard.com.");
+	lookup("dns04.flame.org.");
 	CUNLOCK();
 
 	sleep(10);
@@ -369,6 +384,8 @@ main(int argc, char **argv) {
 	lookup("foobar.badns.flame.org.");	/* should fail utterly (NS) */
 	lookup("i.root-servers.net.");		/* Should be in hints */
 	CUNLOCK();
+
+	sleep(20);
 
 	dns_adb_dump(adb, stderr);
 

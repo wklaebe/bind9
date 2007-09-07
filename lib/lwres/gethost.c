@@ -1,21 +1,21 @@
 /*
  * Copyright (C) 2000  Internet Software Consortium.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
- * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
- * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
- * SOFTWARE.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+ * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+ * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: gethost.c,v 1.17.2.3 2000/08/26 02:16:04 bwelling Exp $ */
+/* $Id: gethost.c,v 1.25 2000/08/26 01:51:05 gson Exp $ */
 
 #include <config.h>
 
@@ -31,7 +31,7 @@
 
 #define LWRES_ALIGNBYTES (sizeof(char *) - 1)
 #define LWRES_ALIGN(p) \
-	(((unsigned int)(p) + LWRES_ALIGNBYTES) &~ LWRES_ALIGNBYTES)
+	(((unsigned long)(p) + LWRES_ALIGNBYTES) &~ LWRES_ALIGNBYTES)
 
 static struct hostent *he = NULL;
 static int copytobuf(struct hostent *, struct hostent *, char *, int);
@@ -58,7 +58,7 @@ lwres_gethostbyname2(const char *name, int af) {
 struct hostent *
 lwres_gethostbyaddr(const char *addr, int len, int type) {
 
-	if (he != NULL) 
+	if (he != NULL)
 		lwres_freehostent(he);
 
 	he = lwres_getipnodebyaddr(addr, len, type, &lwres_h_errno);
@@ -67,7 +67,6 @@ lwres_gethostbyaddr(const char *addr, int len, int type) {
 
 struct hostent *
 lwres_gethostent(void) {
-
 	if (he != NULL)
 		lwres_freehostent(he);
 
@@ -76,8 +75,10 @@ lwres_gethostent(void) {
 
 void
 lwres_sethostent(int stayopen) {
-	/* empty */
-	(void)stayopen;
+	/*
+	 * Empty.
+	 */
+	UNUSED(stayopen);
 }
 
 void
@@ -98,8 +99,7 @@ lwres_gethostbyname_r(const char *name, struct hostent *resbuf,
 	if (he == NULL)
 		return (NULL);
 	res = copytobuf(he, resbuf, buf, buflen);
-	if (he != NULL)
-		lwres_freehostent(he);
+	lwres_freehostent(he);
 	if (res != 0) {
 		errno = ERANGE;
 		return (NULL);
@@ -119,8 +119,7 @@ lwres_gethostbyaddr_r(const char *addr, int len, int type,
 	if (he == NULL)
 		return (NULL);
 	res = copytobuf(he, resbuf, buf, buflen);
-	if (he != NULL)
-		lwres_freehostent(he);
+	lwres_freehostent(he);
 	if (res != 0) {
 		errno = ERANGE;
 		return (NULL);
@@ -130,19 +129,19 @@ lwres_gethostbyaddr_r(const char *addr, int len, int type,
 
 struct hostent  *
 lwres_gethostent_r(struct hostent *resbuf, char *buf, int buflen, int *error) {
-	(void)resbuf;
-	(void)buf;
-	(void)buflen;
+	UNUSED(resbuf);
+	UNUSED(buf);
+	UNUSED(buflen);
 	*error = 0;
 	return (NULL);
 }
 
 void
 lwres_sethostent_r(int stayopen) {
-	(void)stayopen;
 	/*
 	 * Empty.
 	 */
+	UNUSED(stayopen);
 }
 
 void
@@ -172,7 +171,7 @@ copytobuf(struct hostent *he, struct hostent *hptr, char *buf, int buflen) {
         }
         len += strlen(he->h_name) + 1;
         len += nptr * sizeof(char*);
-        
+
         if (len > buflen) {
                 return (-1);
         }

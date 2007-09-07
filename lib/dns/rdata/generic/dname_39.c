@@ -1,21 +1,21 @@
 /*
  * Copyright (C) 1999, 2000  Internet Software Consortium.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
- * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
- * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
- * SOFTWARE.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+ * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+ * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dname_39.c,v 1.23 2000/06/01 18:26:07 tale Exp $ */
+/* $Id: dname_39.c,v 1.28 2000/12/01 01:40:18 gson Exp $ */
 
 /* Reviewed: Wed Mar 15 16:52:38 PST 2000 by explorer */
 
@@ -35,9 +35,10 @@ fromtext_dname(ARGS_FROMTEXT) {
 	UNUSED(rdclass);
 
 	REQUIRE(type == 39);
-	
-	RETERR(gettoken(lexer, &token, isc_tokentype_string, ISC_FALSE));
-	
+
+	RETERR(isc_lex_getmastertoken(lexer, &token, isc_tokentype_string,
+				      ISC_FALSE));
+
 	dns_name_init(&name, NULL);
 	buffer_fromregion(&buffer, &token.value.as_region);
 	origin = (origin != NULL) ? origin : dns_rootname;
@@ -52,6 +53,7 @@ totext_dname(ARGS_TOTEXT) {
 	isc_boolean_t sub;
 
 	REQUIRE(rdata->type == 39);
+	REQUIRE(rdata->length != 0);
 
 	dns_name_init(&name, NULL);
 	dns_name_init(&prefix, NULL);
@@ -84,6 +86,7 @@ towire_dname(ARGS_TOWIRE) {
 	isc_region_t region;
 
 	REQUIRE(rdata->type == 39);
+	REQUIRE(rdata->length != 0);
 
 	dns_compress_setmethods(cctx, DNS_COMPRESS_NONE);
 	dns_name_init(&name, NULL);
@@ -103,6 +106,8 @@ compare_dname(ARGS_COMPARE) {
 	REQUIRE(rdata1->type == rdata2->type);
 	REQUIRE(rdata1->rdclass == rdata2->rdclass);
 	REQUIRE(rdata1->type == 39);
+	REQUIRE(rdata1->length != 0);
+	REQUIRE(rdata2->length != 0);
 
 	dns_name_init(&name1, NULL);
 	dns_name_init(&name2, NULL);
@@ -126,6 +131,8 @@ fromstruct_dname(ARGS_FROMSTRUCT) {
 	REQUIRE(dname->common.rdtype == type);
 	REQUIRE(dname->common.rdclass == rdclass);
 
+	UNUSED(rdclass);
+
 	dns_name_toregion(&dname->dname, &region);
 	return (isc_buffer_copyregion(target, &region));
 }
@@ -138,6 +145,7 @@ tostruct_dname(ARGS_TOSTRUCT) {
 
 	REQUIRE(rdata->type == 39);
 	REQUIRE(target != NULL);
+	REQUIRE(rdata->length != 0);
 
 	dname->common.rdclass = rdata->rdclass;
 	dname->common.rdtype = rdata->type;
@@ -158,7 +166,7 @@ freestruct_dname(ARGS_FREESTRUCT) {
 
 	REQUIRE(source != NULL);
 	REQUIRE(dname->common.rdtype == 39);
-	
+
 	if (dname->mctx == NULL)
 		return;
 

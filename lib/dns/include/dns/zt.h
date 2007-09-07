@@ -1,21 +1,21 @@
 /*
  * Copyright (C) 1999, 2000  Internet Software Consortium.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
- * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
- * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
- * SOFTWARE.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+ * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+ * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: zt.h,v 1.19 2000/06/22 21:56:27 tale Exp $ */
+/* $Id: zt.h,v 1.23 2000/10/05 06:39:26 marka Exp $ */
 
 #ifndef DNS_ZT_H
 #define DNS_ZT_H 1
@@ -107,6 +107,17 @@ dns_zt_detach(dns_zt_t **ztp);
  */
 
 void
+dns_zt_flushanddetach(dns_zt_t **ztp);
+/*
+ * Detach the given zonetable, if the reference count goes to zero the
+ * zonetable will be flushed and then freed.  In either case 'ztp' is
+ * set to NULL.
+ *
+ * Requires:
+ *	'*ztp' to be valid
+ */
+
+void
 dns_zt_attach(dns_zt_t *zt, dns_zt_t **ztp);
 /*
  * Attach 'zt' to '*ztp'.
@@ -125,15 +136,6 @@ dns_zt_load(dns_zt_t *zt, isc_boolean_t stop);
  *
  * Requires:
  *	'zt' to be valid
- */
-
-void
-dns_zt_print(dns_zt_t *zt);
-/*
- * Print zones in zonetable, address, name and reference count.
- *
- * Requires
- *	'zt' to be valid.
  */
 
 isc_result_t

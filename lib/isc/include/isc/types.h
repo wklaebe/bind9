@@ -1,21 +1,21 @@
 /*
  * Copyright (C) 1999, 2000  Internet Software Consortium.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
- * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
- * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
- * SOFTWARE.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+ * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+ * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: types.h,v 1.27 2000/06/22 21:58:11 tale Exp $ */
+/* $Id: types.h,v 1.31 2000/11/14 23:39:34 tale Exp $ */
 
 #ifndef ISC_TYPES_H
 #define ISC_TYPES_H 1
@@ -45,6 +45,7 @@ typedef struct isc_bitstring		isc_bitstring_t;
 typedef struct isc_buffer		isc_buffer_t;
 typedef ISC_LIST(isc_buffer_t)		isc_bufferlist_t;
 typedef struct isc_constregion		isc_constregion_t;
+typedef struct isc_consttextregion	isc_consttextregion_t;
 typedef struct isc_entropy		isc_entropy_t;
 typedef struct isc_entropysource	isc_entropysource_t;
 typedef struct isc_event		isc_event_t;
@@ -68,6 +69,7 @@ typedef struct isc_quota		isc_quota_t;
 typedef struct isc_random		isc_random_t;
 typedef struct isc_ratelimiter		isc_ratelimiter_t;
 typedef struct isc_region		isc_region_t;
+typedef isc_uint64_t			isc_resourcevalue_t;
 typedef unsigned int			isc_result_t;
 typedef struct isc_rwlock		isc_rwlock_t;
 typedef struct isc_sockaddr		isc_sockaddr_t;
@@ -83,5 +85,17 @@ typedef struct isc_timer		isc_timer_t;
 typedef struct isc_timermgr		isc_timermgr_t;
 
 typedef void (*isc_taskaction_t)(isc_task_t *, isc_event_t *);
+
+typedef enum {
+	isc_resource_coresize = 1,
+	isc_resource_cputime,
+	isc_resource_datasize,
+	isc_resource_filesize,
+	isc_resource_lockedmemory,
+	isc_resource_openfiles,
+	isc_resource_processes,
+	isc_resource_residentsize,
+	isc_resource_stacksize
+} isc_resource_t;
 
 #endif /* ISC_TYPES_H */

@@ -1,21 +1,21 @@
 /*
  * Copyright (C) 2000  Internet Software Consortium.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
- * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
- * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
- * SOFTWARE.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+ * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+ * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: lwres.h,v 1.38.2.2 2000/07/10 20:58:08 gson Exp $ */
+/* $Id: lwres.h,v 1.45 2000/11/02 01:52:30 bwelling Exp $ */
 
 #ifndef LWRES_LWRES_H
 #define LWRES_LWRES_H 1
@@ -80,6 +80,7 @@
 #define LWRES_UDP_PORT		921	/* XXXMLG */
 #define LWRES_RECVLENGTH	4096	/* XXXMLG */
 #define LWRES_ADDR_MAXLEN	16	/* changing this breaks ABI */
+#define LWRES_RESOLV_CONF	"/etc/resolv.conf"
 
 /*
  * XXXMLG
@@ -91,25 +92,14 @@
 /*
  * Flags.
  *
- * TRUST* define a two-bit value:
+ * 	These flags are only relevant to rrset queries.
  *
- *	TRUSTDEFAULT:  Let the server decide what to do.
- *
- *	TRUSTNOTREQUIRED:  DNSSEC (or NIS equavalent) is not required.
- *
- *	TRUSTREQUIRED:  DNSSEC (if present) must validate, and the
- *		daemon the client is talking to must be DNSSEC aware.
- *
- *	TRUSTRESERVED:  No not used, reserved for future.
- *
- * XXXMLG -- currently not implemented!
+ *	TRUSTNOTREQUIRED:  DNSSEC is not required (input)
+ *	SECUREDATA: The data was crypto-verified with DNSSEC (output)
  *
  */
-#define LWRES_FLAG_TRUSTDEFAULT		0x00000000U
 #define LWRES_FLAG_TRUSTNOTREQUIRED	0x00000001U
-#define LWRES_FLAG_TRUSTREQUIRED	0x00000010U
-#define LWRES_FLAG_TRUSTRESERVED	0x00000011U
-#define LWRES_FLAG_TRUSTMASK		0x00000011U  /* mask for the above */
+#define LWRES_FLAG_SECUREDATA		0x00000002U
 
 /*
  * no-op
@@ -190,10 +180,47 @@ typedef struct {
 } lwres_gnbaresponse_t;
 
 /*
+ * get rdata by name
+ */
+#define LWRES_OPCODE_GETRDATABYNAME	0x00010003U
+
+typedef struct {
+	/* public */
+	lwres_uint32_t			flags;
+	lwres_uint16_t			rdclass;
+	lwres_uint16_t			rdtype;
+	lwres_uint16_t			namelen;
+	char			       *name;
+} lwres_grbnrequest_t;
+
+typedef struct {
+	/* public */
+	lwres_uint32_t			flags;
+	lwres_uint16_t			rdclass;
+	lwres_uint16_t			rdtype;
+	lwres_uint32_t			ttl;
+	lwres_uint16_t			nrdatas;
+	lwres_uint16_t			nsigs;
+	char			       *realname;
+	lwres_uint16_t			realnamelen;
+	unsigned char		      **rdatas;
+	lwres_uint16_t		       *rdatalen;
+	unsigned char		      **sigs;
+	lwres_uint16_t		       *siglen;
+	/* if base != NULL, it will be freed when this structure is freed. */
+	void			       *base;
+	size_t				baselen;
+} lwres_grbnresponse_t;
+
+#define LWRDATA_VALIDATED	0x00000001
+#define LWRDATA_AUTHORITATIVE	0x00000002
+
+/*
  * resolv.conf data
  */
 
 #define LWRES_CONFMAXNAMESERVERS 3	/* max 3 "nameserver" entries */
+#define LWRES_CONFMAXLWSERVERS 1	/* max 1 "lwserver" entry */
 #define LWRES_CONFMAXSEARCH 8		/* max 8 domains in "search" entry */
 #define LWRES_CONFMAXLINELEN 256	/* max size of a line */
 #define LWRES_CONFMAXSORTLIST 10
@@ -201,6 +228,9 @@ typedef struct {
 	lwres_context_t *lwctx;
 	lwres_addr_t    nameservers[LWRES_CONFMAXNAMESERVERS];
 	lwres_uint8_t	nsnext;		/* index for next free slot */
+
+	lwres_addr_t	lwservers[LWRES_CONFMAXLWSERVERS];
+	lwres_uint8_t	lwnext;		/* index for next free slot */
 
 	char	       *domainname;
 
@@ -210,7 +240,7 @@ typedef struct {
 	struct {
 		lwres_addr_t addr;
 		/* mask has a non-zero 'family' and 'length' if set */
-		lwres_addr_t mask;	
+		lwres_addr_t mask;
 	} sortlist[LWRES_CONFMAXSORTLIST];
 	lwres_uint8_t	sortlistnxt;
 
@@ -218,7 +248,7 @@ typedef struct {
 	lwres_uint8_t	ndots;	       /* set to n in 'options ndots:n' */
 	lwres_uint8_t	no_tld_query;  /* non-zero if 'options no_tld_query' */
 } lwres_conf_t;
-	
+
 #define LWRES_ADDRTYPE_V4		0x00000001U	/* ipv4 */
 #define LWRES_ADDRTYPE_V6		0x00000002U	/* ipv6 */
 
@@ -231,6 +261,8 @@ LWRES_LANG_BEGINDECLS
  * This is in host byte order.
  */
 extern lwres_uint16_t lwres_udp_port;
+
+extern const char *lwres_resolv_conf;
 
 lwres_result_t
 lwres_gabnrequest_render(lwres_context_t *ctx, lwres_gabnrequest_t *req,
@@ -326,6 +358,61 @@ lwres_gnbarequest_free(lwres_context_t *ctx, lwres_gnbarequest_t **structp);
 
 void
 lwres_gnbaresponse_free(lwres_context_t *ctx, lwres_gnbaresponse_t **structp);
+/*
+ * Frees any dynamically allocated memory for this structure.
+ *
+ * Requires:
+ *
+ *	ctx != NULL, and be a context returned via lwres_contextcreate().
+ *
+ *	structp != NULL && *structp != NULL.
+ *
+ * Ensures:
+ *
+ *	*structp == NULL.
+ *
+ *	All memory allocated by this structure will be returned to the
+ *	system via the context's free function.
+ */
+
+lwres_result_t
+lwres_grbnrequest_render(lwres_context_t *ctx, lwres_grbnrequest_t *req,
+			 lwres_lwpacket_t *pkt, lwres_buffer_t *b);
+
+lwres_result_t
+lwres_grbnresponse_render(lwres_context_t *ctx, lwres_grbnresponse_t *req,
+			  lwres_lwpacket_t *pkt, lwres_buffer_t *b);
+
+lwres_result_t
+lwres_grbnrequest_parse(lwres_context_t *ctx, lwres_buffer_t *b,
+			lwres_lwpacket_t *pkt, lwres_grbnrequest_t **structp);
+
+lwres_result_t
+lwres_grbnresponse_parse(lwres_context_t *ctx, lwres_buffer_t *b,
+			 lwres_lwpacket_t *pkt,
+			 lwres_grbnresponse_t **structp);
+
+void
+lwres_grbnrequest_free(lwres_context_t *ctx, lwres_grbnrequest_t **structp);
+/*
+ * Frees any dynamically allocated memory for this structure.
+ *
+ * Requires:
+ *
+ *	ctx != NULL, and be a context returned via lwres_contextcreate().
+ *
+ *	structp != NULL && *structp != NULL.
+ *
+ * Ensures:
+ *
+ *	*structp == NULL.
+ *
+ *	All memory allocated by this structure will be returned to the
+ *	system via the context's free function.
+ */
+
+void
+lwres_grbnresponse_free(lwres_context_t *ctx, lwres_grbnresponse_t **structp);
 /*
  * Frees any dynamically allocated memory for this structure.
  *
@@ -449,7 +536,7 @@ lwres_conf_init(lwres_context_t *ctx);
 void
 lwres_conf_clear(lwres_context_t *ctx);
 /*
- * frees all internally allocated memory in confdata. Uses the memory 
+ * frees all internally allocated memory in confdata. Uses the memory
  * routines supplied by ctx.
  *
  * Requires:
@@ -472,6 +559,9 @@ lwres_conf_get(lwres_context_t *ctx);
  */
 
 lwres_result_t
+lwres_data_parse(lwres_buffer_t *b, unsigned char **p, lwres_uint16_t *len);
+
+lwres_result_t
 lwres_string_parse(lwres_buffer_t *b, char **c, lwres_uint16_t *len);
 
 lwres_result_t
@@ -485,6 +575,11 @@ lwres_result_t
 lwres_getnamebyaddr(lwres_context_t *ctx, lwres_uint32_t addrtype,
 		    lwres_uint16_t addrlen, const unsigned char *addr,
 		    lwres_gnbaresponse_t **structp);
+
+lwres_result_t
+lwres_getrdatabyname(lwres_context_t *ctx, const char *name,
+		     lwres_uint16_t rdclass, lwres_uint16_t rdtype,
+		     lwres_uint32_t flags, lwres_grbnresponse_t **structp);
 
 LWRES_LANG_ENDDECLS
 

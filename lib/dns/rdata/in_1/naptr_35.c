@@ -1,21 +1,21 @@
 /*
  * Copyright (C) 1999, 2000  Internet Software Consortium.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
- * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
- * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
- * SOFTWARE.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+ * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+ * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: naptr_35.c,v 1.31 2000/06/01 18:26:45 tale Exp $ */
+/* $Id: naptr_35.c,v 1.36 2000/12/01 01:40:54 gson Exp $ */
 
 /* Reviewed: Thu Mar 16 16:52:50 PST 2000 by bwelling */
 
@@ -35,10 +35,13 @@ fromtext_in_naptr(ARGS_FROMTEXT) {
 	REQUIRE(type == 35);
 	REQUIRE(rdclass == 1);
 
+	UNUSED(rdclass);
+
 	/*
 	 * Order.
 	 */
-	RETERR(gettoken(lexer, &token, isc_tokentype_number, ISC_FALSE));
+	RETERR(isc_lex_getmastertoken(lexer, &token, isc_tokentype_number,
+				      ISC_FALSE));
 	if (token.value.as_ulong > 0xffff)
 		return (ISC_R_RANGE);
 	RETERR(uint16_tobuffer(token.value.as_ulong, target));
@@ -46,7 +49,8 @@ fromtext_in_naptr(ARGS_FROMTEXT) {
 	/*
 	 * Preference.
 	 */
-	RETERR(gettoken(lexer, &token, isc_tokentype_number, ISC_FALSE));
+	RETERR(isc_lex_getmastertoken(lexer, &token, isc_tokentype_number,
+				      ISC_FALSE));
 	if (token.value.as_ulong > 0xffff)
 		return (ISC_R_RANGE);
 	RETERR(uint16_tobuffer(token.value.as_ulong, target));
@@ -54,25 +58,29 @@ fromtext_in_naptr(ARGS_FROMTEXT) {
 	/*
 	 * Flags.
 	 */
-	RETERR(gettoken(lexer, &token, isc_tokentype_qstring, ISC_FALSE));
+	RETERR(isc_lex_getmastertoken(lexer, &token, isc_tokentype_qstring,
+				      ISC_FALSE));
 	RETERR(txt_fromtext(&token.value.as_textregion, target));
 
 	/*
 	 * Service.
 	 */
-	RETERR(gettoken(lexer, &token, isc_tokentype_qstring, ISC_FALSE));
+	RETERR(isc_lex_getmastertoken(lexer, &token, isc_tokentype_qstring,
+				      ISC_FALSE));
 	RETERR(txt_fromtext(&token.value.as_textregion, target));
 
 	/*
 	 * Regexp.
 	 */
-	RETERR(gettoken(lexer, &token, isc_tokentype_qstring, ISC_FALSE));
+	RETERR(isc_lex_getmastertoken(lexer, &token, isc_tokentype_qstring,
+				      ISC_FALSE));
 	RETERR(txt_fromtext(&token.value.as_textregion, target));
 
 	/*
 	 * Replacement.
 	 */
-	RETERR(gettoken(lexer, &token, isc_tokentype_string, ISC_FALSE));
+	RETERR(isc_lex_getmastertoken(lexer, &token, isc_tokentype_string,
+				      ISC_FALSE));
 	dns_name_init(&name, NULL);
 	buffer_fromregion(&buffer, &token.value.as_region);
 	origin = (origin != NULL) ? origin : dns_rootname;
@@ -90,6 +98,7 @@ totext_in_naptr(ARGS_TOTEXT) {
 
 	REQUIRE(rdata->type == 35);
 	REQUIRE(rdata->rdclass == 1);
+	REQUIRE(rdata->length != 0);
 
 	dns_name_init(&name, NULL);
 	dns_name_init(&prefix, NULL);
@@ -148,8 +157,10 @@ fromwire_in_naptr(ARGS_FROMWIRE) {
 	REQUIRE(type == 35);
 	REQUIRE(rdclass == 1);
 
+	UNUSED(rdclass);
+
 	dns_decompress_setmethods(dctx, DNS_COMPRESS_NONE);
-        
+
         dns_name_init(&name, NULL);
 
 	/*
@@ -189,6 +200,7 @@ towire_in_naptr(ARGS_TOWIRE) {
 
 	REQUIRE(rdata->type == 35);
 	REQUIRE(rdata->rdclass == 1);
+	REQUIRE(rdata->length != 0);
 
 	dns_compress_setmethods(cctx, DNS_COMPRESS_NONE);
 	/*
@@ -197,7 +209,7 @@ towire_in_naptr(ARGS_TOWIRE) {
 	dns_rdata_toregion(rdata, &sr);
 	RETERR(mem_tobuffer(target, sr.base, 4));
 	isc_region_consume(&sr, 4);
-	
+
 	/*
 	 * Flags.
 	 */
@@ -236,6 +248,8 @@ compare_in_naptr(ARGS_COMPARE) {
 	REQUIRE(rdata1->rdclass == rdata2->rdclass);
 	REQUIRE(rdata1->type == 35);
 	REQUIRE(rdata1->rdclass == 1);
+	REQUIRE(rdata1->length != 0);
+	REQUIRE(rdata2->length != 0);
 
 	dns_rdata_toregion(rdata1, &region1);
 	dns_rdata_toregion(rdata2, &region2);
@@ -308,6 +322,8 @@ fromstruct_in_naptr(ARGS_FROMSTRUCT) {
 	REQUIRE((naptr->regexp == NULL && naptr->regexp_len == 0) ||
 		(naptr->regexp != NULL && naptr->regexp_len != 0));
 
+	UNUSED(rdclass);
+
 	RETERR(uint16_tobuffer(naptr->order, target));
 	RETERR(uint16_tobuffer(naptr->preference, target));
 	RETERR(uint8_tobuffer(naptr->flags_len, target));
@@ -330,6 +346,7 @@ tostruct_in_naptr(ARGS_TOSTRUCT) {
 	REQUIRE(rdata->type == 35);
 	REQUIRE(rdata->rdclass == 1);
 	REQUIRE(target != NULL);
+	REQUIRE(rdata->length != 0);
 
 	naptr->common.rdclass = rdata->rdclass;
 	naptr->common.rdtype = rdata->type;
@@ -400,7 +417,7 @@ tostruct_in_naptr(ARGS_TOSTRUCT) {
 static inline void
 freestruct_in_naptr(ARGS_FREESTRUCT) {
 	dns_rdata_in_naptr_t *naptr = source;
-	
+
 	REQUIRE(source != NULL);
 	REQUIRE(naptr->common.rdclass == 1);
 	REQUIRE(naptr->common.rdtype == 35);
@@ -434,7 +451,7 @@ additionaldata_in_naptr(ARGS_ADDLDATA) {
 	 */
 	dns_rdata_toregion(rdata, &sr);
 	isc_region_consume(&sr, 4);
-	
+
 	/*
 	 * Flags.
 	 */
@@ -530,7 +547,7 @@ digest_in_naptr(ARGS_DIGEST) {
 
 	dns_name_init(&name, NULL);
 	dns_name_fromregion(&name, &r2);
-	
+
 	return (dns_name_digest(&name, digest, arg));
 }
 

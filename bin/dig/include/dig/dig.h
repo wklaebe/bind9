@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dig.h,v 1.25.2.5 2000/10/06 19:08:08 mws Exp $ */
+/* $Id: dig.h,v 1.59 2000/11/21 21:40:12 mws Exp $ */
 
 #ifndef DIG_H
 #define DIG_H
@@ -33,12 +33,18 @@
 #include <isc/socket.h>
 
 #define MXSERV 6
-#define MXNAME (1024)
+#define MXNAME (DNS_NAME_MAXTEXT+1)
 #define MXRD 32
 #define BUFSIZE 512
 #define COMMSIZE 0xffff
 #define RESOLVCONF "/etc/resolv.conf"
 #define OUTPUTBUF 32767
+#define MAXRRLIMIT 0xffffffff
+#define MAXTIMEOUT 0xffff
+#define MAXTRIES 0xffffffff
+#define MAXNDOTS 0xffff
+#define MAXPORT 0xffff
+#define MAXSERIAL 0xffffffff
 
 /*
  * Default timeout values
@@ -95,7 +101,9 @@ struct dig_lookup {
 		section_authority,
 		section_additional,
 		servfail_stops,
-		new_search;
+		new_search,
+		besteffort,
+		dnssec;
 	char textname[MXNAME]; /* Name we're going to be looking up */
 	char cmdline[MXNAME];
 	dns_rdatatype_t rdtype;
@@ -117,7 +125,7 @@ struct dig_lookup {
 	dig_serverlist_t my_server_list;
 	dig_searchlist_t *origin;
 	dig_query_t *xfr_q;
-	int retries;
+	isc_uint32_t retries;
 	int nsfound;
 	isc_uint16_t udpsize;
 	isc_uint32_t ixfr_serial;
@@ -139,7 +147,6 @@ struct dig_query {
 	isc_uint32_t first_rr_serial;
 	isc_uint32_t second_rr_serial;
 	isc_uint32_t rr_count;
-	isc_uint32_t name_count;
 	char *servname;
 	isc_bufferlist_t sendlist,
 		recvlist,
@@ -171,6 +178,9 @@ struct dig_searchlist {
  */
 void
 get_address(char *host, in_port_t port, isc_sockaddr_t *sockaddr);
+
+isc_result_t
+get_reverse(char reverse[MXNAME], char *value, isc_boolean_t nibble);
 
 void
 fatal(const char *format, ...);

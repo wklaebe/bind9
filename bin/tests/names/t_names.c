@@ -1,21 +1,21 @@
 /*
  * Copyright (C) 1998-2000  Internet Software Consortium.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
- * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
- * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
- * SOFTWARE.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+ * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+ * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: t_names.c,v 1.25 2000/06/22 21:51:14 tale Exp $ */
+/* $Id: t_names.c,v 1.29 2000/11/14 23:29:47 bwelling Exp $ */
 
 #include <config.h>
 
@@ -113,7 +113,7 @@ chkdata(unsigned char *buf, size_t buflen, char *exp_data,
 			t_info("malloc failed unexpectedly\n");
 			return (-1);
 		}
-	
+
 		/*
 		 * First convert exp_data from hex format.
 		 */
@@ -934,7 +934,7 @@ test_dns_name_fullcompare(char *name1, char *name2,
 		if (dns_result == ISC_R_SUCCESS) {
 			dns_reln = dns_name_fullcompare(&dns_name1, &dns_name2,
 					&order, &nlabels, &nbits);
-			
+
 			if (dns_reln != exp_dns_reln) {
 				++nfails;
 				t_info("expected relationship of %s, got %s\n",
@@ -1277,7 +1277,7 @@ test_dns_name_issubdomain(char *name1, char *name2, isc_boolean_t exp_rval) {
 		dns_result = dname_from_tname(name2, &dns_name2);
 		if (dns_result == ISC_R_SUCCESS) {
 			rval = dns_name_issubdomain(&dns_name1, &dns_name2);
-			
+
 			if (rval != exp_rval) {
 				t_info("expected return value of %s, got %s\n",
 				       exp_rval == ISC_TRUE ? "true" : "false",
@@ -1364,7 +1364,7 @@ test_dns_name_countlabels(char *test_name, unsigned int exp_nlabels) {
 	dns_result = dname_from_tname(test_name, &dns_name);
 	if (dns_result == ISC_R_SUCCESS) {
 		nlabels = dns_name_countlabels(&dns_name);
-			
+
 		if (nlabels != exp_nlabels) {
 			t_info("expected %d, got %d\n", exp_nlabels, nlabels);
 			result = T_FAIL;
@@ -2076,7 +2076,7 @@ static const char *a42 =
 		"converts the possibly compressed DNS name 'name' in wire "
 		"format to canonicalized form at target, performing upper to "
 		"lower case conversion if downcase is true, and returns "
-		"ISC_R_SUCCESS"; 
+		"ISC_R_SUCCESS";
 
 #if 0
 	/*
@@ -2147,7 +2147,7 @@ test_dns_name_fromwire(char *datafile_name, int testname_offset, int downcase,
 
 	isc_buffer_init(&iscbuf2, buf2, buflen);
 	dns_name_init(&dns_name1, NULL);
-	dns_decompress_init(&dctx, -1, ISC_TRUE);
+	dns_decompress_init(&dctx, -1, DNS_DECOMPRESS_STRICT);
 	dns_decompress_setmethods(&dctx, dc_method);
 	dns_result = dns_name_fromwire(&dns_name1, &iscbuf1,
 				       &dctx, downcase ? ISC_TRUE : ISC_FALSE,
@@ -2163,7 +2163,7 @@ test_dns_name_fromwire(char *datafile_name, int testname_offset, int downcase,
 							    &nbits);
 			if (dns_namereln != dns_namereln_equal) {
 				t_info("dns_name_fullcompare  returned %s\n",
-				       dns_namereln_to_text(dns_namereln)); 
+				       dns_namereln_to_text(dns_namereln));
 				result = T_FAIL;
 			} else {
 				result = T_PASS;
@@ -2235,6 +2235,8 @@ t_dns_name_fromwire_x(const char *testfile, size_t buflen) {
 					exp_result = DNS_R_TOOMANYHOPS;
 				else if (! strcmp(tok, "DNS_R_DISALLOWED"))
 					exp_result = DNS_R_DISALLOWED;
+				else if (! strcmp(tok, "DNS_R_NAMETOOLONG"))
+					exp_result = DNS_R_NAMETOOLONG;
 
 				tok = Tokens[3];
 				dc_method = DNS_COMPRESS_NONE;

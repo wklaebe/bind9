@@ -1,25 +1,26 @@
 /*
  * Copyright (C) 1998-2000  Internet Software Consortium.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
- * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
- * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
- * SOFTWARE.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+ * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+ * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: timer_test.c,v 1.32 2000/06/22 21:50:56 tale Exp $ */
+/* $Id: timer_test.c,v 1.35 2000/11/10 05:34:16 bwelling Exp $ */
 
 #include <config.h>
 
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 
 #include <isc/mem.h>
@@ -74,7 +75,7 @@ timeout(isc_task_t *task, isc_event_t *event) {
 	char *name = event->ev_arg;
 	const char *type;
 
-	INSIST(event->ev_type == ISC_TIMEREVENT_IDLE || 
+	INSIST(event->ev_type == ISC_TIMEREVENT_IDLE ||
 	       event->ev_type == ISC_TIMEREVENT_LIFE);
 
 	if (event->ev_type == ISC_TIMEREVENT_IDLE)
@@ -140,7 +141,7 @@ main(int argc, char *argv[]) {
 	RUNTIME_CHECK(isc_timer_create(timgr, isc_timertype_ticker, NULL,
 				       &interval, t1, tick, "1", &ti1) ==
 		      ISC_R_SUCCESS);
-				       
+
 	isc_interval_set(&interval, 10, 0);
 	RUNTIME_CHECK(isc_time_add(&now, &interval, &expires) ==
 		      ISC_R_SUCCESS);
@@ -162,7 +163,7 @@ main(int argc, char *argv[]) {
 	isc_timermgr_destroy(&timgr);
 	isc_taskmgr_destroy(&manager);
 	printf("destroyed\n");
-	
+
 	printf("Statistics for mctx1:\n");
 	isc_mem_stats(mctx1, stdout);
 	isc_mem_destroy(&mctx1);

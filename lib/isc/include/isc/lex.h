@@ -1,21 +1,21 @@
 /*
  * Copyright (C) 1998-2000  Internet Software Consortium.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
- * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
- * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
- * SOFTWARE.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+ * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+ * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: lex.h,v 1.19.2.1 2000/07/10 19:13:10 gson Exp $ */
+/* $Id: lex.h,v 1.23 2000/11/08 01:55:30 bwelling Exp $ */
 
 #ifndef ISC_LEX_H
 #define ISC_LEX_H 1
@@ -209,7 +209,7 @@ isc_lex_setspecials(isc_lex_t *lex, isc_lexspecials_t specials);
  * whitespace, they delimit strings and numbers.
  *
  * Note:
- *	Comment processing takes precedence over special character	
+ *	Comment processing takes precedence over special character
  *	recognition.
  *
  * Requires:
@@ -299,6 +299,25 @@ isc_lex_gettoken(isc_lex_t *lex, unsigned int options, isc_token_t *tokenp);
  *
  *	ISC_R_EOF			End of input source
  *	ISC_R_NOMORE			No more input sources
+ */
+
+isc_result_t
+isc_lex_getmastertoken(isc_lex_t *lex, isc_token_t *token,
+		       isc_tokentype_t expect, isc_boolean_t eol);
+/*
+ * Get the next token from a DNS master file type stream.  This is a
+ * convenience function that sets appropriate options and handles quoted
+ * strings and end of line correctly for master files.  It also ungets
+ * unexpected tokens.
+ *
+ * Requires:
+ *	'lex' is a valid lexer.
+ *
+ *	'token' is a valid pointer
+ *
+ * Returns:
+ *
+ * 	any return code from isc_lex_gettoken.
  */
 
 void

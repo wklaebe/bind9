@@ -1,11 +1,11 @@
 /*
  * Portions Copyright (C) 1999, 2000  Internet Software Consortium.
  * Portions Copyright (C) 1995-2000 by Network Associates, Inc.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM AND
  * NETWORK ASSOCIATES DISCLAIM ALL WARRANTIES WITH REGARD TO THIS
  * SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
@@ -19,7 +19,7 @@
 
 /*
  * Principal Author: Brian Wellington
- * $Id: openssl_link.c,v 1.31 2000/06/12 18:05:13 bwelling Exp $
+ * $Id: openssl_link.c,v 1.39 2000/12/04 23:39:05 bwelling Exp $
  */
 #if defined(OPENSSL)
 
@@ -27,8 +27,11 @@
 
 #include <isc/entropy.h>
 #include <isc/mem.h>
+#include <isc/mutex.h>
+#include <isc/mutexblock.h>
 #include <isc/sha1.h>
 #include <isc/string.h>
+#include <isc/thread.h>
 #include <isc/util.h>
 
 #include <dst/result.h>
@@ -40,6 +43,7 @@
 #include <openssl/rand.h>
 
 static RAND_METHOD *rm = NULL;
+static isc_mutex_t locks[CRYPTO_NUM_LOCKS];
 
 static isc_result_t openssldsa_todns(const dst_key_t *key, isc_buffer_t *data);
 
@@ -73,7 +77,7 @@ openssldsa_adddata(dst_context_t *dctx, const isc_region_t *data) {
 	isc_sha1_update(sha1ctx, data->base, data->length);
 	return (ISC_R_SUCCESS);
 }
-	
+
 static int
 BN_bn2bin_fixed(BIGNUM *bn, unsigned char *buf, int size) {
 	int bytes = size - BN_num_bytes(bn);
@@ -81,7 +85,7 @@ BN_bn2bin_fixed(BIGNUM *bn, unsigned char *buf, int size) {
 		*buf++ = 0;
 	BN_bn2bin(bn, buf);
 	return (size);
-}	
+}
 
 static isc_result_t
 openssldsa_sign(dst_context_t *dctx, isc_buffer_t *sig) {
@@ -151,7 +155,7 @@ openssldsa_compare(const dst_key_t *key1, const dst_key_t *key2) {
 	dsa1 = (DSA *) key1->opaque;
 	dsa2 = (DSA *) key2->opaque;
 
-	if (dsa1 == NULL && dsa2 == NULL) 
+	if (dsa1 == NULL && dsa2 == NULL)
 		return (ISC_TRUE);
 	else if (dsa1 == NULL || dsa2 == NULL)
 		return (ISC_FALSE);
@@ -194,12 +198,13 @@ openssldsa_generate(dst_key_t *key, int unused) {
 				      NULL, NULL);
 
 	if (dsa == NULL)
-		return (ISC_R_NOMEMORY);
+		return (DST_R_OPENSSLFAILURE);
 
 	if (DSA_generate_key(dsa) == 0) {
 		DSA_free(dsa);
-		return (ISC_R_NOMEMORY);
+		return (DST_R_OPENSSLFAILURE);
 	}
+	dsa->flags &= ~DSA_FLAG_CACHE_MONT_P;
 
 	key->opaque = dsa;
 
@@ -210,7 +215,7 @@ openssldsa_generate(dst_key_t *key, int unused) {
 		return (result);
 	}
 	isc_buffer_usedregion(&dns, &r);
-	key->key_id = dst__id_calc(r.base, r.length);
+	key->key_id = dst_region_computeid(&r, key->key_alg);
 
 	return (ISC_R_SUCCESS);
 }
@@ -225,6 +230,7 @@ static void
 openssldsa_destroy(dst_key_t *key) {
 	DSA *dsa = key->opaque;
 	DSA_free(dsa);
+	key->opaque = NULL;
 }
 
 
@@ -281,6 +287,7 @@ openssldsa_fromdns(dst_key_t *key, isc_buffer_t *data) {
 	dsa = DSA_new();
 	if (dsa == NULL)
 		return (ISC_R_NOMEMORY);
+	dsa->flags &= ~DSA_FLAG_CACHE_MONT_P;
 
 	t = (unsigned int) *r.base++;
 	if (t > 8) {
@@ -307,8 +314,8 @@ openssldsa_fromdns(dst_key_t *key, isc_buffer_t *data) {
 	r.base += p_bytes;
 
 	isc_buffer_remainingregion(data, &r);
-	key->key_id = dst__id_calc(r.base, 1 + ISC_SHA1_DIGESTLENGTH +
-				   3 * p_bytes);
+	r.length = 1 + ISC_SHA1_DIGESTLENGTH + 3 * p_bytes;
+	key->key_id = dst_region_computeid(&r, key->key_alg);
 	key->key_size = p_bytes * 8;
 
 	isc_buffer_forward(data, 1 + ISC_SHA1_DIGESTLENGTH + 3 * p_bytes);
@@ -365,7 +372,7 @@ openssldsa_tofile(const dst_key_t *key, const char *directory) {
 	return (dst__privstruct_writefile(key, &priv, directory));
 }
 
-static isc_result_t 
+static isc_result_t
 openssldsa_fromfile(dst_key_t *key, const isc_uint16_t id, const char *filename)
 {
 	dst_private_t priv;
@@ -386,6 +393,7 @@ openssldsa_fromfile(dst_key_t *key, const isc_uint16_t id, const char *filename)
 	dsa = DSA_new();
 	if (dsa == NULL)
 		DST_RET(ISC_R_NOMEMORY);
+	dsa->flags &= ~DSA_FLAG_CACHE_MONT_P;
 	key->opaque = dsa;
 
 	for (i=0; i < priv.nelements; i++) {
@@ -421,7 +429,7 @@ openssldsa_fromfile(dst_key_t *key, const isc_uint16_t id, const char *filename)
 	if (ret != ISC_R_SUCCESS)
 		DST_RET(ret);
 	isc_buffer_usedregion(&dns, &r);
-	key->key_id = dst__id_calc(r.base, r.length);
+	key->key_id = dst_region_computeid(&r, key->key_alg);
 
 	if (key->key_id != id)
 		DST_RET(DST_R_INVALIDPRIVATEKEY);
@@ -492,10 +500,32 @@ entropy_add(const void *buf, int num, double entropy) {
 	UNUSED(entropy);
 }
 
+static void
+lock_callback(int mode, int type, const char *file, int line) {
+	UNUSED(file);
+	UNUSED(line);
+	if ((mode & CRYPTO_LOCK) != 0)
+		LOCK(&locks[type]);
+	else
+		UNLOCK(&locks[type]);
+}
+
+static unsigned long
+id_callback(void) {
+	return ((unsigned long)isc_thread_self());
+}
+
 isc_result_t
 dst__openssl_init(void) {
+	isc_result_t result;
+
 	CRYPTO_set_mem_functions(dst__mem_alloc, dst__mem_realloc,
 				 dst__mem_free);
+	result = isc_mutexblock_init(locks, CRYPTO_NUM_LOCKS);
+	if (result != ISC_R_SUCCESS)
+		return (result);
+	CRYPTO_set_locking_callback(lock_callback);
+	CRYPTO_set_id_callback(id_callback);
 	rm = dst__mem_alloc(sizeof(RAND_METHOD));
 	if (rm == NULL)
 		return (ISC_R_NOMEMORY);
@@ -511,6 +541,8 @@ dst__openssl_init(void) {
 
 void
 dst__openssl_destroy(void) {
+	RUNTIME_CHECK(isc_mutexblock_destroy(locks, CRYPTO_NUM_LOCKS) ==
+		      ISC_R_SUCCESS);
 	dst__mem_free(rm);
 }
 

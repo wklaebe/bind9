@@ -1,21 +1,21 @@
 #!/bin/sh
 #
 # Copyright (C) 2000  Internet Software Consortium.
-# 
+#
 # Permission to use, copy, modify, and distribute this software for any
 # purpose with or without fee is hereby granted, provided that the above
 # copyright notice and this permission notice appear in all copies.
-# 
-# THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
-# ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
-# OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
-# CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
-# DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
-# PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
-# ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
-# SOFTWARE.
+#
+# THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+# DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+# INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+# INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+# FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+# NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+# WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: ifconfig.sh,v 1.17.2.1 2000/07/10 04:51:47 gson Exp $
+# $Id: ifconfig.sh,v 1.25 2000/11/11 00:19:24 gson Exp $
 
 #
 # Set up interface aliases for bind9 system tests.
@@ -33,40 +33,34 @@ esac
 
 case "$1" in
 
-    'start')
+    start|up)
 	for ns in 1 2 3 4 5
 	do
-		case "$sys" in 
+		case "$sys" in
 		    *-sun-solaris2.[6-7])
-			ifconfig lo0:$ns 10.53.0.$ns up
+			ifconfig lo0:$ns 10.53.0.$ns netmask 0xffffffff up
 			;;
 		    *-sun-solaris2.8)
     			ifconfig lo0:$ns plumb
 			ifconfig lo0:$ns 10.53.0.$ns up
 			;;
 		    *-pc-linux-gnu)
-			ifconfig lo:$ns 10.53.0.$ns up
+			ifconfig lo:$ns 10.53.0.$ns up netmask 255.255.255.0
 		        ;;
-		    *-unknown-freebsdelf3.4)
-			ifconfig lo0 10.53.0.$ns alias
+		    *-unknown-freebsdelf3.[45])
+			ifconfig lo0 10.53.0.$ns alias netmask 0xffffffff
 			;;
-		    *-unknown-freebsdelf4.0)
+		    *-unknown-freebsdelf4.*)
 			ifconfig lo0 10.53.0.$ns alias netmask 0xffffffff
 			;;
 		    *-unknown-netbsd*)
-			ifconfig lo0 10.53.0.$ns alias
+			ifconfig lo0 10.53.0.$ns alias netmask 255.255.255.0
 			;;
-		    *-pc-bsdi3.*)
-			ifconfig lo0 add 10.53.0.$ns
+		    *-pc-bsdi[3-4].*)
+			ifconfig lo0 add 10.53.0.$ns netmask 255.255.255.0
 			;;
-		    *-dec-osf5.*)
+		    *-dec-osf[4-5].*)
 			/sbin/ifconfig lo0 alias 10.53.0.$ns
-			;;
-		    *-dec-osf4.*)
-			/sbin/ifconfig lo0 alias 10.53.0.$ns
-			;;
-		    *-pc-bsdi4.*)
-			ifconfig lo0 add 10.53.0.$ns
 			;;
 		    *-sgi-irix6.*)
 			ifconfig lo0 alias 10.53.0.$ns
@@ -84,39 +78,33 @@ case "$1" in
 	done
 	;;
 
-    'stop')
+    stop|down)
 	for ns in 5 4 3 2 1
 	do
-		case "$sys" in 
+		case "$sys" in
 		    *-sun-solaris2.[6-7])
 			ifconfig lo0:$ns 10.53.0.$ns down
 			;;
-		    *-sun-solaris2.8])
+		    *-sun-solaris2.8)
 			ifconfig lo0:$ns 10.53.0.$ns down
 			;;
 		    *-pc-linux-gnu)
 			ifconfig lo:$ns 10.53.0.$ns down
 		        ;;
-		    *-unknown-freebsdelf3.4)
+		    *-unknown-freebsdelf3.[45])
 			ifconfig lo0 10.53.0.$ns delete
 			;;
-		    *-unknown-freebsdelf4.0)
+		    *-unknown-freebsdelf4.*)
 			ifconfig lo0 10.53.0.$ns delete
 			;;
 		    *-unknown-netbsd*)
 			ifconfig lo0 10.53.0.$ns delete
 			;;
-		    *-pc-bsdi3.*)
+		    *-pc-bsdi[3-4].*)
 			ifconfig lo0 remove 10.53.0.$ns
 			;;
-		    *-dec-osf5.*)
+		    *-dec-osf[4-5].*)
 			ifconfig lo0 -alias 10.53.0.$ns
-			;;
-		    *-dec-osf4.*)
-			ifconfig lo0 -alias 10.53.0.$ns
-			;;
-		    *-pc-bsdi4.*)
-			ifconfig lo0 remove 10.53.0.$ns
 			;;
 		    *-sgi-irix6.*)
 			ifconfig lo0 -alias 10.53.0.$ns
@@ -132,10 +120,10 @@ case "$1" in
 			exit 1
 		esac
 	done
-	
+
 	;;
 
 	*)
-		echo "Usage: $0 {start|stop}"
+		echo "Usage: $0 { up | down }"
 		exit 1
 esac

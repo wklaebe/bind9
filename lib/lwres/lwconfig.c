@@ -1,21 +1,21 @@
 /*
  * Copyright (C) 2000  Internet Software Consortium.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
- * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
- * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
- * SOFTWARE.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+ * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+ * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: lwconfig.c,v 1.15.2.4 2000/07/11 00:56:03 gson Exp $ */
+/* $Id: lwconfig.c,v 1.25 2000/10/05 22:27:53 bwelling Exp $ */
 
 /***
  *** Module for parsing resolv.conf files.
@@ -77,6 +77,9 @@ static lwres_result_t
 lwres_conf_parsenameserver(lwres_context_t *ctx,  FILE *fp);
 
 static lwres_result_t
+lwres_conf_parselwserver(lwres_context_t *ctx,  FILE *fp);
+
+static lwres_result_t
 lwres_conf_parsedomain(lwres_context_t *ctx, FILE *fp);
 
 static lwres_result_t
@@ -94,14 +97,14 @@ lwres_resetaddr(lwres_addr_t *addr);
 static lwres_result_t
 lwres_create_addr(const char *buff, lwres_addr_t *addr);
 
-static int lwresaddr2af(int lwresaddrtype); 
+static int lwresaddr2af(int lwresaddrtype);
 
 
 static int
 lwresaddr2af(int lwresaddrtype)
 {
 	int af = 0;
-	
+
 	switch (lwresaddrtype) {
 	case LWRES_ADDRTYPE_V4:
 		af = AF_INET;
@@ -171,7 +174,7 @@ getword(FILE *fp, char *buffer, size_t size) {
 
 	if (ch == EOF)
 		return (EOF);
-	
+
 	do {
 		*p = '\0';
 
@@ -219,6 +222,7 @@ lwres_conf_init(lwres_context_t *ctx) {
 	confdata = &ctx->confdata;
 
 	confdata->nsnext = 0;
+	confdata->lwnext = 0;
 	confdata->domainname = NULL;
 	confdata->searchnxt = 0;
 	confdata->sortlistnxt = 0;
@@ -269,6 +273,7 @@ lwres_conf_clear(lwres_context_t *ctx) {
 	}
 
 	confdata->nsnext = 0;
+	confdata->lwnext = 0;
 	confdata->domainname = NULL;
 	confdata->searchnxt = 0;
 	confdata->sortlistnxt = 0;
@@ -293,12 +298,40 @@ lwres_conf_parsenameserver(lwres_context_t *ctx,  FILE *fp) {
 		return (LWRES_R_FAILURE); /* Nothing on line. */
 	else if (res == ' ' || res == '\t')
 		res = eatwhite(fp);
-	
-	if (res != EOF && res != '\n') 
+
+	if (res != EOF && res != '\n')
 		return (LWRES_R_FAILURE); /* Extra junk on line. */
 
 	res = lwres_create_addr(word,
 				&confdata->nameservers[confdata->nsnext++]);
+	if (res != LWRES_R_SUCCESS)
+		return (res);
+
+	return (LWRES_R_SUCCESS);
+}
+
+static lwres_result_t
+lwres_conf_parselwserver(lwres_context_t *ctx,  FILE *fp) {
+	char word[LWRES_CONFMAXLINELEN];
+	int res;
+	lwres_conf_t *confdata;
+
+	confdata = &ctx->confdata;
+
+	if (confdata->lwnext == LWRES_CONFMAXLWSERVERS)
+		return (LWRES_R_SUCCESS);
+
+	res = getword(fp, word, sizeof(word));
+	if (strlen(word) == 0)
+		return (LWRES_R_FAILURE); /* Nothing on line. */
+	else if (res == ' ' || res == '\t')
+		res = eatwhite(fp);
+
+	if (res != EOF && res != '\n')
+		return (LWRES_R_FAILURE); /* Extra junk on line. */
+
+	res = lwres_create_addr(word,
+				&confdata->lwservers[confdata->lwnext++]);
 	if (res != LWRES_R_SUCCESS)
 		return (res);
 
@@ -318,7 +351,7 @@ lwres_conf_parsedomain(lwres_context_t *ctx,  FILE *fp) {
 		return (LWRES_R_FAILURE); /* Nothing else on line. */
 	else if (res == ' ' || res == '\t')
 		res = eatwhite(fp);
-		
+
 	if (res != EOF && res != '\n')
 		return (LWRES_R_FAILURE); /* Extra junk on line. */
 
@@ -406,19 +439,11 @@ lwres_create_addr(const char *buffer, lwres_addr_t *addr) {
 	unsigned int len;
 
 	if (lwres_net_pton(AF_INET, buffer, &addrbuff) == 1) {
-#if 1 /* XXX BRISTER. Set to 0 for testing with lwresconf_test */
 		addr->family = LWRES_ADDRTYPE_V4;
-#else
-		addr->family = AF_INET;
-#endif
 		addr->length = NS_INADDRSZ;
 		len = 4;
 	} else if (lwres_net_pton(AF_INET6, buffer, &addrbuff) == 1) {
-#if 1 /* XXX BRISTER. Set to 0 for testing with lwresconf_test */
 		addr->family = LWRES_ADDRTYPE_V6;
-#else
-		addr->family = AF_INET6;
-#endif	
 		addr->length = NS_IN6ADDRSZ;
 		len = 16;
 	} else {
@@ -552,6 +577,8 @@ lwres_conf_parse(lwres_context_t *ctx, const char *filename) {
 			rval = LWRES_R_SUCCESS;
 		else if (strcmp(word, "nameserver") == 0)
 			rval = lwres_conf_parsenameserver(ctx, fp);
+		else if (strcmp(word, "lwserver") == 0)
+			rval = lwres_conf_parselwserver(ctx, fp);
 		else if (strcmp(word, "domain") == 0)
 			rval = lwres_conf_parsedomain(ctx, fp);
 		else if (strcmp(word, "search") == 0)
@@ -602,6 +629,17 @@ lwres_conf_print(lwres_context_t *ctx, FILE *fp) {
 		fprintf(fp, "nameserver %s\n", tmp);
 	}
 
+	for (i = 0 ; i < confdata->lwnext ; i++) {
+		af = lwresaddr2af(confdata->lwservers[i].family);
+
+		p = lwres_net_ntop(af, confdata->lwservers[i].address,
+				   tmp, sizeof(tmp));
+		if (p != tmp)
+			return (LWRES_R_FAILURE);
+
+		fprintf(fp, "lwserver %s\n", tmp);
+	}
+
 	if (confdata->domainname != NULL) {
 		fprintf(fp, "domain %s\n", confdata->domainname);
 	} else if (confdata->searchnxt > 0) {
@@ -630,7 +668,7 @@ lwres_conf_print(lwres_context_t *ctx, FILE *fp) {
 
 			tmpaddr = confdata->sortlist[i].mask;
 			memset(&tmpaddr.address, 0xff, tmpaddr.length);
-			
+
 			if (memcmp(&tmpaddr.address,
 				   confdata->sortlist[i].mask.address,
 				   confdata->sortlist[i].mask.length) != 0) {

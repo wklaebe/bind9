@@ -80,7 +80,7 @@ HREF="Bv9ARM.ch03.html#sample_configuration"
 ></DT
 ><DT
 >3.2. <A
-HREF="Bv9ARM.ch03.html#AEN286"
+HREF="Bv9ARM.ch03.html#AEN285"
 >Load Balancing</A
 ></DT
 ><DT
@@ -90,7 +90,7 @@ HREF="Bv9ARM.ch03.html#notify"
 ></DT
 ><DT
 >3.4. <A
-HREF="Bv9ARM.ch03.html#AEN374"
+HREF="Bv9ARM.ch03.html#AEN373"
 >Nameserver Operations</A
 ></DT
 ></DL
@@ -112,7 +112,7 @@ CLASS="sect2"
 ><H2
 CLASS="sect2"
 ><A
-NAME="AEN276"
+NAME="AEN275"
 >3.1.1. A Caching-only Nameserver</A
 ></H2
 ><P
@@ -143,7 +143,7 @@ CLASS="sect2"
 ><H2
 CLASS="sect2"
 ><A
-NAME="AEN280"
+NAME="AEN279"
 >3.1.2. An Authoritative-only Nameserver</A
 ></H2
 ><P
@@ -198,7 +198,7 @@ CLASS="sect1"
 ><H1
 CLASS="sect1"
 ><A
-NAME="AEN286"
+NAME="AEN285"
 >3.2. Load Balancing</A
 ></H1
 ><P
@@ -217,6 +217,7 @@ CLASS="informaltable"
 ><P
 ></P
 ><TABLE
+CELLPADDING="3"
 BORDER="1"
 CLASS="CALSTABLE"
 ><TR
@@ -428,12 +429,14 @@ CLASS="command"
     <B
 CLASS="command"
 >options</B
-> statement, see <A
+> statement, see
+    <A
 HREF="Bv9ARM.ch06.html#rrset_ordering"
 ><I
 >RRset Ordering</I
 ></A
->. This substatement is not supported in
+>.
+    This substatement is not supported in
     <SPAN
 CLASS="acronym"
 >BIND</SPAN
@@ -471,14 +474,14 @@ CLASS="command"
 >also-notify</B
 >, see <A
 HREF="Bv9ARM.ch06.html#zone_transfers"
->Section 6.2.12.7</A
+>Section 6.2.14.6</A
 >. For more information about
     <B
 CLASS="command"
 >notify</B
 >, see <A
 HREF="Bv9ARM.ch06.html#boolean_options"
->Section 6.2.12.1</A
+>Section 6.2.14.1</A
 >.</P
 ></DIV
 ><DIV
@@ -486,7 +489,7 @@ CLASS="sect1"
 ><H1
 CLASS="sect1"
 ><A
-NAME="AEN374"
+NAME="AEN373"
 >3.4. Nameserver Operations</A
 ></H1
 ><DIV
@@ -494,7 +497,7 @@ CLASS="sect2"
 ><H2
 CLASS="sect2"
 ><A
-NAME="AEN376"
+NAME="AEN375"
 >3.4.1. Tools for Use With the Nameserver Daemon</A
 ></H2
 ><P
@@ -507,7 +510,7 @@ CLASS="sect3"
 ><H3
 CLASS="sect3"
 ><A
-NAME="AEN379"
+NAME="AEN378"
 >3.4.1.1. Diagnostic Tools</A
 ></H3
 ><P
@@ -773,68 +776,18 @@ CLASS="replaceable"
 ><B
 CLASS="command"
 >command</B
-> is one of the following
-              for <B
-CLASS="command"
->named</B
->:</P
+> is one of the following:</P
 ><DIV
 CLASS="informaltable"
 ><P
 ></P
 ><TABLE
+CELLPADDING="3"
 BORDER="1"
 CLASS="CALSTABLE"
 ><TR
 ><TD
-WIDTH="144"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
->&#13;<P
-><TT
-CLASS="userinput"
-><B
->status</B
-></TT
-><SUP
->a</SUP
-></P
-></TD
-><TD
 WIDTH="288"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
-><P
->Display ps(1) status of named.</P
-></TD
-></TR
-><TR
-><TD
-WIDTH="144"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
-><P
-><TT
-CLASS="userinput"
-><B
->dumpdb</B
-></TT
-><A
-HREF="#FTN.nyi1"
->[a]</A
-></P
-></TD
-><TD
-WIDTH="288"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
-><P
->Dump database and cache to /var/tmp/named_dump.db.</P
-></TD
-></TR
-><TR
-><TD
-WIDTH="144"
 ALIGN="LEFT"
 VALIGN="MIDDLE"
 ><P
@@ -855,7 +808,91 @@ VALIGN="MIDDLE"
 ></TR
 ><TR
 ><TD
-WIDTH="144"
+WIDTH="288"
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+><P
+><TT
+CLASS="userinput"
+><B
+>reload <TT
+CLASS="replaceable"
+><I
+>zone</I
+></TT
+> [<SPAN
+CLASS="optional"
+><TT
+CLASS="replaceable"
+><I
+>class</I
+></TT
+> [<SPAN
+CLASS="optional"
+><TT
+CLASS="replaceable"
+><I
+>view</I
+></TT
+></SPAN
+>]</SPAN
+>]</B
+></TT
+></P
+></TD
+><TD
+WIDTH="288"
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+><P
+>Reload the given zone.</P
+></TD
+></TR
+><TR
+><TD
+WIDTH="288"
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+><P
+><TT
+CLASS="userinput"
+><B
+>refresh <TT
+CLASS="replaceable"
+><I
+>zone</I
+></TT
+> [<SPAN
+CLASS="optional"
+><TT
+CLASS="replaceable"
+><I
+>class</I
+></TT
+> [<SPAN
+CLASS="optional"
+><TT
+CLASS="replaceable"
+><I
+>view</I
+></TT
+></SPAN
+>]</SPAN
+>]</B
+></TT
+></P
+></TD
+><TD
+WIDTH="288"
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+><P
+>Schedule zone maintenance for the given zone.</P
+></TD
+></TR
+><TR
+><TD
+WIDTH="288"
 ALIGN="LEFT"
 VALIGN="MIDDLE"
 ><P
@@ -864,9 +901,6 @@ CLASS="userinput"
 ><B
 >stats</B
 ></TT
-><A
-HREF="#FTN.nyi1"
->[a]</A
 ></P
 ></TD
 ><TD
@@ -874,61 +908,12 @@ WIDTH="288"
 ALIGN="LEFT"
 VALIGN="MIDDLE"
 ><P
->Dump statistics to /var/tmp/named.stats.</P
+>Write server statistics to the statistics file.</P
 ></TD
 ></TR
 ><TR
-><TD
-WIDTH="144"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
-><P
-><TT
-CLASS="userinput"
-><B
->trace</B
-></TT
-><A
-HREF="#FTN.nyi1"
->[a]</A
-></P
-></TD
 ><TD
 WIDTH="288"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
-><P
->Increment debugging level by one.</P
-></TD
-></TR
-><TR
-><TD
-WIDTH="144"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
->&#13;<P
-><TT
-CLASS="userinput"
-><B
->notrace</B
-></TT
-><A
-HREF="#FTN.nyi1"
->[a]</A
->
-</P
-></TD
-><TD
-WIDTH="288"
-ALIGN="LEFT"
-VALIGN="MIDDLE"
-><P
->Set debugging level to 0.</P
-></TD
-></TR
-><TR
-><TD
-WIDTH="144"
 ALIGN="LEFT"
 VALIGN="MIDDLE"
 ><P
@@ -937,9 +922,6 @@ CLASS="userinput"
 ><B
 >querylog</B
 ></TT
-><A
-HREF="#FTN.nyi1"
->[a]</A
 ></P
 ></TD
 ><TD
@@ -952,7 +934,7 @@ VALIGN="MIDDLE"
 ></TR
 ><TR
 ><TD
-WIDTH="144"
+WIDTH="288"
 ALIGN="LEFT"
 VALIGN="MIDDLE"
 ><P
@@ -961,9 +943,6 @@ CLASS="userinput"
 ><B
 >stop</B
 ></TT
-><A
-HREF="#FTN.nyi1"
->[a]</A
 ></P
 ></TD
 ><TD
@@ -971,23 +950,22 @@ WIDTH="288"
 ALIGN="LEFT"
 VALIGN="MIDDLE"
 ><P
->Stop the server.</P
+>Stop the server, making sure any recent changes
+made through dynamic update or IXFR are first saved to the master files
+of the updated zones.</P
 ></TD
 ></TR
 ><TR
 ><TD
-WIDTH="144"
+WIDTH="288"
 ALIGN="LEFT"
 VALIGN="MIDDLE"
 ><P
 ><TT
 CLASS="userinput"
 ><B
->restart</B
+>halt</B
 ></TT
-><A
-HREF="#FTN.nyi1"
->[a]</A
 ></P
 ></TD
 ><TD
@@ -995,32 +973,29 @@ WIDTH="288"
 ALIGN="LEFT"
 VALIGN="MIDDLE"
 ><P
->Restart the server.</P
+>Stop the server immediately.  Recent changes
+made through dynamic update or IXFR are not saved to the master files,
+but will be rolled forward from the journal files when the server
+is restarted.</P
 ></TD
-></TR
-><TR
-><TD
-COLSPAN="2"
->Notes:<BR><A
-NAME="FTN.nyi1"
->a</A
->not yet implemented<BR></TD
 ></TR
 ></TABLE
 ><P
 ></P
 ></DIV
 ><P
->As noted above, <B
-CLASS="command"
->reload</B
-> is the
-              only command available for <SPAN
+>In <SPAN
 CLASS="acronym"
 >BIND</SPAN
-> 9.0.0. The other
-              commands, and more, are planned to be implemented for
-              future releases.</P
+> 9.1, <B
+CLASS="command"
+>rndc</B
+> does not
+yet support all the commands of the BIND 8 <B
+CLASS="command"
+>ndc</B
+>
+utility.  Additonal commands will be added in future releases.</P
 ><P
 >A configuration file is required, since all
               communication with the server is authenticated with
@@ -1048,14 +1023,14 @@ CLASS="filename"
 >, but limited to
               only three statements, the <B
 CLASS="command"
->options{}</B
+>options</B
 >,
               <B
 CLASS="command"
->key{}</B
+>key</B
 > and <B
 CLASS="command"
->server{}</B
+>server</B
 >
               statements.  These statements are what associate the
               secret keys to the servers with which they are meant to
@@ -1064,7 +1039,7 @@ CLASS="command"
 ><P
 >The <B
 CLASS="command"
->options{}</B
+>options</B
 > statement has two clauses: <B
 CLASS="command"
 >default-server</B
@@ -1086,7 +1061,7 @@ CLASS="command"
 > takes
 the name of key as its argument, as defined by a <B
 CLASS="command"
->key{}</B
+>key</B
 > statement.
  In the future a <B
 CLASS="command"
@@ -1100,7 +1075,7 @@ connect.</P
 ><P
 >The <B
 CLASS="command"
->key{}</B
+>key</B
 > statement names a key with its
 string argument. The string is required by the server to be a valid
 domain name, though it need not actually be hierarchical; thus,
@@ -1112,7 +1087,7 @@ CLASS="userinput"
 >" is a valid name.
 The <B
 CLASS="command"
->key{}</B
+>key</B
 > statement has two clauses: <B
 CLASS="command"
 >algorithm</B
@@ -1138,20 +1113,20 @@ CLASS="command"
 ><P
 >The <B
 CLASS="command"
->server{}</B
+>server</B
 > statement uses the key clause
 to associate a <B
 CLASS="command"
->key{}</B
+>key</B
 >-defined key with a server.
  The argument to the <B
 CLASS="command"
->server{}</B
+>server</B
 > statement is a
 host name or address (addresses must be double quoted).  The argument
 to the key clause is the name of the key as defined by the <B
 CLASS="command"
->key{}</B
+>key</B
 > statement.
  A <B
 CLASS="command"
@@ -1216,7 +1191,7 @@ CLASS="sect2"
 ><H2
 CLASS="sect2"
 ><A
-NAME="AEN600"
+NAME="AEN588"
 >3.4.2. Signals</A
 ></H2
 ><P
@@ -1231,6 +1206,7 @@ CLASS="informaltable"
 ><P
 ></P
 ><TABLE
+CELLPADDING="3"
 BORDER="1"
 CLASS="CALSTABLE"
 ><TR

@@ -1,21 +1,21 @@
 /*
  * Copyright (C) 1999, 2000  Internet Software Consortium.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
- * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
- * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
- * SOFTWARE.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+ * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+ * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: zt.c,v 1.22 2000/06/22 21:54:58 tale Exp $ */
+/* $Id: zt.c,v 1.26 2000/10/05 06:39:22 marka Exp $ */
 
 #include <config.h>
 
@@ -171,8 +171,14 @@ dns_zt_attach(dns_zt_t *zt, dns_zt_t **ztp) {
 	*ztp = zt;
 }
 
-void
-dns_zt_detach(dns_zt_t **ztp) {
+static isc_result_t
+flush(dns_zone_t *zone, void *uap) {
+	UNUSED(uap);
+	return (dns_zone_flush(zone));
+}
+
+static void
+zt_flushanddetach(dns_zt_t **ztp, isc_boolean_t need_flush) {
 	isc_boolean_t destroy = ISC_FALSE;
 	dns_zt_t *zt;
 
@@ -181,7 +187,7 @@ dns_zt_detach(dns_zt_t **ztp) {
 	zt = *ztp;
 
 	RWLOCK(&zt->rwlock, isc_rwlocktype_write);
-	
+
 	INSIST(zt->references > 0);
 	zt->references--;
 	if (zt->references == 0)
@@ -190,6 +196,8 @@ dns_zt_detach(dns_zt_t **ztp) {
 	RWUNLOCK(&zt->rwlock, isc_rwlocktype_write);
 
 	if (destroy) {
+		if (need_flush)
+			(void)dns_zt_apply(zt, ISC_FALSE, flush, NULL);
 		dns_rbt_destroy(&zt->table);
 		isc_rwlock_destroy(&zt->rwlock);
 		zt->magic = 0;
@@ -200,31 +208,13 @@ dns_zt_detach(dns_zt_t **ztp) {
 }
 
 void
-dns_zt_print(dns_zt_t *zt) {
-	dns_rbtnode_t *node;
-	dns_rbtnodechain_t chain;
-	isc_result_t result;
-	dns_zone_t *zone;
+dns_zt_flushanddetach(dns_zt_t **ztp) {
+	zt_flushanddetach(ztp, ISC_TRUE);
+}
 
-	REQUIRE(VALID_ZT(zt));
-
-	RWLOCK(&zt->rwlock, isc_rwlocktype_read);
-
-	dns_rbtnodechain_init(&chain, zt->mctx);
-	result = dns_rbtnodechain_first(&chain, zt->table, NULL, NULL);
-	while (result == DNS_R_NEWORIGIN || result == ISC_R_SUCCESS) {
-		result = dns_rbtnodechain_current(&chain, NULL, NULL,
-						  &node);
-		if (result == ISC_R_SUCCESS) {
-			zone = node->data;
-			if (zone != NULL)
-				(void)dns_zone_print(zone);
-		}
-		result = dns_rbtnodechain_next(&chain, NULL, NULL);
-	}
-	dns_rbtnodechain_invalidate(&chain);
-
-	RWUNLOCK(&zt->rwlock, isc_rwlocktype_read);
+void
+dns_zt_detach(dns_zt_t **ztp) {
+	zt_flushanddetach(ztp, ISC_FALSE);
 }
 
 isc_result_t
@@ -260,7 +250,7 @@ dns_zt_apply(dns_zt_t *zt, isc_boolean_t stop,
 		/*
 		 * The tree is empty.
 		 */
-		result = ISC_R_NOMORE; 
+		result = ISC_R_NOMORE;
 	}
 	while (result == DNS_R_NEWORIGIN || result == ISC_R_SUCCESS) {
 		result = dns_rbtnodechain_current(&chain, NULL, NULL,
@@ -292,6 +282,6 @@ auto_detach(void *data, void *arg) {
 	dns_zone_t *zone = data;
 
 	UNUSED(arg);
-	
+
 	dns_zone_detach(&zone);
 }

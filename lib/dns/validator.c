@@ -1,10 +1,10 @@
 /*
  * Copyright (C) 2000  Internet Software Consortium.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
  * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: validator.c,v 1.63.2.6 2000/09/12 19:20:36 gson Exp $ */
+/* $Id: validator.c,v 1.85 2000/11/08 00:51:24 bwelling Exp $ */
 
 #include <config.h>
 
@@ -39,33 +39,6 @@
 #include <dns/result.h>
 #include <dns/validator.h>
 #include <dns/view.h>
-
-struct dns_validator {
-	/* Unlocked. */
-	unsigned int			magic;
-	isc_mutex_t			lock;
-	dns_view_t *			view;
-	/* Locked by lock. */
-	unsigned int			options;
-	unsigned int			attributes;
-	dns_validatorevent_t *		event;
-	dns_fetch_t *			fetch;
-	dns_validator_t *		keyvalidator;
-	dns_validator_t *		authvalidator;
-	dns_keytable_t *		keytable;
-	dns_keynode_t *			keynode;
-	dst_key_t *			key;
-	dns_rdata_sig_t *		siginfo;
-	isc_task_t *			task;
-	isc_taskaction_t		action;
-	void *				arg;
-	unsigned int			labels;
-	dns_rdataset_t *		currentset;
-	isc_boolean_t			seensig;
-	dns_rdataset_t *		keyset;
-	dns_rdataset_t			frdataset;
-	dns_rdataset_t			fsigrdataset;
-};
 
 #define VALIDATOR_MAGIC			0x56616c3fU	/* Val?. */
 #define VALID_VALIDATOR(v)	 	ISC_MAGIC_VALID(v, VALIDATOR_MAGIC)
@@ -101,7 +74,8 @@ static void
 validator_done(dns_validator_t *val, isc_result_t result) {
 	isc_task_t *task;
 
-	REQUIRE(val->event != NULL);
+	if (val->event == NULL)
+		return;
 
 	/*
 	 * Caller must be holding the lock.
@@ -114,7 +88,7 @@ validator_done(dns_validator_t *val, isc_result_t result) {
 	val->event->ev_action = val->action;
 	val->event->ev_arg = val->arg;
 	isc_task_sendanddetach(&task, (isc_event_t **)&val->event);
-	
+
 }
 
 static void
@@ -156,6 +130,17 @@ fetch_callback_validator(isc_task_t *task, isc_event_t *event) {
 
 	isc_event_free(&event);
 	dns_resolver_destroyfetch(&val->fetch);
+
+	if (SHUTDOWN(val)) {
+		dns_validator_destroy(&val);
+		return;
+	}
+
+	if (val->event == NULL) {
+		validator_log(val, ISC_LOG_DEBUG(3),
+			      "fetch_callback_validator: event == NULL");
+		return;
+	}
 
 	validator_log(val, ISC_LOG_DEBUG(3), "in fetch_callback_validator");
 	LOCK(&val->lock);
@@ -199,7 +184,6 @@ fetch_callback_nullkey(isc_task_t *task, isc_event_t *event) {
 	dns_fetchevent_t *devent;
 	dns_validator_t *val;
 	dns_rdataset_t *rdataset, *sigrdataset;
-	dns_fetch_t *fetch;
 	isc_result_t result;
 	isc_result_t eresult;
 
@@ -211,9 +195,23 @@ fetch_callback_nullkey(isc_task_t *task, isc_event_t *event) {
 	sigrdataset = &val->fsigrdataset;
 	eresult = devent->result;
 
+	dns_resolver_destroyfetch(&val->fetch);
+
+	if (SHUTDOWN(val)) {
+		dns_validator_destroy(&val);
+		isc_event_free(&event);
+		return;
+	}
+
+	if (val->event == NULL) {
+		validator_log(val, ISC_LOG_DEBUG(3),
+			      "fetch_callback_nullkey: event == NULL");
+		isc_event_free(&event);
+		return;
+	}
+
 	validator_log(val, ISC_LOG_DEBUG(3), "in fetch_callback_nullkey");
-	fetch = val->fetch;
-	val->fetch = NULL;
+
 	LOCK(&val->lock);
 	if (eresult == ISC_R_SUCCESS) {
 		if (!containsnullkey(val, rdataset)) {
@@ -260,10 +258,9 @@ fetch_callback_nullkey(isc_task_t *task, isc_event_t *event) {
 				if (result != ISC_R_SUCCESS)
 					validator_done(val, result);
 				/*
-				 * Don't free these, since they'll be
-				 * freed in nullkeyvalidated.
+				 * Don't free rdataset & sigrdataset, since
+				 * they'll be freed in nullkeyvalidated.
 				 */
-				dns_resolver_destroyfetch(&fetch);
 				isc_event_free(&event);
 				UNLOCK(&val->lock);
 				return;
@@ -290,8 +287,6 @@ fetch_callback_nullkey(isc_task_t *task, isc_event_t *event) {
 	}
 	UNLOCK(&val->lock);
 
-	dns_resolver_destroyfetch(&fetch);
-
 	/*
 	 * Free stuff from the event.
 	 */
@@ -311,11 +306,20 @@ keyvalidated(isc_task_t *task, isc_event_t *event) {
 
 	UNUSED(task);
 	INSIST(event->ev_type == DNS_EVENT_VALIDATORDONE);
+
 	devent = (dns_validatorevent_t *)event;
 	val = devent->ev_arg;
 	eresult = devent->result;
 
 	isc_event_free(&event);
+
+	if (SHUTDOWN(val)) {
+		dns_validator_destroy(&val);
+		return;
+	}
+
+	if (val->event == NULL)
+		return;
 
 	validator_log(val, ISC_LOG_DEBUG(3), "in keyvalidated");
 	LOCK(&val->lock);
@@ -333,7 +337,7 @@ keyvalidated(isc_task_t *task, isc_event_t *event) {
 			goto out;
 		}
 	} else {
-		validator_log(val, ISC_LOG_DEBUG(3), 
+		validator_log(val, ISC_LOG_DEBUG(3),
 			      "keyvalidated: got %s",
 			      dns_result_totext(eresult));
 		validator_done(val, eresult);
@@ -356,9 +360,7 @@ nxtprovesnonexistence(dns_validator_t *val, dns_name_t *nxtname,
 		      dns_rdataset_t *nxtset, dns_rdataset_t *signxtset)
 {
 	int order;
-	dns_rdata_t rdata;
-	isc_region_t r;
-	dns_name_t nextname;
+	dns_rdata_t rdata = DNS_RDATA_INIT;
 	isc_result_t result;
 
 	result = dns_rdataset_first(nxtset);
@@ -385,13 +387,15 @@ nxtprovesnonexistence(dns_validator_t *val, dns_name_t *nxtname,
 		}
 		validator_log(val, ISC_LOG_DEBUG(3), "nxt bitmask ok");
 	} else if (order > 0) {
+		dns_rdata_nxt_t nxt;
+
 		/*
 		 * The NXT owner name is less than the nonexistent name.
 		 */
-		dns_rdata_toregion(&rdata, &r);
-		dns_name_init(&nextname, NULL);
-		dns_name_fromregion(&nextname, &r);
-		order = dns_name_compare(val->event->name, &nextname);
+		result = dns_rdata_tostruct(&rdata, &nxt, NULL);
+		dns_rdata_reset(&rdata);
+		INSIST(result == ISC_R_SUCCESS);
+		order = dns_name_compare(val->event->name, &nxt.next);
 		if (order >= 0) {
 			/*
 			 * The NXT next name is less than the nonexistent
@@ -404,14 +408,16 @@ nxtprovesnonexistence(dns_validator_t *val, dns_name_t *nxtname,
 			dns_rdataset_current(signxtset, &rdata);
 			result = dns_rdata_tostruct(&rdata, &siginfo, NULL);
 			INSIST (result == ISC_R_SUCCESS);
-			if (!dns_name_equal(&siginfo.signer, &nextname)) {
+			if (!dns_name_equal(&siginfo.signer, &nxt.next)) {
 				validator_log(val, ISC_LOG_DEBUG(3),
 					"next name is not greater");
+				dns_rdata_freestruct(&nxt);
 				return (ISC_FALSE);
 			}
 			validator_log(val, ISC_LOG_DEBUG(3),
 				      "nxt points to zone apex, ok");
 		}
+		dns_rdata_freestruct(&nxt);
 		validator_log(val, ISC_LOG_DEBUG(3),
 			      "nxt range ok");
 	} else {
@@ -436,18 +442,26 @@ authvalidated(isc_task_t *task, isc_event_t *event) {
 
 	UNUSED(task);
 	INSIST(event->ev_type == DNS_EVENT_VALIDATORDONE);
+
 	devent = (dns_validatorevent_t *)event;
 	rdataset = devent->rdataset;
 	sigrdataset = devent->sigrdataset;
 	val = devent->ev_arg;
 	eresult = devent->result;
-
 	dns_validator_destroy(&val->authvalidator);
+
+	if (SHUTDOWN(val)) {
+		dns_validator_destroy(&val);
+		return;
+	}
+
+	if (val->event == NULL)
+		return;
 
 	validator_log(val, ISC_LOG_DEBUG(3), "in authvalidated");
 	LOCK(&val->lock);
 	if (eresult != ISC_R_SUCCESS) {
-		validator_log(val, ISC_LOG_DEBUG(3), 
+		validator_log(val, ISC_LOG_DEBUG(3),
 			      "authvalidated: got %s",
 			      dns_result_totext(eresult));
 		result = nxtvalidate(val, ISC_TRUE);
@@ -479,12 +493,20 @@ negauthvalidated(isc_task_t *task, isc_event_t *event) {
 
 	UNUSED(task);
 	INSIST(event->ev_type == DNS_EVENT_VALIDATORDONE);
+
 	devent = (dns_validatorevent_t *)event;
 	val = devent->ev_arg;
 	eresult = devent->result;
-
 	isc_event_free(&event);
 	dns_validator_destroy(&val->authvalidator);
+
+	if (SHUTDOWN(val)) {
+		dns_validator_destroy(&val);
+		return;
+	}
+
+	if (val->event == NULL)
+		return;
 
 	validator_log(val, ISC_LOG_DEBUG(3), "in negauthvalidated");
 	LOCK(&val->lock);
@@ -495,7 +517,7 @@ negauthvalidated(isc_task_t *task, isc_event_t *event) {
 		auth_nonpending(val->event->message);
 		validator_done(val, ISC_R_SUCCESS);
 	} else {
-		validator_log(val, ISC_LOG_DEBUG(3), 
+		validator_log(val, ISC_LOG_DEBUG(3),
 			      "negauthvalidated: got %s",
 			      dns_result_totext(eresult));
 		validator_done(val, eresult);
@@ -518,32 +540,38 @@ nullkeyvalidated(isc_task_t *task, isc_event_t *event) {
 
 	UNUSED(task);
 	INSIST(event->ev_type == DNS_EVENT_VALIDATORDONE);
+
 	devent = (dns_validatorevent_t *)event;
 	val = devent->ev_arg;
 	eresult = devent->result;
 
 	dns_name_free(devent->name, val->view->mctx);
 	isc_mem_put(val->view->mctx, devent->name, sizeof(dns_name_t));
+	dns_validator_destroy(&val->keyvalidator);
 	isc_event_free(&event);
 
+	if (SHUTDOWN(val)) {
+		dns_validator_destroy(&val);
+		return;
+	}
+
+	if (val->event == NULL)
+		return;
+
 	validator_log(val, ISC_LOG_DEBUG(3), "in nullkeyvalidated");
+	LOCK(&val->lock);
 	if (eresult == ISC_R_SUCCESS) {
 		validator_log(val, ISC_LOG_DEBUG(3),
 			      "proved that name is in an unsecure domain");
 		validator_log(val, ISC_LOG_DEBUG(3), "marking as answer");
-		LOCK(&val->lock);
 		val->event->rdataset->trust = dns_trust_answer;
 		validator_done(val, ISC_R_SUCCESS);
-		UNLOCK(&val->lock);
 	} else {
-		LOCK(&val->lock);
 		result = proveunsecure(val, ISC_TRUE);
 		if (result != DNS_R_WAIT)
 			validator_done(val, result);
-		UNLOCK(&val->lock);
 	}
-
-	dns_validator_destroy(&val->keyvalidator);
+	UNLOCK(&val->lock);
 
 	/*
 	 * Free stuff from the event.
@@ -558,12 +586,12 @@ nullkeyvalidated(isc_task_t *task, isc_event_t *event) {
  * Try to find a null zone key among those in 'rdataset'.  If found, build
  * a dst_key_t for it and point val->key at it.
  */
-static inline isc_boolean_t 
+static inline isc_boolean_t
 containsnullkey(dns_validator_t *val, dns_rdataset_t *rdataset) {
 	isc_result_t result;
 	dst_key_t *key = NULL;
 	isc_buffer_t b;
-	dns_rdata_t rdata;
+	dns_rdata_t rdata = DNS_RDATA_INIT;
 	isc_boolean_t found = ISC_FALSE;
 
 	result = dns_rdataset_first(rdataset);
@@ -578,13 +606,14 @@ containsnullkey(dns_validator_t *val, dns_rdataset_t *rdataset) {
 		 * The key name is unimportant, so we can avoid any name/text
 		 * conversion.
 		 */
-		result = dst_key_fromdns(dns_rootname, &b, val->view->mctx,
-					 &key);
+		result = dst_key_fromdns(dns_rootname, rdata.rdclass, &b,
+					 val->view->mctx, &key);
 		if (result != ISC_R_SUCCESS)
 			continue;
 		if (dst_key_isnullkey(key))
 			found = ISC_TRUE;
 		dst_key_free(&key);
+		dns_rdata_reset(&rdata);
 		result = dns_rdataset_next(rdataset);
 	}
 	return (found);
@@ -597,13 +626,13 @@ containsnullkey(dns_validator_t *val, dns_rdataset_t *rdataset) {
  *
  * If val->key is non-NULL, this returns the next matching key.
  */
-static inline isc_result_t 
+static inline isc_result_t
 get_dst_key(dns_validator_t *val, dns_rdata_sig_t *siginfo,
 	    dns_rdataset_t *rdataset)
 {
 	isc_result_t result;
 	isc_buffer_t b;
-	dns_rdata_t rdata;
+	dns_rdata_t rdata = DNS_RDATA_INIT;
 	dst_key_t *oldkey = val->key;
 	isc_boolean_t foundold;
 
@@ -623,8 +652,8 @@ get_dst_key(dns_validator_t *val, dns_rdata_sig_t *siginfo,
 		isc_buffer_init(&b, rdata.data, rdata.length);
 		isc_buffer_add(&b, rdata.length);
 		INSIST(val->key == NULL);
-		result = dst_key_fromdns(&siginfo->signer, &b, val->view->mctx,
-					 &val->key);
+		result = dst_key_fromdns(&siginfo->signer, rdata.rdclass, &b,
+					 val->view->mctx, &val->key);
 		if (result != ISC_R_SUCCESS)
 			goto failure;
 		if (siginfo->algorithm ==
@@ -645,6 +674,7 @@ get_dst_key(dns_validator_t *val, dns_rdata_sig_t *siginfo,
 			}
 		}
 		dst_key_free(&val->key);
+		dns_rdata_reset(&rdata);
 		result = dns_rdataset_next(rdataset);
 	} while (result == ISC_R_SUCCESS);
 	if (result == ISC_R_NOMORE)
@@ -669,19 +699,13 @@ get_key(dns_validator_t *val, dns_rdata_sig_t *siginfo) {
 
 	/*
 	 * Is the key name appropriate for this signature?
+	 * This previously checked for self-signed keys.  Now, if the key
+	 * is self signed with a preconfigured key, it's ok.
 	 */
 	namereln = dns_name_fullcompare(event->name, &siginfo->signer,
 					&order, &nlabels, &nbits);
-	if (event->rdataset->type == dns_rdatatype_key &&
-	    namereln != dns_namereln_subdomain) {
-		/*
-		 * We don't want a KEY RR to authenticate
-		 * itself, so we ignore the signature if it
-		 * was not made by an ancestor of the KEY.
-		 */
-		return (DNS_R_CONTINUE);
-	} else if (namereln != dns_namereln_subdomain &&
-		   namereln != dns_namereln_equal) {
+	if (namereln != dns_namereln_subdomain &&
+	    namereln != dns_namereln_equal) {
 		/*
 		 * The key name is not at the same level
 		 * as 'rdataset', nor is it closer to the
@@ -705,6 +729,20 @@ get_key(dns_validator_t *val, dns_rdata_sig_t *siginfo) {
 		 */
 		val->key = dns_keynode_key(val->keynode);
 		return (ISC_R_SUCCESS);
+	}
+
+	/*
+	 * A key set may not be self-signed unless the signing key is a
+	 * security root.  We don't want a KEY RR to authenticate
+	 * itself, so we ignore the signature if it was not made by
+	 * an ancestor of the KEY or a preconfigured key.
+	 */
+	if (event->rdataset->type == dns_rdatatype_key &&
+	    namereln == dns_namereln_equal)
+	{
+		validator_log(val, ISC_LOG_DEBUG(3),
+			      "keyset was self-signed but not preconfigured");
+		return (DNS_R_CONTINUE);
 	}
 
 	/*
@@ -820,7 +858,7 @@ issecurityroot(dns_validator_t *val) {
 	dns_rdataset_t *rdataset;
 	isc_mem_t *mctx;
 	dns_keytable_t *secroots;
-	dns_rdata_t rdata;
+	dns_rdata_t rdata = DNS_RDATA_INIT;
 	isc_result_t result;
 	dns_keynode_t *keynode, *nextnode;
 	dst_key_t *key, *secrootkey;
@@ -838,6 +876,7 @@ issecurityroot(dns_validator_t *val) {
 		dns_rdataset_current(rdataset, &rdata);
 		key = NULL;
 		result = dns_dnssec_keyfromrdata(name, &rdata, mctx, &key);
+		dns_rdata_reset(&rdata);
 		if (result != ISC_R_SUCCESS)
 			 continue;
 		keynode = NULL;
@@ -881,7 +920,7 @@ static inline isc_result_t
 validate(dns_validator_t *val, isc_boolean_t resume) {
 	isc_result_t result;
 	dns_validatorevent_t *event;
-	dns_rdata_t rdata;
+	dns_rdata_t rdata = DNS_RDATA_INIT;
 
 	/*
 	 * Caller must be holding the validator lock.
@@ -925,6 +964,7 @@ validate(dns_validator_t *val, isc_boolean_t resume) {
 	     result == ISC_R_SUCCESS;
 	     result = dns_rdataset_next(event->sigrdataset))
 	{
+		dns_rdata_reset(&rdata);
 		dns_rdataset_current(event->sigrdataset, &rdata);
 		if (val->siginfo != NULL)
 			isc_mem_put(val->view->mctx, val->siginfo,
@@ -934,13 +974,13 @@ validate(dns_validator_t *val, isc_boolean_t resume) {
 		if (val->siginfo == NULL)
 			return (ISC_R_NOMEMORY);
 		dns_rdata_tostruct(&rdata, val->siginfo, NULL);
-		
+
 		/*
 		 * At this point we could check that the signature algorithm
 		 * was known and "sufficiently good".  For now, any algorithm
 		 * is acceptable.
 		 */
-		
+
 		if (!resume) {
 			result = get_key(val, val->siginfo);
 			if (result == DNS_R_CONTINUE)
@@ -1086,17 +1126,26 @@ nxtvalidate(dns_validator_t *val, isc_boolean_t resume) {
 			if (sigrdataset == NULL)
 				continue;
 			val->seensig = ISC_TRUE;
+			/*
+			 * If a signed zone is missing the zone key, bad
+			 * things could happen.  A query for data in the zone
+			 * would lead to a query for the zone key, which
+			 * would return a negative answer, which would contain
+			 * an SOA and an NXT signed by the missing key, which
+			 * would trigger another query for the KEY (since the
+			 * first one is still in progress), and go into an
+			 * infinite loop.  Avoid that.
+			 */
 			if (val->event->type == dns_rdatatype_key &&
 			    dns_name_equal(name, val->event->name))
 			{
-				dns_rdata_t nxt;
+				dns_rdata_t nxt = DNS_RDATA_INIT;
 
 				if (rdataset->type != dns_rdatatype_nxt)
 					continue;
 
 				result = dns_rdataset_first(rdataset);
 				INSIST(result == ISC_R_SUCCESS);
-				dns_rdata_init(&nxt);
 				dns_rdataset_current(rdataset, &nxt);
 				if (dns_nxt_typepresent(&nxt,
 							dns_rdatatype_soa))
@@ -1116,7 +1165,7 @@ nxtvalidate(dns_validator_t *val, isc_boolean_t resume) {
 			if (result != ISC_R_SUCCESS)
 				return (result);
 			return (DNS_R_WAIT);
-						      
+
 		}
 	}
 	if (result == ISC_R_NOMORE)
@@ -1231,7 +1280,7 @@ proveunsecure(dns_validator_t *val, isc_boolean_t resume) {
 				      "found keyset, looking for null key");
 			if (!containsnullkey(val, &val->frdataset))
 				continue;
-		
+
 			if (val->frdataset.trust >= dns_trust_secure) {
 				validator_log(val, ISC_LOG_DEBUG(3),
 					      "insecurity proof succeeded");
@@ -1312,8 +1361,12 @@ validator_start(isc_task_t *task, isc_event_t *event) {
 	vevent = (dns_validatorevent_t *)event;
 	val = vevent->validator;
 
+	/* If the validator has been cancelled, val->event == NULL */
+	if (val->event == NULL)
+		return;
+
 	validator_log(val, ISC_LOG_DEBUG(3), "starting");
-	
+
 	LOCK(&val->lock);
 
 	if (val->event->rdataset != NULL && val->event->sigrdataset != NULL) {
@@ -1326,7 +1379,7 @@ validator_start(isc_task_t *task, isc_event_t *event) {
 		 */
 		validator_log(val, ISC_LOG_DEBUG(3),
 			      "attempting positive response validation");
-	
+
 		result = validate(val, ISC_FALSE);
 		if (result == DNS_R_NOVALIDSIG &&
 		    (val->attributes & VALATTR_TRIEDVERIFY) == 0)
@@ -1345,7 +1398,7 @@ validator_start(isc_task_t *task, isc_event_t *event) {
 		 */
 		validator_log(val, ISC_LOG_DEBUG(3),
 			      "attempting insecurity proof");
-	
+
 		result = proveunsecure(val, ISC_FALSE);
 	} else if (val->event->rdataset == NULL &&
 		 val->event->sigrdataset == NULL)
@@ -1355,7 +1408,7 @@ validator_start(isc_task_t *task, isc_event_t *event) {
 		 */
 		validator_log(val, ISC_LOG_DEBUG(3),
 			      "attempting negative response validation");
-	
+
 		result = nxtvalidate(val, ISC_FALSE);
 	} else {
 		/*
@@ -1396,7 +1449,7 @@ dns_validator_create(dns_view_t *view, dns_name_t *name, dns_rdatatype_t type,
 	if (val == NULL)
 		return (ISC_R_NOMEMORY);
 	val->view = NULL;
-	dns_view_attach(view, &val->view);
+	dns_view_weakattach(view, &val->view);
 	event = (dns_validatorevent_t *)
 		isc_event_allocate(view->mctx, task,
 				   DNS_EVENT_VALIDATORSTART,
@@ -1435,6 +1488,7 @@ dns_validator_create(dns_view_t *view, dns_name_t *name, dns_rdatatype_t type,
 	val->seensig = ISC_FALSE;
 	dns_rdataset_init(&val->frdataset);
 	dns_rdataset_init(&val->fsigrdataset);
+	ISC_LINK_INIT(val, link);
 	val->magic = VALIDATOR_MAGIC;
 
 	isc_task_send(task, (isc_event_t **)&event);
@@ -1448,32 +1502,31 @@ dns_validator_create(dns_view_t *view, dns_name_t *name, dns_rdatatype_t type,
 	isc_event_free((isc_event_t **)&val->event);
 
  cleanup_val:
-	dns_view_detach(&val->view);
+	dns_view_weakdetach(&val->view);
 	isc_mem_put(view->mctx, val, sizeof *val);
-	
+
 	return (result);
 }
 
 void
 dns_validator_cancel(dns_validator_t *validator) {
-	isc_task_t *task;
-
 	REQUIRE(VALID_VALIDATOR(validator));
 
 	LOCK(&validator->lock);
 
+	validator_log(validator, ISC_LOG_DEBUG(3), "dns_validator_cancel");
+
 	if (validator->event != NULL) {
-		validator->event->result = ISC_R_CANCELED;
-		task = validator->event->ev_sender;
-		validator->event->ev_sender = validator;
-		isc_task_sendanddetach(&task,
-				       (isc_event_t **)&validator->event);
+		validator_done(validator, ISC_R_CANCELED);
 
 		if (validator->fetch != NULL)
 			dns_resolver_cancelfetch(validator->fetch);
 
 		if (validator->keyvalidator != NULL)
 			dns_validator_cancel(validator->keyvalidator);
+
+		if (validator->authvalidator != NULL)
+			dns_validator_cancel(validator->authvalidator);
 	}
 	UNLOCK(&validator->lock);
 }
@@ -1485,9 +1538,6 @@ destroy(dns_validator_t *val) {
 	REQUIRE(SHUTDOWN(val));
 	REQUIRE(val->event == NULL);
 	REQUIRE(val->fetch == NULL);
-#if 0
-	REQUIRE(val->currentset == NULL);
-#endif
 
 	if (val->keynode != NULL)
 		dns_keytable_detachkeynode(val->keytable, &val->keynode);
@@ -1500,8 +1550,8 @@ destroy(dns_validator_t *val) {
 	mctx = val->view->mctx;
 	if (val->siginfo != NULL)
 		isc_mem_put(mctx, val->siginfo, sizeof *val->siginfo);
-	isc_mutex_destroy(&val->lock);
-	dns_view_detach(&val->view);
+	DESTROYLOCK(&val->lock);
+	dns_view_weakdetach(&val->view);
 	val->magic = 0;
 	isc_mem_put(mctx, val, sizeof *val);
 }
@@ -1519,8 +1569,11 @@ dns_validator_destroy(dns_validator_t **validatorp) {
 
 	REQUIRE(val->event == NULL);
 
+	validator_log(val, ISC_LOG_DEBUG(3), "dns_validator_destroy");
+
 	val->attributes |= VALATTR_SHUTDOWN;
-	if (val->fetch == NULL)
+	if (val->fetch == NULL && val->keyvalidator == NULL &&
+	    val->authvalidator == NULL)
 		want_destroy = ISC_TRUE;
 
 	UNLOCK(&val->lock);
@@ -1535,7 +1588,7 @@ dns_validator_destroy(dns_validator_t **validatorp) {
 
 static void
 validator_logv(dns_validator_t *val, isc_logcategory_t *category,
-	   isc_logmodule_t *module, int level, const char *fmt, va_list ap)
+	       isc_logmodule_t *module, int level, const char *fmt, va_list ap)
 {
 	char msgbuf[2048];
 
@@ -1546,7 +1599,7 @@ validator_logv(dns_validator_t *val, isc_logcategory_t *category,
 		char typebuf[256];
 		isc_buffer_t b;
 		isc_region_t r;
-		
+
 		dns_name_format(val->event->name, namebuf, sizeof(namebuf));
 
 		isc_buffer_init(&b, (unsigned char *)typebuf, sizeof(typebuf));
@@ -1563,7 +1616,7 @@ validator_logv(dns_validator_t *val, isc_logcategory_t *category,
 	} else {
 		isc_log_write(dns_lctx, category, module, level,
 			      "validator @%p: %s", val, msgbuf);
-		
+
 	}
 }
 

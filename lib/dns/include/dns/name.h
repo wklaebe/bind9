@@ -1,21 +1,21 @@
 /*
  * Copyright (C) 1998-2000  Internet Software Consortium.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
- * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
- * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
- * SOFTWARE.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+ * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+ * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: name.h,v 1.73 2000/06/22 21:55:49 tale Exp $ */
+/* $Id: name.h,v 1.82 2000/11/27 19:42:34 gson Exp $ */
 
 #ifndef DNS_NAME_H
 #define DNS_NAME_H 1
@@ -214,6 +214,11 @@ struct dns_name {
 extern dns_name_t *dns_rootname;
 extern dns_name_t *dns_wildcardname;
 
+/*
+ * Standard size of a wire format name
+ */
+#define DNS_NAME_MAXWIRE 255
+
 /***
  *** Initialization
  ***/
@@ -236,6 +241,32 @@ dns_name_init(dns_name_t *name, unsigned char *offsets);
  * Ensures:
  *	'name' is a valid name.
  *	dns_name_countlabels(name) == 0
+ *	dns_name_isabsolute(name) == ISC_FALSE
+ */
+
+void
+dns_name_reset(dns_name_t *name);
+/*
+ * Reinitialize 'name'.
+ *
+ * Notes:
+ *	This function distinguishes itself from dns_name_init() in two
+ *	key ways:
+ *
+ *	+ If any buffer is associated with 'name' (via dns_name_setbuffer()
+ *	  or by being part of a dns_fixedname_t) the link to the buffer
+ *	  is retained but the buffer itself is cleared.
+ *
+ *	+ Of the attributes associated with 'name', all are retained except
+ *	  DNS_NAMEATTR_ABSOLUTE.
+ *
+ * Requires:
+ *	'name' is a valid name.
+ *
+ * Ensures:
+ *	'name' is a valid name.
+ *	dns_name_countlabels(name) == 0
+ *	dns_name_isabsolute(name) == ISC_FALSE
  */
 
 void
@@ -308,8 +339,6 @@ dns_name_isabsolute(const dns_name_t *name);
  *
  * Requires:
  *	'name' is a valid name
- *
- *	dns_name_countlabels(name) > 0
  *
  * Returns:
  *	TRUE		The last label in 'name' is the root label.
@@ -428,11 +457,7 @@ dns_name_compare(const dns_name_t *name1, const dns_name_t *name2);
  * Requires:
  *	'name1' is a valid name
  *
- *	dns_name_countlabels(name1) > 0
- *
  *	'name2' is a valid name
- *
- *	dns_name_countlabels(name2) > 0
  *
  *	Either name1 is absolute and name2 is absolute, or neither is.
  *
@@ -508,11 +533,7 @@ dns_name_issubdomain(const dns_name_t *name1, const dns_name_t *name2);
  * Requires:
  *	'name1' is a valid name
  *
- *	dns_name_countlabels(name1) > 0
- *
  *	'name2' is a valid name
- *
- *	dns_name_countlabels(name2) > 0
  *
  *	Either name1 is absolute and name2 is absolute, or neither is.
  *
@@ -577,7 +598,7 @@ dns_name_depth(const dns_name_t *name);
 /***
  *** Labels
  ***/
-	
+
 unsigned int
 dns_name_countlabels(const dns_name_t *name);
 /*
@@ -650,7 +671,7 @@ dns_name_clone(dns_name_t *source, dns_name_t *target);
  *
  *	This call is functionally equivalent to:
  *
- *		dns_name_getlabelsequence(source, 0, 
+ *		dns_name_getlabelsequence(source, 0,
  *					  dns_label_countlabels(source),
  *					  target);
  *
@@ -760,7 +781,7 @@ dns_name_towire(dns_name_t *name, dns_compress_t *cctx, isc_buffer_t *target);
 /*
  * Convert 'name' into wire format, compressing it as specified by the
  * compression context 'cctx', and storing the result in 'target'.
- *	
+ *
  * Notes:
  *	If the compression context allows global compression, then the
  *	global compression table may be updated.
@@ -846,17 +867,21 @@ dns_name_totext(dns_name_t *name, isc_boolean_t omit_final_dot,
 		isc_buffer_t *target);
 /*
  * Convert 'name' into text format, storing the result in 'target'.
- *	
- * If 'omit_final_dot' is true, then the final '.' in absolute
- * names other than the root name will be omitted.
+ *
+ * Notes:
+ *	If 'omit_final_dot' is true, then the final '.' in absolute
+ *	names other than the root name will be omitted.
+ *
+ *	If dns_name_countlabels == 0, the name will be "@", representing the
+ *	current origin as described by RFC 1035.
+ *
+ *	The name is not NUL terminated.
  *
  * Requires:
  *
  *	'name' is a valid name
  *
  *	'target' is a valid buffer.
- *
- *	dns_name_countlabels(name) > 0
  *
  *	if dns_name_isabsolute == FALSE, then omit_final_dot == FALSE
  *
@@ -871,6 +896,29 @@ dns_name_totext(dns_name_t *name, isc_boolean_t omit_final_dot,
  * Returns:
  *	ISC_R_SUCCESS
  *	ISC_R_NOSPACE
+ */
+
+#define DNS_NAME_MAXTEXT 1023
+/*
+ * The maximum length of the text representation of a domain
+ * name as generated by dns_name_totext().  This does not
+ * include space for a terminating NULL.
+ *
+ * This definition is conservative - the actual maximum 
+ * is 1004, derived as follows:
+ *
+ *   A backslash-decimal escaped character takes 4 bytes.
+ *   A wire-encoded name can be up to 255 bytes and each
+ *   label is one length byte + at most 63 bytes of data.
+ *   Maximizing the label lengths gives us a name of
+ *   three 63-octet labels, one 61-octet label, and the
+ *   root label:
+ *
+ *      1 + 63 + 1 + 63 + 1 + 63 + 1 + 61 + 1 = 255
+ *
+ *   When printed, this is (3 * 63 + 61) * 4
+ *   bytes for the escaped label data + 4 bytes for the
+ *   dot terminating each label = 1004 bytes total.
  */
 
 isc_result_t
@@ -931,6 +979,7 @@ dns_name_concatenate(dns_name_t *prefix, dns_name_t *suffix,
  * Returns:
  *	ISC_R_SUCCESS
  *	ISC_R_NOSPACE
+ *	DNS_R_NAMETOOLONG
  */
 
 isc_result_t
@@ -942,6 +991,12 @@ dns_name_split(dns_name_t *name,
  * Split 'name' into two pieces on a label or bitlabel boundary.
  *
  * Notes:
+ *      'name' is split such that 'suffix' holds the most significant
+ *      'suffixlabels' labels, except that if the least significant
+ *      suffix label is a bitstring label, then only the 'nbits' most
+ *      significant bits of that label are included in 'suffix'.  All 
+ *      other labels and bits are stored in 'prefix'.
+ *
  *	Copying name data is avoided as much as possible, so 'prefix'
  *	and 'suffix' will usually end up pointing at the data for 'name',
  *	except when 'nbits' > 0.  The name data is copied to the
@@ -949,7 +1004,7 @@ dns_name_split(dns_name_t *name,
  *	because of the bit fiddling that must be done.
  *
  *	It is legitimate to pass a 'prefix' or 'suffix' that has
- *	its name data stored someplace other than the dedicate buffer.
+ *	its name data stored someplace other than the dedicated buffer.
  *	This is useful to avoid name copying in the calling function.
  *
  *	It is also legitimate to pass a 'prefix' or 'suffix' that is
@@ -962,7 +1017,7 @@ dns_name_split(dns_name_t *name,
  * 	'suffixlabels' cannot exceed the number of labels in 'name'.
  *
  *	'nbits' can be greater than zero only when the least significant
- *	label of 'suffixlabels' is a bitstring label.
+ *	label of 'suffix' is a bitstring label.
  *
  *	'nbits' cannot exceed the number of bits in the bitstring label.
  *
@@ -1039,9 +1094,9 @@ dns_name_dup(dns_name_t *source, isc_mem_t *mctx, dns_name_t *target);
  * Requires:
  *
  *	'source' is a valid non-empty name.
- *	
+ *
  *	'target' is a valid name that is not read-only.
- *	
+ *
  *	'mctx' is a valid memory context.
  */
 
@@ -1055,11 +1110,11 @@ dns_name_dupwithoffsets(dns_name_t *source, isc_mem_t *mctx,
  * Requires:
  *
  *	'source' is a valid non-empty name.
- *	
+ *
  *	'target' is a valid name that is not read-only.
  *
  *	'target' has no offsets table.
- *	
+ *
  *	'mctx' is a valid memory context.
  */
 
@@ -1104,7 +1159,7 @@ dns_name_digest(dns_name_t *name, dns_digestfunc_t digest, void *arg);
  *	ISC_R_SUCCESS
  *
  *	Many other results are possible if not successful.
- *	
+ *
  */
 
 isc_boolean_t
@@ -1148,7 +1203,7 @@ dns_name_format(dns_name_t *name, char *cp, unsigned int size);
  * 'size' bytes.  The resulting string is guaranteed to be
  * null terminated.
  *
- * The formatted name will have a terminating dot only if it is 
+ * The formatted name will have a terminating dot only if it is
  * the root.
  *
  * This function cannot fail, instead any errors are indicated
@@ -1162,6 +1217,12 @@ dns_name_format(dns_name_t *name, char *cp, unsigned int size);
  *
  *	'size' > 0.
  *
+ */
+
+#define DNS_NAME_FORMATSIZE (DNS_NAME_MAXTEXT + 1)
+/*
+ * Suggested size of buffer passed to dns_name_format().
+ * Includes space for the terminating NULL.
  */
 
 ISC_LANG_ENDDECLS
@@ -1181,6 +1242,7 @@ ISC_LANG_ENDDECLS
 #ifdef DNS_NAME_USEINLINE
 
 #define dns_name_init(n, o)		DNS_NAME_INIT(n, o)
+#define dns_name_reset(n)		DNS_NAME_RESET(n)
 #define dns_name_countlabels(n)		DNS_NAME_COUNTLABELS(n)
 #define dns_name_isabsolute(n)		DNS_NAME_ISABSOLUTE(n)
 
@@ -1195,6 +1257,16 @@ do { \
 	(n)->buffer = NULL; \
 	ISC_LINK_INIT((n), link); \
 	ISC_LIST_INIT((n)->list); \
+} while (0)
+
+#define DNS_NAME_RESET(n) \
+do { \
+	(n)->ndata = NULL; \
+	(n)->length = 0; \
+	(n)->labels = 0; \
+	(n)->attributes &= ~DNS_NAMEATTR_ABSOLUTE; \
+	if ((n)->buffer != NULL) \
+		isc_buffer_clear((n)->buffer); \
 } while (0)
 
 #define DNS_NAME_SETBUFFER(n, b) \

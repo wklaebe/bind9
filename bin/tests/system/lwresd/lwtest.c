@@ -1,21 +1,21 @@
 /*
  * Copyright (C) 2000  Internet Software Consortium.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
- * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
- * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
- * SOFTWARE.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+ * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+ * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: lwtest.c,v 1.6.2.4 2000/08/02 21:01:44 gson Exp $ */
+/* $Id: lwtest.c,v 1.18 2000/11/02 02:05:01 bwelling Exp $ */
 
 #include <config.h>
 
@@ -237,7 +237,7 @@ test_gethostbyname(const char *name, const char *address) {
 		if (address == NULL && h_errno == HOST_NOT_FOUND)
 			return;
 		else if (h_errno != HOST_NOT_FOUND) {
-			printf("I:gethostbyname(%s) failed: %s\n", 
+			printf("I:gethostbyname(%s) failed: %s\n",
 			       name, hstrerror(h_errno));
 			fails++;
 			return;
@@ -261,6 +261,7 @@ test_gethostbyname(const char *name, const char *address) {
 		}
 	}
 }
+
 static void
 test_gethostbyname2(const char *name, const char *address, int af) {
 	struct hostent *hp;
@@ -272,7 +273,7 @@ test_gethostbyname2(const char *name, const char *address, int af) {
 		if (address == NULL && h_errno == HOST_NOT_FOUND)
 			return;
 		else if (h_errno != HOST_NOT_FOUND) {
-			printf("I:gethostbyname(%s) failed: %s\n", 
+			printf("I:gethostbyname(%s) failed: %s\n",
 			       name, hstrerror(h_errno));
 			fails++;
 			return;
@@ -295,7 +296,7 @@ test_gethostbyname2(const char *name, const char *address, int af) {
 			fails++;
 			return;
 		}
-		if (len != hp->h_length ||
+		if (len != (int)hp->h_length ||
 		    memcmp(hp->h_addr_list[0], addrbuf, hp->h_length) != 0)
 		{
 			char outbuf[16];
@@ -306,6 +307,64 @@ test_gethostbyname2(const char *name, const char *address, int af) {
 			fails++;
 			return;
 		}
+	}
+}
+
+static void
+test_getipnodebyname(const char *name, const char *address, int af,
+		     int v4map, int all)
+{
+	struct hostent *hp;
+	unsigned char addrbuf[16];
+	int len, ret;
+	int error_num;
+	int flags = 0;
+
+	if (v4map)
+		flags |= AI_V4MAPPED;
+	if (all)
+		flags |= AI_ALL;
+
+	hp = getipnodebyname(name, af, flags, &error_num);
+	if (hp == NULL) {
+		if (address == NULL && error_num == HOST_NOT_FOUND)
+			return;
+		else if (error_num != HOST_NOT_FOUND) {
+			printf("I:getipnodebyname(%s) failed: %d\n",
+			       name, error_num);
+			fails++;
+			return;
+		} else {
+			printf("I:getipnodebyname(%s) returned not found\n",
+			       name);
+			fails++;
+			return;
+		}
+	} else {
+		if (af == AF_INET)
+			len = 4;
+		else
+			len = 16;
+		ret = inet_pton(af, address, addrbuf);
+		assert(ret == 1);
+		if (hp->h_addrtype != af) {
+			printf("I:getipnodebyname(%s) returned wrong family\n",
+			       name);
+			fails++;
+			return;
+		}
+		if (len != (int)hp->h_length ||
+		    memcmp(hp->h_addr_list[0], addrbuf, hp->h_length) != 0)
+		{
+			char outbuf[16];
+			(void)inet_ntop(af, hp->h_addr_list[0],
+					outbuf, sizeof(outbuf));
+			printf("I:getipnodebyname(%s) returned %s, "
+			       "expected %s\n", name, outbuf, address);
+			fails++;
+			return;
+		}
+		freehostent(hp);
 	}
 }
 
@@ -328,7 +387,7 @@ test_gethostbyaddr(const char *address, int af, const char *name) {
 		if (name == NULL && h_errno == HOST_NOT_FOUND)
 			return;
 		else if (h_errno != HOST_NOT_FOUND) {
-			printf("I:gethostbyaddr(%s) failed: %s\n", 
+			printf("I:gethostbyaddr(%s) failed: %s\n",
 			       address, hstrerror(h_errno));
 			fails++;
 			return;
@@ -345,6 +404,47 @@ test_gethostbyaddr(const char *address, int af, const char *name) {
 			fails++;
 			return;
 		}
+	}
+}
+
+static void
+test_getipnodebyaddr(const char *address, int af, const char *name) {
+	struct hostent *hp;
+	char addrbuf[16];
+	int len, ret;
+	int error_num;
+
+	if (af == AF_INET)
+		len = 4;
+	else
+		len = 16;
+	ret = inet_pton(af, address, addrbuf);
+	assert(ret == 1);
+
+	hp = getipnodebyaddr(addrbuf, len, af, &error_num);
+
+	if (hp == NULL) {
+		if (name == NULL && error_num == HOST_NOT_FOUND)
+			return;
+		else if (error_num != HOST_NOT_FOUND) {
+			printf("I:gethostbyaddr(%s) failed: %d\n",
+			       address, error_num);
+			fails++;
+			return;
+		} else {
+			printf("I:gethostbyaddr(%s) returned not found\n",
+			       address);
+			fails++;
+			return;
+		}
+	} else {
+		if (strcmp(hp->h_name, name) != 0) {
+			printf("I:gethostbyname(%s) returned %s, "
+			       "expected %s\n", address, hp->h_name, name);
+			fails++;
+			return;
+		}
+		freehostent(hp);
 	}
 }
 
@@ -372,7 +472,7 @@ test_getaddrinfo(const char *name, int af, int v4ok, int v6ok,
 		if (address == NULL && ret == EAI_NODATA)
 			return;
 		else if (ret != EAI_NODATA) {
-			printf("I:getaddrinfo(%s,%d,%d) failed: %s\n", 
+			printf("I:getaddrinfo(%s,%d,%d) failed: %s\n",
 			       name, v4ok, v6ok, gai_strerror(ret));
 			fails++;
 			return;
@@ -470,7 +570,7 @@ test_getnameinfo(const char *address, int af, const char *name) {
 		if (name == NULL && ret == ENI_NOHOSTNAME)
 			return;
 		else if (ret != ENI_NOHOSTNAME) {
-			printf("I:getnameinfo(%s) failed: %d\n", 
+			printf("I:getnameinfo(%s) failed: %d\n",
 			       address, ret);
 			fails++;
 			return;
@@ -495,11 +595,38 @@ test_getnameinfo(const char *address, int af, const char *name) {
 	}
 }
 
+static void
+test_getrrsetbyname(const char *name, int rdclass, int rdtype,
+		    unsigned int nrdatas, unsigned int nsigs)
+{
+	int ret;
+	struct rrsetinfo *rrinfo = NULL;
+	ret = getrrsetbyname(name, rdclass, rdtype, 0, &rrinfo);
+	if (ret != 0) {
+		printf("I:getrrsetbyname(%s, %d) returned %d, expected %d\n",
+			name, rdtype, ret, 0);
+		fails++;
+		return;
+	}
+	if (rrinfo->rri_nrdatas != nrdatas) {
+		printf("I:getrrsetbyname(%s, %d): got %d rr, expected %d\n",
+			name, rdtype, rrinfo->rri_nrdatas, nrdatas);
+		fails++;
+	}
+	if (rrinfo->rri_nsigs != nsigs) {
+		printf("I:getrrsetbyname(%s, %d): got %d sig, expected %d\n",
+			name, rdtype, rrinfo->rri_nsigs, nsigs);
+		fails++;
+	}
+	return;
+}
+
 int
 main(void) {
 	lwres_result_t ret;
 
 	lwres_udp_port = 9210;
+	lwres_resolv_conf = "resolv.conf";
 
 	ret = lwres_context_create(&ctx, NULL, NULL, NULL, 0);
 	CHECK(ret, "lwres_context_create");
@@ -523,7 +650,7 @@ main(void) {
 	test_gabn("a.", LWRES_R_NOTFOUND, NULL, LWRES_ADDRTYPE_V4);
 
 	test_gabn("a2", LWRES_R_SUCCESS, "10.0.1.1", LWRES_ADDRTYPE_V4);
-	test_gabn("a3", LWRES_R_INCOMPLETE, NULL, LWRES_ADDRTYPE_V4);
+	test_gabn("a3", LWRES_R_NOTFOUND, NULL, LWRES_ADDRTYPE_V4);
 
 	test_gabn("b.example1", LWRES_R_SUCCESS,
 		  "eeee:eeee:eeee:eeee:ffff:ffff:ffff:ffff",
@@ -571,12 +698,32 @@ main(void) {
 			    AF_INET6);
 	test_gethostbyname2("q.example1.", NULL, AF_INET);
 
+	test_getipnodebyname("a.example1.", "10.0.1.1", AF_INET, 0, 0);
+	test_getipnodebyname("b.example1.",
+			     "eeee:eeee:eeee:eeee:ffff:ffff:ffff:ffff",
+			     AF_INET6, 0, 0);
+	test_getipnodebyname("a.example1.",
+			     "::ffff:10.0.1.1", AF_INET6, 1, 0);
+	test_getipnodebyname("a.example1.",
+			     "::ffff:10.0.1.1", AF_INET6, 1, 1);
+	test_getipnodebyname("b.example1.",
+			     "eeee:eeee:eeee:eeee:ffff:ffff:ffff:ffff",
+			     AF_INET6, 1, 1);
+	test_getipnodebyname("q.example1.", NULL, AF_INET, 0, 0);
+
 	test_gethostbyaddr("10.10.10.1", AF_INET, "ipv4.example");
 	test_gethostbyaddr("10.10.10.17", AF_INET, NULL);
 	test_gethostbyaddr("0123:4567:89ab:cdef:0123:4567:89ab:cdef",
 			   AF_INET6, "nibble.example");
 	test_gethostbyaddr("1123:4567:89ab:cdef:0123:4567:89ab:cdef",
 			   AF_INET6, "bitstring.example");
+
+	test_getipnodebyaddr("10.10.10.1", AF_INET, "ipv4.example");
+	test_getipnodebyaddr("10.10.10.17", AF_INET, NULL);
+	test_getipnodebyaddr("0123:4567:89ab:cdef:0123:4567:89ab:cdef",
+			     AF_INET6, "nibble.example");
+	test_getipnodebyaddr("1123:4567:89ab:cdef:0123:4567:89ab:cdef",
+			     AF_INET6, "bitstring.example");
 
 	test_getaddrinfo("a.example1.", AF_INET, 1, 1, "10.0.1.1");
 	test_getaddrinfo("a.example1.", AF_INET, 1, 0, "10.0.1.1");
@@ -593,6 +740,14 @@ main(void) {
 			 AF_INET6, "nibble.example");
 	test_getnameinfo("1123:4567:89ab:cdef:0123:4567:89ab:cdef",
 			 AF_INET6, "bitstring.example");
+	test_getnameinfo("1122:3344:5566:7788:99aa:bbcc:ddee:ff00",
+			 AF_INET6, "dname.example1");
 
+	test_getrrsetbyname("a", 1, 1, 1, 0);
+	test_getrrsetbyname("a.example1.", 1, 1, 1, 0);
+	test_getrrsetbyname("e.example1.", 1, 1, 1, 1);
+
+	if (fails == 0)
+		printf("I:ok\n");
 	return (fails);
 }

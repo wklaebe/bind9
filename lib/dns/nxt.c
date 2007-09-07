@@ -1,21 +1,21 @@
 /*
  * Copyright (C) 1999, 2000  Internet Software Consortium.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
- * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
- * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
- * SOFTWARE.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+ * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+ * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: nxt.c,v 1.18 2000/06/22 21:54:34 tale Exp $ */
+/* $Id: nxt.c,v 1.25 2000/10/28 01:25:14 bwelling Exp $ */
 
 #include <config.h>
 
@@ -28,15 +28,13 @@
 #include <dns/rdatalist.h>
 #include <dns/rdataset.h>
 #include <dns/rdatasetiter.h>
+#include <dns/rdatastruct.h>
 #include <dns/result.h>
 
-#define check_result(op, msg) \
-	do { result = (op); \
-		if (result != ISC_R_SUCCESS) { \
-			fprintf(stderr, "%s: %s\n", msg, \
-				isc_result_totext(result)); \
-			goto failure; \
-		} \
+#define RETERR(x) do { \
+	result = (x); \
+	if (result != ISC_R_SUCCESS) \
+		goto failure; \
 	} while (0)
 
 static void
@@ -64,9 +62,9 @@ bit_isset(unsigned char *array, unsigned int index) {
 }
 
 isc_result_t
-dns_buildnxtrdata(dns_db_t *db, dns_dbversion_t *version,
-		  dns_dbnode_t *node, dns_name_t *target,
-		  unsigned char *buffer, dns_rdata_t *rdata)
+dns_nxt_buildrdata(dns_db_t *db, dns_dbversion_t *version,
+		   dns_dbnode_t *node, dns_name_t *target,
+		   unsigned char *buffer, dns_rdata_t *rdata)
 {
 	isc_result_t result;
 	dns_rdataset_t rdataset;
@@ -123,7 +121,7 @@ dns_buildnxtrdata(dns_db_t *db, dns_dbversion_t *version,
 
 	r.length += ((max_type + 7) / 8);
 	INSIST(r.length <= DNS_NXT_BUFFERSIZE);
-	dns_rdata_fromregion(rdata, 
+	dns_rdata_fromregion(rdata,
 			     dns_db_class(db),
 			     dns_rdatatype_nxt,
 			     &r);
@@ -133,34 +131,32 @@ dns_buildnxtrdata(dns_db_t *db, dns_dbversion_t *version,
 
 
 isc_result_t
-dns_buildnxt(dns_db_t *db, dns_dbversion_t *version, dns_dbnode_t *node,
-	     dns_name_t *target, dns_ttl_t ttl)
+dns_nxt_build(dns_db_t *db, dns_dbversion_t *version, dns_dbnode_t *node,
+	      dns_name_t *target, dns_ttl_t ttl)
 {
 	isc_result_t result;
-	dns_rdata_t rdata;
+	dns_rdata_t rdata = DNS_RDATA_INIT;
 	unsigned char data[DNS_NXT_BUFFERSIZE];
 	dns_rdatalist_t rdatalist;
 	dns_rdataset_t rdataset;
-	
-	dns_rdataset_init(&rdataset);
 
-	result = dns_buildnxtrdata(db, version, node,
-					  target, data, &rdata);
-	check_result(result, "dns_buildnxtrdata");
-	
-	rdatalist.rdclass = dns_rdataclass_in;
+	dns_rdataset_init(&rdataset);
+	dns_rdata_init(&rdata);
+
+	RETERR(dns_nxt_buildrdata(db, version, node, target, data, &rdata));
+
+	rdatalist.rdclass = dns_db_class(db);
 	rdatalist.type = dns_rdatatype_nxt;
 	rdatalist.covers = 0;
 	rdatalist.ttl = ttl;
 	ISC_LIST_INIT(rdatalist.rdata);
 	ISC_LIST_APPEND(rdatalist.rdata, &rdata, link);
-	result = dns_rdatalist_tordataset(&rdatalist, &rdataset);
-	check_result(result, "dns_rdatalist_tordataset");
+	RETERR(dns_rdatalist_tordataset(&rdatalist, &rdataset));
 	result = dns_db_addrdataset(db, node, version, 0, &rdataset,
 				    0, NULL);
 	if (result == DNS_R_UNCHANGED)
 		result = ISC_R_SUCCESS;
-	check_result(result, "dns_db_addrdataset");
+	RETERR(result);
  failure:
 	if (dns_rdataset_isassociated(&rdataset))
 		dns_rdataset_disassociate(&rdataset);
@@ -169,23 +165,22 @@ dns_buildnxt(dns_db_t *db, dns_dbversion_t *version, dns_dbnode_t *node,
 
 isc_boolean_t
 dns_nxt_typepresent(dns_rdata_t *nxt, dns_rdatatype_t type) {
-	dns_name_t name;
-	isc_region_t r, r2;
-	unsigned char *nxt_bits;
-	int nxt_bits_length;
+	dns_rdata_nxt_t nxtstruct;
+	isc_result_t result;
+	isc_boolean_t present;
 
 	REQUIRE(nxt != NULL);
 	REQUIRE(nxt->type == dns_rdatatype_nxt);
 	REQUIRE(type < 128);
 
-	dns_rdata_toregion(nxt, &r);
-	dns_name_init(&name, NULL);
-	dns_name_fromregion(&name, &r);
-	dns_name_toregion(&name, &r2);
-	nxt_bits = ((unsigned char *)r.base) + r2.length;
-	nxt_bits_length = r.length - r2.length;
-	if (type >= nxt_bits_length * 8)
-		return (ISC_FALSE);
+	/* This should never fail */
+	result = dns_rdata_tostruct(nxt, &nxtstruct, NULL);
+	INSIST(result == ISC_R_SUCCESS);
+	
+	if (type >= nxtstruct.len * 8)
+		present = ISC_FALSE;
 	else
-		return (ISC_TF(bit_isset(nxt_bits, type)));
+		present = ISC_TF(bit_isset(nxtstruct.typebits, type));
+	dns_rdata_freestruct(&nxt);
+	return (present);
 }

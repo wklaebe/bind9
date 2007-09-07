@@ -1,21 +1,21 @@
 /*
  * Copyright (C) 1996-2000  Internet Software Consortium.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
- * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
- * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
- * SOFTWARE.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+ * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+ * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: value.c,v 1.7 2000/06/21 22:01:26 tale Exp $ */
+/* $Id: value.c,v 1.10 2000/09/16 03:20:54 tale Exp $ */
 
 /* Principal Author: Ted Lemon */
 
@@ -110,8 +110,7 @@ omapi_value_storemem(omapi_value_t **vp, omapi_string_t *name,
 }
 
 isc_result_t
-omapi_value_storeint(omapi_value_t **vp, omapi_string_t *name, int value)
-{
+omapi_value_storeint(omapi_value_t **vp, omapi_string_t *name, int value) {
 	isc_result_t result;
 
 	result = omapi_value_create(vp);
@@ -120,12 +119,10 @@ omapi_value_storeint(omapi_value_t **vp, omapi_string_t *name, int value)
 
 	omapi_string_reference(&(*vp)->name, name);
 
-	if (value != 0) {
-		result = omapi_data_create(&(*vp)->value, omapi_datatype_int);
+	result = omapi_data_create(&(*vp)->value, omapi_datatype_int);
 
-		if (result == ISC_R_SUCCESS)
-			(*vp)->value->u.integer = value;
-	}
+	if (result == ISC_R_SUCCESS)
+		(*vp)->value->u.integer = value;
 
 	if (result != ISC_R_SUCCESS)
 		omapi_value_dereference(vp);

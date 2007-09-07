@@ -1,21 +1,21 @@
 /*
  * Copyright (C) 1998-2000  Internet Software Consortium.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
- * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
- * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
- * SOFTWARE.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+ * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+ * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: hinfo_13.c,v 1.27 2000/06/21 22:44:40 tale Exp $ */
+/* $Id: hinfo_13.c,v 1.32 2000/12/01 01:40:21 gson Exp $ */
 
 /*
  * Reviewed: Wed Mar 15 16:47:10 PST 2000 by halley.
@@ -38,8 +38,9 @@ fromtext_hinfo(ARGS_FROMTEXT) {
 	REQUIRE(type == 13);
 
 	for (i = 0; i < 2 ; i++) {
-		RETERR(gettoken(lexer, &token, isc_tokentype_qstring,
-				ISC_FALSE));
+		RETERR(isc_lex_getmastertoken(lexer, &token,
+					      isc_tokentype_qstring,
+					      ISC_FALSE));
 		RETERR(txt_fromtext(&token.value.as_textregion, target));
 	}
 	return (ISC_R_SUCCESS);
@@ -52,6 +53,7 @@ totext_hinfo(ARGS_TOTEXT) {
 	UNUSED(tctx);
 
 	REQUIRE(rdata->type == 13);
+	REQUIRE(rdata->length != 0);
 
 	dns_rdata_toregion(rdata, &region);
 	RETERR(txt_totext(&region, target));
@@ -78,6 +80,7 @@ towire_hinfo(ARGS_TOWIRE) {
 	UNUSED(cctx);
 
 	REQUIRE(rdata->type == 13);
+	REQUIRE(rdata->length != 0);
 
 	return (mem_tobuffer(target, rdata->data, rdata->length));
 }
@@ -86,10 +89,12 @@ static inline int
 compare_hinfo(ARGS_COMPARE) {
 	isc_region_t r1;
 	isc_region_t r2;
-	
+
 	REQUIRE(rdata1->type == rdata2->type);
 	REQUIRE(rdata1->rdclass == rdata2->rdclass);
 	REQUIRE(rdata1->type == 13);
+	REQUIRE(rdata1->length != 0);
+	REQUIRE(rdata2->length != 0);
 
 	dns_rdata_toregion(rdata1, &r1);
 	dns_rdata_toregion(rdata2, &r2);
@@ -105,6 +110,8 @@ fromstruct_hinfo(ARGS_FROMSTRUCT) {
 	REQUIRE(hinfo->common.rdtype == type);
 	REQUIRE(hinfo->common.rdclass == rdclass);
 
+	UNUSED(rdclass);
+
 	RETERR(uint8_tobuffer(hinfo->cpu_len, target));
 	RETERR(mem_tobuffer(target, hinfo->cpu, hinfo->cpu_len));
 	RETERR(uint8_tobuffer(hinfo->os_len, target));
@@ -118,6 +125,7 @@ tostruct_hinfo(ARGS_TOSTRUCT) {
 
 	REQUIRE(rdata->type == 13);
 	REQUIRE(target != NULL);
+	REQUIRE(rdata->length != 0);
 
 	hinfo->common.rdclass = rdata->rdclass;
 	hinfo->common.rdtype = rdata->type;

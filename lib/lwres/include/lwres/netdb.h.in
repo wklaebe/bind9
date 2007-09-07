@@ -1,27 +1,27 @@
 /*
  * Copyright (C) 2000  Internet Software Consortium.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
- * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
- * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
- * SOFTWARE.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+ * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+ * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: netdb.h.in,v 1.23 2000/06/23 03:14:04 tale Exp $ */
+/* $Id: netdb.h.in,v 1.29 2000/11/15 20:47:54 tale Exp $ */
 
 #ifndef LWRES_NETDB_H
 #define LWRES_NETDB_H 1
 
-#include <stddef.h>
-#include <netdb.h>		/* Contractual provision. */
+#include <stddef.h>	/* Required on FreeBSD (and  others?) for size_t. */
+#include <netdb.h>	/* Contractual provision. */
 
 #include <lwres/lang.h>
 
@@ -31,7 +31,7 @@
 @ISC_LWRES_NEEDADDRINFO@
 
 #ifdef ISC_LWRES_NEEDADDRINFO
-struct	addrinfo {
+struct addrinfo {
 	int		ai_flags;      /* AI_PASSIVE, AI_CANONNAME */
 	int		ai_family;     /* PF_xxx */
 	int		ai_socktype;   /* SOCK_xxx */
@@ -154,6 +154,42 @@ struct	addrinfo {
 #define	NI_NUMERICSCOPE	0x00000020	/*2553bis-00*/
 
 /*
+ * Structures for getrrsetbyname()
+ */
+struct rdatainfo {
+	unsigned int		rdi_length;
+	unsigned char		*rdi_data;
+};
+
+struct rrsetinfo {
+	unsigned int		rri_flags;
+	int			rri_rdclass;
+	int			rri_rdtype;
+	unsigned int		rri_ttl;
+	unsigned int		rri_nrdatas;
+	unsigned int		rri_nsigs;
+	char			*rri_name;
+	struct rdatainfo	*rri_rdatas;
+	struct rdatainfo	*rri_sigs;
+};
+
+/*
+ * Flags for getrrsetbyname()
+ */
+#define RRSET_VALIDATED		0x00000001
+	/* Set was dnssec validated */
+#define RRSET_AUTHORITATIVE	0x00000002
+	/* Set was returned by an authoritative server */
+
+/*
+ * Return codes for getrrsetbyname()
+ */
+#define ERRSET_SUCCESS		0
+#define ERRSET_NOMEMORY		1
+#define ERRSET_FAIL		2
+#define ERRSET_INVAL		3
+
+/*
  * Define to map into lwres_ namespace.
  */
 
@@ -267,6 +303,16 @@ struct	addrinfo {
 #endif
 #define endhostent_r lwres_endhostent_r
 
+#ifdef getrrsetbyname
+#undef getrrsetbyname
+#endif
+#define getrrsetbyname lwres_getrrsetbyname
+
+#ifdef freerrset
+#undef freerrset
+#endif
+#define freerrset lwres_freerrset
+
 #ifdef notyet
 #define getservbyname lwres_getservbyname
 #define getservbyport lwres_getservbyport
@@ -373,6 +419,10 @@ void		lwres_sethostent(int);
 /* void		lwres_sethostfile(const char *); */
 void		lwres_freehostent(struct hostent *);
 
+int		lwres_getrrsetbyname(const char *, unsigned int, unsigned int,
+				     unsigned int, struct rrsetinfo **);
+void		lwres_freerrset(struct rrsetinfo *);
+
 #ifdef notyet
 struct netent	*lwres_getnetbyaddr(unsigned long, int);
 struct netent	*lwres_getnetbyname(const char *);
@@ -452,5 +502,12 @@ struct rpcent	*lwres_getrpcent();
 #endif /* __GNU_LIBRARY__ */
 #endif /* sun */
 #endif /* notyet */
+
+/*
+ * Tell Emacs to use C mode on this file.
+ * Local variables:
+ * mode: c
+ * End:
+ */
 
 #endif /* LWRES_NETDB_H */

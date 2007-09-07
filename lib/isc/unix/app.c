@@ -1,25 +1,23 @@
 /*
  * Copyright (C) 1999, 2000  Internet Software Consortium.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
- * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
- * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
- * SOFTWARE.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+ * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+ * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: app.c,v 1.16.2.1 2000/06/28 03:12:30 gson Exp $ */
+/* $Id: app.c,v 1.33 2000/11/29 01:51:54 gson Exp $ */
 
 #include <config.h>
-
-#include <pthread.h>
 
 #include <sys/types.h>
 
@@ -27,14 +25,26 @@
 #include <errno.h>
 #include <unistd.h>
 #include <signal.h>
+#include <sys/time.h>
 
 #include <isc/app.h>
 #include <isc/boolean.h>
+#include <isc/condition.h>
 #include <isc/mutex.h>
 #include <isc/event.h>
+#include <isc/platform.h>
 #include <isc/string.h>
 #include <isc/task.h>
+#include <isc/time.h>
 #include <isc/util.h>
+
+#ifdef ISC_PLATFORM_USETHREADS
+#include <pthread.h>
+#else /* ISC_PLATFORM_USETHREADS */
+#include "../timer_p.h"
+#include "../task_p.h"
+#include "socket_p.h"
+#endif /* ISC_PLATFORM_USETHREADS */
 
 static isc_eventlist_t		on_run;
 static isc_mutex_t		lock;
@@ -48,6 +58,11 @@ static isc_boolean_t		want_shutdown = ISC_FALSE;
  * We assume that 'want_reload' can be read and written atomically.
  */
 static isc_boolean_t		want_reload = ISC_FALSE;
+
+static isc_boolean_t		blocked  = ISC_FALSE;
+#ifdef ISC_PLATFORM_USETHREADS
+static pthread_t		blockedthread;
+#endif /* ISC_PLATFORM_USETHREADS */
 
 #ifdef HAVE_LINUXTHREADS
 /*
@@ -91,15 +106,17 @@ handle_signal(int sig, void (*handler)(int)) {
 				 strerror(errno));
 		return (ISC_R_UNEXPECTED);
 	}
-	
+
 	return (ISC_R_SUCCESS);
 }
 
 isc_result_t
 isc_app_start(void) {
 	isc_result_t result;
+#ifdef ISC_PLATFORM_USETHREADS
 	int presult;
 	sigset_t sset;
+#endif /* ISC_PLATFORM_USETHREADS */
 
 	/*
 	 * Start an ISC library application.
@@ -112,7 +129,7 @@ isc_app_start(void) {
 	presult = pthread_init();
 	if (presult != 0) {
 		UNEXPECTED_ERROR(__FILE__, __LINE__,
-				 "isc_app_start() pthread_init: %s", 
+				 "isc_app_start() pthread_init: %s",
 				 strerror(presult));
 		return (ISC_R_UNEXPECTED);
 	}
@@ -152,14 +169,26 @@ isc_app_start(void) {
 	/*
 	 * On Solaris 2, delivery of a signal whose action is SIG_IGN
 	 * will not cause sigwait() to return. We may have inherited
-	 * a SIG_IGN action for SIGHUP from our parent process,
-	 * (e.g, Solaris cron).  Set an action of SIG_DFL to make
-	 * sure sigwait() works as expected.
+	 * unexpected actions for SIGHUP, SIGINT, and SIGTERM from our parent
+	 * process, * (e.g, Solaris cron).  Set an action of SIG_DFL to make
+	 * sure sigwait() works as expected.  Only do this for SIGTERM and
+	 * SIGINT if we don't have sigwait(), since a different handler is
+	 * installed above.
 	 */
 	result = handle_signal(SIGHUP, SIG_DFL);
 	if (result != ISC_R_SUCCESS)
 		return (result);
 
+#ifdef HAVE_SIGWAIT
+	result = handle_signal(SIGTERM, SIG_DFL);
+	if (result != ISC_R_SUCCESS)
+		return (result);
+	result = handle_signal(SIGINT, SIG_DFL);
+	if (result != ISC_R_SUCCESS)
+		return (result);
+#endif
+
+#ifdef ISC_PLATFORM_USETHREADS
 	/*
 	 * Block SIGHUP, SIGINT, SIGTERM.
 	 *
@@ -174,17 +203,18 @@ isc_app_start(void) {
 	    sigaddset(&sset, SIGINT) != 0 ||
 	    sigaddset(&sset, SIGTERM) != 0) {
 		UNEXPECTED_ERROR(__FILE__, __LINE__,
-				 "isc_app_start() sigsetops: %s", 
+				 "isc_app_start() sigsetops: %s",
 				 strerror(errno));
 		return (ISC_R_UNEXPECTED);
 	}
 	presult = pthread_sigmask(SIG_BLOCK, &sset, NULL);
 	if (presult != 0) {
 		UNEXPECTED_ERROR(__FILE__, __LINE__,
-				 "isc_app_start() pthread_sigmask: %s", 
+				 "isc_app_start() pthread_sigmask: %s",
 				 strerror(presult));
 		return (ISC_R_UNEXPECTED);
 	}
+#endif /* ISC_PLATFORM_USETHREADS */
 
 	ISC_LIST_INIT(on_run);
 
@@ -221,7 +251,7 @@ isc_app_onrun(isc_mem_t *mctx, isc_task_t *task, isc_taskaction_t action,
 		result = ISC_R_NOMEMORY;
 		goto unlock;
 	}
-	
+
 	ISC_LIST_APPEND(on_run, event, ev_link);
 
 	result = ISC_R_SUCCESS;
@@ -232,12 +262,128 @@ isc_app_onrun(isc_mem_t *mctx, isc_task_t *task, isc_taskaction_t action,
 	return (result);
 }
 
+#ifndef ISC_PLATFORM_USETHREADS
+/*
+ * Event loop for nonthreaded programs.
+ */
+static isc_result_t
+evloop() {
+	isc_result_t result;
+	while (!want_shutdown) {
+		int n;
+		isc_time_t when, now;
+		struct timeval tv, *tvp;
+		fd_set readfds, writefds;
+		int maxfd;
+		isc_boolean_t readytasks;
+
+		readytasks = isc__taskmgr_ready();
+		if (readytasks) {
+			tv.tv_sec = 0;
+			tv.tv_usec = 0;
+			tvp = &tv;
+		} else {
+			result = isc__timermgr_nextevent(&when);
+			if (result != ISC_R_SUCCESS)
+				tvp = NULL;
+			else {
+				isc_uint64_t us;
+
+				(void)isc_time_now(&now);
+				us = isc_time_microdiff(&when, &now);
+				tv.tv_sec = us / 1000000;
+				tv.tv_usec = us % 1000000;
+				tvp = &tv;
+			}
+		}
+
+		isc__socketmgr_getfdsets(&readfds, &writefds, &maxfd);
+		n = select(maxfd, &readfds, &writefds, NULL, tvp);
+
+		(void)isc__timermgr_dispatch();
+		if (n > 0)
+			(void)isc__socketmgr_dispatch(&readfds, &writefds,
+						      maxfd);
+		(void)isc__taskmgr_dispatch();
+
+		if (want_reload) {
+			want_reload = ISC_FALSE;
+			return (ISC_R_RELOAD);
+		}
+	}
+	return (ISC_R_SUCCESS);
+}
+
+/*
+ * This is a gross hack to support waiting for condition
+ * variables in nonthreaded programs in a limited way;
+ * see lib/isc/nothreads/include/isc/condition.h.
+ * We implement isc_condition_wait() by entering the
+ * event loop recursively until the want_shutdown flag
+ * is set by isc_condition_signal().
+ */
+
+/*
+ * True iff we are currently executing in the recursive
+ * event loop.
+ */
+static isc_boolean_t in_recursive_evloop = ISC_FALSE;
+
+/*
+ * True iff we are exiting the event loop as the result of
+ * a call to isc_condition_signal() rather than a shutdown
+ * or reload.
+ */
+static isc_boolean_t signalled = ISC_FALSE;
+
+isc_result_t
+isc__nothread_wait_hack(isc_condition_t *cp, isc_mutex_t *mp) {
+	isc_result_t result;
+	
+	UNUSED(cp);
+	UNUSED(mp);
+	
+	INSIST(!in_recursive_evloop);
+	in_recursive_evloop = ISC_TRUE;
+
+	INSIST(*mp == 1); /* Mutex must be locked on entry. */
+	--*mp;
+	
+	result = evloop();
+	if (result == ISC_R_RELOAD)
+		want_reload = ISC_TRUE;
+	if (signalled) {
+		want_shutdown = ISC_FALSE;
+		signalled = ISC_FALSE;
+	}
+
+	++*mp;
+	in_recursive_evloop = ISC_FALSE;
+	return (ISC_R_SUCCESS);
+}
+
+isc_result_t
+isc__nothread_signal_hack(isc_condition_t *cp) {
+
+	UNUSED(cp);
+	
+	INSIST(in_recursive_evloop);
+
+	want_shutdown = ISC_TRUE;
+	signalled = ISC_TRUE;
+	return (ISC_R_SUCCESS);
+}
+	
+#endif /* ISC_PLATFORM_USETHREADS */
+
 isc_result_t
 isc_app_run(void) {
 	int result;
-	sigset_t sset;
 	isc_event_t *event, *next_event;
 	isc_task_t *task;
+#ifdef ISC_PLATFORM_USETHREADS
+	sigset_t sset;
+#endif /* ISC_PLATFORM_USETHREADS */
 #ifdef HAVE_SIGWAIT
 	int sig;
 #endif
@@ -264,12 +410,12 @@ isc_app_run(void) {
 			next_event = ISC_LIST_NEXT(event, ev_link);
 			ISC_LIST_UNLINK(on_run, event, ev_link);
 			task = event->ev_sender;
-			event->ev_sender = (void *)&running;
+			event->ev_sender = NULL;
 			isc_task_sendanddetach(&task, &event);
 		}
 
 	}
-	
+
 	UNLOCK(&lock);
 
 #ifndef HAVE_SIGWAIT
@@ -284,6 +430,7 @@ isc_app_run(void) {
 		return (ISC_R_SUCCESS);
 #endif
 
+#ifdef ISC_PLATFORM_USETHREADS
 	/*
 	 * There is no danger if isc_app_shutdown() is called before we wait
 	 * for signals.  Signals are blocked, so any such signal will simply
@@ -300,7 +447,7 @@ isc_app_run(void) {
 		    sigaddset(&sset, SIGINT) != 0 ||
 		    sigaddset(&sset, SIGTERM) != 0) {
 			UNEXPECTED_ERROR(__FILE__, __LINE__,
-					 "isc_app_run() sigsetops: %s", 
+					 "isc_app_run() sigsetops: %s",
 					 strerror(errno));
 			return (ISC_R_UNEXPECTED);
 		}
@@ -332,7 +479,7 @@ isc_app_run(void) {
 		 */
 		if (sigemptyset(&sset) != 0) {
 			UNEXPECTED_ERROR(__FILE__, __LINE__,
-					 "isc_app_run() sigsetops: %s", 
+					 "isc_app_run() sigsetops: %s",
 					 strerror(errno));
 			return (ISC_R_UNEXPECTED);
 		}
@@ -344,6 +491,19 @@ isc_app_run(void) {
 			return (ISC_R_RELOAD);
 		}
 	}
+
+#else /* ISC_PLATFORM_USETHREADS */
+
+	(void)isc__taskmgr_dispatch();
+
+	result = evloop();
+	if (result != ISC_R_SUCCESS)
+		return (result);
+
+	while (isc__taskmgr_ready())
+		(void)isc__taskmgr_dispatch();
+
+#endif /* ISC_PLATFORM_USETHREADS */
 
 	return (ISC_R_SUCCESS);
 }
@@ -357,7 +517,7 @@ isc_app_shutdown(void) {
 	 */
 
 	LOCK(&lock);
-	
+
 	REQUIRE(running);
 
 	if (shutdown_requested)
@@ -370,7 +530,7 @@ isc_app_shutdown(void) {
 	if (want_kill) {
 #ifdef HAVE_LINUXTHREADS
 		int result;
-		
+
 		result = pthread_kill(main_thread, SIGTERM);
 		if (result != 0) {
 			UNEXPECTED_ERROR(__FILE__, __LINE__,
@@ -400,7 +560,7 @@ isc_app_reload(void) {
 	 */
 
 	LOCK(&lock);
-	
+
 	REQUIRE(running);
 
 	/*
@@ -414,18 +574,18 @@ isc_app_reload(void) {
 	if (want_kill) {
 #ifdef HAVE_LINUXTHREADS
 		int result;
-		
+
 		result = pthread_kill(main_thread, SIGHUP);
 		if (result != 0) {
 			UNEXPECTED_ERROR(__FILE__, __LINE__,
-					 "isc_app_shutdown() pthread_kill: %s",
+					 "isc_app_reload() pthread_kill: %s",
 					 strerror(result));
 			return (ISC_R_UNEXPECTED);
 		}
 #else
 		if (kill(getpid(), SIGHUP) < 0) {
 			UNEXPECTED_ERROR(__FILE__, __LINE__,
-					 "isc_app_shutdown() kill: %s",
+					 "isc_app_reload() kill: %s",
 					 strerror(errno));
 			return (ISC_R_UNEXPECTED);
 		}
@@ -441,5 +601,45 @@ isc_app_finish(void) {
 	 * Finish an ISC library application.
 	 */
 
-	(void)isc_mutex_destroy(&lock);
+	DESTROYLOCK(&lock);
 }
+
+void
+isc_app_block(void) {
+#ifdef ISC_PLATFORM_USETHREADS
+	sigset_t sset;
+#endif /* ISC_PLATFORM_USETHREADS */
+	REQUIRE(running);
+	REQUIRE(!blocked);
+
+	blocked = ISC_TRUE;
+#ifdef ISC_PLATFORM_USETHREADS
+	blockedthread = pthread_self();
+	RUNTIME_CHECK(sigemptyset(&sset) == 0 &&
+		      sigaddset(&sset, SIGINT) == 0 &&
+		      sigaddset(&sset, SIGTERM) == 0);
+	RUNTIME_CHECK(pthread_sigmask(SIG_UNBLOCK, &sset, NULL) == 0);
+#endif /* ISC_PLATFORM_USETHREADS */
+}
+
+void
+isc_app_unblock(void) {
+#ifdef ISC_PLATFORM_USETHREADS
+	sigset_t sset;
+#endif /* ISC_PLATFORM_USETHREADS */
+
+	REQUIRE(running);
+	REQUIRE(blocked);
+
+	blocked = ISC_FALSE;
+
+#ifdef ISC_PLATFORM_USETHREADS
+	REQUIRE(blockedthread == pthread_self());
+
+	RUNTIME_CHECK(sigemptyset(&sset) == 0 &&
+		      sigaddset(&sset, SIGINT) == 0 && 
+		      sigaddset(&sset, SIGTERM) == 0);
+	RUNTIME_CHECK(pthread_sigmask(SIG_BLOCK, &sset, NULL) == 0);
+#endif /* ISC_PLATFORM_USETHREADS */
+}
+

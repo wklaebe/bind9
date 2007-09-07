@@ -1,21 +1,21 @@
 /*
  * Copyright (C) 1999, 2000  Internet Software Consortium.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
- * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
- * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
- * SOFTWARE.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+ * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+ * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dst_test.c,v 1.28 2000/06/22 21:51:05 tale Exp $ */
+/* $Id: dst_test.c,v 1.35 2000/09/19 19:08:42 bwelling Exp $ */
 
 #include <config.h>
 
@@ -113,7 +113,8 @@ dns(dst_key_t *key, isc_mem_t *mctx) {
 	       isc_result_totext(ret));
 	if (ret != ISC_R_SUCCESS)
 		return;
-	ret = dst_key_fromdns(dst_key_name(key), &buf1, mctx, &newkey);
+	ret = dst_key_fromdns(dst_key_name(key), dns_rdataclass_in,
+			      &buf1, mctx, &newkey);
 	printf("fromdns(%d) returned: %s\n", dst_key_alg(key),
 	       isc_result_totext(ret));
 	if (ret != ISC_R_SUCCESS)
@@ -216,7 +217,8 @@ generate(int alg, isc_mem_t *mctx) {
 	isc_result_t ret;
 	dst_key_t *key = NULL;
 
-	ret = dst_key_generate(dns_rootname, alg, 512, 0, 0, 0, mctx, &key);
+	ret = dst_key_generate(dns_rootname, alg, 512, 0, 0, 0,
+			       dns_rdataclass_in, mctx, &key);
 	printf("generate(%d) returned: %s\n", alg, isc_result_totext(ret));
 	if (ret != ISC_R_SUCCESS)
 		return;
@@ -243,7 +245,6 @@ main(void) {
 	dns_result_register();
 
 	isc_entropy_create(mctx, &ectx);
-	isc_entropy_createfilesource(ectx, "/dev/random");
 	isc_entropy_createfilesource(ectx, "randomfile");
 	dst_lib_init(mctx, ectx, ISC_ENTROPY_BLOCKING|ISC_ENTROPY_GOODONLY);
 
@@ -253,17 +254,18 @@ main(void) {
 	isc_buffer_add(&b, 5);
 	dns_name_fromtext(name, &b, NULL, ISC_FALSE, NULL);
 	io(name, 6204, DST_ALG_DSA, DST_TYPE_PRIVATE|DST_TYPE_PUBLIC, mctx);
-	io(name, 54622, DST_ALG_RSA, DST_TYPE_PRIVATE|DST_TYPE_PUBLIC, mctx);
+	io(name, 54622, DST_ALG_RSAMD5, DST_TYPE_PRIVATE|DST_TYPE_PUBLIC,
+	   mctx);
 
 	io(name, 0, DST_ALG_DSA, DST_TYPE_PRIVATE|DST_TYPE_PUBLIC, mctx);
-	io(name, 0, DST_ALG_RSA, DST_TYPE_PRIVATE|DST_TYPE_PUBLIC, mctx);
+	io(name, 0, DST_ALG_RSAMD5, DST_TYPE_PRIVATE|DST_TYPE_PUBLIC, mctx);
 
 	isc_buffer_init(&b, "dh.", 3);
 	isc_buffer_add(&b, 3);
 	dns_name_fromtext(name, &b, NULL, ISC_FALSE, NULL);
 	dh(name, 18088, name, 48443, mctx);
 
-	generate(DST_ALG_RSA, mctx);
+	generate(DST_ALG_RSAMD5, mctx);
 	generate(DST_ALG_DH, mctx);
 	generate(DST_ALG_DSA, mctx);
 	generate(DST_ALG_HMACMD5, mctx);

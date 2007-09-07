@@ -1,23 +1,22 @@
 /*
  * Copyright (C) 1999, 2000  Internet Software Consortium.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
- * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
- * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
- * SOFTWARE.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+ * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+ * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
 /*
- * $Id: dnssec.c,v 1.43.2.2 2000/08/21 23:17:29 gson Exp $
- * Principal Author: Brian Wellington
+ * $Id: dnssec.c,v 1.55 2000/10/31 03:21:51 marka Exp $
  */
 
 
@@ -32,6 +31,7 @@
 
 #include <dns/db.h>
 #include <dns/dnssec.h>
+#include <dns/fixedname.h>
 #include <dns/keyvalues.h>
 #include <dns/message.h>
 #include <dns/rdata.h>
@@ -89,30 +89,26 @@ rdataset_to_sortedarray(dns_rdataset_t *set, isc_mem_t *mctx,
 			dns_rdata_t **rdata, int *nrdata)
 {
 	isc_result_t ret;
-	int i = 0, n = 1;
+	int i = 0, n;
 	dns_rdata_t *data;
 
-	ret = dns_rdataset_first(set);
-	if (ret != ISC_R_SUCCESS)
-		return (ret);
-	/*
-	 * Count the records.
-	 */
-	while (dns_rdataset_next(set) == ISC_R_SUCCESS)
-		n++;
+	n = dns_rdataset_count(set);
 
 	data = isc_mem_get(mctx, n * sizeof(dns_rdata_t));
 	if (data == NULL)
 		return (ISC_R_NOMEMORY);
 
 	ret = dns_rdataset_first(set);
-	if (ret != ISC_R_SUCCESS)
+	if (ret != ISC_R_SUCCESS) {
+		isc_mem_put(mctx, data, n * sizeof(dns_rdata_t));
 		return (ret);
+	}
 
 	/*
 	 * Put them in the array.
 	 */
 	do {
+		dns_rdata_init(&data[i]);
 		dns_rdataset_current(set, &data[i++]);
 	} while (dns_rdataset_next(set) == ISC_R_SUCCESS);
 
@@ -141,7 +137,7 @@ dns_dnssec_keyfromrdata(dns_name_t *name, dns_rdata_t *rdata, isc_mem_t *mctx,
 	dns_rdata_toregion(rdata, &r);
 	isc_buffer_init(&b, r.base, r.length);
 	isc_buffer_add(&b, r.length);
-	return (dst_key_fromdns(name, &b, mctx, key));
+	return (dst_key_fromdns(name, rdata->rdclass, &b, mctx, key));
 }
 
 isc_result_t
@@ -221,6 +217,7 @@ dns_dnssec_sign(dns_name_t *name, dns_rdataset_t *set, dst_key_t *key,
 	/*
 	 * Digest the SIG rdata.
 	 */
+	INSIST(r.length >= sig.siglen);
 	r.length -= sig.siglen;
 	ret = dst_context_adddata(ctx, &r);
 	if (ret != ISC_R_SUCCESS)
@@ -237,7 +234,7 @@ dns_dnssec_sign(dns_name_t *name, dns_rdataset_t *set, dst_key_t *key,
 	isc_buffer_putuint16(&envbuf, set->type);
 	isc_buffer_putuint16(&envbuf, set->rdclass);
 	isc_buffer_putuint32(&envbuf, set->ttl);
-	
+
 	ret = rdataset_to_sortedarray(set, mctx, &rdatas, &nrdatas);
 	if (ret != ISC_R_SUCCESS)
 		goto cleanup_context;
@@ -247,7 +244,7 @@ dns_dnssec_sign(dns_name_t *name, dns_rdataset_t *set, dst_key_t *key,
 		isc_uint16_t len;
 		isc_buffer_t lenbuf;
 		isc_region_t lenr;
-		
+
 		/*
 		 * Digest the envelope.
 		 */
@@ -273,7 +270,7 @@ dns_dnssec_sign(dns_name_t *name, dns_rdataset_t *set, dst_key_t *key,
 		if (ret != ISC_R_SUCCESS)
 			goto cleanup_array;
 	}
-		
+
 	isc_buffer_init(&sigbuf, sig.signature, sig.siglen);
 	ret = dst_context_sign(ctx, &sigbuf);
 	if (ret != ISC_R_SUCCESS)
@@ -351,9 +348,10 @@ dns_dnssec_verify(dns_name_t *name, dns_rdataset_t *set, dst_key_t *key,
 	 * Digest the SIG rdata (not including the signature).
 	 */
 	dns_rdata_toregion(sigrdata, &r);
+	INSIST(r.length >= sig.siglen);	
 	r.length -= sig.siglen;
 	RUNTIME_CHECK(r.length >= 19);
-	
+
 	ret = dst_context_create(key, mctx, &ctx);
 	if (ret != ISC_R_SUCCESS)
 		goto cleanup_struct;
@@ -454,7 +452,7 @@ dns_dnssec_findzonekeys(dns_db_t *db, dns_dbversion_t *ver,
 			unsigned int *nkeys)
 {
 	dns_rdataset_t rdataset;
-	dns_rdata_t rdata;
+	dns_rdata_t rdata = DNS_RDATA_INIT;
 	isc_result_t result;
 	dst_key_t *pubkey = NULL;
 	unsigned int count = 0;
@@ -488,6 +486,7 @@ dns_dnssec_findzonekeys(dns_db_t *db, dns_dbversion_t *ver,
 		count++;
  next:
 		dst_key_free(&pubkey);
+		dns_rdata_reset(&rdata);
 		result = dns_rdataset_next(&rdataset);
 	}
 	if (result != ISC_R_NOMORE)
@@ -555,7 +554,7 @@ dns_dnssec_signmessage(dns_message_t *msg, dst_key_t *key) {
 
 	sig.siglen = 0;
 	sig.signature = NULL;
-	
+
 	isc_buffer_init(&databuf, data, sizeof(data));
 
 	RETERR(dst_context_create(key, mctx, &ctx));
@@ -645,9 +644,8 @@ dns_dnssec_verifymessage(isc_buffer_t *source, dns_message_t *msg,
 {
 	dns_rdata_sig_t sig;
 	unsigned char header[DNS_MESSAGE_HEADERLEN];
-	dns_rdata_t rdata;
-	dns_name_t tname;
-	isc_region_t r, r2, source_r, sig_r, header_r;
+	dns_rdata_t rdata = DNS_RDATA_INIT;
+	isc_region_t r, source_r, sig_r, header_r;
 	isc_stdtime_t now;
 	dst_context_t *ctx = NULL;
 	isc_mem_t *mctx;
@@ -736,12 +734,7 @@ dns_dnssec_verifymessage(isc_buffer_t *source, dns_message_t *msg,
 	 * the name and 10 bytes for class, type, ttl, length to get to
 	 * the start of the rdata.
 	 */
-	r.base = source_r.base + msg->sigstart;
-	r.length = source_r.length - msg->sigstart;
-	dns_name_init(&tname, NULL);
-	dns_name_fromregion(&tname, &r);
-	dns_name_toregion(&tname, &r2);
-	isc_region_consume(&r, r2.length + 10);
+	dns_rdata_toregion(&rdata, &r);
 	r.length -= sig.siglen;
 	RETERR(dst_context_adddata(ctx, &r));
 
@@ -767,4 +760,27 @@ failure:
 		dst_context_destroy(&ctx);
 
 	return (result);
+}
+
+isc_boolean_t
+dns_dnssec_iszonekey(dns_rdata_t *keyrdata) {
+	isc_result_t result;
+	dns_rdata_key_t key;
+	isc_boolean_t iszonekey = ISC_TRUE;
+
+	REQUIRE(keyrdata != NULL);
+
+	result = dns_rdata_tostruct(keyrdata, &key, NULL);
+	if (result != ISC_R_SUCCESS)
+		return (ISC_FALSE);
+
+	if ((key.flags & DNS_KEYTYPE_NOAUTH) != 0)
+		iszonekey = ISC_FALSE;
+	if ((key.flags & DNS_KEYFLAG_OWNERMASK) != DNS_KEYOWNER_ZONE)
+		iszonekey = ISC_FALSE;
+	if (key.protocol != DNS_KEYPROTO_DNSSEC &&
+	    key.protocol != DNS_KEYPROTO_ANY)
+		iszonekey = ISC_FALSE;    
+
+	return (iszonekey);             
 }

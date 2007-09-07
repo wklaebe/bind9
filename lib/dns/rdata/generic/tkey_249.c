@@ -1,21 +1,21 @@
 /*
  * Copyright (C) 1999, 2000  Internet Software Consortium.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
- * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
- * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
- * SOFTWARE.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+ * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+ * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: tkey_249.c,v 1.36 2000/06/01 18:26:34 tale Exp $ */
+/* $Id: tkey_249.c,v 1.41 2000/12/01 01:40:43 gson Exp $ */
 
 /*
  * Reviewed: Thu Mar 16 17:35:30 PST 2000 by halley.
@@ -44,7 +44,8 @@ fromtext_tkey(ARGS_FROMTEXT) {
 	/*
 	 * Algorithm.
 	 */
-	RETERR(gettoken(lexer, &token, isc_tokentype_string, ISC_FALSE));
+	RETERR(isc_lex_getmastertoken(lexer, &token, isc_tokentype_string,
+				      ISC_FALSE));
 	dns_name_init(&name, NULL);
 	buffer_fromregion(&buffer, &token.value.as_region);
 	origin = (origin != NULL) ? origin : dns_rootname;
@@ -54,19 +55,22 @@ fromtext_tkey(ARGS_FROMTEXT) {
 	/*
 	 * Inception.
 	 */
-	RETERR(gettoken(lexer, &token, isc_tokentype_number, ISC_FALSE));
+	RETERR(isc_lex_getmastertoken(lexer, &token, isc_tokentype_number,
+				      ISC_FALSE));
 	RETERR(uint32_tobuffer(token.value.as_ulong, target));
 
 	/*
 	 * Expiration.
 	 */
-	RETERR(gettoken(lexer, &token, isc_tokentype_number, ISC_FALSE));
+	RETERR(isc_lex_getmastertoken(lexer, &token, isc_tokentype_number,
+				      ISC_FALSE));
 	RETERR(uint32_tobuffer(token.value.as_ulong, target));
 
 	/*
 	 * Mode.
 	 */
-	RETERR(gettoken(lexer, &token, isc_tokentype_number, ISC_FALSE));
+	RETERR(isc_lex_getmastertoken(lexer, &token, isc_tokentype_number,
+				      ISC_FALSE));
 	if (token.value.as_ulong > 0xffff)
 		return (ISC_R_RANGE);
 	RETERR(uint16_tobuffer(token.value.as_ulong, target));
@@ -74,7 +78,8 @@ fromtext_tkey(ARGS_FROMTEXT) {
 	/*
 	 * Error.
 	 */
-	RETERR(gettoken(lexer, &token, isc_tokentype_string, ISC_FALSE));
+	RETERR(isc_lex_getmastertoken(lexer, &token, isc_tokentype_string,
+				      ISC_FALSE));
 	if (dns_tsigrcode_fromtext(&rcode, &token.value.as_textregion)
 				!= ISC_R_SUCCESS)
 	{
@@ -90,7 +95,8 @@ fromtext_tkey(ARGS_FROMTEXT) {
 	/*
 	 * Key Size.
 	 */
-	RETERR(gettoken(lexer, &token, isc_tokentype_number, ISC_FALSE));
+	RETERR(isc_lex_getmastertoken(lexer, &token, isc_tokentype_number,
+				      ISC_FALSE));
 	if (token.value.as_ulong > 0xffff)
 		return (ISC_R_RANGE);
 	RETERR(uint16_tobuffer(token.value.as_ulong, target));
@@ -103,7 +109,8 @@ fromtext_tkey(ARGS_FROMTEXT) {
 	/*
 	 * Other Size.
 	 */
-	RETERR(gettoken(lexer, &token, isc_tokentype_number, ISC_FALSE));
+	RETERR(isc_lex_getmastertoken(lexer, &token, isc_tokentype_number,
+				      ISC_FALSE));
 	if (token.value.as_ulong > 0xffff)
 		return (ISC_R_RANGE);
 	RETERR(uint16_tobuffer(token.value.as_ulong, target));
@@ -117,13 +124,14 @@ fromtext_tkey(ARGS_FROMTEXT) {
 static inline isc_result_t
 totext_tkey(ARGS_TOTEXT) {
 	isc_region_t sr, dr;
-	char buf[sizeof "4294967295 "];	
+	char buf[sizeof "4294967295 "];
 	unsigned long n;
 	dns_name_t name;
 	dns_name_t prefix;
 	isc_boolean_t sub;
 
 	REQUIRE(rdata->type == 249);
+	REQUIRE(rdata->length != 0);
 
 	dns_rdata_toregion(rdata, &sr);
 
@@ -196,7 +204,7 @@ totext_tkey(ARGS_TOTEXT) {
 	if ((tctx->flags & DNS_STYLEFLAG_MULTILINE) != 0)
 		RETERR(str_totext(" ) ", target));
 	else
-		RETERR(str_totext(" ", target));		
+		RETERR(str_totext(" ", target));
 	isc_region_consume(&sr, n);
 
 	/*
@@ -236,7 +244,7 @@ fromwire_tkey(ARGS_FROMWIRE) {
 	REQUIRE(type == 249);
 
 	dns_decompress_setmethods(dctx, DNS_COMPRESS_NONE);
-	
+
 	/*
 	 * Algorithm.
 	 */
@@ -286,6 +294,7 @@ towire_tkey(ARGS_TOWIRE) {
 	dns_name_t name;
 
 	REQUIRE(rdata->type == 249);
+	REQUIRE(rdata->length != 0);
 
 	dns_compress_setmethods(cctx, DNS_COMPRESS_NONE);
 	/*
@@ -311,7 +320,9 @@ compare_tkey(ARGS_COMPARE) {
 	REQUIRE(rdata1->type == rdata2->type);
 	REQUIRE(rdata1->rdclass == rdata2->rdclass);
 	REQUIRE(rdata1->type == 249);
-	
+	REQUIRE(rdata1->length != 0);
+	REQUIRE(rdata2->length != 0);
+
 	/*
 	 * Algorithm.
 	 */
@@ -340,6 +351,8 @@ fromstruct_tkey(ARGS_FROMSTRUCT) {
 		(tkey->key != NULL && tkey->keylen != 0));
 	REQUIRE((tkey->other == NULL && tkey->otherlen == 0) ||
 		(tkey->other != NULL && tkey->otherlen != 0));
+
+	UNUSED(rdclass);
 
 	/*
 	 * Algorithm Name.
@@ -395,6 +408,7 @@ tostruct_tkey(ARGS_TOSTRUCT) {
 
 	REQUIRE(rdata->type == 249);
 	REQUIRE(target != NULL);
+	REQUIRE(rdata->length != 0);
 
 	tkey->common.rdclass = rdata->rdclass;
 	tkey->common.rdtype = rdata->type;

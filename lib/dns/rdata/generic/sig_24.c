@@ -1,21 +1,21 @@
 /*
  * Copyright (C) 1999, 2000  Internet Software Consortium.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
- * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
- * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
- * SOFTWARE.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+ * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+ * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: sig_24.c,v 1.43 2000/06/01 18:26:32 tale Exp $ */
+/* $Id: sig_24.c,v 1.48 2000/12/01 01:40:41 gson Exp $ */
 
 /* Reviewed: Fri Mar 17 09:05:02 PST 2000 by gson */
 
@@ -29,7 +29,7 @@
 static inline isc_result_t
 fromtext_sig(ARGS_FROMTEXT) {
 	isc_token_t token;
-	unsigned char c; 
+	unsigned char c;
 	long i;
 	dns_rdatatype_t covered;
 	char *e;
@@ -45,7 +45,8 @@ fromtext_sig(ARGS_FROMTEXT) {
 	/*
 	 * Type covered.
 	 */
-	RETERR(gettoken(lexer, &token, isc_tokentype_string, ISC_FALSE));
+	RETERR(isc_lex_getmastertoken(lexer, &token, isc_tokentype_string,
+				      ISC_FALSE));
 	result = dns_rdatatype_fromtext(&covered, &token.value.as_textregion);
 	if (result != ISC_R_SUCCESS && result != ISC_R_NOTIMPLEMENTED) {
 		i = strtol(token.value.as_pointer, &e, 10);
@@ -60,14 +61,16 @@ fromtext_sig(ARGS_FROMTEXT) {
 	/*
 	 * Algorithm.
 	 */
-	RETERR(gettoken(lexer, &token, isc_tokentype_string, ISC_FALSE));
+	RETERR(isc_lex_getmastertoken(lexer, &token, isc_tokentype_string,
+				      ISC_FALSE));
 	RETERR(dns_secalg_fromtext(&c, &token.value.as_textregion));
 	RETERR(mem_tobuffer(target, &c, 1));
 
 	/*
 	 * Labels.
 	 */
-	RETERR(gettoken(lexer, &token, isc_tokentype_number, ISC_FALSE));
+	RETERR(isc_lex_getmastertoken(lexer, &token, isc_tokentype_number,
+				      ISC_FALSE));
 	if (token.value.as_ulong > 0xff)
 		return (ISC_R_RANGE);
 	c = (unsigned char)token.value.as_ulong;
@@ -76,33 +79,38 @@ fromtext_sig(ARGS_FROMTEXT) {
 	/*
 	 * Original ttl.
 	 */
-	RETERR(gettoken(lexer, &token, isc_tokentype_number, ISC_FALSE));
+	RETERR(isc_lex_getmastertoken(lexer, &token, isc_tokentype_number,
+				      ISC_FALSE));
 	RETERR(uint32_tobuffer(token.value.as_ulong, target));
 
 	/*
 	 * Signature expiration.
 	 */
-	RETERR(gettoken(lexer, &token, isc_tokentype_string, ISC_FALSE));
+	RETERR(isc_lex_getmastertoken(lexer, &token, isc_tokentype_string,
+				      ISC_FALSE));
 	RETERR(dns_time32_fromtext(token.value.as_pointer, &time_expire));
 	RETERR(uint32_tobuffer(time_expire, target));
 
 	/*
 	 * Time signed.
 	 */
-	RETERR(gettoken(lexer, &token, isc_tokentype_string, ISC_FALSE));
+	RETERR(isc_lex_getmastertoken(lexer, &token, isc_tokentype_string,
+				      ISC_FALSE));
 	RETERR(dns_time32_fromtext(token.value.as_pointer, &time_signed));
 	RETERR(uint32_tobuffer(time_signed, target));
 
 	/*
 	 * Key footprint.
 	 */
-	RETERR(gettoken(lexer, &token, isc_tokentype_number, ISC_FALSE));
+	RETERR(isc_lex_getmastertoken(lexer, &token, isc_tokentype_number,
+				      ISC_FALSE));
 	RETERR(uint16_tobuffer(token.value.as_ulong, target));
-	
+
 	/*
 	 * Signer.
 	 */
-	RETERR(gettoken(lexer, &token, isc_tokentype_string, ISC_FALSE));
+	RETERR(isc_lex_getmastertoken(lexer, &token, isc_tokentype_string,
+				      ISC_FALSE));
 	dns_name_init(&name, NULL);
 	buffer_fromregion(&buffer, &token.value.as_region);
 	origin = (origin != NULL) ? origin : dns_rootname;
@@ -128,6 +136,7 @@ totext_sig(ARGS_TOTEXT) {
 	isc_boolean_t sub;
 
 	REQUIRE(rdata->type == 24);
+	REQUIRE(rdata->length != 0);
 
 	dns_rdata_toregion(rdata, &sr);
 
@@ -170,7 +179,7 @@ totext_sig(ARGS_TOTEXT) {
 	 */
 	ttl = uint32_fromregion(&sr);
 	isc_region_consume(&sr, 4);
-	sprintf(buf, "%lu", ttl); 
+	sprintf(buf, "%lu", ttl);
 	RETERR(str_totext(buf, target));
 	RETERR(str_totext(" ", target));
 
@@ -198,7 +207,7 @@ totext_sig(ARGS_TOTEXT) {
 	 */
 	foot = uint16_fromregion(&sr);
 	isc_region_consume(&sr, 2);
-	sprintf(buf, "%lu", foot); 
+	sprintf(buf, "%lu", foot);
 	RETERR(str_totext(buf, target));
 	RETERR(str_totext(" ", target));
 
@@ -220,7 +229,7 @@ totext_sig(ARGS_TOTEXT) {
 				    tctx->linebreak, target));
 	if ((tctx->flags & DNS_STYLEFLAG_MULTILINE) != 0)
 		RETERR(str_totext(" )", target));
-	
+
 	return (ISC_R_SUCCESS);
 }
 
@@ -232,7 +241,7 @@ fromwire_sig(ARGS_FROMWIRE) {
 	REQUIRE(type == 24);
 
 	dns_decompress_setmethods(dctx, DNS_COMPRESS_NONE);
-	
+
 	UNUSED(rdclass);
 
 	isc_buffer_activeregion(source, &sr);
@@ -271,6 +280,7 @@ towire_sig(ARGS_TOWIRE) {
 	dns_name_t name;
 
 	REQUIRE(rdata->type == 24);
+	REQUIRE(rdata->length != 0);
 
 	dns_compress_setmethods(cctx, DNS_COMPRESS_NONE);
 	dns_rdata_toregion(rdata, &sr);
@@ -291,7 +301,7 @@ towire_sig(ARGS_TOWIRE) {
 	 */
 	dns_name_init(&name, NULL);
 	dns_name_fromregion(&name, &sr);
-	isc_region_consume(&sr, name_length(&name));        
+	isc_region_consume(&sr, name_length(&name));
 	RETERR(dns_name_towire(&name, cctx, target));
 
 	/*
@@ -311,6 +321,8 @@ compare_sig(ARGS_COMPARE) {
 	REQUIRE(rdata1->type == rdata2->type);
 	REQUIRE(rdata1->rdclass == rdata2->rdclass);
 	REQUIRE(rdata1->type == 24);
+	REQUIRE(rdata1->length != 0);
+	REQUIRE(rdata2->length != 0);
 
 	dns_rdata_toregion(rdata1, &r1);
 	dns_rdata_toregion(rdata2, &r2);
@@ -351,7 +363,9 @@ fromstruct_sig(ARGS_FROMSTRUCT) {
 	REQUIRE(sig->common.rdclass == rdclass);
 	REQUIRE((sig->signature != NULL && sig->siglen != 0) ||
 		(sig->signature == NULL && sig->siglen == 0));
-	
+
+	UNUSED(rdclass);
+
 	/*
 	 * Type covered.
 	 */
@@ -406,7 +420,8 @@ tostruct_sig(ARGS_TOSTRUCT) {
 
 	REQUIRE(rdata->type == 24);
 	REQUIRE(target != NULL);
-	
+	REQUIRE(rdata->length != 0);
+
 	sig->common.rdclass = rdata->rdclass;
 	sig->common.rdtype = rdata->type;
 	ISC_LINK_INIT(&sig->common, link);

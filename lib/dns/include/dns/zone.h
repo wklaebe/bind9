@@ -1,21 +1,21 @@
 /*
  * Copyright (C) 1999, 2000  Internet Software Consortium.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
- * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
- * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
- * SOFTWARE.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+ * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+ * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: zone.h,v 1.59 2000/06/22 21:56:25 tale Exp $ */
+/* $Id: zone.h,v 1.93 2000/12/01 23:49:57 gson Exp $ */
 
 #ifndef DNS_ZONE_H
 #define DNS_ZONE_H 1
@@ -38,11 +38,32 @@ typedef enum {
 	dns_zone_stub
 } dns_zonetype_t;
 
+#define DNS_STATS_NCOUNTERS      6
+
 #define DNS_ZONEOPT_SERVERS	0x00000001U	/* perform server checks */
 #define DNS_ZONEOPT_PARENTS	0x00000002U	/* perform parent checks */
 #define DNS_ZONEOPT_CHILDREN	0x00000004U	/* perform child checks */
-#define DNS_ZONEOPT_DIALUP	0x00000008U	/* zone xfr over dialup link */
-#define DNS_ZONEOPT_NOTIFY	0x00000010U	/* perform NOTIFY */
+#define DNS_ZONEOPT_NOTIFY	0x00000008U	/* perform NOTIFY */
+
+#ifndef DNS_ZONE_MINREFRESH
+#define DNS_ZONE_MINREFRESH		    300	/* 5 minutes */
+#endif
+#ifndef DNS_ZONE_MAXREFRESH
+#define DNS_ZONE_MAXREFRESH		2419200	/* 4 weeks */
+#endif
+#ifndef DNS_ZONE_DEFAULTREFRESH
+#define DNS_ZONE_DEFAULTREFRESH		   3600	/* 1 hour */
+#endif
+#ifndef DNS_ZONE_MINRETRY
+#define DNS_ZONE_MINRETRY		    300	/* 5 minutes */
+#endif
+#ifndef DNS_ZONE_MAXRETRY
+#define DNS_ZONE_MAXRETRY		1209600	/* 2 weeks */
+#endif
+#ifndef DNS_ZONE_DEFAULTRETRY
+#define DNS_ZONE_DEFAULTRETRY		     60	/* 1 minute, subject to
+						   exponential backoff */
+#endif
 
 ISC_LANG_BEGINDECLS
 
@@ -79,7 +100,7 @@ dns_zone_setclass(dns_zone_t *zone, dns_rdataclass_t rdclass);
  *	dns_zone_setclass() not to have been called since the zone was
  *	created.
  *	'rdclass' != dns_rdataclass_none.
- */	
+ */
 
 dns_rdataclass_t
 dns_zone_getclass(dns_zone_t *zone);
@@ -110,7 +131,7 @@ dns_zone_setview(dns_zone_t *zone, dns_view_t *view);
  *
  * Require:
  *	'zone' to be a valid zone.
- */	
+ */
 
 dns_view_t *
 dns_zone_getview(dns_zone_t *zone);
@@ -145,19 +166,33 @@ dns_zone_getorigin(dns_zone_t *zone);
  */
 
 isc_result_t
-dns_zone_setdatabase(dns_zone_t *zone, const char *database);
+dns_zone_setfile(dns_zone_t *zone, const char *file);
 /*
- *	Sets the name of the database to be loaded. 
- *	For databases loaded from MASTER files this corresponds to the
- *	file name of the MASTER file.
+ *	Sets the name of the master file from which the zone
+ *	loads its database to 'file'.  For zones that have
+ *	no associated master file, 'file' will be NULL.
+ *
+ *	For zones with persistent databases, the file name
+ *	setting is ignored.
  *
  * Require:
  *	'zone' to be a valid zone.
- *	'database' to be non NULL.
  *
  * Returns:
  *	ISC_R_NOMEMORY
  *	ISC_R_SUCCESS
+ */
+
+const char *
+dns_zone_getfile(dns_zone_t *zone);
+/*
+ * 	Gets the name of the zone's master file, if any.
+ *
+ * Requires:
+ *	'zone' to be valid initialised zone.
+ *
+ * Returns:
+ *	Pointer to null-terminated file name, or NULL.
  */
 
 isc_result_t
@@ -202,7 +237,7 @@ dns_zone_detach(dns_zone_t **zonep);
 void
 dns_zone_iattach(dns_zone_t *source, dns_zone_t **target);
 /*
- *	Attach '*target' to 'source' incrementing its internal 
+ *	Attach '*target' to 'source' incrementing its internal
  * 	reference count.  This is intended for use by operations
  * 	such as zone transfers that need to prevent the zone
  * 	object from being freed but not from shutting down.
@@ -212,7 +247,7 @@ dns_zone_iattach(dns_zone_t *source, dns_zone_t **target);
  *	'zone' to be a valid zone.
  *	'target' to be non NULL and '*target' to be NULL.
  */
- 
+
 void
 dns_zone_idetach(dns_zone_t **zonep);
 /*
@@ -221,7 +256,7 @@ dns_zone_idetach(dns_zone_t **zonep);
  * 	zone, it will be freed.
  *
  * Require:
- *	The caller is running in the context of the zone's task. 
+ *	The caller is running in the context of the zone's task.
  *	'zonep' to point to a valid zone.
  */
 
@@ -232,30 +267,6 @@ dns_zone_setflag(dns_zone_t *zone, unsigned int flags, isc_boolean_t value);
  *	zone flags.  Valid flag bits are DNS_ZONE_F_*.
  *
  * Requires
- *	'zone' to be a valid zone.
- */
-
-isc_result_t
-dns_zone_adddbarg(dns_zone_t *zone, char *arg);
-/*
- *	Add 'arg' to the end of the list of database arguements.
- *	No attempt in made to validate the arguements.
- *
- * Require:
- *	'zone' to be a valid zone.
- *	'arg' to be non NULL.
- *
- * Returns:
- *	ISC_R_NOMEMORY
- *	ISC_R_SUCCESS
- */
-
-void
-dns_zone_cleardbargs(dns_zone_t *zone);
-/*
- *	Clear all database arguements.
- *
- * Require:
  *	'zone' to be a valid zone.
  */
 
@@ -275,21 +286,25 @@ dns_zone_getdb(dns_zone_t *zone, dns_db_t **dbp);
  */
 
 isc_result_t
-dns_zone_setdbtype(dns_zone_t *zone, const char *db_type);
+dns_zone_setdbtype(dns_zone_t *zone,
+		   unsigned int dbargc, const char * const *dbargv);
 /*
- *	Sets the database type. Current database types are: "rbt", "rbt64".
- *	'db_type' is not checked to see if it is a valid database type. 
+ *	Sets the database type to dbargv[0] and database arguments
+ *	to subsequent dbargv elements.
+ *	'db_type' is not checked to see if it is a valid database type.
  *
  * Require:
  *	'zone' to be a valid zone.
  *	'database' to be non NULL.
+ *	'dbargc' to be >= 1
+ *	'dbargv' to point to dbargc NULL-terminated strings
  *
  * Returns:
  *	ISC_R_NOMEMORY
  *	ISC_R_SUCCESS
  */
 
-void 
+void
 dns_zone_markdirty(dns_zone_t *zone);
 /*
  *	Mark a zone as 'dirty'.
@@ -316,6 +331,15 @@ dns_zone_refresh(dns_zone_t *zone);
  *	managed.
  *
  * Require
+ *	'zone' to be a valid zone.
+ */
+
+isc_result_t
+dns_zone_flush(dns_zone_t *zone);
+/*
+ *	Write the zone to database if there are uncommited changes.
+ *
+ * Require:
  *	'zone' to be a valid zone.
  */
 
@@ -418,22 +442,52 @@ dns_zone_clearoption(dns_zone_t *zone, unsigned int option);
 unsigned int
 dns_zone_getoptions(dns_zone_t *zone);
 /*
- *	Return which options a set.
+ *	Returns the current zone options.
  *
  * Require:
  *	'zone' to be a valid zone.
  */
 
 void
-dns_zone_setrefresh(dns_zone_t *zone, isc_uint32_t refresh,
-		    isc_uint32_t retry);
+dns_zone_setminrefreshtime(dns_zone_t *zone, isc_uint32_t val);
 /*
- *	Set the refresh and retry values.  Normally this are set as a
- *	result of loading the zone (dns_zone_load).
+ *	Set the minimum refresh time.
  *
- * Require:
- *	'zone' to be a valid zone.
+ * Requires:
+ *	'zone' is valid.
+ *	val > 0.
  */
+
+void
+dns_zone_setmaxrefreshtime(dns_zone_t *zone, isc_uint32_t val);
+/*
+ *	Set the maximum refresh time.
+ *
+ * Requires:
+ *	'zone' is valid.
+ *	val > 0.
+ */
+
+void
+dns_zone_setminretrytime(dns_zone_t *zone, isc_uint32_t val);
+/*
+ *	Set the minimum retry time.
+ *
+ * Requires:
+ *	'zone' is valid.
+ *	val > 0.
+ */
+
+void
+dns_zone_setmaxretrytime(dns_zone_t *zone, isc_uint32_t val);
+/*
+ *	Set the maximum retry time.
+ *
+ * Requires:
+ *	'zone' is valid.
+ *	val > 0.
+ */
+
 
 isc_result_t
 dns_zone_setxfrsource4(dns_zone_t *zone, isc_sockaddr_t *xfrsource);
@@ -481,6 +535,52 @@ dns_zone_getxfrsource6(dns_zone_t *zone);
  *	'zone' to be a valid zone.
  */
 
+isc_result_t
+dns_zone_setnotifysrc4(dns_zone_t *zone, isc_sockaddr_t *notifysrc);
+/*
+ * 	Set the source address to be used with IPv4 NOTIFY messages.
+ *
+ * Require:
+ *	'zone' to be a valid zone.
+ *	'notifysrc' to contain the address.
+ *
+ * Returns:
+ *	ISC_R_SUCCESS
+ */
+
+isc_sockaddr_t *
+dns_zone_getnotifysrc4(dns_zone_t *zone);
+/*
+ *	Returns the source address set by a previous dns_zone_setnotifysrc4
+ *	call, or the default of inaddr_any, port 0.
+ *
+ * Require:
+ *	'zone' to be a valid zone.
+ */
+
+isc_result_t
+dns_zone_setnotifysrc6(dns_zone_t *zone, isc_sockaddr_t *notifysrc);
+/*
+ * 	Set the source address to be used with IPv6 NOTIFY messages.
+ *
+ * Require:
+ *	'zone' to be a valid zone.
+ *	'notifysrc' to contain the address.
+ *
+ * Returns:
+ *	ISC_R_SUCCESS
+ */
+
+isc_sockaddr_t *
+dns_zone_getnotifysrc6(dns_zone_t *zone);
+/*
+ *	Returns the source address set by a previous dns_zone_setnotifysrc6
+ *	call, or the default of in6addr_any, port 0.
+ *
+ * Require:
+ *	'zone' to be a valid zone.
+ */
+
 void
 dns_zone_setqueryacl(dns_zone_t *zone, dns_acl_t *acl);
 /*
@@ -502,6 +602,16 @@ dns_zone_setupdateacl(dns_zone_t *zone, dns_acl_t *acl);
  */
 
 void
+dns_zone_setforwardacl(dns_zone_t *zone, dns_acl_t *acl);
+/*
+ *	Sets the forward unsigned updates acl list for the zone.
+ *
+ * Require:
+ *	'zone' to be a valid zone.
+ *	'acl' to be valid acl.
+ */
+
+void
 dns_zone_setxfracl(dns_zone_t *zone, dns_acl_t *acl);
 /*
  *	Sets the transfer acl list for the zone.
@@ -510,6 +620,7 @@ dns_zone_setxfracl(dns_zone_t *zone, dns_acl_t *acl);
  *	'zone' to be a valid zone.
  *	'acl' to be valid acl.
  */
+
 
 dns_acl_t *
 dns_zone_getqueryacl(dns_zone_t *zone);
@@ -528,6 +639,19 @@ dns_acl_t *
 dns_zone_getupdateacl(dns_zone_t *zone);
 /*
  * 	Returns the current update acl or NULL.
+ *
+ * Require:
+ *	'zone' to be a valid zone.
+ *
+ * Returns:
+ *	acl a pointer to the acl.
+ *	NULL
+ */
+
+dns_acl_t *
+dns_zone_getforwardacl(dns_zone_t *zone);
+/*
+ * 	Returns the current forward unsigned updates acl or NULL.
  *
  * Require:
  *	'zone' to be a valid zone.
@@ -558,6 +682,16 @@ dns_zone_clearupdateacl(dns_zone_t *zone);
  * Require:
  *	'zone' to be a valid zone.
  */
+
+void
+dns_zone_clearforwardacl(dns_zone_t *zone);
+/*
+ *	Clear the current forward unsigned updates acl.
+ *
+ * Require:
+ *	'zone' to be a valid zone.
+ */
+
 
 void
 dns_zone_clearqueryacl(dns_zone_t *zone);
@@ -642,7 +776,6 @@ dns_zone_setmaxxfrin(dns_zone_t *zone, isc_uint32_t maxxfrin);
  *
  * Requires:
  * 	'zone' to be valid initialised zone.
- *	'xfrtime' to be non zero.
  */
 
 isc_uint32_t
@@ -664,7 +797,6 @@ dns_zone_setmaxxfrout(dns_zone_t *zone, isc_uint32_t maxxfrout);
  *
  * Requires:
  * 	'zone' to be valid initialised zone.
- *	'xfrtime' to be non zero.
  */
 
 isc_uint32_t
@@ -682,23 +814,23 @@ isc_result_t
 dns_zone_setjournal(dns_zone_t *zone, const char *journal);
 /*
  * Sets the filename used for journaling updates / IXFR transfers.
- * The default journal name is set by dns_zone_setdatabase() to be
- * "database.jnl".
+ * The default journal name is set by dns_zone_setfile() to be
+ * "file.jnl".  If 'journal' is NULL, the zone will have no
+ * journal name.
  *
  * Requires:
  *	'zone' to be a valid zone.
- *	'journal' to be non NULL.
  *
  * Returns:
  *	ISC_R_SUCCESS
- *	ISC_R_NOMEMORY 
+ *	ISC_R_NOMEMORY
  */
 
 char *
 dns_zone_getjournal(dns_zone_t *zone);
 /*
  * Returns the journal name associated with this zone.
- * If not journal has been set this will be NULL.
+ * If no journal has been set this will be NULL.
  *
  * Requires:
  *	'zone' to be valid initialised zone.
@@ -734,16 +866,6 @@ dns_zone_gettask(dns_zone_t *zone, isc_task_t **target);
  *	'target' to be != NULL && '*target' == NULL.
  */
 
-const char *
-dns_zone_getdatabase(dns_zone_t *zone);
-/*
- * Gets the name of the database.  For databases loaded from
- * master files, this corresponds to the file name of the master file.
- *
- * Requires:
- *	'zone' to be valid initialised zone.
- */
-
 void
 dns_zone_notify(dns_zone_t *zone);
 /*
@@ -770,20 +892,6 @@ dns_zone_replacedb(dns_zone_t *zone, dns_db_t *db, isc_boolean_t dump);
  *
  * Requires:
  *	'zone' to be a valid zone.
- */
-
-isc_boolean_t
-dns_zone_equal(dns_zone_t *oldzone, dns_zone_t *newzone);
-/*
- * Tests whether the configuration of two zones is equal.
- * Zone contents and state information is not tested.
- *
- * Requires:
- *	'oldzone' and 'newzone' to be valid.
- *
- * Returns:
- *	ISC_TRUE if the configurations are equal.
- *	ISC_FALSE if the configurations differ.
  */
 
 isc_uint32_t
@@ -830,7 +938,7 @@ dns_zone_setidleout(dns_zone_t *zone, isc_uint32_t idleout);
 void
 dns_zone_getssutable(dns_zone_t *zone, dns_ssutable_t **table);
 /*
- * Set the simple-secure-update policy table.
+ * Get the simple-secure-update policy table.
  *
  * Requires:
  *	'zone' to be a valid zone.
@@ -839,16 +947,10 @@ dns_zone_getssutable(dns_zone_t *zone, dns_ssutable_t **table);
 void
 dns_zone_setssutable(dns_zone_t *zone, dns_ssutable_t *table);
 /*
- * Get the simple-secure-update policy table.
+ * Set / clear the simple-secure-update policy table.
  *
  * Requires:
  *	'zone' to be a valid zone.
- */
-
-void
-dns_zone_print(dns_zone_t *zone);
-/*
- * test use only
  */
 
 isc_mem_t *
@@ -868,7 +970,7 @@ dns_zone_getmgr(dns_zone_t *zone);
  * Requires:
  *	'zone' to be a valid zone.
  */
-  
+
 void
 dns_zone_setsigvalidityinterval(dns_zone_t *zone, isc_uint32_t interval);
 /*
@@ -887,6 +989,65 @@ dns_zone_getsigvalidityinterval(dns_zone_t *zone);
  *
  * Requires:
  *	'zone' to be a valid zone.
+ */
+
+void
+dns_zone_setnotifytype(dns_zone_t *zone, dns_notifytype_t notifytype);
+/*
+ * Sets zone notify method to "notifytype"
+ */
+
+isc_result_t
+dns_zone_forwardupdate(dns_zone_t *zone, dns_message_t *msg,
+                       dns_updatecallback_t callback, void *callback_arg);
+/*
+ * Forward 'msg' to each master in turn until we get an answer or we
+ * have exausted the list of masters. 'callback' will be called with
+ * ISC_R_SUCCESS if we get an answer and the returned message will be
+ * passed, otherwise a non ISC_R_SUCCESS result code will be passed and
+ * msg will be NULL.
+ *		(callback)(callback_arg, result, answer_message);
+ *
+ * Require:
+ *	'zone' to be valid
+ *	'msg' to be valid.
+ *	'callback' to be non NULL.
+ * Returns:
+ *	ISC_R_SUCCESS if the message has been forwarded,
+ *	ISC_R_NOMEMORY
+ *	Others
+ */
+
+isc_result_t
+dns_zone_next(dns_zone_t *zone, dns_zone_t **next);
+/*
+ * Find the next zone in the list of managed zones.
+ *
+ * Requires:
+ *	'zone' to be valid
+ *	The zone manager for the indicated zone MUST be locked
+ *	by the caller.  This is not checked.
+ *	'next' be non-NULL, and '*next' be NULL.
+ *
+ * Ensures:
+ *	'next' points to a valid zone (result ISC_R_SUCCESS) or to NULL
+ *	(result ISC_R_NOMORE).
+ */
+
+isc_result_t
+dns_zone_first(dns_zonemgr_t *zmgr, dns_zone_t **first);
+/*
+ * Find the first zone in the list of managed zones.
+ *
+ * Requires:
+ *	'zonemgr' to be valid
+ *	The zone manager for the indicated zone MUST be locked
+ *	by the caller.  This is not checked.
+ *	'first' be non-NULL, and '*first' be NULL
+ *
+ * Ensures:
+ *	'first' points to a valid zone (result ISC_R_SUCCESS) or to NULL
+ *	(result ISC_R_NOMORE).
  */
 
 isc_result_t
@@ -939,7 +1100,7 @@ dns_zonemgr_attach(dns_zonemgr_t *source, dns_zonemgr_t **target);
  *	'zone' to be a valid zone.
  *	'target' to be non NULL and '*target' to be NULL.
  */
-	
+
 void
 dns_zonemgr_detach(dns_zonemgr_t **zmgrp);
 /*
@@ -1022,6 +1183,82 @@ dns_zonemgr_getttransfersperns(dns_zonemgr_t *zmgr);
  *
  * Requires:
  *	'zmgr' to be a valid zone manager.
+ */
+
+void
+dns_zonemgr_setiolimit(dns_zonemgr_t *zmgr, isc_uint32_t iolimit);
+/*
+ *	Set the number of simultaneous file descriptors available for 
+ *	reading and writing masterfiles.
+ *
+ * Requires:
+ *	'zmgr' to be a valid zone manager.
+ *	'iolimit' to be positive.
+ */
+
+isc_uint32_t
+dns_zonemgr_getiolimit(dns_zonemgr_t *zmgr);
+/*
+ *	Get the number of simultaneous file descriptors available for 
+ *	reading and writing masterfiles.
+ *
+ * Requires:
+ *	'zmgr' to be a valid zone manager.
+ */
+
+void
+dns_zone_forcereload(dns_zone_t *zone);
+/*
+ *      Force a reload of specified zone.
+ *
+ * Requires:
+ *      'zone' to be a valid zone.
+ */
+
+isc_boolean_t
+dns_zone_isforced(dns_zone_t *zone);
+/*
+ *      Check if the zone is waiting a forced reload.
+ *
+ * Requires:
+ *      'zone' to be a valid zone.
+ */
+
+isc_result_t
+dns_zone_setstatistics(dns_zone_t *zone, isc_boolean_t on);
+/*
+ *      Make the zone keep or not keep an array of statistics
+ * 	counter.
+ *
+ * Requires:
+ *      zone be a valid zone.
+ */
+
+isc_uint64_t *
+dns_zone_getstatscounters(dns_zone_t *zone);
+/*
+ * Requires:
+ *      zone be a valid zone.
+ *
+ * Returns:
+ *      A pointer to the zone's array of statistics counters,
+ *	or NULL if it has none.
+ */
+
+void
+dns_zone_dialup(dns_zone_t *zone);
+/*
+ * Perform dialup-time maintenance on 'zone'.
+ */
+
+void
+dns_zone_setdialup(dns_zone_t *zone, dns_dialuptype_t dialup);
+/*
+ * Set the dialup type of 'zone' to 'dialup'.
+ *
+ * Requires:
+ * 	'zone' to be valid initialised zone.
+ *	'dialup' to be a valid dialup type.
  */
 
 ISC_LANG_ENDDECLS

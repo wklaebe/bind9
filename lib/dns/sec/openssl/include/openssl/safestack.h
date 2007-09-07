@@ -6,7 +6,7 @@
  * are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer. 
+ *    notice, this list of conditions and the following disclaimer.
  *
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in
@@ -95,7 +95,7 @@ void sk_##type##_free(STACK_OF(type) *sk) \
 int sk_##type##_num(const STACK_OF(type) *sk) \
     { return M_sk_num((const STACK *)sk); } \
 type *sk_##type##_value(const STACK_OF(type) *sk,int n) \
-    { return (type *)sk_value((STACK *)sk,n); } \
+    { return (type *)sk_value((const STACK *)sk,n); } \
 type *sk_##type##_set(STACK_OF(type) *sk,int n,type *v) \
     { return (type *)(sk_set((STACK *)sk,n,(char *)v)); } \
 void sk_##type##_zero(STACK_OF(type) *sk) \

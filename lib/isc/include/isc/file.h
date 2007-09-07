@@ -1,21 +1,21 @@
 /*
  * Copyright (C) 2000  Internet Software Consortium.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
- * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
- * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
- * SOFTWARE.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+ * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+ * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: file.h,v 1.7.2.1 2000/09/11 19:27:50 explorer Exp $ */
+/* $Id: file.h,v 1.13 2000/10/20 22:09:00 gson Exp $ */
 
 #ifndef ISC_FILE_H
 #define ISC_FILE_H 1
@@ -60,7 +60,7 @@ isc_file_getmodtime(const char *file, isc_time_t *time);
  *		Hardware error interacting with the filesystem.
  *	ISC_R_UNEXPECTED
  *		Something totally unexpected happened.
- *	
+ *
  */
 
 isc_result_t
@@ -100,7 +100,7 @@ isc_result_t
 isc_file_openunique(char *templet, FILE **fp);
 /*
  * Create and open a file with a unique name based on 'templet'.
- * 
+ *
  * Notes:
  *	'template' is a reserved work in C++.  If you want to complain
  *	about the spelling of 'templet', first look it up in the
@@ -165,12 +165,32 @@ isc_file_rename(const char *oldname, const char *newname);
  * Rename the file 'oldname' to 'newname'.
  */
 
+isc_boolean_t
+isc_file_isabsolute(const char *filename);
+/*
+ * Return ISC_TRUE iff the given file name is absolute.
+ */
+
+isc_result_t
+isc_file_template(const char *path, const char *templet, char *buf,
+		  size_t buflen);
+/*
+ * Create an OS specific template using 'path' to define the directory
+ * 'templet' to describe the filename and store the result in 'buf'
+ * such that path can be renamed to buf atomically.
+ */
+
+isc_result_t
+isc_file_renameunique(const char *file, char *templet);
+/*
+ * Rename 'file' using 'templet' as a template for the new file name.
+ */
+
 /*
  * XXX We should also have a isc_file_writeeopen() function
  * for safely open a file in a publicly writable directory
  * (see write_open() in BIND 8's ns_config.c).
  */
-
 
 ISC_LANG_ENDDECLS
 

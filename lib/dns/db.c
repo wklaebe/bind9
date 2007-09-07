@@ -1,21 +1,21 @@
 /*
  * Copyright (C) 1999, 2000  Internet Software Consortium.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
- * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
- * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
- * SOFTWARE.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+ * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+ * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: db.c,v 1.47 2000/06/22 21:54:21 tale Exp $ */
+/* $Id: db.c,v 1.65 2000/12/01 01:22:38 marka Exp $ */
 
 /***
  *** Imports
@@ -24,45 +24,83 @@
 #include <config.h>
 
 #include <isc/buffer.h>
+#include <isc/mem.h>
+#include <isc/once.h>
+#include <isc/rwlock.h>
 #include <isc/string.h>
 #include <isc/util.h>
 
 #include <dns/callbacks.h>
+#include <dns/db.h>
+#include <dns/log.h>
 #include <dns/master.h>
 #include <dns/rdata.h>
 #include <dns/rdataset.h>
+#include <dns/result.h>
 
 /***
  *** Private Types
  ***/
 
-typedef struct {
-	const char *		name;	
-	isc_result_t		(*create)(isc_mem_t *mctx, dns_name_t *name,
-					  dns_dbtype_t type,
-					  dns_rdataclass_t rdclass,
-					  unsigned int argc, char *argv[],
-					  dns_db_t **dbp);
-} impinfo_t;
+struct dns_dbimplementation {
+	const char *				name;
+	dns_dbcreatefunc_t			create;
+	isc_mem_t *				mctx;
+	void *					driverarg;
+	ISC_LINK(dns_dbimplementation_t)	link;
+};
 
 /***
  *** Supported DB Implementations Registry
  ***/
 
 /*
- * Supported database implementations must be registered here.
- *
- * It might be nice to generate this automatically some day.
+ * Built in database implementations are registered here.
  */
 
 #include "rbtdb.h"
 #include "rbtdb64.h"
 
-static impinfo_t implementations[] = {
-	{ "rbt", dns_rbtdb_create },
-	{ "rbt64", dns_rbtdb64_create },
-	{ NULL, NULL }
-};
+static ISC_LIST(dns_dbimplementation_t) implementations;
+static isc_rwlock_t implock;
+static isc_once_t once = ISC_ONCE_INIT;
+
+static dns_dbimplementation_t rbtimp;
+static dns_dbimplementation_t rbt64imp;
+
+static void
+initialize() {
+	RUNTIME_CHECK(isc_rwlock_init(&implock, 0, 0) == ISC_R_SUCCESS);
+
+	rbtimp.name = "rbt";
+	rbtimp.create = dns_rbtdb_create;
+	rbtimp.mctx = NULL;
+	rbtimp.driverarg = NULL;
+	ISC_LINK_INIT(&rbtimp, link);
+
+	rbt64imp.name = "rbt64";
+	rbt64imp.create = dns_rbtdb64_create;
+	rbt64imp.mctx = NULL;
+	rbt64imp.driverarg = NULL;
+	ISC_LINK_INIT(&rbt64imp, link);
+
+	ISC_LIST_INIT(implementations);
+	ISC_LIST_APPEND(implementations, &rbtimp, link);
+	ISC_LIST_APPEND(implementations, &rbt64imp, link);
+}
+
+static inline dns_dbimplementation_t *
+impfind(const char *name) {
+	dns_dbimplementation_t *imp;
+
+	for (imp = ISC_LIST_HEAD(implementations); 
+	     imp != NULL;
+	     imp = ISC_LIST_NEXT(imp, link))
+		if (strcasecmp(name, imp->name) == 0)
+			return (imp);
+	return (NULL);
+}
+
 
 /***
  *** Basic DB Methods
@@ -73,7 +111,9 @@ dns_db_create(isc_mem_t *mctx, const char *db_type, dns_name_t *origin,
 	      dns_dbtype_t type, dns_rdataclass_t rdclass,
 	      unsigned int argc, char *argv[], dns_db_t **dbp)
 {
-	impinfo_t *impinfo;
+	dns_dbimplementation_t *impinfo;
+
+	RUNTIME_CHECK(isc_once_do(&once, initialize) == ISC_R_SUCCESS);
 
 	/*
 	 * Create a new database using implementation 'db_type'.
@@ -82,10 +122,22 @@ dns_db_create(isc_mem_t *mctx, const char *db_type, dns_name_t *origin,
 	REQUIRE(dbp != NULL && *dbp == NULL);
 	REQUIRE(dns_name_isabsolute(origin));
 
-	for (impinfo = implementations; impinfo->name != NULL; impinfo++)
-		if (strcasecmp(db_type, impinfo->name) == 0)
-			return ((impinfo->create)(mctx, origin, type, rdclass,
-						  argc, argv, dbp));
+	RWLOCK(&implock, isc_rwlocktype_read);
+	impinfo = impfind(db_type);
+	if (impinfo != NULL) {
+		isc_result_t result;
+		result = ((impinfo->create)(mctx, origin, type,
+					    rdclass, argc, argv,
+					    impinfo->driverarg, dbp));
+		RWUNLOCK(&implock, isc_rwlocktype_read);
+		return (result);
+	}
+
+	RWUNLOCK(&implock, isc_rwlocktype_read);
+
+	isc_log_write(dns_lctx, DNS_LOGCATEGORY_DATABASE,
+		      DNS_LOGMODULE_DB, ISC_LOG_ERROR,
+		      "unsupported database type '%s'", db_type);
 
 	return (ISC_R_NOTFOUND);
 }
@@ -98,7 +150,7 @@ dns_db_attach(dns_db_t *source, dns_db_t **targetp) {
 	 */
 
 	REQUIRE(DNS_DB_VALID(source));
-	REQUIRE(targetp != NULL);
+	REQUIRE(targetp != NULL && *targetp == NULL);
 
 	(source->methods->attach)(source, targetp);
 
@@ -135,7 +187,7 @@ dns_db_iscache(dns_db_t *db) {
 	/*
 	 * Does 'db' have cache semantics?
 	 */
-	
+
 	REQUIRE(DNS_DB_VALID(db));
 
 	if ((db->attributes & DNS_DBATTR_CACHE) != 0)
@@ -150,7 +202,7 @@ dns_db_iszone(dns_db_t *db) {
 	/*
 	 * Does 'db' have zone semantics?
 	 */
-	
+
 	REQUIRE(DNS_DB_VALID(db));
 
 	if ((db->attributes & (DNS_DBATTR_CACHE|DNS_DBATTR_STUB)) == 0)
@@ -165,7 +217,7 @@ dns_db_isstub(dns_db_t *db) {
 	/*
 	 * Does 'db' have stub semantics?
 	 */
-	
+
 	REQUIRE(DNS_DB_VALID(db));
 
 	if ((db->attributes & DNS_DBATTR_STUB) != 0)
@@ -180,11 +232,23 @@ dns_db_issecure(dns_db_t *db) {
 	/*
 	 * Is 'db' secure?
 	 */
-	
+
 	REQUIRE(DNS_DB_VALID(db));
 	REQUIRE((db->attributes & DNS_DBATTR_CACHE) == 0);
 
 	return ((db->methods->issecure)(db));
+}
+
+isc_boolean_t
+dns_db_ispersistent(dns_db_t *db) {
+
+	/*
+	 * Is 'db' persistent?
+	 */
+
+	REQUIRE(DNS_DB_VALID(db));
+
+	return ((db->methods->ispersistent)(db));
 }
 
 dns_name_t *
@@ -264,7 +328,7 @@ dns_db_load(dns_db_t *db, const char *filename) {
 	 * result if dns_master_loadfile() succeeded.  If dns_master_loadfile()
 	 * failed, we want to return the result code it gave us.
 	 */
-	if (result == ISC_R_SUCCESS)
+	if (result == ISC_R_SUCCESS || result == DNS_R_SEENINCLUDE)
 		result = eresult;
 
 	return (result);
@@ -287,11 +351,11 @@ dns_db_dump(dns_db_t *db, dns_dbversion_t *version, const char *filename) {
 
 void
 dns_db_currentversion(dns_db_t *db, dns_dbversion_t **versionp) {
-	
+
 	/*
 	 * Open the current version for reading.
 	 */
-	
+
 	REQUIRE(DNS_DB_VALID(db));
 	REQUIRE((db->attributes & DNS_DBATTR_CACHE) == 0);
 	REQUIRE(versionp != NULL && *versionp == NULL);
@@ -301,7 +365,7 @@ dns_db_currentversion(dns_db_t *db, dns_dbversion_t **versionp) {
 
 isc_result_t
 dns_db_newversion(dns_db_t *db, dns_dbversion_t **versionp) {
-	
+
 	/*
 	 * Open a new version for reading and writing.
 	 */
@@ -329,13 +393,13 @@ dns_db_attachversion(dns_db_t *db, dns_dbversion_t *source,
 	(db->methods->attachversion)(db, source, targetp);
 
 	ENSURE(*targetp != NULL);
-}	
+}
 
 void
 dns_db_closeversion(dns_db_t *db, dns_dbversion_t **versionp,
 		    isc_boolean_t commit)
 {
-	
+
 	/*
 	 * Close version '*versionp'.
 	 */
@@ -551,6 +615,8 @@ dns_db_addrdataset(dns_db_t *db, dns_dbnode_t *node, dns_dbversion_t *version,
 	REQUIRE(((db->attributes & DNS_DBATTR_CACHE) == 0 && version != NULL)||
 		((db->attributes & DNS_DBATTR_CACHE) != 0 &&
 		 version == NULL && (options & DNS_DBADD_MERGE) == 0));
+	REQUIRE((options & DNS_DBADD_EXACT) == 0 ||
+		(options & DNS_DBADD_MERGE) != 0);
 	REQUIRE(DNS_RDATASET_VALID(rdataset));
 	REQUIRE(dns_rdataset_isassociated(rdataset));
 	REQUIRE(rdataset->rdclass == db->rdclass);
@@ -565,7 +631,7 @@ dns_db_addrdataset(dns_db_t *db, dns_dbnode_t *node, dns_dbversion_t *version,
 isc_result_t
 dns_db_subtractrdataset(dns_db_t *db, dns_dbnode_t *node,
 			dns_dbversion_t *version, dns_rdataset_t *rdataset,
-			dns_rdataset_t *newrdataset)
+			unsigned int options, dns_rdataset_t *newrdataset)
 {
 	/*
 	 * Remove any rdata in 'rdataset' from 'node' in version 'version' of
@@ -583,7 +649,7 @@ dns_db_subtractrdataset(dns_db_t *db, dns_dbnode_t *node,
 		 ! dns_rdataset_isassociated(newrdataset)));
 
 	return ((db->methods->subtractrdataset)(db, node, version, rdataset,
-						newrdataset));
+						options, newrdataset));
 }
 
 isc_result_t
@@ -605,17 +671,25 @@ dns_db_deleterdataset(dns_db_t *db, dns_dbnode_t *node,
 					      type, covers));
 }
 
+void 
+dns_db_overmem(dns_db_t *db, isc_boolean_t overmem) {
+
+	REQUIRE(DNS_DB_VALID(db));
+
+	(db->methods->overmem)(db, overmem);
+}
+
 isc_result_t
 dns_db_getsoaserial(dns_db_t *db, dns_dbversion_t *ver, isc_uint32_t *serialp)
 {
 	isc_result_t result;
 	dns_dbnode_t *node = NULL;
 	dns_rdataset_t rdataset;
-	dns_rdata_t rdata;
+	dns_rdata_t rdata = DNS_RDATA_INIT;
 	isc_buffer_t buffer;
 
 	REQUIRE(dns_db_iszone(db) || dns_db_isstub(db));
-		
+
 	result = dns_db_findnode(db, dns_db_origin(db), ISC_FALSE, &node);
 	if (result != ISC_R_SUCCESS)
 		return (result);
@@ -625,11 +699,13 @@ dns_db_getsoaserial(dns_db_t *db, dns_dbversion_t *ver, isc_uint32_t *serialp)
 				     (isc_stdtime_t)0, &rdataset, NULL);
  	if (result != ISC_R_SUCCESS)
 		goto freenode;
-	
+
 	result = dns_rdataset_first(&rdataset);
  	if (result != ISC_R_SUCCESS)
 		goto freerdataset;
 	dns_rdataset_current(&rdataset, &rdata);
+	result = dns_rdataset_next(&rdataset);
+	INSIST(result == ISC_R_NOMORE);
 
 	INSIST(rdata.length > 20);
 	isc_buffer_init(&buffer, rdata.data, rdata.length);
@@ -641,8 +717,70 @@ dns_db_getsoaserial(dns_db_t *db, dns_dbversion_t *ver, isc_uint32_t *serialp)
 
  freerdataset:
 	dns_rdataset_disassociate(&rdataset);
-	
+
  freenode:
 	dns_db_detachnode(db, &node);
 	return (result);
+}
+
+unsigned int
+dns_db_nodecount(dns_db_t *db) {
+	REQUIRE(DNS_DB_VALID(db));
+
+	return ((db->methods->nodecount)(db));
+}
+
+isc_result_t
+dns_db_register(const char *name, dns_dbcreatefunc_t create, void *driverarg,
+		isc_mem_t *mctx, dns_dbimplementation_t **dbimp)
+{
+	dns_dbimplementation_t *imp;
+
+	REQUIRE(name != NULL);
+	REQUIRE(dbimp != NULL && *dbimp == NULL);
+
+	RUNTIME_CHECK(isc_once_do(&once, initialize) == ISC_R_SUCCESS);
+
+	RWLOCK(&implock, isc_rwlocktype_write);
+	imp = impfind(name);
+	if (imp != NULL) {
+		RWUNLOCK(&implock, isc_rwlocktype_write);
+		return (ISC_R_EXISTS);
+	}
+	
+	imp = isc_mem_get(mctx, sizeof(dns_dbimplementation_t));
+	if (imp == NULL) {
+		RWUNLOCK(&implock, isc_rwlocktype_write);
+		return (ISC_R_NOMEMORY);
+	}
+	imp->name = name;
+	imp->create = create;
+	imp->mctx = NULL;
+	imp->driverarg = driverarg;
+	isc_mem_attach(mctx, &imp->mctx);
+	ISC_LINK_INIT(imp, link);
+	ISC_LIST_APPEND(implementations, imp, link);
+	RWUNLOCK(&implock, isc_rwlocktype_write);
+
+	*dbimp = imp;
+
+	return (ISC_R_SUCCESS);
+}
+
+void
+dns_db_unregister(dns_dbimplementation_t **dbimp) {
+	dns_dbimplementation_t *imp;
+	isc_mem_t *mctx;
+
+	REQUIRE(dbimp != NULL && *dbimp != NULL);
+
+	RUNTIME_CHECK(isc_once_do(&once, initialize) == ISC_R_SUCCESS);
+
+	imp = *dbimp;
+	RWLOCK(&implock, isc_rwlocktype_write);
+	ISC_LIST_UNLINK(implementations, imp, link);
+	mctx = imp->mctx;
+	isc_mem_put(mctx, imp, sizeof(dns_dbimplementation_t));
+	isc_mem_detach(&mctx);
+	RWUNLOCK(&implock, isc_rwlocktype_write);
 }

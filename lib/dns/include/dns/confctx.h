@@ -1,21 +1,21 @@
 /*
  * Copyright (C) 1999, 2000  Internet Software Consortium.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
- * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
- * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
- * SOFTWARE.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+ * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+ * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: confctx.h,v 1.43 2000/06/22 21:55:20 tale Exp $ */
+/* $Id: confctx.h,v 1.58 2000/11/25 02:43:52 marka Exp $ */
 
 #ifndef DNS_CONFCTX_H
 #define DNS_CONFCTX_H 1
@@ -25,26 +25,26 @@
  *****/
 
 /*
- * Defines the structures and accessor/modifier functions for the top level 
+ * Defines the structures and accessor/modifier functions for the top level
  * structures created by the config file parsing routines.
  */
 
 /*
  *
  * MP:
- *	
+ *
  *
  * Reliability:
- *	
+ *
  *
  * Resources:
- *	
+ *
  *
  * Security:
- *	
+ *
  *
  * Standards:
- *	
+ *
  */
 
 /***
@@ -59,6 +59,7 @@
 #include <dns/confctl.h>
 #include <dns/conflog.h>
 #include <dns/conflsn.h>
+#include <dns/conflwres.h>
 #include <dns/confresolv.h>
 #include <dns/confview.h>
 
@@ -85,7 +86,7 @@ struct dns_c_ctx {
 
 	int			warnings; /* semantic warning count */
 	int			errors;	/* semantic error count */
-	
+
 	dns_c_options_t	       *options;
 	dns_c_cache_t	       *cache;
 	dns_c_resolv_t	       *resolver;
@@ -97,6 +98,7 @@ struct dns_c_ctx {
 	dns_c_tkeylist_t       *trusted_keys;
 	dns_c_logginglist_t    *logging;
 	dns_c_viewtable_t      *views;
+	dns_c_lwreslist_t      *lwres;
 
 	dns_c_zone_t	       *currzone;
 	dns_c_view_t	       *currview;
@@ -109,7 +111,7 @@ struct dns_c_ctx {
 struct dns_c_options {
 	isc_uint32_t		magic;
 	isc_mem_t	       *mem;
-	
+
 	char		       *directory;
 	char		       *version;
 	char		       *dump_filename;
@@ -122,9 +124,9 @@ struct dns_c_options {
 
 	in_port_t 	       *port;
 
-	isc_uint32_t	       *transfers_in; 
+	isc_uint32_t	       *transfers_in;
 	isc_uint32_t	       *transfers_per_ns;
-	isc_uint32_t	       *transfers_out; 
+	isc_uint32_t	       *transfers_out;
 	isc_uint32_t	       *max_log_size_ixfr;
 	isc_uint32_t	       *clean_interval;
 	isc_uint32_t	       *interface_interval;
@@ -141,7 +143,7 @@ struct dns_c_options {
 	isc_uint32_t	       *min_roots;
 	isc_uint32_t	       *serial_queries;
 	isc_uint32_t	       *sig_valid_interval;
-	
+
 	isc_uint32_t	       *data_size;
 	isc_uint32_t	       *stack_size;
 	isc_uint32_t	       *core_size;
@@ -150,11 +152,16 @@ struct dns_c_options {
 	isc_uint32_t	       *max_ncache_ttl;
 	isc_uint32_t	       *max_cache_ttl;
 
+	isc_uint32_t	       *min_retry_time;
+	isc_uint32_t	       *max_retry_time;
+	isc_uint32_t	       *min_refresh_time;
+	isc_uint32_t	       *max_refresh_time;
+
+
 	isc_boolean_t	       *expert_mode;
 	isc_boolean_t	       *fake_iquery;
 	isc_boolean_t	       *recursion;
 	isc_boolean_t	       *fetch_glue;
-	isc_boolean_t	       *notify;
 	isc_boolean_t	       *host_statistics;
 	isc_boolean_t	       *dealloc_on_exit;
 	isc_boolean_t	       *use_ixfr;
@@ -163,25 +170,32 @@ struct dns_c_options {
 	isc_boolean_t	       *auth_nx_domain;
 	isc_boolean_t	       *multiple_cnames;
 	isc_boolean_t	       *use_id_pool;
-	isc_boolean_t	       *dialup;
+	dns_dialuptype_t       *dialup;
+	isc_boolean_t	       *statistics;
 	isc_boolean_t	       *rfc2308_type1;
 	isc_boolean_t	       *request_ixfr;
 	isc_boolean_t	       *provide_ixfr;
 	isc_boolean_t	       *treat_cr_as_space;
-	
+	isc_boolean_t	       *additional_from_cache;
+	isc_boolean_t	       *additional_from_auth;
+
+	isc_sockaddr_t	       *notify_source;
+	isc_sockaddr_t	       *notify_source_v6;
 	isc_sockaddr_t	       *transfer_source;
 	isc_sockaddr_t	       *transfer_source_v6;
 	isc_sockaddr_t	       *query_source;
 	isc_sockaddr_t	       *query_source_v6;
 
 	dns_c_addata_t	       *additional_data;
-	
+
 	dns_c_forw_t	       *forward;
 
 	char 		       *tkeydhkeycp;
 	isc_uint32_t		tkeydhkeyi;
 	char 		       *tkeydomain;
-	
+	char 		       *tkeygsscred;
+
+	dns_notifytype_t       *notify;
 	dns_c_iplist_t	       *also_notify;
 
 	dns_severity_t 	       *check_names[DNS_C_TRANSCOUNT];
@@ -198,7 +212,7 @@ struct dns_c_options {
 
 	dns_c_lstnlist_t       *listens;
 	dns_c_lstnlist_t       *v6listens;
-	
+
 	dns_c_rrsolist_t       *ordering;
 
 	dns_c_iplist_t	       *forwarders;
@@ -470,6 +484,30 @@ isc_result_t dns_c_ctx_getmaxcachesize(dns_c_ctx_t *cfg, isc_uint32_t *retval);
 isc_result_t dns_c_ctx_unsetmaxcachesize(dns_c_ctx_t *cfg);
 
 
+isc_result_t dns_c_ctx_setminretrytime(dns_c_ctx_t *cfg, isc_uint32_t newval);
+isc_result_t dns_c_ctx_getminretrytime(dns_c_ctx_t *cfg, isc_uint32_t *retval);
+isc_result_t dns_c_ctx_unsetminretrytime(dns_c_ctx_t *cfg);
+
+
+isc_result_t dns_c_ctx_setmaxretrytime(dns_c_ctx_t *cfg, isc_uint32_t newval);
+isc_result_t dns_c_ctx_getmaxretrytime(dns_c_ctx_t *cfg, isc_uint32_t *retval);
+isc_result_t dns_c_ctx_unsetmaxretrytime(dns_c_ctx_t *cfg);
+
+
+isc_result_t dns_c_ctx_setminrefreshtime(dns_c_ctx_t *cfg,
+					 isc_uint32_t newval);
+isc_result_t dns_c_ctx_getminrefreshtime(dns_c_ctx_t *cfg,
+					 isc_uint32_t *retval);
+isc_result_t dns_c_ctx_unsetminrefreshtime(dns_c_ctx_t *cfg);
+
+
+isc_result_t dns_c_ctx_setmaxrefreshtime(dns_c_ctx_t *cfg,
+					 isc_uint32_t newval);
+isc_result_t dns_c_ctx_getmaxrefreshtime(dns_c_ctx_t *cfg,
+					 isc_uint32_t *retval);
+isc_result_t dns_c_ctx_unsetmaxrefreshtime(dns_c_ctx_t *cfg);
+
+
 isc_result_t dns_c_ctx_setmaxncachettl(dns_c_ctx_t *cfg, isc_uint32_t newval);
 isc_result_t dns_c_ctx_getmaxncachettl(dns_c_ctx_t *cfg, isc_uint32_t *retval);
 isc_result_t dns_c_ctx_unsetmaxncachettl(dns_c_ctx_t *cfg);
@@ -500,8 +538,8 @@ isc_result_t dns_c_ctx_getfetchglue(dns_c_ctx_t *cfg, isc_boolean_t *retval);
 isc_result_t dns_c_ctx_unsetfetchglue(dns_c_ctx_t *cfg);
 
 
-isc_result_t dns_c_ctx_setnotify(dns_c_ctx_t *cfg, isc_boolean_t newval);
-isc_result_t dns_c_ctx_getnotify(dns_c_ctx_t *cfg, isc_boolean_t *retval);
+isc_result_t dns_c_ctx_setnotify(dns_c_ctx_t *cfg, dns_notifytype_t newval);
+isc_result_t dns_c_ctx_getnotify(dns_c_ctx_t *cfg, dns_notifytype_t *retval);
 isc_result_t dns_c_ctx_unsetnotify(dns_c_ctx_t *cfg);
 
 
@@ -557,10 +595,13 @@ isc_result_t dns_c_ctx_getuseidpool(dns_c_ctx_t *cfg, isc_boolean_t *retval);
 isc_result_t dns_c_ctx_unsetuseidpool(dns_c_ctx_t *cfg);
 
 
-isc_result_t dns_c_ctx_setdialup(dns_c_ctx_t *cfg, isc_boolean_t newval);
-isc_result_t dns_c_ctx_getdialup(dns_c_ctx_t *cfg, isc_boolean_t *retval);
+isc_result_t dns_c_ctx_setdialup(dns_c_ctx_t *cfg, dns_dialuptype_t newval);
+isc_result_t dns_c_ctx_getdialup(dns_c_ctx_t *cfg, dns_dialuptype_t *retval);
 isc_result_t dns_c_ctx_unsetdialup(dns_c_ctx_t *cfg);
 
+isc_result_t dns_c_ctx_setstatistics(dns_c_ctx_t *cfg, isc_boolean_t newval);
+isc_result_t dns_c_ctx_getstatistics(dns_c_ctx_t *cfg, isc_boolean_t *retval);
+isc_result_t dns_c_ctx_unsetstatistics(dns_c_ctx_t *cfg);
 
 isc_result_t dns_c_ctx_setrfc2308type1(dns_c_ctx_t *cfg,
 				       isc_boolean_t newval);
@@ -585,32 +626,60 @@ isc_result_t dns_c_ctx_gettreatcrasspace(dns_c_ctx_t *cfg,
 					 isc_boolean_t *retval);
 
 
+isc_result_t dns_c_ctx_getadditionalfromcache(dns_c_ctx_t *cfg,
+					      isc_boolean_t *retval);
+isc_result_t dns_c_ctx_setadditionalfromcache(dns_c_ctx_t *cfg,
+					      isc_boolean_t newval);
+isc_result_t dns_c_ctx_unsetadditionalfromcache(dns_c_ctx_t *ctx);
+
+
+isc_result_t dns_c_ctx_getadditionalfromauth(dns_c_ctx_t *cfg,
+					     isc_boolean_t *retval);
+isc_result_t dns_c_ctx_setadditionalfromauth(dns_c_ctx_t *cfg,
+					     isc_boolean_t newval);
+isc_result_t dns_c_ctx_unsetadditionalfromauth(dns_c_ctx_t *ctx);
+
+
 isc_result_t dns_c_ctx_unsettreatcrasspace(dns_c_ctx_t *cfg);
+
+
 isc_result_t dns_c_ctx_settransfersource(dns_c_ctx_t *ctx,
 					 isc_sockaddr_t transfer_source);
 isc_result_t dns_c_ctx_gettransfersource(dns_c_ctx_t *ctx,
 					 isc_sockaddr_t *transfer_source);
-
-
 isc_result_t dns_c_ctx_unsettransfersource(dns_c_ctx_t *ctx);
+
+
 isc_result_t dns_c_ctx_settransfersourcev6(dns_c_ctx_t *ctx,
 					   isc_sockaddr_t transfer_source_v6);
 isc_result_t dns_c_ctx_gettransfersourcev6(dns_c_ctx_t *ctx,
 					   isc_sockaddr_t *transfer_source_v6);
-
-
 isc_result_t dns_c_ctx_unsettransfersourcev6(dns_c_ctx_t *ctx);
+
+
+isc_result_t dns_c_ctx_setnotifysource(dns_c_ctx_t *ctx,
+				       isc_sockaddr_t notify_source);
+isc_result_t dns_c_ctx_getnotifysource(dns_c_ctx_t *ctx,
+				       isc_sockaddr_t *notify_source);
+isc_result_t dns_c_ctx_unsetnotifysource(dns_c_ctx_t *ctx);
+
+
+isc_result_t dns_c_ctx_setnotifysourcev6(dns_c_ctx_t *ctx,
+					 isc_sockaddr_t notify_source_v6);
+isc_result_t dns_c_ctx_getnotifysourcev6(dns_c_ctx_t *ctx,
+					 isc_sockaddr_t *notify_source_v6);
+isc_result_t dns_c_ctx_unsetnotifysourcev6(dns_c_ctx_t *ctx);
+
+
 isc_result_t dns_c_ctx_setquerysource(dns_c_ctx_t *ctx,
 				      isc_sockaddr_t query_source);
 isc_result_t dns_c_ctx_getquerysource(dns_c_ctx_t *ctx,
 				      isc_sockaddr_t *query_source);
-
-
 isc_result_t dns_c_ctx_unsetquerysource(dns_c_ctx_t *ctx);
+
+
 isc_result_t dns_c_ctx_setquerysourcev6(dns_c_ctx_t *ctx, isc_sockaddr_t
 					query_source_v6);
-
-
 isc_result_t dns_c_ctx_getquerysourcev6(dns_c_ctx_t *ctx,
 					isc_sockaddr_t *query_source_v6);
 isc_result_t dns_c_ctx_unsetquerysourcev6(dns_c_ctx_t *ctx);
@@ -637,6 +706,10 @@ isc_result_t dns_c_ctx_gettkeydhkey(dns_c_ctx_t *cfg, char **retcpval,
 
 isc_result_t dns_c_ctx_settkeydomain(dns_c_ctx_t *cfg, const char *newval);
 isc_result_t dns_c_ctx_gettkeydomain(dns_c_ctx_t *cfg, char **retval);
+/* XXX need unset version */
+
+isc_result_t dns_c_ctx_settkeygsscred(dns_c_ctx_t *cfg, const char *newval);
+isc_result_t dns_c_ctx_gettkeygsscred(dns_c_ctx_t *cfg, char **retval);
 /* XXX need unset version */
 
 
@@ -739,6 +812,9 @@ isc_result_t dns_c_ctx_gettrustedkeys(dns_c_ctx_t *cfg,
 				      dns_c_tkeylist_t **retval);
 isc_result_t dns_c_ctx_settrustedkeys(dns_c_ctx_t *cfg, dns_c_tkeylist_t *list,
 				      isc_boolean_t copy);
+
+isc_result_t dns_c_ctx_getlwres(dns_c_ctx_t *cfg, dns_c_lwreslist_t **retval);
+isc_result_t dns_c_ctx_setlwres(dns_c_ctx_t *cfg, dns_c_lwreslist_t *list);
 
 
 ISC_LANG_ENDDECLS

@@ -1,21 +1,21 @@
 /*
  * Copyright (C) 1998-2000  Internet Software Consortium.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
- * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
- * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
- * SOFTWARE.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+ * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+ * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: a_1.c,v 1.35 2000/06/21 22:45:23 tale Exp $ */
+/* $Id: a_1.c,v 1.41 2000/12/01 01:40:50 gson Exp $ */
 
 /* Reviewed: Thu Mar 16 16:52:50 PST 2000 by bwelling */
 
@@ -34,13 +34,15 @@ fromtext_in_a(ARGS_FROMTEXT) {
 	struct in_addr addr;
 	isc_region_t region;
 
-	UNUSED(origin);
-	UNUSED(downcase);
-
 	REQUIRE(type == 1);
 	REQUIRE(rdclass == 1);
 
-	RETERR(gettoken(lexer, &token, isc_tokentype_string, ISC_FALSE));
+	UNUSED(origin);
+	UNUSED(downcase);
+	UNUSED(rdclass);
+
+	RETERR(isc_lex_getmastertoken(lexer, &token, isc_tokentype_string,
+				      ISC_FALSE));
 
 	if (inet_aton(token.value.as_pointer, &addr) != 1)
 		return (DNS_R_BADDOTTEDQUAD);
@@ -56,11 +58,11 @@ static inline isc_result_t
 totext_in_a(ARGS_TOTEXT) {
 	isc_region_t region;
 
-	UNUSED(tctx);
-
 	REQUIRE(rdata->type == 1);
 	REQUIRE(rdata->rdclass == 1);
 	REQUIRE(rdata->length == 4);
+
+	UNUSED(tctx);
 
 	isc_buffer_availableregion(target, &region);
 	if (inet_ntop(AF_INET, rdata->data,
@@ -76,11 +78,12 @@ fromwire_in_a(ARGS_FROMWIRE) {
 	isc_region_t sregion;
 	isc_region_t tregion;
 
-	UNUSED(dctx);
-	UNUSED(downcase);
-
 	REQUIRE(type == 1);
 	REQUIRE(rdclass == 1);
+
+	UNUSED(dctx);
+	UNUSED(downcase);
+	UNUSED(rdclass);
 
 	isc_buffer_activeregion(source, &sregion);
 	isc_buffer_availableregion(target, &tregion);
@@ -99,10 +102,11 @@ static inline isc_result_t
 towire_in_a(ARGS_TOWIRE) {
 	isc_region_t region;
 
-	UNUSED(cctx);
-
 	REQUIRE(rdata->type == 1);
 	REQUIRE(rdata->rdclass == 1);
+	REQUIRE(rdata->length == 4);
+
+	UNUSED(cctx);
 
 	isc_buffer_availableregion(target, &region);
 	if (region.length < rdata->length)
@@ -121,6 +125,8 @@ compare_in_a(ARGS_COMPARE) {
 	REQUIRE(rdata1->rdclass == rdata2->rdclass);
 	REQUIRE(rdata1->type == 1);
 	REQUIRE(rdata1->rdclass == 1);
+	REQUIRE(rdata1->length == 4);
+	REQUIRE(rdata2->length == 4);
 
 	dns_rdata_toregion(rdata1, &r1);
 	dns_rdata_toregion(rdata2, &r2);
@@ -138,7 +144,9 @@ fromstruct_in_a(ARGS_FROMSTRUCT) {
 	REQUIRE(a->common.rdtype == type);
 	REQUIRE(a->common.rdclass == rdclass);
 
-	n = ntohl(a->in_addr.s_addr); 
+	UNUSED(rdclass);
+
+	n = ntohl(a->in_addr.s_addr);
 
 	return (uint32_tobuffer(n, target));
 }
@@ -150,10 +158,11 @@ tostruct_in_a(ARGS_TOSTRUCT) {
 	isc_uint32_t n;
 	isc_region_t region;
 
-	UNUSED(mctx);
-
 	REQUIRE(rdata->type == 1);
 	REQUIRE(rdata->rdclass == 1);
+	REQUIRE(rdata->length == 4);
+
+	UNUSED(mctx);
 
 	a->common.rdclass = rdata->rdclass;
 	a->common.rdtype = rdata->type;
@@ -173,6 +182,8 @@ freestruct_in_a(ARGS_FREESTRUCT) {
 	REQUIRE(source != NULL);
 	REQUIRE(a->common.rdtype == 1);
 	REQUIRE(a->common.rdclass == 1);
+
+	UNUSED(a);
 }
 
 static inline isc_result_t

@@ -1,21 +1,21 @@
 /*
  * Copyright (C) 1999, 2000  Internet Software Consortium.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
- * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
- * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
- * SOFTWARE.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+ * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+ * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: globals.h,v 1.42 2000/06/22 21:49:39 tale Exp $ */
+/* $Id: globals.h,v 1.50 2000/11/14 23:59:21 tale Exp $ */
 
 #ifndef NAMED_GLOBALS_H
 #define NAMED_GLOBALS_H 1
@@ -23,6 +23,8 @@
 #include <isc/rwlock.h>
 #include <isc/log.h>
 #include <isc/net.h>
+
+#include <dns/zone.h>
 
 #include <omapi/types.h>
 
@@ -53,10 +55,11 @@ EXTERN isc_socketmgr_t *	ns_g_socketmgr		INIT(NULL);
 EXTERN omapi_object_t *		ns_g_omapimgr		INIT(NULL);
 EXTERN const char *		ns_g_version		INIT(VERSION);
 EXTERN in_port_t		ns_g_port		INIT(0);
-EXTERN in_port_t		lwresd_g_queryport	INIT(0);
+EXTERN in_port_t		lwresd_g_listenport	INIT(0);
 
 EXTERN ns_server_t *		ns_g_server		INIT(NULL);
-EXTERN ns_lwresd_t *		ns_g_lwresd		INIT(NULL);
+
+EXTERN isc_boolean_t		ns_g_lwresdonly		INIT(ISC_FALSE);
 
 /*
  * Logging.
@@ -67,11 +70,24 @@ EXTERN isc_logmodule_t *	ns_g_modules		INIT(NULL);
 EXTERN unsigned int		ns_g_debuglevel		INIT(0);
 
 /*
- * Current config information
+ * Current configuration information.
  */
 EXTERN const char *		ns_g_conffile		INIT(NS_SYSCONFDIR
 							     "/named.conf");
-EXTERN const char *		lwresd_g_conffile      INIT("/etc/resolv.conf");
+EXTERN const char *		lwresd_g_conffile	INIT(NS_SYSCONFDIR
+							     "/lwresd.conf");
+EXTERN const char *		lwresd_g_resolvconffile	INIT("/etc"
+							     "/resolv.conf");
+EXTERN isc_boolean_t		ns_g_conffileset	INIT(ISC_FALSE);
+EXTERN isc_boolean_t		lwresd_g_useresolvconf	INIT(ISC_FALSE);
+
+/*
+ * Initial resource limits.
+ */
+EXTERN isc_resourcevalue_t	ns_g_initstacksize	INIT(0);
+EXTERN isc_resourcevalue_t	ns_g_initdatasize	INIT(0);
+EXTERN isc_resourcevalue_t	ns_g_initcoresize	INIT(0);
+EXTERN isc_resourcevalue_t	ns_g_initopenfiles	INIT(0);
 
 /*
  * Misc.

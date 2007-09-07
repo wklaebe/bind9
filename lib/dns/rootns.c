@@ -1,21 +1,21 @@
 /*
  * Copyright (C) 1999, 2000  Internet Software Consortium.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
- * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
- * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
- * SOFTWARE.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+ * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+ * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rootns.c,v 1.13 2000/06/22 21:54:48 tale Exp $ */
+/* $Id: rootns.c,v 1.16 2000/10/17 07:22:32 marka Exp $ */
 
 #include <config.h>
 
@@ -26,6 +26,7 @@
 #include <dns/callbacks.h>
 #include <dns/db.h>
 #include <dns/master.h>
+#include <dns/result.h>
 #include <dns/rootns.h>
 
 static char root_ns[] =
@@ -71,7 +72,7 @@ dns_rootns_create(isc_mem_t *mctx, dns_rdataclass_t rdclass,
 	size_t len;
 	dns_rdatacallbacks_t callbacks;
 	dns_db_t *db = NULL;
-	
+
 	REQUIRE(target != NULL && *target == NULL);
 
 	result = dns_db_create(mctx, "rbt", dns_rootname, dns_dbtype_zone,
@@ -108,9 +109,9 @@ dns_rootns_create(isc_mem_t *mctx, dns_rdataclass_t rdclass,
 	} else
 		result = ISC_R_NOTFOUND;
 	eresult = dns_db_endload(db, &callbacks.add_private);
-	if (result == ISC_R_SUCCESS)
+	if (result == ISC_R_SUCCESS || result == DNS_R_SEENINCLUDE)
 		result = eresult;
-	if (result != ISC_R_SUCCESS)
+	if (result != ISC_R_SUCCESS && result != DNS_R_SEENINCLUDE)
 		goto db_detach;
 
 	*target = db;

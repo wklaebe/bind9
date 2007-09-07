@@ -1,21 +1,21 @@
 /*
  * Copyright (C) 1998-2000  Internet Software Consortium.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
- * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
- * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
- * SOFTWARE.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+ * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+ * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: socket.c,v 1.142.2.6 2000/09/08 22:17:27 gson Exp $ */
+/* $Id: socket.c,v 1.172 2000/11/22 23:48:14 gson Exp $ */
 
 #include <config.h>
 
@@ -38,13 +38,19 @@
 #include <isc/list.h>
 #include <isc/log.h>
 #include <isc/mem.h>
+#include <isc/mutex.h>
 #include <isc/net.h>
+#include <isc/platform.h>
 #include <isc/print.h>
 #include <isc/region.h>
 #include <isc/socket.h>
 #include <isc/task.h>
 #include <isc/thread.h>
 #include <isc/util.h>
+
+#ifndef ISC_PLATFORM_USETHREADS
+#include "socket_p.h"
+#endif /* ISC_PLATFORM_USETHREADS */
 
 /*
  * Some systems define the socket length argument as an int, some as size_t,
@@ -134,6 +140,7 @@ struct isc_socket {
 	ISC_LINK(isc_socket_t)	link;
 	unsigned int		references;
 	int			fd;
+	int			pf;
 
 	ISC_LIST(isc_socketevent_t)		send_list;
 	ISC_LIST(isc_socketevent_t)		recv_list;
@@ -177,15 +184,23 @@ struct isc_socketmgr {
 	isc_mutex_t		lock;
 	/* Locked by manager lock. */
 	ISC_LIST(isc_socket_t)	socklist;
-	isc_thread_t		watcher;
-	isc_condition_t		shutdown_ok;
 	fd_set			read_fds;
 	fd_set			write_fds;
 	isc_socket_t	       *fds[FD_SETSIZE];
 	int			fdstate[FD_SETSIZE];
 	int			maxfd;
+#ifdef ISC_PLATFORM_USETHREADS
+	isc_thread_t		watcher;
+	isc_condition_t		shutdown_ok;
 	int			pipe_fds[2];
+#else /* ISC_PLATFORM_USETHREADS */
+	unsigned int		refs;
+#endif /* ISC_PLATFORM_USETHREADS */
 };
+
+#ifndef ISC_PLATFORM_USETHREADS
+static isc_socketmgr_t *socketmgr = NULL;
+#endif /* ISC_PLATFORM_USETHREADS */
 
 #define CLOSED		0	/* this one must be zero */
 #define MANAGED		1
@@ -269,6 +284,51 @@ socket_log(isc_socket_t *sock, isc_sockaddr_t *address,
 	}
 }
 
+static void
+wakeup_socket(isc_socketmgr_t *manager, int fd) {
+	isc_event_t *ev2;
+	isc_socketevent_t *rev;
+	isc_socket_t *sock;
+
+	/*
+	 * This is a wakeup on a socket.  Look at the event queue for both
+	 * read and write, and decide if we need to watch on it now or not.
+	 */
+	INSIST(fd < FD_SETSIZE);
+
+	if (manager->fdstate[fd] == CLOSE_PENDING) {
+		manager->fdstate[fd] = CLOSED;
+		FD_CLR(fd, &manager->read_fds);
+		FD_CLR(fd, &manager->write_fds);
+		close(fd);
+		return;
+	}
+	if (manager->fdstate[fd] != MANAGED)
+		return;
+
+	sock = manager->fds[fd];
+
+	/*
+	 * If there are no events, or there is an event but we
+	 * have already queued up the internal event on a task's
+	 * queue, clear the bit.  Otherwise, set it.
+	 */
+	rev = ISC_LIST_HEAD(sock->recv_list);
+	ev2 = (isc_event_t *) ISC_LIST_HEAD(sock->accept_list);
+	if ((rev == NULL && ev2 == NULL)
+	    || sock->pending_recv || sock->pending_accept)
+		FD_CLR(sock->fd, &manager->read_fds);
+	else
+		FD_SET(sock->fd, &manager->read_fds);
+
+	rev = ISC_LIST_HEAD(sock->send_list);
+	if ((rev == NULL || sock->pending_send) && !sock->connecting)
+		FD_CLR(sock->fd, &manager->write_fds);
+	else
+		FD_SET(sock->fd, &manager->write_fds);
+}
+
+#ifdef ISC_PLATFORM_USETHREADS
 /*
  * Poke the select loop when there is something for us to do.
  * We assume that if a write completes here, it will be inserted into the
@@ -281,7 +341,7 @@ select_poke(isc_socketmgr_t *mgr, int msg) {
 	do {
 		cc = write(mgr->pipe_fds[1], &msg, sizeof(int));
 	} while (cc < 0 && SOFT_ERROR(errno));
-
+			        
 	if (cc < 0)
 		FATAL_ERROR(__FILE__, __LINE__,
 			    "write() failed during watcher poke: %s",
@@ -291,7 +351,7 @@ select_poke(isc_socketmgr_t *mgr, int msg) {
 }
 
 /*
- * read a message on the internal fd.
+ * Read a message on the internal fd.
  */
 static int
 select_readmsg(isc_socketmgr_t *mgr) {
@@ -306,15 +366,28 @@ select_readmsg(isc_socketmgr_t *mgr) {
 		FATAL_ERROR(__FILE__, __LINE__,
 			    "read() failed during watcher poke: %s",
 			    strerror(errno));
-
+		
 		return (SELECT_POKE_NOTHING);
 	}
 
 	return (msg);
 }
+#else /* ISC_PLATFORM_USETHREADS */
+/*
+ * Update the state of the socketmgr when something changes.
+ */
+static void
+select_poke(isc_socketmgr_t *manager, int msg) {
+	if (msg == SELECT_POKE_SHUTDOWN)
+		return;
+	else if (msg >= 0)
+		wakeup_socket(manager, msg);
+	return;
+}
+#endif /* ISC_PLATFORM_USETHREADS */
 
 /*
- * Make a fd non-blocking
+ * Make a fd non-blocking.
  */
 static isc_result_t
 make_nonblock(int fd) {
@@ -771,8 +844,8 @@ doio_recv(isc_socket_t *sock, isc_socketevent_t *dev) {
 	}
 
 		SOFT_OR_HARD(ECONNREFUSED, ISC_R_CONNREFUSED);
-		ALWAYS_HARD(ENETUNREACH, ISC_R_NETUNREACH);
-		ALWAYS_HARD(EHOSTUNREACH, ISC_R_HOSTUNREACH);
+		SOFT_OR_HARD(ENETUNREACH, ISC_R_NETUNREACH);
+		SOFT_OR_HARD(EHOSTUNREACH, ISC_R_HOSTUNREACH);
 		ALWAYS_HARD(ENOBUFS, ISC_R_NORESOURCES);
 
 #undef SOFT_OR_HARD
@@ -845,7 +918,7 @@ doio_recv(isc_socket_t *sock, isc_socketevent_t *dev) {
 		return (DOIO_SOFT);
 
 	/*
-	 * full reads are posted, or partials if partials are ok.
+	 * Full reads are posted, or partials if partials are ok.
 	 */
 	send_recvdone_event(sock, &dev, ISC_R_SUCCESS);
 	return (DOIO_SUCCESS);
@@ -870,13 +943,14 @@ doio_send(isc_socket_t *sock, isc_socketevent_t *dev) {
 	struct iovec iov[MAXSCATTERGATHER_SEND];
 	size_t write_count;
 	struct msghdr msghdr;
+	char addrbuf[ISC_SOCKADDR_FORMATSIZE];
 
 	build_msghdr_send(sock, dev, &msghdr, iov, &write_count);
 
 	cc = sendmsg(sock->fd, &msghdr, 0);
 
 	/*
-	 * check for error or block condition
+	 * Check for error or block condition.
 	 */
 	if (cc < 0) {
 		if (SOFT_ERROR(errno))
@@ -896,13 +970,16 @@ doio_send(isc_socket_t *sock, isc_socketevent_t *dev) {
 		return (DOIO_HARD); \
 	}
 
-		SOFT_OR_HARD(ECONNREFUSED, ISC_R_CONNREFUSED);
 		SOFT_OR_HARD(EACCES, ISC_R_NOPERM);
 		SOFT_OR_HARD(EAFNOSUPPORT, ISC_R_ADDRNOTAVAIL);
-		ALWAYS_HARD(ENETUNREACH, ISC_R_NETUNREACH);
-		ALWAYS_HARD(EHOSTUNREACH, ISC_R_HOSTUNREACH);
-		ALWAYS_HARD(ENOBUFS, ISC_R_NORESOURCES);
+		SOFT_OR_HARD(ECONNREFUSED, ISC_R_CONNREFUSED);
 		ALWAYS_HARD(EADDRNOTAVAIL, ISC_R_ADDRNOTAVAIL);
+		ALWAYS_HARD(EHOSTUNREACH, ISC_R_HOSTUNREACH);
+#ifdef EHOSTDOWN
+		ALWAYS_HARD(EHOSTDOWN, ISC_R_HOSTUNREACH);
+#endif
+		ALWAYS_HARD(ENETUNREACH, ISC_R_NETUNREACH);
+		ALWAYS_HARD(ENOBUFS, ISC_R_NORESOURCES);
 		ALWAYS_HARD(EPERM, ISC_R_HOSTUNREACH);
 		ALWAYS_HARD(EPIPE, ISC_R_NOTCONNECTED);
 
@@ -918,9 +995,10 @@ doio_send(isc_socket_t *sock, isc_socketevent_t *dev) {
 		 * However, these soft errors are still returned as
 		 * a status.
 		 */
+		isc_sockaddr_format(&dev->address, addrbuf, sizeof(addrbuf));
 		UNEXPECTED_ERROR(__FILE__, __LINE__,
-				 "internal_send: %s",
-				 strerror(errno));
+				 "internal_send: %s: %s",
+				 addrbuf, strerror(errno));
 		send_senddone_event(sock, &dev, ISC_R_UNEXPECTED);
 		return (DOIO_HARD);
 	}
@@ -930,8 +1008,7 @@ doio_send(isc_socket_t *sock, isc_socketevent_t *dev) {
 				 "internal_send: send() returned 0");
 
 	/*
-	 * if we write less than we expected, update counters,
-	 * poke.
+	 * If we write less than we expected, update counters, poke.
 	 */
 	dev->n += cc;
 	if ((size_t)cc != write_count)
@@ -974,8 +1051,10 @@ destroy(isc_socket_t **sockp) {
 	select_poke(manager, sock->fd);
 	ISC_LIST_UNLINK(manager->socklist, sock, link);
 
+#ifdef ISC_PLATFORM_USETHREADS
 	if (ISC_LIST_EMPTY(manager->socklist))
 		SIGNAL(&manager->shutdown_ok);
+#endif /* ISC_PLATFORM_USETHREADS */
 
 	/*
 	 * XXX should reset manager->maxfd here
@@ -1101,7 +1180,7 @@ free_socket(isc_socket_t **socketp) {
 
 	sock->magic = 0;
 
-	(void)isc_mutex_destroy(&sock->lock);
+	DESTROYLOCK(&sock->lock);
 
 #ifdef USE_CMSG
 	isc_mem_put(sock->manager->mctx, sock->cmsg, sock->cmsglen);
@@ -1135,6 +1214,7 @@ isc_socket_create(isc_socketmgr_t *manager, int pf, isc_sockettype_t type,
 	if (ret != ISC_R_SUCCESS)
 		return (ret);
 
+	sock->pf = pf;
 	switch (type) {
 	case isc_sockettype_udp:
 		sock->fd = socket(pf, SOCK_DGRAM, IPPROTO_UDP);
@@ -1151,6 +1231,12 @@ isc_socket_create(isc_socketmgr_t *manager, int pf, isc_sockettype_t type,
 		case ENFILE:
 		case ENOBUFS:
 			return (ISC_R_NORESOURCES);
+
+		case EPROTONOSUPPORT:
+		case EPFNOSUPPORT:
+		case EAFNOSUPPORT:
+			return (ISC_R_FAMILYNOSUPPORT);
+
 		default:
 			UNEXPECTED_ERROR(__FILE__, __LINE__,
 					 "socket() failed: %s",
@@ -1168,8 +1254,8 @@ isc_socket_create(isc_socketmgr_t *manager, int pf, isc_sockettype_t type,
 	if (setsockopt(sock->fd, SOL_SOCKET, SO_BSDCOMPAT,
 		       (void *)&on, sizeof on) < 0) {
 		UNEXPECTED_ERROR(__FILE__, __LINE__,
-				 "setsockopt(%d, SO_BSDCOMPAT) failed",
-				 sock->fd);
+				 "setsockopt(%d, SO_BSDCOMPAT) failed: %s",
+				 sock->fd, strerror(errno));
 		/* Press on... */
 	}
 #endif
@@ -1179,10 +1265,12 @@ isc_socket_create(isc_socketmgr_t *manager, int pf, isc_sockettype_t type,
 
 #if defined(SO_TIMESTAMP)
 		if (setsockopt(sock->fd, SOL_SOCKET, SO_TIMESTAMP,
-			       (void *)&on, sizeof on) < 0) {
+			       (void *)&on, sizeof on) < 0
+		    && errno != ENOPROTOOPT) {
 			UNEXPECTED_ERROR(__FILE__, __LINE__,
-					 "setsockopt(%d, SO_TIMESTAMP) failed",
-					 sock->fd);
+					 "setsockopt(%d, SO_TIMESTAMP) "
+					 "failed: %s",
+					 sock->fd, strerror(errno));
 			/* Press on... */
 		}
 #endif /* SO_TIMESTAMP */
@@ -1256,7 +1344,7 @@ isc_socket_attach(isc_socket_t *sock, isc_socket_t **socketp) {
 	LOCK(&sock->lock);
 	sock->references++;
 	UNLOCK(&sock->lock);
-	
+
 	*socketp = sock;
 }
 
@@ -1264,7 +1352,7 @@ isc_socket_attach(isc_socket_t *sock, isc_socket_t **socketp) {
  * Dereference a socket.  If this is the last reference to it, clean things
  * up by destroying the socket.
  */
-void 
+void
 isc_socket_detach(isc_socket_t **socketp) {
 	isc_socket_t *sock;
 	isc_boolean_t kill_socket = ISC_FALSE;
@@ -1279,7 +1367,7 @@ isc_socket_detach(isc_socket_t **socketp) {
 	if (sock->references == 0)
 		kill_socket = ISC_TRUE;
 	UNLOCK(&sock->lock);
-	
+
 	if (kill_socket)
 		destroy(&sock);
 
@@ -1742,6 +1830,75 @@ internal_send(isc_task_t *me, isc_event_t *ev) {
 	UNLOCK(&sock->lock);
 }
 
+static void
+process_fds(isc_socketmgr_t *manager, int maxfd,
+	    fd_set *readfds, fd_set *writefds)
+{
+	int i;
+	isc_socket_t *sock;
+	isc_boolean_t unlock_sock;
+
+	/*
+	 * Process read/writes on other fds here.  Avoid locking
+	 * and unlocking twice if both reads and writes are possible.
+	 */
+	for (i = 0 ; i < maxfd ; i++) {
+#ifdef ISC_PLATFORM_USETHREADS
+		if (i == manager->pipe_fds[0] || i == manager->pipe_fds[1])
+			continue;
+#endif /* ISC_PLATFORM_USETHREADS */
+
+		if (manager->fdstate[i] == CLOSE_PENDING) {
+			manager->fdstate[i] = CLOSED;
+			FD_CLR(i, &manager->read_fds);
+			FD_CLR(i, &manager->write_fds);
+
+			close(i);
+
+			continue;
+		}
+
+		sock = manager->fds[i];
+		unlock_sock = ISC_FALSE;
+		if (FD_ISSET(i, readfds)) {
+			if (sock == NULL) {
+				FD_CLR(i, &manager->read_fds);
+				goto check_write;
+			}
+			unlock_sock = ISC_TRUE;
+			LOCK(&sock->lock);
+			if (!SOCK_DEAD(sock)) {
+				if (sock->listener)
+					dispatch_accept(sock);
+				else
+					dispatch_recv(sock);
+			}
+			FD_CLR(i, &manager->read_fds);
+		}
+	check_write:
+		if (FD_ISSET(i, writefds)) {
+			if (sock == NULL) {
+				FD_CLR(i, &manager->write_fds);
+				continue;
+			}
+			if (!unlock_sock) {
+				unlock_sock = ISC_TRUE;
+				LOCK(&sock->lock);
+			}
+			if (!SOCK_DEAD(sock)) {
+				if (sock->connecting)
+					dispatch_connect(sock);
+				else
+					dispatch_send(sock);
+			}
+			FD_CLR(i, &manager->write_fds);
+		}
+		if (unlock_sock)
+			UNLOCK(&sock->lock);
+	}
+}
+
+#ifdef ISC_PLATFORM_USETHREADS
 /*
  * This is the thread that will loop forever, always in a select or poll
  * call.
@@ -1752,17 +1909,12 @@ internal_send(isc_task_t *me, isc_event_t *ev) {
 static isc_threadresult_t
 watcher(void *uap) {
 	isc_socketmgr_t *manager = uap;
-	isc_socket_t *sock;
 	isc_boolean_t done;
 	int ctlfd;
 	int cc;
 	fd_set readfds;
 	fd_set writefds;
 	int msg;
-	isc_boolean_t unlock_sock;
-	int i;
-	isc_socketevent_t *rev;
-	isc_event_t *ev2;
 	int maxfd;
 
 	/*
@@ -1778,21 +1930,6 @@ watcher(void *uap) {
 			writefds = manager->write_fds;
 			maxfd = manager->maxfd + 1;
 
-#ifdef ISC_SOCKET_DEBUG
-			for (i = 0 ; i < FD_SETSIZE ; i++) {
-				int printit;
-
-				printit = 0;
-
-				if (FD_ISSET(i, &readfds)) {
-					printit = 1;
-				}
-				if (FD_ISSET(i, &writefds)) {
-					printit = 1;
-				}
-			}
-#endif
-					
 			UNLOCK(&manager->lock);
 
 			cc = select(maxfd, &readfds, &writefds, NULL, NULL);
@@ -1841,122 +1978,12 @@ watcher(void *uap) {
 				 * and decide if we need to watch on it now
 				 * or not.
 				 */
-				if (msg >= 0) {
-					INSIST(msg < FD_SETSIZE);
-
-					if (manager->fdstate[msg] ==
-					    CLOSE_PENDING) {
-						manager->fdstate[msg] = CLOSED;
-						FD_CLR(msg,
-						       &manager->read_fds);
-						FD_CLR(msg,
-						       &manager->write_fds);
-
-						close(msg);
-
-						continue;
-					}
-
-					if (manager->fdstate[msg] != MANAGED)
-						continue;
-
-					sock = manager->fds[msg];
-
-					LOCK(&sock->lock);
-
-					/*
-					 * If there are no events, or there
-					 * is an event but we have already
-					 * queued up the internal event on a
-					 * task's queue, clear the bit.
-					 * Otherwise, set it.
-					 */
-					rev = ISC_LIST_HEAD(sock->recv_list);
-					ev2 = (isc_event_t *)
-					      ISC_LIST_HEAD(sock->accept_list);
-					if ((rev == NULL && ev2 == NULL)
-					    || sock->pending_recv
-					    || sock->pending_accept) {
-						FD_CLR(sock->fd,
-						       &manager->read_fds);
-					} else {
-						FD_SET(sock->fd,
-						       &manager->read_fds);
-					}
-
-					rev = ISC_LIST_HEAD(sock->send_list);
-					if ((rev == NULL
-					     || sock->pending_send)
-					    && !sock->connecting) {
-						FD_CLR(sock->fd,
-						       &manager->write_fds);
-					} else {
-						FD_SET(sock->fd,
-						       &manager->write_fds);
-					}
-
-					UNLOCK(&sock->lock);
-				}
+				if (msg >= 0)
+					wakeup_socket(manager, msg);
 			}
 		}
 
-		/*
-		 * Process read/writes on other fds here.  Avoid locking
-		 * and unlocking twice if both reads and writes are possible.
-		 */
-		for (i = 0 ; i < maxfd ; i++) {
-			if (i == manager->pipe_fds[0]
-			    || i == manager->pipe_fds[1])
-				continue;
-
-			if (manager->fdstate[i] == CLOSE_PENDING) {
-				manager->fdstate[i] = CLOSED;
-				FD_CLR(i, &manager->read_fds);
-				FD_CLR(i, &manager->write_fds);
-				
-				close(i);
-				
-				continue;
-			}
-
-			sock = manager->fds[i];
-			unlock_sock = ISC_FALSE;
-			if (FD_ISSET(i, &readfds)) {
-				if (sock == NULL) {
-					FD_CLR(i, &manager->read_fds);
-					goto check_write;
-				}
-				unlock_sock = ISC_TRUE;
-				LOCK(&sock->lock);
-				if (!SOCK_DEAD(sock)) {
-					if (sock->listener)
-						dispatch_accept(sock);
-					else
-						dispatch_recv(sock);
-				}
-				FD_CLR(i, &manager->read_fds);
-			}
-		check_write:
-			if (FD_ISSET(i, &writefds)) {
-				if (sock == NULL) {
-					FD_CLR(i, &manager->write_fds);
-					continue;
-				}
-				if (!unlock_sock) {
-					unlock_sock = ISC_TRUE;
-					LOCK(&sock->lock);
-				}
-				if (!SOCK_DEAD(sock)) {
-					if (sock->connecting)
-						dispatch_connect(sock);
-					else
-						dispatch_send(sock);
-				}
-				FD_CLR(i, &manager->write_fds);
-			}
-			if (unlock_sock)
-				UNLOCK(&sock->lock);
-		}
+		process_fds(manager, maxfd, &readfds, &writefds);
 	}
 
 	manager_log(manager, TRACE, "watcher exiting");
@@ -1964,6 +1991,7 @@ watcher(void *uap) {
 	UNLOCK(&manager->lock);
 	return ((isc_threadresult_t)0);
 }
+#endif /* ISC_PLATFORM_USETHREADS */
 
 /*
  * Create a new socket manager.
@@ -1974,10 +2002,18 @@ isc_socketmgr_create(isc_mem_t *mctx, isc_socketmgr_t **managerp) {
 
 	REQUIRE(managerp != NULL && *managerp == NULL);
 
+#ifndef ISC_PLATFORM_USETHREADS
+	if (socketmgr != NULL) {
+		socketmgr->refs++;
+		*managerp = socketmgr;
+		return (ISC_R_SUCCESS);
+	}
+#endif /* ISC_PLATFORM_USETHREADS */
+
 	manager = isc_mem_get(mctx, sizeof *manager);
 	if (manager == NULL)
 		return (ISC_R_NOMEMORY);
-	
+
 	manager->magic = SOCKET_MANAGER_MAGIC;
 	manager->mctx = NULL;
 	memset(manager->fds, 0, sizeof(manager->fds));
@@ -1988,9 +2024,9 @@ isc_socketmgr_create(isc_mem_t *mctx, isc_socketmgr_t **managerp) {
 				 "isc_mutex_init() failed");
 		return (ISC_R_UNEXPECTED);
 	}
-
+#ifdef ISC_PLATFORM_USETHREADS
 	if (isc_condition_init(&manager->shutdown_ok) != ISC_R_SUCCESS) {
-		(void)isc_mutex_destroy(&manager->lock);
+		DESTROYLOCK(&manager->lock);
 		isc_mem_put(mctx, manager, sizeof *manager);
 		UNEXPECTED_ERROR(__FILE__, __LINE__,
 				 "isc_condition_init() failed");
@@ -2002,7 +2038,7 @@ isc_socketmgr_create(isc_mem_t *mctx, isc_socketmgr_t **managerp) {
 	 * select/poll loop when something internal needs to be done.
 	 */
 	if (pipe(manager->pipe_fds) != 0) {
-		(void)isc_mutex_destroy(&manager->lock);
+		DESTROYLOCK(&manager->lock);
 		isc_mem_put(mctx, manager, sizeof *manager);
 		UNEXPECTED_ERROR(__FILE__, __LINE__,
 				 "pipe() failed: %s",
@@ -2015,22 +2051,30 @@ isc_socketmgr_create(isc_mem_t *mctx, isc_socketmgr_t **managerp) {
 #if 0
 	RUNTIME_CHECK(make_nonblock(manager->pipe_fds[1]) == ISC_R_SUCCESS);
 #endif
+#else /* ISC_PLATFORM_USETHREADS */
+	manager->refs = 1;
+#endif /* ISC_PLATFORM_USETHREADS */
 
 	/*
 	 * Set up initial state for the select loop
 	 */
 	FD_ZERO(&manager->read_fds);
 	FD_ZERO(&manager->write_fds);
+#ifdef ISC_PLATFORM_USETHREADS
 	FD_SET(manager->pipe_fds[0], &manager->read_fds);
 	manager->maxfd = manager->pipe_fds[0];
+#else /* ISC_PLATFORM_USETHREADS */
+	manager->maxfd = 0;
+#endif /* ISC_PLATFORM_USETHREADS */
 	memset(manager->fdstate, 0, sizeof(manager->fdstate));
 
+#ifdef ISC_PLATFORM_USETHREADS
 	/*
 	 * Start up the select/poll thread.
 	 */
 	if (isc_thread_create(watcher, manager, &manager->watcher) !=
 	    ISC_R_SUCCESS) {
-		(void)isc_mutex_destroy(&manager->lock);
+		DESTROYLOCK(&manager->lock);
 		isc_mem_put(mctx, manager, sizeof *manager);
 		UNEXPECTED_ERROR(__FILE__, __LINE__,
 				 "isc_thread_create() failed");
@@ -2038,9 +2082,12 @@ isc_socketmgr_create(isc_mem_t *mctx, isc_socketmgr_t **managerp) {
 		close(manager->pipe_fds[1]);
 		return (ISC_R_UNEXPECTED);
 	}
-
+#endif /* ISC_PLATFORM_USETHREADS */
 	isc_mem_attach(mctx, &manager->mctx);
 
+#ifndef ISC_PLATFORM_USETHREADS
+	socketmgr = manager;
+#endif /* ISC_PLATFORM_USETHREADS */
 	*managerp = manager;
 
 	return (ISC_R_SUCCESS);
@@ -2060,8 +2107,17 @@ isc_socketmgr_destroy(isc_socketmgr_t **managerp) {
 	manager = *managerp;
 	REQUIRE(VALID_MANAGER(manager));
 
+#ifndef ISC_PLATFORM_USETHREADS
+	if (manager->refs > 1) {
+		manager->refs--;
+		*managerp = NULL;
+		return;
+	}
+#endif /* ISC_PLATFORM_USETHREADS */
+
 	LOCK(&manager->lock);
 
+#ifdef ISC_PLATFORM_USETHREADS
 	/*
 	 * Wait for all sockets to be destroyed.
 	 */
@@ -2069,34 +2125,48 @@ isc_socketmgr_destroy(isc_socketmgr_t **managerp) {
 		manager_log(manager, CREATION, "sockets exist");
 		WAIT(&manager->shutdown_ok, &manager->lock);
 	}
+#else /* ISC_PLATFORM_USETHREADS */
+	/*
+	 * Hope all sockets have been destroyed.
+	 */
+	if (!ISC_LIST_EMPTY(manager->socklist)) {
+		manager_log(manager, CREATION, "sockets exist");
+		INSIST(0);
+	}
+#endif /* ISC_PLATFORM_USETHREADS */
 
 	UNLOCK(&manager->lock);
 
 	/*
 	 * Here, poke our select/poll thread.  Do this by closing the write
 	 * half of the pipe, which will send EOF to the read half.
+	 * This is currently a no-op in the non-threaded case.
 	 */
 	select_poke(manager, SELECT_POKE_SHUTDOWN);
 
+#ifdef ISC_PLATFORM_USETHREADS
 	/*
 	 * Wait for thread to exit.
 	 */
 	if (isc_thread_join(manager->watcher, NULL) != ISC_R_SUCCESS)
 		UNEXPECTED_ERROR(__FILE__, __LINE__,
 				 "isc_thread_join() failed");
+#endif /* ISC_PLATFORM_USETHREADS */
 
 	/*
 	 * Clean up.
 	 */
+#ifdef ISC_PLATFORM_USETHREADS
 	close(manager->pipe_fds[0]);
 	close(manager->pipe_fds[1]);
+	(void)isc_condition_destroy(&manager->shutdown_ok);
+#endif /* ISC_PLATFORM_USETHREADS */
 
 	for (i = 0 ; i < FD_SETSIZE ; i++)
 		if (manager->fdstate[i] == CLOSE_PENDING)
 			close(i);
 
-	(void)isc_condition_destroy(&manager->shutdown_ok);
-	(void)isc_mutex_destroy(&manager->lock);
+	DESTROYLOCK(&manager->lock);
 	manager->magic = 0;
 	mctx= manager->mctx;
 	isc_mem_put(mctx, manager, sizeof *manager);
@@ -2246,7 +2316,7 @@ isc_socket_recv(isc_socket_t *sock, isc_region_t *region, unsigned int minimum,
 	}
 
 	/*
-	 * UDP sockets are always partial read
+	 * UDP sockets are always partial read.
 	 */
 	if (sock->type == isc_sockettype_udp)
 		dev->minimum = 1;
@@ -2290,7 +2360,7 @@ isc_socket_recv(isc_socket_t *sock, isc_region_t *region, unsigned int minimum,
 	 * We couldn't read all or part of the request right now, so queue
 	 * it.
 	 *
-	 * Attach to socket and to task
+	 * Attach to socket and to task.
 	 */
 	isc_task_attach(task, &ntask);
 	dev->attributes |= ISC_SOCKEVENTATTR_ATTACHED;
@@ -2315,7 +2385,7 @@ isc_socket_send(isc_socket_t *sock, isc_region_t *region,
 		isc_task_t *task, isc_taskaction_t action, const void *arg)
 {
 	/*
-	 * REQUIRE() checking performed in isc_socket_sendto()
+	 * REQUIRE() checking is performed in isc_socket_sendto().
 	 */
 	return (isc_socket_sendto(sock, region, task, action, arg, NULL,
 				  NULL));
@@ -2447,11 +2517,11 @@ isc_socket_sendtov(isc_socket_t *sock, isc_bufferlist_t *buflist,
 		return (ISC_R_NOMEMORY);
 	}
 
-	/***
-	 *** From here down, only ISC_R_SUCCESS can be returned.  Any further
-	 *** error information will result in the done event being posted
-	 *** to the task rather than this function failing.
-	 ***/
+	/*
+	 * From here down, only ISC_R_SUCCESS can be returned.  Any further
+	 * error information will result in the done event being posted
+	 * to the task rather than this function failing.
+	 */
 
 	dev->ev_sender = task;
 
@@ -2519,6 +2589,10 @@ isc_socket_bind(isc_socket_t *sock, isc_sockaddr_t *sockaddr) {
 
 	INSIST(!sock->bound);
 
+	if (sock->pf != sockaddr->type.sa.sa_family) {
+		UNLOCK(&sock->lock);
+		return (ISC_R_FAMILYMISMATCH);
+	}
 	if (setsockopt(sock->fd, SOL_SOCKET, SO_REUSEADDR, (void *)&on,
 		       sizeof on) < 0) {
 		UNEXPECTED_ERROR(__FILE__, __LINE__, "setsockopt(%d) failed",
@@ -2599,6 +2673,7 @@ isc_socket_accept(isc_socket_t *sock,
 	isc_task_t *ntask = NULL;
 	isc_socket_t *nsock;
 	isc_result_t ret;
+	isc_boolean_t do_poke = ISC_FALSE;
 
 	REQUIRE(VALID_SOCKET(sock));
 	manager = sock->manager;
@@ -2630,7 +2705,7 @@ isc_socket_accept(isc_socket_t *sock,
 	}
 
 	/*
-	 * Attach to socket and to task
+	 * Attach to socket and to task.
 	 */
 	isc_task_attach(task, &ntask);
 	nsock->references++;
@@ -2639,14 +2714,17 @@ isc_socket_accept(isc_socket_t *sock,
 	dev->newsocket = nsock;
 
 	/*
-	 * poke watcher here.  We still have the socket locked, so there
+	 * Poke watcher here.  We still have the socket locked, so there
 	 * is no race condition.  We will keep the lock for such a short
 	 * bit of time waking it up now or later won't matter all that much.
 	 */
 	if (ISC_LIST_EMPTY(sock->accept_list))
-		select_poke(manager, sock->fd);
+		do_poke = ISC_TRUE;
 
 	ISC_LIST_ENQUEUE(sock->accept_list, dev, ev_link);
+
+	if (do_poke)
+		select_poke(manager, sock->fd);
 
 	UNLOCK(&sock->lock);
 	return (ISC_R_SUCCESS);
@@ -2698,12 +2776,20 @@ isc_socket_connect(isc_socket_t *sock, isc_sockaddr_t *addr,
 			goto queue;
 
 		switch (errno) {
-		case ECONNREFUSED:
-			dev->result = ISC_R_CONNREFUSED;
-			goto err_exit;
-		case ENETUNREACH:
-			dev->result = ISC_R_NETUNREACH;
-			goto err_exit;
+#define ERROR_MATCH(a, b) case a: dev->result = b; goto err_exit;
+			ERROR_MATCH(EACCES, ISC_R_NOPERM);
+			ERROR_MATCH(EADDRNOTAVAIL, ISC_R_ADDRNOTAVAIL);
+			ERROR_MATCH(EAFNOSUPPORT, ISC_R_ADDRNOTAVAIL);
+			ERROR_MATCH(ECONNREFUSED, ISC_R_CONNREFUSED);
+			ERROR_MATCH(EHOSTUNREACH, ISC_R_HOSTUNREACH);
+#ifdef EHOSTDOWN
+			ERROR_MATCH(EHOSTDOWN, ISC_R_HOSTUNREACH);
+#endif
+			ERROR_MATCH(ENETUNREACH, ISC_R_NETUNREACH);
+			ERROR_MATCH(ENOBUFS, ISC_R_NORESOURCES);
+			ERROR_MATCH(EPERM, ISC_R_HOSTUNREACH);
+			ERROR_MATCH(EPIPE, ISC_R_NOTCONNECTED);
+#undef ERROR_MATCH
 		}
 
 		sock->connected = 0;
@@ -2724,7 +2810,7 @@ isc_socket_connect(isc_socket_t *sock, isc_sockaddr_t *addr,
 	}
 
 	/*
-	 * If connect completed, fire off the done event
+	 * If connect completed, fire off the done event.
 	 */
 	if (cc == 0) {
 		sock->connected = 1;
@@ -2739,7 +2825,7 @@ isc_socket_connect(isc_socket_t *sock, isc_sockaddr_t *addr,
  queue:
 
 	/*
-	 * Attach to to task
+	 * Attach to task.
 	 */
 	isc_task_attach(task, &ntask);
 
@@ -2748,7 +2834,7 @@ isc_socket_connect(isc_socket_t *sock, isc_sockaddr_t *addr,
 	dev->ev_sender = ntask;
 
 	/*
-	 * poke watcher here.  We still have the socket locked, so there
+	 * Poke watcher here.  We still have the socket locked, so there
 	 * is no race condition.  We will keep the lock for such a short
 	 * bit of time waking it up now or later won't matter all that much.
 	 */
@@ -2832,15 +2918,21 @@ internal_connect(isc_task_t *me, isc_event_t *ev) {
 		 * Translate other errors into ISC_R_* flavors.
 		 */
 		switch (errno) {
-		case ETIMEDOUT:
-			dev->result = ISC_R_TIMEDOUT;
-			break;
-		case ECONNREFUSED:
-			dev->result = ISC_R_CONNREFUSED;
-			break;
-		case ENETUNREACH:
-			dev->result = ISC_R_NETUNREACH;
-			break;
+#define ERROR_MATCH(a, b) case a: dev->result = b; break;
+			ERROR_MATCH(EACCES, ISC_R_NOPERM);
+			ERROR_MATCH(EADDRNOTAVAIL, ISC_R_ADDRNOTAVAIL);
+			ERROR_MATCH(EAFNOSUPPORT, ISC_R_ADDRNOTAVAIL);
+			ERROR_MATCH(ECONNREFUSED, ISC_R_CONNREFUSED);
+			ERROR_MATCH(EHOSTUNREACH, ISC_R_HOSTUNREACH);
+#ifdef EHOSTDOWN
+			ERROR_MATCH(EHOSTDOWN, ISC_R_HOSTUNREACH);
+#endif
+			ERROR_MATCH(ENETUNREACH, ISC_R_NETUNREACH);
+			ERROR_MATCH(ENOBUFS, ISC_R_NORESOURCES);
+			ERROR_MATCH(EPERM, ISC_R_HOSTUNREACH);
+			ERROR_MATCH(EPIPE, ISC_R_NOTCONNECTED);
+			ERROR_MATCH(ETIMEDOUT, ISC_R_TIMEDOUT);
+#undef ERROR_MATCH
 		default:
 			dev->result = ISC_R_UNEXPECTED;
 			UNEXPECTED_ERROR(__FILE__, __LINE__,
@@ -2921,7 +3013,6 @@ isc_socket_getsockname(isc_socket_t *sock, isc_sockaddr_t *addressp) {
  */
 void
 isc_socket_cancel(isc_socket_t *sock, isc_task_t *task, unsigned int how) {
-	isc_boolean_t poke_needed;
 
 	REQUIRE(VALID_SOCKET(sock));
 
@@ -2931,8 +3022,6 @@ isc_socket_cancel(isc_socket_t *sock, isc_task_t *task, unsigned int how) {
 	 */
 	if (how == 0)
 		return;
-
-	poke_needed = ISC_FALSE;
 
 	LOCK(&sock->lock);
 
@@ -3152,3 +3241,27 @@ isc_socket_isbound(isc_socket_t *sock) {
 
 	return (val);
 }
+
+#ifndef ISC_PLATFORM_USETHREADS
+void
+isc__socketmgr_getfdsets(fd_set *readset, fd_set *writeset, int *maxfd) {
+	if (socketmgr == NULL)
+		*maxfd = 0;
+	else {
+		*readset = socketmgr->read_fds;
+		*writeset = socketmgr->write_fds;
+		*maxfd = socketmgr->maxfd + 1;
+	}
+}
+
+isc_result_t
+isc__socketmgr_dispatch(fd_set *readset, fd_set *writeset, int maxfd) {
+	isc_socketmgr_t *manager = socketmgr;
+
+	if (manager == NULL)
+		return (ISC_R_NOTFOUND);
+
+	process_fds(manager, maxfd, readset, writeset);
+	return (ISC_R_SUCCESS);
+}
+#endif /* ISC_PLATFORM_USETHREADS */

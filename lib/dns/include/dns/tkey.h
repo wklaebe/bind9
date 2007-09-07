@@ -1,21 +1,21 @@
 /*
  * Copyright (C) 1999, 2000  Internet Software Consortium.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
- * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
- * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
- * SOFTWARE.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+ * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+ * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: tkey.h,v 1.13 2000/06/23 02:59:38 tale Exp $ */
+/* $Id: tkey.h,v 1.16 2000/10/06 17:08:14 bwelling Exp $ */
 
 #ifndef DNS_TKEY_H
 #define DNS_TKEY_H 1
@@ -38,6 +38,7 @@ ISC_LANG_BEGINDECLS
 struct dns_tkeyctx {
 	dst_key_t *dhkey;
 	dns_name_t *domain;
+	void *gsscred;
 	isc_mem_t *mctx;
 	isc_entropy_t *ectx;
 };
@@ -116,6 +117,14 @@ dns_tkey_builddhquery(dns_message_t *msg, dst_key_t *key, dns_name_t *name,
  */
 
 isc_result_t
+dns_tkey_buildgssquery(dns_message_t *msg, dns_name_t *name,
+		       dns_name_t *gname, void *cred,
+		       isc_uint32_t lifetime, void **context);
+/*
+ * XXX
+ */
+
+isc_result_t
 dns_tkey_builddeletequery(dns_message_t *msg, dns_tsigkey_t *key);
 /*
  *	Builds a query containing a TKEY record that will delete the
@@ -152,6 +161,14 @@ dns_tkey_processdhresponse(dns_message_t *qmsg, dns_message_t *rmsg,
  *		ISC_R_SUCCESS	the shared key was successfully added
  *		ISC_R_NOTFOUND	an error occurred while looking for a
  *				component of the query or response
+ */
+
+isc_result_t
+dns_tkey_processgssresponse(dns_message_t *qmsg, dns_message_t *rmsg,
+			    dns_name_t *gname, void *cred, void **context,
+			    dns_tsigkey_t **outkey, dns_tsig_keyring_t *ring);
+/*
+ * XXX
  */
 
 isc_result_t

@@ -1,21 +1,21 @@
 /*
  * Copyright (C) 1999, 2000  Internet Software Consortium.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
- * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
- * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
- * SOFTWARE.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+ * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+ * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: app.h,v 1.6 2000/06/22 21:58:54 tale Exp $ */
+/* $Id: app.h,v 1.9 2000/09/01 21:31:53 bwelling Exp $ */
 
 #ifndef ISC_APP_H
 #define ISC_APP_H 1
@@ -175,6 +175,37 @@ isc_app_finish(void);
  * Ensures:
  *	Any resources allocated by isc_app_start() have been released.
  */
+
+void
+isc_app_block(void);
+/*
+ * Indicate that a blocking operation will be performed.
+ *
+ * Notes:
+ *	If a blocking operation is in process, a call to isc_app_shutdown()
+ *	or an external signal will abort the program, rather than allowing
+ *	clean shutdown.  This is primarily useful for reading user input.
+ *
+ * Requires:
+ * 	isc_app_start() has been called.
+ * 	No other blocking operations are in progress.
+ */
+
+void
+isc_app_unblock(void);
+/*
+ * Indicate that a blocking operation is complete.
+ *
+ * Notes:
+ * 	When a blocking operation has completed, return the program to a
+ * 	state where a call to isc_app_shutdown() or an external signal will
+ * 	shutdown normally.
+ *
+ * Requires:
+ * 	isc_app_start() has been called.
+ * 	isc_app_block() has been called by the same thread.
+ */
+
 
 ISC_LANG_ENDDECLS
 

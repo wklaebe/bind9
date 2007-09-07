@@ -1,21 +1,21 @@
 /*
  * Copyright (C) 2000  Internet Software Consortium.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
- * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
- * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
- * SOFTWARE.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+ * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+ * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: omapiconf.c,v 1.4.2.6 2000/09/15 16:24:12 gson Exp $ */
+/* $Id: omapiconf.c,v 1.14 2000/11/27 19:42:21 gson Exp $ */
 
 /*
  * Principal Author: DCL
@@ -279,11 +279,11 @@ register_keys(dns_c_ctrl_t *control, dns_c_kdeflist_t *keydeflist,
 					   keydef->keyid, socktext,
 					   isc_result_totext(result));
 	}
-}		     			 
+}
 
 static void
 update_listener(ns_omapilistener_t **listenerp, dns_c_ctrl_t *control,
-		dns_c_ctx_t *cctx, dns_aclconfctx_t *aclconfctx,
+		dns_c_ctx_t *cctx, ns_aclconfctx_t *aclconfctx,
 		char *socktext)
 {
 	ns_omapilistener_t *listener;
@@ -302,7 +302,7 @@ update_listener(ns_omapilistener_t **listenerp, dns_c_ctrl_t *control,
 			 * First, keep the old access list unless
 			 * a new one can be made.
 			 */
-			result = dns_acl_fromconfig(control->
+			result = ns_acl_fromconfig(control->
 						    u.inet_v.matchlist,
 						    cctx, aclconfctx,
 						    listener->mctx, &new_acl);
@@ -345,7 +345,7 @@ update_listener(ns_omapilistener_t **listenerp, dns_c_ctrl_t *control,
 static void
 add_listener(isc_mem_t *mctx, ns_omapilistener_t **listenerp,
 	     dns_c_ctrl_t *control, dns_c_ctx_t *cctx,
-	     dns_aclconfctx_t *aclconfctx, char *socktext)
+	     ns_aclconfctx_t *aclconfctx, char *socktext)
 {
 	ns_omapilistener_t *listener;
 	dns_acl_t *new_acl = NULL;
@@ -359,11 +359,12 @@ add_listener(isc_mem_t *mctx, ns_omapilistener_t **listenerp,
 		listener->mctx = mctx;
 		listener->manager = NULL;
 		listener->address = control->u.inet_v.addr;
+		ISC_LINK_INIT(listener, link);
 
 		/*
 		 * Make the acl.
 		 */
-		result = dns_acl_fromconfig(control->u.inet_v.matchlist,
+		result = ns_acl_fromconfig(control->u.inet_v.matchlist,
 					    cctx, aclconfctx, mctx, &new_acl);
 	}
 
@@ -406,7 +407,7 @@ add_listener(isc_mem_t *mctx, ns_omapilistener_t **listenerp,
 
 isc_result_t
 ns_omapi_configure(isc_mem_t *mctx, dns_c_ctx_t *cctx,
-		   dns_aclconfctx_t *aclconfctx)
+		   ns_aclconfctx_t *aclconfctx)
 {
 	ns_omapilistener_t *listener;
 	ns_omapilistenerlist_t new_listeners;
@@ -429,7 +430,7 @@ ns_omapi_configure(isc_mem_t *mctx, dns_c_ctx_t *cctx,
 	/*
 	 * Run through the new control channel list, noting sockets that
 	 * are already being listened on and moving them to the new list.
-	 *			
+	 *
 	 * Identifying duplicates addr/port combinations is left to either
 	 * the underlying config code, or to the bind attempt getting an
 	 * address-in-use error.
@@ -483,7 +484,7 @@ ns_omapi_configure(isc_mem_t *mctx, dns_c_ctx_t *cctx,
 				 */
 				add_listener(mctx, &listener, control, cctx,
 					     aclconfctx, socktext);
-				
+
 			if (listener != NULL)
 				ISC_LIST_APPEND(new_listeners, listener, link);
 

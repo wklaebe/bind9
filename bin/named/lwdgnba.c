@@ -1,21 +1,21 @@
 /*
  * Copyright (C) 2000  Internet Software Consortium.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
- * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
- * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
- * SOFTWARE.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+ * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+ * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: lwdgnba.c,v 1.3.2.2 2000/10/17 18:40:10 gson Exp $ */
+/* $Id: lwdgnba.c,v 1.8 2000/10/17 18:34:52 bwelling Exp $ */
 
 #include <config.h>
 
@@ -100,7 +100,7 @@ byaddr_done(isc_task_t *task, isc_event_t *event) {
 		 * fails.
 		 */
 		client->options |= DNS_BYADDROPT_IPV6NIBBLE;
-		
+
 		start_byaddr(client);
 		return;
 	}
@@ -151,9 +151,7 @@ byaddr_done(isc_task_t *task, isc_event_t *event) {
 	r.length = lwb.used;
 	client->sendbuf = r.base;
 	client->sendlength = r.length;
-	result = isc_socket_sendto(cm->sock, &r,
-				   cm->task, ns_lwdclient_send,
-				   client, &client->address, NULL);
+	result = ns_lwdclient_sendreply(client, &r);
 	if (result != ISC_R_SUCCESS)
 		goto out;
 

@@ -1,11 +1,11 @@
 /*
  * Portions Copyright (C) 1999, 2000  Internet Software Consortium.
  * Portions Copyright (C) 1995-2000 by Network Associates, Inc.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM AND
  * NETWORK ASSOCIATES DISCLAIM ALL WARRANTIES WITH REGARD TO THIS
  * SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
@@ -19,7 +19,7 @@
 
 /*
  * Principal Author: Brian Wellington
- * $Id: openssldh_link.c,v 1.25 2000/06/12 18:05:15 bwelling Exp $
+ * $Id: openssldh_link.c,v 1.32 2000/12/04 23:06:36 bwelling Exp $
  */
 
 #if defined(OPENSSL)
@@ -85,7 +85,7 @@ openssldh_compare(const dst_key_t *key1, const dst_key_t *key2) {
 	dh1 = (DH *) key1->opaque;
 	dh2 = (DH *) key2->opaque;
 
-	if (dh1 == NULL && dh2 == NULL) 
+	if (dh1 == NULL && dh2 == NULL)
 		return (ISC_TRUE);
 	else if (dh1 == NULL || dh2 == NULL)
 		return (ISC_FALSE);
@@ -114,7 +114,7 @@ openssldh_paramcompare(const dst_key_t *key1, const dst_key_t *key2) {
 	dh1 = (DH *) key1->opaque;
 	dh2 = (DH *) key2->opaque;
 
-	if (dh1 == NULL && dh2 == NULL) 
+	if (dh1 == NULL && dh2 == NULL)
 		return (ISC_TRUE);
 	else if (dh1 == NULL || dh2 == NULL)
 		return (ISC_FALSE);
@@ -155,12 +155,13 @@ openssldh_generate(dst_key_t *key, int generator) {
 					    NULL, NULL);
 
 	if (dh == NULL)
-		return (DST_R_INVALIDPARAM);
+		return (DST_R_OPENSSLFAILURE);
 
 	if (DH_generate_key(dh) == 0) {
 		DH_free(dh);
-		return (ISC_R_NOMEMORY);
+		return (DST_R_OPENSSLFAILURE);
 	}
+	dh->flags &= ~DH_FLAG_CACHE_MONT_P;
 
 	key->opaque = dh;
 
@@ -171,7 +172,7 @@ openssldh_generate(dst_key_t *key, int generator) {
 		return (result);
 	}
 	isc_buffer_usedregion(&dns, &r);
-	key->key_id = dst__id_calc(r.base, r.length);
+	key->key_id = dst_region_computeid(&r, key->key_alg);
 
 	return (ISC_R_SUCCESS);
 }
@@ -194,6 +195,7 @@ openssldh_destroy(dst_key_t *key) {
 	if (dh->g == &bn2)
 		dh->g = NULL;
 	DH_free(dh);
+	key->opaque = NULL;
 }
 
 static void
@@ -278,6 +280,7 @@ openssldh_fromdns(dst_key_t *key, isc_buffer_t *data) {
 	dh = DH_new();
 	if (dh == NULL)
 		return (ISC_R_NOMEMORY);
+	dh->flags &= ~DH_FLAG_CACHE_MONT_P;
 
 	/*
 	 * Read the prime length.  1 & 2 are table entries, > 16 means a
@@ -369,7 +372,8 @@ openssldh_fromdns(dst_key_t *key, isc_buffer_t *data) {
 	r.base += publen;
 
 	isc_buffer_remainingregion(data, &r);
-	key->key_id = dst__id_calc(r.base, plen + glen + publen + 6);
+	r.length = plen + glen + publen + 6;
+	key->key_id = dst_region_computeid(&r, key->key_alg);
 	key->key_size = BN_num_bits(dh->p);
 
 	isc_buffer_forward(data, plen + glen + publen + 6);
@@ -419,7 +423,7 @@ openssldh_tofile(const dst_key_t *key, const char *directory) {
 	return (dst__privstruct_writefile(key, &priv, directory));
 }
 
-static isc_result_t 
+static isc_result_t
 openssldh_fromfile(dst_key_t *key, const isc_uint16_t id, const char *filename)
 {
 	dst_private_t priv;
@@ -442,6 +446,7 @@ openssldh_fromfile(dst_key_t *key, const isc_uint16_t id, const char *filename)
 	dh = DH_new();
 	if (dh == NULL)
 		DST_RET(ISC_R_NOMEMORY);
+	dh->flags &= ~DH_FLAG_CACHE_MONT_P;
 	key->opaque = dh;
 
 	for (i=0; i < priv.nelements; i++) {
@@ -491,7 +496,7 @@ openssldh_fromfile(dst_key_t *key, const isc_uint16_t id, const char *filename)
 	if (ret != ISC_R_SUCCESS)
 		DST_RET(ret);
 	isc_buffer_usedregion(&dns, &r);
-	key->key_id = dst__id_calc(r.base, r.length);
+	key->key_id = dst_region_computeid(&r, key->key_alg);
 
 	if (key->key_id != id)
 		DST_RET(DST_R_INVALIDPRIVATEKEY);

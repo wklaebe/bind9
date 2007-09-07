@@ -1,21 +1,21 @@
 /*
  * Copyright (C) 1999, 2000  Internet Software Consortium.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
- * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
- * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
- * SOFTWARE.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+ * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+ * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: wire_test.c,v 1.50 2000/06/22 21:50:58 tale Exp $ */
+/* $Id: wire_test.c,v 1.53 2000/10/06 18:58:14 bwelling Exp $ */
 
 #include <config.h>
 
@@ -70,7 +70,7 @@ main(int argc, char *argv[]) {
 
 	mctx = NULL;
 	RUNTIME_CHECK(isc_mem_create(0, 0, &mctx) == ISC_R_SUCCESS);
-	
+
 	if (argc > 1) {
 		f = fopen(argv[1], "r");
 		if (f == NULL) {
@@ -125,7 +125,7 @@ main(int argc, char *argv[]) {
 	result = dns_message_create(mctx, DNS_MESSAGE_INTENTPARSE, &message);
 	CHECKRESULT(result, "dns_message_create failed");
 
-	result = dns_message_parse(message, &source, ISC_FALSE);
+	result = dns_message_parse(message, &source, 0);
 	CHECKRESULT(result, "dns_message_parse failed");
 
 	result = printmessage(message);
@@ -171,7 +171,7 @@ main(int argc, char *argv[]) {
 	result = dns_message_create(mctx, DNS_MESSAGE_INTENTPARSE, &message);
 	CHECKRESULT(result, "dns_message_create failed");
 
-	result = dns_message_parse(message, &source, ISC_FALSE);
+	result = dns_message_parse(message, &source, 0);
 	CHECKRESULT(result, "dns_message_parse failed");
 
 	result = printmessage(message);

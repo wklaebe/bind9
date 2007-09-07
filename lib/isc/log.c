@@ -1,21 +1,21 @@
 /*
  * Copyright (C) 1999, 2000  Internet Software Consortium.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
- * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
- * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
- * SOFTWARE.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+ * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+ * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: log.c,v 1.38.2.3 2000/08/31 23:45:21 gson Exp $ */
+/* $Id: log.c,v 1.49 2000/11/24 01:37:24 marka Exp $ */
 
 /* Principal Authors: DCL */
 
@@ -24,6 +24,7 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <limits.h>
+#include <time.h>
 
 #include <sys/stat.h>
 
@@ -251,6 +252,7 @@ isc_log_create(isc_mem_t *mctx, isc_log_t **lctxp, isc_logconfig_t **lcfgp) {
 
 	REQUIRE(mctx != NULL);
 	REQUIRE(lctxp != NULL && *lctxp == NULL);
+	REQUIRE(lcfgp == NULL || *lcfgp == NULL);
 
 	lctx = isc_mem_get(mctx, sizeof(*lctx));
 	if (lctx != NULL) {
@@ -262,7 +264,7 @@ isc_log_create(isc_mem_t *mctx, isc_log_t **lctxp, isc_logconfig_t **lcfgp) {
 		lctx->debug_level = 0;
 
 		ISC_LIST_INIT(lctx->messages);
-		
+
 		RUNTIME_CHECK(isc_mutex_init(&lctx->lock) == ISC_R_SUCCESS);
 
 		/*
@@ -290,7 +292,7 @@ isc_log_create(isc_mem_t *mctx, isc_log_t **lctxp, isc_logconfig_t **lcfgp) {
 		*lctxp = lctx;
 		if (lcfgp != NULL)
 			*lcfgp = lcfg;
-	
+
 	} else
 		if (lctx != NULL)
 			isc_log_destroy(&lctx);
@@ -303,6 +305,7 @@ isc_logconfig_create(isc_log_t *lctx, isc_logconfig_t **lcfgp) {
 	isc_logconfig_t *lcfg;
 	isc_logdestination_t destination;
 	isc_result_t result = ISC_R_SUCCESS;
+	int level = ISC_LOG_INFO;
 
 	REQUIRE(lcfgp != NULL && *lcfgp == NULL);
 	REQUIRE(VALID_CONTEXT(lctx));
@@ -314,7 +317,7 @@ isc_logconfig_create(isc_log_t *lctx, isc_logconfig_t **lcfgp) {
 		lcfg->channellists = NULL;
 		lcfg->channellist_count = 0;
 		lcfg->duplicate_interval = 0;
-		lcfg->highest_level = ISC_LOG_CRITICAL;
+		lcfg->highest_level = level;
 		lcfg->tag = NULL;
 		lcfg->dynamic = ISC_FALSE;
 
@@ -338,7 +341,7 @@ isc_logconfig_create(isc_log_t *lctx, isc_logconfig_t **lcfgp) {
 	if (result == ISC_R_SUCCESS) {
 		destination.facility = LOG_DAEMON;
 		result = isc_log_createchannel(lcfg, "default_syslog",
-					       ISC_LOG_TOSYSLOG, ISC_LOG_INFO,
+					       ISC_LOG_TOSYSLOG, level,
 					       &destination, 0);
 	}
 
@@ -349,7 +352,7 @@ isc_logconfig_create(isc_log_t *lctx, isc_logconfig_t **lcfgp) {
 		destination.file.maximum_size = 0;
 		result = isc_log_createchannel(lcfg, "default_stderr",
 					       ISC_LOG_TOFILEDESC,
-					       ISC_LOG_INFO,
+					       level,
 					       &destination,
 					       ISC_LOG_PRINTTIME);
 	}
@@ -445,7 +448,7 @@ isc_log_destroy(isc_log_t **lctxp) {
 		isc_logconfig_destroy(&lcfg);
 	}
 
-	RUNTIME_CHECK(isc_mutex_destroy(&lctx->lock) == ISC_R_SUCCESS);
+	DESTROYLOCK(&lctx->lock);
 
 	while ((message = ISC_LIST_HEAD(lctx->messages)) != NULL) {
 		ISC_LIST_UNLINK(lctx->messages, message, link);
@@ -523,7 +526,7 @@ isc_logconfig_destroy(isc_logconfig_t **lcfgp) {
 
 	lcfg->dynamic = ISC_FALSE;
 	if (lcfg->tag != NULL)
-		isc_mem_free(lcfg->lctx->mctx, lcfg->tag);	
+		isc_mem_free(lcfg->lctx->mctx, lcfg->tag);
 	lcfg->tag = NULL;
 	lcfg->highest_level = 0;
 	lcfg->duplicate_interval = 0;
@@ -703,6 +706,7 @@ isc_log_createchannel(isc_logconfig_t *lcfg, const char *name,
 	channel->type = type;
 	channel->level = level;
 	channel->flags = flags;
+	ISC_LINK_INIT(channel, link);
 
 	switch (type) {
 	case ISC_LOG_TOSYSLOG:
@@ -738,7 +742,7 @@ isc_log_createchannel(isc_logconfig_t *lcfg, const char *name,
 		isc_mem_put(mctx, channel, sizeof(*channel));
 		return (ISC_R_UNEXPECTED);
 	}
-	
+
 	ISC_LIST_PREPEND(lcfg->channels, channel, link);
 
 	/*
@@ -852,8 +856,6 @@ isc_log_vwrite1(isc_log_t *lctx, isc_logcategory_t *category,
 
 void
 isc_log_setcontext(isc_log_t *lctx) {
-	REQUIRE(isc_lctx == NULL);
-
 	isc_lctx = lctx;
 }
 
@@ -888,7 +890,7 @@ isc_log_getduplicateinterval(isc_logconfig_t *lcfg) {
 isc_result_t
 isc_log_settag(isc_logconfig_t *lcfg, const char *tag) {
 	REQUIRE(VALID_CONFIG(lcfg));
-	
+
 	if (tag != NULL && *tag != '\0') {
 		lcfg->tag = isc_mem_strdup(lcfg->lctx->mctx, tag);
 		if (lcfg->tag == NULL)
@@ -966,7 +968,7 @@ assignchannel(isc_logconfig_t *lcfg, unsigned int category_id,
 
 	new_item->channel = channel;
 	new_item->module = module;
-	ISC_LIST_PREPEND(lcfg->channellists[category_id], new_item, link);
+	ISC_LIST_PREPENDUNSAFE(lcfg->channellists[category_id], new_item, link);
 
 	/*
 	 * Remember the highest logging level set by any channel in the
@@ -992,7 +994,7 @@ sync_channellist(isc_logconfig_t *lcfg) {
 	unsigned int bytes;
 	isc_log_t *lctx;
 	void *lists;
-	
+
 	REQUIRE(VALID_CONFIG(lcfg));
 
 	lctx = lcfg->lctx;
@@ -1105,7 +1107,7 @@ roll_log(isc_logchannel_t *channel) {
 	 * Since the highest number is one less than FILE_VERSIONS(channel)
 	 * when not doing infinite log rolling, greatest will need to be
 	 * decremented when it is equal to -- or greater than --
-	 * FILE_VERSIONS(channel).  When greatest is less than 
+	 * FILE_VERSIONS(channel).  When greatest is less than
 	 * FILE_VERSIONS(channel), it is already suitable for use as
 	 * the maximum version number.
 	 */
@@ -1206,7 +1208,7 @@ isc_log_wouldlog(isc_log_t *lctx, int level) {
 	 * messages that the debug level is not high enough to print.
 	 *
 	 * If the level is (mathematically) less than or equal to the
-	 * highest_level, or if there is a dynamic channel and the level is 
+	 * highest_level, or if there is a dynamic channel and the level is
 	 * less than or equal to the debug level, the main loop must be
 	 * entered to see if the message should really be output.
 	 *
@@ -1217,9 +1219,9 @@ isc_log_wouldlog(isc_log_t *lctx, int level) {
 	 * dynamically changed.
 	 */
 
-	if (lctx == NULL)
+	if (lctx == NULL || lctx->logconfig == NULL)
 		return (ISC_FALSE);
-	
+
 	return (ISC_TF(level <= lctx->logconfig->highest_level ||
 		       (lctx->logconfig->dynamic &&
 			level <= lctx->debug_level)));
@@ -1302,7 +1304,7 @@ isc_log_doit(isc_log_t *lctx, isc_logcategory_t *category,
 			 * default channel.
 			 */
 			category_channels = &default_channel;
- 
+
 		if (category_channels->module != NULL &&
 		    category_channels->module != module) {
 			category_channels = ISC_LIST_NEXT(category_channels,
@@ -1424,7 +1426,7 @@ isc_log_doit(isc_log_t *lctx, isc_logcategory_t *category,
 						 *
 						 * Setting the interval to be
 						 * to be longer will obviously
-						 * not cause the expired 
+						 * not cause the expired
 						 * message to spring back into
 						 * existence.
 						 */

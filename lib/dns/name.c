@@ -1,21 +1,21 @@
 /*
  * Copyright (C) 1998-2000  Internet Software Consortium.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
- * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
- * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
- * SOFTWARE.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+ * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+ * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: name.c,v 1.93.2.1 2000/10/16 23:32:34 bwelling Exp $ */
+/* $Id: name.c,v 1.108 2000/11/27 19:45:45 gson Exp $ */
 
 #include <config.h>
 
@@ -177,7 +177,7 @@ static struct dns_constname root = {
 	{
 		DNS_NAME_MAGIC,
 		root.const_ndata, 1, 1,
-		DNS_NAMEATTR_READONLY | DNS_NAMEATTR_ABSOLUTE, 
+		DNS_NAMEATTR_READONLY | DNS_NAMEATTR_ABSOLUTE,
 		root.const_offsets, NULL,
 		{(void *)-1, (void *)-1},
 		{NULL, NULL}
@@ -220,7 +220,7 @@ compact(dns_name_t *name, unsigned char *offsets);
 static inline unsigned int
 get_bit(unsigned char *array, unsigned int idx) {
 	unsigned int byte, shift;
-	
+
 	byte = array[idx / 8];
 	shift = 7 - (idx % 8);
 
@@ -230,7 +230,7 @@ get_bit(unsigned char *array, unsigned int idx) {
 static inline void
 set_bit(unsigned char *array, unsigned int idx, unsigned int bit) {
 	unsigned int shift, mask;
-	
+
 	shift = 7 - (idx % 8);
 	mask = 1 << shift;
 
@@ -250,7 +250,7 @@ dns_label_type(dns_label_t *label) {
 	REQUIRE(label->length > 0);
 	REQUIRE(label->base[0] <= 63 ||
 		label->base[0] == DNS_LABELTYPE_BITSTRING);
-     
+
 	if (label->base[0] <= 63)
 		return (dns_labeltype_ordinary);
 	else
@@ -272,7 +272,7 @@ dns_label_countbits(dns_label_t *label) {
 	count = label->base[1];
 	if (count == 0)
 		count = 256;
-	
+
 	return (count);
 }
 
@@ -308,7 +308,7 @@ dns_name_init(dns_name_t *name, unsigned char *offsets) {
 	/*
 	 * Initialize 'name'.
 	 */
-	 
+
 	name->magic = DNS_NAME_MAGIC;
 	name->ndata = NULL;
 	name->length = 0;
@@ -318,6 +318,16 @@ dns_name_init(dns_name_t *name, unsigned char *offsets) {
 	name->buffer = NULL;
 	ISC_LINK_INIT(name, link);
 	ISC_LIST_INIT(name->list);
+}
+
+void
+dns_name_reset(dns_name_t *name) {
+	REQUIRE(VALID_NAME(name));
+	REQUIRE(BINDABLE(name));
+
+	MAKE_EMPTY(name);
+	if (name->buffer != NULL)
+		isc_buffer_clear(name->buffer);
 }
 
 void
@@ -373,7 +383,6 @@ dns_name_isabsolute(const dns_name_t *name) {
 	 */
 
 	REQUIRE(VALID_NAME(name));
-	REQUIRE(name->labels > 0);
 
 	if ((name->attributes & DNS_NAMEATTR_ABSOLUTE) != 0)
 		return (ISC_TRUE);
@@ -438,7 +447,6 @@ dns_name_hash(dns_name_t *name, isc_boolean_t case_sensitive) {
 	unsigned int length;
 	const unsigned char *s;
 	unsigned int h = 0;
-	unsigned int g;
 	unsigned char c;
 
 	/*
@@ -453,30 +461,20 @@ dns_name_hash(dns_name_t *name, isc_boolean_t case_sensitive) {
 		length = 16;
 
 	/*
-	 * P. J. Weinberger's hash function, adapted from p. 436 of
-	 * _Compilers: Principles, Techniques, and Tools_, Aho, Sethi
-	 * and Ullman, Addison-Wesley, 1986, ISBN 0-201-10088-6.
+	 * This hash function is similar to the one Ousterhout
+	 * uses in Tcl.
 	 */
-
 	s = name->ndata;
 	if (case_sensitive) {
 		while (length > 0) {
-			h = ( h << 4 ) + *s;
-			if ((g = ( h & 0xf0000000 )) != 0) {
-				h = h ^ (g >> 24);
-				h = h ^ g;
-			}
+			h += ( h << 3 ) + *s;
 			s++;
 			length--;
 		}
 	} else {
 		while (length > 0) {
 			c = maptolower[*s];
-			h = ( h << 4 ) + c;
-			if ((g = ( h & 0xf0000000 )) != 0) {
-				h = h ^ (g >> 24);
-				h = h ^ g;
-			}
+			h += ( h << 3 ) + c;
 			s++;
 			length--;
 		}
@@ -510,9 +508,7 @@ dns_name_fullcompare(const dns_name_t *name1, const dns_name_t *name2,
 	 */
 
 	REQUIRE(VALID_NAME(name1));
-	REQUIRE(name1->labels > 0);
 	REQUIRE(VALID_NAME(name2));
-	REQUIRE(name2->labels > 0);
 	REQUIRE(orderp != NULL);
 	REQUIRE(nlabelsp != NULL);
 	REQUIRE(nbitsp != NULL);
@@ -695,7 +691,7 @@ dns_name_compare(const dns_name_t *name1, const dns_name_t *name2) {
 	 * compared the caller must ensure that they are both relative to the
 	 * same domain.
 	 */
-	
+
 	(void)dns_name_fullcompare(name1, name2, &order, &nlabels, &nbits);
 
 	return (order);
@@ -959,12 +955,12 @@ dns_name_getlabel(const dns_name_t *name, unsigned int n, dns_label_t *label) {
 	/*
 	 * Make 'label' refer to the 'n'th least significant label of 'name'.
 	 */
-	
+
 	REQUIRE(VALID_NAME(name));
 	REQUIRE(name->labels > 0);
 	REQUIRE(n < name->labels);
 	REQUIRE(label != NULL);
-	
+
 	SETUP_OFFSETS(name, offsets, odata);
 
 	label->base = &name->ndata[offsets[n]];
@@ -981,6 +977,7 @@ dns_name_getlabelsequence(const dns_name_t *source,
 {
 	unsigned char *offsets;
 	dns_offsets_t odata;
+	unsigned int firstoffset, endoffset;
 
 	/*
 	 * Make 'target' refer to the 'n' labels including and following
@@ -989,25 +986,31 @@ dns_name_getlabelsequence(const dns_name_t *source,
 
 	REQUIRE(VALID_NAME(source));
 	REQUIRE(VALID_NAME(target));
-	REQUIRE(source->labels > 0);
-	REQUIRE(n > 0);
-	REQUIRE(first < source->labels);
+	REQUIRE(first <= source->labels);
 	REQUIRE(first + n <= source->labels);
 	REQUIRE(BINDABLE(target));
 
 	SETUP_OFFSETS(source, offsets, odata);
 
-	target->ndata = &source->ndata[offsets[first]];
-	if (first + n == source->labels) {
-		target->length = source->length - offsets[first];
-		if ((source->attributes & DNS_NAMEATTR_ABSOLUTE) != 0)
-			target->attributes |= DNS_NAMEATTR_ABSOLUTE;
-		else
-			target->attributes &= ~DNS_NAMEATTR_ABSOLUTE;
-	} else {
-		target->length = offsets[first + n] - offsets[first];
+	if (first == source->labels)
+		firstoffset = source->length;
+	else
+		firstoffset = offsets[first];
+
+	if (first + n == source->labels)
+		endoffset = source->length;
+	else
+		endoffset = offsets[first + n];
+
+	target->ndata = &source->ndata[firstoffset];
+	target->length = endoffset - firstoffset;
+	
+	if (first + n == source->labels && n > 0 &&
+	    (source->attributes & DNS_NAMEATTR_ABSOLUTE) != 0)
+		target->attributes |= DNS_NAMEATTR_ABSOLUTE;
+	else
 		target->attributes &= ~DNS_NAMEATTR_ABSOLUTE;
-	}
+
 	target->labels = n;
 
 	/*
@@ -1067,14 +1070,15 @@ dns_name_fromregion(dns_name_t *name, isc_region_t *r) {
 		isc_buffer_clear(name->buffer);
 		isc_buffer_availableregion(name->buffer, &r2);
 		len = (r->length < r2.length) ? r->length : r2.length;
-		if (len > 255)
-			len = 255;
+		if (len > DNS_NAME_MAXWIRE)
+			len = DNS_NAME_MAXWIRE;
 		memcpy(r2.base, r->base, len);
 		name->ndata = r2.base;
 		name->length = len;
 	} else {
 		name->ndata = r->base;
-		name->length = (r->length <= 255) ? r->length : 255;
+		name->length = (r->length <= DNS_NAME_MAXWIRE) ? 
+			r->length : DNS_NAME_MAXWIRE;
 	}
 
 	if (r->length > 0)
@@ -1140,7 +1144,7 @@ dns_name_fromtext(dns_name_t *name, isc_buffer_t *source,
 	}
 
 	REQUIRE(BINDABLE(name));
-	
+
 	INIT_OFFSETS(name, offsets, odata);
 	offsets[0] = 0;
 
@@ -1157,7 +1161,7 @@ dns_name_fromtext(dns_name_t *name, isc_buffer_t *source,
 	tbcount = 0;
 	bitlength = 0;
 	maxlength = 0;
-	kind = ft_init;	
+	kind = ft_init;
 
 	/*
 	 * Make 'name' empty in case of failure.
@@ -1205,7 +1209,7 @@ dns_name_fromtext(dns_name_t *name, isc_buffer_t *source,
 				state = ft_at;
 				break;
 			}
-				
+
 			/* FALLTHROUGH */
 		case ft_start:
 			label = ndata;
@@ -1671,7 +1675,7 @@ dns_name_fromtext(dns_name_t *name, isc_buffer_t *source,
 			}
 			if ((origin->attributes & DNS_NAMEATTR_ABSOLUTE) != 0)
 				name->attributes |= DNS_NAMEATTR_ABSOLUTE;
-		}		
+		}
 	} else
 		name->attributes |= DNS_NAMEATTR_ABSOLUTE;
 
@@ -1708,28 +1712,57 @@ dns_name_totext(dns_name_t *name, isc_boolean_t omit_final_dot,
 	 * wire format.
 	 */
 	REQUIRE(VALID_NAME(name));
-	REQUIRE(name->labels > 0);
+	REQUIRE(ISC_BUFFER_VALID(target));
 
 	ndata = name->ndata;
 	nlen = name->length;
 	labels = name->labels;
-	tdata = (char *)target->base + target->used;
-	tlen = target->length - target->used;
+	tdata = isc_buffer_used(target);
+	tlen = isc_buffer_availablelength(target);
 
 	trem = tlen;
 
-	/* Special handling for root label. */
-	if (nlen == 1 && labels == 1 && *ndata == 0) {
-		saw_root = ISC_TRUE;
-		labels = 0;
-		nlen = 0;
+	if (labels == 0 && nlen == 0) {
+		/*
+		 * Special handling for an empty name.
+		 */
 		if (trem == 0)
 			return (ISC_R_NOSPACE);
+
+		/*
+		 * The names of these booleans are misleading in this case.
+		 * This empty name is not necessarily from the root node of
+		 * the DNS root zone, nor is a final dot going to be included.
+		 * They need to be set this way, though, to keep the "@"
+		 * from being trounced.
+		 */
+		saw_root = ISC_TRUE;
+		omit_final_dot = ISC_FALSE;
+		*tdata++ = '@';
+		trem--;
+
+		/*
+		 * Skip the while() loop.
+		 */
+		nlen = 0;
+	} else if (nlen == 1 && labels == 1 && *ndata == '\0') {
+		/*
+		 * Special handling for the root label.
+		 */
+		if (trem == 0)
+			return (ISC_R_NOSPACE);
+
+		saw_root = ISC_TRUE;
+		omit_final_dot = ISC_FALSE;
 		*tdata++ = '.';
 		trem--;
-		omit_final_dot = ISC_FALSE;
+
+		/*
+		 * Skip the while() loop.
+		 */
+		nlen = 0;
 	}
-		
+
 	while (labels > 0 && nlen > 0 && trem > 0) {
 		labels--;
 		count = *ndata++;
@@ -1826,9 +1859,9 @@ dns_name_totext(dns_name_t *name, isc_boolean_t omit_final_dot,
 		} else {
 			FATAL_ERROR(__FILE__, __LINE__,
 				    "Unexpected label type %02x", count);
-			/* Does not return. */
+			/* NOTREACHED */
 		}
-					 
+
 		/*
 		 * The following assumes names are absolute.  If not, we
 		 * fix things up later.  Note that this means that in some
@@ -1843,7 +1876,7 @@ dns_name_totext(dns_name_t *name, isc_boolean_t omit_final_dot,
 
 	if (nlen != 0 && trem == 0)
 		return (ISC_R_NOSPACE);
-	INSIST(nlen == 0);
+
 	if (!saw_root || omit_final_dot)
 		trem++;
 
@@ -1857,7 +1890,7 @@ dns_name_downcase(dns_name_t *source, dns_name_t *name, isc_buffer_t *target) {
 	unsigned char *sndata, *ndata;
 	unsigned int nlen, count, bytes, labels;
 	isc_buffer_t buffer;
- 
+
 	/*
 	 * Downcase 'source'.
 	 */
@@ -2189,10 +2222,10 @@ dns_name_fromwire(dns_name_t *name, isc_buffer_t *source,
 	hops = 0;
 	saw_bitstring = ISC_FALSE;
 	done = ISC_FALSE;
-	
+
 	ndata = isc_buffer_used(target);
 	nused = 0;
-	
+
 	/*
 	 * Find the maximum number of uncompressed target name
 	 * bytes we are willing to generate.  This is the smaller
@@ -2200,12 +2233,12 @@ dns_name_fromwire(dns_name_t *name, isc_buffer_t *source,
 	 * maximum legal domain name length (255).
 	 */
 	nmax = isc_buffer_availablelength(target);
-	if (nmax > 255)
-		nmax = 255;
-	
+	if (nmax > DNS_NAME_MAXWIRE)
+		nmax = DNS_NAME_MAXWIRE;
+
 	cdata = isc_buffer_current(source);
 	cused = 0;
-	
+
 	current = source->current;
 	biggest_pointer = current;
 
@@ -2336,23 +2369,23 @@ dns_name_fromwire(dns_name_t *name, isc_buffer_t *source,
 
 	isc_buffer_forward(source, cused);
 	isc_buffer_add(target, name->length);
-	
+
 	return (ISC_R_SUCCESS);
 
  full:
-	if (nmax == 255)
+	if (nmax == DNS_NAME_MAXWIRE)
 		/*
 		 * The name did not fit even though we had a buffer
 		 * big enough to fit a maximum-length name.
 		 */
-		return (DNS_R_FORMERR);
+		return (DNS_R_NAMETOOLONG);
 	else
 		/*
 		 * The name might fit if only the caller could give us a
 		 * big enough buffer.
 		 */
 		return (ISC_R_NOSPACE);
-		
+
 }
 
 isc_result_t
@@ -2476,7 +2509,7 @@ dns_name_concatenate(dns_name_t *prefix, dns_name_t *suffix, dns_name_t *name,
 	REQUIRE(BINDABLE(name));
 
 	/*
-	 * IMPORTANT NOTE
+	 * XXX IMPORTANT NOTE
 	 *
 	 * If the most-signficant label in prefix is a bitstring,
 	 * and the least-signficant label in suffix is a bitstring,
@@ -2499,8 +2532,8 @@ dns_name_concatenate(dns_name_t *prefix, dns_name_t *suffix, dns_name_t *name,
 	 */
 	nrem = target->length - target->used;
 	ndata = (unsigned char *)target->base + target->used;
-	if (nrem > 255)
-		nrem = 255;
+	if (nrem > DNS_NAME_MAXWIRE)
+		nrem = DNS_NAME_MAXWIRE;
 	length = 0;
 	prefix_length = 0;
 	labels = 0;
@@ -2512,6 +2545,10 @@ dns_name_concatenate(dns_name_t *prefix, dns_name_t *suffix, dns_name_t *name,
 	if (copy_suffix) {
 		length += suffix->length;
 		labels += suffix->labels;
+	}
+	if (length > DNS_NAME_MAXWIRE) {
+		MAKE_EMPTY(name);
+		return (DNS_R_NAMETOOLONG);
 	}
 	if (length > nrem) {
 		MAKE_EMPTY(name);
@@ -2592,17 +2629,17 @@ dns_name_split(dns_name_t *name,
 	       dns_name_t *prefix, dns_name_t *suffix)
 
 {
-	dns_offsets_t name_odata, split_odata;
-	unsigned char *offsets, *splitoffsets;
+	dns_offsets_t name_odata, prefix_odata, suffix_odata;
+	unsigned char *offsets, *prefix_offsets = NULL, *suffix_offsets;
 	isc_result_t result = ISC_R_SUCCESS;
 	unsigned int splitlabel, bitbytes, mod, len;
 	unsigned char *p, *src, *dst;
+	isc_boolean_t maybe_compact_prefix = ISC_FALSE;
 
 	REQUIRE(VALID_NAME(name));
-	REQUIRE((nbits == 0 &&
-		 suffixlabels > 0 && suffixlabels < name->labels) ||
-		(nbits != 0 &&
-		 suffixlabels <= name->labels));
+	REQUIRE(suffixlabels > 0);
+	REQUIRE((nbits == 0 && suffixlabels < name->labels) ||
+		(nbits != 0 && suffixlabels <= name->labels));
 	REQUIRE(prefix != NULL || suffix != NULL);
 	REQUIRE(prefix == NULL ||
 		(VALID_NAME(prefix) &&
@@ -2627,6 +2664,12 @@ dns_name_split(dns_name_t *name,
 	SETUP_OFFSETS(name, offsets, name_odata);
 
 	splitlabel = name->labels - suffixlabels;
+
+	/*
+	 * Make p point at the count byte of the bitstring label,
+	 * if there is one (p will not be used if we are not
+	 * splitting bits).
+	 */
 	p = &name->ndata[offsets[splitlabel] + 1];
 
 	/*
@@ -2665,15 +2708,19 @@ dns_name_split(dns_name_t *name,
 			}
 
 			/*
-			 * Set the new bit count.
+			 * Set the new bit count.  Also, when a bitstring
+			 * label being split is maximal length, compaction
+			 * might be necessary on the prefix.
 			 */
-			if (*p == 0)
+			if (*p == 0) {
+				maybe_compact_prefix = ISC_TRUE;
 				*p = 256 - nbits;
-			else
+			} else
 				*p = *p - nbits;
 
 			/*
-			 * Really one less than the bytes for the bits.
+			 * Calculate the number of bytes necessary to hold
+			 * all of the bits left in the prefix.
 			 */
 			bitbytes = (*p - 1) / 8 + 1;
 
@@ -2743,8 +2790,8 @@ dns_name_split(dns_name_t *name,
 			 */
 			INSIST(len = prefix->length);
 
-			INIT_OFFSETS(prefix, splitoffsets, split_odata);
-			set_offsets(prefix, splitoffsets, prefix);
+			INIT_OFFSETS(prefix, prefix_offsets, prefix_odata);
+			set_offsets(prefix, prefix_offsets, prefix);
 
 			INSIST(prefix->labels == splitlabel + 1 &&
 			       prefix->length == len);
@@ -2768,7 +2815,9 @@ dns_name_split(dns_name_t *name,
 			 * the new name.
 			 */
 			src = &name->ndata[offsets[splitlabel] + 1];
-			len = (*src++ - 1) / 8 - (bitbytes - 1);
+			len = ((*src == 0 ? 256 : *src) - 1) / 8;
+			len -= (bitbytes - 1);
+			src++;
 
 			suffix->length = name->length -
 				offsets[splitlabel] - len;
@@ -2833,7 +2882,7 @@ dns_name_split(dns_name_t *name,
 			 * bitstring has its pad bytes (if any) masked
 			 * to zero.
 			 */
-			if (mod)
+			if (mod != 0)
 				suffix->ndata[bitbytes + 1] &=
 					0xFF << (8 - mod);
 
@@ -2844,8 +2893,8 @@ dns_name_split(dns_name_t *name,
 			 */
 			INSIST(len = suffix->length);
 
-			INIT_OFFSETS(suffix, splitoffsets, split_odata);
-			set_offsets(suffix, splitoffsets, suffix);
+			INIT_OFFSETS(suffix, suffix_offsets, suffix_odata);
+			set_offsets(suffix, suffix_offsets, suffix);
 
 			INSIST(suffix->labels == suffixlabels &&
 			       suffix->length == len);
@@ -2855,6 +2904,16 @@ dns_name_split(dns_name_t *name,
 						  suffixlabels, suffix);
 
 	}
+
+	/*
+	 * Compacting the prefix can't be done until after the suffix is
+	 * set, because it would screw up the offsets table of 'name'
+	 * when 'name' == 'prefix'.
+	 */
+	if (maybe_compact_prefix && splitlabel > 0 &&
+	    prefix->ndata[prefix_offsets[splitlabel - 1]] ==
+	    DNS_LABELTYPE_BITSTRING)
+		compact(prefix, prefix_offsets);
 
 	return (result);
 }
@@ -3041,13 +3100,13 @@ dns_name_digest(dns_name_t *name, dns_digestfunc_t digest, void *arg) {
 
 	dns_name_init(&downname, NULL);
 	isc_buffer_init(&buffer, data, sizeof(data));
-	
+
 	result = dns_name_downcase(name, &downname, &buffer);
 	if (result != ISC_R_SUCCESS)
 		return (result);
-	
+
 	isc_buffer_usedregion(&buffer, &r);
-	
+
 	return ((digest)(arg, &r));
 }
 
@@ -3092,7 +3151,7 @@ dns_name_format(dns_name_t *name, char *cp, unsigned int size) {
 	isc_buffer_t buf;
 
 	REQUIRE(size > 0);
-	
+
 	/*
 	 * Leave room for null termination after buffer.
 	 */
@@ -3109,4 +3168,3 @@ dns_name_format(dns_name_t *name, char *cp, unsigned int size) {
 	} else
 		snprintf(cp, size, "<unknown>");
 }
-

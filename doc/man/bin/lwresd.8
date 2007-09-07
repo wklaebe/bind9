@@ -12,9 +12,9 @@
 .\" FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
 .\" NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
 .\" WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
-.\"
-.\" $Id: lwresd.8,v 1.4.2.1 2000/08/22 01:10:06 gson Exp $
-.\"
+
+.\" $Id: lwresd.8,v 1.9 2000/11/18 02:57:27 bwelling Exp $
+
 .Dd Jun 30, 2000
 .Dt LWRESD 8
 .Os BIND9 9
@@ -29,10 +29,11 @@
 .Op Fl f g s
 .Op Fl i Ar pid-file
 .Op Fl n Ar #cpus
-.Op Fl P Ar query-port#
+.Op Fl P Ar listen-port#
 .Op Fl p Ar port#
 .Op Fl t Ar directory
 .Op Fl u Ar user-id
+.Op Fl v
 .Sh DESCRIPTION
 .Nm lwresd
 is the daemon providing name lookup services to clients that use
@@ -115,16 +116,16 @@ one thread per CPU.  If
 is unable to determine the number of CPUs, a single worker thread
 is created.
 .It Fl P
-send DNS lookups to port number
-.Ar query-port#
-when querying name servers.
-This provides a way of testing the lightweight resolver daemon with a
-name server that listens for queries on a non-standard port number.
-.It Fl p
 listen for lightweight resolver queries on the loopback interface
 using UDP port
 .Ar port#
 instead of the default port number, 921.
+.It Fl p
+send DNS lookups to port number
+.Ar listen-port#
+when querying name servers.
+This provides a way of testing the lightweight resolver daemon with a
+name server that listens for queries on a non-standard port number.
 .It Fl s
 write memory usage statistics to
 .Dv stdout
@@ -148,6 +149,8 @@ The lightweight resolver daemon will change its user-id after it has
 carried out any privileged operations, such as writing the process-id
 file or binding a socket to a privileged port (typically any port
 less than 1024).
+.It Fl v
+report the version number and exit.
 .El
 .Sh FILES
 .Bl -tag -width  /var/run/lwresd.pid -compact

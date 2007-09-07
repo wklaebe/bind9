@@ -1,21 +1,21 @@
 /*
  * Copyright (C) 1999, 2000  Internet Software Consortium.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
- * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
- * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
- * SOFTWARE.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+ * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+ * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rdataset.h,v 1.33 2000/06/22 21:56:01 tale Exp $ */
+/* $Id: rdataset.h,v 1.37 2000/11/10 03:41:07 gson Exp $ */
 
 #ifndef DNS_RDATASET_H
 #define DNS_RDATASET_H 1
@@ -211,7 +211,7 @@ dns_rdataset_clone(dns_rdataset_t *source, dns_rdataset_t *target);
  *	'target' is a valid, dissociated rdataset.
  *
  * Ensures:
- *	'target' references the same rdataset as 'source.
+ *	'target' references the same rdataset as 'source'.
  */
 
 unsigned int
@@ -223,7 +223,7 @@ dns_rdataset_count(dns_rdataset_t *rdataset);
  *	'rdataset' is a valid, associated rdataset.
  *
  * Returns:
- *	The number of records in 'rdataset'.	
+ *	The number of records in 'rdataset'.
  */
 
 isc_result_t
@@ -336,6 +336,24 @@ dns_rdataset_towire(dns_rdataset_t *rdataset,
  *
  *	Any error returned by dns_rdata_towire(), dns_rdataset_next(),
  *	dns_name_towire().
+ */
+
+isc_result_t
+dns_rdataset_towiresorted(dns_rdataset_t *rdataset,
+			  dns_name_t *owner_name,
+			  dns_compress_t *cctx,
+			  isc_buffer_t *target,
+			  dns_rdatasetorderfunc_t order,
+			  void *order_arg,
+			  unsigned int *countp);
+/*
+ * Like dns_rdataset_towire(), but sorting the rdatasets according to
+ * the integer value returned by 'order' when called witih the rdataset
+ * and 'order_arg' as arguments.
+ *
+ * Requires:
+ *	All the requirements of dns_rdataset_towire(), and
+ *	that order_arg is NULL if and only if order is NULL.
  */
 
 isc_result_t

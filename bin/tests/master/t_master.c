@@ -1,21 +1,21 @@
 /*
  * Copyright (C) 1998-2000  Internet Software Consortium.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
- * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
- * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
- * SOFTWARE.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+ * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+ * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: t_master.c,v 1.23 2000/06/22 21:51:09 tale Exp $ */
+/* $Id: t_master.c,v 1.28 2000/08/01 01:13:45 tale Exp $ */
 
 #include <config.h>
 
@@ -50,7 +50,7 @@ t1_add_callback(void *arg, dns_name_t *owner, dns_rdataset_t *dataset) {
 	char buf[BIGBUFLEN];
 	isc_buffer_t target;
 	isc_result_t result;
-	
+
 	UNUSED(arg);
 
 	isc_buffer_init(&target, buf, BIGBUFLEN);
@@ -103,7 +103,7 @@ test_master(char *testfile, char *origin, char *class, isc_result_t exp_result)
 
 	dns_rdatacallbacks_init_stdio(&callbacks);
 	callbacks.add = t1_add_callback;
-	
+
 	textregion.base = class;
 	textregion.length = strlen(class);
 
@@ -263,6 +263,59 @@ t7() {
 	t_result(result);
 }
 
+static const char *a8 =
+	"dns_master_loadfile understands $INCLUDE";
+
+static void
+t8() {
+	int	result;
+
+	t_assert("dns_master_loadfile", 8, T_REQUIRED, a8);
+	result = test_master_x("dns_master_load_8_data");
+
+	t_result(result);
+}
+
+static const char *a9 =
+	"dns_master_loadfile understands $INCLUDE with failure";
+
+static void
+t9() {
+	int	result;
+
+	t_assert("dns_master_loadfile", 9, T_REQUIRED, a9);
+	result = test_master_x("dns_master_load_9_data");
+
+	t_result(result);
+}
+
+static const char *a10 =
+	"dns_master_loadfile non-empty blank lines";
+
+static void
+t10() {
+	int	result;
+
+	t_assert("dns_master_loadfile", 10, T_REQUIRED, a10);
+	result = test_master_x("dns_master_load_10_data");
+
+	t_result(result);
+}
+
+static const char *a11 =
+	"dns_master_loadfile allow leading zeros in SOA";
+
+static void
+t11() {
+	int	result;
+
+	t_assert("dns_master_loadfile", 11, T_REQUIRED, a11);
+	result = test_master_x("dns_master_load_11_data");
+
+	t_result(result);
+}
+
+
 testspec_t	T_testlist[] = {
 	{	t1,	"ISC_R_SUCCESS"		},
 	{	t2,	"ISC_R_UNEXPECTEDEND"	},
@@ -271,6 +324,10 @@ testspec_t	T_testlist[] = {
 	{	t5,	"DNS_BADCLASS"		},
 	{	t6,	"KEY RR 1"		},
 	{	t7,	"KEY RR 2"		},
+	{	t8,	"$INCLUDE"		},
+	{	t9,	"$INCLUDE w/ DNS_BADCLASS"	},
+	{	t10,	"non empty blank lines"	},
+	{	t11,	"leading zeros in serial"	},
 	{	NULL,	NULL			}
 };
 

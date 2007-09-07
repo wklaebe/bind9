@@ -1,32 +1,37 @@
 /*
  * Copyright (C) 1998-2000  Internet Software Consortium.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
- * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
- * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
- * SOFTWARE.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+ * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+ * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: timer.c,v 1.52 2000/06/22 21:57:18 tale Exp $ */
+/* $Id: timer.c,v 1.58 2000/10/20 02:21:58 marka Exp $ */
 
 #include <config.h>
 
 #include <isc/condition.h>
 #include <isc/heap.h>
 #include <isc/mem.h>
+#include <isc/platform.h>
 #include <isc/task.h>
 #include <isc/thread.h>
 #include <isc/time.h>
 #include <isc/timer.h>
 #include <isc/util.h>
+
+#ifndef ISC_PLATFORM_USETHREADS
+#include "timer_p.h"
+#endif /* ISC_PLATFORM_USETHREADS */
 
 #ifdef ISC_TIMER_TRACE
 #define XTRACE(s)			printf("%s\n", (s))
@@ -80,10 +85,21 @@ struct isc_timermgr {
 	LIST(isc_timer_t)		timers;
 	unsigned int			nscheduled;
 	isc_time_t			due;
+#ifdef ISC_PLATFORM_USETHREADS
 	isc_condition_t			wakeup;
 	isc_thread_t			thread;
+#else /* ISC_PLATFORM_USETHREADS */
+	unsigned int			refs;
+#endif /* ISC_PLATFORM_USETHREADS */
 	isc_heap_t *			heap;
 };
+
+#ifndef ISC_PLATFORM_USETHREADS
+/*
+ * If threads are not in use, there can be only one.
+ */
+static isc_timermgr_t *timermgr = NULL;
+#endif /* ISC_PLATFORM_USETHREADS */
 
 static inline isc_result_t
 schedule(isc_timer_t *timer, isc_time_t *now, isc_boolean_t signal_ok) {
@@ -92,11 +108,15 @@ schedule(isc_timer_t *timer, isc_time_t *now, isc_boolean_t signal_ok) {
 	isc_time_t due;
 	int cmp;
 
-	/* 
+	/*
 	 * Note: the caller must ensure locking.
 	 */
 
 	REQUIRE(timer->type != isc_timertype_inactive);
+
+#ifndef ISC_PLATFORM_USETHREADS
+	UNUSED(signal_ok);
+#endif /* ISC_PLATFORM_USETHREADS */
 
 	/*
 	 * Compute the new due time.
@@ -115,7 +135,7 @@ schedule(isc_timer_t *timer, isc_time_t *now, isc_boolean_t signal_ok) {
 		else
 			due = timer->expires;
 	}
-	
+
 	/*
 	 * Schedule the timer.
 	 */
@@ -150,15 +170,21 @@ schedule(isc_timer_t *timer, isc_time_t *now, isc_boolean_t signal_ok) {
 	XTRACETIMER("schedule", timer, due);
 
 	/*
-	 * If this timer is at the head of the queue, we wake up the run
-	 * thread.  We do this, because we likely have set a more recent
-	 * due time than the one the run thread is sleeping on, and we don't
-	 * want it to oversleep.
+	 * If this timer is at the head of the queue, we need to ensure
+	 * that we won't miss it if it has a more recent due time than
+	 * the current "next" timer.  We do this either by waking up the
+	 * run thread, or explicitly setting the value in the manager.
 	 */
+#ifdef ISC_PLATFORM_USETHREADS
 	if (timer->index == 1 && signal_ok) {
 		XTRACE("signal (schedule)");
 		SIGNAL(&manager->wakeup);
 	}
+#else /* ISC_PLATFORM_USETHREADS */
+	if (timer->index == 1 &&
+	    isc_time_compare(&timer->due, &manager->due) < 0)
+		manager->due = timer->due;
+#endif /* ISC_PLATFORM_USETHREADS */
 
 	return (ISC_R_SUCCESS);
 }
@@ -168,7 +194,7 @@ deschedule(isc_timer_t *timer) {
 	isc_boolean_t need_wakeup = ISC_FALSE;
 	isc_timermgr_t *manager;
 
-	/* 
+	/*
 	 * The caller must ensure locking.
 	 */
 
@@ -180,10 +206,12 @@ deschedule(isc_timer_t *timer) {
 		timer->index = 0;
 		INSIST(manager->nscheduled > 0);
 		manager->nscheduled--;
+#ifdef ISC_PLATFORM_USETHREADS
 		if (need_wakeup) {
 			XTRACE("signal (deschedule)");
 			SIGNAL(&manager->wakeup);
 		}
+#endif /* ISC_PLATFORM_USETHREADS */
 	}
 }
 
@@ -208,7 +236,7 @@ destroy(isc_timer_t *timer) {
 	UNLOCK(&manager->lock);
 
 	isc_task_detach(&timer->task);
-	(void)isc_mutex_destroy(&timer->lock);
+	DESTROYLOCK(&timer->lock);
 	timer->magic = 0;
 	isc_mem_put(manager->mctx, timer, sizeof *timer);
 }
@@ -302,6 +330,7 @@ isc_timer_create(isc_timermgr_t *manager, isc_timertype_t type,
 				 "isc_mutex_init() failed");
 		return (ISC_R_UNEXPECTED);
 	}
+	ISC_LINK_INIT(timer, link);
 	timer->magic = TIMER_MAGIC;
 
 	LOCK(&manager->lock);
@@ -317,12 +346,12 @@ isc_timer_create(isc_timermgr_t *manager, isc_timertype_t type,
 		result = ISC_R_SUCCESS;
 	if (result == ISC_R_SUCCESS)
 		APPEND(manager->timers, timer, link);
-	
+
 	UNLOCK(&manager->lock);
 
 	if (result != ISC_R_SUCCESS) {
 		timer->magic = 0;
-		(void)isc_mutex_destroy(&timer->lock);
+		DESTROYLOCK(&timer->lock);
 		isc_task_detach(&timer->task);
 		isc_mem_put(manager->mctx, timer, sizeof *timer);
 		return (result);
@@ -461,11 +490,11 @@ isc_timer_attach(isc_timer_t *timer, isc_timer_t **timerp) {
 	LOCK(&timer->lock);
 	timer->references++;
 	UNLOCK(&timer->lock);
-	
+
 	*timerp = timer;
 }
 
-void 
+void
 isc_timer_detach(isc_timer_t **timerp) {
 	isc_timer_t *timer;
 	isc_boolean_t free_timer = ISC_FALSE;
@@ -484,7 +513,7 @@ isc_timer_detach(isc_timer_t **timerp) {
 	if (timer->references == 0)
 		free_timer = ISC_TRUE;
 	UNLOCK(&timer->lock);
-	
+
 	if (free_timer)
 		destroy(timer);
 
@@ -550,7 +579,7 @@ dispatch(isc_timermgr_t *manager, isc_time_t *now) {
 					UNEXPECTED_ERROR(__FILE__, __LINE__,
 						 "couldn't allocate event");
 			}
-					
+
 			timer->index = 0;
 			isc_heap_delete(manager->heap, 1);
 			manager->nscheduled--;
@@ -566,9 +595,10 @@ dispatch(isc_timermgr_t *manager, isc_time_t *now) {
 			manager->due = timer->due;
 			done = ISC_TRUE;
 		}
-	} 
+	}
 }
 
+#ifdef ISC_PLATFORM_USETHREADS
 static isc_threadresult_t
 #ifdef _WIN32			/* XXXDCL */
 WINAPI
@@ -602,6 +632,7 @@ run(void *uap) {
 
 	return ((isc_threadresult_t)0);
 }
+#endif /* ISC_PLATFORM_USETHREADS */
 
 static isc_boolean_t
 sooner(void *v1, void *v2) {
@@ -638,10 +669,18 @@ isc_timermgr_create(isc_mem_t *mctx, isc_timermgr_t **managerp) {
 
 	REQUIRE(managerp != NULL && *managerp == NULL);
 
+#ifndef ISC_PLATFORM_USETHREADS
+	if (timermgr != NULL) {
+		timermgr->refs++;
+		*managerp = timermgr;
+		return (ISC_R_SUCCESS);
+	}
+#endif /* ISC_PLATFORM_USETHREADS */
+
 	manager = isc_mem_get(mctx, sizeof *manager);
 	if (manager == NULL)
 		return (ISC_R_NOMEMORY);
-	
+
 	manager->magic = TIMER_MANAGER_MAGIC;
 	manager->mctx = NULL;
 	manager->done = ISC_FALSE;
@@ -662,26 +701,32 @@ isc_timermgr_create(isc_mem_t *mctx, isc_timermgr_t **managerp) {
 				 "isc_mutex_init() failed");
 		return (ISC_R_UNEXPECTED);
 	}
+	isc_mem_attach(mctx, &manager->mctx);
+#ifdef ISC_PLATFORM_USETHREADS
 	if (isc_condition_init(&manager->wakeup) != ISC_R_SUCCESS) {
-		(void)isc_mutex_destroy(&manager->lock);
+		isc_mem_detach(&manager->mctx);
+		DESTROYLOCK(&manager->lock);
 		isc_heap_destroy(&manager->heap);
 		isc_mem_put(mctx, manager, sizeof *manager);
 		UNEXPECTED_ERROR(__FILE__, __LINE__,
 				 "isc_condition_init() failed");
 		return (ISC_R_UNEXPECTED);
 	}
-	isc_mem_attach(mctx, &manager->mctx);
 	if (isc_thread_create(run, manager, &manager->thread) !=
 	    ISC_R_SUCCESS) {
 		isc_mem_detach(&manager->mctx);
 		(void)isc_condition_destroy(&manager->wakeup);
-		(void)isc_mutex_destroy(&manager->lock);
+		DESTROYLOCK(&manager->lock);
 		isc_heap_destroy(&manager->heap);
 		isc_mem_put(mctx, manager, sizeof *manager);
 		UNEXPECTED_ERROR(__FILE__, __LINE__,
 				 "isc_thread_create() failed");
 		return (ISC_R_UNEXPECTED);
 	}
+#else /* ISC_PLATFORM_USETHREADS */
+	manager->refs = 1;
+	timermgr = manager;
+#endif /* ISC_PLATFORM_USETHREADS */
 
 	*managerp = manager;
 
@@ -703,26 +748,43 @@ isc_timermgr_destroy(isc_timermgr_t **managerp) {
 
 	LOCK(&manager->lock);
 
+#ifndef ISC_PLATFORM_USETHREADS
+	if (manager->refs > 1) {
+		manager->refs--;
+		UNLOCK(&manager->lock);
+		*managerp = NULL;
+		return;
+	}
+
+	isc__timermgr_dispatch();
+#endif /* ISC_PLATFORM_USETHREADS */
+
 	REQUIRE(EMPTY(manager->timers));
 	manager->done = ISC_TRUE;
 
+#ifdef ISC_PLATFORM_USETHREADS
 	XTRACE("signal (destroy)");
 	SIGNAL(&manager->wakeup);
+#endif /* ISC_PLATFORM_USETHREADS */
 
 	UNLOCK(&manager->lock);
 
+#ifdef ISC_PLATFORM_USETHREADS
 	/*
 	 * Wait for thread to exit.
 	 */
 	if (isc_thread_join(manager->thread, NULL) != ISC_R_SUCCESS)
 		UNEXPECTED_ERROR(__FILE__, __LINE__,
 				 "isc_thread_join() failed");
+#endif /* ISC_PLATFORM_USETHREADS */
 
 	/*
 	 * Clean up.
 	 */
+#ifdef ISC_PLATFORM_USETHREADS
 	(void)isc_condition_destroy(&manager->wakeup);
-	(void)isc_mutex_destroy(&manager->lock);
+#endif /* ISC_PLATFORM_USETHREADS */
+	DESTROYLOCK(&manager->lock);
 	isc_heap_destroy(&manager->heap);
 	manager->magic = 0;
 	mctx = manager->mctx;
@@ -731,3 +793,23 @@ isc_timermgr_destroy(isc_timermgr_t **managerp) {
 
 	*managerp = NULL;
 }
+
+#ifndef ISC_PLATFORM_USETHREADS
+isc_result_t
+isc__timermgr_nextevent(isc_time_t *when) {
+	if (timermgr == NULL || timermgr->nscheduled == 0)
+		return (ISC_R_NOTFOUND);
+	*when = timermgr->due;
+	return (ISC_R_SUCCESS);
+}
+
+isc_result_t
+isc__timermgr_dispatch(void) {
+	isc_time_t now;
+	if (timermgr == NULL)
+		return (ISC_R_NOTFOUND);
+	isc_time_now(&now);
+	dispatch(timermgr, &now);
+	return (ISC_R_SUCCESS);
+}
+#endif /* ISC_PLATFORM_USETHREADS */

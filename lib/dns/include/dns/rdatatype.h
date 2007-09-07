@@ -1,21 +1,21 @@
 /*
  * Copyright (C) 1998-2000  Internet Software Consortium.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
- * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
- * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
- * SOFTWARE.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+ * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+ * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rdatatype.h,v 1.11 2000/06/22 21:56:04 tale Exp $ */
+/* $Id: rdatatype.h,v 1.16 2000/11/15 19:11:36 gson Exp $ */
 
 #ifndef DNS_RDATATYPE_H
 #define DNS_RDATATYPE_H 1
@@ -39,7 +39,6 @@ dns_rdatatype_fromtext(dns_rdatatype_t *typep, isc_textregion_t *source);
  * Returns:
  *	ISC_R_SUCCESS			on success
  *	DNS_R_UNKNOWN			type is unknown
- *	ISC_R_NOTIMPLEMENTED		type is known, but not implemented
  */
 
 isc_result_t
@@ -59,6 +58,22 @@ dns_rdatatype_totext(dns_rdatatype_t type, isc_buffer_t *target);
  * Returns:
  *	ISC_R_SUCCESS			on success
  *	ISC_R_NOSPACE			target buffer is too small
+ */
+
+void
+dns_rdatatype_format(dns_rdatatype_t rdtype,
+		     char *array, unsigned int size);
+/*
+ * Format a human-readable representation of the type 'rdtype'
+ * into the character array 'array', which is of size 'size'.
+ * The resulting string is guaranteed to be null-terminated.
+ */
+
+#define DNS_RDATATYPE_FORMATSIZE sizeof("TYPE65535")
+/*
+ * Minimum size of array to pass to dns_rdatatype_format().
+ * May need to be adjusted if a new RR type with a very long
+ * name is defined.
  */
 
 ISC_LANG_ENDDECLS

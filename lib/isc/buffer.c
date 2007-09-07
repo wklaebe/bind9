@@ -1,21 +1,21 @@
 /*
  * Copyright (C) 1998-2000  Internet Software Consortium.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
- * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
- * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
- * SOFTWARE.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+ * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+ * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: buffer.c,v 1.32 2000/06/22 21:56:51 tale Exp $ */
+/* $Id: buffer.c,v 1.35 2000/08/17 02:09:11 bwelling Exp $ */
 
 #include <config.h>
 
@@ -46,7 +46,7 @@ isc__buffer_invalidate(isc_buffer_t *b) {
 	REQUIRE(ISC_BUFFER_VALID(b));
 	REQUIRE(!ISC_LINK_LINKED(b, link));
 	REQUIRE(b->mctx == NULL);
-	
+
 	ISC__BUFFER_INVALIDATE(b);
 }
 
@@ -347,7 +347,7 @@ isc__buffer_putstr(isc_buffer_t *b, const char *source) {
 }
 
 isc_result_t
-isc_buffer_copyregion(isc_buffer_t *b, isc_region_t *r) {
+isc_buffer_copyregion(isc_buffer_t *b, const isc_region_t *r) {
 	unsigned char *base;
 	unsigned int available;
 
@@ -355,7 +355,7 @@ isc_buffer_copyregion(isc_buffer_t *b, isc_region_t *r) {
 	REQUIRE(r != NULL);
 
 	/*
-	 * XXXDCL 
+	 * XXXDCL
 	 */
 	base = isc_buffer_used(b);
 	available = isc_buffer_availablelength(b);

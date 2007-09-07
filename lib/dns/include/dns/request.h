@@ -1,21 +1,21 @@
 /*
  * Copyright (C) 2000  Internet Software Consortium.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
- * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
- * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
- * SOFTWARE.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+ * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+ * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: request.h,v 1.11 2000/06/22 21:56:05 tale Exp $ */
+/* $Id: request.h,v 1.16 2000/10/31 01:17:19 marka Exp $ */
 
 #ifndef DNS_REQUEST_H
 #define DNS_REQUEST_H 1
@@ -193,6 +193,77 @@ dns_request_create(dns_requestmgr_t *requestmgr, dns_message_t *message,
  */
 
 isc_result_t
+dns_request_createvia(dns_requestmgr_t *requestmgr, dns_message_t *message,
+		      isc_sockaddr_t *srcaddr, isc_sockaddr_t *destaddr,
+		      unsigned int options, dns_tsigkey_t *key,
+		      unsigned int timeout, isc_task_t *task,
+		      isc_taskaction_t action, void *arg,
+		      dns_request_t **requestp);
+/*
+ * Create and send a request.
+ *
+ * Notes:
+ *
+ *	'message' will be rendered and sent to 'address'.  If the
+ *	DNS_REQUESTOPT_TCP option is set, TCP will be used.  The request
+ *	will timeout after 'timeout' seconds.
+ *
+ *	When the request completes, successfully, due to a timeout, or
+ *	because it was canceled, a completion event will be sent to 'task'.
+ *
+ * Requires:
+ *
+ *	'message' is a valid DNS message.
+ *
+ *	'dstaddr' is a valid sockaddr.
+ *
+ *	'srcaddr' is a valid sockaddr or NULL.
+ *
+ *	'srcaddr' and 'dstaddr' are the same protocol family.
+ *
+ *	'timeout' > 0
+ *
+ *	'task' is a valid task.
+ *
+ *	requestp != NULL && *requestp == NULL
+ */
+
+isc_result_t
+dns_request_createraw(dns_requestmgr_t *requestmgr, isc_buffer_t *msgbuf,
+		      isc_sockaddr_t *srcaddr, isc_sockaddr_t *destaddr,
+		      unsigned int options, unsigned int timeout,
+		      isc_task_t *task, isc_taskaction_t action, void *arg,
+		      dns_request_t **requestp);
+/*
+ * Create and send a request.
+ *
+ * Notes:
+ *
+ *	'msgbuf' will be sent to 'destaddr' after setting the id.  If the
+ *	DNS_REQUESTOPT_TCP option is set, TCP will be used.  The request
+ *	will timeout after 'timeout' seconds.
+ *
+ *	When the request completes, successfully, due to a timeout, or
+ *	because it was canceled, a completion event will be sent to 'task'.
+ *
+ * Requires:
+ *
+ *	'msgbuf' is a valid DNS message in compressed wire format.
+ *
+ *	'destaddr' is a valid sockaddr.
+ *
+ *	'srcaddr' is a valid sockaddr or NULL.
+ *
+ *	'srcaddr' and 'dstaddr' are the same protocol family.
+ *
+ *	'timeout' > 0
+ *
+ *	'task' is a valid task.
+ *
+ *	requestp != NULL && *requestp == NULL
+ */
+
+isc_result_t
 dns_request_cancel(dns_request_t *request);
 /*
  * Cancel 'request'.
@@ -209,11 +280,11 @@ dns_request_cancel(dns_request_t *request);
 
 isc_result_t
 dns_request_getresponse(dns_request_t *request, dns_message_t *message,
-			isc_boolean_t preserve_order);
+			unsigned int options);
 /*
  * Get the response to 'request' by filling in 'message'.
  *
- * 'preserve_order' is passed to dns_message_parse().  See dns_message_parse()
+ * 'options' is passed to dns_message_parse().  See dns_message_parse()
  * for more details.
  *
  * Requires:

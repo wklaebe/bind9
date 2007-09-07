@@ -1,23 +1,25 @@
 /*
  * Copyright (C) 1999, 2000  Internet Software Consortium.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
- * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
- * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
- * SOFTWARE.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+ * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+ * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: log.c,v 1.20 2000/06/22 21:49:22 tale Exp $ */
+/* $Id: log.c,v 1.26 2000/11/25 01:33:11 marka Exp $ */
 
 #include <config.h>
+
+#include <isc/result.h>
 
 #include <named/log.h>
 
@@ -30,6 +32,7 @@ static isc_logcategory_t categories[] = {
 	{ "client",	 		0 },
 	{ "network",	 		0 },
 	{ "update",	 		0 },
+	{ "queries",	 		0 },
 	{ NULL, 			0 }
 };
 
@@ -55,7 +58,7 @@ static isc_logmodule_t modules[] = {
 isc_result_t
 ns_log_init(isc_boolean_t safe) {
 	isc_result_t result;
-	isc_logconfig_t *lcfg;
+	isc_logconfig_t *lcfg = NULL;
 
 	ns_g_categories = categories;
 	ns_g_modules = modules;
@@ -88,6 +91,8 @@ ns_log_init(isc_boolean_t safe) {
 
  cleanup:
 	isc_log_destroy(&ns_g_lctx);
+	isc_log_setcontext(NULL);
+	dns_log_setcontext(NULL);
 
 	return (result);
 }
@@ -96,7 +101,7 @@ isc_result_t
 ns_log_setdefaultchannels(isc_logconfig_t *lcfg) {
 	isc_result_t result;
 	isc_logdestination_t destination;
-	
+
 	/*
 	 * By default, the logging library makes "default_debug" log to
 	 * stderr.  In BIND, we want to override this and log to named.run
@@ -131,7 +136,7 @@ ns_log_setdefaultchannels(isc_logconfig_t *lcfg) {
 isc_result_t
 ns_log_setsafechannels(isc_logconfig_t *lcfg) {
 	isc_result_t result;
-	
+
 	if (! ns_g_logstderr) {
 		result = isc_log_createchannel(lcfg, "default_debug",
                                                ISC_LOG_TONULL,
@@ -176,4 +181,6 @@ ns_log_setdefaultcategory(isc_logconfig_t *lcfg) {
 void
 ns_log_shutdown(void) {
 	isc_log_destroy(&ns_g_lctx);
+	isc_log_setcontext(NULL);
+	dns_log_setcontext(NULL);
 }

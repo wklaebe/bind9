@@ -1,21 +1,21 @@
 /*
  * Copyright (C) 1999, 2000  Internet Software Consortium.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
- * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
- * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
- * SOFTWARE.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+ * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+ * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: a_1.c,v 1.14.2.1 2000/08/28 18:54:58 gson Exp $ */
+/* $Id: a_1.c,v 1.20 2000/12/01 01:40:48 gson Exp $ */
 
 /* reviewed: Thu Mar 16 15:58:36 PST 2000 by brister */
 
@@ -37,8 +37,10 @@ fromtext_hs_a(ARGS_FROMTEXT) {
 
 	UNUSED(origin);
 	UNUSED(downcase);
+	UNUSED(rdclass);
 
-	RETERR(gettoken(lexer, &token, isc_tokentype_string, ISC_FALSE));
+	RETERR(isc_lex_getmastertoken(lexer, &token, isc_tokentype_string,
+				      ISC_FALSE));
 
 	if (inet_aton(token.value.as_pointer, &addr) != 1)
 		return (DNS_R_BADDOTTEDQUAD);
@@ -79,7 +81,7 @@ fromwire_hs_a(ARGS_FROMWIRE) {
 
 	UNUSED(dctx);
 	UNUSED(downcase);
-
+	UNUSED(rdclass);
 
 	isc_buffer_activeregion(source, &sregion);
 	isc_buffer_availableregion(target, &tregion);
@@ -100,6 +102,7 @@ towire_hs_a(ARGS_TOWIRE) {
 
 	REQUIRE(rdata->type == 1);
 	REQUIRE(rdata->rdclass == 4);
+	REQUIRE(rdata->length == 4);
 
 	UNUSED(cctx);
 
@@ -114,11 +117,13 @@ towire_hs_a(ARGS_TOWIRE) {
 static inline int
 compare_hs_a(ARGS_COMPARE) {
 	int order;
-	
+
 	REQUIRE(rdata1->type == rdata2->type);
 	REQUIRE(rdata1->rdclass == rdata2->rdclass);
 	REQUIRE(rdata1->type == 1);
 	REQUIRE(rdata1->rdclass == 4);
+	REQUIRE(rdata1->length == 4);
+	REQUIRE(rdata2->length == 4);
 
 	order = memcmp(rdata1->data, rdata2->data, 4);
 	if (order != 0)
@@ -138,6 +143,8 @@ fromstruct_hs_a(ARGS_FROMSTRUCT) {
 	REQUIRE(a->common.rdtype == type);
 	REQUIRE(a->common.rdclass == rdclass);
 
+	UNUSED(rdclass);
+
 	n = ntohl(a->in_addr.s_addr);
 
 	return (uint32_tobuffer(n, target));
@@ -151,6 +158,7 @@ tostruct_hs_a(ARGS_TOSTRUCT) {
 
 	REQUIRE(rdata->type == 1);
 	REQUIRE(rdata->rdclass == 4);
+	REQUIRE(rdata->length == 4);
 
 	UNUSED(mctx);
 

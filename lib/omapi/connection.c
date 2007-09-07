@@ -1,21 +1,21 @@
 /*
  * Copyright (C) 1996-2000  Internet Software Consortium.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
- * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
- * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
- * SOFTWARE.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+ * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+ * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: connection.c,v 1.31 2000/06/23 21:36:17 tale Exp $ */
+/* $Id: connection.c,v 1.36 2000/11/29 00:10:29 gson Exp $ */
 
 /* Principal Author: DCL */
 
@@ -101,8 +101,7 @@ free_connection(omapi_connection_t *connection) {
 		isc_socket_detach(&connection->socket);
 
 	if (connection->is_client) {
-		RUNTIME_CHECK(isc_mutex_destroy(&connection->wait_lock) ==
-			      ISC_R_SUCCESS);
+		DESTROYLOCK(&connection->wait_lock);
 		RUNTIME_CHECK(isc_condition_destroy(&connection->waiter) ==
 			      ISC_R_SUCCESS);
 
@@ -144,7 +143,7 @@ end_connection(omapi_connection_t *connection) {
 		/*
 		 * The client connection will be waiting if the error was
 		 * triggered in one of the socket event handlers.  It will
-		 * not be waiting an error happened in omapi_meesgae_send
+		 * not be waiting an error happened in omapi_message_send
 		 * or send_intro.
 		 *
 		 * The server connection will never be waiting.
@@ -192,7 +191,7 @@ end_connection(omapi_connection_t *connection) {
  * Pause the client until it has received a message from the server, either the
  * introductory message or a response to a message it has sent.  This is
  * necessary because the underlying socket library is multithreaded, and
- * it is possible that reading incoming data would trigger an error 
+ * it is possible that reading incoming data would trigger an error
  * that causes the connection to be destroyed --- while the client program
  * is still trying to use it.
  *
@@ -218,7 +217,7 @@ connection_wait(omapi_connection_t *connection_handle) {
 
 	INSIST(connection->state == omapi_connection_connecting ||
 	       connection->state == omapi_connection_connected);
-	
+
 	connection->waiting = ISC_TRUE;
 
 	while (connection->events_pending > 0)
@@ -314,7 +313,7 @@ recv_done(isc_task_t *task, isc_event_t *event) {
 	unsigned int bytes_read;
 
 	UNUSED(task);
-	
+
 	sock = event->ev_sender;
 	connection = event->ev_arg;
 	socketevent = (isc_socketevent_t *)event;
@@ -341,10 +340,10 @@ recv_done(isc_task_t *task, isc_event_t *event) {
 	/*
 	 * Restore the input buffers to the connection object.
 	 */
-	for (buffer = ISC_LIST_HEAD(bufferlist);
-	     buffer != NULL;
-	     buffer = ISC_LIST_NEXT(buffer, link))
+	while ((buffer = ISC_LIST_HEAD(bufferlist)) != NULL) {
+		ISC_LIST_UNLINK(bufferlist, buffer, link);
 		ISC_LIST_APPEND(connection->input_buffers, buffer, link);
+	}
 
 	if (result == ISC_R_SUCCESS) {
 		connection->in_bytes += bytes_read;
@@ -402,7 +401,7 @@ send_done(isc_task_t *task, isc_event_t *event) {
 	unsigned int sent_bytes;
 
 	UNUSED(task);
-	
+
 	sock = event->ev_sender;
 	connection = event->ev_arg;
 	socketevent = (isc_socketevent_t *)event;
@@ -439,6 +438,7 @@ send_done(isc_task_t *task, isc_event_t *event) {
 	 * end_connection can free the buffer, if it is called below.
 	 */
 	buffer = ISC_LIST_HEAD(bufferlist);
+	ISC_LIST_UNLINK(bufferlist, buffer, link);
 	ISC_LIST_APPEND(connection->output_buffers, buffer, link);
 	isc_buffer_clear(buffer);
 
@@ -491,7 +491,7 @@ connection_send(omapi_connection_t *connection) {
 	 */
 	if (connection->is_client)
 		LOCK(&connection->wait_lock);
-		
+
 	isc_socket_sendv(connection->socket, &connection->output_buffers,
 			 connection->task, send_done, connection);
 
@@ -549,7 +549,7 @@ connect_toserver(omapi_object_t *protocol, const char *server_name,
 				     sizeof(*connection));
 	if (result != ISC_R_SUCCESS)
 		goto free_obuffer;
-		
+
 	connection->is_client = ISC_TRUE;
 	connection->waiting = ISC_FALSE;
 	connection->state = omapi_connection_connecting;
@@ -714,7 +714,7 @@ connection_copyout(unsigned char *dst, omapi_connection_t *connection,
 	REQUIRE(protocol != NULL && protocol->type == omapi_type_protocol);
 
 	INSIST(size <= connection->in_bytes);
-	
+
 	connection->bytes_needed -= size;
 
 	buffer = ISC_LIST_HEAD(connection->input_buffers);
@@ -946,7 +946,7 @@ omapi_connection_putuint32(omapi_object_t *c, isc_uint32_t value) {
 	isc_uint32_t inbuf;
 
 	inbuf = htonl(value);
-	
+
 	return (omapi_connection_putmem(c, (unsigned char *)&inbuf,
 					sizeof(inbuf)));
 }
@@ -958,7 +958,7 @@ omapi_connection_putuint16(omapi_object_t *c, isc_uint32_t value) {
 	REQUIRE(value < 65536);
 
 	inbuf = htons((isc_uint16_t)value);
-	
+
 	return (omapi_connection_putmem(c, (unsigned char *)&inbuf,
 					sizeof(inbuf)));
 }
@@ -1073,7 +1073,7 @@ connection_setvalue(omapi_object_t *connection, omapi_string_t *name,
 {
 	REQUIRE(connection != NULL &&
 		connection->type == omapi_type_connection);
-	
+
 	return (omapi_object_passsetvalue(connection, name, value));
 }
 
@@ -1124,7 +1124,7 @@ connection_signalhandler(omapi_object_t *connection, const char *name,
 {
 	REQUIRE(connection != NULL &&
 		connection->type == omapi_type_connection);
-	
+
 	return (omapi_object_passsignal(connection, name, ap));
 }
 

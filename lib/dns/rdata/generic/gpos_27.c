@@ -1,21 +1,21 @@
 /*
  * Copyright (C) 1999, 2000  Internet Software Consortium.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
- * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
- * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
- * SOFTWARE.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+ * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+ * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: gpos_27.c,v 1.22 2000/06/01 18:26:08 tale Exp $ */
+/* $Id: gpos_27.c,v 1.27 2000/12/01 01:40:19 gson Exp $ */
 
 /* reviewed: Wed Mar 15 16:48:45 PST 2000 by brister */
 
@@ -38,8 +38,9 @@ fromtext_gpos(ARGS_FROMTEXT) {
 	UNUSED(downcase);
 
 	for (i = 0; i < 3 ; i++) {
-		RETERR(gettoken(lexer, &token, isc_tokentype_qstring,
-				ISC_FALSE));
+		RETERR(isc_lex_getmastertoken(lexer, &token,
+					      isc_tokentype_qstring,
+					      ISC_FALSE));
 		RETERR(txt_fromtext(&token.value.as_textregion, target));
 	}
 	return (ISC_R_SUCCESS);
@@ -51,6 +52,7 @@ totext_gpos(ARGS_TOTEXT) {
 	int i;
 
 	REQUIRE(rdata->type == 27);
+	REQUIRE(rdata->length != 0);
 
 	UNUSED(tctx);
 
@@ -84,6 +86,7 @@ static inline isc_result_t
 towire_gpos(ARGS_TOWIRE) {
 
 	REQUIRE(rdata->type == 27);
+	REQUIRE(rdata->length != 0);
 
 	UNUSED(cctx);
 
@@ -94,10 +97,12 @@ static inline int
 compare_gpos(ARGS_COMPARE) {
 	isc_region_t r1;
 	isc_region_t r2;
-	
+
 	REQUIRE(rdata1->type == rdata2->type);
 	REQUIRE(rdata1->rdclass == rdata2->rdclass);
 	REQUIRE(rdata1->type == 27);
+	REQUIRE(rdata1->length != 0);
+	REQUIRE(rdata2->length != 0);
 
 	dns_rdata_toregion(rdata1, &r1);
 	dns_rdata_toregion(rdata2, &r2);
@@ -112,6 +117,8 @@ fromstruct_gpos(ARGS_FROMSTRUCT) {
 	REQUIRE(source != NULL);
 	REQUIRE(gpos->common.rdtype == type);
 	REQUIRE(gpos->common.rdclass == rdclass);
+
+	UNUSED(rdclass);
 
 	RETERR(uint8_tobuffer(gpos->long_len, target));
 	RETERR(mem_tobuffer(target, gpos->longitude, gpos->long_len));
@@ -128,6 +135,7 @@ tostruct_gpos(ARGS_TOSTRUCT) {
 
 	REQUIRE(rdata->type == 27);
 	REQUIRE(target != NULL);
+	REQUIRE(rdata->length != 0);
 
 	gpos->common.rdclass = rdata->rdclass;
 	gpos->common.rdtype = rdata->type;
@@ -163,7 +171,7 @@ tostruct_gpos(ARGS_TOSTRUCT) {
 			mem_maybedup(mctx, region.base, gpos->alt_len);
 		if (gpos->altitude == NULL)
 			goto cleanup_latitude;
-	} else 
+	} else
 		gpos->altitude = NULL;
 
 	gpos->mctx = mctx;

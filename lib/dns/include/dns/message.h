@@ -1,21 +1,21 @@
 /*
  * Copyright (C) 1999, 2000  Internet Software Consortium.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
- * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
- * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
- * SOFTWARE.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+ * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+ * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: message.h,v 1.72 2000/06/22 21:55:48 tale Exp $ */
+/* $Id: message.h,v 1.83 2000/11/13 21:34:01 bwelling Exp $ */
 
 #ifndef DNS_MESSAGE_H
 #define DNS_MESSAGE_H 1
@@ -41,30 +41,29 @@
  * and if sections consume the entire message) and known pseudo-RRs in the
  * additional data section are analyzed and removed.
  *
- * TSIG checking is also done at this layer, and any DNSSEC information should
- * also be performed at this time.
- *
- * If dns_message_fromwire() returns DNS_R_MOREDATA additional
- * message packets are required.  This implies an EDNS message.
- *
- * When going from structure to wire, dns_message_towire() will return
- * DNS_R_MOREDATA if there is more data left in the output buffer that
- * could not be rendered into the exisiting buffer.
- *
+ * TSIG checking is also done at this layer, and any DNSSEC transaction
+ * signatures should also be checked here.
  *
  * Notes on using the gettemp*() and puttemp*() functions:
  *
  * These functions return items (names, rdatasets, etc) allocated from some
- * internal state of the dns_message_t.  These items must be put back into
- * the dns_message_t in one of two ways.  Assume a name was allocated via
+ * internal state of the dns_message_t.
+ *
+ * Names and rdatasets must be put back into the dns_message_t in
+ * one of two ways.  Assume a name was allocated via
  * dns_message_gettempname():
  *
  *	(1) insert it into a section, using dns_message_addname().
  *
  *	(2) return it to the message using dns_message_puttempname().
  *
- * The same applies to rdata, rdatasets, and rdatalists which were
- * allocated using this group of functions.
+ * The same applies to rdatasets.
+ *
+ * On the other hand, rdatalists and rdatas allocated using
+ * dns_message_gettemp*() will always be freed automatically
+ * when the message is reset or destroyed; calling dns_message_puttemp*()
+ * on these is optional and serves only to enable the item to be reused
+ * multiple times during the lifetime of the message.
  *
  * Buffers allocated using isc_buffer_allocate() can be automatically freed
  * as well by giving the buffer to the message using dns_message_takebuffer().
@@ -84,9 +83,8 @@
  *
  * TODO:
  *
- * XXX Needed:  ways to handle TSIG and DNSSEC, supply TSIG and DNSSEC
- * keys, set and retrieve EDNS information, add rdata to a section,
- * move rdata from one section to another, remove rdata, etc.
+ * XXX Needed:  ways to set and retrieve EDNS information, add rdata to a
+ * section, move rdata from one section to another, remove rdata, etc.
  */
 
 #define DNS_MESSAGEFLAG_QR		0x8000U
@@ -96,6 +94,8 @@
 #define DNS_MESSAGEFLAG_RA		0x0080U
 #define DNS_MESSAGEFLAG_AD		0x0020U
 #define DNS_MESSAGEFLAG_CD		0x0010U
+
+#define DNS_MESSAGEEXTFLAG_DO		0x8000U
 
 #define DNS_MESSAGE_REPLYPRESERVE	(DNS_MESSAGEFLAG_RD)
 
@@ -141,6 +141,14 @@ typedef int dns_messagetextflag_t;
 #define DNS_MESSAGE_INTENTUNKNOWN	0 /* internal use only */
 #define DNS_MESSAGE_INTENTPARSE		1 /* parsing messages */
 #define DNS_MESSAGE_INTENTRENDER	2 /* rendering */
+
+/*
+ * Control behavior of parsing
+ */
+#define DNS_MESSAGEPARSE_PRESERVEORDER	0x0001	/* preserve rdata order */
+#define DNS_MESSAGEPARSE_BESTEFFORT	0x0002	/* return a message if a
+						   recoverable parse error
+						   occurs */
 
 /*
  * Control behavior of rendering
@@ -211,6 +219,10 @@ struct dns_message {
 	dns_rcode_t			sig0status;
 	isc_region_t		       *query;
 	isc_region_t		       *saved;
+	isc_buffer_t		       *rawmessge;
+
+	dns_rdatasetorderfunc_t		order;
+	void *				order_arg;
 };
 
 /***
@@ -221,7 +233,7 @@ ISC_LANG_BEGINDECLS
 
 isc_result_t
 dns_message_create(isc_mem_t *mctx, unsigned int intent, dns_message_t **msgp);
-		   
+
 /*
  * Create msg structure.
  *
@@ -289,7 +301,7 @@ dns_message_pseudosectiontotext(dns_message_t *msg,
 				dns_messagetextflag_t flags,
 				isc_buffer_t *target);
 /*
- * Convert section 'section' or 'pseudosection' of message 'msg' to 
+ * Convert section 'section' or 'pseudosection' of message 'msg' to
  * a cleartext representation
  *
  * Notes:
@@ -317,7 +329,7 @@ dns_message_pseudosectiontotext(dns_message_t *msg,
  *	ISC_R_NOSPACE
  *	ISC_R_NOMORE
  *
- *	Note: On error return, *target may be partially filled with data. 
+ *	Note: On error return, *target may be partially filled with data.
 */
 
 isc_result_t
@@ -327,12 +339,12 @@ dns_message_totext(dns_message_t *msg, dns_messagetextflag_t flags,
  * Convert all sections of message 'msg' to a cleartext representation
  *
  * Notes:
- *      In flags, If DNS_MESSAGETEXTFLAG_OMITDOT is set, then the *
+ *      In flags, If DNS_MESSAGETEXTFLAG_OMITDOT is set, then the
  *      final '.' in absolute names will not be emitted.  If
- *      DNS_MESSAGETEXTFLAG_NOCOMMENTS is cleared, * lines * beginning
+ *      DNS_MESSAGETEXTFLAG_NOCOMMENTS is cleared, lines beginning
  *      with ";;" will be emitted indicating section name.  If
  *      DNS_MESSAGETEXTFLAG_NOHEADERS is cleared, header lines will
- *      be emmitted.
+ *      be emitted.
  *
  * Requires:
  *
@@ -354,11 +366,12 @@ dns_message_totext(dns_message_t *msg, dns_messagetextflag_t flags,
  *	ISC_R_NOSPACE
  *	ISC_R_NOMORE
  *
- *	Note: On error return, *target may be partially filled with data.  */
+ *	Note: On error return, *target may be partially filled with data.
+ */
 
 isc_result_t
 dns_message_parse(dns_message_t *msg, isc_buffer_t *source,
-		  isc_boolean_t preserve_order);
+		  unsigned int options);
 /*
  * Parse raw wire data pointed to by "buffer" and bounded by "buflen" as a
  * DNS message.
@@ -366,22 +379,21 @@ dns_message_parse(dns_message_t *msg, isc_buffer_t *source,
  * OPT records are detected and stored in the pseudo-section "opt".
  * TSIGs are detected and stored in the pseudo-section "tsig".
  *
- * If 'preserve_order' is true, or if the opcode of the message is UPDATE,
- * a separate dns_name_t object will be created for each RR in the message.
- * Each such dns_name_t will have a single rdataset containing the single RR,
- * and the order of the RRs in the message is preserved.
+ * If DNS_MESSAGEPARSE_PRESERVEORDER is set, or if the opcode of the message
+ * is UPDATE, a separate dns_name_t object will be created for each RR in the
+ * message.  Each such dns_name_t will have a single rdataset containing the
+ * single RR, * and the order of the RRs in the message is preserved.
  * Otherwise, only one dns_name_t object will be created for each unique
  * owner name in the section, and each such dns_name_t will have a list
- * of rdatasets.  To access the names and their data, use 
- * dns_message_firstname() and dns_message_nextname(). 
+ * of rdatasets.  To access the names and their data, use
+ * dns_message_firstname() and dns_message_nextname().
+ *
+ * If DNS_MESSAGEPARSE_BESTEFFORT is set, errors in message content will
+ * not be considered FORMERRs.  If the entire message can be parsed, it
+ * will be returned and DNS_R_RECOVERABLE will be returned.
  *
  * OPT and TSIG records are always handled specially, regardless of the
  * 'preserve_order' setting.
- *
- * If this is a multi-packet message (edns) and more data is required to
- * build the full message state, DNS_R_MOREDATA is returned.  In this case,
- * this function should be repeated with all input buffers until ISC_R_SUCCESS
- * (or an error) is returned.
  *
  * Requires:
  *	"msg" be valid.
@@ -397,7 +409,8 @@ dns_message_parse(dns_message_t *msg, isc_buffer_t *source,
  * Returns:
  *	ISC_R_SUCCESS		-- all is well
  *	ISC_R_NOMEMORY		-- no memory
- *	DNS_R_MOREDATA		-- more packets needed for complete message
+ *	DNS_R_RECOVERABLE	-- the message parsed properly, but contained
+ *				   errors.
  *	DNS_R_???		-- bad signature (XXXMLG need more of these)
  *	Many other errors possible XXXMLG
  */
@@ -541,7 +554,7 @@ dns_message_renderend(dns_message_t *msg);
  * Returns:
  *	ISC_R_SUCCESS		-- all is well.
  */
-		      
+
 void
 dns_message_renderreset(dns_message_t *msg);
 /*
@@ -563,7 +576,7 @@ dns_message_firstname(dns_message_t *msg, dns_section_t section);
  * Set internal per-section name pointer to the beginning of the section.
  *
  * The functions dns_message_firstname() and dns_message_nextname() may
- * be used for iterating over the owner names in a section. 
+ * be used for iterating over the owner names in a section.
  *
  * Requires:
  *
@@ -737,8 +750,8 @@ isc_result_t
 dns_message_gettemprdata(dns_message_t *msg, dns_rdata_t **item);
 /*
  * Return a rdata that can be used for any temporary purpose, including
- * inserting into the message's linked lists.  The storage associated with
- * this rdata will be destroyed when the message is destroyed or reset.
+ * inserting into the message's linked lists.  The rdata will be freed
+ * when the message is destroyed or reset.
  *
  * Requires:
  *	msg be a valid message
@@ -754,8 +767,9 @@ isc_result_t
 dns_message_gettemprdataset(dns_message_t *msg, dns_rdataset_t **item);
 /*
  * Return a rdataset that can be used for any temporary purpose, including
- * inserting into the message's linked lists.  The storage associated with
- * this rdataset will be destroyed when the message is destroyed or reset.
+ * inserting into the message's linked lists. The name must be returned
+ * to the message code using dns_message_puttempname() or inserted into
+ * one of the message's sections before the message is destroyed.
  *
  * Requires:
  *	msg be a valid message
@@ -771,8 +785,8 @@ isc_result_t
 dns_message_gettemprdatalist(dns_message_t *msg, dns_rdatalist_t **item);
 /*
  * Return a rdatalist that can be used for any temporary purpose, including
- * inserting into the message's linked lists.  The storage associated with
- * this rdatalist will be destroyed when the message is destroyed or reset.
+ * inserting into the message's linked lists.  The rdatalist will be
+ * destroyed when the message is destroyed or reset.
  *
  * Requires:
  *	msg be a valid message
@@ -876,7 +890,7 @@ dns_message_reply(dns_message_t *msg, isc_boolean_t want_question_section);
  * Requires:
  *
  *	'msg' is a valid message with parsing intent, and contains a query.
- * 
+ *
  * Ensures:
  *
  *	The message will have a rendering intent.  If 'want_question_section'
@@ -1141,7 +1155,7 @@ dns_message_checksig(dns_message_t *msg, dns_view_t *view);
  * Requires:
  *
  *	msg is a valid parsed message.
- *	view is a valid view
+ *	view is a valid view or NULL
  *
  * Returns:
  *
@@ -1151,6 +1165,34 @@ dns_message_checksig(dns_message_t *msg, dns_view_t *view);
  *	DNS_R_EXPECTEDTSIG	- A TSIG was expected, but not seen
  *	DNS_R_UNEXPECTEDTSIG	- A TSIG was seen but not expected
  *	DNS_R_TSIGVERIFYFAILURE - The TSIG failed to verify
+ */
+
+isc_region_t *
+dns_message_getrawmessage(dns_message_t *msg);
+/*
+ * Retrieve the raw message in compressed wire format.  The message must
+ * have been successfully parsed for it to have been saved.
+ *
+ * Requires:
+ *	msg is a valid parsed message.
+ *
+ * Returns:
+ *	NULL	if there is no saved message.
+ *	a pointer to a region which refers the dns message.
+ */
+
+void
+dns_message_setsortorder(dns_message_t *msg, dns_rdatasetorderfunc_t order,
+			 void *order_arg);
+/*
+ * Define the order in which RR sets get rendered by
+ * dns_message_rendersection() to be the ascending order
+ * defined by the integer value returned by 'order' when
+ * given each RR and 'arg' as arguments.  If 'order' and
+ * 'order_arg' are NULL, a default order is used.
+ *
+ * Requires:
+ *	order_arg is NULL if and only if order is NULL.
  */
 
 ISC_LANG_ENDDECLS

@@ -1,21 +1,21 @@
 /*
  * Copyright (C) 1999, 2000  Internet Software Consortium.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
- * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
- * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
- * SOFTWARE.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+ * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+ * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: confkeys.c,v 1.23.2.1 2000/07/12 16:37:10 gson Exp $ */
+/* $Id: confkeys.c,v 1.29 2000/10/20 02:21:52 marka Exp $ */
 
 #include <config.h>
 
@@ -43,7 +43,7 @@ dns_c_kdeflist_new(isc_mem_t *mem, dns_c_kdeflist_t **list) {
 
 	newlist->mem = mem;
 	newlist->magic = DNS_C_KDEFLIST_MAGIC;
-	
+
 	ISC_LIST_INIT(newlist->keydefs);
 
 	*list = newlist;
@@ -59,7 +59,7 @@ dns_c_kdeflist_delete(dns_c_kdeflist_t **list)
 	dns_c_kdef_t *kd;
 	dns_c_kdef_t *tmpkd;
 	isc_result_t res;
-	
+
 	REQUIRE(list != NULL);
 	REQUIRE(DNS_C_KDEFLIST_VALID(*list));
 
@@ -80,7 +80,7 @@ dns_c_kdeflist_delete(dns_c_kdeflist_t **list)
 	isc_mem_put(l->mem, l, sizeof *l);
 
 	*list = NULL;
-	
+
 	return (ISC_R_SUCCESS);
 }
 
@@ -95,12 +95,12 @@ dns_c_kdeflist_copy(isc_mem_t *mem, dns_c_kdeflist_t **dest,
 
 	REQUIRE(dest != NULL);
 	REQUIRE(DNS_C_KDEFLIST_VALID(src));
-	
+
 	res = dns_c_kdeflist_new(mem, &newlist);
 	if (res != ISC_R_SUCCESS) {
 		return (res);
 	}
-	
+
 	key = ISC_LIST_HEAD(src->keydefs);
 	while (key != NULL) {
 		res = dns_c_kdeflist_append(newlist, key, ISC_TRUE);
@@ -108,7 +108,7 @@ dns_c_kdeflist_copy(isc_mem_t *mem, dns_c_kdeflist_t **dest,
 			dns_c_kdeflist_delete(&newlist);
 			return (res);
 		}
-		
+
 		key = ISC_LIST_NEXT(key, next);
 	}
 
@@ -124,7 +124,7 @@ dns_c_kdeflist_append(dns_c_kdeflist_t *list,
 {
 	dns_c_kdef_t *newe;
 	isc_result_t res;
-	
+
 	REQUIRE(DNS_C_KDEFLIST_VALID(list));
 	REQUIRE(DNS_C_KDEF_VALID(key));
 
@@ -217,7 +217,7 @@ dns_c_kdeflist_print(FILE *fp, int indent, dns_c_kdeflist_t *list)
 	if (list == NULL) {
 		return;
 	}
-	
+
 	kd = ISC_LIST_HEAD(list->keydefs);
 	while (kd != NULL) {
 		dns_c_kdef_print(fp, indent, kd);
@@ -235,7 +235,7 @@ dns_c_kdef_new(isc_mem_t *mem, const char *name, dns_c_kdef_t **keyid)
 	REQUIRE(keyid != NULL);
 	REQUIRE(name != NULL);
 	REQUIRE(*name != '\0');
-	
+
 	kd = isc_mem_get(mem, sizeof *kd);
 	if (kd == NULL) {
 		return (ISC_R_NOMEMORY);
@@ -244,16 +244,18 @@ dns_c_kdef_new(isc_mem_t *mem, const char *name, dns_c_kdef_t **keyid)
 	kd->keyid = isc_mem_strdup(mem, name);
 	if (kd->keyid == NULL) {
 		isc_mem_put(mem, kd, sizeof *kd);
+		return (ISC_R_NOMEMORY);
 	}
 
 	kd->magic = DNS_C_KDEF_MAGIC;
 	kd->mem = mem;
-	
+
 	kd->algorithm = NULL;
 	kd->secret = NULL;
+	ISC_LINK_INIT(kd, next);
 
 	*keyid = kd;
-	
+
 	return (ISC_R_SUCCESS);
 }
 
@@ -266,11 +268,11 @@ dns_c_kdef_delete(dns_c_kdef_t **keydef)
 
 	REQUIRE(keydef != NULL);
 	REQUIRE(DNS_C_KDEF_VALID(*keydef));
-
 	kd = *keydef;
+	REQUIRE(!ISC_LINK_LINKED(kd, next));
 
 	mem = kd->mem;
-	
+
 	isc_mem_free(mem, kd->keyid);
 
 	if (kd->algorithm != NULL) {
@@ -287,8 +289,6 @@ dns_c_kdef_delete(dns_c_kdef_t **keydef)
 	kd->algorithm = NULL;
 	kd->secret = NULL;
 
-	ISC_LINK_INIT(kd,next);
-
 	isc_mem_put(mem, kd, sizeof *kd);
 
 	*keydef = NULL;
@@ -304,26 +304,27 @@ dns_c_kdef_copy(isc_mem_t *mem,
 
 	REQUIRE(dest != NULL);
 	REQUIRE(DNS_C_KDEF_VALID(src));
-	
+
 	newk = isc_mem_get(mem, sizeof *newk);
 	if (newk == NULL) {
 		return (ISC_R_NOMEMORY);
 	}
 	newk->magic = DNS_C_KDEF_MAGIC;
 	newk->secret = newk->algorithm = newk->keyid = NULL;
-	
+	ISC_LINK_INIT(newk, next);
+
 	newk->keyid = isc_mem_strdup(mem, src->keyid);
 	if (newk->keyid == NULL) {
 		dns_c_kdef_delete(&newk);
 		return (ISC_R_NOMEMORY);
 	}
-	
+
 	newk->algorithm = isc_mem_strdup(mem, src->algorithm);
 	if (newk->algorithm == NULL) {
 		dns_c_kdef_delete(&newk);
 		return (ISC_R_NOMEMORY);
 	}
-		
+
 	newk->secret = isc_mem_strdup(mem, src->secret);
 	if (newk->secret == NULL) {
 		dns_c_kdef_delete(&newk);
@@ -335,7 +336,7 @@ dns_c_kdef_copy(isc_mem_t *mem,
 	return (ISC_R_SUCCESS);
 }
 
-		
+
 
 void
 dns_c_kdef_print(FILE *fp, int indent, dns_c_kdef_t *keydef)
@@ -367,7 +368,7 @@ dns_c_kdef_setalgorithm(dns_c_kdef_t *keydef, const char *algorithm)
 	if (keydef->algorithm != NULL) {
 		isc_mem_free(keydef->mem, keydef->algorithm);
 	}
-	
+
 	keydef->algorithm = isc_mem_strdup(keydef->mem, algorithm);
 	if (keydef->algorithm == NULL) {
 		return (ISC_R_NOMEMORY);
@@ -383,11 +384,11 @@ dns_c_kdef_setsecret(dns_c_kdef_t *keydef, const char *secret)
 	REQUIRE(DNS_C_KDEF_VALID(keydef));
 	REQUIRE(secret != NULL);
 	REQUIRE(*secret != '\0');
-	
+
 	if (keydef->secret != NULL) {
 		isc_mem_free(keydef->mem, keydef->secret);
 	}
-	
+
 	keydef->secret = isc_mem_strdup(keydef->mem, secret);
 	if (keydef->secret == NULL) {
 		return (ISC_R_NOMEMORY);
@@ -411,7 +412,7 @@ dns_c_kidlist_new(isc_mem_t *mem, dns_c_kidlist_t **list)
 	l->magic = DNS_C_KEYIDLIST_MAGIC;
 	l->mem = mem;
 	*list = l;
-	
+
 	ISC_LIST_INIT(l->keyids);
 
 	return (ISC_R_SUCCESS);
@@ -427,7 +428,7 @@ dns_c_kidlist_delete(dns_c_kidlist_t **list)
 
 	REQUIRE(list != NULL);
 	REQUIRE(DNS_C_KEYIDLIST_VALID(*list));
-	
+
 	l = *list;
 
 	ki = ISC_LIST_HEAD(l->keyids);
@@ -445,7 +446,7 @@ dns_c_kidlist_delete(dns_c_kidlist_t **list)
 	isc_mem_put(l->mem, l, sizeof *l);
 
 	*list = NULL;
-	
+
 	return (ISC_R_SUCCESS);
 }
 
@@ -467,7 +468,7 @@ dns_c_kidlist_keycount(dns_c_kidlist_t *list)
 	return (count);
 }
 
-       
+
 
 
 
@@ -478,7 +479,7 @@ keyid_delete(dns_c_kid_t **keyid)
 
 	REQUIRE(keyid != NULL);
 	REQUIRE(DNS_C_KEYID_VALID(*keyid));
-	
+
 	ki = *keyid;
 
 	isc_mem_free(ki->mem, ki->keyid);
@@ -487,7 +488,7 @@ keyid_delete(dns_c_kid_t **keyid)
 	isc_mem_put(ki->mem, ki, sizeof *ki);
 
 	*keyid = NULL;
-	
+
 	return (ISC_R_SUCCESS);
 }
 
@@ -501,9 +502,9 @@ dns_c_kidlist_undef(dns_c_kidlist_t *list, const char *keyid)
 	REQUIRE(DNS_C_KEYIDLIST_VALID(list));
 	REQUIRE(keyid != NULL);
 	REQUIRE(*keyid != '\0');
-	
+
 	dns_c_kidlist_find(list, keyid, &ki);
-	
+
 	if (ki != NULL) {
 		ISC_LIST_UNLINK(list->keyids, ki, next);
 		r = keyid_delete(&ki);
@@ -525,7 +526,7 @@ dns_c_kidlist_find(dns_c_kidlist_t *list, const char *keyid,
 	REQUIRE(keyid != NULL);
 	REQUIRE(*keyid != '\0');
 	REQUIRE(retval != NULL);
-	
+
 	iter = ISC_LIST_HEAD(list->keyids);
 	while (iter != NULL) {
 		if (strcmp(keyid, iter->keyid) == 0) {
@@ -577,9 +578,9 @@ dns_c_kidlist_print(FILE *fp, int indent,
 			iter = ISC_LIST_NEXT(iter, next);
 		}
 	}
-	
+
 	dns_c_printtabs(fp, indent);
-	fprintf(fp, "};\n");
+	fprintf(fp, "}");
 }
 
 
@@ -591,7 +592,7 @@ dns_c_kid_new(isc_mem_t *mem, const char *name, dns_c_kid_t **keyid)
 	REQUIRE(name != NULL);
 	REQUIRE(*name != '\0');
 	REQUIRE(keyid != NULL);
-	
+
 	ki = isc_mem_get(mem, sizeof *ki);
 	if (ki == NULL) {
 		return (ISC_R_NOMEMORY);
@@ -600,6 +601,10 @@ dns_c_kid_new(isc_mem_t *mem, const char *name, dns_c_kid_t **keyid)
 	ki->magic = DNS_C_KEYID_MAGIC;
 	ki->mem = mem;
 	ki->keyid = isc_mem_strdup(mem, name);
+	if (ki->keyid == NULL) {
+		isc_mem_put(mem, ki, sizeof *ki);
+		return (ISC_R_NOMEMORY);
+	}
 
 	ISC_LINK_INIT(ki, next);
 
@@ -626,11 +631,11 @@ dns_c_pklist_new(isc_mem_t *mem, dns_c_pklist_t **pklist)
 	ISC_LIST_INIT(newl->keylist);
 
 	*pklist = newl;
-	
+
 	return (ISC_R_SUCCESS);
 }
 
-	
+
 isc_result_t
 dns_c_pklist_delete(dns_c_pklist_t **list)
 {
@@ -677,7 +682,7 @@ dns_c_pklist_print(FILE *fp, int indent, dns_c_pklist_t *list)
 	}
 
 	REQUIRE(DNS_C_PKLIST_VALID(list));
-	
+
 	pk = ISC_LIST_HEAD(list->keylist);
 	while (pk != NULL) {
 		dns_c_pubkey_print(fp, indent, pk);
@@ -796,7 +801,7 @@ dns_c_pubkey_new(isc_mem_t *mem, isc_uint32_t flags,
 		isc_mem_put(mem, pkey, sizeof *pkey);
 		return (ISC_R_NOMEMORY);
 	}
-	
+
 	*pubkey = pkey;
 
 	return (ISC_R_SUCCESS);
@@ -832,7 +837,7 @@ dns_c_pubkey_copy(isc_mem_t *mem, dns_c_pubkey_t **dest, dns_c_pubkey_t *src)
 
 	REQUIRE(DNS_C_PUBKEY_VALID(src));
 	REQUIRE(dest != NULL);
-	
+
 	res = dns_c_pubkey_new(mem, src->flags, src->protocol,
 			       src->algorithm, src->key, &k);
 	if (res != ISC_R_SUCCESS) {
@@ -902,7 +907,7 @@ dns_c_tkeylist_delete(dns_c_tkeylist_t **list)
 	REQUIRE(DNS_C_TKEYLIST_VALID(*list));
 
 	l = *list;
-		
+
 	tkey = ISC_LIST_HEAD(l->tkeylist);
 	while (tkey != NULL) {
 		tmptkey = ISC_LIST_NEXT(tkey, next);
@@ -912,7 +917,7 @@ dns_c_tkeylist_delete(dns_c_tkeylist_t **list)
 		if (res != ISC_R_SUCCESS) {
 			return (res);
 		}
-		
+
 		tkey = tmptkey;
 	}
 
@@ -920,7 +925,7 @@ dns_c_tkeylist_delete(dns_c_tkeylist_t **list)
 	isc_mem_put(l->mem, l, sizeof *l);
 
 	*list = NULL;
-	
+
 	return (ISC_R_SUCCESS);
 }
 
@@ -935,12 +940,12 @@ dns_c_tkeylist_copy(isc_mem_t *mem, dns_c_tkeylist_t **dest,
 
 	REQUIRE(dest != NULL);
 	REQUIRE(DNS_C_TKEYLIST_VALID(src));
-	
+
 	res = dns_c_tkeylist_new(mem, &newlist);
 	if (res != ISC_R_SUCCESS) {
 		return (res);
 	}
-	
+
 	tkey = ISC_LIST_HEAD(src->tkeylist);
 	while (tkey != NULL) {
 		res = dns_c_tkey_copy(mem, &tmptkey, tkey);
@@ -955,7 +960,7 @@ dns_c_tkeylist_copy(isc_mem_t *mem, dns_c_tkeylist_t **dest,
 			dns_c_tkeylist_delete(&newlist);
 			return (res);
 		}
-		
+
 		tkey = ISC_LIST_NEXT(tkey, next);
 	}
 
@@ -969,10 +974,10 @@ void
 dns_c_tkeylist_print(FILE *fp, int indent, dns_c_tkeylist_t *list)
 {
 	dns_c_tkey_t *tkey;
-	
+
 	REQUIRE(fp != NULL);
 	REQUIRE(DNS_C_TKEYLIST_VALID(list));
-	
+
 	dns_c_printtabs(fp, indent);
 	fprintf(fp, "trusted-keys {\n");
 	tkey = ISC_LIST_HEAD(list->tkeylist);
@@ -996,7 +1001,7 @@ dns_c_tkeylist_append(dns_c_tkeylist_t *list, dns_c_tkey_t *element,
 {
 	dns_c_tkey_t *newe;
 	isc_result_t res;
-	
+
 	REQUIRE(DNS_C_TKEYLIST_VALID(list));
 	REQUIRE(DNS_C_TKEY_VALID(element));
 
@@ -1052,7 +1057,7 @@ dns_c_tkey_new(isc_mem_t *mem, const char *domain, isc_uint32_t flags,
 		isc_mem_put(mem, newk, sizeof *newk);
 		return (ISC_R_NOMEMORY);
 	}
-	
+
 	newk->pubkey = pk;
 
 	ISC_LINK_INIT(newk, next);
@@ -1083,9 +1088,9 @@ dns_c_tkey_delete(dns_c_tkey_t **tkey)
 
 	tk->magic = 0;
 	isc_mem_put(tk->mem, tk, sizeof *tk);
-	
+
 	*tkey = NULL;
-	
+
 	return (ISC_R_SUCCESS);
 }
 
@@ -1165,7 +1170,7 @@ dns_c_tkey_getkey(dns_c_tkey_t *tkey, const char **key)
 {
 	REQUIRE(key != NULL);
 	REQUIRE(DNS_C_TKEY_VALID(tkey));
-	
+
 	*key = tkey->pubkey->key;
 
 	return (ISC_R_SUCCESS);

@@ -1,21 +1,21 @@
 /*
  * Copyright (C) 1999, 2000  Internet Software Consortium.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
- * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
- * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
- * SOFTWARE.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+ * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+ * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: isdn_20.c,v 1.20 2000/06/01 18:26:10 tale Exp $ */
+/* $Id: isdn_20.c,v 1.25 2000/12/01 01:40:22 gson Exp $ */
 
 /* Reviewed: Wed Mar 15 16:53:11 PST 2000 by bwelling */
 
@@ -37,11 +37,13 @@ fromtext_isdn(ARGS_FROMTEXT) {
 	REQUIRE(type == 20);
 
 	/* ISDN-address */
-	RETERR(gettoken(lexer, &token, isc_tokentype_qstring, ISC_FALSE));
+	RETERR(isc_lex_getmastertoken(lexer, &token, isc_tokentype_qstring,
+				      ISC_FALSE));
 	RETERR(txt_fromtext(&token.value.as_textregion, target));
 
 	/* sa: optional */
-	RETERR(gettoken(lexer, &token, isc_tokentype_qstring, ISC_TRUE));
+	RETERR(isc_lex_getmastertoken(lexer, &token, isc_tokentype_qstring,
+				      ISC_TRUE));
 	if (token.type != isc_tokentype_string &&
 	    token.type != isc_tokentype_qstring) {
 		isc_lex_ungettoken(lexer, &token);
@@ -57,6 +59,7 @@ totext_isdn(ARGS_TOTEXT) {
 	UNUSED(tctx);
 
 	REQUIRE(rdata->type == 20);
+	REQUIRE(rdata->length != 0);
 
 	dns_rdata_toregion(rdata, &region);
 	RETERR(txt_totext(&region, target));
@@ -85,6 +88,7 @@ towire_isdn(ARGS_TOWIRE) {
 	UNUSED(cctx);
 
 	REQUIRE(rdata->type == 20);
+	REQUIRE(rdata->length != 0);
 
 	return (mem_tobuffer(target, rdata->data, rdata->length));
 }
@@ -93,10 +97,12 @@ static inline int
 compare_isdn(ARGS_COMPARE) {
 	isc_region_t r1;
 	isc_region_t r2;
-	
+
 	REQUIRE(rdata1->type == rdata2->type);
 	REQUIRE(rdata1->rdclass == rdata2->rdclass);
 	REQUIRE(rdata1->type == 20);
+	REQUIRE(rdata1->length != 0);
+	REQUIRE(rdata2->length != 0);
 
 	dns_rdata_toregion(rdata1, &r1);
 	dns_rdata_toregion(rdata2, &r2);
@@ -112,6 +118,8 @@ fromstruct_isdn(ARGS_FROMSTRUCT) {
 	REQUIRE(isdn->common.rdtype == type);
 	REQUIRE(isdn->common.rdclass == rdclass);
 
+	UNUSED(rdclass);
+
 	RETERR(uint8_tobuffer(isdn->isdn_len, target));
 	RETERR(mem_tobuffer(target, isdn->isdn, isdn->isdn_len));
 	RETERR(uint8_tobuffer(isdn->subaddress_len, target));
@@ -125,6 +133,7 @@ tostruct_isdn(ARGS_TOSTRUCT) {
 
 	REQUIRE(rdata->type == 20);
 	REQUIRE(target != NULL);
+	REQUIRE(rdata->length != 0);
 
 	isdn->common.rdclass = rdata->rdclass;
 	isdn->common.rdtype = rdata->type;
@@ -166,7 +175,7 @@ freestruct_isdn(ARGS_FREESTRUCT) {
 	dns_rdata_isdn_t *isdn = source;
 
 	REQUIRE(source != NULL);
-	
+
 	if (isdn->mctx == NULL)
 		return;
 

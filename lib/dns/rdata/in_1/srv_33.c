@@ -1,21 +1,21 @@
 /*
  * Copyright (C) 1999, 2000  Internet Software Consortium.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
- * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
- * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
- * SOFTWARE.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+ * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+ * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: srv_33.c,v 1.26 2000/06/01 18:26:50 tale Exp $ */
+/* $Id: srv_33.c,v 1.31 2000/12/01 01:40:58 gson Exp $ */
 
 /* Reviewed: Fri Mar 17 13:01:00 PST 2000 by bwelling */
 
@@ -35,10 +35,13 @@ fromtext_in_srv(ARGS_FROMTEXT) {
 	REQUIRE(type == 33);
 	REQUIRE(rdclass == 1);
 
+	UNUSED(rdclass);
+
 	/*
 	 * Priority.
 	 */
-	RETERR(gettoken(lexer, &token, isc_tokentype_number, ISC_FALSE));
+	RETERR(isc_lex_getmastertoken(lexer, &token, isc_tokentype_number,
+				      ISC_FALSE));
 	if (token.value.as_ulong > 0xffff)
 		return (ISC_R_RANGE);
 	RETERR(uint16_tobuffer(token.value.as_ulong, target));
@@ -46,7 +49,8 @@ fromtext_in_srv(ARGS_FROMTEXT) {
 	/*
 	 * Weight.
 	 */
-	RETERR(gettoken(lexer, &token, isc_tokentype_number, ISC_FALSE));
+	RETERR(isc_lex_getmastertoken(lexer, &token, isc_tokentype_number,
+				      ISC_FALSE));
 	if (token.value.as_ulong > 0xffff)
 		return (ISC_R_RANGE);
 	RETERR(uint16_tobuffer(token.value.as_ulong, target));
@@ -54,7 +58,8 @@ fromtext_in_srv(ARGS_FROMTEXT) {
 	/*
 	 * Port.
 	 */
-	RETERR(gettoken(lexer, &token, isc_tokentype_number, ISC_FALSE));
+	RETERR(isc_lex_getmastertoken(lexer, &token, isc_tokentype_number,
+				      ISC_FALSE));
 	if (token.value.as_ulong > 0xffff)
 		return (ISC_R_RANGE);
 	RETERR(uint16_tobuffer(token.value.as_ulong, target));
@@ -62,7 +67,8 @@ fromtext_in_srv(ARGS_FROMTEXT) {
 	/*
 	 * Target.
 	 */
-	RETERR(gettoken(lexer, &token, isc_tokentype_string, ISC_FALSE));
+	RETERR(isc_lex_getmastertoken(lexer, &token, isc_tokentype_string,
+				      ISC_FALSE));
 	dns_name_init(&name, NULL);
 	buffer_fromregion(&buffer, &token.value.as_region);
 	origin = (origin != NULL) ? origin : dns_rootname;
@@ -80,6 +86,7 @@ totext_in_srv(ARGS_TOTEXT) {
 
 	REQUIRE(rdata->type == 33);
 	REQUIRE(rdata->rdclass == 1);
+	REQUIRE(rdata->length != 0);
 
 	dns_name_init(&name, NULL);
 	dns_name_init(&prefix, NULL);
@@ -128,8 +135,10 @@ fromwire_in_srv(ARGS_FROMWIRE) {
 	REQUIRE(type == 33);
 	REQUIRE(rdclass == 1);
 
+	UNUSED(rdclass);
+
 	dns_decompress_setmethods(dctx, DNS_COMPRESS_NONE);
-        
+
         dns_name_init(&name, NULL);
 
 	/*
@@ -153,6 +162,7 @@ towire_in_srv(ARGS_TOWIRE) {
 	isc_region_t sr;
 
 	REQUIRE(rdata->type == 33);
+	REQUIRE(rdata->length != 0);
 
 	dns_compress_setmethods(cctx, DNS_COMPRESS_NONE);
 	/*
@@ -182,6 +192,8 @@ compare_in_srv(ARGS_COMPARE) {
 	REQUIRE(rdata1->rdclass == rdata2->rdclass);
 	REQUIRE(rdata1->type == 33);
 	REQUIRE(rdata1->rdclass == 1);
+	REQUIRE(rdata1->length != 0);
+	REQUIRE(rdata2->length != 0);
 
 	/*
 	 * Priority, weight, port.
@@ -219,6 +231,8 @@ fromstruct_in_srv(ARGS_FROMSTRUCT) {
 	REQUIRE(srv->common.rdtype == type);
 	REQUIRE(srv->common.rdclass == rdclass);
 
+	UNUSED(rdclass);
+
 	RETERR(uint16_tobuffer(srv->priority, target));
 	RETERR(uint16_tobuffer(srv->weight, target));
 	RETERR(uint16_tobuffer(srv->port, target));
@@ -235,6 +249,7 @@ tostruct_in_srv(ARGS_TOSTRUCT) {
 	REQUIRE(rdata->rdclass == 1);
 	REQUIRE(rdata->type == 33);
 	REQUIRE(target != NULL);
+	REQUIRE(rdata->length != 0);
 
 	srv->common.rdclass = rdata->rdclass;
 	srv->common.rdtype = rdata->type;

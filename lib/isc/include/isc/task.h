@@ -1,21 +1,21 @@
 /*
  * Copyright (C) 1998-2000  Internet Software Consortium.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
- * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
- * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
- * SOFTWARE.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+ * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+ * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: task.h,v 1.44 2000/06/22 21:58:08 tale Exp $ */
+/* $Id: task.h,v 1.47 2000/08/01 01:30:51 tale Exp $ */
 
 #ifndef ISC_TASK_H
 #define ISC_TASK_H 1
@@ -230,7 +230,7 @@ isc_task_purgerange(isc_task_t *task, void *sender, isc_eventtype_t first,
  *	Events in the event queue of 'task' whose sender is 'sender', whose
  *	type is >= first and <= last, and whose tag is 'tag' will be purged,
  *	unless they are marked as unpurgable.
- *	
+ *
  *	A sender of NULL will match any sender.  A NULL tag matches any
  *	tag.
  *
@@ -320,7 +320,7 @@ isc_task_unsendrange(isc_task_t *task, void *sender, isc_eventtype_t first,
  *	Events in the event queue of 'task' whose sender is 'sender', whose
  *	type is >= first and <= last, and whose tag is 'tag' will be dequeued
  *	and appended to *events.
- *	
+ *
  *	A sender of NULL will match any sender.  A NULL tag matches any
  *	tag.
  *
@@ -454,6 +454,36 @@ isc_task_setname(isc_task_t *task, const char *name, void *tag);
  *
  * Requires:
  *
+ *	'task' is a valid task.
+ */
+
+const char *
+isc_task_getname(isc_task_t *task);
+/*
+ * Get the name of 'task', as previously set using isc_task_setname().
+ *
+ * Notes:
+ *	This function is for debugging purposes only.
+ *
+ * Requires:
+ *	'task' is a valid task.
+ *
+ * Returns:
+ *	A non-NULL pointer to a null-terminated string.
+ * 	If the task has not been named, the string is
+ * 	empty.
+ *
+ */
+
+void *
+isc_task_gettag(isc_task_t *task);
+/*
+ * Get the tag value for  'task', as previously set using isc_task_settag().
+ *
+ * Notes:
+ *	This function is for debugging purposes only.
+ *
+ * Requires:
  *	'task' is a valid task.
  */
 

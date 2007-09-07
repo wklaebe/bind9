@@ -1,25 +1,21 @@
 #!/bin/sh
 #
 # Copyright (C) 2000  Internet Software Consortium.
-# 
+#
 # Permission to use, copy, modify, and distribute this software for any
 # purpose with or without fee is hereby granted, provided that the above
 # copyright notice and this permission notice appear in all copies.
-# 
-# THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
-# ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
-# OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
-# CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
-# DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
-# PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
-# ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
-# SOFTWARE.
-
-# $Id: tests.sh,v 1.12.2.1 2000/07/10 04:52:09 gson Exp $
-
 #
-# Perform tests
-#
+# THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+# DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+# INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+# INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+# FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+# NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+# WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+
+# $Id: tests.sh,v 1.23 2000/11/22 19:00:46 gson Exp $
 
 SYSTEMTESTTOP=..
 . $SYSTEMTESTTOP/conf.sh
@@ -36,16 +32,16 @@ $DIG +tcp +noadd +nosea +nostat +noquest +nocomm +nocmd +noauth \
 	a.example. @10.53.0.3 any -p 5300 > dig.out.ns3.1 || status=1
 grep ";" dig.out.ns3.1	# XXXDCL why is this here?
 
-echo "I:copying in new configuratons for ns2 and ns3"
+echo "I:copying in new configurations for ns2 and ns3"
 rm -f ns2/named.conf ns3/named.conf ns2/example.db
 cp ns2/named2.conf ns2/named.conf
 cp ns3/named2.conf ns3/named.conf
 cp ns2/example2.db ns2/example.db
 
-echo "I:sleeping five seconds then reloading ns2 and ns3"
+echo "I:sleeping five seconds then reloading ns2 and ns3 with rndc"
 sleep 5
-kill -HUP `cat ns2/named.pid`
-kill -HUP `cat ns3/named.pid`
+$RNDC -c rndc.conf -s 10.53.0.2 -p 9953 reload 2>&1 | sed 's/^/I:ns2 /'
+$RNDC -c rndc.conf -s 10.53.0.3 -p 9953 reload 2>&1 | sed 's/^/I:ns3 /'
 
 echo "I:sleeping one minute"
 sleep 60
@@ -76,11 +72,10 @@ $PERL ../digcomp.pl dig.out.ns3.1 dig.out.ns3.2 || status=1
 echo "I:comparing ns2's initial a.example to one from reconfigured 10.53.0.4"
 $PERL ../digcomp.pl dig.out.ns2.1 dig.out.ns4.2 || status=1
 
-echo "I:differences should be found in the following lines, with"
-echo "I:intmail.example in ns3.2 and mail.example in ns2.1, when"
 echo "I:comparing ns2's initial a.example to one from reconfigured 10.53.0.3"
-$PERL ../digcomp.pl dig.out.ns2.1 dig.out.ns3.2
-if [ $? = 0 ]; then
+echo "I:(should be different)"
+if $PERL ../digcomp.pl dig.out.ns2.1 dig.out.ns3.2 >/dev/null
+then
 	echo "I:no differences found.  something's wrong."
 	status=1
 fi

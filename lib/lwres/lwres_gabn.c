@@ -1,21 +1,21 @@
 /*
  * Copyright (C) 2000  Internet Software Consortium.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
- * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
- * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
- * SOFTWARE.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+ * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+ * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: lwres_gabn.c,v 1.21.2.1 2000/06/27 18:57:44 gson Exp $ */
+/* $Id: lwres_gabn.c,v 1.25 2000/11/16 00:06:38 bwelling Exp $ */
 
 #include <config.h>
 
@@ -30,71 +30,6 @@
 
 #include "context_p.h"
 #include "assert_p.h"
-
-static void
-lwres_sortlist(lwres_context_t *ctx, lwres_addrlist_t *inlist,
-	       lwres_addrlist_t *outlist)
-{
-	unsigned int i, x;
-	lwres_conf_t *confdata;
-	unsigned char mask[LWRES_ADDR_MAXLEN];
-	unsigned char sortaddr[LWRES_ADDR_MAXLEN];
-	unsigned char listaddr[LWRES_ADDR_MAXLEN];
-	unsigned int length;
-	lwres_addr_t *addr;
-	lwres_addr_t *nextaddr;
-
-	confdata = &ctx->confdata;
-
-	/*
-	 * If there is no sortlist, we're done.
-	 */
-	if (confdata->sortlistnxt == 0) {
-		*outlist = *inlist;
-		return;
-	}
-
-	LWRES_LIST_INIT(*outlist);
-
-	for (i = 0 ; i < confdata->sortlistnxt ; i++) {
-		length = confdata->sortlist[i].addr.length;
-		INSIST(length == confdata->sortlist[i].mask.length);
-		memcpy(mask, confdata->sortlist[i].mask.address, length);
-		memcpy(sortaddr, confdata->sortlist[i].addr.address, length);
-		for (x = 0 ; x < length ; x++)
-			sortaddr[x] &= mask[x];
-
-		addr = LWRES_LIST_HEAD(*inlist);
-		while (addr != NULL) {
-			nextaddr = LWRES_LIST_NEXT(addr, link);
-
-			if (addr->family != confdata->sortlist[i].addr.family)
-				goto next;
-
-			memcpy(listaddr, addr->address, length);
-			for (x = 0 ; x < length ; x++)
-				listaddr[x] &= mask[x];
-
-			if (memcmp(listaddr, sortaddr, length) == 0) {
-				LWRES_LIST_UNLINK(*inlist, addr, link);
-				LWRES_LIST_APPEND(*outlist, addr, link);
-			}
-
-		next:
-			addr = nextaddr;
-		}
-	}
-
-	/*
-	 * Get everything that doesn't match any sortlist lines.
-	 */
-	addr = LWRES_LIST_HEAD(*inlist);
-	while (addr != NULL) {
-		LWRES_LIST_UNLINK(*inlist, addr, link);
-		LWRES_LIST_APPEND(*outlist, addr, link);
-		addr = LWRES_LIST_HEAD(*inlist);
-	}
-}
 
 lwres_result_t
 lwres_gabnrequest_render(lwres_context_t *ctx, lwres_gabnrequest_t *req,
@@ -412,11 +347,7 @@ lwres_gabnresponse_parse(lwres_context_t *ctx, lwres_buffer_t *b,
 		goto out;
 	}
 
-	/*
-	 * Do the sortlist thing here.  After this is done, "addrlist"
-	 * must NOT be used again, since it will be very very bogus.
-	 */
-	lwres_sortlist(ctx, &addrlist, &gabn->addrs);
+	gabn->addrs = addrlist;
 
 	*structp = gabn;
 	return (LWRES_R_SUCCESS);

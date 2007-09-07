@@ -1,21 +1,21 @@
 /*
  * Copyright (C) 1999, 2000  Internet Software Consortium.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
- * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
- * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
- * SOFTWARE.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+ * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+ * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dispatch.h,v 1.32 2000/06/23 17:30:59 marka Exp $ */
+/* $Id: dispatch.h,v 1.37 2000/11/03 02:45:52 bwelling Exp $ */
 
 #ifndef DNS_DISPATCH_H
 #define DNS_DISPATCH_H 1
@@ -154,6 +154,29 @@ dns_dispatchmgr_destroy(dns_dispatchmgr_t **mgrp);
  */
 
 
+void
+dns_dispatchmgr_setblackhole(dns_dispatchmgr_t *mgr, dns_acl_t *blackhole);
+/*
+ * Sets the list of addresses that will be blackholed (ignored)
+ * by all dispatchers created by the dispatchmgr.
+ *
+ * Requires:
+ * 	mgrp is a valid dispatchmgr
+ * 	blackhole is a valid acl
+ */
+
+
+isc_result_t
+dns_dispatchmgr_getblackhole(dns_dispatchmgr_t *mgr, dns_acl_t **blackholep);
+/*
+ * Gets the list of addresses that will be blackholed (ignored)
+ * by all dispatchers created by the dispatchmgr.
+ *
+ * Requires:
+ * 	mgr is a valid dispatchmgr
+ * 	blackholep != NULL && *blackholep == NULL
+ */
+
 isc_result_t
 dns_dispatchmgr_find(dns_dispatchmgr_t *mgr,
 		     isc_sockaddr_t *local, isc_sockaddr_t *remote,
@@ -190,6 +213,30 @@ dns_dispatch_getudp(dns_dispatchmgr_t *mgr, isc_socketmgr_t *sockmgr,
 		    unsigned int buckets, unsigned int increment,
 		    unsigned int attributes, unsigned int mask,
 		    dns_dispatch_t **dispp);
+/*
+ * Attach to existing dns_dispatch_t if one is found with dns_dispatchmgr_find,
+ * otherwise create a new UDP dispatch.
+ *
+ * Requires:
+ *	All pointer parameters be valid for their respective types.
+ *
+ *	dispp != NULL && *disp == NULL
+ *
+ *	512 <= buffersize <= 64k
+ *
+ *	maxbuffers > 0
+ *
+ *	buckets < 2097169
+ *
+ *	increment > buckets
+ *
+ *	(attributes & DNS_DISPATCHATTR_TCP) == 0
+ *
+ * Returns:
+ *	ISC_R_SUCCESS	-- success.
+ *
+ *	Anything else	-- failure.
+ */
 
 isc_result_t
 dns_dispatch_createtcp(dns_dispatchmgr_t *mgr, isc_socket_t *sock,
@@ -220,8 +267,7 @@ dns_dispatch_createtcp(dns_dispatchmgr_t *mgr, isc_socket_t *sock,
  *
  *	task is a valid task that can be used internally to this dispatcher.
  *
- * 	"buffersize" >= 512, which is the minimum receive size for a
- *	DNS message.
+ * 	512 <= buffersize <= 64k
  *
  *	maxbuffers > 0.
  *
@@ -229,9 +275,16 @@ dns_dispatch_createtcp(dns_dispatchmgr_t *mgr, isc_socket_t *sock,
  *
  *	buckets < 2097169 (the next prime after 65536 * 32)
  *
- *	increment > buckets (and prime)
+ *	increment > buckets (and prime).
+ *
+ *	attributes includes DNS_DISPATCHATTR_TCP and does not include
+ *	DNS_DISPATCHATTR_UDP.
+ *
+ * Returns:
+ *	ISC_R_SUCCESS	-- success.
+ *
+ *	Anything else	-- failure.
  */
-
 
 void
 dns_dispatch_attach(dns_dispatch_t *disp, dns_dispatch_t **dispp);
@@ -239,15 +292,10 @@ dns_dispatch_attach(dns_dispatch_t *disp, dns_dispatch_t **dispp);
  * Attach to a dispatch handle.
  *
  * Requires:
- *	< mumble >
+ *	disp is valid.
  *
- * Ensures:
- *	< mumble >
- *
- * Returns:
- *	< mumble >
+ *	dispp != NULL && *dispp == NULL
  */
-
 
 void
 dns_dispatch_detach(dns_dispatch_t **dispp);
@@ -255,16 +303,10 @@ dns_dispatch_detach(dns_dispatch_t **dispp);
  * Detaches from the dispatch.
  *
  * Requires:
- *	< mumble >
- *
- * Ensures:
- *	< mumble >
- *
- * Returns:
- *	< mumble >
+ *	dispp != NULL and *dispp be a valid dispatch.
  */
 
-void    
+void
 dns_dispatch_starttcp(dns_dispatch_t *disp);
 /*
  * Start processing of a TCP dispatch once the socket connects.
@@ -321,12 +363,6 @@ dns_dispatch_removeresponse(dns_dispentry_t **resp,
  * Requires:
  *	"resp" != NULL and "*resp" contain a value previously allocated
  *	by dns_dispatch_addresponse();
- *
- * Ensures:
- *	< mumble >
- *
- * Returns:
- *	< mumble >
  */
 
 
@@ -340,13 +376,16 @@ dns_dispatch_addrequest(dns_dispatch_t *disp,
  * or through dns_dispatch_removerequest() for another to be delivered.
  *
  * Requires:
- *	< mumble >
+ *	disp is valid.
  *
- * Ensures:
- *	< mumble >
+ *	task, action, and arg is valid.
+ *
+ *	resp != NULL && *resp == NULL
  *
  * Returns:
- *	< mumble >
+ *	ISC_R_SUCCESS	-- success.
+ *
+ *	Anything else	-- failure.
  */
 
 
@@ -359,13 +398,9 @@ dns_dispatch_removerequest(dns_dispentry_t **resp,
  * also returned to the system.
  *
  * Requires:
- *	< mumble >
+ *	resp != NULL and *resp is valid.
  *
- * Ensures:
- *	< mumble >
- *
- * Returns:
- *	< mumble >
+ *	If sockevent != NULL, *sockevent must is valid.
  */
 
 
@@ -378,13 +413,12 @@ dns_dispatch_freeevent(dns_dispatch_t *disp, dns_dispentry_t *resp,
  * processed, and the associated buffer is no longer needed.
  *
  * Requires:
- *	< mumble >
+ *	disp is valid.
  *
- * Ensures:
- *	< mumble >
+ *	resp is valid.
  *
- * Returns:
- *	< mumble >
+ *	sockevent != NULL && *sockevent is valid.
+ *	
  */
 
 
@@ -394,13 +428,10 @@ dns_dispatch_getsocket(dns_dispatch_t *disp);
  * Return the socket associated with this dispatcher.
  *
  * Requires:
- *	< mumble >
- *
- * Ensures:
- *	< mumble >
+ *	disp is valid.
  *
  * Returns:
- *	< mumble >
+ *	The socket the dispatcher is using.
  */
 
 
@@ -410,13 +441,7 @@ dns_dispatch_cancel(dns_dispatch_t *disp);
  * cancel outstanding clients
  *
  * Requires:
- *	< mumble >
- *
- * Ensures:
- *	< mumble >
- *
- * Returns:
- *	< mumble >
+ *	disp is valid.
  */
 
 void
@@ -426,14 +451,15 @@ dns_dispatch_changeattributes(dns_dispatch_t *disp,
  * Set the bits described by "mask" to the corresponding values in
  * "attributes".
  *
+ * That is:
+ *
+ *	new = (old & ~mask) | (attributes & mask)
+ *
  * Requires:
- *	< mumble >
+ *	disp is valid.
  *
- * Ensures:
- *	< mumble >
- *
- * Returns:
- *	< mumble >
+ *	attributes are reasonable for the dispatch.  That is, setting the UDP
+ *	attribute on a TCP socket isn't reasonable.
  */
 
 ISC_LANG_ENDDECLS

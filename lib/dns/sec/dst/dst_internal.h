@@ -1,11 +1,11 @@
 /*
  * Portions Copyright (C) 2000  Internet Software Consortium.
  * Portions Copyright (C) 1995-2000 by Network Associates, Inc.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM AND
  * NETWORK ASSOCIATES DISCLAIM ALL WARRANTIES WITH REGARD TO THIS
  * SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
@@ -17,7 +17,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dst_internal.h,v 1.25 2000/06/22 21:56:36 tale Exp $ */
+/* $Id: dst_internal.h,v 1.30 2000/09/16 01:12:20 bwelling Exp $ */
 
 #ifndef DST_DST_INTERNAL_H
 #define DST_DST_INTERNAL_H 1
@@ -47,6 +47,7 @@ struct dst_key {
 	unsigned int	key_alg;	/* algorithm of the key */
 	isc_uint32_t	key_flags;	/* flags of the public key */
 	isc_uint16_t	key_id;		/* identifier of the key */
+	dns_rdataclass_t key_class;	/* class of the key record */
 	isc_mem_t	*mctx;		/* memory context */
 	void *		opaque;		/* pointer to key in crypto pkg fmt */
 	dst_func_t *	func;		/* crypto package specific functions */
@@ -96,9 +97,10 @@ struct dst_func {
 isc_result_t dst__openssl_init(void);
 
 isc_result_t dst__hmacmd5_init(struct dst_func **funcp);
-isc_result_t dst__dnssafersa_init(struct dst_func **funcp);
+isc_result_t dst__opensslrsa_init(struct dst_func **funcp);
 isc_result_t dst__openssldsa_init(struct dst_func **funcp);
 isc_result_t dst__openssldh_init(struct dst_func **funcp);
+isc_result_t dst__gssapi_init(struct dst_func **funcp);
 
 /*
  * Destructors
@@ -106,15 +108,10 @@ isc_result_t dst__openssldh_init(struct dst_func **funcp);
 void dst__openssl_destroy(void);
 
 void dst__hmacmd5_destroy(void);
-void dst__dnssafersa_destroy(void);
+void dst__opensslrsa_destroy(void);
 void dst__openssldsa_destroy(void);
 void dst__openssldh_destroy(void);
-
-/*
- * Support functions.
- */
-isc_uint16_t
-dst__id_calc(const unsigned char *key, const int keysize);
+void dst__gssapi_destroy(void);
 
 /*
  * Memory allocators using the DST memory pool.

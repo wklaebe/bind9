@@ -1,21 +1,21 @@
 /*
  * Copyright (C) 1999, 2000  Internet Software Consortium.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
- * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
- * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
- * SOFTWARE.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+ * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+ * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: wks_11.c,v 1.32 2000/06/01 18:26:51 tale Exp $ */
+/* $Id: wks_11.c,v 1.38 2000/12/01 01:40:59 gson Exp $ */
 
 /* Reviewed: Fri Mar 17 15:01:49 PST 2000 by explorer */
 
@@ -47,16 +47,18 @@ fromtext_in_wks(ARGS_FROMTEXT) {
 	char service[32];
 	int i;
 
-	UNUSED(origin);
-	UNUSED(downcase);
-
 	REQUIRE(type == 11);
 	REQUIRE(rdclass == 1);
-	
+
+	UNUSED(origin);
+	UNUSED(downcase);
+	UNUSED(rdclass);
+
 	/*
 	 * IPv4 dotted quad.
 	 */
-	RETERR(gettoken(lexer, &token, isc_tokentype_string, ISC_FALSE));
+	RETERR(isc_lex_getmastertoken(lexer, &token, isc_tokentype_string,
+				      ISC_FALSE));
 
 	isc_buffer_availableregion(target, &region);
 	if (inet_aton(token.value.as_pointer, &addr) != 1)
@@ -69,7 +71,8 @@ fromtext_in_wks(ARGS_FROMTEXT) {
 	/*
 	 * Protocol.
 	 */
-	RETERR(gettoken(lexer, &token, isc_tokentype_string, ISC_FALSE));
+	RETERR(isc_lex_getmastertoken(lexer, &token, isc_tokentype_string,
+				      ISC_FALSE));
 
 	proto = strtol(token.value.as_pointer, &e, 10);
 	if (*e == 0)
@@ -90,8 +93,8 @@ fromtext_in_wks(ARGS_FROMTEXT) {
 
 	memset(bm, 0, sizeof bm);
 	do {
-		RETERR(gettoken(lexer, &token, isc_tokentype_string,
-				  ISC_TRUE));
+		RETERR(isc_lex_getmastertoken(lexer, &token,
+					      isc_tokentype_string, ISC_TRUE));
 		if (token.type != isc_tokentype_string)
 			break;
 
@@ -143,6 +146,7 @@ totext_in_wks(ARGS_TOTEXT) {
 
 	REQUIRE(rdata->type == 11);
 	REQUIRE(rdata->rdclass == 1);
+	REQUIRE(rdata->length != 0);
 
 	dns_rdata_toregion(rdata, &sr);
 	isc_buffer_availableregion(target, &tr);
@@ -156,7 +160,6 @@ totext_in_wks(ARGS_TOTEXT) {
 	RETERR(str_totext(" ", target));
 	RETERR(str_totext(buf, target));
 	isc_region_consume(&sr, 1);
-	RETERR(str_totext(" (", target));
 
 	for (i = 0 ; i < sr.length ; i++) {
 		if (sr.base[i] != 0)
@@ -168,7 +171,6 @@ totext_in_wks(ARGS_TOTEXT) {
 				}
 	}
 
-	RETERR(str_totext(" )", target));
 	return (ISC_R_SUCCESS);
 }
 
@@ -177,11 +179,12 @@ fromwire_in_wks(ARGS_FROMWIRE) {
 	isc_region_t sr;
 	isc_region_t tr;
 
-	UNUSED(dctx);
-	UNUSED(downcase);
-
 	REQUIRE(type == 11);
 	REQUIRE(rdclass == 1);
+
+	UNUSED(dctx);
+	UNUSED(downcase);
+	UNUSED(rdclass);
 
 	isc_buffer_activeregion(source, &sr);
 	isc_buffer_availableregion(target, &tr);
@@ -208,6 +211,7 @@ towire_in_wks(ARGS_TOWIRE) {
 
 	REQUIRE(rdata->type == 11);
 	REQUIRE(rdata->rdclass == 1);
+	REQUIRE(rdata->length != 0);
 
 	dns_rdata_toregion(rdata, &sr);
 	return (mem_tobuffer(target, sr.base, sr.length));
@@ -222,6 +226,8 @@ compare_in_wks(ARGS_COMPARE) {
 	REQUIRE(rdata1->rdclass == rdata2->rdclass);
 	REQUIRE(rdata1->type == 11);
 	REQUIRE(rdata1->rdclass == 1);
+	REQUIRE(rdata1->length != 0);
+	REQUIRE(rdata2->length != 0);
 
 	dns_rdata_toregion(rdata1, &r1);
 	dns_rdata_toregion(rdata2, &r2);
@@ -239,6 +245,8 @@ fromstruct_in_wks(ARGS_FROMSTRUCT) {
 	REQUIRE(wks->common.rdtype == type);
 	REQUIRE(wks->common.rdclass == rdclass);
 
+	UNUSED(rdclass);
+
 	a = ntohl(wks->in_addr.s_addr);
 	RETERR(uint32_tobuffer(a, target));
 	RETERR(uint16_tobuffer(wks->protocol, target));
@@ -253,6 +261,7 @@ tostruct_in_wks(ARGS_TOSTRUCT) {
 
 	REQUIRE(rdata->type == 11);
 	REQUIRE(rdata->rdclass == 1);
+	REQUIRE(rdata->length != 0);
 
 	wks->common.rdclass = rdata->rdclass;
 	wks->common.rdtype = rdata->type;

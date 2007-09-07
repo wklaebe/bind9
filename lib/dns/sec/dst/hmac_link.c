@@ -1,11 +1,11 @@
 /*
  * Portions Copyright (C) 1999, 2000  Internet Software Consortium.
  * Portions Copyright (C) 1995-2000 by Network Associates, Inc.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM AND
  * NETWORK ASSOCIATES DISCLAIM ALL WARRANTIES WITH REGARD TO THIS
  * SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
@@ -19,11 +19,13 @@
 
 /*
  * Principal Author: Brian Wellington
- * $Id: hmac_link.c,v 1.38.2.1 2000/07/03 23:48:08 gson Exp $
+ * $Id: hmac_link.c,v 1.45 2000/09/08 14:23:47 bwelling Exp $
  */
 
 #include <config.h>
 
+#include <isc/buffer.h>
+#include <isc/hmacmd5.h>
 #include <isc/md5.h>
 #include <isc/mem.h>
 #include <isc/string.h>
@@ -46,60 +48,45 @@ typedef struct hmackey {
 
 static isc_result_t
 hmacmd5_createctx(dst_key_t *key, dst_context_t *dctx) {
-	isc_md5_t *md5ctx;
+	isc_hmacmd5_t *hmacmd5ctx;
 	HMAC_Key *hkey = key->opaque;
-	unsigned char ipad[HMAC_LEN];
-	int i;
 
-	md5ctx = isc_mem_get(dctx->mctx, sizeof(isc_md5_t));
-	if (md5ctx == NULL)
+	hmacmd5ctx = isc_mem_get(dctx->mctx, sizeof(isc_hmacmd5_t));
+	if (hmacmd5ctx == NULL)
 		return (ISC_R_NOMEMORY);
-	isc_md5_init(md5ctx);
-	memset(ipad, HMAC_IPAD, sizeof ipad);
-	for (i = 0; i < HMAC_LEN; i++)
-		ipad[i] ^= hkey->key[i];
-	isc_md5_update(md5ctx, ipad, HMAC_LEN);
-	dctx->opaque = md5ctx;
+	isc_hmacmd5_init(hmacmd5ctx, hkey->key, HMAC_LEN);
+	dctx->opaque = hmacmd5ctx;
 	return (ISC_R_SUCCESS);
 }
 
 static void
 hmacmd5_destroyctx(dst_context_t *dctx) {
-	isc_md5_t *md5ctx = dctx->opaque;
+	isc_hmacmd5_t *hmacmd5ctx = dctx->opaque;
 
-	if (md5ctx != NULL) {
-		isc_md5_invalidate(md5ctx);
-		isc_mem_put(dctx->mctx, md5ctx, sizeof(isc_md5_t));
+	if (hmacmd5ctx != NULL) {
+		isc_hmacmd5_invalidate(hmacmd5ctx);
+		isc_mem_put(dctx->mctx, hmacmd5ctx, sizeof(isc_hmacmd5_t));
 		dctx->opaque = NULL;
 	}
 }
 
 static isc_result_t
 hmacmd5_adddata(dst_context_t *dctx, const isc_region_t *data) {
-	isc_md5_t *md5ctx = dctx->opaque;
+	isc_hmacmd5_t *hmacmd5ctx = dctx->opaque;
 
-	isc_md5_update(md5ctx, data->base, data->length);
+	isc_hmacmd5_update(hmacmd5ctx, data->base, data->length);
 	return (ISC_R_SUCCESS);
 }
 
 static isc_result_t
 hmacmd5_sign(dst_context_t *dctx, isc_buffer_t *sig) {
-	isc_md5_t *md5ctx = dctx->opaque;
-	dst_key_t *key = dctx->key;
-	HMAC_Key *hkey = key->opaque;
-	unsigned char opad[HMAC_LEN];
-	unsigned char digest[ISC_MD5_DIGESTLENGTH];
-	int i;
+	isc_hmacmd5_t *hmacmd5ctx = dctx->opaque;
+	unsigned char *digest;
 
-	isc_md5_final(md5ctx, digest);
-
-	memset(opad, HMAC_OPAD, sizeof opad);
-	for (i = 0; i < HMAC_LEN; i++)
-		opad[i] ^= hkey->key[i];
-	isc_md5_init(md5ctx);
-	isc_md5_update(md5ctx, opad, HMAC_LEN);
-	isc_md5_update(md5ctx, digest, ISC_MD5_DIGESTLENGTH);
-	isc_md5_final(md5ctx, isc_buffer_used(sig));
+	if (isc_buffer_availablelength(sig) < ISC_MD5_DIGESTLENGTH)
+		return (ISC_R_NOSPACE);
+	digest = isc_buffer_used(sig);
+	isc_hmacmd5_sign(hmacmd5ctx, digest);
 	isc_buffer_add(sig, ISC_MD5_DIGESTLENGTH);
 
 	return (ISC_R_SUCCESS);
@@ -107,22 +94,15 @@ hmacmd5_sign(dst_context_t *dctx, isc_buffer_t *sig) {
 
 static isc_result_t
 hmacmd5_verify(dst_context_t *dctx, const isc_region_t *sig) {
-	isc_result_t result;
-	unsigned char digest[ISC_MD5_DIGESTLENGTH];
-	isc_buffer_t b;
+	isc_hmacmd5_t *hmacmd5ctx = dctx->opaque;
 
 	if (sig->length < ISC_MD5_DIGESTLENGTH)
 		return (DST_R_VERIFYFAILURE);
 
-	isc_buffer_init(&b, digest, sizeof(digest));
-	result = hmacmd5_sign(dctx, &b);
-	if (result != ISC_R_SUCCESS)
-		return (result);
-
-	if (memcmp(digest, sig->base, ISC_MD5_DIGESTLENGTH) != 0)
+	if (isc_hmacmd5_verify(hmacmd5ctx, sig->base))
+		return (ISC_R_SUCCESS);
+	else
 		return (DST_R_VERIFYFAILURE);
-
-	return (ISC_R_SUCCESS);
 }
 
 static isc_boolean_t
@@ -132,7 +112,7 @@ hmacmd5_compare(const dst_key_t *key1, const dst_key_t *key2) {
 	hkey1 = (HMAC_Key *)key1->opaque;
 	hkey2 = (HMAC_Key *)key2->opaque;
 
-	if (hkey1 == NULL && hkey2 == NULL) 
+	if (hkey1 == NULL && hkey2 == NULL)
 		return (ISC_TRUE);
 	else if (hkey1 == NULL || hkey2 == NULL)
 		return (ISC_FALSE);
@@ -182,6 +162,7 @@ hmacmd5_destroy(dst_key_t *key) {
 	HMAC_Key *hkey = key->opaque;
 	memset(hkey, 0, sizeof(HMAC_Key));
 	isc_mem_put(key->mctx, hkey, sizeof(HMAC_Key));
+	key->opaque = NULL;
 }
 
 static isc_result_t
@@ -228,8 +209,10 @@ hmacmd5_fromdns(dst_key_t *key, isc_buffer_t *data) {
 		memcpy(hkey->key, r.base, r.length);
 		keylen = r.length;
 	}
-	
-	key->key_id = dst__id_calc(hkey->key, keylen);
+
+	r.base = hkey->key;
+	r.length = keylen;
+	key->key_id = dst_region_computeid(&r, key->key_alg);
 	key->key_size = keylen * 8;
 	key->opaque = hkey;
 
@@ -256,7 +239,7 @@ hmacmd5_tofile(const dst_key_t *key, const char *directory) {
 	return (dst__privstruct_writefile(key, &priv, directory));
 }
 
-static isc_result_t 
+static isc_result_t
 hmacmd5_fromfile(dst_key_t *key, const isc_uint16_t id, const char *filename) {
 	dst_private_t priv;
 	isc_result_t ret;

@@ -1,30 +1,35 @@
 /*
  * Copyright (C) 1998-2000  Internet Software Consortium.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
- * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
- * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
- * SOFTWARE.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+ * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+ * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rwlock.c,v 1.16.2.1 2000/08/25 01:29:35 gson Exp $ */
+/* $Id: rwlock.c,v 1.25 2000/08/29 00:33:35 bwelling Exp $ */
 
 #include <config.h>
 
+#include <stddef.h>
+
 #include <isc/magic.h>
+#include <isc/platform.h>
 #include <isc/rwlock.h>
 #include <isc/util.h>
 
 #define RWLOCK_MAGIC		0x52574C6BU	/* RWLk. */
 #define VALID_RWLOCK(rwl)	ISC_MAGIC_VALID(rwl, RWLOCK_MAGIC)
+
+#ifdef ISC_PLATFORM_USETHREADS
 
 #ifndef RWLOCK_DEFAULT_READ_QUOTA
 #define RWLOCK_DEFAULT_READ_QUOTA 4
@@ -36,12 +41,13 @@
 
 #ifdef ISC_RWLOCK_TRACE
 #include <stdio.h>		/* Required for fprintf/stderr. */
+#include <isc/thread.h>		/* Requried for isc_thread_self(). */
 
 static void
-print_lock(char *operation, isc_rwlock_t *rwl, isc_rwlocktype_t type) {
+print_lock(const char *operation, isc_rwlock_t *rwl, isc_rwlocktype_t type) {
 	fprintf(stderr,
-		"%s(%s): %s, %u active, %u granted, "
-		"%u rwaiting, %u wwaiting\n",
+		"rwlock %p thread %lu %s(%s): %s, %u active, %u granted, "
+		"%u rwaiting, %u wwaiting\n", rwl, isc_thread_self(),
 		operation, (type == isc_rwlocktype_read ? "read" : "write"),
 	        (rwl->type == isc_rwlocktype_read ? "reading" : "writing"),
 	        rwl->active, rwl->granted, rwl->readers_waiting,
@@ -228,5 +234,61 @@ isc_rwlock_destroy(isc_rwlock_t *rwl) {
 	rwl->magic = 0;
 	(void)isc_condition_destroy(&rwl->readable);
 	(void)isc_condition_destroy(&rwl->writeable);
-	(void)isc_mutex_destroy(&rwl->lock);
+	DESTROYLOCK(&rwl->lock);
 }
+
+#else /* ISC_PLATFORM_USETHREADS */
+
+isc_result_t
+isc_rwlock_init(isc_rwlock_t *rwl, unsigned int read_quota,
+		unsigned int write_quota)
+{
+	REQUIRE(rwl != NULL);
+
+	UNUSED(read_quota);
+	UNUSED(write_quota);
+
+	rwl->type = isc_rwlocktype_read;
+	rwl->active = 0;
+	rwl->magic = RWLOCK_MAGIC;
+
+	return (ISC_R_SUCCESS);
+}
+
+isc_result_t
+isc_rwlock_lock(isc_rwlock_t *rwl, isc_rwlocktype_t type) {
+	REQUIRE(VALID_RWLOCK(rwl));
+
+	if (type == isc_rwlocktype_read) {
+		if (rwl->type != isc_rwlocktype_read && rwl->active != 0)
+			return (ISC_R_LOCKBUSY);
+		rwl->type = isc_rwlocktype_read;
+		rwl->active++;
+	} else {
+		if (rwl->active != 0)
+			return (ISC_R_LOCKBUSY);
+		rwl->type = isc_rwlocktype_write;
+		rwl->active = 1;
+	}
+        return (ISC_R_SUCCESS);
+}
+
+isc_result_t
+isc_rwlock_unlock(isc_rwlock_t *rwl, isc_rwlocktype_t type) {
+	REQUIRE(VALID_RWLOCK(rwl));
+	REQUIRE(rwl->type == type);
+
+	INSIST(rwl->active > 0);
+	rwl->active--;
+
+	return (ISC_R_SUCCESS);
+}
+
+void
+isc_rwlock_destroy(isc_rwlock_t *rwl) {
+	REQUIRE(rwl != NULL);
+	REQUIRE(rwl->active == 0);
+	rwl->magic = 0;
+}
+
+#endif /* ISC_PLATFORM_USETHREADS */

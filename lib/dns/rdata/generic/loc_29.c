@@ -1,21 +1,21 @@
 /*
  * Copyright (C) 1999, 2000  Internet Software Consortium.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
- * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
- * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
- * SOFTWARE.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+ * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+ * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: loc_29.c,v 1.21 2000/06/01 18:26:13 tale Exp $ */
+/* $Id: loc_29.c,v 1.26 2000/12/01 01:40:24 gson Exp $ */
 
 /* Reviewed: Wed Mar 15 18:13:09 PST 2000 by explorer */
 
@@ -55,7 +55,7 @@ fromtext_loc(ARGS_FROMTEXT) {
 	UNUSED(downcase);
 
 	REQUIRE(type == 29);
-	
+
 	/*
 	 * Defaults.
 	 */
@@ -69,14 +69,16 @@ fromtext_loc(ARGS_FROMTEXT) {
 	/*
 	 * Degrees.
 	 */
-	RETERR(gettoken(lexer, &token, isc_tokentype_number, ISC_FALSE));
+	RETERR(isc_lex_getmastertoken(lexer, &token, isc_tokentype_number,
+				      ISC_FALSE));
 	if (token.value.as_ulong > 90)
 		return (ISC_R_RANGE);
 	d1 = (int)token.value.as_ulong;
 	/*
 	 * Minutes.
 	 */
-	RETERR(gettoken(lexer, &token, isc_tokentype_string, ISC_FALSE));
+	RETERR(isc_lex_getmastertoken(lexer, &token, isc_tokentype_string,
+				      ISC_FALSE));
 	if (strcasecmp(token.value.as_pointer, "N") == 0)
 		north = ISC_TRUE;
 	if (north || strcasecmp(token.value.as_pointer, "S") == 0)
@@ -92,7 +94,8 @@ fromtext_loc(ARGS_FROMTEXT) {
 	/*
 	 * Seconds.
 	 */
-	RETERR(gettoken(lexer, &token, isc_tokentype_string, ISC_FALSE));
+	RETERR(isc_lex_getmastertoken(lexer, &token, isc_tokentype_string,
+				      ISC_FALSE));
 	if (strcasecmp(token.value.as_pointer, "N") == 0)
 		north = ISC_TRUE;
 	if (north || strcasecmp(token.value.as_pointer, "S") == 0)
@@ -124,7 +127,8 @@ fromtext_loc(ARGS_FROMTEXT) {
 	/*
 	 * Direction.
 	 */
-	RETERR(gettoken(lexer, &token, isc_tokentype_string, ISC_FALSE));
+	RETERR(isc_lex_getmastertoken(lexer, &token, isc_tokentype_string,
+				      ISC_FALSE));
 	if (strcasecmp(token.value.as_pointer, "N") == 0)
 		north = ISC_TRUE;
 	if (!north && strcasecmp(token.value.as_pointer, "S") != 0)
@@ -134,7 +138,8 @@ fromtext_loc(ARGS_FROMTEXT) {
 	/*
 	 * Degrees.
 	 */
-	RETERR(gettoken(lexer, &token, isc_tokentype_number, ISC_FALSE));
+	RETERR(isc_lex_getmastertoken(lexer, &token, isc_tokentype_number,
+				      ISC_FALSE));
 	if (token.value.as_ulong > 180)
 		return (ISC_R_RANGE);
 	d2 = (int)token.value.as_ulong;
@@ -142,7 +147,8 @@ fromtext_loc(ARGS_FROMTEXT) {
 	/*
 	 * Minutes.
 	 */
-	RETERR(gettoken(lexer, &token, isc_tokentype_string, ISC_FALSE));
+	RETERR(isc_lex_getmastertoken(lexer, &token, isc_tokentype_string,
+				      ISC_FALSE));
 	if (strcasecmp(token.value.as_pointer, "E") == 0)
 		east = ISC_TRUE;
 	if (east || strcasecmp(token.value.as_pointer, "W") == 0)
@@ -154,11 +160,12 @@ fromtext_loc(ARGS_FROMTEXT) {
 		return (ISC_R_RANGE);
 	if (d2 == 180 && m2 != 0)
 		return (ISC_R_RANGE);
-		
+
 	/*
 	 * Seconds.
 	 */
-	RETERR(gettoken(lexer, &token, isc_tokentype_string, ISC_FALSE));
+	RETERR(isc_lex_getmastertoken(lexer, &token, isc_tokentype_string,
+				      ISC_FALSE));
 	if (strcasecmp(token.value.as_pointer, "E") == 0)
 		east = ISC_TRUE;
 	if (east || strcasecmp(token.value.as_pointer, "W") == 0)
@@ -190,7 +197,8 @@ fromtext_loc(ARGS_FROMTEXT) {
 	/*
 	 * Direction.
 	 */
-	RETERR(gettoken(lexer, &token, isc_tokentype_string, ISC_FALSE));
+	RETERR(isc_lex_getmastertoken(lexer, &token, isc_tokentype_string,
+				      ISC_FALSE));
 	if (strcasecmp(token.value.as_pointer, "E") == 0)
 		east = ISC_TRUE;
 	if (!east && strcasecmp(token.value.as_pointer, "W") != 0)
@@ -200,7 +208,8 @@ fromtext_loc(ARGS_FROMTEXT) {
 	/*
 	 * Altitude.
 	 */
-	RETERR(gettoken(lexer, &token, isc_tokentype_string, ISC_FALSE));
+	RETERR(isc_lex_getmastertoken(lexer, &token, isc_tokentype_string,
+				      ISC_FALSE));
 	m = strtol(token.value.as_pointer, &e, 10);
 	if (*e != 0 && *e != '.' && *e != 'm')
 		return (DNS_R_SYNTAX);
@@ -241,7 +250,8 @@ fromtext_loc(ARGS_FROMTEXT) {
 	/*
 	 * Size: optional.
 	 */
-	RETERR(gettoken(lexer, &token, isc_tokentype_string, ISC_TRUE));
+	RETERR(isc_lex_getmastertoken(lexer, &token, isc_tokentype_string,
+				      ISC_TRUE));
 	if (token.type == isc_tokentype_eol ||
 	    token.type == isc_tokentype_eof) {
 		isc_lex_ungettoken(lexer, &token);
@@ -265,7 +275,7 @@ fromtext_loc(ARGS_FROMTEXT) {
 		}
 		for ( ; i < 2 ; i++)
 			cm *= 10;
-	} 
+	}
 	if (*e == 'm')
 		e++;
 	if (*e != 0)
@@ -293,7 +303,8 @@ fromtext_loc(ARGS_FROMTEXT) {
 	/*
 	 * Horizontal precision: optional.
 	 */
-	RETERR(gettoken(lexer, &token, isc_tokentype_string, ISC_TRUE));
+	RETERR(isc_lex_getmastertoken(lexer, &token, isc_tokentype_string,
+				      ISC_TRUE));
 	if (token.type == isc_tokentype_eol ||
 	    token.type == isc_tokentype_eof) {
 		isc_lex_ungettoken(lexer, &token);
@@ -343,7 +354,8 @@ fromtext_loc(ARGS_FROMTEXT) {
 	/*
 	 * Vertical precision: optional.
 	 */
-	RETERR(gettoken(lexer, &token, isc_tokentype_string, ISC_TRUE));
+	RETERR(isc_lex_getmastertoken(lexer, &token, isc_tokentype_string,
+				      ISC_TRUE));
 	if (token.type == isc_tokentype_eol ||
 	    token.type == isc_tokentype_eof) {
 		isc_lex_ungettoken(lexer, &token);
@@ -367,7 +379,7 @@ fromtext_loc(ARGS_FROMTEXT) {
 		}
 		for ( ; i < 2 ; i++)
 			cm *= 10;
-	} 
+	}
 	if (*e == 'm')
 		e++;
 	if (*e != 0)
@@ -433,6 +445,7 @@ totext_loc(ARGS_TOTEXT) {
 	UNUSED(tctx);
 
 	REQUIRE(rdata->type == 29);
+	REQUIRE(rdata->length != 0);
 
 	dns_rdata_toregion(rdata, &sr);
 
@@ -519,7 +532,7 @@ fromwire_loc(ARGS_FROMWIRE) {
 	UNUSED(downcase);
 
 	REQUIRE(type == 29);
-	
+
 	isc_buffer_activeregion(source, &sr);
 	if (sr.length < 1)
 		return (ISC_R_UNEXPECTEDEND);
@@ -549,7 +562,7 @@ fromwire_loc(ARGS_FROMWIRE) {
 	 */
 	c = sr.base[3];
 	if (c != 0)
-		if ((c&0xf) > 9 || ((c>>4)&0xf) > 9 || ((c>>4)&0xf) == 0) 
+		if ((c&0xf) > 9 || ((c>>4)&0xf) > 9 || ((c>>4)&0xf) == 0)
 			return (ISC_R_RANGE);
 	isc_region_consume(&sr, 4);
 
@@ -585,7 +598,8 @@ towire_loc(ARGS_TOWIRE) {
 	UNUSED(cctx);
 
 	REQUIRE(rdata->type == 29);
-	
+	REQUIRE(rdata->length != 0);
+
 	return (mem_tobuffer(target, rdata->data, rdata->length));
 }
 
@@ -597,6 +611,8 @@ compare_loc(ARGS_COMPARE) {
 	REQUIRE(rdata1->type == rdata2->type);
 	REQUIRE(rdata1->rdclass == rdata2->rdclass);
 	REQUIRE(rdata1->type == 29);
+	REQUIRE(rdata1->length != 0);
+	REQUIRE(rdata2->length != 0);
 
 	dns_rdata_toregion(rdata1, &r1);
 	dns_rdata_toregion(rdata2, &r2);
@@ -612,23 +628,25 @@ fromstruct_loc(ARGS_FROMSTRUCT) {
 	REQUIRE(source != NULL);
 	REQUIRE(loc->common.rdtype == type);
 	REQUIRE(loc->common.rdclass == rdclass);
-	
+
+	UNUSED(rdclass);
+
 	if (loc->v.v0.version != 0)
 		return (ISC_R_NOTIMPLEMENTED);
 	RETERR(uint8_tobuffer(loc->v.v0.version, target));
 
 	c = loc->v.v0.size;
-	if ((c&0xf) > 9 || ((c>>4)&0xf) > 9 || ((c>>4)&0xf) == 0) 
+	if ((c&0xf) > 9 || ((c>>4)&0xf) > 9 || ((c>>4)&0xf) == 0)
 		return (ISC_R_RANGE);
 	RETERR(uint8_tobuffer(loc->v.v0.size, target));
 
 	c = loc->v.v0.horizontal;
-	if ((c&0xf) > 9 || ((c>>4)&0xf) > 9 || ((c>>4)&0xf) == 0) 
+	if ((c&0xf) > 9 || ((c>>4)&0xf) > 9 || ((c>>4)&0xf) == 0)
 		return (ISC_R_RANGE);
 	RETERR(uint8_tobuffer(loc->v.v0.horizontal, target));
 
 	c = loc->v.v0.vertical;
-	if ((c&0xf) > 9 || ((c>>4)&0xf) > 9 || ((c>>4)&0xf) == 0) 
+	if ((c&0xf) > 9 || ((c>>4)&0xf) > 9 || ((c>>4)&0xf) == 0)
 		return (ISC_R_RANGE);
 	RETERR(uint8_tobuffer(loc->v.v0.vertical, target));
 
@@ -652,6 +670,7 @@ tostruct_loc(ARGS_TOSTRUCT) {
 
 	REQUIRE(rdata->type == 29);
 	REQUIRE(target != NULL);
+	REQUIRE(rdata->length != 0);
 
 	UNUSED(mctx);
 
@@ -689,6 +708,7 @@ freestruct_loc(ARGS_FREESTRUCT) {
 	REQUIRE(loc->common.rdtype == 29);
 
 	UNUSED(source);
+	UNUSED(loc);
 }
 
 static inline isc_result_t

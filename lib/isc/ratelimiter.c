@@ -1,21 +1,21 @@
 /*
  * Copyright (C) 1999, 2000  Internet Software Consortium.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
- * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
- * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
- * SOFTWARE.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+ * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+ * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: ratelimiter.c,v 1.14 2000/06/22 21:57:09 tale Exp $ */
+/* $Id: ratelimiter.c,v 1.17 2000/08/26 01:31:49 bwelling Exp $ */
 
 #include <config.h>
 
@@ -60,7 +60,7 @@ isc_ratelimiter_create(isc_mem_t *mctx, isc_timermgr_t *timermgr,
 	isc_result_t result;
 	isc_ratelimiter_t *rl;
 	INSIST(ratelimiterp != NULL && *ratelimiterp == NULL);
-	
+
 	rl = isc_mem_get(mctx, sizeof(*rl));
 	if (rl == NULL)
 		return ISC_R_NOMEMORY;
@@ -87,7 +87,7 @@ isc_ratelimiter_create(isc_mem_t *mctx, isc_timermgr_t *timermgr,
 	 * (soon) have events outstanding.
 	 */
 	rl->refs++;
-	
+
 	ISC_EVENT_INIT(&rl->shutdownevent,
 		       sizeof(isc_event_t),
 		       0, NULL, ISC_RATELIMITEREVENT_SHUTDOWN,
@@ -97,7 +97,7 @@ isc_ratelimiter_create(isc_mem_t *mctx, isc_timermgr_t *timermgr,
 	return (ISC_R_SUCCESS);
 
 free_mutex:
-	isc_mutex_destroy(&rl->lock);
+	DESTROYLOCK(&rl->lock);
 free_mem:
 	isc_mem_put(mctx, rl, sizeof(*rl));
 	return (result);
@@ -125,7 +125,7 @@ isc_ratelimiter_setpertic(isc_ratelimiter_t *rl, isc_uint32_t pertic) {
 		pertic = 1;
 	rl->pertic = pertic;
 }
-			
+
 isc_result_t
 isc_ratelimiter_enqueue(isc_ratelimiter_t *rl, isc_task_t *task,
 			isc_event_t **eventp)
@@ -224,14 +224,14 @@ isc_ratelimiter_shutdown(isc_ratelimiter_t *rl) {
 	 */
 	ev = &rl->shutdownevent;
 	isc_task_send(rl->task, &ev);
-	
+
 	UNLOCK(&rl->lock);
 }
 
 static void
 ratelimiter_shutdowncomplete(isc_task_t *task, isc_event_t *event) {
 	isc_ratelimiter_t *rl = (isc_ratelimiter_t *)event->ev_arg;
-	
+
 	UNUSED(task);
 
 	isc_ratelimiter_detach(&rl);
@@ -239,7 +239,7 @@ ratelimiter_shutdowncomplete(isc_task_t *task, isc_event_t *event) {
 
 static void
 ratelimiter_free(isc_ratelimiter_t *rl) {
-	isc_mutex_destroy(&rl->lock);
+	DESTROYLOCK(&rl->lock);
 	isc_mem_put(rl->mctx, rl, sizeof(*rl));
 }
 

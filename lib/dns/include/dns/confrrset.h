@@ -1,21 +1,21 @@
 /*
  * Copyright (C) 1999, 2000  Internet Software Consortium.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
- * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
- * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
- * SOFTWARE.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+ * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+ * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: confrrset.h,v 1.12 2000/06/22 21:55:29 tale Exp $ */
+/* $Id: confrrset.h,v 1.14 2000/08/01 01:24:01 tale Exp $ */
 
 #ifndef DNS_CONFRRSET_H
 #define DNS_CONFRRSET_H 1
@@ -25,21 +25,21 @@
  *****/
 
 /*
- * 
+ *
  * MP:
- *	
+ *
  *
  * Reliability:
- *	
+ *
  *
  * Resources:
- *	
+ *
  *
  * Security:
- *	
+ *
  *
  * Standards:
- *	
+ *
  */
 
 /***
@@ -68,9 +68,9 @@ typedef struct dns_c_rrso_list		dns_c_rrsolist_t;
 
 struct dns_c_rrso {
 	isc_uint32_t		magic;
-	
+
 	isc_mem_t	       *mem;
-	
+
 	dns_rdataclass_t	oclass;
 	dns_rdatatype_t		otype;
 	char		       *name;

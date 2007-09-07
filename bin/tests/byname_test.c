@@ -1,21 +1,21 @@
 /*
  * Copyright (C) 2000  Internet Software Consortium.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
- * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
- * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
- * SOFTWARE.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+ * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+ * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: byname_test.c,v 1.18.2.1 2000/06/28 16:45:25 gson Exp $ */
+/* $Id: byname_test.c,v 1.24 2000/11/10 05:34:08 bwelling Exp $ */
 
 /*
  * Principal Author: Bob Halley
@@ -24,6 +24,7 @@
 #include <config.h>
 
 #include <stdlib.h>
+#include <string.h>
 
 #include <isc/app.h>
 #include <isc/commandline.h>
@@ -36,6 +37,7 @@
 #include <dns/cache.h>
 #include <dns/dispatch.h>
 #include <dns/events.h>
+#include <dns/forward.h>
 #include <dns/log.h>
 #include <dns/resolver.h>
 #include <dns/result.h>
@@ -101,7 +103,7 @@ print_addresses(dns_adbfind_t *find) {
 
 static void
 print_name(dns_name_t *name) {
-	char text[1024];
+	char text[DNS_NAME_FORMATSIZE];
 
 	dns_name_format(name, text, sizeof(text));
 	printf("%s\n", text);
@@ -260,12 +262,12 @@ main(int argc, char *argv[]) {
 	{
 		unsigned int attrs;
 		dns_dispatch_t *disp4 = NULL;
-		dns_dispatch_t *disp6 = NULL;		
+		dns_dispatch_t *disp6 = NULL;
 
 		if (isc_net_probeipv4() == ISC_R_SUCCESS) {
 			isc_sockaddr_t any4;
 			isc_sockaddr_any(&any4);
-			
+
 			attrs = DNS_DISPATCHATTR_IPV4 | DNS_DISPATCHATTR_UDP;
 			RUNTIME_CHECK(dns_dispatch_getudp(dispatchmgr,
 							  socketmgr,
@@ -279,9 +281,9 @@ main(int argc, char *argv[]) {
 
 		if (isc_net_probeipv6() == ISC_R_SUCCESS) {
 			isc_sockaddr_t any6;
-			
+
 			isc_sockaddr_any6(&any6);
-			
+
 			attrs = DNS_DISPATCHATTR_IPV6 | DNS_DISPATCHATTR_UDP;
 			RUNTIME_CHECK(dns_dispatch_getudp(dispatchmgr,
 							  socketmgr,
@@ -292,7 +294,7 @@ main(int argc, char *argv[]) {
 				      == ISC_R_SUCCESS);
 			INSIST(disp6 != NULL);
 		}
-		
+
 		RUNTIME_CHECK(dns_view_createresolver(view, taskmgr, 10,
 						      socketmgr,
 						      timermgr, 0,
@@ -302,8 +304,8 @@ main(int argc, char *argv[]) {
 
 		if (disp4 != NULL)
 			dns_dispatch_detach(&disp4);
-		if (disp6 != NULL)		
-			dns_dispatch_detach(&disp6);		
+		if (disp6 != NULL)
+			dns_dispatch_detach(&disp6);
 	}
 
 	{
@@ -316,8 +318,9 @@ main(int argc, char *argv[]) {
 		isc_sockaddr_fromin(&sa, &ina, 53);
 		ISC_LIST_APPEND(sal, &sa, link);
 
-		dns_resolver_setforwarders(view->resolver, &sal);
-		dns_resolver_setfwdpolicy(view->resolver, dns_fwdpolicy_only);
+		RUNTIME_CHECK(dns_fwdtable_add(view->fwdtable, dns_rootname,
+					       &sal, dns_fwdpolicy_only)
+			      == ISC_R_SUCCESS);
 	}
 
 	dns_view_setcache(view, cache);
@@ -344,12 +347,12 @@ main(int argc, char *argv[]) {
 	isc_task_detach(&task);
 
 	dns_dispatchmgr_destroy(&dispatchmgr);
-	
+
 	isc_taskmgr_destroy(&taskmgr);
 
 	isc_socketmgr_destroy(&socketmgr);
 	isc_timermgr_destroy(&timermgr);
-	
+
 	isc_log_destroy(&lctx);
 
 	if (verbose)

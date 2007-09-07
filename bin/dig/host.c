@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: host.c,v 1.29.2.8 2000/10/20 21:54:11 gson Exp $ */
+/* $Id: host.c,v 1.59 2000/10/31 03:21:38 marka Exp $ */
 
 #include <config.h>
 #include <stdlib.h>
@@ -288,7 +288,7 @@ printsection(dns_message_t *msg, dns_section_t sectionid,
 {
 	dns_name_t *name, *print_name;
 	dns_rdataset_t *rdataset;
-	dns_rdata_t rdata;
+	dns_rdata_t rdata = DNS_RDATA_INIT;
 	isc_buffer_t target;
 	isc_result_t result, loopresult;
 	isc_region_t r;
@@ -355,6 +355,7 @@ printsection(dns_message_t *msg, dns_section_t sectionid,
 						rtt = "unknown";
 					say_message(print_name, rtt,
 						    &rdata, query);
+					dns_rdata_reset(&rdata);
 					loopresult =
 						dns_rdataset_next(rdataset);
 				}
@@ -542,7 +543,7 @@ parse_args(isc_boolean_t is_batchfile, int argc, char **argv) {
 	char hostname[MXNAME];
 	dig_server_t *srv;
 	dig_lookup_t *lookup;
-	int i, c, n, adrs[4];
+	int c;
 	char store[MXNAME];
 	isc_textregion_t tr;
 	isc_result_t result;
@@ -648,44 +649,11 @@ parse_args(isc_boolean_t is_batchfile, int argc, char **argv) {
 	}
 
 	lookup->pending = ISC_FALSE;
-	if (strspn(hostname, "0123456789.") == strlen(hostname)) {
-		lookup->textname[0] = 0;
-		n = sscanf(hostname, "%d.%d.%d.%d", &adrs[0], &adrs[1],
-				   &adrs[2], &adrs[3]);
-		if (n == 0) {
-			show_usage();
-		}
-		for (i = n - 1; i >= 0; i--) {
-			snprintf(store, MXNAME/8, "%d.",
-				 adrs[i]);
-			strncat(lookup->textname, store, MXNAME);
-		}
-		strncat(lookup->textname, "in-addr.arpa.", MXNAME);
-		lookup->rdtype = dns_rdatatype_ptr;
-	} else if (strspn(hostname, "0123456789abcdef.:") == strlen(hostname))
-	{
-		isc_netaddr_t addr;
-		dns_fixedname_t fname;
-		isc_buffer_t b;
-
-		addr.family = AF_INET6;
-		n = inet_pton(AF_INET6, hostname, &addr.type.in6);
-		if (n <= 0)
-			goto notv6;
-		dns_fixedname_init(&fname);
-		result = dns_byaddr_createptrname(&addr, lookup->nibble,
-						  dns_fixedname_name(&fname));
-		if (result != ISC_R_SUCCESS)
-			show_usage();
-		isc_buffer_init(&b, lookup->textname, sizeof lookup->textname);
-		result = dns_name_totext(dns_fixedname_name(&fname),
-					 ISC_FALSE, &b);
-		isc_buffer_putuint8(&b, 0);
-		if (result != ISC_R_SUCCESS)
-			show_usage();
+	if (get_reverse(store, hostname, lookup->nibble) == ISC_R_SUCCESS) {
+		strncpy(lookup->textname, store, sizeof(lookup->textname));
+		lookup->textname[sizeof(lookup->textname)-1] = 0;
 		lookup->rdtype = dns_rdatatype_ptr;
 	} else {
- notv6:
 		strncpy(lookup->textname, hostname, sizeof(lookup->textname));
 		lookup->textname[sizeof(lookup->textname)-1]=0;
 	}

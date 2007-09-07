@@ -1,21 +1,21 @@
 /*
  * Copyright (C) 1999, 2000  Internet Software Consortium.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
- * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
- * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
- * SOFTWARE.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+ * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+ * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: interfacemgr.c,v 1.44.2.2 2000/07/10 23:32:02 gson Exp $ */
+/* $Id: interfacemgr.c,v 1.51 2000/09/26 18:26:18 gson Exp $ */
 
 #include <config.h>
 
@@ -31,7 +31,7 @@
 #include <named/log.h>
 #include <named/interfacemgr.h>
 
-#define IFMGR_MAGIC		0x49464D47U	/* IFMG. */	
+#define IFMGR_MAGIC		0x49464D47U	/* IFMG. */
 #define NS_INTERFACEMGR_VALID(t) ISC_MAGIC_VALID(t, IFMGR_MAGIC)
 
 #define IFMGR_COMMON_LOGARGS \
@@ -45,7 +45,6 @@ struct ns_interfacemgr {
 	isc_taskmgr_t *		taskmgr;	/* Task manager. */
 	isc_socketmgr_t *	socketmgr;	/* Socket manager. */
 	dns_dispatchmgr_t *	dispatchmgr;
-	ns_clientmgr_t *	clientmgr;	/* Client manager. */
 	unsigned int		generation;	/* Current generation no. */
 	ns_listenlist_t *	listenon4;
 	ns_listenlist_t *	listenon6;
@@ -60,7 +59,7 @@ isc_result_t
 ns_interfacemgr_create(isc_mem_t *mctx, isc_taskmgr_t *taskmgr,
 		       isc_socketmgr_t *socketmgr,
 		       dns_dispatchmgr_t *dispatchmgr,
-		       ns_clientmgr_t *clientmgr, ns_interfacemgr_t **mgrp)
+		       ns_interfacemgr_t **mgrp)
 {
 	isc_result_t result;
 	ns_interfacemgr_t *mgr;
@@ -68,7 +67,7 @@ ns_interfacemgr_create(isc_mem_t *mctx, isc_taskmgr_t *taskmgr,
 	REQUIRE(mctx != NULL);
 	REQUIRE(mgrp != NULL);
 	REQUIRE(*mgrp == NULL);
-	
+
 	mgr = isc_mem_get(mctx, sizeof(*mgr));
 	if (mgr == NULL)
 		return (ISC_R_NOMEMORY);
@@ -81,10 +80,10 @@ ns_interfacemgr_create(isc_mem_t *mctx, isc_taskmgr_t *taskmgr,
 	mgr->taskmgr = taskmgr;
 	mgr->socketmgr = socketmgr;
 	mgr->dispatchmgr = dispatchmgr;
-	mgr->clientmgr = clientmgr;
 	mgr->generation = 1;
 	mgr->listenon4 = NULL;
-	mgr->listenon6 = NULL;	
+	mgr->listenon6 = NULL;
+	
 	ISC_LIST_INIT(mgr->interfaces);
 
 	/*
@@ -98,7 +97,7 @@ ns_interfacemgr_create(isc_mem_t *mctx, isc_taskmgr_t *taskmgr,
 	result = dns_aclenv_init(mctx, &mgr->aclenv);
 	if (result != ISC_R_SUCCESS)
 		goto cleanup_listenon;
-	
+
 	mgr->references = 1;
 	mgr->magic = IFMGR_MAGIC;
 	*mgrp = mgr;
@@ -118,7 +117,7 @@ ns_interfacemgr_destroy(ns_interfacemgr_t *mgr) {
 	dns_aclenv_destroy(&mgr->aclenv);
 	ns_listenlist_detach(&mgr->listenon4);
 	ns_listenlist_detach(&mgr->listenon6);
-	isc_mutex_destroy(&mgr->lock);
+	DESTROYLOCK(&mgr->lock);
 	mgr->magic = 0;
 	isc_mem_put(mgr->mctx, mgr, sizeof *mgr);
 }
@@ -138,7 +137,7 @@ ns_interfacemgr_attach(ns_interfacemgr_t *source, ns_interfacemgr_t **target) {
 	*target = source;
 }
 
-void 
+void
 ns_interfacemgr_detach(ns_interfacemgr_t **targetp) {
 	isc_result_t need_destroy = ISC_FALSE;
 	ns_interfacemgr_t *target = *targetp;
@@ -175,7 +174,7 @@ ns_interface_create(ns_interfacemgr_t *mgr, isc_sockaddr_t *addr,
 {
         ns_interface_t *ifp;
 	isc_result_t result;
-	
+
 	REQUIRE(NS_INTERFACEMGR_VALID(mgr));
 	ifp = isc_mem_get(mgr->mctx, sizeof(*ifp));
 	if (ifp == NULL)
@@ -185,26 +184,24 @@ ns_interface_create(ns_interfacemgr_t *mgr, isc_sockaddr_t *addr,
 	ifp->addr = *addr;
 	strncpy(ifp->name, name, sizeof(ifp->name));
 	ifp->name[sizeof(ifp->name)-1] = '\0';
+	ifp->clientmgr = NULL;
 
 	result = isc_mutex_init(&ifp->lock);
 	if (result != ISC_R_SUCCESS)
 		goto lock_create_failure;
 
-	/*
-	 * Create a task.
-	 */
-	ifp->task = NULL;
-	result = isc_task_create(mgr->taskmgr, 0, &ifp->task);
+	result = ns_clientmgr_create(mgr->mctx, mgr->taskmgr,
+				     ns_g_timermgr,
+				     &ifp->clientmgr);
 	if (result != ISC_R_SUCCESS) {
 		isc_log_write(IFMGR_COMMON_LOGARGS, ISC_LOG_ERROR,
-				 "isc_task_create() failed: %s",
-				 isc_result_totext(result));
-		goto task_create_failure;
+			      "ns_clientmgr_create() failed: %s",
+			      isc_result_totext(result));
+		goto clientmgr_create_failure;
 	}
-	isc_task_setname(ifp->task, "ifp", ifp);
 
 	ifp->udpdispatch = NULL;
-	
+
 	ifp->tcpsocket = NULL;
 	/*
 	 * Create a single TCP client object.  It will replace itself
@@ -215,7 +212,9 @@ ns_interface_create(ns_interfacemgr_t *mgr, isc_sockaddr_t *addr,
 	ifp->ntcptarget = 1;
 	ifp->ntcpcurrent = 0;
 
-	ns_interfacemgr_attach(mgr, &ifp->mgr);	
+	ISC_LINK_INIT(ifp, link);
+
+	ns_interfacemgr_attach(mgr, &ifp->mgr);
 	ISC_LIST_APPEND(mgr->interfaces, ifp, link);
 
 	ifp->references = 1;
@@ -224,8 +223,8 @@ ns_interface_create(ns_interfacemgr_t *mgr, isc_sockaddr_t *addr,
 
 	return (ISC_R_SUCCESS);
 
- task_create_failure:
-	isc_mutex_destroy(&ifp->lock);
+ clientmgr_create_failure:
+	DESTROYLOCK(&ifp->lock);
  lock_create_failure:
 	ifp->magic = 0;
 	isc_mem_put(mgr->mctx, ifp, sizeof(*ifp));
@@ -238,7 +237,7 @@ ns_interface_listenudp(ns_interface_t *ifp) {
 	isc_result_t result;
 	unsigned int attrs;
 	unsigned int attrmask;
-	
+
 	attrs = 0;
 	attrs |= DNS_DISPATCHATTR_UDP;
 	if (isc_sockaddr_pf(&ifp->addr) == AF_INET)
@@ -259,7 +258,7 @@ ns_interface_listenudp(ns_interface_t *ifp) {
 		goto udp_dispatch_failure;
 	}
 
-	result = ns_clientmgr_createclients(ifp->mgr->clientmgr, ns_g_cpus,
+	result = ns_clientmgr_createclients(ifp->clientmgr, ns_g_cpus,
 					    ifp, ISC_FALSE);
 	if (result != ISC_R_SUCCESS) {
 		UNEXPECTED_ERROR(__FILE__, __LINE__,
@@ -278,7 +277,7 @@ ns_interface_listenudp(ns_interface_t *ifp) {
 static isc_result_t
 ns_interface_accepttcp(ns_interface_t *ifp) {
 	isc_result_t result;
-	
+
 	/*
 	 * Open a TCP socket.
 	 */
@@ -307,7 +306,7 @@ ns_interface_accepttcp(ns_interface_t *ifp) {
 		goto tcp_listen_failure;
 	}
 
-	result = ns_clientmgr_createclients(ifp->mgr->clientmgr,
+	result = ns_clientmgr_createclients(ifp->clientmgr,
 					    ifp->ntcptarget, ifp,
 					    ISC_TRUE);
 	if (result != ISC_R_SUCCESS) {
@@ -333,7 +332,7 @@ ns_interface_setup(ns_interfacemgr_t *mgr, isc_sockaddr_t *addr,
 	isc_result_t result;
 	ns_interface_t *ifp = NULL;
 	REQUIRE(ifpret != NULL && *ifpret == NULL);
-	
+
 	result = ns_interface_create(mgr, addr, name, &ifp);
 	if (result != ISC_R_SUCCESS)
 		return (result);
@@ -354,11 +353,17 @@ ns_interface_setup(ns_interfacemgr_t *mgr, isc_sockaddr_t *addr,
 	}
 	*ifpret = ifp;
 	return (ISC_R_SUCCESS);
-	
+
  cleanup_interface:
-	ISC_LIST_UNLINK(ifp->mgr->interfaces, ifp, link);	
+	ISC_LIST_UNLINK(ifp->mgr->interfaces, ifp, link);
 	ns_interface_detach(&ifp);
 	return (result);
+}
+
+void
+ns_interface_shutdown(ns_interface_t *ifp) {
+	if (ifp->clientmgr != NULL)
+		ns_clientmgr_destroy(&ifp->clientmgr);
 }
 
 static void
@@ -366,18 +371,17 @@ ns_interface_destroy(ns_interface_t *ifp) {
 	isc_mem_t *mctx = ifp->mgr->mctx;
 	REQUIRE(NS_INTERFACE_VALID(ifp));
 
+	ns_interface_shutdown(ifp);
+
 	if (ifp->udpdispatch != NULL)
 		dns_dispatch_detach(&ifp->udpdispatch);
-	if (ifp->tcpsocket != NULL) {
-		isc_socket_cancel(ifp->tcpsocket, NULL, ISC_SOCKCANCEL_ALL);
+	if (ifp->tcpsocket != NULL)
 		isc_socket_detach(&ifp->tcpsocket);
-	}
 
-	isc_task_detach(&ifp->task);
-	isc_mutex_destroy(&ifp->lock);
+	DESTROYLOCK(&ifp->lock);
 
 	ns_interfacemgr_detach(&ifp->mgr);
-	
+
 	ifp->magic = 0;
 	isc_mem_put(mctx, ifp, sizeof(*ifp));
 }
@@ -392,7 +396,7 @@ ns_interface_attach(ns_interface_t *source, ns_interface_t **target) {
 	*target = source;
 }
 
-void 
+void
 ns_interface_detach(ns_interface_t **targetp) {
 	isc_result_t need_destroy = ISC_FALSE;
 	ns_interface_t *target = *targetp;
@@ -440,6 +444,7 @@ purge_old_interfaces(ns_interfacemgr_t *mgr) {
 			isc_log_write(IFMGR_COMMON_LOGARGS,
 				      ISC_LOG_INFO,
 				      "no longer listening on %s", sabuf);
+			ns_interface_shutdown(ifp);
 			ns_interface_detach(&ifp);
 		}
 	}
@@ -473,7 +478,7 @@ do_ipv4(ns_interfacemgr_t *mgr) {
 	result = clearacl(mgr->mctx, &mgr->aclenv.localnets);
 	if (result != ISC_R_SUCCESS)
 		goto cleanup_iter;
-	
+
 	for (result = isc_interfaceiter_first(iter);
 	     result == ISC_R_SUCCESS;
 	     result = isc_interfaceiter_next(iter))
@@ -483,7 +488,7 @@ do_ipv4(ns_interfacemgr_t *mgr) {
 		ns_listenelt_t *le;
 		dns_aclelement_t elt;
 		unsigned int prefixlen;
-		
+
 		result = isc_interfaceiter_current(iter, &interface);
 		if (result != ISC_R_SUCCESS)
 			break;
@@ -510,7 +515,7 @@ do_ipv4(ns_interfacemgr_t *mgr) {
 		result = dns_acl_appendelement(mgr->aclenv.localhost, &elt);
 		if (result != ISC_R_SUCCESS)
 			goto ignore_interface;
-		
+
 		for (le = ISC_LIST_HEAD(mgr->listenon4->elts);
 		     le != NULL;
 		     le = ISC_LIST_NEXT(le, link))
@@ -538,7 +543,7 @@ do_ipv4(ns_interfacemgr_t *mgr) {
 					       &match, NULL);
 			if (match <= 0)
 				continue;
-			
+
 			ifp = find_matching_interface(mgr, &listen_sockaddr);
 			if (ifp != NULL) {
 				ifp->generation = mgr->generation;
@@ -550,7 +555,7 @@ do_ipv4(ns_interfacemgr_t *mgr) {
 					      ISC_LOG_INFO,
 					      "listening on IPv4 interface "
 					      "%s, %s", interface.name, sabuf);
-				
+
 				result = ns_interface_setup(mgr,
 							    &listen_sockaddr,
 							    interface.name,
@@ -610,7 +615,7 @@ listenon_is_ip6_any(ns_listenlist_t *p, in_port_t *portp) {
 	if (ISC_LIST_NEXT(elt, link) != NULL)
 		return (ISC_FALSE); /* More than one listen-on-v6 stmt */
 	if (elt->acl->length != 1)
-		return (ISC_FALSE); 
+		return (ISC_FALSE);
 	if (elt->acl->elements[0].negative == ISC_FALSE &&
 	    elt->acl->elements[0].type == dns_aclelementtype_any) {
 		*portp = elt->port;
@@ -629,14 +634,14 @@ do_ipv6(ns_interfacemgr_t *mgr) {
 
 	if (listenon_is_ip6_none(mgr->listenon6))
 		return;
-	
+
 	if (! listenon_is_ip6_any(mgr->listenon6, &port)) {
 		isc_log_write(IFMGR_COMMON_LOGARGS,
-		      ISC_LOG_ERROR,			
+		      ISC_LOG_ERROR,
 		      "bad IPv6 listen-on list: must be 'any' or 'none'");
 		return;
 	}
-		
+
 	in6a = in6addr_any;
 	isc_sockaddr_fromin6(&listen_addr, &in6a, port);
 
@@ -649,7 +654,7 @@ do_ipv6(ns_interfacemgr_t *mgr) {
 		result = ns_interface_setup(mgr, &listen_addr, "<any>", &ifp);
 		if (result != ISC_R_SUCCESS) {
 			isc_log_write(IFMGR_COMMON_LOGARGS,
-				      ISC_LOG_ERROR,			
+				      ISC_LOG_ERROR,
 				      "listening on IPv6 interfaces failed");
 			/* Continue. */
 		}
@@ -661,7 +666,7 @@ ns_interfacemgr_scan(ns_interfacemgr_t *mgr, isc_boolean_t verbose) {
 
 	REQUIRE(NS_INTERFACEMGR_VALID(mgr));
 
-	mgr->generation++;	/* Increment the generation count. */ 
+	mgr->generation++;	/* Increment the generation count. */
 
 	if (isc_net_probeipv6() == ISC_R_SUCCESS) {
 		do_ipv6(mgr);
@@ -709,21 +714,3 @@ ns_interfacemgr_setlistenon6(ns_interfacemgr_t *mgr, ns_listenlist_t *value) {
 	UNLOCK(&mgr->lock);
 }
 
-isc_result_t
-ns_interfacemgr_findudpdispatcher(ns_interfacemgr_t *mgr,
-				  isc_sockaddr_t *address,
-				  dns_dispatch_t **dispatchp)
-{
-	ns_interface_t *ifp;
-
-	/*
-	 * Find a UDP dispatcher matching 'address', if it exists.
-	 */
-
-	ifp = find_matching_interface(mgr, address);
-	if (ifp == NULL || ifp->udpdispatch == NULL)
-		return (ISC_R_NOTFOUND);
-	dns_dispatch_attach(ifp->udpdispatch, dispatchp);
-
-	return (ISC_R_SUCCESS);
-}

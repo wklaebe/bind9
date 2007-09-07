@@ -1,26 +1,30 @@
 /*
  * Copyright (C) 1999, 2000  Internet Software Consortium.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
- * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
- * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
- * SOFTWARE.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+ * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+ * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dir.c,v 1.10 2000/05/11 15:09:27 tale Exp $ */
+/* $Id: dir.c,v 1.14 2000/08/03 13:44:02 tale Exp $ */
 
 /* Principal Authors: DCL */
 
 #include <config.h>
 
+#include <sys/types.h>
+#include <sys/stat.h>
+
+#include <ctype.h>
 #include <errno.h>
 #include <unistd.h>
 
@@ -47,7 +51,7 @@ isc_dir_init(isc_dir_t *dir) {
 }
 
 /*
- * Allocate workspace and open directory stream. If either one fails, 
+ * Allocate workspace and open directory stream. If either one fails,
  * NULL will be returned.
  */
 isc_result_t
@@ -88,7 +92,7 @@ isc_dir_read(isc_dir_t *dir) {
 		return (ISC_R_NOMORE);
 
 	/*
-	 * Make sure that the space for the name is long enough. 
+	 * Make sure that the space for the name is long enough.
 	 */
 	if (sizeof(dir->entry.name) <= strlen(entry->d_name))
 	    return (ISC_R_UNEXPECTED);
@@ -126,10 +130,6 @@ isc_dir_reset(isc_dir_t *dir) {
 	return (ISC_R_SUCCESS);
 }
 
-/*
- * XXX Is there a better place for this?
- */
-
 isc_result_t
 isc_dir_chdir(const char *dirname) {
 	/*
@@ -142,4 +142,73 @@ isc_dir_chdir(const char *dirname) {
 		return (isc__errno2result(errno));
 
 	return (ISC_R_SUCCESS);
+}
+
+isc_result_t
+isc_dir_createunique(char *templet) {
+	isc_result_t result;
+	char *x;
+	char *p;
+	int i;
+	int pid;
+
+	REQUIRE(templet != NULL);
+
+	/*
+	 * mkdtemp is not portable, so this emulates it.
+	 */
+
+	pid = getpid();
+
+	/*
+	 * Replace trailing Xs with the process-id, zero-filled.
+	 */
+	for (x = templet + strlen(templet) - 1; *x == 'X' && x >= templet;
+	     x--, pid /= 10)
+		*x = pid % 10 + '0';
+
+	x++;			/* Set x to start of ex-Xs. */
+
+	do {
+		i = mkdir(templet, 0700);
+		if (i == 0 || errno != EEXIST)
+			break;
+
+		/*
+		 * The BSD algorithm.
+		 */
+		p = x;
+		while (*p != '\0') {
+			if (isdigit(*p & 0xff))
+				*p = 'a';
+			else if (*p != 'z')
+				++*p;
+			else {
+				/*
+				 * Reset character and move to next.
+				 */
+				*p++ = 'a';
+				continue;
+			}
+
+			break;
+		}
+
+		if (*p == '\0') {
+			/*
+			 * Tried all combinations.  errno should already
+			 * be EEXIST, but ensure it is anyway for
+			 * isc__errno2result().
+			 */
+			errno = EEXIST;
+			break;
+		}
+	} while (1);
+
+	if (i == -1)
+		result = isc__errno2result(errno);
+	else
+		result = ISC_R_SUCCESS;
+
+	return (result);
 }

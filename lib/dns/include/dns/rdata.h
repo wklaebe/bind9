@@ -1,21 +1,21 @@
 /*
  * Copyright (C) 1998-2000  Internet Software Consortium.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
- * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
- * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
- * SOFTWARE.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+ * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+ * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rdata.h,v 1.38 2000/06/22 21:55:57 tale Exp $ */
+/* $Id: rdata.h,v 1.48 2000/11/09 23:55:01 bwelling Exp $ */
 
 #ifndef DNS_RDATA_H
 #define DNS_RDATA_H 1
@@ -121,8 +121,13 @@ struct dns_rdata {
 	unsigned int			length;
 	dns_rdataclass_t		rdclass;
 	dns_rdatatype_t			type;
+	unsigned int			flags;
 	ISC_LINK(dns_rdata_t)		link;
 };
+
+#define DNS_RDATA_INIT { NULL, 0, 0, 0, 0, {(void*)(-1), (void *)(-1)}}
+
+#define DNS_RDATA_UPDATE	0x0001		/* update pseudo record */
 
 /*
  * Flags affecting rdata formatting style.  Flags 0xFFFF0000
@@ -148,6 +153,25 @@ dns_rdata_init(dns_rdata_t *rdata);
  *
  * Requires:
  *	'rdata' is a valid rdata (i.e. not NULL, points to a struct dns_rdata)
+ */
+
+void
+dns_rdata_reset(dns_rdata_t *rdata);
+/*
+ * Make 'rdata' empty.
+ *
+ * Requires:
+ *	'rdata' is a previously initaliased rdata and is not linked.
+ */
+
+void
+dns_rdata_clone(const dns_rdata_t *src, dns_rdata_t *target);
+/*
+ * Clone 'target' from 'src'.
+ *
+ * Requires:
+ *	'src' to be initalised.
+ *	'target' to be initalised.
  */
 
 /***
@@ -244,7 +268,7 @@ dns_rdata_towire(dns_rdata_t *rdata, dns_compress_t *cctx,
 /*
  * Convert 'rdata' into wire format, compressing it as specified by the
  * compression context 'cctx', and storing the result in 'target'.
- *	
+ *
  * Notes:
  *	If the compression context allows global compression, then the
  *	global compression table may be updated.
@@ -270,8 +294,8 @@ dns_rdata_towire(dns_rdata_t *rdata, dns_compress_t *cctx,
 isc_result_t
 dns_rdata_fromtext(dns_rdata_t *rdata, dns_rdataclass_t rdclass,
 		   dns_rdatatype_t type, isc_lex_t *lexer, dns_name_t *origin,
-		   isc_boolean_t downcase, isc_buffer_t *target,
-		   dns_rdatacallbacks_t *callbacks);
+		   isc_boolean_t downcase, isc_mem_t *mctx,
+		   isc_buffer_t *target, dns_rdatacallbacks_t *callbacks);
 /*
  * Convert the textual representation of a DNS rdata into uncompressed wire
  * form stored in the target region.  Tokens constituting the text of the rdata
@@ -290,9 +314,47 @@ dns_rdata_fromtext(dns_rdata_t *rdata, dns_rdataclass_t rdclass,
  *
  *	'lexer' is a valid isc_lex_t.
  *
+ *	'mctx' is a valid isc_mem_t.
+ *
  *	'target' is a valid region.
  *
  *	'origin' if non NULL it must be absolute.
+ *
+ * Ensures:
+ *	If result is success:
+ *	 	If 'rdata' is not NULL, it is attached to the target.
+ *
+ *		The conditions dns_name_fromtext() ensures for names hold
+ *		for all names in the rdata.
+ *
+ *		The used space in target is updated.
+ *
+ * Result:
+ *	Success
+ *	<Translated result codes from isc_lex_gettoken>
+ *	<Various 'Bad Form' class failures depending on class and type>
+ *	Bad Form: Input too short
+ *	Resource Limit: Not enough space
+ *	Resource Limit: Not enough memory
+ */
+
+isc_result_t
+dns_rdata_fromtextgeneric(dns_rdata_t *rdata, dns_rdataclass_t rdclass,
+                          dns_rdatatype_t type, isc_lex_t *lexer,
+                          isc_buffer_t *target,
+                          dns_rdatacallbacks_t *callbacks);
+/*
+ * Convert a generic textual representation of a DNS rdata into uncompressed
+ * wire form stored in the target region.  Tokens constituting the text of
+ * the rdata are taken from 'lexer'.  
+ *
+ * Requires:
+ *
+ *	'rdclass' and 'type' are valid.
+ *
+ *	'lexer' is a valid isc_lex_t.
+ *
+ *	'target' is a valid region.
  *
  * Ensures:
  *	If result is success:
@@ -348,7 +410,7 @@ isc_result_t
 dns_rdata_tofmttext(dns_rdata_t *rdata, dns_name_t *origin, unsigned int flags,
 		    unsigned int width, char *linebreak, isc_buffer_t *target);
 /*
- * Like dns_rdata_totext, but do formatted output suitable for 
+ * Like dns_rdata_totext, but do formatted output suitable for
  * database dumps.  This is intended for use by dns_db_dump();
  * library users are discouraged from calling it directly.
  *
@@ -358,16 +420,16 @@ dns_rdata_tofmttext(dns_rdata_t *rdata, dns_name_t *origin, unsigned int flags,
  * are added when necessary.  Because RRs contain unbreakable elements
  * such as domain names whose length is variable, unpredictable, and
  * potentially large, there is no guarantee that the lines will
- * not exceed 'width' anyway.  
+ * not exceed 'width' anyway.
  *
  * If (flags & DNS_STYLEFLAG_MULTILINE) == 0, the rdata is always
  * printed as a single line, and no parentheses are used.
  * The 'width' and 'linebreak' arguments are ignored.
  *
  * If (flags & DNS_STYLEFLAG_COMMENT) != 0, output explanatory
- * comments next to things like the SOA timer fields.  Some 
+ * comments next to things like the SOA timer fields.  Some
  * comments (e.g., the SOA ones) are only printed when multiline
- * output is selected. 
+ * output is selected.
  */
 
 isc_result_t
@@ -406,7 +468,7 @@ isc_result_t
 dns_rdata_tostruct(dns_rdata_t *rdata, void *target, isc_mem_t *mctx);
 /*
  * Convert an rdata into its C structure representation.
- *	
+ *
  * If 'mctx' is NULL then 'rdata' must persist while 'target' is being used.
  *
  * If 'mctx' is non NULL then memory will be allocated if required.
@@ -624,9 +686,6 @@ dns_rdata_covers(dns_rdata_t *rdata);
  * Returns:
  *	The type covered.
  */
-
-isc_result_t
-dns_rdataclass_totext(dns_rdataclass_t rdclass, isc_buffer_t *target);
 
 ISC_LANG_ENDDECLS
 

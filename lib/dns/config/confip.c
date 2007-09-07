@@ -1,21 +1,21 @@
 /*
  * Copyright (C) 1999, 2000  Internet Software Consortium.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
- * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
- * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
- * SOFTWARE.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+ * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+ * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: confip.c,v 1.27 2000/06/06 15:21:46 tale Exp $ */
+/* $Id: confip.c,v 1.37 2000/09/27 20:10:39 gson Exp $ */
 
 #include <config.h>
 
@@ -44,7 +44,7 @@ dns_c_ipmatchelement_new(isc_mem_t *mem, dns_c_ipmatchelement_t **result) {
 
 	*result = NULL;
 
-	ime = isc_mem_get(mem, sizeof *ime);
+	ime = isc_mem_get(mem, sizeof(*ime));
 	if (ime == NULL) {
 		return (ISC_R_NOMEMORY);
 	}
@@ -52,7 +52,7 @@ dns_c_ipmatchelement_new(isc_mem_t *mem, dns_c_ipmatchelement_t **result) {
 	ime->magic = DNS_C_IPMELEM_MAGIC;
 	ime->type = dns_c_ipmatch_none;
 	ime->flags = 0;
-	memset(&ime->u, 0x0, sizeof ime->u);
+	memset(&ime->u, 0x0, sizeof(ime->u));
 
 	ISC_LINK_INIT(ime, next);
 
@@ -65,7 +65,7 @@ isc_boolean_t
 dns_c_ipmatchelement_isneg(dns_c_ipmatchelement_t *elem) {
 
 	REQUIRE(DNS_C_IPMELEM_VALID(elem));
-	
+
 	return (ISC_TF((elem->flags & DNS_C_IPMATCH_NEGATE) ==
 			DNS_C_IPMATCH_NEGATE));
 }
@@ -73,15 +73,15 @@ dns_c_ipmatchelement_isneg(dns_c_ipmatchelement_t *elem) {
 isc_result_t
 dns_c_ipmatchelement_delete(isc_mem_t *mem, dns_c_ipmatchelement_t **ipme) {
 	dns_c_ipmatchelement_t *elem;
-	
+
 	REQUIRE(mem != NULL);
 	REQUIRE(ipme != NULL);
 	REQUIRE(*ipme != NULL);
-	
+
 	elem = *ipme;
 
 	REQUIRE(DNS_C_IPMELEM_VALID(elem));
-	
+
 	switch (elem->type) {
 	case dns_c_ipmatch_localhost:
 	case dns_c_ipmatch_localnets:
@@ -121,10 +121,10 @@ dns_c_ipmatchelement_delete(isc_mem_t *mem, dns_c_ipmatchelement_t **ipme) {
 	}
 
 	elem->magic = 0;
-	isc_mem_put(mem, elem, sizeof *elem);
+	isc_mem_put(mem, elem, sizeof(*elem));
 
 	*ipme = NULL;
-	
+
 	return (ISC_R_SUCCESS);
 }
 
@@ -139,7 +139,7 @@ dns_c_ipmatchelement_copy(isc_mem_t *mem,
 	REQUIRE(mem != NULL);
 	REQUIRE(dest != NULL);
 	REQUIRE(DNS_C_IPMELEM_VALID(src));
-		
+
 	result = dns_c_ipmatchelement_new(mem, &newel);
 	if (result != ISC_R_SUCCESS) {
 		return (result);
@@ -147,7 +147,7 @@ dns_c_ipmatchelement_copy(isc_mem_t *mem,
 
 	newel->type = src->type;
 	newel->flags = src->flags;
-	
+
 	switch(src->type) {
 	case dns_c_ipmatch_pattern:
 		newel->u.direct.address = src->u.direct.address;
@@ -158,7 +158,7 @@ dns_c_ipmatchelement_copy(isc_mem_t *mem,
 		result = dns_c_ipmatchlist_copy(mem,
 						&newel->u.indirect.list,
 						src->u.indirect.list);
-		break;	
+		break;
 
 	case dns_c_ipmatch_localhost:
 		break;
@@ -173,7 +173,7 @@ dns_c_ipmatchelement_copy(isc_mem_t *mem,
 	case dns_c_ipmatch_acl:
 		newel->u.aclname = isc_mem_strdup(mem, src->u.aclname);
 		break;
-		
+
 	case dns_c_ipmatch_any:
 		break;
 
@@ -185,7 +185,7 @@ dns_c_ipmatchelement_copy(isc_mem_t *mem,
 	}
 
 	*dest = newel;
-	
+
 	return (ISC_R_SUCCESS);
 }
 
@@ -327,7 +327,7 @@ dns_c_ipmatchindirect_new(isc_mem_t *mem,
 	} else {
 		dns_c_ipmatchlist_detach(&iml_copy);
 	}
-	
+
 	*result = ime;
 
 	return (res);
@@ -350,6 +350,9 @@ dns_c_ipmatchpattern_new(isc_mem_t *mem,
 	res = checkmask(&address, maskbits);
 
 	if (res != ISC_R_SUCCESS) {
+		isc_log_write(dns_lctx, DNS_LOGCATEGORY_CONFIG,
+			      DNS_LOGMODULE_CONFIG, ISC_LOG_ERROR,
+			      "host portion of network address is not zero");
 		return (res);
 	}
 
@@ -442,7 +445,7 @@ dns_c_ipmatchlist_new(isc_mem_t *mem, dns_c_ipmatchlist_t **ptr) {
 	REQUIRE(ptr != NULL);
 	REQUIRE(mem != NULL);
 
-	newlist = isc_mem_get(mem, sizeof *newlist);
+	newlist = isc_mem_get(mem, sizeof(*newlist));
 	if (newlist == NULL) {
 		return (ISC_R_NOMEMORY);
 	}
@@ -450,7 +453,7 @@ dns_c_ipmatchlist_new(isc_mem_t *mem, dns_c_ipmatchlist_t **ptr) {
 	newlist->magic = DNS_C_IPMLIST_MAGIC;
 	newlist->mem = mem;
 	newlist->refcount = 1;
-	
+
 	ISC_LIST_INIT(newlist->elements);
 
 	*ptr = newlist;
@@ -467,7 +470,7 @@ dns_c_ipmatchlist_detach(dns_c_ipmatchlist_t **ml) {
 
 	REQUIRE(ml != NULL);
 	REQUIRE(*ml != NULL);
-	
+
 	iml = *ml;
 	*ml = NULL;
 
@@ -478,7 +481,7 @@ dns_c_ipmatchlist_detach(dns_c_ipmatchlist_t **ml) {
 	if (iml->refcount > 0) {
 		return (ISC_R_SUCCESS);
 	}
-	
+
 	mem = iml->mem;
 	INSIST(mem != NULL);
 
@@ -486,11 +489,11 @@ dns_c_ipmatchlist_detach(dns_c_ipmatchlist_t **ml) {
 	while (ime != NULL) {
 		iptr = ISC_LIST_NEXT(ime, next);
 		dns_c_ipmatchelement_delete(mem, &ime);
-		
+
 		ime = iptr;
 	}
 
-	isc_mem_put(mem, iml, sizeof *iml);
+	isc_mem_put(mem, iml, sizeof(*iml));
 
 	return (ISC_R_SUCCESS);
 }
@@ -501,7 +504,7 @@ dns_c_ipmatchlist_attach(dns_c_ipmatchlist_t *source,
 {
 
 	REQUIRE(DNS_C_IPMLIST_VALID(source));
-	
+
 	INSIST(source->refcount > 0);
 
 	source->refcount++;
@@ -515,7 +518,7 @@ dns_c_ipmatchlist_empty(dns_c_ipmatchlist_t *ipml) {
 	isc_result_t res = ISC_R_SUCCESS;
 
 	REQUIRE(DNS_C_IPMLIST_VALID(ipml));
-	
+
 	ime = ISC_LIST_HEAD(ipml->elements);
 	while (ime != NULL) {
 		imptmp = ISC_LIST_NEXT(ime, next);
@@ -525,7 +528,7 @@ dns_c_ipmatchlist_empty(dns_c_ipmatchlist_t *ipml) {
 		}
 		ime = imptmp;
 	}
-	
+
 	return (res);
 }
 
@@ -556,7 +559,7 @@ dns_c_ipmatchlist_copy(isc_mem_t *mem,
 			dns_c_ipmatchlist_detach(&newlist);
 			return (result);
 		}
-		
+
 		ISC_LIST_APPEND(newlist->elements, ptr, next);
 
 		ime = ISC_LIST_NEXT(ime, next);
@@ -573,7 +576,7 @@ dns_c_ipmatchlist_equal(dns_c_ipmatchlist_t *l1, dns_c_ipmatchlist_t *l2) {
 
 	REQUIRE(l1 == NULL || DNS_C_IPMLIST_VALID(l1));
 	REQUIRE(l2 == NULL || DNS_C_IPMLIST_VALID(l2));
-	
+
 	if (l1 == NULL && l2 == NULL)
 		return (ISC_TRUE);
 	if (l1 != NULL || l2 != NULL)
@@ -617,7 +620,7 @@ dns_c_ipmatchlist_append(dns_c_ipmatchlist_t *dest,
 		if (negate) {
 			dns_c_ipmatch_negate(ime_copy);
 		}
-		
+
 		ISC_LIST_APPEND(dest->elements, ime_copy, next);
 
 		ime = ISC_LIST_NEXT(ime, next);
@@ -645,7 +648,7 @@ dns_c_ipmatchelement_print(FILE *fp, int indent, dns_c_ipmatchelement_t *ipme)
 	switch (ipme->type) {
 	case dns_c_ipmatch_pattern:
 		dns_c_print_ipaddr(fp, &ipme->u.direct.address);
-		
+
 		bits = ipme->u.direct.mask;
 		if (bits > 0) {
 			isc_uint32_t fam =
@@ -719,11 +722,11 @@ dns_c_ipmatchlist_print(FILE *fp, int indent, dns_c_ipmatchlist_t *ml) {
 			dns_c_printtabs(fp, indent);
 			dns_c_ipmatchelement_print(fp, indent + 1, ipme);
 			fprintf(fp, ";\n");
-			
+
 			ipme = ISC_LIST_NEXT(ipme, next);
 		}
 	}
-	
+
 	dns_c_printtabs(fp, indent - 1);
 	fprintf(fp, "}");
 
@@ -764,7 +767,7 @@ dns_c_ipmatchlist_walk(dns_c_ipmatchlist_t *list, dns_c_ipmlwalker func)
 
 		ipme = ISC_LIST_NEXT(ipme, next);
 	}
-	
+
 	return (retval);
 }
 
@@ -775,24 +778,24 @@ isc_result_t
 dns_c_iplist_new(isc_mem_t *mem, int length, dns_c_iplist_t **newlist) {
 	dns_c_iplist_t *list;
 	size_t bytes;
-
 	REQUIRE(mem != NULL);
 	REQUIRE(length > 0);
 	REQUIRE(newlist != NULL);
 
-	list = isc_mem_get(mem, sizeof *list);
+	list = isc_mem_get(mem, sizeof(*list));
 	if (list == NULL) {
 		return (ISC_R_NOMEMORY);
 	}
 
-	bytes = sizeof (isc_sockaddr_t) * length;
+	bytes = sizeof(isc_sockaddr_t) * length;
 	list->ips = isc_mem_get(mem, bytes);
 	if (list->ips == NULL) {
-		isc_mem_put(mem, list, sizeof *list);
+		isc_mem_put(mem, list, sizeof(*list));
 		return (ISC_R_NOMEMORY);
 	}
-
 	memset(list->ips, 0x0, bytes);
+
+
 
 	list->magic = DNS_C_IPLIST_MAGIC;
 	list->size = length;
@@ -801,7 +804,7 @@ dns_c_iplist_new(isc_mem_t *mem, int length, dns_c_iplist_t **newlist) {
 	list->refcount = 1;
 
 	*newlist = list;
-	
+
 	return (ISC_R_SUCCESS);
 }
 
@@ -809,25 +812,27 @@ isc_result_t
 dns_c_iplist_detach(dns_c_iplist_t **list) {
 	dns_c_iplist_t *l ;
 
+
 	REQUIRE(list != NULL);
 	REQUIRE(*list != NULL);
-	
+
 	l = *list;
 
 	REQUIRE(DNS_C_IPLIST_VALID(l));
-	INSIST(l->refcount > 0);
 
+	INSIST(l->refcount > 0);
 	l->refcount--;
 
 	if (l->refcount == 0) {
-		isc_mem_put(l->mem, l->ips, sizeof (isc_sockaddr_t) * l->size);
-		isc_mem_put(l->mem, l, sizeof *l);
+		isc_mem_put(l->mem, l->ips, sizeof(isc_sockaddr_t) * l->size);
+		isc_mem_put(l->mem, l, sizeof(*l));
 	}
 
 	*list = NULL;
 
 	return (ISC_R_SUCCESS);
 }
+
 
 void
 dns_c_iplist_attach(dns_c_iplist_t *source, dns_c_iplist_t **target) {
@@ -848,13 +853,13 @@ dns_c_iplist_copy(isc_mem_t *mem, dns_c_iplist_t **dest, dns_c_iplist_t *src) {
 	REQUIRE(DNS_C_IPLIST_VALID(src));
 
 	res = dns_c_iplist_new(mem, src->size, &newl);
-	if (res != ISC_R_SUCCESS) {
+	if (res != ISC_R_SUCCESS)
 		return (res);
-	}
 
 	for (i = 0 ; i < src->nextidx ; i++) {
 		newl->ips[i] = src->ips[i];
 	}
+
 	newl->nextidx = src->nextidx;
 
 	*dest = newl;
@@ -875,6 +880,7 @@ dns_c_iplist_equal(dns_c_iplist_t *list1, dns_c_iplist_t *list2) {
 	for (i = 0 ; i < list1->nextidx ; i++) {
 		if (!isc_sockaddr_equal(&list1->ips[i], &list2->ips[i]))
 			return (ISC_FALSE);
+
 	}
 
 	return (ISC_TRUE);
@@ -890,18 +896,18 @@ dns_c_iplist_printfully(FILE *fp, int indent, isc_boolean_t porttoo,
 	isc_boolean_t athead = ISC_TRUE;
 
 	REQUIRE(DNS_C_IPLIST_VALID(list));
-		
+
 	if (list->nextidx == 0) {
 		fputc('{', fp);
 		fputc('\n', fp);
 		dns_c_printtabs(fp, indent);
 		fprintf(fp, "/* no ip addresses defined */\n");
-		dns_c_printtabs(fp, indent - 1); 
+		dns_c_printtabs(fp, indent - 1);
 		fputc('}', fp);
 	} else {
 		if (porttoo) {
 			port = isc_sockaddr_getport(&list->ips[0]);
-			
+
 			for (i = 0 ; i < list->nextidx ; i++) {
 				tmpport = isc_sockaddr_getport(&list->ips[i]);
 				if (tmpport != port) {
@@ -941,53 +947,60 @@ dns_c_iplist_print(FILE *fp, int indent, dns_c_iplist_t *list) {
 isc_result_t
 dns_c_iplist_append(dns_c_iplist_t *list, isc_sockaddr_t newaddr) {
 	isc_uint32_t i;
+	isc_result_t res;
 
 	REQUIRE(DNS_C_IPLIST_VALID(list));
 
 	for (i = 0 ; i < list->nextidx ; i++) {
-		if (memcmp(&list->ips[i], &newaddr, sizeof newaddr) == 0) {
+		if (memcmp(&list->ips[i], &newaddr, sizeof(newaddr)) == 0) {
 			break;
 		}
 	}
 
-	if (i < list->nextidx) {
+	if (i < list->nextidx)
 		return (ISC_R_FAILURE);
-	}
 
 	if (list->nextidx == list->size) {
 		isc_sockaddr_t *newlist;
 		size_t newbytes;
-		size_t oldbytes = list->size * sizeof (list->ips[0]);
+		size_t oldbytes = list->size * sizeof(list->ips[0]);
 		size_t newsize = list->size + 10;
 
-		newbytes = sizeof (list->ips[0]) * newsize;
+		newbytes = sizeof(list->ips[0]) * newsize;
 		newlist = isc_mem_get(list->mem, newbytes);
-		if (newlist == NULL) {
+		if (newlist == NULL)
 			return (ISC_R_NOMEMORY);
-		}
 
 		memset(newlist, 0x0, newbytes);
 		memcpy(newlist, list->ips, oldbytes);
 
 		isc_mem_put(list->mem, list->ips, oldbytes);
 		list->ips = newlist;
+
+
+		i = list->size;
 		list->size = newsize;
 	}
-	
+
 	list->ips[i] = newaddr;
 	list->nextidx++;
 
-	return (ISC_R_SUCCESS);
+	res = ISC_R_SUCCESS;
+
+
+	return (res);
 }
+
+
 
 isc_result_t
 dns_c_iplist_remove(dns_c_iplist_t *list, isc_sockaddr_t newaddr) {
 	isc_uint32_t i;
 
 	REQUIRE(DNS_C_IPLIST_VALID(list));
-	
+
 	for (i = 0 ; i < list->nextidx ; i++) {
-		if (memcmp(&list->ips[0], &newaddr, sizeof newaddr) == 0) {
+		if (memcmp(&list->ips[i], &newaddr, sizeof(newaddr)) == 0) {
 			break;
 		}
 	}
@@ -997,6 +1010,8 @@ dns_c_iplist_remove(dns_c_iplist_t *list, isc_sockaddr_t newaddr) {
 	}
 
 	list->nextidx--;
+
+
 	for ( /* nothing */ ; i < list->nextidx ; i++) {
 		list->ips[i] = list->ips[i + 1];
 	}
@@ -1013,13 +1028,13 @@ checkmask(isc_sockaddr_t *address, isc_uint32_t bits) {
 	if (bits > 0) {
 		if (address->type.sa.sa_family == AF_INET) {
 			isc_uint32_t mask;
-			
+
 			if (bits > 32) {
 				return (ISC_R_FAILURE);
 			}
-			
+
 			mask = ntohl(0xffffffffU << (32 - bits));
-			
+
 			if ((mask & address->type.sin.sin_addr.s_addr) !=
 			    address->type.sin.sin_addr.s_addr) {
 				return (ISC_R_FAILURE);
@@ -1029,15 +1044,15 @@ checkmask(isc_sockaddr_t *address, isc_uint32_t bits) {
 			unsigned char *maskp;
 			unsigned char *addrp;
 			int i;
-			
+
 			if (bits > 128) {
 				return (ISC_R_FAILURE);
 			}
-					
+
 			if (bits2v6mask(&iaddr, bits) != ISC_R_SUCCESS) {
 				return (ISC_R_FAILURE);
 			}
-			
+
 			addrp = (unsigned char *)&address->type.sin6.sin6_addr;
 			maskp = (unsigned char *)&iaddr;
 			for (i = 0 ; i < 16 ; i++) {
@@ -1047,7 +1062,7 @@ checkmask(isc_sockaddr_t *address, isc_uint32_t bits) {
 			}
 		}
 	}
-	
+
 	return (ISC_R_SUCCESS);
 }
 
@@ -1060,13 +1075,13 @@ static isc_result_t
 bits2v6mask(struct in6_addr *addr, isc_uint32_t bits) {
 	int i;
 	isc_uint32_t bitmask[4];
-	char addrbuff [ sizeof "ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff" + 1 ];
+	char addrbuff [ sizeof("ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff") + 1 ];
 
 	INSIST(bits <= 128);
-	
+
 	/* Break the 128 bits up into 32-bit sections */
 	bitmask[0] = bitmask[1] = bitmask[2] = bitmask[3] = 0U;
-	
+
 	if (bits >= 32) {
 		bitmask[0] = 0xffffffffU;
 	} else if (bits > 0) {
@@ -1085,9 +1100,9 @@ bits2v6mask(struct in6_addr *addr, isc_uint32_t bits) {
 	} else if (bits > 64) {
 		bitmask[2] = 0xffffffffU << (96 - bits);
 	}
-      
-	memset(addr, 0x0, sizeof *addr);
-	
+
+	memset(addr, 0x0, sizeof(*addr));
+
 	sprintf(addrbuff, "%04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x",
 		(((bitmask[0] & 0xffff0000U) >> 16) & 0xffffU),
 		(bitmask[0] & 0xffff),
@@ -1103,5 +1118,5 @@ bits2v6mask(struct in6_addr *addr, isc_uint32_t bits) {
 	return (i == 1 ? ISC_R_SUCCESS : ISC_R_FAILURE);
 }
 
-	
+
 

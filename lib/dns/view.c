@@ -1,21 +1,21 @@
 /*
  * Copyright (C) 1999, 2000  Internet Software Consortium.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
- * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
- * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
- * SOFTWARE.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+ * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+ * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: view.c,v 1.71.2.1 2000/09/25 20:20:26 gson Exp $ */
+/* $Id: view.c,v 1.85 2000/11/10 03:16:20 gson Exp $ */
 
 #include <config.h>
 
@@ -28,7 +28,9 @@
 #include <dns/cache.h>
 #include <dns/db.h>
 #include <dns/events.h>
+#include <dns/forward.h>
 #include <dns/keytable.h>
+#include <dns/master.h>
 #include <dns/peer.h>
 #include <dns/rdataset.h>
 #include <dns/request.h>
@@ -111,12 +113,22 @@ dns_view_create(isc_mem_t *mctx, dns_rdataclass_t rdclass,
 		result = ISC_R_UNEXPECTED;
 		goto cleanup_secroots;
 	}
+	view->fwdtable = NULL;
+	result = dns_fwdtable_create(mctx, &view->fwdtable);
+	if (result != ISC_R_SUCCESS) {
+		UNEXPECTED_ERROR(__FILE__, __LINE__,
+				 "dns_fwdtable_create() failed: %s",
+				 isc_result_totext(result));
+		result = ISC_R_UNEXPECTED;
+		goto cleanup_trustedkeys;
+	}
 
 	view->cache = NULL;
 	view->cachedb = NULL;
 	view->hints = NULL;
 	view->resolver = NULL;
 	view->adb = NULL;
+	view->loadmgr = NULL;
 	view->requestmgr = NULL;
 	view->mctx = mctx;
 	view->rdclass = rdclass;
@@ -131,17 +143,20 @@ dns_view_create(isc_mem_t *mctx, dns_rdataclass_t rdclass,
 	view->matchclients = NULL;
 	result = dns_tsigkeyring_create(view->mctx, &view->dynamickeys);
 	if (result != ISC_R_SUCCESS)
-		goto cleanup_trustedkeys;
+		goto cleanup_fwdtable;
 	view->peers = NULL;
 
 	/*
 	 * Initialize configuration data with default values.
-	 */	
+	 */
 	view->recursion = ISC_TRUE;
 	view->auth_nxdomain = ISC_FALSE; /* Was true in BIND 8 */
+	view->additionalfromcache = ISC_TRUE;
+	view->additionalfromauth = ISC_TRUE;
 	view->transfer_format = dns_one_answer;
 	view->queryacl = NULL;
 	view->recursionacl = NULL;
+	view->sortlist = NULL;
 	view->requestixfr = ISC_TRUE;
 	view->provideixfr = ISC_TRUE;
 	view->maxcachettl = 7 * 24 * 3600;
@@ -162,20 +177,23 @@ dns_view_create(isc_mem_t *mctx, dns_rdataclass_t rdclass,
 		       DNS_EVENT_VIEWREQSHUTDOWN, req_shutdown,
 		       view, NULL, NULL, NULL);
 	view->magic = DNS_VIEW_MAGIC;
-	
+
 	*viewp = view;
 
 	return (ISC_R_SUCCESS);
 
  cleanup_dynkeys:
-	dns_tsigkeyring_destroy(&view->dynamickeys);	
+	dns_tsigkeyring_destroy(&view->dynamickeys);
+
+ cleanup_fwdtable:
+	dns_fwdtable_destroy(&view->fwdtable);
 
  cleanup_trustedkeys:
 	dns_keytable_detach(&view->trustedkeys);
 
  cleanup_secroots:
 	dns_keytable_detach(&view->secroots);
-	
+
  cleanup_zt:
 	dns_zt_detach(&view->zonetable);
 
@@ -183,7 +201,7 @@ dns_view_create(isc_mem_t *mctx, dns_rdataclass_t rdclass,
 	isc_rwlock_destroy(&view->conflock);
 
  cleanup_mutex:
-	isc_mutex_destroy(&view->lock);
+	DESTROYLOCK(&view->lock);
 
  cleanup_name:
 	isc_mem_free(mctx, view->name);
@@ -205,14 +223,16 @@ destroy(dns_view_t *view) {
 
 	if (view->peers != NULL)
 		dns_peerlist_detach(&view->peers);
-	if (view->dynamickeys != NULL)	
+	if (view->dynamickeys != NULL)
 		dns_tsigkeyring_destroy(&view->dynamickeys);
-	if (view->statickeys != NULL)	
+	if (view->statickeys != NULL)
 		dns_tsigkeyring_destroy(&view->statickeys);
 	if (view->adb != NULL)
 		dns_adb_detach(&view->adb);
 	if (view->resolver != NULL)
 		dns_resolver_detach(&view->resolver);
+	if (view->loadmgr != NULL)
+		dns_loadmgr_detach(&view->loadmgr);
 	if (view->requestmgr != NULL)
 		dns_requestmgr_detach(&view->requestmgr);
 	if (view->task != NULL)
@@ -229,19 +249,23 @@ destroy(dns_view_t *view) {
 		dns_acl_detach(&view->queryacl);
 	if (view->recursionacl != NULL)
 		dns_acl_detach(&view->recursionacl);
+	if (view->sortlist != NULL)
+		dns_acl_detach(&view->sortlist);
 	dns_keytable_detach(&view->trustedkeys);
 	dns_keytable_detach(&view->secroots);
+	dns_fwdtable_destroy(&view->fwdtable);
 	isc_rwlock_destroy(&view->conflock);
-	isc_mutex_destroy(&view->lock);
+	DESTROYLOCK(&view->lock);
 	isc_mem_free(view->mctx, view->name);
 	isc_mem_put(view->mctx, view, sizeof *view);
 }
 
+/*
+ * Return true iff 'view' may be freed.
+ * The caller must be holding the view lock.
+ */
 static isc_boolean_t
 all_done(dns_view_t *view) {
-	/*
-	 * Caller must be holding the view lock.
-	 */
 
 	if (view->references == 0 && view->weakrefs == 0 &&
 	    RESSHUTDOWN(view) && ADBSHUTDOWN(view) && REQSHUTDOWN(view))
@@ -267,8 +291,8 @@ dns_view_attach(dns_view_t *source, dns_view_t **targetp) {
 	*targetp = source;
 }
 
-void
-dns_view_detach(dns_view_t **viewp) {
+static void
+view_flushanddetach(dns_view_t **viewp, isc_boolean_t flush) {
 	dns_view_t *view;
 	isc_boolean_t done = ISC_FALSE;
 
@@ -287,7 +311,10 @@ dns_view_detach(dns_view_t **viewp) {
 			dns_adb_shutdown(view->adb);
 		if (!REQSHUTDOWN(view))
 			dns_requestmgr_shutdown(view->requestmgr);
-		dns_zt_detach(&view->zonetable);
+		if (flush)
+			dns_zt_flushanddetach(&view->zonetable);
+		else
+			dns_zt_detach(&view->zonetable);
 		done = all_done(view);
 	}
 	UNLOCK(&view->lock);
@@ -296,6 +323,29 @@ dns_view_detach(dns_view_t **viewp) {
 
 	if (done)
 		destroy(view);
+}
+
+void
+dns_view_flushanddetach(dns_view_t **viewp) {
+	view_flushanddetach(viewp, ISC_TRUE);
+}
+
+void
+dns_view_detach(dns_view_t **viewp) {
+	view_flushanddetach(viewp, ISC_FALSE);
+}
+
+static isc_result_t
+dialup(dns_zone_t *zone, void *dummy) {
+	UNUSED(dummy);
+	dns_zone_dialup(zone);
+	return (ISC_R_SUCCESS);
+}
+
+void
+dns_view_dialup(dns_view_t *view) {
+	REQUIRE(DNS_VIEW_VALID(view));
+	dns_zt_apply(view->zonetable, ISC_FALSE, dialup, NULL);
 }
 
 void
@@ -338,13 +388,13 @@ static void
 resolver_shutdown(isc_task_t *task, isc_event_t *event) {
 	dns_view_t *view = event->ev_arg;
 	isc_boolean_t done;
-	
+
 	REQUIRE(event->ev_type == DNS_EVENT_VIEWRESSHUTDOWN);
 	REQUIRE(DNS_VIEW_VALID(view));
 	REQUIRE(view->task == task);
 
 	UNUSED(task);
-	
+
 	LOCK(&view->lock);
 
 	view->attributes |= DNS_VIEWATTR_RESSHUTDOWN;
@@ -362,13 +412,13 @@ static void
 adb_shutdown(isc_task_t *task, isc_event_t *event) {
 	dns_view_t *view = event->ev_arg;
 	isc_boolean_t done;
-	
+
 	REQUIRE(event->ev_type == DNS_EVENT_VIEWADBSHUTDOWN);
 	REQUIRE(DNS_VIEW_VALID(view));
 	REQUIRE(view->task == task);
 
 	UNUSED(task);
-	
+
 	LOCK(&view->lock);
 
 	view->attributes |= DNS_VIEWATTR_ADBSHUTDOWN;
@@ -386,13 +436,13 @@ static void
 req_shutdown(isc_task_t *task, isc_event_t *event) {
 	dns_view_t *view = event->ev_arg;
 	isc_boolean_t done;
-	
+
 	REQUIRE(event->ev_type == DNS_EVENT_VIEWREQSHUTDOWN);
 	REQUIRE(DNS_VIEW_VALID(view));
 	REQUIRE(view->task == task);
 
 	UNUSED(task);
-	
+
 	LOCK(&view->lock);
 
 	view->attributes |= DNS_VIEWATTR_REQSHUTDOWN;
@@ -418,10 +468,6 @@ dns_view_createresolver(dns_view_t *view,
 {
 	isc_result_t result;
 	isc_event_t *event;
-
-	/*
-	 * Create a resolver and address database for the view.
-	 */
 
 	REQUIRE(DNS_VIEW_VALID(view));
 	REQUIRE(!view->frozen);
@@ -474,11 +520,6 @@ dns_view_createresolver(dns_view_t *view,
 
 void
 dns_view_setcache(dns_view_t *view, dns_cache_t *cache) {
-
-	/*
-	 * Set the view's cache.
-	 */
-
 	REQUIRE(DNS_VIEW_VALID(view));
 	REQUIRE(!view->frozen);
 
@@ -493,11 +534,6 @@ dns_view_setcache(dns_view_t *view, dns_cache_t *cache) {
 
 void
 dns_view_sethints(dns_view_t *view, dns_db_t *hints) {
-
-	/*
-	 * Set the view's hints database.
-	 */
-
 	REQUIRE(DNS_VIEW_VALID(view));
 	REQUIRE(!view->frozen);
 	REQUIRE(view->hints == NULL);
@@ -508,9 +544,6 @@ dns_view_sethints(dns_view_t *view, dns_db_t *hints) {
 
 void
 dns_view_setkeyring(dns_view_t *view, dns_tsig_keyring_t *ring) {
-	/*
-	 * Set the view's static TSIG keyring.
-	 */
 	REQUIRE(DNS_VIEW_VALID(view));
 	REQUIRE(ring != NULL);
 	if (view->statickeys != NULL)
@@ -524,13 +557,18 @@ dns_view_setdstport(dns_view_t *view, in_port_t dstport) {
 	view->dstport = dstport;
 }
 
+void
+dns_view_setloadmgr(dns_view_t *view, dns_loadmgr_t *loadmgr) {
+	REQUIRE(DNS_VIEW_VALID(view));
+
+	if (view->loadmgr != NULL)
+		dns_loadmgr_detach(&view->loadmgr);
+	dns_loadmgr_attach(loadmgr, &view->loadmgr);
+}
+
 isc_result_t
 dns_view_addzone(dns_view_t *view, dns_zone_t *zone) {
 	isc_result_t result;
-
-	/*
-	 * Add zone 'zone' to 'view'.
-	 */
 
 	REQUIRE(DNS_VIEW_VALID(view));
 	REQUIRE(!view->frozen);
@@ -542,11 +580,6 @@ dns_view_addzone(dns_view_t *view, dns_zone_t *zone) {
 
 void
 dns_view_freeze(dns_view_t *view) {
-	
-	/*
-	 * Freeze view.
-	 */
-
 	REQUIRE(DNS_VIEW_VALID(view));
 	REQUIRE(!view->frozen);
 
@@ -789,10 +822,6 @@ dns_view_findzonecut(dns_view_t *view, dns_name_t *name, dns_name_t *fname,
 	dns_rdataset_t zrdataset, zsigrdataset;
 	dns_fixedname_t zfixedname;
 
-	/*
-	 * Find the best known zonecut containing 'name'.
-	 */
-
 	REQUIRE(DNS_VIEW_VALID(view));
 	REQUIRE(view->frozen);
 
@@ -982,11 +1011,44 @@ dns_view_load(dns_view_t *view, isc_boolean_t stop) {
 }
 
 isc_result_t
+dns_view_gettsig(dns_view_t *view, dns_name_t *keyname, dns_tsigkey_t **keyp)
+{
+	isc_result_t result;
+	REQUIRE(keyp != NULL && *keyp == NULL);
+
+	result = dns_tsigkey_find(keyp, keyname, NULL,
+				  view->statickeys);
+	if (result == ISC_R_NOTFOUND)
+		result = dns_tsigkey_find(keyp, keyname, NULL,
+					  view->dynamickeys);
+	return (result);
+}
+
+isc_result_t
+dns_view_getpeertsig(dns_view_t *view, isc_netaddr_t *peeraddr,
+		     dns_tsigkey_t **keyp)
+{
+	isc_result_t result;
+	dns_name_t *keyname = NULL;
+	dns_peer_t *peer = NULL;
+
+	result = dns_peerlist_peerbyaddr(view->peers, peeraddr, &peer);
+	if (result != ISC_R_SUCCESS)
+		return (result);
+
+	result = dns_peer_getkey(peer, &keyname);
+	if (result != ISC_R_SUCCESS)
+		return (result);
+
+	return (dns_view_gettsig(view, keyname, keyp));
+}
+
+isc_result_t
 dns_view_checksig(dns_view_t *view, isc_buffer_t *source, dns_message_t *msg) {
 	REQUIRE(DNS_VIEW_VALID(view));
 	REQUIRE(source != NULL);
 
-	return dns_tsig_verify(source, msg, view->statickeys,
-			       view->dynamickeys);
+	return (dns_tsig_verify(source, msg, view->statickeys,
+				view->dynamickeys));
 }
 

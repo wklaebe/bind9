@@ -1,7 +1,6 @@
-.\"
 .\" Copyright (C) 2000  Internet Software Consortium.
 .\"
-.\" Permission to use, copy, modify, and distribute this document for any
+.\" Permission to use, copy, modify, and distribute this software for any
 .\" purpose with or without fee is hereby granted, provided that the above
 .\" copyright notice and this permission notice appear in all copies.
 .\"
@@ -13,9 +12,9 @@
 .\" FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
 .\" NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
 .\" WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
-.\"
-.\" $Id: dnssec-signzone.8,v 1.7.2.1 2000/08/02 22:10:13 gson Exp $
-.\"
+
+.\" $Id: dnssec-signzone.8,v 1.15 2000/11/18 02:57:38 bwelling Exp $
+
 .Dd Jun 30, 2000
 .Dt DNSSEC-SIGNZONE 8
 .Os BIND9 9
@@ -26,13 +25,16 @@
 .Sh SYNOPSIS
 .Nm dnssec-signzone
 .Op Fl a
-.Op Fl c Ar cycle-time
+.Op Fl c Ar class
+.Op Fl d Ar directory
 .Op Fl s Ar start-time
 .Op Fl e Ar end-time
+.Op Fl i Ar interval
 .Op Fl o Ar origin
 .Op Fl f Ar output-file
 .Op Fl p
 .Op Fl r Ar randomdev
+.Op Fl t
 .Op Fl v Ar level
 .Ar zonefile
 .Op keyfile ....
@@ -41,7 +43,7 @@
 .Nm dnssec-signzone
 is used to sign a zone.
 Any
-.Ar .signedkey
+.Ar signedkey
 files for the zone to be signed should be present in the current
 directory, along with the keys that will be used to sign the zone.
 If no
@@ -58,7 +60,7 @@ Each
 argument would be an identification string for a key created with
 .Xr dnssec-keygen 8 .
 If the zone to be signed has any secure subzones, the
-.Ar .signedkey
+.Ar signedkey
 files for those subzones need to be available in the
 current working directory used by
 .Nm dnssec-signzone .
@@ -78,7 +80,7 @@ If there is a
 .Ar signedkey
 file from the zone's parent, the parent's signatures will be
 incorporated into the generated signed zone file.
-The security status of delegations from the the signed zone 
+The security status of delegations from the the signed zone
 - i.e. whether the child zones are DNSSEC-aware or not - is
 set according to the presence or absence of a
 .Ar signedkey
@@ -113,7 +115,7 @@ A relative start time is supplied when
 .Ar start-time
 is given as +N: N seconds from the current time.
 If no
-.Fl s 
+.Fl s
 option is supplied, the current date and time is used for the start
 time of the SIG records.
 .Pp
@@ -145,22 +147,22 @@ When a previously signed zone is passed as input to
 .Nm dnssec-signzone ,
 records may be resigned.  Whether or not to resign records is configurable
 by using the
-.Fl c
-option, which specifies the cycle period as an offset from the current time
-(in seconds).  If a SIG record expires after the cycle period, it is retained.
-Otherwise, it is considered to be expiring soon, and
+.Fl i
+option, which specifies the cycle interval as an offset from the current time
+(in seconds).  If a SIG record expires after the cycle interval, it is
+retained.  Otherwise, it is considered to be expiring soon, and
 .Nm dnssec-signzone
 will remove it and generate a new SIG record to replace it.
 .Pp
-The default cycle period is one quarter of the difference between the
-specified signature end and start dates.  So if the 
+The default cycle interval is one quarter of the difference between the
+specified signature end and start dates.  So if the
 .Fl e
-and 
+and
 .Fl s
 options are not specified,
 .Nm dnssec-signzone
 generates signatures that are valid for 30 days from the current date
-by default, with a cycle period of 7.5 days.  Therefore, if any SIG records
+by default, with a cycle interval of 7.5 days.  Therefore, if any SIG records
 are due to expire in less than 7.5 days, they would be replaced
 with new ones.
 .Pp
@@ -183,14 +185,29 @@ as a source of random data.
 The
 .Fl p
 option instructs
-.Nm dnssec-signkey
+.Nm dnssec-signzone
 to use pseudo-random data when signing the keys.  This is faster, but
 less secure, than using genuinely random data for signing.
-This option may be useful when there are many child zone keysets to
-sign or if the entropy source is limited.
-It could also be used for short-lived keys and signatures that don't
-require as much protection against cryptanalysis, such as when the key
-will be discarded long before it could be compromised.
+This option may be useful when signing large zones or when the
+entropy source is limited.
+.Pp
+The
+.Fl t
+option causes
+.Nm dnssec-signzone
+to print various statistics after signing the zone.
+.Pp
+The
+.Fl c
+option specifies that the KEY records in the input and output key sets should
+have the specified class instead of IN.
+.Pp
+The
+.Fl d
+option specifies that
+.Nm dnssec-signzone
+should look in a directory other than the current directory for signedkey
+files.
 .Pp
 An option of
 .Fl h
@@ -223,18 +240,14 @@ The zone file for this zone is
 which is the same as the origin, so there is no need to use the
 .Fl o
 option to set the origin.
-This zone file contains the keyset for
-.Dv example.com
-that was created by
-.Xr dnssec-makekeyset 8 .
 The zone's keys were either appended to the zone file or
-incorporated using a 
-.Dv $INCLUDE 
+incorporated using a
+.Dv $INCLUDE
 statement.
 If there was a
-.Ar .signedkey
-file from the parent zone - i.e. 
-.Dv example.com.signedkey 
+.Ar signedkey
+file from the parent zone - i.e.
+.Dv signedkey-example.com.
 - it should be present in the current directory.
 This allows the parent zone's signature to be included in the signed
 version of the
@@ -259,5 +272,4 @@ so that it can be loaded by the name server.
 .Sh SEE ALSO
 .Xr RFC2535,
 .Xr dnssec-keygen 8 ,
-.Xr dnssec-makekeyset 8 ,
 .Xr dnssec-signkey 8 .

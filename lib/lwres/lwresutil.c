@@ -1,21 +1,21 @@
 /*
  * Copyright (C) 2000  Internet Software Consortium.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
- * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
- * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
- * SOFTWARE.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+ * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+ * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: lwresutil.c,v 1.17.2.1 2000/06/26 21:59:42 gson Exp $ */
+/* $Id: lwresutil.c,v 1.25 2000/11/02 01:52:28 bwelling Exp $ */
 
 #include <config.h>
 
@@ -35,6 +35,53 @@
 
 #include "assert_p.h"
 #include "context_p.h"
+
+/*
+ * Requires:
+ *
+ *	The "current" pointer in "b" points to encoded raw data.
+ *
+ * Ensures:
+ *
+ *	The address of the first byte of the data is returned via "p",
+ *	and the length is returned via "len".  If NULL, they are not
+ *	set.
+ *
+ *	On return, the current pointer of "b" will point to the character
+ *	following the data length and the data.
+ *
+ */
+lwres_result_t
+lwres_data_parse(lwres_buffer_t *b, unsigned char **p, lwres_uint16_t *len)
+{
+	lwres_uint16_t datalen;
+	unsigned char *data;
+
+	REQUIRE(b != NULL);
+
+	/*
+	 * Pull off the length (2 bytes)
+	 */
+	if (!SPACE_REMAINING(b, 2))
+		return (LWRES_R_UNEXPECTEDEND);
+	datalen = lwres_buffer_getuint16(b);
+
+	/*
+	 * Set the pointer to this string to the right place, then
+	 * advance the buffer pointer.
+	 */
+	if (!SPACE_REMAINING(b, datalen))
+		return (LWRES_R_UNEXPECTEDEND);
+	data = b->base + b->current;
+	lwres_buffer_forward(b, datalen);
+
+	if (len != NULL)
+		*len = datalen;
+	if (p != NULL)
+		*p = data;
+
+	return (LWRES_R_SUCCESS);
+}
 
 /*
  * Requires:
@@ -112,25 +159,6 @@ lwres_addr_parse(lwres_buffer_t *b, lwres_addr_t *addr)
 	return (LWRES_R_SUCCESS);
 }
 
-static void
-count_dots(const char *name, unsigned int *ndots, unsigned int *last_was_dot)
-{
-	const char *p;
-
-	p = name;
-	*ndots = 0;
-	*last_was_dot = 0;
-
-	while (*p != 0) {
-		if (*p++ == '.') {
-			(*ndots)++;
-			*last_was_dot = 1;
-		} else {
-			*last_was_dot = 0;
-		}
-	}
-}
-
 lwres_result_t
 lwres_getaddrsbyname(lwres_context_t *ctx, const char *name,
 		     lwres_uint32_t addrtypes, lwres_gabnresponse_t **structp)
@@ -143,29 +171,13 @@ lwres_getaddrsbyname(lwres_context_t *ctx, const char *name,
 	lwres_lwpacket_t pkt;
 	lwres_uint32_t serial;
 	char *buffer;
-	int current_suffix;
-	unsigned int ndots;
-	unsigned int last_was_dot;
-	unsigned int exact_first;
 	char target_name[1024];
 	unsigned int target_length;
-	unsigned int tried_exact;
-	unsigned int tried_search;
 
 	REQUIRE(ctx != NULL);
 	REQUIRE(name != NULL);
 	REQUIRE(addrtypes != 0);
 	REQUIRE(structp != NULL && *structp == NULL);
-
-	count_dots(name, &ndots, &last_was_dot);
-	if (last_was_dot || (ndots >= ctx->confdata.ndots))
-		exact_first = 1;
-	else
-		exact_first = 0;
-	
-	current_suffix = 0;
-	tried_exact = 0;
-	tried_search = 0;
 
 	b_in.base = NULL;
 	b_out.base = NULL;
@@ -179,49 +191,10 @@ lwres_getaddrsbyname(lwres_context_t *ctx, const char *name,
 		goto out;
 	}
 
- next_suffix:
-
-	/*
-	 * First, if the name ends in a dot, do an exact search.  Lie and
-	 * pretend we have already done a search.
-	 */
-	if (last_was_dot)
-		tried_search = 1;
-
-	if (tried_exact && tried_search) {
-		ret = LWRES_R_NOTFOUND;
-		goto out;
-	}
-
-	/*
-	 * Try the exact search first.  If this fails, try the
-	 * search list.
-	 */
-	if (exact_first && !tried_exact) {
-		tried_exact = 1;
-		target_length = strlen(name);
-		if (target_length >= sizeof(target_name))
-			goto next_suffix;
-		strcpy(target_name, name); /* strcpy is safe */
-	} else {
-		INSIST(!tried_search);
-		if (current_suffix >= ctx->confdata.searchnxt) {
-			tried_search = 1;
-			exact_first = 1;
-			goto next_suffix;
-		}
-
-		target_length = strlen(name)
-			+ strlen(ctx->confdata.search[current_suffix])
-			+ 1;
-		if (target_length >= sizeof(target_name)) {
-			current_suffix++;
-			goto next_suffix;  /* XXXMLG */
-		}
-		sprintf(target_name, "%s.%s", /* sprintf is safe */
-			name, ctx->confdata.search[current_suffix]);
-		current_suffix++;
-	}
+	target_length = strlen(name);
+	if (target_length >= sizeof(target_name))
+		return (LWRES_R_FAILURE);
+	strcpy(target_name, name); /* strcpy is safe */
 
 	/*
 	 * Set up our request and render it to a buffer.
@@ -268,9 +241,6 @@ lwres_getaddrsbyname(lwres_context_t *ctx, const char *name,
 	CTXFREE(b_out.base, b_out.length);
 	b_out.base = NULL;
 	b_out.length = 0;
-
-	if (pkt.result == LWRES_R_NOTFOUND)
-		goto next_suffix;
 
 	if (pkt.result != LWRES_R_SUCCESS) {
 		ret = pkt.result;
@@ -405,6 +375,120 @@ lwres_getnamebyaddr(lwres_context_t *ctx, lwres_uint32_t addrtype,
 		CTXFREE(buffer, LWRES_RECVLENGTH);
 	if (response != NULL)
 		lwres_gnbaresponse_free(ctx, &response);
+
+	return (ret);
+}
+
+lwres_result_t
+lwres_getrdatabyname(lwres_context_t *ctx, const char *name,
+		     lwres_uint16_t rdclass, lwres_uint16_t rdtype,
+		     lwres_uint32_t flags, lwres_grbnresponse_t **structp)
+{
+	int ret;
+	int recvlen;
+	lwres_buffer_t b_in, b_out;
+	lwres_lwpacket_t pkt;
+	lwres_uint32_t serial;
+	char *buffer;
+	lwres_grbnrequest_t request;
+	lwres_grbnresponse_t *response;
+	char target_name[1024];
+	unsigned int target_length;
+
+	REQUIRE(ctx != NULL);
+	REQUIRE(name != NULL);
+	REQUIRE(structp != NULL && *structp == NULL);
+
+	b_in.base = NULL;
+	b_out.base = NULL;
+	response = NULL;
+	buffer = NULL;
+	serial = lwres_context_nextserial(ctx);
+
+	buffer = CTXMALLOC(LWRES_RECVLENGTH);
+	if (buffer == NULL) {
+		ret = LWRES_R_NOMEMORY;
+		goto out;
+	}
+
+	target_length = strlen(name);
+	if (target_length >= sizeof(target_name))
+		return (LWRES_R_FAILURE);
+	strcpy(target_name, name); /* strcpy is safe */
+
+	/*
+	 * Set up our request and render it to a buffer.
+	 */
+	request.rdclass = rdclass;
+	request.rdtype = rdtype;
+	request.flags = flags;
+	request.name = target_name;
+	request.namelen = target_length;
+	pkt.pktflags = 0;
+	pkt.serial = serial;
+	pkt.result = 0;
+	pkt.recvlength = LWRES_RECVLENGTH;
+
+ again:
+	ret = lwres_grbnrequest_render(ctx, &request, &pkt, &b_out);
+	if (ret != LWRES_R_SUCCESS)
+		goto out;
+
+	ret = lwres_context_sendrecv(ctx, b_out.base, b_out.length, buffer,
+				     LWRES_RECVLENGTH, &recvlen);
+	if (ret != LWRES_R_SUCCESS)
+		goto out;
+
+	lwres_buffer_init(&b_in, buffer, recvlen);
+	b_in.used = recvlen;
+
+	/*
+	 * Parse the packet header.
+	 */
+	ret = lwres_lwpacket_parseheader(&b_in, &pkt);
+	if (ret != LWRES_R_SUCCESS)
+		goto out;
+
+	/*
+	 * Sanity check.
+	 */
+	if (pkt.serial != serial)
+		goto again;
+	if (pkt.opcode != LWRES_OPCODE_GETRDATABYNAME)
+		goto again;
+
+	/*
+	 * Free what we've transmitted
+	 */
+	CTXFREE(b_out.base, b_out.length);
+	b_out.base = NULL;
+	b_out.length = 0;
+
+	if (pkt.result != LWRES_R_SUCCESS) {
+		ret = pkt.result;
+		goto out;
+	}
+
+	/*
+	 * Parse the response.
+	 */
+	ret = lwres_grbnresponse_parse(ctx, &b_in, &pkt, &response);
+	if (ret != LWRES_R_SUCCESS)
+		goto out;
+	response->base = buffer;
+	response->baselen = LWRES_RECVLENGTH;
+	buffer = NULL; /* don't free this below */
+
+	*structp = response;
+	return (LWRES_R_SUCCESS);
+
+ out:
+	if (b_out.base != NULL)
+		CTXFREE(b_out.base, b_out.length);
+	if (buffer != NULL)
+		CTXFREE(buffer, LWRES_RECVLENGTH);
+	if (response != NULL)
+		lwres_grbnresponse_free(ctx, &response);
 
 	return (ret);
 }

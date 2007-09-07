@@ -1,21 +1,21 @@
 /*
  * Copyright (C) 1998-2000  Internet Software Consortium.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
- * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
- * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
- * SOFTWARE.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+ * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+ * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: proforma.c,v 1.25 2000/06/21 22:45:11 tale Exp $ */
+/* $Id: proforma.c,v 1.29 2000/11/08 01:55:54 bwelling Exp $ */
 
 #ifndef RDATA_GENERIC_#_#_C
 #define RDATA_GENERIC_#_#_C
@@ -29,7 +29,8 @@ fromtext_#(ARGS_FROMTEXT) {
 	REQUIRE(type == #);
 	REQUIRE(rdclass == #);
 
-	RETERR(gettoken(lexer, &token, isc_tokentype_string, ISC_FALSE));
+	RETERR(isc_lex_getmastertoken(lexer, &token, isc_tokentype_string,
+				      ISC_FALSE));
 
 	return (ISC_R_NOTIMPLEMENTED);
 }
@@ -39,6 +40,7 @@ totext_#(ARGS_TOTEXT) {
 
 	REQUIRE(rdata->type == #);
 	REQUIRE(rdata->rdclass == #);
+	REQUIRE(rdata->length != 0);	/* XXX */
 
 	return (ISC_R_NOTIMPLEMENTED);
 }
@@ -60,6 +62,7 @@ towire_#(ARGS_TOWIRE) {
 
 	REQUIRE(rdata->type == #);
 	REQUIRE(rdata->rdclass == #);
+	REQUIRE(rdata->length != 0);	/* XXX */
 
 	/* NONE or GLOBAL14 */
 	dns_compress_setmethods(cctx, DNS_COMPRESS_NONE);
@@ -76,6 +79,8 @@ compare_#(ARGS_COMPARE) {
 	REQUIRE(rdata1->rdclass == rdata2->rdclass);
 	REQUIRE(rdata1->type == #);
 	REQUIRE(rdata1->rdclass == #);
+	REQUIRE(rdata1->length != 0);	/* XXX */
+	REQUIRE(rdata2->length != 0);	/* XXX */
 
 	dns_rdata_toregion(rdata1, &r1);
 	dns_rdata_toregion(rdata2, &r2);
@@ -100,6 +105,7 @@ tostruct_#(ARGS_TOSTRUCT) {
 
 	REQUIRE(rdata->type == #);
 	REQUIRE(rdata->rdclass == #);
+	REQUIRE(rdata->length != 0);	/* XXX */
 
 	return (ISC_R_NOTIMPLEMENTED);
 }
@@ -111,7 +117,7 @@ freestruct_#(ARGS_FREESTRUCT) {
 	REQUIRE(source != NULL);
 	REQUIRE(#->common.rdtype == #);
 	REQUIRE(#->common.rdclass == #);
-	
+
 }
 
 static inline isc_result_t

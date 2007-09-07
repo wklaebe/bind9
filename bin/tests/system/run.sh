@@ -1,21 +1,21 @@
 #!/bin/sh
 #
 # Copyright (C) 2000  Internet Software Consortium.
-# 
+#
 # Permission to use, copy, modify, and distribute this software for any
 # purpose with or without fee is hereby granted, provided that the above
 # copyright notice and this permission notice appear in all copies.
-# 
-# THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
-# ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
-# OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
-# CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
-# DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
-# PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
-# ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
-# SOFTWARE.
+#
+# THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+# DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+# INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+# INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+# FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+# NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+# WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: run.sh,v 1.26.2.1 2000/07/10 04:51:48 gson Exp $
+# $Id: run.sh,v 1.34 2000/11/22 18:31:27 gson Exp $
 
 #
 # Run a system test.
@@ -49,22 +49,26 @@ then
     exit 0;
 fi
 
-# Irix does not have /var/run
-#test -f /var/run/system_test_ifsetup ||
-#test -f /etc/system_test_ifsetup ||
-#    { echo "I:Interfaces not set up.  Not trying system tests." >&2;
-#      echo "R:UNTESTED" >&2
-#      echo "E:$test:`date`" >&2
-#      exit 0;
-#    }
-
 $PERL testsock.pl || {
     echo "I:Interfaces not set up.  Not trying system tests." >&2;
     echo "R:UNTESTED" >&2;
     echo "E:$test:`date`" >&2;
     exit 0;
-
 }
+
+
+# Check for test-specific prerequisites.
+if
+    test ! -f $test/prereq.sh ||
+    ( cd $test && sh prereq.sh "$@" )
+then
+    : prereqs ok
+else
+    echo "I:Prerequisites for $test missing, skipping test." >&2
+    echo "R:UNTESTED" >&2
+    echo "E:$test:`date`" >&2
+    exit 0
+fi
 
 # Set up any dynamically generated test data
 if test -f $test/setup.sh
@@ -96,14 +100,15 @@ status=`expr $status + $?`
 
 if [ $status != 0 ]; then
 	echo "R:FAIL"
+	# Don't clean up - we need the evidence.
 else
 	echo "R:PASS"
-fi
 
-# Cleanup
-if test -f $test/clean.sh
-then
-   ( cd $test && sh clean.sh "$@" )
+	# Clean up.
+	if test -f $test/clean.sh
+	then
+	   ( cd $test && sh clean.sh "$@" )
+	fi
 fi
 
 echo "E:$test:`date`"

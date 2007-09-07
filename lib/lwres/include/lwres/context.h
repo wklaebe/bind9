@@ -1,21 +1,21 @@
 /*
  * Copyright (C) 2000  Internet Software Consortium.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
- * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
- * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
- * SOFTWARE.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+ * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+ * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: context.h,v 1.9 2000/06/22 21:59:44 tale Exp $ */
+/* $Id: context.h,v 1.13 2000/08/22 16:20:20 gson Exp $ */
 
 #ifndef LWRES_CONTEXT_H
 #define LWRES_CONTEXT_H 1
@@ -39,7 +39,7 @@ typedef void (*lwres_free_t)(void *arg, void *mem, size_t length);
 /*
  * XXXMLG
  *
- * Make the server reload /etc/resolv.conf periodlically.
+ * Make the server reload /etc/resolv.conf periodically.
  *
  * Make the server do sortlist/searchlist.
  *
@@ -108,6 +108,18 @@ lwres_context_freemem(lwres_context_t *ctx, void *mem, size_t len);
 
 void *
 lwres_context_allocmem(lwres_context_t *ctx, size_t len);
+
+int
+lwres_context_getsocket(lwres_context_t *ctx);
+
+lwres_result_t
+lwres_context_send(lwres_context_t *ctx,
+		   void *sendbase, int sendlen);
+
+lwres_result_t
+lwres_context_recv(lwres_context_t *ctx,
+		   void *recvbase, int recvlen,
+		   int *recvd_len);
 
 lwres_result_t
 lwres_context_sendrecv(lwres_context_t *ctx,

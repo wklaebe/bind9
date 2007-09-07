@@ -1,21 +1,21 @@
 /*
  * Copyright (C) 1998-2000  Internet Software Consortium.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
- * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
- * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
- * SOFTWARE.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+ * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+ * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: event.h,v 1.20 2000/06/22 21:57:30 tale Exp $ */
+/* $Id: event.h,v 1.23 2000/09/27 22:53:33 marka Exp $ */
 
 #ifndef ISC_EVENT_H
 #define ISC_EVENT_H 1
@@ -52,7 +52,7 @@ typedef void (*isc_eventdestructor_t)(isc_event_t *);
  * The ISC_EVENTATTR_CANCELED attribute is intended to indicate
  * that an event is delivered as a result of a canceled operation
  * rather than successful completion, by mutual agreement
- * between the sender and receiver.  It is not set or used by 
+ * between the sender and receiver.  It is not set or used by
  * the task system.
  */
 #define ISC_EVENTATTR_CANCELED		0x00000002
@@ -70,11 +70,11 @@ do { \
 	(event)->ev_destroy_arg = (da); \
 	ISC_LINK_INIT((event), ev_link); \
 } while (0)
-	
+
 /*
  * This structure is public because "subclassing" it may be useful when
  * defining new event types.
- */ 
+ */
 struct isc_event {
 	ISC_EVENT_COMMON(struct isc_event);
 };
@@ -85,8 +85,25 @@ struct isc_event {
 ISC_LANG_BEGINDECLS
 
 isc_event_t *
-isc_event_allocate(isc_mem_t *, void *, isc_eventtype_t, isc_taskaction_t,
-		   const void *arg, size_t);
+isc_event_allocate(isc_mem_t *mctx, void *sender, isc_eventtype_t type,
+		   isc_taskaction_t action, const void *arg, size_t size);
+/*
+ * Allocate and initalise in a structure with initial elements
+ * defined by:
+ *
+ *	struct {
+ *		ISC_EVENT_COMMON(struct isc_event);
+ *		...
+ *	};
+ *	
+ * Requires:
+ *	'size' >= sizeof(struct isc_event)
+ *	'action' to be non NULL
+ *
+ * Returns:
+ *	a pointer to a initalised structure of the requested size.
+ *	NULL if unable to allocate memory.
+ */
 
 void
 isc_event_free(isc_event_t **);

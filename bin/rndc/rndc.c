@@ -1,23 +1,23 @@
 /*
  * Copyright (C) 2000  Internet Software Consortium.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
- * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
- * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
- * SOFTWARE.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+ * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+ * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rndc.c,v 1.12.2.6 2000/08/02 20:59:13 gson Exp $ */
+/* $Id: rndc.c,v 1.35 2000/12/01 21:32:02 gson Exp $ */
 
-/* 
+/*
  * Principal Author: DCL
  */
 
@@ -36,6 +36,7 @@
 #include <isc/util.h>
 
 #include <dns/confndc.h>
+#include <dns/result.h>
 
 #include <dst/dst.h>
 
@@ -52,6 +53,8 @@ typedef struct ndc_object {
 	OMAPI_OBJECT_PREAMBLE;
 } ndc_object_t;
 
+#define REGION_FMT(x) (int)(x)->length, (x)->base
+
 static ndc_object_t ndc_g_ndc;
 static omapi_objecttype_t *ndc_type;
 
@@ -67,12 +70,13 @@ notify(const char *fmt, ...) {
 	}
 }
 
-
 /*
- * Send a control command to the server.
+ * Send a control command to the server.  'command' is the command
+ * name, and 'args' is a space-delimited sequence of words, the
+ * first being the command name itself.
  */
 static isc_result_t
-send_command(omapi_object_t *manager, char *command) {
+send_command(omapi_object_t *manager, char *command, char *args) {
 	omapi_object_t *message = NULL;
 	isc_result_t result;
 
@@ -134,9 +138,8 @@ send_command(omapi_object_t *manager, char *command) {
 	/*
 	 * Set the command being sent.
 	 */
-	if (result == ISC_R_SUCCESS)
-		result = omapi_object_setboolean((omapi_object_t *)&ndc_g_ndc,
-						 command, ISC_TRUE);
+	result = omapi_object_setstring((omapi_object_t *)&ndc_g_ndc,
+					command, args);
 
 	if (result == ISC_R_SUCCESS) {
 		/*
@@ -180,6 +183,7 @@ ndc_signalhandler(omapi_object_t *handle, const char *name, va_list ap) {
 	REQUIRE(handle->type == ndc_type);
 
 	ndc = (ndc_object_t *)handle;
+	notify("ndc_signalhandler: %s", name);
 
 	if (strcmp(name, "status") == 0) {
 		/*
@@ -227,21 +231,48 @@ ndc_signalhandler(omapi_object_t *handle, const char *name, va_list ap) {
 	return (result);
 }
 
+static isc_result_t
+ndc_setvalue(omapi_object_t *handle, omapi_string_t *name,
+	     omapi_data_t *value)
+{
+	isc_region_t region;
+/*
+	isc_result_t result;
+	char *message;
+*/
+
+	INSIST(handle == (omapi_object_t *)&ndc_g_ndc);
+
+	UNUSED(value);
+	UNUSED(handle);
+
+	omapi_string_totext(name, &region);
+	notify("ndc_setvalue: %.*s\n", REGION_FMT(&region));
+
+	return (ISC_R_SUCCESS);
+}
+
 static void
 usage(void) {
 	fprintf(stderr, "\
-Usage: %s [-c config] [-s server] [-p port] [-y key] command [command ...]\n\
+Usage: %s [-c config] [-s server] [-p port] [-y key] [-z zone] [-v view]\n\
+	command [command ...]\n\
 \n\
-command is one of the following for named:\n\
+command is one of the following:\n\
 \n\
+  reload	Reload configuration file and zones.\n\
+  reload zone [class [view]]\n\
+		Reload a single zone.\n\
+  refresh zone [class [view]]\n\
+		Schedule immediate maintenance for a zone.\n\
+  stats		Write server statistics to the statistics file.\n\
+  querylog	Toggle query logging.\n\
+  stop		Save pending updates to master files and stop the server.\n\
+  halt		Stop the server without saving pending updates.\n\
   *status	Display ps(1) status of named.\n\
   *dumpdb	Dump database and cache to /var/tmp/named_dump.db.\n\
-  reload	Reload configuration file and zones.\n\
-  *stats	Dump statistics to /var/tmp/named.stats.\n\
   *trace	Increment debugging level by one.\n\
   *notrace	Set debugging level to 0.\n\
-  *querylog	Toggle query logging.\n\
-  *stop		Stop the server.\n\
   *restart	Restart the server.\n\
 \n\
 * == not yet implemented\n\
@@ -277,12 +308,14 @@ main(int argc, char **argv) {
 	const char *keyname = NULL;
 	char secret[1024];
 	isc_buffer_t secretbuf;
-	char *command;
+	char *command, *args, *p;
+	size_t argslen;
 	const char *servername = NULL;
 	const char *host = NULL;
 	unsigned int port = NS_OMAPI_PORT;
 	unsigned int algorithm;
 	int ch;
+	int i;
 
 	progname = strrchr(*argv, '/');
 	if (progname != NULL)
@@ -290,14 +323,17 @@ main(int argc, char **argv) {
 	else
 		progname = *argv;
 
-	while ((ch = isc_commandline_parse(argc, argv, "c:Mmp:s:vy:")) != -1) {
+	dns_result_register();
+
+	while ((ch = isc_commandline_parse(argc, argv, "c:Mmp:s:Vy:"))
+	       != -1) {
 		switch (ch) {
 		case 'c':
 			conffile = isc_commandline_argument;
 			break;
 
 		case 'M':
-			isc_mem_debugging = ISC_TRUE;
+			isc_mem_debugging = 1;
 			break;
 
 		case 'm':
@@ -316,18 +352,12 @@ main(int argc, char **argv) {
 		case 's':
 			servername = isc_commandline_argument;
 			break;
-
-		case 'v':
-			/*
-			 * Undocumented, for testing.
-			 */
+		case 'V':
 			verbose = ISC_TRUE;
 			break;
-
 		case 'y':
 			keyname = isc_commandline_argument;
 			break;
-
 		case '?':
 			usage();
 			exit(1);
@@ -362,7 +392,7 @@ main(int argc, char **argv) {
 	(void)dns_c_ndcctx_getoptions(config, &configopts);
 
 	if (servername == NULL && configopts != NULL)
-		result = dns_c_ndcopts_getdefserver(configopts, &servername);
+		(void)dns_c_ndcopts_getdefserver(configopts, &servername);
 
 	if (servername != NULL)
 		result = dns_c_ndcctx_getserver(config, servername, &server);
@@ -421,7 +451,7 @@ main(int argc, char **argv) {
 
 	DO("register omapi object",
 	   omapi_object_register(&ndc_type, "ndc",
-				 NULL,			/* setvalue */
+				 ndc_setvalue,		/* setvalue */
 				 NULL,			/* getvalue */
 				 NULL,			/* destroy */
 				 ndc_signalhandler,
@@ -454,60 +484,60 @@ main(int argc, char **argv) {
 	 */
 	ndc_g_ndc.waitresult = ISC_R_SUCCESS;
 
-	while ((command = *argv++) != NULL &&
-	       result == ISC_R_SUCCESS &&
-	       ndc_g_ndc.waitresult == ISC_R_SUCCESS) {
+	command = *argv;
 
-		notify(command);
+	/*
+	 * Convert argc/argv into a space-delimited command string
+	 * similar to what the user might enter in interactive mode
+	 * (if that were implemented).
+	 */
+	argslen = 0;
+	for (i = 0; i < argc; i++)
+		argslen += strlen(argv[i]) + 1;
 
-		if (strcmp(command, "dumpdb") == 0) {
-			result = ISC_R_NOTIMPLEMENTED;
-			
-		} else if (strcmp(command, "notrace") == 0) {
-			result = ISC_R_NOTIMPLEMENTED;
+	args = isc_mem_get(mctx, argslen);
+	if (args == NULL)
+		DO("isc_mem_get", ISC_R_NOMEMORY);
 
-		} else if (strcmp(command, "querylog") == 0 ||
-			   strcmp(command, "qrylog") == 0) {
-			result = ISC_R_NOTIMPLEMENTED;
-
-		} else if (strcmp(command, "reload") == 0) {
-			result = send_command(omapimgr, command);
-
-		} else if (strcmp(command, "restart") == 0) {
-			result = ISC_R_NOTIMPLEMENTED;
-
-		} else if (strcmp(command, "stats") == 0) {
-			result = ISC_R_NOTIMPLEMENTED;
-
-		} else if (strcmp(command, "status") == 0) {
-			result = ISC_R_NOTIMPLEMENTED;
-
-		} else if (strcmp(command, "stop") == 0) {
-			result = ISC_R_NOTIMPLEMENTED;
-
-		} else if (strcmp(command, "trace") == 0) {
-			result = ISC_R_NOTIMPLEMENTED;
-		}
-
-		if (result == ISC_R_NOTIMPLEMENTED)
-			fprintf(stderr, "%s: '%s' is not yet implemented\n",
-				progname, command);
-
-		else if (result != ISC_R_SUCCESS)
-			fprintf(stderr, "%s: protocol failure: %s\n",
-				progname, isc_result_totext(result));
-
-		else if (ndc_g_ndc.waitresult != ISC_R_SUCCESS)
-			fprintf(stderr, "%s: %s command failure: %s\n",
-				progname, command,
-				isc_result_totext(ndc_g_ndc.waitresult));
-
-		else
-			printf("%s: %s command successful\n",
-			       progname, command);
+	p = args;
+	for (i = 0; i < argc; i++) {
+		size_t len = strlen(argv[i]);
+		memcpy(p, argv[i], len);
+		p += len;
+		*p++ = ' ';
 	}
 
-	notify("command loop done");
+	p--;
+	*p++ = '\0';
+	INSIST(p == args + argslen);
+
+	notify(command);
+
+	if (strcmp(command, "dumpdb") == 0 ||
+	    strcmp(command, "notrace") == 0 ||
+	    strcmp(command, "restart") == 0 ||
+	    strcmp(command, "status") == 0 ||
+	    strcmp(command, "trace") == 0) {
+		result = ISC_R_NOTIMPLEMENTED;
+	} else {
+		result = send_command(omapimgr, command, args);
+	}
+
+	if (result == ISC_R_NOTIMPLEMENTED)
+		fprintf(stderr, "%s: '%s' is not yet implemented\n",
+			progname, command);
+	else if (result != ISC_R_SUCCESS)
+		fprintf(stderr, "%s: protocol failure: %s\n",
+			progname, isc_result_totext(result));
+	else if (ndc_g_ndc.waitresult != ISC_R_SUCCESS)
+		fprintf(stderr, "%s: %s command failure: %s\n",
+			progname, command,
+			isc_result_totext(ndc_g_ndc.waitresult));
+	else
+		printf("%s: %s command successful\n",
+		       progname, command);
+
+	isc_mem_put(mctx, args, argslen);
 
 	/*
 	 * Close the connection and wait to be disconnected.  The connection

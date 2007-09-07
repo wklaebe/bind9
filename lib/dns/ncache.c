@@ -1,21 +1,21 @@
 /*
  * Copyright (C) 1999, 2000  Internet Software Consortium.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
- * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
- * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
- * SOFTWARE.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+ * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+ * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: ncache.c,v 1.19 2000/06/22 21:54:33 tale Exp $ */
+/* $Id: ncache.c,v 1.23 2000/10/31 03:21:56 marka Exp $ */
 
 #include <config.h>
 
@@ -46,7 +46,7 @@ copy_rdataset(dns_rdataset_t *rdataset, isc_buffer_t *buffer) {
 	isc_result_t result;
 	unsigned int count;
 	isc_region_t ar, r;
-	dns_rdata_t rdata;
+	dns_rdata_t rdata = DNS_RDATA_INIT;
 
 	/*
 	 * Copy the rdataset count to the buffer.
@@ -76,6 +76,7 @@ copy_rdataset(dns_rdataset_t *rdataset, isc_buffer_t *buffer) {
 		result = isc_buffer_copyregion(buffer, &r);
 		if (result != ISC_R_SUCCESS)
 			return (result);
+		dns_rdata_reset(&rdata);
 		result = dns_rdataset_next(rdataset);
 	}
 	if (result != ISC_R_NOMORE)
@@ -97,7 +98,7 @@ dns_ncache_add(dns_message_t *message, dns_db_t *cache, dns_dbnode_t *node,
 	dns_name_t *name;
 	dns_ttl_t ttl;
 	dns_trust_t trust;
-	dns_rdata_t rdata;
+	dns_rdata_t rdata = DNS_RDATA_INIT;
 	dns_rdataset_t ncrdataset;
 	dns_rdatalist_t ncrdatalist;
 	unsigned char data[4096];
@@ -226,12 +227,12 @@ dns_ncache_add(dns_message_t *message, dns_db_t *cache, dns_dbnode_t *node,
 	 * Now add it to the cache.
 	 */
 	INSIST(trust != 0xffff);
-	dns_rdata_init(&rdata);
 	isc_buffer_usedregion(&buffer, &r);
 	rdata.data = r.base;
 	rdata.length = r.length;
 	rdata.rdclass = dns_db_class(cache);
 	rdata.type = 0;
+	rdata.flags = 0;
 
 	ncrdatalist.rdclass = rdata.rdclass;
 	ncrdatalist.type = 0;
@@ -254,7 +255,7 @@ isc_result_t
 dns_ncache_towire(dns_rdataset_t *rdataset, dns_compress_t *cctx,
 		  isc_buffer_t *target, unsigned int *countp)
 {
-	dns_rdata_t rdata;
+	dns_rdata_t rdata = DNS_RDATA_INIT;
 	isc_result_t result;
 	isc_region_t remaining, tremaining;
 	isc_buffer_t source, savedbuffer, rdlen;
@@ -301,7 +302,7 @@ dns_ncache_towire(dns_rdataset_t *rdataset, dns_compress_t *cctx,
 			 */
 			isc_buffer_remainingregion(&source, &remaining);
 			INSIST(remaining.length >= 2);
-			dns_rdata_init(&rdata);
+			dns_rdata_reset(&rdata);
 			rdata.length = isc_buffer_getuint16(&source);
 			isc_buffer_remainingregion(&source, &remaining);
 			rdata.data = remaining.base;
@@ -336,7 +337,7 @@ dns_ncache_towire(dns_rdataset_t *rdataset, dns_compress_t *cctx,
 			 */
 			rdlen = *target;
 			isc_buffer_add(target, 2);
-			
+
 			/*
 			 * Write the rdata.
 			 */
@@ -360,7 +361,7 @@ dns_ncache_towire(dns_rdataset_t *rdataset, dns_compress_t *cctx,
 	} while (remaining.length > 0);
 
 	*countp = count;
-		
+
 	return (ISC_R_SUCCESS);
 
  rollback:

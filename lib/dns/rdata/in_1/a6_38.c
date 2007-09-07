@@ -1,21 +1,21 @@
 /*
  * Copyright (C) 1999, 2000  Internet Software Consortium.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
- * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
- * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
- * SOFTWARE.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+ * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+ * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: a6_38.c,v 1.34 2000/06/16 21:41:47 gson Exp $ */
+/* $Id: a6_38.c,v 1.39 2000/12/01 01:40:49 gson Exp $ */
 
 /* draft-ietf-ipngwg-dns-lookups-03.txt */
 
@@ -39,10 +39,13 @@ fromtext_in_a6(ARGS_FROMTEXT) {
 	REQUIRE(type == 38);
 	REQUIRE(rdclass == 1);
 
+	UNUSED(rdclass);
+
 	/*
 	 * Prefix length.
 	 */
-	RETERR(gettoken(lexer, &token, isc_tokentype_number, ISC_FALSE));
+	RETERR(isc_lex_getmastertoken(lexer, &token, isc_tokentype_number,
+				      ISC_FALSE));
 	if (token.value.as_ulong > 128)
 		return (ISC_R_RANGE);
 
@@ -60,8 +63,9 @@ fromtext_in_a6(ARGS_FROMTEXT) {
 		/*
 		 * Octets 0..15.
 		 */
-		RETERR(gettoken(lexer, &token, isc_tokentype_string,
-				ISC_FALSE));
+		RETERR(isc_lex_getmastertoken(lexer, &token,
+					      isc_tokentype_string,
+					      ISC_FALSE));
 		if (inet_pton(AF_INET6, token.value.as_pointer, addr) != 1)
 			return (DNS_R_BADAAAA);
 		mask = 0xff >> (prefixlen % 8);
@@ -72,7 +76,8 @@ fromtext_in_a6(ARGS_FROMTEXT) {
 	if (prefixlen == 0)
 		return (ISC_R_SUCCESS);
 
-	RETERR(gettoken(lexer, &token, isc_tokentype_string, ISC_FALSE));
+	RETERR(isc_lex_getmastertoken(lexer, &token, isc_tokentype_string,
+				      ISC_FALSE));
 	dns_name_init(&name, NULL);
 	buffer_fromregion(&buffer, &token.value.as_region);
 	origin = (origin != NULL) ? origin : dns_rootname;
@@ -94,6 +99,7 @@ totext_in_a6(ARGS_TOTEXT) {
 
 	REQUIRE(rdata->type == 38);
 	REQUIRE(rdata->rdclass == 1);
+	REQUIRE(rdata->length != 0);
 
 	dns_rdata_toregion(rdata, &sr);
 	prefixlen = sr.base[0];
@@ -140,6 +146,8 @@ fromwire_in_a6(ARGS_FROMWIRE) {
 	REQUIRE(type == 38);
 	REQUIRE(rdclass == 1);
 
+	UNUSED(rdclass);
+
 	dns_decompress_setmethods(dctx, DNS_COMPRESS_NONE);
 
 	isc_buffer_activeregion(source, &sr);
@@ -184,6 +192,7 @@ towire_in_a6(ARGS_TOWIRE) {
 
 	REQUIRE(rdata->type == 38);
 	REQUIRE(rdata->rdclass == 1);
+	REQUIRE(rdata->length != 0);
 
 	dns_compress_setmethods(cctx, DNS_COMPRESS_NONE);
 	dns_rdata_toregion(rdata, &sr);
@@ -211,11 +220,13 @@ compare_in_a6(ARGS_COMPARE) {
 	dns_name_t name2;
 	isc_region_t region1;
 	isc_region_t region2;
-	
+
 	REQUIRE(rdata1->type == rdata2->type);
 	REQUIRE(rdata1->rdclass == rdata2->rdclass);
 	REQUIRE(rdata1->type == 38);
 	REQUIRE(rdata1->rdclass == 1);
+	REQUIRE(rdata1->length != 0);
+	REQUIRE(rdata2->length != 0);
 
 	dns_rdata_toregion(rdata1, &region1);
 	dns_rdata_toregion(rdata2, &region2);
@@ -269,6 +280,8 @@ fromstruct_in_a6(ARGS_FROMSTRUCT) {
 	REQUIRE(a6->common.rdtype == type);
 	REQUIRE(a6->common.rdclass == rdclass);
 
+	UNUSED(rdclass);
+
 	if (a6->prefixlen > 128)
 		return (ISC_R_RANGE);
 
@@ -306,6 +319,7 @@ tostruct_in_a6(ARGS_TOSTRUCT) {
 	REQUIRE(rdata->type == 38);
 	REQUIRE(rdata->rdclass == 1);
 	REQUIRE(target != NULL);
+	REQUIRE(rdata->length != 0);
 
 	a6->common.rdclass = rdata->rdclass;
 	a6->common.rdtype = rdata->type;

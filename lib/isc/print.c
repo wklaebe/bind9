@@ -1,21 +1,21 @@
 /*
  * Copyright (C) 1999, 2000  Internet Software Consortium.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
- * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
- * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
- * SOFTWARE.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+ * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+ * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: print.c,v 1.11 2000/06/22 21:57:06 tale Exp $ */
+/* $Id: print.c,v 1.14 2000/11/14 23:42:29 tale Exp $ */
 
 #include <config.h>
 
@@ -83,7 +83,7 @@ isc_print_vsnprintf(char *str, size_t size, const char *format, va_list ap) {
 	long double ldbl;
 #endif
 	char fmt[32];
-	
+
 	INSIST(str != NULL);
 	INSIST(format != NULL);
 
@@ -141,7 +141,7 @@ isc_print_vsnprintf(char *str, size_t size, const char *format, va_list ap) {
 			char *e;
 			width = strtoul(format, &e, 10);
 			format = e;
-		} 
+		}
 
 		/*
 		 * Precision.
@@ -233,11 +233,8 @@ isc_print_vsnprintf(char *str, size_t size, const char *format, va_list ap) {
 						head = "";
 					tmpui = tmpi;
 				}
-#ifdef ISC_PLATFORM_LONGLONGEQUALLONG
-				sprintf(buf, "%lu", tmpui);
-#else
-				sprintf(buf, "%llu", tmpui);
-#endif
+				sprintf(buf, "%" ISC_PRINT_QUADFORMAT "u",
+					tmpui);
 				goto printint;
 			case 'o':
 				if (q)
@@ -246,11 +243,10 @@ isc_print_vsnprintf(char *str, size_t size, const char *format, va_list ap) {
 					tmpui = va_arg(ap, long int);
 				else
 					tmpui = va_arg(ap, int);
-#ifdef ISC_PLATFORM_LONGLONGEQUALLONG
-				sprintf(buf, alt ? "%#lo" : "%lo", tmpui);
-#else
-				sprintf(buf, alt ? "%#llo" : "%llo", tmpui);
-#endif
+				sprintf(buf,
+					alt ? "%#" ISC_PRINT_QUADFORMAT "o"
+					    : "%" ISC_PRINT_QUADFORMAT "o",
+					tmpui);
 				goto printint;
 			case 'u':
 				if (q)
@@ -259,11 +255,8 @@ isc_print_vsnprintf(char *str, size_t size, const char *format, va_list ap) {
 					tmpui = va_arg(ap, unsigned long int);
 				else
 					tmpui = va_arg(ap, unsigned int);
-#ifdef ISC_PLATFORM_LONGLONGEQUALLONG
-				sprintf(buf, "%lu", tmpui);
-#else
-				sprintf(buf, "%llu", tmpui);
-#endif
+				sprintf(buf, "%" ISC_PRINT_QUADFORMAT "u",
+					tmpui);
 				goto printint;
 			case 'x':
 				if (q)
@@ -277,11 +270,8 @@ isc_print_vsnprintf(char *str, size_t size, const char *format, va_list ap) {
 					if (precision > 2)
 						precision -= 2;
 				}
-#ifdef ISC_PLATFORM_LONGLONGEQUALLONG
-				sprintf(buf, "%lx", tmpui);
-#else
-				sprintf(buf, "%llx", tmpui);
-#endif
+				sprintf(buf, "%" ISC_PRINT_QUADFORMAT "x",
+					tmpui);
 				goto printint;
 			case 'X':
 				if (q)
@@ -295,11 +285,8 @@ isc_print_vsnprintf(char *str, size_t size, const char *format, va_list ap) {
 					if (precision > 2)
 						precision -= 2;
 				}
-#ifdef ISC_PLATFORM_LONGLONGEQUALLONG
-				sprintf(buf, "%lX", tmpui);
-#else
-				sprintf(buf, "%llX", tmpui);
-#endif
+				sprintf(buf, "%" ISC_PRINT_QUADFORMAT "X",
+					tmpui);
 				goto printint;
 			printint:
 				if (precision != 0 || width != 0) {
@@ -380,7 +367,7 @@ isc_print_vsnprintf(char *str, size_t size, const char *format, va_list ap) {
 					size--;
 					pad--;
 				}
-			if (precision != 0) 
+			if (precision != 0)
 				while (precision > 0 && *cp != '\0' &&
 				       size > 1) {
 					*str++ = *cp++;
@@ -406,7 +393,7 @@ isc_print_vsnprintf(char *str, size_t size, const char *format, va_list ap) {
 				if (left) {
 					*str++ = c;
 					size--;
-				} 
+				}
 				while (width-- > 0 && size > 1) {
 					*str++ = ' ';
 					size--;
@@ -497,7 +484,7 @@ isc_print_vsnprintf(char *str, size_t size, const char *format, va_list ap) {
 			 *
 			 * precisions > 324 don't make much sence.
 			 * if we cap the precision at 512 we will not
-			 * overflow buf. 
+			 * overflow buf.
 			 */
 			if (precision > 512)
 				precision = 512;

@@ -1,21 +1,21 @@
 /*
  * Copyright (C) 1998-2000  Internet Software Consortium.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
- * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
- * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
- * SOFTWARE.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+ * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+ * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: gen.c,v 1.52 2000/06/21 22:44:06 tale Exp $ */
+/* $Id: gen.c,v 1.58 2000/11/20 20:29:00 bwelling Exp $ */
 
 #include <config.h>
 
@@ -37,7 +37,7 @@
 #define FROMTEXTARGS "rdclass, type, lexer, origin, downcase, target"
 #define FROMTEXTCLASS "rdclass"
 #define FROMTEXTTYPE "type"
-#define FROMTEXTDEF "use_default = ISC_TRUE"
+#define FROMTEXTDEF "result = DNS_R_UNKNOWN"
 
 #define TOTEXTARGS "rdata, tctx, target"
 #define TOTEXTCLASS "rdata->rdclass"
@@ -226,7 +226,7 @@ doswitch(const char *name, const char *function, const char *args,
 		else
 			fprintf(stdout,
 			        "\t\tcase %d:%s %s_%s_%s(%s); break;",
-				tt->rdclass, result, function, 
+				tt->rdclass, result, function,
 				funname(tt->classname, buf1),
 				funname(tt->typename, buf2), args);
 		fputs(" \\\n", stdout);
@@ -235,7 +235,7 @@ doswitch(const char *name, const char *function, const char *args,
 	if (subswitch) {
 		if (res == NULL)
 			fprintf(stdout, "\t\tdefault: break; \\\n");
-		else 
+		else
 			fprintf(stdout, "\t\tdefault: %s; break; \\\n", res);
 		fputs(/*{*/ "\t\t} \\\n", stdout);
 		fputs("\t\tbreak; \\\n", stdout);
@@ -270,7 +270,7 @@ dodecl(char *type, char *function, char *args) {
 		else
 			fprintf(stdout,
 				"static inline %s %s_%s(%s);\n",
-				type, function, 
+				type, function,
 				funname(tt->typename, buf1), args);
 }
 
@@ -380,7 +380,7 @@ add(int rdclass, const char *classname, int type, const char *typename,
 	strcpy(newcc->classname, classname);
 	cc = classes;
 	oldcc = NULL;
-	
+
 	while ((cc != NULL) && (cc->rdclass < rdclass)) {
 		oldcc = cc;
 		cc = cc->next;
@@ -629,9 +629,14 @@ main(int argc, char **argv) {
 		for (i = 0 ; i <= 255 ; i++) {
 			ttn = &typenames[i];
 			if (ttn->typename[0] == 0) {
-				printf("\t{ \"RRTYPE%d\", "
-				       "DNS_RDATATYPEATTR_UNKNOWN"
-				       "}%s\n", i, PRINT_COMMA(i));
+				const char *attrs;
+				if (i >= 128 && i < 255)
+					attrs = "DNS_RDATATYPEATTR_UNKNOWN | "
+						"DNS_RDATATYPEATTR_META";
+				else
+					attrs = "DNS_RDATATYPEATTR_UNKNOWN";
+				printf("\t{ \"TYPE%d\", %s}%s\n",
+				       i, attrs, PRINT_COMMA(i));
 			} else {
 				printf("\t{ \"%s\", %s }%s\n",
 				       upper(ttn->typename),
@@ -707,20 +712,6 @@ main(int argc, char **argv) {
 		}
 		printf("\t}\n");
 
-
-		/*
-		 * Dump the class names.
-		 */
-
-		fputs("\n", stdout);
-		fprintf(stdout, "\n#define CLASSNAMES%s\n",
-			classes != NULL ? " \\" : "");
-
-		for (cc = classes; cc != NULL; cc = cc->next)
-			fprintf(stdout, "\t{ %d, \"%s\", 0 },%s\n",
-				cc->rdclass, upper(cc->classname),
-				cc->next != NULL ? " \\" : "");
-
 		fputs("#endif /* DNS_CODE_H */\n", stdout);
 	} else if (type_enum) {
 		char *s;
@@ -771,7 +762,7 @@ main(int argc, char **argv) {
 			"((dns_rdatatype_t)dns_rdatatype_maila)\n");
 		fprintf(stdout, "#define dns_rdatatype_any\t"
 			"((dns_rdatatype_t)dns_rdatatype_any)\n");
-		
+
 		fprintf(stdout, "\n#endif /* DNS_ENUMTYPE_H */\n");
 
 	} else if (class_enum) {

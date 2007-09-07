@@ -1,21 +1,21 @@
 /*
  * Copyright (C) 1998-2000  Internet Software Consortium.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
- * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
- * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
- * SOFTWARE.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+ * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+ * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: base64.c,v 1.15.2.1 2000/07/11 23:11:15 gson Exp $ */
+/* $Id: base64.c,v 1.20 2000/11/08 01:55:26 bwelling Exp $ */
 
 #include <config.h>
 
@@ -38,10 +38,6 @@
  */
 static isc_result_t
 str_totext(const char *source, isc_buffer_t *target);
-
-static isc_result_t
-gettoken(isc_lex_t *lexer, isc_token_t *token, isc_tokentype_t expect,
-	 isc_boolean_t eol);
 
 static isc_result_t
 mem_tobuffer(isc_buffer_t *target, void *base, unsigned int length);
@@ -94,104 +90,123 @@ isc_base64_totext(isc_region_t *source, int wordlength,
 	return (ISC_R_SUCCESS);
 }
 
-isc_result_t
-isc_base64_tobuffer(isc_lex_t *lexer, isc_buffer_t *target, int length) {
-	int digits = 0;
-	isc_textregion_t *tr;
+/*
+ * State of a base64 decoding process in progress.
+ */
+typedef struct {
+	int length;		/* Desired length of binary data or -1 */
+	isc_buffer_t *target;	/* Buffer for resulting binary data */
+	int digits;		/* Number of buffered base64 digits */
+	isc_boolean_t seen_end;	/* True if "=" end marker seen */
 	int val[4];
-	unsigned char buf[3];
-	int seen_end = 0;
-	unsigned int i;
-	isc_token_t token;
-	char *s;
-	int n;
+} base64_decode_ctx_t;
 
-	
-	while (!seen_end && (length != 0)) {
-		if (length > 0)
-			RETERR(gettoken(lexer, &token, isc_tokentype_string,
-					ISC_FALSE));
-		else
-			RETERR(gettoken(lexer, &token, isc_tokentype_string,
-					ISC_TRUE));
-		if (token.type != isc_tokentype_string)
-			break;
-		tr = &token.value.as_textregion;
-		for (i = 0 ;i < tr->length; i++) {
-			if (seen_end)
-				return (ISC_R_BADBASE64);
-			if ((s = strchr(base64, tr->base[i])) == NULL)
-				return (ISC_R_BADBASE64);
-			val[digits++] = s - base64;
-			if (digits == 4) {
-				if (val[0] == 64 || val[1] == 64)
-					return (ISC_R_BADBASE64);
-				if (val[2] == 64 && val[3] != 64)
-					return (ISC_R_BADBASE64);
-				n = (val[2] == 64) ? 1 :
-				    (val[3] == 64) ? 2 : 3;
-				if (n != 3) {
-					seen_end = 1;
-					if (val[2] == 64)
-						val[2] = 0;
-					if (val[3] == 64)
-						val[3] = 0;
-				}
-				buf[0] = (val[0]<<2)|(val[1]>>4);
-				buf[1] = (val[1]<<4)|(val[2]>>2);
-				buf[2] = (val[2]<<6)|(val[3]);
-				RETERR(mem_tobuffer(target, buf, n));
-				if (length >= 0) {
-					if (n > length)
-						return (ISC_R_BADBASE64);
-					else
-						length -= n;
-				}
-				digits = 0;
-			}
+static inline void
+base64_decode_init(base64_decode_ctx_t *ctx, int length, isc_buffer_t *target)
+{
+	ctx->digits = 0;
+	ctx->seen_end = ISC_FALSE;
+	ctx->length = length;
+	ctx->target = target;
+}
+
+static inline isc_result_t
+base64_decode_char(base64_decode_ctx_t *ctx, int c) {
+	char *s;
+
+	if (ctx->seen_end)
+		return (ISC_R_BADBASE64);
+	if ((s = strchr(base64, c)) == NULL)
+		return (ISC_R_BADBASE64);
+	ctx->val[ctx->digits++] = s - base64;
+	if (ctx->digits == 4) {
+		int n;
+		unsigned char buf[3];
+		if (ctx->val[0] == 64 || ctx->val[1] == 64)
+			return (ISC_R_BADBASE64);
+		if (ctx->val[2] == 64 && ctx->val[3] != 64)
+			return (ISC_R_BADBASE64);
+		n = (ctx->val[2] == 64) ? 1 :
+			(ctx->val[3] == 64) ? 2 : 3;
+		if (n != 3) {
+			ctx->seen_end = ISC_TRUE;
+			if (ctx->val[2] == 64)
+				ctx->val[2] = 0;
+			if (ctx->val[3] == 64)
+				ctx->val[3] = 0;
 		}
+		buf[0] = (ctx->val[0]<<2)|(ctx->val[1]>>4);
+		buf[1] = (ctx->val[1]<<4)|(ctx->val[2]>>2);
+		buf[2] = (ctx->val[2]<<6)|(ctx->val[3]);
+		RETERR(mem_tobuffer(ctx->target, buf, n));
+		if (ctx->length >= 0) {
+			if (n > ctx->length)
+				return (ISC_R_BADBASE64);
+			else
+				ctx->length -= n;
+		}
+		ctx->digits = 0;
 	}
-	if (length < 0 && !seen_end)
-		isc_lex_ungettoken(lexer, &token);
-	if (length > 0)
+	return (ISC_R_SUCCESS);
+}
+
+static inline isc_result_t
+base64_decode_finish(base64_decode_ctx_t *ctx) {
+	if (ctx->length > 0)
 		return (ISC_R_UNEXPECTEDEND);
-	if (digits != 0)
+	if (ctx->digits != 0)
 		return (ISC_R_BADBASE64);
 	return (ISC_R_SUCCESS);
 }
 
 isc_result_t
-isc_base64_decodestring(isc_mem_t *mctx, char *cstr, isc_buffer_t *target) {
-	isc_result_t result;
-	isc_buffer_t source;
-	isc_lex_t *lex = NULL;
-	isc_boolean_t isopen = ISC_FALSE;
+isc_base64_tobuffer(isc_lex_t *lexer, isc_buffer_t *target, int length) {
+	base64_decode_ctx_t ctx;
+	isc_textregion_t *tr;
+	isc_token_t token;
+	isc_boolean_t eol;
 
-	REQUIRE(mctx != NULL);
-	REQUIRE(cstr != NULL);
-	REQUIRE(ISC_BUFFER_VALID(target));
+	base64_decode_init(&ctx, length, target);
 
-	isc_buffer_init(&source, cstr, strlen(cstr));
-	isc_buffer_add(&source, strlen(cstr));
+	while (!ctx.seen_end && (ctx.length != 0)) {
+		unsigned int i;
 
-	result = isc_lex_create(mctx, 256, &lex);
-
-	if (result == ISC_R_SUCCESS)
-		result = isc_lex_openbuffer(lex, &source);
-
-	if (result == ISC_R_SUCCESS) {
-		isopen = ISC_TRUE;
-		result = isc_base64_tobuffer(lex, target, -1);
-	}	
-
-	if (isopen)
-		(void)isc_lex_close(lex);
-	if (lex != NULL)
-		isc_lex_destroy(&lex);
-
-	return (result);
+		if (length > 0)
+			eol = ISC_FALSE;
+		else
+			eol = ISC_TRUE;
+		RETERR(isc_lex_getmastertoken(lexer, &token,
+					      isc_tokentype_string, eol));
+		if (token.type != isc_tokentype_string)
+			break;
+		tr = &token.value.as_textregion;
+		for (i = 0 ;i < tr->length; i++)
+			RETERR(base64_decode_char(&ctx, tr->base[i]));
+	}
+	if (ctx.length < 0 && !ctx.seen_end)
+		isc_lex_ungettoken(lexer, &token);
+	RETERR(base64_decode_finish(&ctx));
+	return (ISC_R_SUCCESS);
 }
 
+isc_result_t
+isc_base64_decodestring(isc_mem_t *mctx, char *cstr, isc_buffer_t *target) {
+	base64_decode_ctx_t ctx;
+
+	UNUSED(mctx);
+
+	base64_decode_init(&ctx, -1, target);
+	for (;;) {
+		int c = *cstr++;
+		if (c == '\0')
+			break;
+		if (c == ' ' || c == '\t' || c == '\n' || c== '\r')
+			continue;
+		RETERR(base64_decode_char(&ctx, c));
+	}
+	RETERR(base64_decode_finish(&ctx));	
+	return (ISC_R_SUCCESS);
+}
 
 static isc_result_t
 str_totext(const char *source, isc_buffer_t *target) {
@@ -218,47 +233,5 @@ mem_tobuffer(isc_buffer_t *target, void *base, unsigned int length) {
 		return (ISC_R_NOSPACE);
 	memcpy(tr.base, base, length);
 	isc_buffer_add(target, length);
-	return (ISC_R_SUCCESS);
-}
-
-static isc_result_t
-gettoken(isc_lex_t *lexer, isc_token_t *token, isc_tokentype_t expect,
-	 isc_boolean_t eol)
-{
-	unsigned int options = ISC_LEXOPT_EOL | ISC_LEXOPT_EOF |
-			       ISC_LEXOPT_DNSMULTILINE | ISC_LEXOPT_ESCAPE;
-	isc_result_t result;
-
-	if (expect == isc_tokentype_qstring)
-		options |= ISC_LEXOPT_QSTRING;
-	else if (expect == isc_tokentype_number)
-		options |= ISC_LEXOPT_NUMBER;
-	result = isc_lex_gettoken(lexer, options, token);
-	switch (result) {
-	case ISC_R_SUCCESS:
-		break;
-	case ISC_R_NOMEMORY:
-		return (ISC_R_NOMEMORY);
-	case ISC_R_NOSPACE:
-		return (ISC_R_NOSPACE);
-	default:
-		UNEXPECTED_ERROR(__FILE__, __LINE__,
-				 "isc_lex_gettoken() failed: %s",
-				 isc_result_totext(result));
-		return (ISC_R_UNEXPECTED);
-	}
-	if (eol && ((token->type == isc_tokentype_eol) ||
-		    (token->type == isc_tokentype_eof)))
-		return (ISC_R_SUCCESS);
-	if (token->type == isc_tokentype_string &&
-	    expect == isc_tokentype_qstring)
-		return (ISC_R_SUCCESS);
-	if (token->type != expect) {
-		isc_lex_ungettoken(lexer, token);
-		if (token->type == isc_tokentype_eol ||
-		    token->type == isc_tokentype_eof)
-			return (ISC_R_UNEXPECTEDEND);
-		return (ISC_R_UNEXPECTEDTOKEN);
-	}
 	return (ISC_R_SUCCESS);
 }

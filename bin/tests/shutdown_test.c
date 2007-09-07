@@ -1,25 +1,26 @@
 /*
  * Copyright (C) 1998-2000  Internet Software Consortium.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
- * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
- * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
- * SOFTWARE.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+ * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+ * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: shutdown_test.c,v 1.14 2000/06/22 21:50:50 tale Exp $ */
+/* $Id: shutdown_test.c,v 1.17 2000/11/10 05:34:13 bwelling Exp $ */
 
 #include <config.h>
 
 #include <stdlib.h>
+#include <string.h>
 
 #include <isc/app.h>
 #include <isc/mem.h>
@@ -51,7 +52,7 @@ static isc_timermgr_t *		timer_manager;
 static void
 t1_shutdown(isc_task_t *task, isc_event_t *event) {
 	t_info *info = event->ev_arg;
-	
+
 	printf("task %s (%p) t1_shutdown\n", info->name, task);
 	isc_task_detach(&info->task);
 	isc_event_free(&event);
@@ -217,7 +218,7 @@ main(int argc, char *argv[]) {
 
 	isc_taskmgr_destroy(&task_manager);
 	isc_timermgr_destroy(&timer_manager);
-	
+
 	printf("Statistics for mctx:\n");
 	isc_mem_stats(mctx, stdout);
 	isc_mem_destroy(&mctx);

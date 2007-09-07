@@ -1,21 +1,21 @@
 /*
  * Copyright (C) 1999, 2000  Internet Software Consortium.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
- * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
- * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
- * SOFTWARE.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+ * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+ * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rdataslab.h,v 1.12 2000/06/22 21:56:03 tale Exp $ */
+/* $Id: rdataslab.h,v 1.18 2000/12/01 01:22:45 marka Exp $ */
 
 #ifndef DNS_RDATASLAB_H
 #define DNS_RDATASLAB_H 1
@@ -54,6 +54,9 @@
 #include <dns/types.h>
 
 ISC_LANG_BEGINDECLS
+
+#define DNS_RDATASLAB_FORCE 0x1
+#define DNS_RDATASLAB_EXACT 0x2
 
 /***
  *** Functions
@@ -96,22 +99,38 @@ isc_result_t
 dns_rdataslab_merge(unsigned char *oslab, unsigned char *nslab,
 		    unsigned int reservelen, isc_mem_t *mctx,
 		    dns_rdataclass_t rdclass, dns_rdatatype_t type,
-		    isc_boolean_t force, unsigned char **tslabp);
+		    unsigned int flags, unsigned char **tslabp);
 /*
  * Merge 'oslab' and 'nslab'.
  *
- * XXX
+ * DNS_RDATASLAB_FORCE and DNS_RDATASLAB_EXACT are mutually exclusive.
  */
 
 isc_result_t
 dns_rdataslab_subtract(unsigned char *mslab, unsigned char *sslab,
 		       unsigned int reservelen, isc_mem_t *mctx,
 		       dns_rdataclass_t rdclass, dns_rdatatype_t type,
-		       unsigned char **tslabp);
+		       unsigned int flags, unsigned char **tslabp);
 /*
- * Subtract 'sslab' from 'mslab'.
+ * Subtract 'sslab' from 'mslab'.  If 'exact' is true then all elements
+ * of 'sslab' must exist in 'mslab'.
  *
  * XXX
+ * valid flags are DNS_RDATASLAB_EXACT
+ */
+
+isc_boolean_t
+dns_rdataslab_equal(unsigned char *slab1, unsigned char *slab2,
+		    unsigned int reservelen);
+
+/* Compare two rdataslabs for equality.  This does _not_ do a full
+ * DNSSEC comparison.
+ *
+ * Requires:
+ *	'slab1' and 'slab2' point to slabs.
+ *
+ * Returns:
+ *	ISC_TRUE if the slabs are equal, ISC_FALSE otherwise.
  */
 
 ISC_LANG_ENDDECLS

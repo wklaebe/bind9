@@ -1,21 +1,21 @@
 /*
  * Copyright (C) 1999, 2000  Internet Software Consortium.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
- * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
- * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
- * SOFTWARE.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+ * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+ * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: tsig_250.c,v 1.41 2000/06/01 18:26:01 tale Exp $ */
+/* $Id: tsig_250.c,v 1.46 2000/12/01 01:40:14 gson Exp $ */
 
 /* Reviewed: Thu Mar 16 13:39:43 PST 2000 by gson */
 
@@ -26,7 +26,7 @@
 	(DNS_RDATATYPEATTR_META | DNS_RDATATYPEATTR_NOTQUESTION)
 
 static inline isc_result_t
-	fromtext_any_tsig(ARGS_FROMTEXT) {
+fromtext_any_tsig(ARGS_FROMTEXT) {
 	isc_token_t token;
 	dns_name_t name;
 	isc_uint64_t sigtime;
@@ -38,10 +38,13 @@ static inline isc_result_t
 	REQUIRE(type == 250);
 	REQUIRE(rdclass == 255);
 
+	UNUSED(rdclass);
+
 	/*
 	 * Algorithm Name.
 	 */
-	RETERR(gettoken(lexer, &token, isc_tokentype_string, ISC_FALSE));
+	RETERR(isc_lex_getmastertoken(lexer, &token, isc_tokentype_string,
+				      ISC_FALSE));
 	dns_name_init(&name, NULL);
 	buffer_fromregion(&buffer, &token.value.as_region);
 	origin = (origin != NULL) ? origin : dns_rootname;
@@ -50,7 +53,8 @@ static inline isc_result_t
 	/*
 	 * Time Signed: 48 bits.
 	 */
-	RETERR(gettoken(lexer, &token, isc_tokentype_string, ISC_FALSE));
+	RETERR(isc_lex_getmastertoken(lexer, &token, isc_tokentype_string,
+				      ISC_FALSE));
 	sigtime = isc_string_touint64(token.value.as_pointer, &e, 10);
 	if (*e != 0)
 		return (DNS_R_SYNTAX);
@@ -62,7 +66,8 @@ static inline isc_result_t
 	/*
 	 * Fudge.
 	 */
-	RETERR(gettoken(lexer, &token, isc_tokentype_number, ISC_FALSE));
+	RETERR(isc_lex_getmastertoken(lexer, &token, isc_tokentype_number,
+				      ISC_FALSE));
 	if (token.value.as_ulong > 0xffff)
 		return (ISC_R_RANGE);
 	RETERR(uint16_tobuffer(token.value.as_ulong, target));
@@ -70,7 +75,8 @@ static inline isc_result_t
 	/*
 	 * Signature Size.
 	 */
-	RETERR(gettoken(lexer, &token, isc_tokentype_number, ISC_FALSE));
+	RETERR(isc_lex_getmastertoken(lexer, &token, isc_tokentype_number,
+				      ISC_FALSE));
 	if (token.value.as_ulong > 0xffff)
 		return (ISC_R_RANGE);
 	RETERR(uint16_tobuffer(token.value.as_ulong, target));
@@ -83,7 +89,8 @@ static inline isc_result_t
 	/*
 	 * Original ID.
 	 */
-	RETERR(gettoken(lexer, &token, isc_tokentype_number, ISC_FALSE));
+	RETERR(isc_lex_getmastertoken(lexer, &token, isc_tokentype_number,
+				      ISC_FALSE));
 	if (token.value.as_ulong > 0xffff)
 		return (ISC_R_RANGE);
 	RETERR(uint16_tobuffer(token.value.as_ulong, target));
@@ -91,7 +98,8 @@ static inline isc_result_t
 	/*
 	 * Error.
 	 */
-	RETERR(gettoken(lexer, &token, isc_tokentype_string, ISC_FALSE));
+	RETERR(isc_lex_getmastertoken(lexer, &token, isc_tokentype_string,
+				      ISC_FALSE));
 	if (dns_tsigrcode_fromtext(&rcode, &token.value.as_textregion)
 				!= ISC_R_SUCCESS)
 	{
@@ -107,7 +115,8 @@ static inline isc_result_t
 	/*
 	 * Other Len.
 	 */
-	RETERR(gettoken(lexer, &token, isc_tokentype_number, ISC_FALSE));
+	RETERR(isc_lex_getmastertoken(lexer, &token, isc_tokentype_number,
+				      ISC_FALSE));
 	if (token.value.as_ulong > 0xffff)
 		return (ISC_R_RANGE);
 	RETERR(uint16_tobuffer(token.value.as_ulong, target));
@@ -122,7 +131,7 @@ static inline isc_result_t
 totext_any_tsig(ARGS_TOTEXT) {
 	isc_region_t sr;
 	isc_region_t sigr;
-	char buf[sizeof "281474976710655 "];	
+	char buf[sizeof "281474976710655 "];
 	char *bufp;
 	dns_name_t name;
 	dns_name_t prefix;
@@ -132,6 +141,7 @@ totext_any_tsig(ARGS_TOTEXT) {
 
 	REQUIRE(rdata->type == 250);
 	REQUIRE(rdata->rdclass == 255);
+	REQUIRE(rdata->length != 0);
 
 	dns_rdata_toregion(rdata, &sr);
 	/*
@@ -185,15 +195,15 @@ totext_any_tsig(ARGS_TOTEXT) {
 	REQUIRE(n <= sr.length);
 	sigr = sr;
 	sigr.length = n;
-	if ((tctx->flags & DNS_STYLEFLAG_MULTILINE) != 0)	
+	if ((tctx->flags & DNS_STYLEFLAG_MULTILINE) != 0)
 		RETERR(str_totext(" (", target));
 	RETERR(str_totext(tctx->linebreak, target));
-	RETERR(isc_base64_totext(&sigr, tctx->width - 2, 
+	RETERR(isc_base64_totext(&sigr, tctx->width - 2,
 				 tctx->linebreak, target));
 	if ((tctx->flags & DNS_STYLEFLAG_MULTILINE) != 0)
 		RETERR(str_totext(" ) ", target));
 	else
-		RETERR(str_totext(" ", target));		
+		RETERR(str_totext(" ", target));
 	isc_region_consume(&sr, n);
 
 	/*
@@ -238,7 +248,9 @@ fromwire_any_tsig(ARGS_FROMWIRE) {
 
 	REQUIRE(type == 250);
 	REQUIRE(rdclass == 255);
-	
+
+	UNUSED(rdclass);
+
 	dns_decompress_setmethods(dctx, DNS_COMPRESS_NONE);
 
 	/*
@@ -297,6 +309,7 @@ towire_any_tsig(ARGS_TOWIRE) {
 
 	REQUIRE(rdata->type == 250);
 	REQUIRE(rdata->rdclass == 255);
+	REQUIRE(rdata->length != 0);
 
 	dns_compress_setmethods(cctx, DNS_COMPRESS_NONE);
 	dns_rdata_toregion(rdata, &sr);
@@ -319,7 +332,9 @@ compare_any_tsig(ARGS_COMPARE) {
 	REQUIRE(rdata1->rdclass == rdata2->rdclass);
 	REQUIRE(rdata1->type == 250);
 	REQUIRE(rdata1->rdclass == 255);
-	
+	REQUIRE(rdata1->length != 0);
+	REQUIRE(rdata2->length != 0);
+
 	dns_rdata_toregion(rdata1, &r1);
 	dns_rdata_toregion(rdata2, &r2);
 	dns_name_init(&name1, NULL);
@@ -344,6 +359,8 @@ fromstruct_any_tsig(ARGS_FROMSTRUCT) {
 	REQUIRE(source != NULL);
 	REQUIRE(tsig->common.rdclass == rdclass);
 	REQUIRE(tsig->common.rdtype == type);
+
+	UNUSED(rdclass);
 
 	/*
 	 * Algorithm Name.
@@ -410,7 +427,8 @@ tostruct_any_tsig(ARGS_TOSTRUCT) {
 
 	REQUIRE(rdata->type == 250);
 	REQUIRE(rdata->rdclass == 255);
-	
+	REQUIRE(rdata->length != 0);
+
 	tsig = (dns_rdata_any_tsig_t *) target;
 	tsig->common.rdclass = rdata->rdclass;
 	tsig->common.rdtype = rdata->type;
@@ -425,7 +443,7 @@ tostruct_any_tsig(ARGS_TOSTRUCT) {
 	dns_name_fromregion(&alg, &sr);
 	dns_name_init(&tsig->algorithm, NULL);
 	RETERR(name_duporclone(&alg, mctx, &tsig->algorithm));
-	
+
 	isc_region_consume(&sr, name_length(&tsig->algorithm));
 
 	/*
@@ -496,7 +514,7 @@ tostruct_any_tsig(ARGS_TOSTRUCT) {
 
  cleanup:
 	if (mctx != NULL)
-		dns_name_free(&tsig->algorithm, tsig->mctx);	
+		dns_name_free(&tsig->algorithm, tsig->mctx);
 	if (mctx != NULL && tsig->signature != NULL)
 		isc_mem_free(mctx, tsig->signature);
 	return (ISC_R_NOMEMORY);
@@ -513,7 +531,7 @@ freestruct_any_tsig(ARGS_FREESTRUCT) {
 	if (tsig->mctx == NULL)
 		return;
 
-	dns_name_free(&tsig->algorithm, tsig->mctx);	
+	dns_name_free(&tsig->algorithm, tsig->mctx);
 	if (tsig->signature != NULL)
 		isc_mem_free(tsig->mctx, tsig->signature);
 	if (tsig->other != NULL)

@@ -1,21 +1,21 @@
 /*
  * Copyright (C) 1999, 2000  Internet Software Consortium.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
- * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
- * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
- * SOFTWARE.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+ * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+ * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: acl.c,v 1.11.2.1 2000/08/11 02:13:01 bwelling Exp $ */
+/* $Id: acl.c,v 1.17 2000/12/01 18:22:15 gson Exp $ */
 
 #include <config.h>
 
@@ -35,7 +35,7 @@ dns_acl_create(isc_mem_t *mctx, int n, dns_acl_t **target) {
 	 */
 	if (n == 0)
 		n = 1;
-	
+
 	acl = isc_mem_get(mctx, sizeof(*acl));
 	if (acl == NULL)
 		return (ISC_R_NOMEMORY);
@@ -45,12 +45,12 @@ dns_acl_create(isc_mem_t *mctx, int n, dns_acl_t **target) {
 	acl->elements = NULL;
 	acl->alloc = 0;
 	acl->length = 0;
-	
+
 	ISC_LINK_INIT(acl, nextincache);
 	/*
 	 * Must set magic early because we use dns_acl_detach() to clean up.
 	 */
-	acl->magic = DNS_ACL_MAGIC; 
+	acl->magic = DNS_ACL_MAGIC;
 
 	acl->elements = isc_mem_get(mctx, n * sizeof(dns_aclelement_t));
 	if (acl->elements == NULL) {
@@ -94,10 +94,10 @@ dns_acl_appendelement(dns_acl_t *acl, dns_aclelement_t *elt) {
 	 * Append the new element.
 	 */
 	acl->elements[acl->length++] = *elt;
-	
+
 	return (ISC_R_SUCCESS);
 }
-		       
+
 static isc_result_t
 dns_acl_anyornone(isc_mem_t *mctx, isc_boolean_t neg, dns_acl_t **target) {
 	isc_result_t result;
@@ -130,90 +130,107 @@ dns_acl_match(isc_netaddr_t *reqaddr,
 	      int *match,
 	      dns_aclelement_t **matchelt)
 {
-	isc_result_t result;
 	unsigned int i;
-	int indirectmatch;
 
 	REQUIRE(reqaddr != NULL);
 	REQUIRE(matchelt == NULL || *matchelt == NULL);
 	
 	for (i = 0; i < acl->length; i++) {
 		dns_aclelement_t *e = &acl->elements[i];
-		dns_acl_t *inner = NULL;
-		
-		switch (e->type) {
-		case dns_aclelementtype_ipprefix:
-			if (isc_netaddr_eqprefix(reqaddr,
-						 &e->u.ip_prefix.address, 
-						 e->u.ip_prefix.prefixlen))
-				goto matched;
-			break;
-			
-		case dns_aclelementtype_keyname:
-			if (reqsigner != NULL &&
-			    dns_name_equal(reqsigner, &e->u.keyname))
-			    goto matched;
-			break;
-		
-		case dns_aclelementtype_nestedacl:
-			inner = e->u.nestedacl;
-		nested:
-			result = dns_acl_match(reqaddr, reqsigner,
-					       inner,
-					       env,
-					       &indirectmatch, matchelt);
-			if (result != ISC_R_SUCCESS)
-				return (result);
-			/*
-			 * Treat negative matches in indirect ACLs as
-			 * "no match".
-			 * That way, a negated indirect ACL will never become 
-			 * a surprise positive match through double negation.
-			 * XXXDCL this should be documented.
-			 */
-			if (indirectmatch > 0)
-				goto matched;
 
-			/*
-			 * A negative indirect match may have set *matchelt,
-			 * but we don't want it set when we return.
-			 */
-			if (matchelt != NULL)
-				*matchelt = NULL;
-			break;
-
-		case dns_aclelementtype_any:
-		matched:
+		if (dns_aclelement_match(reqaddr, reqsigner,
+					 e, env, matchelt)) {
 			*match = e->negative ? -(i+1) : (i+1);
-			if (matchelt != NULL)
-				*matchelt = e;
 			return (ISC_R_SUCCESS);
-
-		case dns_aclelementtype_localhost:
-			if (env != NULL && env->localhost != NULL) {
-				inner = env->localhost;
-				goto nested;
-			} else {
-				break;
-			}
-			
-		case dns_aclelementtype_localnets:
-			if (env != NULL && env->localnets != NULL) {
-				inner = env->localnets;
-				goto nested;
-			} else {
-				break;
-			}
-			
-		default:
-			INSIST(0);
-			break;
 		}
 	}
 	/* No match. */
 	*match = 0;
 	return (ISC_R_SUCCESS);
 }
+
+isc_boolean_t
+dns_aclelement_match(isc_netaddr_t *reqaddr,
+		     dns_name_t *reqsigner,
+		     dns_aclelement_t *e,
+		     dns_aclenv_t *env,
+		     dns_aclelement_t **matchelt)
+{
+	dns_acl_t *inner = NULL;
+	int indirectmatch;
+	isc_result_t result;
+
+	switch (e->type) {
+	case dns_aclelementtype_ipprefix:
+		if (isc_netaddr_eqprefix(reqaddr,
+					 &e->u.ip_prefix.address, 
+					 e->u.ip_prefix.prefixlen))
+			goto matched;
+		break;
+		
+	case dns_aclelementtype_keyname:
+		if (reqsigner != NULL &&
+		    dns_name_equal(reqsigner, &e->u.keyname))
+			goto matched;
+		break;
+		
+	case dns_aclelementtype_nestedacl:
+		inner = e->u.nestedacl;
+	nested:
+		result = dns_acl_match(reqaddr, reqsigner,
+				       inner,
+				       env,
+				       &indirectmatch, matchelt);
+		INSIST(result == ISC_R_SUCCESS);
+
+		/*
+		 * Treat negative matches in indirect ACLs as
+		 * "no match".
+		 * That way, a negated indirect ACL will never become 
+		 * a surprise positive match through double negation.
+		 * XXXDCL this should be documented.
+		 */
+		if (indirectmatch > 0)
+			goto matchelt_set;
+		
+		/*
+		 * A negative indirect match may have set *matchelt,
+		 * but we don't want it set when we return.
+		 */
+		if (matchelt != NULL)
+			*matchelt = NULL;
+		break;
+		
+	case dns_aclelementtype_any:
+	matched:
+		if (matchelt != NULL)
+			*matchelt = e;
+	matchelt_set:
+		return (ISC_TRUE);
+			
+	case dns_aclelementtype_localhost:
+		if (env != NULL && env->localhost != NULL) {
+			inner = env->localhost;
+			goto nested;
+		} else {
+			break;
+		}
+		
+	case dns_aclelementtype_localnets:
+		if (env != NULL && env->localnets != NULL) {
+			inner = env->localnets;
+			goto nested;
+		} else {
+			break;
+		}
+		
+	default:
+		INSIST(0);
+		break;
+	}
+
+	return (ISC_FALSE);
+}	
 
 void
 dns_acl_attach(dns_acl_t *source, dns_acl_t **target) {
@@ -297,6 +314,68 @@ dns_acl_equal(dns_acl_t *a, dns_acl_t *b) {
 			return (ISC_FALSE);
 	}
 	return (ISC_TRUE);
+}
+
+#ifndef INADDR_LOOPBACK
+#define INADDR_LOOPBACK (unsigned long)0x7F000001UL
+#endif
+
+static isc_boolean_t
+is_loopback(dns_aclipprefix_t *p) {
+	switch (p->address.family) {
+	case AF_INET:
+		if (p->prefixlen == 32 &&
+		    htonl(p->address.type.in.s_addr) == INADDR_LOOPBACK)
+			return (ISC_TRUE);
+		break;
+	case AF_INET6:
+		if (p->prefixlen == 128 &&
+		    IN6_IS_ADDR_LOOPBACK(&p->address.type.in6))
+			return (ISC_TRUE);
+		break;
+	default:
+		break;
+	}
+	return (ISC_FALSE);
+}
+
+isc_boolean_t
+dns_acl_isinsecure(dns_acl_t *a) {
+	unsigned int i;
+	for (i = 0; i < a->length; i++) {
+		dns_aclelement_t *e = &a->elements[i];
+
+		/* A negated match can never be insecure. */
+		if (e->negative)
+			continue;
+
+		switch (e->type) {
+		case dns_aclelementtype_ipprefix:
+			/* The loopback address is considered secure. */
+			if (! is_loopback(&e->u.ip_prefix))
+				return (ISC_TRUE);
+			continue;
+			
+		case dns_aclelementtype_keyname:
+		case dns_aclelementtype_localhost:
+			continue;
+
+		case dns_aclelementtype_nestedacl:
+			if (dns_acl_isinsecure(e->u.nestedacl))
+				return (ISC_TRUE);
+			continue;
+			
+		case dns_aclelementtype_localnets:
+		case dns_aclelementtype_any:
+			return (ISC_TRUE);
+
+		default:
+			INSIST(0);
+			return (ISC_TRUE);
+		}
+	}
+	/* No insecure elements were found. */
+	return (ISC_FALSE);
 }
 
 isc_result_t

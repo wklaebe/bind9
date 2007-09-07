@@ -1,21 +1,21 @@
 /*
  * Copyright (C) 1999, 2000  Internet Software Consortium.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
- * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
- * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
- * SOFTWARE.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+ * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+ * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rbt.h,v 1.40.2.1 2000/07/10 23:54:35 gson Exp $ */
+/* $Id: rbt.h,v 1.51 2000/11/18 00:55:25 bwelling Exp $ */
 
 #ifndef DNS_RBT_H
 #define DNS_RBT_H 1
@@ -25,6 +25,8 @@
 #include <dns/types.h>
 
 ISC_LANG_BEGINDECLS
+
+#define DNS_RBT_USEHASH 1
 
 /*
  * Option values for dns_rbt_findnode() and dns_rbt_findname().
@@ -44,7 +46,7 @@ ISC_LANG_BEGINDECLS
 /*
  * This is the structure that is used for each node in the red/black
  * tree of trees.  NOTE WELL:  the implementation manages this as a variable
- * length structure, with the actual wire-format name and other data appended
+ * length structure, with the actual wire-format name and other data
  * appended to this structure.  Allocating a contiguous block of memory for
  * multiple dns_rbtnode structures will not work.
  */
@@ -53,6 +55,9 @@ typedef struct dns_rbtnode {
 	struct dns_rbtnode *left;
 	struct dns_rbtnode *right;
 	struct dns_rbtnode *down;
+#ifdef DNS_RBT_USEHASH
+	struct dns_rbtnode *hashnext;
+#endif
 	/*
 	 * The following bitfields add up to a total bitwidth of 32.
 	 * The range of values necessary for each item is indicated,
@@ -72,6 +77,11 @@ typedef struct dns_rbtnode {
 	unsigned int namelen : 8;	/* range is 1..255 */
 	unsigned int offsetlen : 8;	/* range is 1..128 */
 	unsigned int padbytes : 9;	/* range is 0..380 */
+
+#ifdef DNS_RBT_USEHASH
+	unsigned int hashval;
+#endif
+
 	/*
 	 * These values are used in the RBT DB implementation.  The appropriate
 	 * node lock must be held before accessing them.
@@ -117,40 +127,26 @@ typedef isc_result_t (*dns_rbtfindcallback_t)(dns_rbtnode_t *node,
  * accomplished with a dns_fixedname_t.  It is _not_ necessary to reinitialize
  * either 'name' or 'origin' between calls to the chain functions.
  *
- * NOTE WELL: the above rule means that when a chain points to the root of the
- * tree of trees and that root stores only the root label, ".", it means that
- * BOTH 'name' *and* 'origin' will be ".".  As a common operation on
- * 'name' and 'origin' is to dns_name_concatenate them after they have been
- * set, special care must be taken to not concatenate 'name' if it is
- * dns_name_isabsolute(), which is only true in this special circumstance.
- * The logic behind having both 'name' and 'origin' be "." had to do with
- * zone file dumping.  It is likely that dumping of "." will be handled
- * differently in the future and that the chain API will be changed such that
- * in the case of ".", only 'origin' will be "." and name will be set to
- * have zero labels.
+ * NOTE WELL: even though the name data at the root of the tree of trees will
+ * be absolute (typically just "."), it will will be made into a relative name
+ * with an origin of "." -- an empty name when the node is ".".  This is
+ * because a common on operation on 'name' and 'origin' is to use
+ * dns_name_concatenate() on them to generate the complete name.  An empty name
+ * can be detected when dns_name_countlabels == 0, and is printed by
+ * dns_name_totext()/dns_name_format() as "@", consistent with RFC1035's
+ * definition of "@" as the current origin.
  *
  * dns_rbtnodechain_current is similar to the _first, _last, _prev and _next
- * functions but additionally can provide the node to which the chain points.
- */
-
-/*
- * For use in allocating space for the chain of ancestor nodes.
- *
- * The maximum number of ancestors is theoretically not limited by the
- * data tree.  This initial value of 24 ancestors would be able to scan
- * the full height of a single level of 16,777,216 nodes, more than double
- * the current size of .com.
- */
-#define DNS_RBT_ANCESTORBLOCK 24
+ * functions but additionally can provide the node to which the chain points.  */
 
 /*
  * The number of level blocks to allocate at a time.  Currently the maximum
  * number of levels is allocated directly in the structure, but future
- * revisions of this code might treat levels like ancestors -- that is, have
- * a static initial block with dynamic growth.  Allocating space for 256
- * levels when the tree is almost never that deep is wasteful, but it's not
- * clear that it matters, since the waste is only 2MB for 1000 concurrently
- * active chains on a system with 64-bit pointers.
+ * revisions of this code might have a static initial block with dynamic
+ * growth.  Allocating space for 256 levels when the tree is almost never that
+ * deep is wasteful, but it's not clear that it matters, since the waste is
+ * only 2MB for 1000 concurrently active chains on a system with 64-bit
+ * pointers.
  */
 #define DNS_RBT_LEVELBLOCK 254
 
@@ -158,20 +154,12 @@ typedef struct dns_rbtnodechain {
 	unsigned int		magic;
 	isc_mem_t *		mctx;
 	/*
-	 * The terminal node of the chain.  It is not in levels[] or
-	 * ancestors[].  This is ostensibly private ... but in a pinch
-	 * it could be used tell that the chain points nowhere without
-	 * needing to call dns_rbtnodechain_current().
+	 * The terminal node of the chain.  It is not in levels[].
+	 * This is ostensibly private ... but in a pinch it could be
+	 * used tell that the chain points nowhere without needing to
+	 * call dns_rbtnodechain_current().
 	 */
 	dns_rbtnode_t *		end;
-	dns_rbtnode_t **	ancestors;
-	/*
-	 * ancestor_block avoids doing any memory allocation (a MP
-	 * bottleneck) in 99%+ of the real-world cases.
-	 */
-	dns_rbtnode_t *		ancestor_block[DNS_RBT_ANCESTORBLOCK];
-	unsigned int		ancestor_count;
-	unsigned int		ancestor_maxitems;
 	/*
 	 * The maximum number of labels in a name is 128; bitstrings mean
 	 * a conceptually very large number (which I have not bothered to
@@ -215,7 +203,7 @@ dns_rbt_create(isc_mem_t *mctx, void (*deleter)(void *, void *),
  *	responsible for cleaning up any memory associated with the data
  *	pointer of a node when the node is deleted.  It is passed the
  *	deleted node's data pointer as its first argument and deleter_arg
- *	as its second argument.  
+ *	as its second argument.
  *
  * Requires:
  * 	mctx is a pointer to a valid memory context.
@@ -365,8 +353,8 @@ dns_rbt_findnode(dns_rbt_t *rbt, dns_name_t *name, dns_name_t *foundname,
  *
  *	If the chain parameter is non-NULL, then the path through the tree
  *	to the DNSSEC predecessor of the searched for name is maintained,
- *	unless the DNS_RBT_NOPREDECESSOR or DNS_RBT_NOEXACT option is used.
- *	(For more details on those options, see below.)
+ *	unless the DNS_RBTFIND_NOPREDECESSOR or DNS_RBTFIND_NOEXACT option
+ *	is used. (For more details on those options, see below.)
  *
  *	If there is no predecessor, then the chain will point to nowhere, as
  *	indicated by chain->end being NULL or dns_rbtnodechain_current
@@ -376,16 +364,8 @@ dns_rbt_findnode(dns_rbt_t *rbt, dns_name_t *name, dns_name_t *foundname,
  *	everything.  But you can certainly construct a trivial tree and a
  *	search for it that has no predecessor.
  *
- *	Within the chain structure, 'ancestors' will point
- *	to each successive node encountered in the search, with the root
- *	of each level searched indicated by a NULL.  ancestor_count
- *	indicates how many node pointers are in the ancestor list.  The
- *	'levels' member of the structure holds the root node of each level
- *	except the first; it corresponds with the NULL pointers in
- *	'ancestors' (except the first).  That is, for the [n+1]'th NULL
- *	'ancestors' pointer, the [n]'th 'levels' pointer is the node with
- *	the down pointer to the next level.  That node is not stored
- *	at all in the 'ancestors' list.
+ *	Within the chain structure, the 'levels' member of the structure holds
+ *	the root node of each level except the first.
  *
  *	The 'level_count' of the chain indicates how deep the chain to the
  *	predecessor name is, as an index into the 'levels[]' array.  It does
@@ -400,19 +380,13 @@ dns_rbt_findnode(dns_rbt_t *rbt, dns_name_t *name, dns_name_t *foundname,
  *	the node is found in the top level tree, or no node is found at all,
  *	level_matches is 0.
  *
- *	If any space was allocated to hold 'ancestors' in the chain,
- *	the 'ancestor_maxitems' member will be greater than
- *	DNS_RBT_ANCESTORBLOCK and will indicate how many ancestors
- *	could have been stored; the amount to be freed from the rbt->mctx
- *	is ancestor_maxitems * sizeof(dns_rbtnode_t *).
- *
  *	When DNS_RBTFIND_NOEXACT is set, the closest matching superdomain is
  *      returned (also subject to DNS_RBTFIND_EMPTYDATA), even when
  *      there is an exact match in the tree.  In this case, the chain
  *	will not point to the DNSSEC predecessor, but will instead point
  *	to the exact match, if there was any.  Thus the preceding paragraphs
  *	should have "exact match" substituted for "predecessor" to describe
- *	how the various elements of the chain are set.  This was done to 
+ *	how the various elements of the chain are set.  This was done to
  * 	ensure that the chain's state was sane, and to prevent problems that
  *	occurred when running the predecessor location code under conditions
  *	it was not designed for.  It is not clear *where* the chain should
@@ -456,19 +430,11 @@ dns_rbt_findnode(dns_rbt_t *rbt, dns_name_t *name, dns_name_t *foundname,
  *
  *		chain->level_matches is 0.
  *
- *	If result is ISC_R_NOMEMORY:
- *		The function could not complete because memory could not
- *		be allocated to maintain the chain.  However, it
- *		is possible that some memory was allocated;
- *		the chain's ancestor_maxitems will be greater than
- *		DNS_RBT_ANCESTORBLOCK if so.
- *
  * Returns:
  *	ISC_R_SUCCESS		Success
  *	DNS_R_PARTIALMATCH	Superdomain found with data
  *	ISC_R_NOTFOUND		No match, or superdomain with no data
- *	ISC_R_NOMEMORY		Resource Limit: Out of Memory building chain
- *	ISC_R_NOSPACE 		Concatenating nodes to form foundname failed
+ *	ISC_R_NOSPACE Concatenating nodes to form foundname failed
  */
 
 isc_result_t
@@ -574,6 +540,15 @@ dns_rbt_namefromnode(dns_rbtnode_t *node, dns_name_t *name);
  *	as part of the node.
  */
 
+unsigned int
+dns_rbt_nodecount(dns_rbt_t *rbt);
+/*
+ * Obtain the number of nodes in the tree of trees.
+ *
+ * Requires:
+ *	rbt is a valid rbt manager.
+ */
+
 void
 dns_rbt_destroy(dns_rbt_t **rbtp);
 /*
@@ -596,7 +571,7 @@ dns_rbt_printall(dns_rbt_t *rbt);
  *
  * Notes:
  *	The name stored at each node, along with the node's color, is printed.
- *	Then the down pointer, left and right pointers are displayed 
+ *	Then the down pointer, left and right pointers are displayed
  *	recursively in turn.  NULL down pointers are silently omitted;
  *	NULL left and right pointers are printed.
  */
@@ -681,7 +656,7 @@ dns_rbtnodechain_current(dns_rbtnodechain_t *chain, dns_name_t *name,
  *	'origin', if non-NULL, is the sequence of labels in the levels
  *	above the terminal level, such as "isc.org." in the above example.
  *	'origin' is always "." for the root node.
- *	
+ *
  *
  * Returns:
  *	ISC_R_SUCCESS		name, origin & node were successfully set.

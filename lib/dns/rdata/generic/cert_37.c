@@ -1,21 +1,21 @@
 /*
  * Copyright (C) 1999, 2000  Internet Software Consortium.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
- * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
- * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
- * SOFTWARE.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+ * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+ * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: cert_37.c,v 1.30 2000/06/01 18:26:04 tale Exp $ */
+/* $Id: cert_37.c,v 1.35 2000/12/01 01:40:16 gson Exp $ */
 
 /* Reviewed: Wed Mar 15 21:14:32 EST 2000 by tale */
 
@@ -41,14 +41,16 @@ fromtext_cert(ARGS_FROMTEXT) {
 	/*
 	 * Cert type.
 	 */
-	RETERR(gettoken(lexer, &token, isc_tokentype_string, ISC_FALSE));
+	RETERR(isc_lex_getmastertoken(lexer, &token, isc_tokentype_string,
+				      ISC_FALSE));
 	RETERR(dns_cert_fromtext(&cert, &token.value.as_textregion));
 	RETERR(uint16_tobuffer(cert, target));
-	
+
 	/*
 	 * Key tag.
 	 */
-	RETERR(gettoken(lexer, &token, isc_tokentype_number, ISC_FALSE));
+	RETERR(isc_lex_getmastertoken(lexer, &token, isc_tokentype_number,
+				      ISC_FALSE));
 	if (token.value.as_ulong > 0xffff)
 		return (ISC_R_RANGE);
 	RETERR(uint16_tobuffer(token.value.as_ulong, target));
@@ -56,7 +58,8 @@ fromtext_cert(ARGS_FROMTEXT) {
 	/*
 	 * Algorithm.
 	 */
-	RETERR(gettoken(lexer, &token, isc_tokentype_string, ISC_FALSE));
+	RETERR(isc_lex_getmastertoken(lexer, &token, isc_tokentype_string,
+				      ISC_FALSE));
 	RETERR(dns_secalg_fromtext(&secalg, &token.value.as_textregion));
 	RETERR(mem_tobuffer(target, &secalg, 1));
 
@@ -70,6 +73,7 @@ totext_cert(ARGS_TOTEXT) {
 	unsigned int n;
 
 	REQUIRE(rdata->type == 37);
+	REQUIRE(rdata->length != 0);
 
 	UNUSED(tctx);
 
@@ -115,7 +119,7 @@ fromwire_cert(ARGS_FROMWIRE) {
 	isc_region_t sr;
 
 	REQUIRE(type == 37);
-	
+
 	UNUSED(rdclass);
 	UNUSED(dctx);
 	UNUSED(downcase);
@@ -133,6 +137,7 @@ towire_cert(ARGS_TOWIRE) {
 	isc_region_t sr;
 
 	REQUIRE(rdata->type == 37);
+	REQUIRE(rdata->length != 0);
 
 	UNUSED(cctx);
 
@@ -148,6 +153,8 @@ compare_cert(ARGS_COMPARE) {
 	REQUIRE(rdata1->type == rdata2->type);
 	REQUIRE(rdata1->rdclass == rdata2->rdclass);
 	REQUIRE(rdata1->type == 37);
+	REQUIRE(rdata1->length != 0);
+	REQUIRE(rdata2->length != 0);
 
 	dns_rdata_toregion(rdata1, &r1);
 	dns_rdata_toregion(rdata2, &r2);
@@ -162,7 +169,9 @@ fromstruct_cert(ARGS_FROMSTRUCT) {
 	REQUIRE(source != NULL);
 	REQUIRE(cert->common.rdtype == type);
 	REQUIRE(cert->common.rdclass == rdclass);
-	
+
+	UNUSED(rdclass);
+
 	RETERR(uint16_tobuffer(cert->type, target));
 	RETERR(uint16_tobuffer(cert->key_tag, target));
 	RETERR(uint8_tobuffer(cert->algorithm, target));
@@ -177,6 +186,7 @@ tostruct_cert(ARGS_TOSTRUCT) {
 
 	REQUIRE(rdata->type == 37);
 	REQUIRE(target != NULL);
+	REQUIRE(rdata->length != 0);
 
 	cert->common.rdclass = rdata->rdclass;
 	cert->common.rdtype = rdata->type;

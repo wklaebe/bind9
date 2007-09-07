@@ -1,21 +1,21 @@
 /*
  * Copyright (C) 2000  Internet Software Consortium.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
- * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
- * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
- * SOFTWARE.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+ * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+ * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: keytable.c,v 1.19 2000/06/22 21:54:27 tale Exp $ */
+/* $Id: keytable.c,v 1.22 2000/08/26 01:36:50 bwelling Exp $ */
 
 #include <config.h>
 
@@ -39,7 +39,7 @@ struct dns_keytable {
 	isc_uint32_t		active_nodes;
 	/* Locked by rwlock. */
 	isc_uint32_t		references;
-	dns_rbt_t		*table; 
+	dns_rbt_t		*table;
 };
 
 #define KEYTABLE_MAGIC			0x4b54626cU	/* KTbl */
@@ -113,7 +113,7 @@ dns_keytable_create(isc_mem_t *mctx, dns_keytable_t **keytablep) {
 	return (ISC_R_SUCCESS);
 
    cleanup_lock:
-	isc_mutex_destroy(&keytable->lock);
+	DESTROYLOCK(&keytable->lock);
 
    cleanup_rbt:
 	dns_rbt_destroy(&keytable->table);
@@ -160,7 +160,7 @@ dns_keytable_detach(dns_keytable_t **keytablep) {
 	keytable = *keytablep;
 
 	RWLOCK(&keytable->rwlock, isc_rwlocktype_write);
-	
+
 	INSIST(keytable->references > 0);
 	keytable->references--;
 	LOCK(&keytable->lock);
@@ -173,7 +173,7 @@ dns_keytable_detach(dns_keytable_t **keytablep) {
 	if (destroy) {
 		dns_rbt_destroy(&keytable->table);
 		isc_rwlock_destroy(&keytable->rwlock);
-		isc_mutex_destroy(&keytable->lock);
+		DESTROYLOCK(&keytable->lock);
 		keytable->magic = 0;
 		isc_mem_put(keytable->mctx, keytable, sizeof *keytable);
 	}

@@ -1,21 +1,21 @@
 /*
  * Copyright (C) 1999, 2000  Internet Software Consortium.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
- * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
- * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
- * SOFTWARE.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+ * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+ * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: confzone.h,v 1.35 2000/06/22 21:55:31 tale Exp $ */
+/* $Id: confzone.h,v 1.49 2000/11/28 22:42:37 gson Exp $ */
 
 #ifndef DNS_CONFZONE_H
 #define DNS_CONFZONE_H 1
@@ -25,7 +25,7 @@
  *****/
 
 /*
- * Zones as seen by the config file parser. The data structures here define 
+ * Zones as seen by the config file parser. The data structures here define
  * the zone data as it is in the config file. The data structures here do
  * *not* define the things like red-black trees for named's internal data
  * structures.
@@ -36,19 +36,19 @@
  *
  * MP:
  *	Client must do necessary locking.
- *	
+ *
  * Reliability:
  *
  *	No problems.
  *
- * Resources:
+ * resources:
  *
  *	Use memory managers supplied by client.
  *
  * Security:
  *
  *	N/A
- *	
+ *
  */
 
 /***
@@ -79,17 +79,13 @@ typedef struct dns_c_hint_zone		dns_c_hintzone_t;
 typedef struct dns_c_zone		dns_c_zone_t;
 typedef struct dns_c_zonelem		dns_c_zonelem_t;
 
-#if 0
-/* this typedef moved to confcommon.h for confview.h to get at (circular
- * include dependencies between view and zone structures.
- */
-typedef struct dns_c_zone_list		dns_c_zonelist_t;
-#endif
+
 
 struct dns_c_zonelem {
 	dns_c_zone_t	*thezone;
 	ISC_LINK(dns_c_zonelem_t) next;
 };
+
 
 struct dns_c_zone_list {
 	isc_int32_t 		magic;
@@ -98,16 +94,18 @@ struct dns_c_zone_list {
 	ISC_LIST(dns_c_zonelem_t)	zones;
 };
 
+
 struct dns_c_master_zone {
 	char		       *file;
-	dns_severity_t	check_names;
+	dns_severity_t		check_names;
 	dns_c_ipmatchlist_t    *allow_update;
 	dns_c_ipmatchlist_t    *allow_update_forwarding;
 	dns_ssutable_t	       *ssuauth;
 	dns_c_ipmatchlist_t    *allow_query;
 	dns_c_ipmatchlist_t    *allow_transfer;
-	isc_boolean_t		dialup;
-	isc_boolean_t		notify;
+	dns_dialuptype_t	dialup;
+	isc_boolean_t		statistics;
+	dns_notifytype_t	notify;
 	dns_c_iplist_t	       *also_notify;
 	char		       *ixfr_base;
 	char		       *ixfr_tmp;
@@ -117,6 +115,17 @@ struct dns_c_master_zone {
 	isc_uint32_t		max_trans_time_out;
 	isc_uint32_t		max_trans_idle_out;
 	isc_uint32_t		sig_valid_interval;
+
+	
+	isc_sockaddr_t		notify_source;
+	isc_sockaddr_t		notify_source_v6;
+	isc_sockaddr_t		transfer_source;
+	isc_sockaddr_t		transfer_source_v6;
+	isc_uint32_t		min_retry_time;
+	isc_uint32_t		max_retry_time;
+	isc_uint32_t		min_refresh_time;
+	isc_uint32_t		max_refresh_time;
+	
 
 	dns_c_forw_t		forward;
 	dns_c_iplist_t	       *forwarders;
@@ -132,8 +141,9 @@ struct dns_c_slave_zone {
 	dns_c_ipmatchlist_t    *allow_query;
 	dns_c_ipmatchlist_t    *allow_transfer;
 	dns_c_iplist_t	       *also_notify;
-	isc_boolean_t		notify;
-	isc_boolean_t		dialup;
+	dns_notifytype_t	notify;
+	dns_dialuptype_t	dialup;
+	isc_boolean_t		statistics;
 	char		       *ixfr_base;
 	char		       *ixfr_tmp;
 	isc_boolean_t		maint_ixfr_base;
@@ -141,12 +151,20 @@ struct dns_c_slave_zone {
 	dns_c_pklist_t	       *pubkeylist;
 	in_port_t		master_port;
 	dns_c_iplist_t	       *master_ips;
+	isc_sockaddr_t		notify_source;
+	isc_sockaddr_t		notify_source_v6;
 	isc_sockaddr_t		transfer_source;
 	isc_sockaddr_t		transfer_source_v6;
 	isc_uint32_t		max_trans_time_in;
 	isc_uint32_t		max_trans_time_out;
 	isc_uint32_t		max_trans_idle_in;
 	isc_uint32_t		max_trans_idle_out;
+
+
+	isc_uint32_t		min_retry_time;
+	isc_uint32_t		max_retry_time;
+	isc_uint32_t		min_refresh_time;
+	isc_uint32_t		max_refresh_time;
 
 	dns_c_forw_t		forward;
 	dns_c_iplist_t	       *forwarders;
@@ -161,17 +179,22 @@ struct dns_c_stub_zone {
 	dns_c_ipmatchlist_t    *allow_update_forwarding;
 	dns_c_ipmatchlist_t    *allow_query;
 	dns_c_ipmatchlist_t    *allow_transfer; /* should be here??? */
-	isc_boolean_t		dialup;
+	dns_dialuptype_t	dialup;
+	isc_boolean_t		statistics;
 	dns_c_pklist_t	       *pubkeylist;
 	in_port_t		master_port;
 	dns_c_iplist_t	       *master_ips;
-	isc_sockaddr_t		transfer_source; 
-	isc_sockaddr_t		transfer_source_v6; 
+	isc_sockaddr_t		transfer_source;
+	isc_sockaddr_t		transfer_source_v6;
 	isc_uint32_t		max_trans_time_in;
 	isc_uint32_t		max_trans_idle_in;
 
 	dns_c_forw_t		forward;
 	dns_c_iplist_t	       *forwarders;
+	isc_uint32_t		min_retry_time;
+	isc_uint32_t		max_retry_time;
+	isc_uint32_t		min_refresh_time;
+	isc_uint32_t		max_refresh_time;
 
 	dns_c_setbits_t		setflags;
 };
@@ -194,19 +217,19 @@ struct dns_c_hint_zone {
 
 struct dns_c_zone {
 	isc_int32_t			magic;
-	
+
 	isc_mem_t		       *mem;
 	isc_uint8_t			refcount;
-	
+
 	char			       *name; /* e.g. "foo.com" */
 	char			       *internalname; /* e.g. "foo.com.ext" */
 	char			       *database;
-	dns_rdataclass_t		zclass; 
+	dns_rdataclass_t		zclass;
 	dns_c_view_t		       *view;
 	isc_boolean_t		       *enabled;
-	
+
 	dns_c_zonetype_t		ztype;
-	union 
+	union
 	{
 		dns_c_masterzone_t	mzone;
 		dns_c_slavezone_t	szone;
@@ -222,6 +245,10 @@ struct dns_c_zone {
 
 ISC_LANG_BEGINDECLS
 
+
+
+/*
+ */
 
 isc_result_t dns_c_zonelist_new(isc_mem_t *mem, dns_c_zonelist_t **zlist);
 isc_result_t dns_c_zonelist_delete(dns_c_zonelist_t **zlist);
@@ -288,6 +315,8 @@ isc_result_t dns_c_zone_getssuauth(dns_c_zone_t *zone,
 				   dns_ssutable_t **ssutable);
 
 
+
+
 isc_result_t dns_c_zone_setallowquery(dns_c_zone_t *zone,
 				      dns_c_ipmatchlist_t *ipml,
 				      isc_boolean_t deepcopy);
@@ -303,13 +332,19 @@ isc_result_t dns_c_zone_getallowtransfer(dns_c_zone_t *zone,
 
 
 isc_result_t dns_c_zone_setdialup(dns_c_zone_t *zone,
-				  isc_boolean_t newval);
-isc_result_t dns_c_zone_getdialup(dns_c_zone_t *zone, isc_boolean_t *retval);
+				  dns_dialuptype_t newval);
+isc_result_t dns_c_zone_getdialup(dns_c_zone_t *zone, dns_dialuptype_t *retval);
+
+isc_result_t dns_c_zone_setstatistics(dns_c_zone_t *zone,
+				      isc_boolean_t newval);
+isc_result_t dns_c_zone_getstatistics(dns_c_zone_t *zone,
+				      isc_boolean_t *retval);
 
 
 isc_result_t dns_c_zone_setnotify(dns_c_zone_t *zone,
-				  isc_boolean_t newval);
-isc_result_t dns_c_zone_getnotify(dns_c_zone_t *zone, isc_boolean_t *retval);
+				  dns_notifytype_t newval);
+isc_result_t dns_c_zone_getnotify(dns_c_zone_t *zone,
+				  dns_notifytype_t *retval);
 
 
 isc_result_t dns_c_zone_setalsonotify(dns_c_zone_t *zone,
@@ -354,10 +389,22 @@ isc_result_t dns_c_zone_gettransfersource(dns_c_zone_t *zone,
 					  isc_sockaddr_t *retval);
 
 
+isc_result_t dns_c_zone_setnotifysource(dns_c_zone_t *zone,
+					isc_sockaddr_t newval);
+isc_result_t dns_c_zone_getnotifysource(dns_c_zone_t *zone,
+					isc_sockaddr_t *retval);
+
+
 isc_result_t dns_c_zone_settransfersourcev6(dns_c_zone_t *zone,
 					    isc_sockaddr_t newval);
 isc_result_t dns_c_zone_gettransfersourcev6(dns_c_zone_t *zone,
 					    isc_sockaddr_t *retval);
+
+
+isc_result_t dns_c_zone_setnotifysourcev6(dns_c_zone_t *zone,
+					  isc_sockaddr_t newval);
+isc_result_t dns_c_zone_getnotifysourcev6(dns_c_zone_t *zone,
+					  isc_sockaddr_t *retval);
 
 
 isc_result_t dns_c_zone_setmaxtranstimein(dns_c_zone_t *zone,
@@ -391,6 +438,31 @@ isc_result_t dns_c_zone_setsigvalidityinterval(dns_c_zone_t *zone,
 					    isc_uint32_t newval);
 isc_result_t dns_c_zone_getsigvalidityinterval(dns_c_zone_t *zone,
 					    isc_uint32_t *retval);
+
+
+isc_result_t dns_c_zone_setminretrytime(dns_c_zone_t *zone,
+					isc_uint32_t newval);
+isc_result_t dns_c_zone_getminretrytime(dns_c_zone_t *zone,
+					isc_uint32_t *retval);
+
+isc_result_t dns_c_zone_setmaxretrytime(dns_c_zone_t *zone,
+					isc_uint32_t newval);
+isc_result_t dns_c_zone_getmaxretrytime(dns_c_zone_t *zone,
+					isc_uint32_t *retval);
+
+
+isc_result_t dns_c_zone_setminrefreshtime(dns_c_zone_t *zone,
+					  isc_uint32_t newval);
+isc_result_t dns_c_zone_getminrefreshtime(dns_c_zone_t *zone,
+					  isc_uint32_t *retval);
+
+isc_result_t dns_c_zone_setmaxrefreshtime(dns_c_zone_t *zone,
+					  isc_uint32_t newval);
+isc_result_t dns_c_zone_getmaxrefreshtime(dns_c_zone_t *zone,
+					  isc_uint32_t *retval);
+
+
+
 
 
 isc_result_t dns_c_zone_setmaxixfrlog(dns_c_zone_t *zone,

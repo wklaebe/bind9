@@ -1,21 +1,21 @@
 /*
  * Copyright (C) 1998-2000  Internet Software Consortium.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
- * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
- * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
- * SOFTWARE.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+ * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+ * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: t_rbt.c,v 1.19 2000/06/22 21:51:18 tale Exp $ */
+/* $Id: t_rbt.c,v 1.22 2000/08/09 04:49:44 tale Exp $ */
 
 #include <config.h>
 
@@ -130,10 +130,10 @@ create_name(char *s, isc_mem_t *mctx, dns_name_t **dns_name) {
 	if (s && *s) {
 
 		length = strlen(s);
-	
+
 		isc_buffer_init(&source, s, length);
 		isc_buffer_add(&source, length);
-	
+
 		/*
 		 * The buffer for the actual name will immediately follow the
 		 * name structure.
@@ -143,13 +143,13 @@ create_name(char *s, isc_mem_t *mctx, dns_name_t **dns_name) {
 			t_info("isc_mem_get failed\n");
 			++nfails;
 		}
-	
+
 		dns_name_init(*dns_name, NULL);
 		isc_buffer_init(&target, *dns_name + 1, DNSNAMELEN);
-	
+
 		result = dns_name_fromtext(*dns_name, &source, dns_rootname,
 					   ISC_FALSE, &target);
-	
+
 		if (result != ISC_R_SUCCESS) {
 			++nfails;
 			t_info("dns_name_fromtext(%s) failed %s\n",
@@ -330,7 +330,7 @@ test_rbt_gen(char *filename, char *command, char *testname,
 		isc_mem_destroy(&mctx);
 		return(result);
 	}
-		
+
 	/*
 	 * Now try the database command.
 	 */
@@ -603,8 +603,8 @@ t9_walkchain(dns_rbtnodechain_t *chain, dns_rbt_t *rbt) {
 						dns_fixedname_name(&origin));
 			if (dns_result != DNS_R_NEWORIGIN) {
 				t_info("dns_rbtnodechain_first returned %s, "
-					"expecting DNS_R_NEWORIGIN\n",
-					dns_result_totext(dns_result));
+				       "expecting DNS_R_NEWORIGIN\n",
+				       dns_result_totext(dns_result));
 				++nprobs;
 				break;
 			}
@@ -620,7 +620,7 @@ t9_walkchain(dns_rbtnodechain_t *chain, dns_rbt_t *rbt) {
 			       dns_fixedname_name(&fullname1), NULL);
 			if (dns_result != ISC_R_SUCCESS) {
 				t_info("dns_name_concatenate failed %s\n",
-						dns_result_totext(dns_result));
+				       dns_result_totext(dns_result));
 				++nprobs;
 				break;
 			}
@@ -894,7 +894,7 @@ t_dns_rbtnodechain_init(char *dbfile, char *findname,
 		result = T_FAIL;
 	else
 		result = T_PASS;
-		
+
 	dns_rbtnodechain_invalidate(&chain);
 	dns_rbt_destroy(&rbt);
 
@@ -1023,16 +1023,16 @@ t_dns_rbtnodechain_first(char *dbfile, char *expected_firstname,
 	}
 
 	t_info("testing for first name of %s, origin of %s\n",
-			expected_firstname, expected_firstorigin);
+	       expected_firstname, expected_firstorigin);
 
 	dns_result = dns_rbtnodechain_first(&chain, rbt,
-			dns_fixedname_name(&dns_name),
-			dns_fixedname_name(&dns_origin));
+					    dns_fixedname_name(&dns_name),
+					    dns_fixedname_name(&dns_origin));
 
-	if (dns_result != DNS_R_NEWORIGIN) {
+	if (dns_result != DNS_R_NEWORIGIN)
 		t_info("dns_rbtnodechain_first unexpectedly returned %s\n",
-				dns_result_totext(dns_result));
-	}
+		       dns_result_totext(dns_result));
+
 	nfails = t_namechk(dns_result, &dns_name, expected_firstname,
 			   &dns_origin, expected_firstorigin, DNS_R_NEWORIGIN);
 
@@ -1043,11 +1043,11 @@ t_dns_rbtnodechain_first(char *dbfile, char *expected_firstname,
 
 	t_info("testing for next name of %s, origin of %s\n",
 			expected_nextname, expected_nextorigin);
-			
-	if ((dns_result != ISC_R_SUCCESS) && (dns_result != DNS_R_NEWORIGIN)) {
+
+	if ((dns_result != ISC_R_SUCCESS) && (dns_result != DNS_R_NEWORIGIN))
 		t_info("dns_rbtnodechain_next unexpectedly returned %s\n",
-				dns_result_totext(dns_result));
-	}
+		       dns_result_totext(dns_result));
+
 	if (strcasecmp(expected_firstorigin, expected_nextorigin) == 0)
 		expected_result = ISC_R_SUCCESS;
 	else
@@ -1059,7 +1059,7 @@ t_dns_rbtnodechain_first(char *dbfile, char *expected_firstname,
 		result = T_FAIL;
 	else
 		result = T_PASS;
-		
+
 	dns_rbtnodechain_invalidate(&chain);
 
 	dns_rbt_destroy(&rbt);
@@ -1226,7 +1226,7 @@ t_dns_rbtnodechain_last(char *dbfile, char *expected_lastname,
 		result = T_FAIL;
 	else
 		result = T_PASS;
-		
+
 	dns_rbtnodechain_invalidate(&chain);
 	dns_rbt_destroy(&rbt);
 
@@ -1408,7 +1408,7 @@ t_dns_rbtnodechain_next(char *dbfile, char *findname,
 		result = T_FAIL;
 	else
 		result = T_PASS;
-		
+
 	dns_rbtnodechain_invalidate(&chain);
 	dns_rbt_destroy(&rbt);
 
@@ -1589,7 +1589,7 @@ t_dns_rbtnodechain_prev(char *dbfile, char *findname, char *prevname,
 		result = T_FAIL;
 	else
 		result = T_PASS;
-		
+
 	dns_rbtnodechain_invalidate(&chain);
 	dns_rbt_destroy(&rbt);
 

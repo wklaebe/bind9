@@ -1,21 +1,21 @@
 /*
  * Copyright (C) 1998-2000  Internet Software Consortium.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
- * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
- * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
- * SOFTWARE.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+ * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+ * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dispatch_test.c,v 1.43.2.1 2000/06/28 16:45:27 gson Exp $ */
+/* $Id: dispatch_test.c,v 1.47 2000/10/06 18:58:11 bwelling Exp $ */
 
 #include <config.h>
 
@@ -277,7 +277,7 @@ got_response(isc_task_t *task, isc_event_t *ev_in) {
 	result = dns_message_create(mctx, DNS_MESSAGE_INTENTPARSE, &msg);
 	CHECKRESULT(result, "dns_message_create() failed");
 
-	result = dns_message_parse(msg, &ev->buffer, ISC_FALSE);
+	result = dns_message_parse(msg, &ev->buffer, 0);
 	CHECKRESULT(result, "dns_message_parse() failed");
 
 	result = printmsg(msg, stderr);
@@ -330,7 +330,7 @@ got_request(isc_task_t *task, isc_event_t *ev_in) {
 	result = dns_message_create(mctx, DNS_MESSAGE_INTENTPARSE, &msg);
 	CHECKRESULT(result, "dns_message_create() failed");
 
-	result = dns_message_parse(msg, &ev->buffer, ISC_FALSE);
+	result = dns_message_parse(msg, &ev->buffer, 0);
 	CHECKRESULT(result, "dns_message_parse() failed");
 
 	result = printmsg(msg, stderr);
@@ -349,7 +349,7 @@ got_request(isc_task_t *task, isc_event_t *ev_in) {
 		start_response(&clients[4], "vix.com", task);
 		start_response(&clients[5], "isc.org", task);
 		break;
-		
+
 	case 2:
 		printf("--- removing request\n");
 		dns_dispatch_removerequest(&cli->resp, &ev);
@@ -394,7 +394,7 @@ main(int argc, char *argv[]) {
 	isc_log_setcontext(log);
 	dns_log_init(log);
 	dns_log_setcontext(log);
-	
+
 	destination.file.stream = stderr;
 	destination.file.name = NULL;
 	destination.file.versions = ISC_LOG_ROLLNEVER;
@@ -435,7 +435,7 @@ main(int argc, char *argv[]) {
 	attrs = 0;
 	attrs |= DNS_DISPATCHATTR_IPV4;
 	attrs |= DNS_DISPATCHATTR_UDP;
-	
+
 	disp = NULL;
 	RUNTIME_CHECK(dns_dispatch_getudp(dispatchmgr, socketmgr,
 					  taskmgr, &sa, 512, 6, 1024,

@@ -1,28 +1,28 @@
 /*
  * Copyright (C) 1999, 2000  Internet Software Consortium.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
- * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
- * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
- * SOFTWARE.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+ * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+ * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: t_dst.c,v 1.33 2000/06/22 21:51:07 tale Exp $ */
+/* $Id: t_dst.c,v 1.42 2000/11/15 00:20:34 tale Exp $ */
 
 #include <config.h>
 
 #include <sys/types.h>		/* Required for dirent.h */
 #include <sys/stat.h>
 
-#include <dirent.h>
+#include <dirent.h>		/* XXX */
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
@@ -31,7 +31,9 @@
 #include <unistd.h>		/* XXX */
 
 #include <isc/buffer.h>
+#include <isc/dir.h>
 #include <isc/entropy.h>
+#include <isc/file.h>
 #include <isc/mem.h>
 #include <isc/region.h>
 #include <isc/string.h>
@@ -47,6 +49,7 @@
 
 /*
  * Adapted from the original dst_test.c program.
+ * XXXDCL should use isc_dir_*.
  */
 
 static void
@@ -69,14 +72,14 @@ cleandir(char *path) {
 		strcpy(fullname, path);
 		strcat(fullname, "/");
 		strcat(fullname, pe->d_name);
-		if (remove(fullname)) {
+		if (remove(fullname))
 			t_info("remove(%s) failed %d\n", fullname, errno);
-		}
+
 	}
-	(void) closedir(dirp);
-	if (rmdir(path)) {
+	(void)closedir(dirp);
+	if (rmdir(path))
 		t_info("rmdir(%s) failed %d\n", path, errno);
-	}
+
 	return;
 }
 
@@ -157,7 +160,6 @@ dh(dns_name_t *name1, int id1, dns_name_t *name2, int id2, isc_mem_t *mctx,
 {
 	dst_key_t	*key1 = NULL, *key2 = NULL;
 	isc_result_t	ret;
-	int		rval;
 	char		current[PATH_MAX + 1];
 	char		tmp[PATH_MAX + 1];
 	char		*p;
@@ -192,16 +194,18 @@ dh(dns_name_t *name1, int id1, dns_name_t *name2, int id2, isc_mem_t *mctx,
 		return;
 	}
 
-	p = tmpnam(tmp);
-	if (p == NULL) {
-		t_info("tmpnam failed %d\n", errno);
+	ret = isc_file_mktemplate("/tmp/", tmp, sizeof(tmp));
+	if (ret != ISC_R_SUCCESS) {
+		t_info("isc_file_mktemplate failed %s\n",
+		       isc_result_totext(ret));
 		++*nprobs;
 		return;
 	}
 
-	rval = mkdir(tmp, S_IRWXU | S_IRWXG );
-	if (rval != 0) {
-		t_info("mkdir failed %d\n", errno);
+	ret = isc_dir_createunique(tmp);
+	if (ret != ISC_R_SUCCESS) {
+		t_info("isc_dir_createunique failed %s\n",
+		       isc_result_totext(ret));
 		++*nprobs;
 		return;
 	}
@@ -261,7 +265,6 @@ io(dns_name_t *name, int id, int alg, int type, isc_mem_t *mctx,
 {
 	dst_key_t	*key = NULL;
 	isc_result_t	ret;
-	int		rval;
 	char		current[PATH_MAX + 1];
 	char		tmp[PATH_MAX + 1];
 	char		*p;
@@ -281,15 +284,16 @@ io(dns_name_t *name, int id, int alg, int type, isc_mem_t *mctx,
 		return;
 	}
 
-	p = tmpnam(tmp);
-	if (p == NULL) {
-		t_info("tmpnam failed %d\n", errno);
+	ret = isc_file_mktemplate("/tmp/", tmp, sizeof(tmp));
+	if (ret != ISC_R_SUCCESS) {
+		t_info("isc_file_mktemplate failed %s\n",
+		       isc_result_totext(ret));
 		++*nprobs;
 		return;
 	}
 
-	rval = mkdir(tmp, S_IRWXU | S_IRWXG );
-	if (rval != 0) {
+	ret = isc_dir_createunique(tmp);
+	if (ret != ISC_R_SUCCESS) {
 		t_info("mkdir failed %d\n", errno);
 		++*nprobs;
 		return;
@@ -316,7 +320,8 @@ generate(int alg, isc_mem_t *mctx, int size, int *nfails) {
 	isc_result_t ret;
 	dst_key_t *key = NULL;
 
-	ret = dst_key_generate(dns_rootname, alg, size, 0, 0, 0, mctx, &key);
+	ret = dst_key_generate(dns_rootname, alg, size, 0, 0, 0,
+			       dns_rdataclass_in, mctx, &key);
 	if (ret != ISC_R_SUCCESS) {
 		t_info("dst_key_generate(%d) returned: %s\n", alg,
 		       dst_result_totext(ret));
@@ -368,7 +373,6 @@ t1(void) {
 		t_result(T_UNRESOLVED);
 		return;
 	}
-	isc_entropy_createfilesource(ectx, "/dev/random");
 	result = isc_entropy_createfilesource(ectx, "randomfile");
 	if (isc_result != ISC_R_SUCCESS) {
 		t_info("isc_entropy_create failed %d\n",
@@ -394,14 +398,14 @@ t1(void) {
 	io(name, 6204, DST_ALG_DSA, DST_TYPE_PRIVATE|DST_TYPE_PUBLIC,
 			mctx, ISC_R_SUCCESS, &nfails, &nprobs);
 	t_info("testing use of stored keys [2]\n");
-	io(name, 54622, DST_ALG_RSA, DST_TYPE_PRIVATE|DST_TYPE_PUBLIC,
+	io(name, 54622, DST_ALG_RSAMD5, DST_TYPE_PRIVATE|DST_TYPE_PUBLIC,
 			mctx, ISC_R_SUCCESS, &nfails, &nprobs);
 
 	t_info("testing use of stored keys [3]\n");
 	io(name, 0, DST_ALG_DSA, DST_TYPE_PRIVATE|DST_TYPE_PUBLIC,
 			mctx, DST_R_NULLKEY, &nfails, &nprobs);
 	t_info("testing use of stored keys [4]\n");
-	io(name, 0, DST_ALG_RSA, DST_TYPE_PRIVATE|DST_TYPE_PUBLIC,
+	io(name, 0, DST_ALG_RSAMD5, DST_TYPE_PRIVATE|DST_TYPE_PUBLIC,
 			mctx, DST_R_NULLKEY, &nfails, &nprobs);
 
 	isc_buffer_init(&b, "dh.", 3);
@@ -411,7 +415,7 @@ t1(void) {
 	dh(name, 18088, name, 48443, mctx, ISC_R_SUCCESS, &nfails, &nprobs);
 
 	t_info("testing use of generated keys\n");
-	generate(DST_ALG_RSA, mctx, 512, &nfails);
+	generate(DST_ALG_RSAMD5, mctx, 512, &nfails);
 	generate(DST_ALG_DSA, mctx, 512, &nfails);
 	generate(DST_ALG_DH, mctx, 512, &nfails);
 	/*
@@ -539,7 +543,7 @@ sig_fromfile(char *path, isc_buffer_t *iscbuf) {
 		t_info("malloc failed, errno == %d\n", errno);
 		return(1);
 	}
-	
+
 	fd = open(path, O_RDONLY);
 	if (fd < 0) {
 		t_info("open failed, errno == %d\n", errno);
@@ -821,8 +825,8 @@ t2_vfy(char **av) {
 
 	if (! strcasecmp(alg, "DST_ALG_DSA"))
 		algid = DST_ALG_DSA;
-	else if (! strcasecmp(alg, "DST_ALG_RSA"))
-		algid = DST_ALG_RSA;
+	else if (! strcasecmp(alg, "DST_ALG_RSAMD5"))
+		algid = DST_ALG_RSAMD5;
 	else {
 		t_info("Unknown algorithm %s\n", alg);
 		return(T_UNRESOLVED);
@@ -842,7 +846,6 @@ t2_vfy(char **av) {
 		       isc_result_totext(isc_result));
 		return(T_UNRESOLVED);
 	}
-	isc_entropy_createfilesource(ectx, "/dev/random");
 	result = isc_entropy_createfilesource(ectx, "randomfile");
 	if (isc_result != ISC_R_SUCCESS) {
 		t_info("isc_entropy_create failed %d\n",

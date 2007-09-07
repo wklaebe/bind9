@@ -1,21 +1,21 @@
 /*
  * Copyright (C) 2000  Internet Software Consortium.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
- * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
- * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
- * SOFTWARE.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+ * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+ * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: omapi.c,v 1.13.2.1 2000/07/11 17:23:04 gson Exp $ */
+/* $Id: omapi.c,v 1.26 2000/11/30 19:38:00 gson Exp $ */
 
 /*
  * Principal Author: DCL
@@ -23,7 +23,11 @@
 
 #include <config.h>
 
+#include <string.h>
+
+#include <isc/app.h>
 #include <isc/event.h>
+#include <isc/mem.h>
 #include <isc/util.h>
 
 #include <named/log.h>
@@ -60,6 +64,7 @@ control_setvalue(omapi_object_t *handle, omapi_string_t *name,
 {
 	isc_region_t region;
 	isc_result_t result;
+	char *args;
 
 	INSIST(handle == (omapi_object_t *)&control);
 
@@ -70,15 +75,27 @@ control_setvalue(omapi_object_t *handle, omapi_string_t *name,
 		      "control_setvalue: '%.*s' control command received",
 		      REGION_FMT(&region));
 
+	if (value == NULL)
+		return (ISC_R_FAILURE); /* XXX can this happen? */
+	args = omapi_data_strdup(ns_g_mctx, value);
+	if (args == NULL)
+		return (ISC_R_NOMEMORY);
+
 	/*
 	 * Compare the 'name' parameter against all known control commands.
 	 */
 	if (omapi_string_strcmp(name, NS_OMAPI_COMMAND_RELOAD) == 0) {
-		if (omapi_data_getint(value) != 0)
-			ns_server_reloadwanted(ns_g_server);
-
+		result = ns_server_reloadcommand(ns_g_server, args);
+	} else if (omapi_string_strcmp(name, NS_OMAPI_COMMAND_REFRESH) == 0) {
+		result = ns_server_refreshcommand(ns_g_server, args);
+	} else if (omapi_string_strcmp(name, NS_OMAPI_COMMAND_HALT) == 0) {
+		ns_server_flushonshutdown(ns_g_server, ISC_FALSE);
+		isc_app_shutdown();
 		result = ISC_R_SUCCESS;
-
+	} else if (omapi_string_strcmp(name, NS_OMAPI_COMMAND_STOP) == 0) {
+		ns_server_flushonshutdown(ns_g_server, ISC_TRUE);
+		isc_app_shutdown();
+		result = ISC_R_SUCCESS;
 	} else if (omapi_string_strcmp(name,
 				       NS_OMAPI_COMMAND_RELOADCONFIG) == 0 ||
 		   omapi_string_strcmp(name,
@@ -88,7 +105,11 @@ control_setvalue(omapi_object_t *handle, omapi_string_t *name,
 			      "control_setvalue: '%.*s' not yet implemented",
 			      REGION_FMT(&region));
 		result = ISC_R_NOTIMPLEMENTED;
-
+	} else if (omapi_string_strcmp(name, NS_OMAPI_COMMAND_DUMPSTATS)
+		   == 0) {
+		result = ns_server_dumpstats(ns_g_server);
+	} else if (omapi_string_strcmp(name, NS_OMAPI_COMMAND_QUERYLOG) == 0) {
+		result = ns_server_togglequerylog(ns_g_server);
 	} else {
 		isc_log_write(ns_g_lctx, NS_LOGCATEGORY_GENERAL,
 			      NS_LOGMODULE_OMAPI, ISC_LOG_WARNING,
@@ -97,6 +118,8 @@ control_setvalue(omapi_object_t *handle, omapi_string_t *name,
 		result = omapi_object_passsetvalue(handle, name, value);
 	}
 
+	isc_mem_free(ns_g_mctx, args);	
+	
 	return (result);
 }
 

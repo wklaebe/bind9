@@ -1,19 +1,19 @@
 #!/usr/bin/perl
 #
 # Copyright (C) 1999, 2000  Internet Software Consortium.
-# 
+#
 # Permission to use, copy, modify, and distribute this software for any
 # purpose with or without fee is hereby granted, provided that the above
 # copyright notice and this permission notice appear in all copies.
-# 
-# THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
-# ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
-# OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
-# CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
-# DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
-# PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
-# ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
-# SOFTWARE.
+#
+# THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+# DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+# INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+# INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+# FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+# NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+# WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 #
 # Dynamic update test suite.
@@ -25,8 +25,8 @@
 # The server defaults to 127.0.0.1.
 # The port defaults to 53.
 #
-# The "Special NS rules" tests will only work correctly if the 
-# has no NS records to begin with, or alternatively has a 
+# The "Special NS rules" tests will only work correctly if the
+# has no NS records to begin with, or alternatively has a
 # single NS record pointing at the name "ns1" (relative to
 # the zone name).
 #
@@ -37,7 +37,7 @@
 #
 #    perl -MCPAN -e "install Net::DNS"
 #
-# $Id: update_test.pl,v 1.4 2000/02/03 23:03:59 halley Exp $
+# $Id: update_test.pl,v 1.6 2000/08/01 01:13:28 tale Exp $
 #
 
 use Getopt::Std;
@@ -76,11 +76,11 @@ sub test {
     my ($expected, @records) = @_;
 
     my $update = new Net::DNS::Update("$zone");
-    
+
     foreach $rec (@records) {
 	$update->push(@$rec);
     }
-    
+
     $reply = $res->send($update);
 
     # Did it work?
@@ -168,7 +168,7 @@ test("NOERROR", ["update",
 		 rr_add("e.$zone 300 A 73.80.65.50")]);
 test("NOERROR", ["update",
 		 rr_add("e.$zone 300 A 73.80.65.52"),
-		 rr_add("f.$zone 300 A 73.80.65.52"),		 
+		 rr_add("f.$zone 300 A 73.80.65.52"),
 		 rr_add("e.$zone 300 A 73.80.65.51")]);
 test("NOERROR", ["update",
 		 rr_add("e.$zone 300 TXT 'three'"),

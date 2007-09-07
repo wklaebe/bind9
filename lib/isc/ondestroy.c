@@ -1,21 +1,21 @@
 /*
  * Copyright (C) 2000  Internet Software Consortium.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
- * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
- * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
- * SOFTWARE.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+ * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+ * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: ondestroy.c,v 1.7 2000/06/22 21:57:05 tale Exp $ */
+/* $Id: ondestroy.c,v 1.9 2000/08/01 01:29:38 tale Exp $ */
 
 #include <config.h>
 
@@ -54,7 +54,7 @@ isc_ondestroy_register(isc_ondestroy_t *ondest, isc_task_t *task,
 	isc_task_attach(task, &thetask);
 
 	theevent->ev_sender = thetask;
-	
+
 	ISC_LIST_APPEND(ondest->events, theevent, ev_link);
 
 	return (ISC_R_SUCCESS);
@@ -64,7 +64,7 @@ void
 isc_ondestroy_notify(isc_ondestroy_t *ondest, void *sender) {
 	isc_event_t *eventp;
 	isc_task_t *task;
-	
+
 	REQUIRE(VALID_ONDESTROY(ondest));
 
 	eventp = ISC_LIST_HEAD(ondest->events);
@@ -73,11 +73,11 @@ isc_ondestroy_notify(isc_ondestroy_t *ondest, void *sender) {
 
 		task = eventp->ev_sender;
 		eventp->ev_sender = sender;
-		
+
 		isc_task_sendanddetach(&task, &eventp);
 
 		eventp = ISC_LIST_HEAD(ondest->events);
 	}
 }
 
-	
+

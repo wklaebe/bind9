@@ -1,21 +1,21 @@
 /*
  * Copyright (C) 2000  Internet Software Consortium.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
- * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
- * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
- * SOFTWARE.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+ * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+ * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dst.h,v 1.31 2000/06/23 03:00:30 tale Exp $ */
+/* $Id: dst.h,v 1.38 2000/09/12 09:54:36 bwelling Exp $ */
 
 #ifndef DST_DST_H
 #define DST_DST_H 1
@@ -41,13 +41,15 @@ typedef struct dst_context 	dst_context_t;
 
 /* DST algorithm codes */
 #define DST_ALG_UNKNOWN		0
-#define DST_ALG_RSA		1
+#define DST_ALG_RSAMD5		1
+#define DST_ALG_RSA		DST_ALG_RSAMD5	/* backwards compatibility */
 #define DST_ALG_DH		2
 #define DST_ALG_DSA		3
 #define DST_ALG_HMACMD5		157
+#define DST_ALG_GSSAPI		160
 #define DST_ALG_PRIVATE		254
 #define DST_ALG_EXPAND		255
-#define DST_MAX_ALGS		(DST_ALG_HMACMD5 + 1)
+#define DST_MAX_ALGS		255
 
 /* A buffer of this size is large enough to hold any key */
 #define DST_KEY_MAXSIZE		1024
@@ -259,8 +261,8 @@ dst_key_tofile(const dst_key_t *key, const int type, const char *directory);
  */
 
 isc_result_t
-dst_key_fromdns(dns_name_t *name, isc_buffer_t *source, isc_mem_t *mctx,
-		dst_key_t **keyp);
+dst_key_fromdns(dns_name_t *name, dns_rdataclass_t rdclass,
+		isc_buffer_t *source, isc_mem_t *mctx, dst_key_t **keyp);
 /*
  * Converts a DNS KEY record into a DST key.
  *
@@ -299,6 +301,7 @@ dst_key_todns(const dst_key_t *key, isc_buffer_t *target);
 isc_result_t
 dst_key_frombuffer(dns_name_t *name, const unsigned int alg,
 		   const unsigned int flags, const unsigned int protocol,
+		   dns_rdataclass_t rdclass,
 		   isc_buffer_t *source, isc_mem_t *mctx, dst_key_t **keyp);
 /*
  * Converts a buffer containing DNS KEY RDATA into a DST key.
@@ -337,9 +340,31 @@ dst_key_tobuffer(const dst_key_t *key, isc_buffer_t *target);
  */
 
 isc_result_t
+dst_key_fromgssapi(dns_name_t *name, void *opaque, isc_mem_t *mctx,
+		                   dst_key_t **keyp);
+/*
+ * Converts a GSSAPI opaque context id into a DST key.
+ *
+ * Requires:
+ *	"name" is a valid absolute dns name.
+ *	"opaque" is a GSSAPI context id.
+ *	"mctx" is a valid memory context.
+ *	"keyp" is not NULL and "*keyp" is NULL.
+ *
+ * Returns:
+ * 	ISC_R_SUCCESS
+ * 	any other result indicates failure
+ *
+ * Ensures:
+ *	If successful, *keyp will contain a valid key and be responsible for
+ *	the context id.
+ */
+
+isc_result_t
 dst_key_generate(dns_name_t *name, const unsigned int alg,
 		 const unsigned int bits, const unsigned int param,
 		 const unsigned int flags, const unsigned int protocol,
+		 const dns_rdataclass_t rdclass,
 		 isc_mem_t *mctx, dst_key_t **keyp);
 /*
  * Generate a DST key (or keypair) with the supplied parameters.  The
@@ -432,6 +457,9 @@ dst_key_flags(const dst_key_t *key);
 isc_uint16_t
 dst_key_id(const dst_key_t *key);
 
+dns_rdataclass_t
+dst_key_class(const dst_key_t *key);
+
 isc_boolean_t
 dst_key_isprivate(const dst_key_t *key);
 
@@ -490,6 +518,19 @@ dst_key_secretsize(const dst_key_t *key, unsigned int *n);
  *
  * Ensures:
  * 	"n" stores the size of a generated shared secret
+ */
+
+isc_uint16_t
+dst_region_computeid(const isc_region_t *source, const unsigned int alg);
+/*
+ * Computes the key id of the key stored in the provided region with the
+ * given algorithm.
+ *
+ * Requires:
+ * 	"source" contains a valid, non-NULL region.
+ *
+ * Returns:
+ * 	the key id
  */
 
 ISC_LANG_ENDDECLS

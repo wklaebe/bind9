@@ -1,21 +1,21 @@
 /*
  * Copyright (C) 1996-2000  Internet Software Consortium.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
- * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
- * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
- * SOFTWARE.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+ * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+ * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: listener.c,v 1.26.2.1 2000/07/11 17:23:20 gson Exp $ */
+/* $Id: listener.c,v 1.31 2000/10/20 13:29:37 marka Exp $ */
 
 /*
  * Subroutines that support the generic listener object.
@@ -149,7 +149,7 @@ listener_accept(isc_task_t *task, isc_event_t *event) {
 	 */
 	if (result != ISC_R_SUCCESS)
 		return;
-	
+
 	/*
 	 * Is the connection from a valid host?
 	 */
@@ -200,6 +200,7 @@ listener_accept(isc_task_t *task, isc_event_t *event) {
 	ISC_LIST_APPEND(connection->input_buffers, ibuffer, link);
 	ISC_LIST_INIT(connection->output_buffers);
 	ISC_LIST_APPEND(connection->output_buffers, obuffer, link);
+	ISC_LINK_INIT(connection, link);
 
 	/*
 	 * Create a new protocol object to oversee the handling of this
@@ -361,7 +362,7 @@ omapi_listener_listen(omapi_object_t *manager, isc_sockaddr_t *addr,
 
 	} else {
 		/*
-		 * Failed to set up the listener.  
+		 * Failed to set up the listener.
 		 */
 		listener->listening = ISC_FALSE;
 		OBJECT_DEREF(&listener);
@@ -417,7 +418,7 @@ listener_getvalue(omapi_object_t *listener, omapi_string_t *name,
 	 * continue the call through the object chain.
 	 */
 	REQUIRE(listener != NULL && listener->type == omapi_type_listener);
-	
+
 	return (omapi_object_passgetvalue(listener, name, value));
 }
 
@@ -433,7 +434,7 @@ listener_destroy(omapi_object_t *listener) {
 	INSIST(ISC_LIST_EMPTY(l->connections));
 	UNLOCK(&l->mutex);
 
-	RUNTIME_CHECK(isc_mutex_destroy(&l->mutex) == ISC_R_SUCCESS);
+	DESTROYLOCK(&l->mutex);
 
 	if (l->task != NULL)
 		isc_task_destroy(&l->task);

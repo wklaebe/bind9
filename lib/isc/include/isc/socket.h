@@ -1,21 +1,21 @@
 /*
  * Copyright (C) 1998-2000  Internet Software Consortium.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
- * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
- * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
- * SOFTWARE.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+ * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+ * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: socket.h,v 1.47 2000/06/22 21:58:03 tale Exp $ */
+/* $Id: socket.h,v 1.50 2000/09/07 01:59:56 explorer Exp $ */
 
 #ifndef ISC_SOCKET_H
 #define ISC_SOCKET_H 1
@@ -115,9 +115,6 @@ struct isc_socket_connev {
 
 /*
  * _ATTACHED:	Internal use only.
- * _FATALERROR:	The socket result code is "sticky" -- that is, any
- *		further i/o activity of the same type (read or write)
- *		will return the same code; retrying is pointless.
  * _TRUNC:	Packet was truncated on receive.
  * _CTRUNC:	Packet control information was truncated.  This can
  *		indicate that the packet is not complete, even though
@@ -127,7 +124,6 @@ struct isc_socket_connev {
  * _MULTICAST:	The UDP packet was received via a multicast transmission.
  */
 #define ISC_SOCKEVENTATTR_ATTACHED		0x80000000U /* internal */
-#define ISC_SOCKEVENTATTR_FATALERROR		0x40000000U /* sock is dead */
 #define ISC_SOCKEVENTATTR_TRUNC			0x00800000U /* public */
 #define ISC_SOCKEVENTATTR_CTRUNC		0x00400000U /* public */
 #define ISC_SOCKEVENTATTR_TIMESTAMP		0x00200000U /* public */
@@ -238,7 +234,7 @@ isc_socket_cancel(isc_socket_t *sock, isc_task_t *task,
  *	Cancel pending isc_socket_connect() call.
  */
 
-void 
+void
 isc_socket_shutdown(isc_socket_t *sock, unsigned int how);
 /*
  * Shutdown 'socket' according to 'how'.
@@ -278,7 +274,7 @@ isc_socket_attach(isc_socket_t *sock, isc_socket_t **socketp);
  *	*socketp is attached to socket.
  */
 
-void 
+void
 isc_socket_detach(isc_socket_t **socketp);
 /*
  * Detach *socketp from its socket.
@@ -630,7 +626,7 @@ isc_socketmgr_destroy(isc_socketmgr_t **managerp);
  * Destroy a socket manager.
  *
  * Notes:
- *	
+ *
  *	This routine blocks until there are no sockets left in the manager,
  *	so if the caller holds any socket references using the manager, it
  *	must detach them before calling isc_socketmgr_destroy() or it will

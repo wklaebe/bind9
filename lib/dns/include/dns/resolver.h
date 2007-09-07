@@ -1,21 +1,21 @@
 /*
  * Copyright (C) 1999, 2000  Internet Software Consortium.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
- * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
- * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
- * SOFTWARE.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+ * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+ * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: resolver.h,v 1.27.2.1 2000/07/27 21:27:02 gson Exp $ */
+/* $Id: resolver.h,v 1.33 2000/11/08 03:53:16 marka Exp $ */
 
 #ifndef DNS_RESOLVER_H
 #define DNS_RESOLVER_H 1
@@ -141,40 +141,6 @@ dns_resolver_create(dns_view_t *view,
  *	Anything else				Failure.
  */
 
-isc_result_t
-dns_resolver_setforwarders(dns_resolver_t *res,
-			   isc_sockaddrlist_t *forwarders);
-/*
- * Set the default forwarders to be used by the resolver.
- *
- * Requires:
- *
- *	'res' is a valid, unfrozen resolver.
- *
- *	'forwarders' is a valid nonempty list.
- *
- * Returns:
- *
- *	ISC_R_SUCCESS
- *	ISC_R_NOMEMORY
- */
-
-isc_result_t
-dns_resolver_setfwdpolicy(dns_resolver_t *res, dns_fwdpolicy_t fwdpolicy);
-/*
- * Set the default forwarding policy to be used by the resolver.
- *
- * Requires:
- *
- *	'res' is a valid, unfrozen resolver.
- *
- *	'fwdpolicy' is a valid dns_fwdpolicy_t.
- *
- * Returns:
- *
- *	ISC_R_SUCCESS
- */
-
 void
 dns_resolver_freeze(dns_resolver_t *res);
 /*
@@ -182,9 +148,8 @@ dns_resolver_freeze(dns_resolver_t *res);
  *
  * Notes:
  *
- *	Certain configuration changes, e.g. setting forwarders,
- *	cannot be made after the resolver is frozen.  Fetches
- *	cannot be created until the resolver is frozen.
+ *	Certain configuration changes cannot be made after the resolver
+ *	is frozen.  Fetches cannot be created until the resolver is frozen.
  *
  * Requires:
  *
@@ -265,7 +230,7 @@ dns_resolver_createfetch(dns_resolver_t *res, dns_name_t *name,
 			 unsigned int options, isc_task_t *task,
 			 isc_taskaction_t action, void *arg,
 			 dns_rdataset_t *rdataset,
-			 dns_rdataset_t *sigrdataset, 
+			 dns_rdataset_t *sigrdataset,
 			 dns_fetch_t **fetchp);
 /*
  * Recurse to answer a question.
@@ -274,11 +239,15 @@ dns_resolver_createfetch(dns_resolver_t *res, dns_name_t *name,
  *
  *	This call starts a query for 'name', type 'type'.
  *
- *	XXXRTH  Explain query domain and nameservers.
- *		'forwarders' is unimplemented, and subject to change when
- *		we figure out how selective forwarding will work.
+ *	The 'domain' is a parent domain of 'name' for which
+ *	a set of name servers 'nameservers' is known.  If no
+ *	such name server information is available, set
+ * 	'domain' and 'nameservers' to NULL.
  *
- *	When the fetch completes (successfully or otherwise), a 
+ *	'forwarders' is unimplemented, and subject to change when
+ *	we figure out how selective forwarding will work.
+ *
+ *	When the fetch completes (successfully or otherwise), a
  *	DNS_EVENT_FETCHDONE event with action 'action' and arg 'arg' will be
  *	posted to 'task'.
  *
@@ -361,6 +330,24 @@ dns_resolver_socketmgr(dns_resolver_t *resolver);
 
 isc_taskmgr_t *
 dns_resolver_taskmgr(dns_resolver_t *resolver);
+
+isc_uint32_t
+dns_resolver_getlamettl(dns_resolver_t *resolver);
+/*
+ * Get the resolver's lame-ttl.  zero => no lame processing.
+ *
+ * Requires:
+ *	'resolver' to be valid.
+ */
+
+void
+dns_resolver_setlamettl(dns_resolver_t *resolver, isc_uint32_t lame_ttl);
+/*
+ * Set the resolver's lame-ttl.  zero => no lame processing.
+ *
+ * Requires:
+ *	'resolver' to be valid.
+ */
 
 ISC_LANG_ENDDECLS
 

@@ -1,23 +1,24 @@
 /*
  * Copyright (C) 1999, 2000  Internet Software Consortium.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
- * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
- * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
- * SOFTWARE.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+ * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+ * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: os.c,v 1.18.2.3 2000/08/15 00:20:57 gson Exp $ */
+/* $Id: os.c,v 1.35 2000/11/14 23:57:45 tale Exp $ */
 
 #include <config.h>
+#include <stdarg.h>
 
 #include <sys/stat.h>
 
@@ -31,22 +32,70 @@
 #include <syslog.h>
 #include <unistd.h>
 
+#include <isc/print.h>
+#include <isc/result.h>
 #include <isc/string.h>
 
 #include <named/main.h>
 #include <named/os.h>
 
 static char *pidfile = NULL;
+
+/*
+ * If there's no <linux/capability.h>, we don't care about <linux/prctl.h>
+ */
+#ifndef HAVE_LINUX_CAPABILITY_H
+#undef HAVE_LINUX_PRCTL_H
+#endif
+
+/*
+ * Linux defines:
+ * 	(T) HAVE_LINUXTHREADS
+ * 	(C) HAVE_LINUX_CAPABILITY_H
+ * 	(P) HAVE_LINUX_PRCTL_H
+ * The possible cases are:
+ * 	none:	setuid() normally
+ * 	T:	no setuid()
+ * 	C:	setuid() normally, drop caps (keep CAP_SETUID)
+ * 	T+C:	no setuid(), drop caps (don't keep CAP_SETUID)
+ * 	T+C+P:	setuid() early, drop caps (keep CAP_SETUID)
+ * 	C+P:	setuid() normally, drop caps (keep CAP_SETUID)
+ *	P:	not possible
+ *	T+P:	not possible
+ *
+ * if (C)
+ * 	caps = BIND_SERVICE + CHROOT + SETGID
+ * 	if ((T && C && P) || !T)
+ * 		caps += SETUID
+ * 	endif
+ * 	capset(caps)
+ * endif
+ * if (T && C && P && -u)
+ * 	setuid()
+ * else if (T && -u)
+ * 	fail
+ * --> start threads
+ * if (!T && -u)
+ * 	setuid()
+ * if (C && (P || !-u))
+ * 	caps = BIND_SERVICE
+ * 	capset(caps)
+ * endif
+ *
+ * It will be nice when Linux threads work properly with setuid().
+ */
+
 #ifdef HAVE_LINUXTHREADS
 static pid_t mainpid = 0;
-static isc_boolean_t non_root_caps = ISC_FALSE;
-static isc_boolean_t non_root = ISC_FALSE;
 #endif
 
 static struct passwd *runas_pw = NULL;
 static isc_boolean_t done_setuid = ISC_FALSE;
 
 #ifdef HAVE_LINUX_CAPABILITY_H
+
+static isc_boolean_t non_root = ISC_FALSE;
+static isc_boolean_t non_root_caps = ISC_FALSE;
 
 /*
  * We define _LINUX_FS_H to prevent it from being included.  We don't need
@@ -119,10 +168,12 @@ linux_initialprivs(void) {
 	 */
 	caps |= (1 << CAP_SYS_CHROOT);
 
-#ifdef HAVE_LINUX_PRCTL_H
+#if defined(HAVE_LINUX_PRCTL_H) || !defined(HAVE_LINUXTHREADS)
 	/*
-	 * If the kernel supports keeping capabilities after setuid(), we
-	 * also want the setuid capability.  We don't know until we've tried.
+	 * We can setuid() only if either the kernel supports keeping
+	 * capabilities after setuid() (which we don't know until we've
+	 * tried) or we're not using threads.  If either of these is
+	 * true, we want the setuid capability.
 	 */
 	caps |= (1 << CAP_SETUID);
 #endif
@@ -135,7 +186,11 @@ linux_initialprivs(void) {
 	/*
 	 * XXX  We might want to add CAP_SYS_RESOURCE, though it's not
 	 *      clear it would work right given the way linuxthreads work.
+	 * XXXDCL But since we need to be able to set the maximum number
+	 * of files, the stack size, data size, and core dump size to
+	 * support named.conf options, this is now being added to test.
 	 */
+	caps |= (1 << CAP_SYS_RESOURCE);
 
 	linux_setcaps(caps);
 }
@@ -182,7 +237,7 @@ linux_keepcaps(void) {
 
 
 static void
-setup_syslog(void) {
+setup_syslog(const char *progname) {
 	int options;
 
 	options = LOG_PID;
@@ -190,12 +245,12 @@ setup_syslog(void) {
 	options |= LOG_NDELAY;
 #endif
 
-	openlog("named", options, LOG_DAEMON);
+	openlog(progname, options, LOG_DAEMON);
 }
 
 void
-ns_os_init(void) {
-	setup_syslog();
+ns_os_init(const char *progname) {
+	setup_syslog(progname);
 #ifdef HAVE_LINUX_CAPABILITY_H
 	linux_initialprivs();
 #endif
@@ -302,33 +357,43 @@ ns_os_changeuser(void) {
 	done_setuid = ISC_TRUE;
 
 #ifdef HAVE_LINUXTHREADS
+#ifdef HAVE_LINUX_CAPABILITY_H
 	if (!non_root_caps)
+#endif
 		ns_main_earlyfatal(
-		   "-u not supported on Linux kernels older than 2.3.99-pre3");
-#endif	
+		   "-u not supported on Linux kernels older than "
+		   "2.3.99-pre3 when using threads");
+#endif
 
 	if (setgid(runas_pw->pw_gid) < 0)
 		ns_main_earlyfatal("setgid(): %s", strerror(errno));
 
 	if (setuid(runas_pw->pw_uid) < 0)
 		ns_main_earlyfatal("setuid(): %s", strerror(errno));
+
+#if defined(HAVE_LINUX_CAPABILITY_H) && !defined(HAVE_LINUXTHREADS)
+	linux_minprivs();
+#endif
 }
 
 void
 ns_os_minprivs(void) {
-#ifdef HAVE_LINUX_CAPABILITY_H
 #ifdef HAVE_LINUX_PRCTL_H
 	linux_keepcaps();
-	ns_os_changeuser();
 #endif
 
-	linux_minprivs();
+#ifdef HAVE_LINUXTHREADS
+	ns_os_changeuser(); /* Call setuid() before threads are started */
+#endif
 
-#endif /* HAVE_LINUX_CAPABILITY_H */
+#if defined(HAVE_LINUX_CAPABILITY_H) && defined(HAVE_LINUXTHREADS)
+	linux_minprivs();
+#endif
 }
 
 static int
-safe_open(const char *filename) {
+safe_open(const char *filename, isc_boolean_t append) {
+	int fd;
         struct stat sb;
 
         if (stat(filename, &sb) == -1) {
@@ -337,16 +402,23 @@ safe_open(const char *filename) {
         } else if ((sb.st_mode & S_IFREG) == 0)
 		return (-1);
 
-        (void)unlink(filename);
-        return (open(filename, O_WRONLY|O_CREAT|O_EXCL,
-		     S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH));
+	if (append)
+		fd = open(filename, O_WRONLY|O_CREAT|O_APPEND,
+		     S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH);
+	else {
+		(void)unlink(filename);
+		fd = open(filename, O_WRONLY|O_CREAT|O_EXCL,
+		     S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH);
+	}
+	return (fd);
 }
 
 static void
 cleanup_pidfile(void) {
-	if (pidfile != NULL)
+	if (pidfile != NULL) {
 		(void)unlink(pidfile);
-	free(pidfile);
+		free(pidfile);
+	}
 	pidfile = NULL;
 }
 
@@ -371,7 +443,7 @@ ns_os_writepidfile(const char *filename) {
 	/* This is safe. */
 	strcpy(pidfile, filename);
 
-        fd = safe_open(filename);
+        fd = safe_open(filename, ISC_FALSE);
         if (fd < 0)
                 ns_main_earlyfatal("couldn't open pid file '%s': %s",
 				   filename, strerror(errno));

@@ -1,19 +1,19 @@
 # Copyright (C) 1998-2000  Internet Software Consortium.
-# 
+#
 # Permission to use, copy, modify, and distribute this software for any
 # purpose with or without fee is hereby granted, provided that the above
 # copyright notice and this permission notice appear in all copies.
-# 
-# THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
-# ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
-# OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
-# CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
-# DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
-# PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
-# ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
-# SOFTWARE.
+#
+# THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+# DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+# INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+# INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+# FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+# NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+# WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: rules.in,v 1.19 2000/06/22 22:00:30 tale Exp $
+# $Id: rules.in,v 1.23 2000/11/09 17:49:37 gson Exp $
 
 ###
 ### Common Makefile rules for BIND 9.
@@ -60,12 +60,12 @@ ALL_SUBDIRS = ${SUBDIRS} nulldir
 # We use a single-colon rule so that additional dependencies of
 # subdirectories can be specified after the inclusion of this file.
 # The "depend" target is treated the same way.
-# 
+#
 subdirs:
 	@for i in ${ALL_SUBDIRS}; do \
 		if [ "$$i" != "nulldir" -a -d $$i ]; then \
 			echo "making all in `pwd`/$$i"; \
-			(cd $$i; ${MAKE} ${MAKEDEFS} all); \
+			(cd $$i; ${MAKE} ${MAKEDEFS} all) || exit 1; \
 		fi \
 	done
 
@@ -73,7 +73,7 @@ install clean distclean::
 	@for i in ${ALL_SUBDIRS}; do \
 		if [ "$$i" != "nulldir" -a -d $$i ]; then \
 			echo "making $@ in `pwd`/$$i"; \
-			(cd $$i; ${MAKE} ${MAKEDEFS} $@); \
+			(cd $$i; ${MAKE} ${MAKEDEFS} $@) || exit 1; \
 		fi \
 	done
 
@@ -119,6 +119,8 @@ LIBTOOL = @LIBTOOL@
 
 MKDEP = ${SHELL} ${top_builddir}/make/mkdep
 
+cleandir: distclean
+
 clean distclean::
 	rm -f *.@O@ *.lo *.la core *.core
 	rm -rf .libs
@@ -130,7 +132,7 @@ depend:
 	@for i in ${ALL_SUBDIRS}; do \
 		if [ "$$i" != "nulldir" -a -d $$i ]; then \
 			echo "making depend in `pwd`/$$i"; \
-			(cd $$i; ${MAKE} ${MAKEDEFS} $@); \
+			(cd $$i; ${MAKE} ${MAKEDEFS} $@) || exit 1; \
 		fi \
 	done
 	@if [ X"${SRCS}" != X -a X"${PSRCS}" != X ] ; then \

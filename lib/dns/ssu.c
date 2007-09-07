@@ -1,22 +1,22 @@
 /*
  * Copyright (C) 2000  Internet Software Consortium.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
- * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
- * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
- * SOFTWARE.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+ * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+ * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
 /*
- * $Id: ssu.c,v 1.11 2000/05/14 02:29:23 tale Exp $
+ * $Id: ssu.c,v 1.14 2000/08/26 01:36:57 bwelling Exp $
  * Principal Author: Brian Wellington
  */
 
@@ -103,7 +103,7 @@ destroy(dns_ssutable_t *table) {
 		rule->magic = 0;
 		isc_mem_put(mctx, rule, sizeof(dns_ssurule_t));
 	}
-	isc_mutex_destroy(&table->lock);
+	DESTROYLOCK(&table->lock);
 	table->magic = 0;
 	isc_mem_put(mctx, table, sizeof(dns_ssutable_t));
 }
@@ -281,7 +281,7 @@ dns_ssutable_checkrules(dns_ssutable_t *table, dns_name_t *signer,
 		else if (rule->matchtype == DNS_SSUMATCHTYPE_WILDCARD) {
 			if (!dns_name_matcheswildcard(name, rule->name))
 				continue;
-			
+
 		}
 		else if (rule->matchtype == DNS_SSUMATCHTYPE_SELF) {
 			if (!dns_name_equal(signer, name))

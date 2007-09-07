@@ -1,21 +1,21 @@
 /*
  * Copyright (C) 2000  Internet Software Consortium.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
- * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
- * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
- * SOFTWARE.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+ * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+ * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: fsaccess.c,v 1.3 2000/06/22 21:59:06 tale Exp $ */
+/* $Id: fsaccess.c,v 1.5 2000/08/01 01:31:48 tale Exp $ */
 
 #include <windows.h>
 #include <winerror.h>
@@ -56,7 +56,7 @@ isc_fsaccess_set(const char *path, isc_fsaccess_t access) {
 	result = check_bad_bits(access, is_dir);
 	if (result != ISC_R_SUCCESS)
 		return (result);
-	
+
 	winerror = GetNamedSecurityInfo(path, SE_FILE_OBJECT,
 					OWNER_SECURITY_INFORMATION |
 					GROUP_SECURITY_INFORMATION,
@@ -123,7 +123,7 @@ isc_fsaccess_set(const char *path, isc_fsaccess_t access) {
 			/*
 			 * Setting world.
 			 */
-			SID_IDENTIFIER_AUTHORITY authworld = 
+			SID_IDENTIFIER_AUTHORITY authworld =
 				SECURITY_WORLD_SID_AUTHORITY;
 
 			if (AllocateAndInitializeSid(&authworld, 1,

@@ -1,28 +1,29 @@
 /*
  * Copyright (C) 1998-2000  Internet Software Consortium.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
- * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
- * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
- * SOFTWARE.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
+ * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
+ * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rwlock.h,v 1.11 2000/06/22 21:58:01 tale Exp $ */
+/* $Id: rwlock.h,v 1.16 2000/09/08 21:25:21 gson Exp $ */
 
 #ifndef ISC_RWLOCK_H
 #define ISC_RWLOCK_H 1
 
-#include <isc/lang.h>
-#include <isc/types.h>
 #include <isc/condition.h>
+#include <isc/lang.h>
+#include <isc/platform.h>
+#include <isc/types.h>
 
 ISC_LANG_BEGINDECLS
 
@@ -31,6 +32,7 @@ typedef enum {
 	isc_rwlocktype_write
 } isc_rwlocktype_t;
 
+#ifdef ISC_PLATFORM_USETHREADS
 struct isc_rwlock {
 	/* Unlocked. */
 	unsigned int		magic;
@@ -39,13 +41,30 @@ struct isc_rwlock {
 	isc_condition_t		readable;
 	isc_condition_t		writeable;
 	isc_rwlocktype_t	type;
+
+	/* The number of threads that have the lock. */
 	unsigned int		active;
+
+	/*
+	 * The number of lock grants made since the lock was last switched
+	 * from reading to writing or vice versa; used in determining
+	 * when the quota is reached and it is time to switch.
+	 */
 	unsigned int		granted;
+	
 	unsigned int		readers_waiting;
 	unsigned int		writers_waiting;
 	unsigned int		read_quota;
 	unsigned int		write_quota;
 };
+#else /* ISC_PLATFORM_USETHREADS */
+struct isc_rwlock {
+	unsigned int		magic;
+	isc_rwlocktype_t	type;
+	unsigned int		active;
+};
+#endif /* ISC_PLATFORM_USETHREADS */
+
 
 isc_result_t
 isc_rwlock_init(isc_rwlock_t *rwl, unsigned int read_quota,

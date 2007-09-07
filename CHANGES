@@ -1,4 +1,28 @@
 
+	--- 9.2.0rc6 released ---
+
+1031.	[bug]		libbind.a: isc__gettimeofday() infinite recursion.
+			[RT #1858]
+
+1030.	[bug]		On systems with no resolv.conf file, nsupdate
+			exited with an error rather than defaulting
+			to using the loopback address. [RT #1836]
+
+1029.	[bug]		Some named.conf errors did not cause the loading
+			of the configuration file to return a failure
+			status even though they were logged. [RT #1847]
+
+1028.	[bug]		On Win32, dig/host/nslookup looked for resolv.conf
+			in the wrong directory. [RT #1833]
+
+1027.	[bug]		RRs having the reserved type 0 should be rejected.
+			[RT #1471]
+
+1026.	[port]		Recognize OpenUNIX 8 in config.guess. [RT #1830]
+
+1022.	[bug]		Don't report empty root hints as "extra data".
+			[RT #1802]
+
 	--- 9.2.0rc5 released ---
 
 1021.	[bug]		On Win32, log message timestamps were one month

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1999, 2000  Internet Software Consortium.
+ * Copyright (C) 1999-2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: log.c,v 1.29 2000/12/09 02:17:07 bwelling Exp $ */
+/* $Id: log.c,v 1.29.4.2 2001/01/11 20:06:56 bwelling Exp $ */
 
 /* Principal Authors: DCL */
 
@@ -39,6 +39,7 @@ isc_logcategory_t dns_categories[] = {
 	{ "xfer-in",	0 },
 	{ "xfer-out",	0 },
 	{ "dispatch",	0 },
+	{ "lame-servers", 0 },
 	{ NULL, 	0 }
 };
 

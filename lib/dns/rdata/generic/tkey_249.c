@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1999, 2000  Internet Software Consortium.
+ * Copyright (C) 1999-2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: tkey_249.c,v 1.41 2000/12/01 01:40:43 gson Exp $ */
+/* $Id: tkey_249.c,v 1.41.4.2 2001/01/11 18:24:56 gson Exp $ */
 
 /*
  * Reviewed: Thu Mar 16 17:35:30 PST 2000 by halley.
@@ -347,10 +347,6 @@ fromstruct_tkey(ARGS_FROMSTRUCT) {
 	REQUIRE(source != NULL);
 	REQUIRE(tkey->common.rdtype == type);
 	REQUIRE(tkey->common.rdclass == rdclass);
-	REQUIRE((tkey->key == NULL && tkey->keylen == 0) ||
-		(tkey->key != NULL && tkey->keylen != 0));
-	REQUIRE((tkey->other == NULL && tkey->otherlen == 0) ||
-		(tkey->other != NULL && tkey->otherlen != 0));
 
 	UNUSED(rdclass);
 

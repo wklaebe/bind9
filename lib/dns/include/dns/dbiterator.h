@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1999, 2000  Internet Software Consortium.
+ * Copyright (C) 1999-2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dbiterator.h,v 1.14 2000/08/01 01:24:05 tale Exp $ */
+/* $Id: dbiterator.h,v 1.14.4.2 2001/01/12 20:31:14 bwelling Exp $ */
 
 #ifndef DNS_DBITERATOR_H
 #define DNS_DBITERATOR_H 1
@@ -250,8 +250,6 @@ dns_dbiterator_pause(dns_dbiterator_t *iterator);
  *
  * Requires:
  *	'iterator' is a valid iterator.
- *
- *	'iterator' has not been paused already.
  *
  * Ensures:
  *	Any database locks being held for efficiency of iterator access are

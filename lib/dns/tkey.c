@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1999, 2000  Internet Software Consortium.
+ * Copyright (C) 1999-2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -16,7 +16,7 @@
  */
 
 /*
- * $Id: tkey.c,v 1.57 2000/12/11 23:09:47 marka Exp $
+ * $Id: tkey.c,v 1.57.2.4 2001/01/11 20:34:09 gson Exp $
  */
 
 #include <config.h>
@@ -154,17 +154,37 @@ add_rdata_to_list(dns_message_t *msg, dns_name_t *name, dns_rdata_t *rdata,
 	return (ISC_R_SUCCESS);
 
  failure:
-	if (newrdata != NULL)
+	if (newrdata != NULL) {
+		if (ISC_LINK_LINKED(newrdata, link))
+			ISC_LIST_UNLINK(newlist->rdata, newrdata, link);
 		dns_message_puttemprdata(msg, &newrdata);
+	}
 	if (newname != NULL)
 		dns_message_puttempname(msg, &newname);
-	if (newlist != NULL)
-		dns_message_puttemprdatalist(msg, &newlist);
 	if (newset != NULL) {
 		dns_rdataset_disassociate(newset);
 		dns_message_puttemprdataset(msg, &newset);
 	}
+	if (newlist != NULL)
+		dns_message_puttemprdatalist(msg, &newlist);
 	return (result);
+}
+
+static void
+free_namelist(dns_message_t *msg, dns_namelist_t *namelist) {
+	dns_name_t *name;
+	dns_rdataset_t *set;
+
+	while (!ISC_LIST_EMPTY(*namelist)) {
+		name = ISC_LIST_HEAD(*namelist);
+		ISC_LIST_UNLINK(*namelist, name, link);
+		while (!ISC_LIST_EMPTY(name->list)) {
+			set = ISC_LIST_HEAD(name->list);
+			ISC_LIST_UNLINK(name->list, set, link);
+			dns_message_puttemprdataset(msg, &set);
+		}
+		dns_message_puttempname(msg, &name);
+	}
 }
 
 static isc_result_t
@@ -688,6 +708,7 @@ dns_tkey_processquery(dns_message_t *msg, dns_tkeyctx_t *tctx,
 		}
 		if (tctx->domain == NULL) {
 			tkey_log("dns_tkey_processquery: tkey-domain not set");
+			dns_message_takebuffer(msg, &buf);
 			result = DNS_R_REFUSED;
 			goto failure;
 		}
@@ -777,6 +798,8 @@ dns_tkey_processquery(dns_message_t *msg, dns_tkeyctx_t *tctx,
 		dns_message_puttemprdata(msg, &rdata);
 	if (dynbuf != NULL)
 		isc_buffer_free(&dynbuf);
+	if (!ISC_LIST_EMPTY(namelist))
+		free_namelist(msg, &namelist);
 	return (result);
 }
 
@@ -881,7 +904,7 @@ dns_tkey_builddhquery(dns_message_t *msg, dst_key_t *key, dns_name_t *name,
 	tkey.expire = now + lifetime;
 	tkey.mode = DNS_TKEYMODE_DIFFIEHELLMAN;
 	if (nonce != NULL)
-		isc_buffer_region(nonce, &r);
+		isc_buffer_usedregion(nonce, &r);
 	else {
 		r.base = isc_mem_get(msg->mctx, 0);
 		r.length = 0;
@@ -1026,7 +1049,7 @@ dns_tkey_processdhresponse(dns_message_t *qmsg, dns_message_t *rmsg,
 	dns_name_t keyname, *tkeyname, *theirkeyname, *ourkeyname, *tempname;
 	dns_rdataset_t *theirkeyset = NULL, *ourkeyset = NULL;
 	dns_rdata_t theirkeyrdata = DNS_RDATA_INIT;
-	dst_key_t *theirkey;
+	dst_key_t *theirkey = NULL;
 	dns_rdata_tkey_t qtkey, rtkey;
 	unsigned char secretdata[256];
 	unsigned int sharedsize;
@@ -1042,7 +1065,6 @@ dns_tkey_processdhresponse(dns_message_t *qmsg, dns_message_t *rmsg,
 	REQUIRE(dst_key_isprivate(key));
 	if (outkey != NULL)
 		REQUIRE(*outkey == NULL);
-	REQUIRE(ring != NULL);
 
 	if (rmsg->rcode != dns_rcode_noerror)
 		return (ISC_RESULTCLASS_DNSRCODE + rmsg->rcode);
@@ -1099,13 +1121,11 @@ dns_tkey_processdhresponse(dns_message_t *qmsg, dns_message_t *rmsg,
 	if (theirkeyset == NULL) {
 		tkey_log("dns_tkey_processdhresponse: failed to find server "
 			 "key");
-		result = DNS_R_INVALIDTKEY;
 		result = ISC_R_NOTFOUND;
 		goto failure;
 	}
 
 	dns_rdataset_current(theirkeyset, &theirkeyrdata);
-	theirkey = NULL;
 	RETERR(dns_dnssec_keyfromrdata(theirkeyname, &theirkeyrdata,
 				       rmsg->mctx, &theirkey));
 
@@ -1119,7 +1139,7 @@ dns_tkey_processdhresponse(dns_message_t *qmsg, dns_message_t *rmsg,
 	r.base = rtkey.key;
 	r.length = rtkey.keylen;
 	if (nonce != NULL)
-		isc_buffer_region(nonce, &r2);
+		isc_buffer_usedregion(nonce, &r2);
 	else {
 		r2.base = isc_mem_get(rmsg->mctx, 0);
 		r2.length = 0;
@@ -1170,7 +1190,6 @@ dns_tkey_processgssresponse(dns_message_t *qmsg, dns_message_t *rmsg,
 	REQUIRE(gname != NULL);
 	if (outkey != NULL)
 		REQUIRE(*outkey == NULL);
-	REQUIRE(ring != NULL);
 
 	if (rmsg->rcode != dns_rcode_noerror)
 		return (ISC_RESULTCLASS_DNSRCODE + rmsg->rcode);

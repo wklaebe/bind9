@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1999, 2000  Internet Software Consortium.
+ * Copyright (C) 1999-2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: master.c,v 1.88.2.1 2000/12/28 18:46:46 gson Exp $ */
+/* $Id: master.c,v 1.88.2.3 2001/01/12 20:19:00 gson Exp $ */
 
 #include <config.h>
 
@@ -1965,12 +1965,7 @@ load_quantum(isc_task_t *task, isc_event_t *event) {
 	else
 		result = load(&ctx);
 	if (result == DNS_R_CONTINUE) {
-		isc_task_send(task, &event);
-	} else if (result == ISC_R_SUCCESS && ctx->parent) {
-		/* Pop ctx and continue. */
-		event->ev_arg = ctx->parent;
-		ctx->parent = NULL;
-		dns_loadctx_detach(&ctx);
+		event->ev_arg = ctx;
 		isc_task_send(task, &event);
 	} else {
 		if (ctx->rate_limited)

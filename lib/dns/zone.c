@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1999, 2000  Internet Software Consortium.
+ * Copyright (C) 1999-2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: zone.c,v 1.283.2.1 2000/12/29 19:13:56 gson Exp $ */
+/* $Id: zone.c,v 1.283.2.4 2001/01/11 20:59:57 bwelling Exp $ */
 
 #include <config.h>
 
@@ -362,7 +362,7 @@ static void queue_xfrin(dns_zone_t *zone);
 static void zone_unload(dns_zone_t *zone);
 static void zone_expire(dns_zone_t *zone);
 static void zone_iattach(dns_zone_t *source, dns_zone_t **target);
-void zone_idetach(dns_zone_t **zonep);
+static void zone_idetach(dns_zone_t **zonep);
 static isc_result_t zone_replacedb(dns_zone_t *zone, dns_db_t *db,
 				   isc_boolean_t dump);
 static isc_result_t default_journal(dns_zone_t *zone);
@@ -1500,7 +1500,7 @@ zone_iattach(dns_zone_t *source, dns_zone_t **target) {
 		 "eref = %d, irefs = %d", source->erefs, source->irefs);
 }
 
-void
+static void
 zone_idetach(dns_zone_t **zonep) {
 	dns_zone_t *zone;
 
@@ -2414,13 +2414,14 @@ notify_send_toaddr(isc_task_t *task, isc_event_t *event) {
 		break;
 	default:
 		result = ISC_R_NOTIMPLEMENTED;
-		goto cleanup;
+		goto cleanup_key;
 	}
 	result = dns_request_createvia(notify->zone->view->requestmgr, message,
 				       &src, &notify->dst, 0, key, 15,
 				       notify->zone->task,
 				       notify_done, notify,
 				       &notify->request);
+ cleanup_key:
 	if (key != NULL)
 		dns_tsigkey_detach(&key);
 	dns_message_destroy(&message);

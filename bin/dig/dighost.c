@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2000  Internet Software Consortium.
+ * Copyright (C) 2000, 2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dighost.c,v 1.174.2.1 2001/01/08 20:59:55 gson Exp $ */
+/* $Id: dighost.c,v 1.174.2.4 2001/01/12 20:39:06 bwelling Exp $ */
 
 /*
  * Notice to programmers:  Do not use this code as an example of how to
@@ -433,6 +433,7 @@ clone_lookup(dig_lookup_t *lookold, isc_boolean_t servers) {
 	looknew->section_authority = lookold->section_authority;
 	looknew->section_additional = lookold->section_additional;
 	looknew->retries = lookold->retries;
+	looknew->origin = lookold->origin;
 
 	if (servers)
 		clone_server_list(lookold->my_server_list,
@@ -1256,7 +1257,8 @@ setup_lookup(dig_lookup_t *lookup) {
 	 * is TRUE or we got a domain line in the resolv.conf file.
 	 */
 	/* XXX New search here? */
-	if ((count_dots(lookup->textname) >= ndots) || lookup->defname)
+	if ((count_dots(lookup->textname) >= ndots) ||
+	    (!lookup->defname && !usesearch))
 		lookup->origin = NULL; /* Force abs lookup */
 	else if (lookup->origin == NULL && lookup->new_search &&
 		 (usesearch || have_domain)) {

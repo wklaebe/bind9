@@ -1,4 +1,4 @@
-Copyright (C) 2000  Internet Software Consortium.
+Copyright (C) 2000, 2001  Internet Software Consortium.
 See COPYRIGHT in the source root or http://isc.org/copyright.html for terms.
 
                    BIND 8 to BIND 9 Migration Notes
@@ -33,6 +33,8 @@ In BIND 9, named refuses to start if it detects an error in
 named.conf.  Earlier versions would start despite errors, causing the
 server to run with a partial configuration.  Errors detected during
 subsequent reloads do not cause the server to exit.
+
+Errors in master files never cause the server to exit.
 
 1.3. Logging
 
@@ -162,4 +164,4 @@ see the man pages in doc/man/bin/rndc.1 and doc/man/bin/rndc.conf.5 for
 details.  Some of the ndc commands are still unimplemented in rndc.
 
 
-$Id: migration,v 1.17 2000/12/19 00:36:05 marka Exp $
+$Id: migration,v 1.17.2.2 2001/01/10 18:21:43 gson Exp $

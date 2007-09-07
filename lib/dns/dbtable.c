@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1999, 2000  Internet Software Consortium.
+ * Copyright (C) 1999-2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -16,7 +16,7 @@
  */
 
 /*
- * $Id: dbtable.c,v 1.22 2000/08/26 01:36:48 bwelling Exp $
+ * $Id: dbtable.c,v 1.22.4.2 2001/01/12 01:04:59 gson Exp $
  */
 
 /*
@@ -67,7 +67,6 @@ dns_dbtable_create(isc_mem_t *mctx, dns_rdataclass_t rdclass,
 {
 	dns_dbtable_t *dbtable;
 	isc_result_t result;
-	isc_result_t iresult;
 
 	REQUIRE(mctx != NULL);
 	REQUIRE(dbtablep != NULL && *dbtablep == NULL);
@@ -81,23 +80,14 @@ dns_dbtable_create(isc_mem_t *mctx, dns_rdataclass_t rdclass,
 	if (result != ISC_R_SUCCESS)
 		goto clean1;
 
-	iresult = isc_mutex_init(&dbtable->lock);
-	if (iresult != ISC_R_SUCCESS) {
-		UNEXPECTED_ERROR(__FILE__, __LINE__,
-				 "isc_lock_init() failed: %s",
-				 isc_result_totext(result));
-		result = ISC_R_UNEXPECTED;
+	result = isc_mutex_init(&dbtable->lock);
+	if (result != ISC_R_SUCCESS)
 		goto clean2;
-	}
 
-	iresult = isc_rwlock_init(&dbtable->tree_lock, 0, 0);
-	if (iresult != ISC_R_SUCCESS) {
-		UNEXPECTED_ERROR(__FILE__, __LINE__,
-				 "isc_rwlock_init() failed: %s",
-				 isc_result_totext(result));
-		result = ISC_R_UNEXPECTED;
+	result = isc_rwlock_init(&dbtable->tree_lock, 0, 0);
+	if (result != ISC_R_SUCCESS)
 		goto clean3;
-	}
+	
 
 	dbtable->default_db = NULL;
 	dbtable->mctx = mctx;

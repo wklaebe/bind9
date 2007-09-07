@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1999, 2000  Internet Software Consortium.
+ * Copyright (C) 1999-2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: xfrout.c,v 1.87.2.2 2001/01/08 19:30:37 bwelling Exp $ */
+/* $Id: xfrout.c,v 1.87.2.5 2001/01/12 20:33:17 bwelling Exp $ */
 
 #include <config.h>
 
@@ -436,7 +436,6 @@ static rrstream_methods_t ixfr_rrstream_methods = {
 
 typedef struct axfr_rrstream {
 	rrstream_t		common;
-	int 			state;
 	db_rr_iterator_t	it;
 	isc_boolean_t		it_valid;
 } axfr_rrstream_t;

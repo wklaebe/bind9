@@ -1,4 +1,33 @@
 
+	--- 9.1.0rc1 released ---
+
+ 679.	[bug]		$INCLUDE could leak memory and file descriptors on
+			reload. [RT #639]
+
+ 678.	[bug]		"tranfer-format one-answer;" could trigger an assertion
+			failure. [RT #646]
+
+ 677.	[bug]		dnssec-signzone would occasionally use the wrong ttl
+			for database operations and fail. [RT #643]
+
+ 676.	[bug]		Log messages about lame servers to category
+			'lame-servers' rather than 'resolver', so as not
+			to be gratuitously incompatible with BIND 8.
+
+ 675.	[func]		TKEY queries could cause the server to leak
+			memory.
+
+ 672.	[bug]		The wrong time was in the "time signed" field when
+			replying with BADTIME error.
+
+ 670.	[bug]		The lwres replacements for getaddrinfo and
+			getipnodebyname didn't properly check for the
+			existence of the sockaddr sa_len field.
+
+ 667.	[bug]		On Linux, running named with the -u option and a
+			non-world-readable configuration file didn't work.
+			[RT #626]
+
 	--- 9.1.0b3 released ---
 
  666.	[bug]		If a request sent by dig is longer than 512 bytes,
@@ -18,6 +47,12 @@
  657.	[bug]		When a listen-on statement in an lwres block does not
 			specifiy a port, use 921, not 53.  Also update the
 			listen-on documentation. [RT #616]
+
+ 654.	[bug]		Origin was being forgotten in TCP retries in dig.
+			[RT #574]
+
+ 653.	[bug]		+defname option in dig was reversed in sense.
+			[RT #549]
 
  649.	[bug]		It was possible to join to an already running fctx
 			after it had "cloned" its events, but before it sent

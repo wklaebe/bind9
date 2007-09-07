@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1999, 2000  Internet Software Consortium.
+ * Copyright (C) 1999-2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: named-checkzone.c,v 1.6 2000/12/21 22:11:03 gson Exp $ */
+/* $Id: named-checkzone.c,v 1.6.2.2 2001/01/11 18:30:28 gson Exp $ */
 
 #include <config.h>
 
@@ -61,7 +61,7 @@ static const char *dbtype[] = { "rbt" };
 static void
 usage(void) {
 	fprintf(stderr,
-		"usage: zone_test [-dq] [-c class] zone [filename]\n");
+		"usage: named-checkzone [-dq] [-c class] zone [filename]\n");
 	exit(1);
 }
 

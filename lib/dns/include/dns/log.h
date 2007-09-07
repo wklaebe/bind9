@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1999, 2000  Internet Software Consortium.
+ * Copyright (C) 1999-2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: log.h,v 1.26 2000/12/09 02:17:11 bwelling Exp $ */
+/* $Id: log.h,v 1.26.4.2 2001/01/11 20:06:59 bwelling Exp $ */
 
 /* Principal Authors: DCL */
 
@@ -38,6 +38,7 @@ extern isc_logmodule_t dns_modules[];
 #define DNS_LOGCATEGORY_XFER_IN		(&dns_categories[6])
 #define DNS_LOGCATEGORY_XFER_OUT	(&dns_categories[7])
 #define DNS_LOGCATEGORY_DISPATCH	(&dns_categories[8])
+#define DNS_LOGCATEGORY_LAME_SERVERS	(&dns_categories[9])
 
 /* Backwards compatibility. */
 #define DNS_LOGCATEGORY_GENERAL		ISC_LOGCATEGORY_GENERAL

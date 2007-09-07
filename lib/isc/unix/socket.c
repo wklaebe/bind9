@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1998-2000  Internet Software Consortium.
+ * Copyright (C) 1998-2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: socket.c,v 1.178 2000/12/26 21:45:08 tale Exp $ */
+/* $Id: socket.c,v 1.178.2.2 2001/01/11 20:01:39 bwelling Exp $ */
 
 #include <config.h>
 
@@ -1700,13 +1700,6 @@ internal_accept(isc_task_t *me, isc_event_t *ev) {
 	if (fd != -1 && (make_nonblock(fd) != ISC_R_SUCCESS)) {
 		close(fd);
 		fd = -1;
-
-		UNEXPECTED_ERROR(__FILE__, __LINE__,
-				 "internal_accept: make_nonblock() %s: %s",
-				 isc_msgcat_get(isc_msgcat, ISC_MSGSET_GENERAL,
-						ISC_MSG_FAILED, "failed"),
-				 strerror(errno));
-
 		result = ISC_R_UNEXPECTED;
 	}
 

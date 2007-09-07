@@ -34,7 +34,7 @@ arguments.
 \fBrndc\fR communicates with the name server
 over a TCP connection, sending commands authenticated with
 digital signatures. In the current versions of
-\fBrndc\fR and \fBnamed\fR named
+\fBrndc\fR and \fBnamed\fR, 
 the only supported authentication algorithm is HMAC-MD5,
 which uses a shared secret on each end of the connection.
 This provides TSIG-style authentication for the command
@@ -50,7 +50,7 @@ algorithm and key it should use.
 \fB-c \fIconfig-file\fB\fR
 Use \fIconfig-file\fR
 as the configuration file instead of the default,
-\fI/etc/rndc.conf\fR.
+\fI/etc/bind/rndc.conf\fR.
 .TP
 \fB-k \fIkey-file\fB\fR
 Use \fIkey-file\fR

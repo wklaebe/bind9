@@ -156,7 +156,7 @@ linux_setcaps(unsigned int caps) {
 	cap.inheritable = caps;
 	if (syscall(SYS_capset, &caphead, &cap) < 0) {
 		isc__strerror(errno, strbuf, sizeof(strbuf));
-		ns_main_earlyfatal("capset failed: %s", strbuf);
+		ns_main_earlywarning("capset failed: %s", strbuf);
 	}
 }
 

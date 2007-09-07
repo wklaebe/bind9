@@ -3,7 +3,7 @@ Section: net
 Priority: optional
 Maintainer: LaMont Jones <lamont@debian.org>
 Uploaders: Bdale Garbee <bdale@gag.com>
-Build-Depends: debhelper (>=4.1.16), libssl-dev, libtool, bison
+Build-Depends: debhelper (>=5), libssl-dev, libtool, bison
 Standards-Version: 3.7.2.0
 
 Package: bind9

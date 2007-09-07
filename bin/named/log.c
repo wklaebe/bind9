@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: log.c,v 1.37.18.4 2005/05/20 01:21:44 marka Exp $ */
+/* $Id: log.c,v 1.37.18.6 2006/06/09 00:54:08 marka Exp $ */
 
 /*! \file */
 
@@ -81,6 +81,9 @@ ns_log_init(isc_boolean_t safe) {
 	if (result != ISC_R_SUCCESS)
 		return (result);
 
+	/*
+	 * named-checktool.c:setup_logging() needs to be kept in sync.
+	 */
 	isc_log_registercategories(ns_g_lctx, ns_g_categories);
 	isc_log_registermodules(ns_g_lctx, ns_g_modules);
 	isc_log_setcontext(ns_g_lctx);

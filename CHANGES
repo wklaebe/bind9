@@ -1,4 +1,90 @@
 
+	--- 9.4.0b1 released ---
+
+2059.	[bug]		Search into cache rbtdb could trigger an INSIST
+			failure while cleaning up a stale rdataset.
+			[RT #16292]
+
+2058.	[bug]		Adjust how we calculate rtt estimates in the presence
+			of authoritative servers that drop EDNS and/or CD
+			requests.  Also fallback to EDNS/512 and plain DNS
+			faster for zones with less than 3 servers.  [RT #16187]
+
+2057.	[bug]		Make setting "ra" dependent on both allow-query-cache
+			and allow-recursion. [RT #16290]
+
+2056.	[bug]		dig: ixfr= was not being treated case insensitively
+			at all times. [RT #15955]
+
+2055.	[bug]		Missing goto after dropping multicast query.
+			[RT #15944]
+
+2054.	[port]		freebsd: do not explicitly link against -lpthread.
+			[RT #16170]
+
+2053.	[port]		netbsd:libbind: silence compiler warnings. [RT #16220]
+
+2052.	[bug]		'rndc' improve connect failed message to report
+			the failing address. [RT #15978]
+
+2051.	[port]		More strtol() fixes. [RT #16249]
+
+2050.	[bug]		Parsing of NSAP records was not case insensitive.
+			[RT #16287]
+
+2049.	[bug]		Restore SOA before AXFR when falling back from
+			a attempted IXFR when transfering in a zone.
+			Allow a initial SOA query before attempting
+			a AXFR to be requested. [RT #16156]
+
+2048.	[bug]		It was possible to loop forever when using
+			avoid-v4-udp-ports / avoid-v6-udp-ports when
+			the OS always returned the same local port.
+			[RT #16182]
+
+2047.	[bug]		Failed to initialise the interface flags to zero.
+			[RT #16245]
+
+2046.	[bug]		rbtdb.c:rdataset_setadditional() could cause duplicate
+			cleanup [RT #16247].
+
+2045.	[func]		Use lock buckets for acache entries to limit memory
+			consumption. [RT #16183]
+
+2044.	[port]		Add support for atomic operations for Itanium.
+			[RT #16179]
+
+2043.	[port]		nsupdate/nslookup: Force the flushing of the prompt
+			for interactive sessions. [RT#16148]
+
+2042.	[bug]		named-checkconf was incorrectly rejecting the
+			logging category "config". [RT #16117]
+
+2041.	[bug]		"configure --with-dlz-bdb=yes" produced a bad
+			set of libraries to be linked. [RT #16129]
+
+2040.	[bug]		rbtdb no_references() could trigger an INSIST
+			failure with --enable-atomic.  [RT #16022]
+
+2039.	[func]		Check that all buffers passed to the socket code
+			have been retrieved when the socket event is freed.
+			[RT #16122]
+
+2038.	[bug]		dig/nslookup/host was unlinking from wrong list
+			when handling errors. [RT #16122]
+
+2037.	[func]		When unlinking the first or last element in a list
+			check that the list head points to the element to
+			be unlinked. [RT #15959]
+
+2036.	[bug]		'rndc recursing' could cause trigger a REQUIRE.
+			[RT #16075]
+
+2034.	[bug]		gcc: set -fno-strict-aliasing. [RT #16124]
+
+2033.	[bug]		We wern't creating multiple client memory contexts
+			on demand as expected. [RT #16095]
+
 	--- 9.4.0a6 released ---
 
 2032.	[bug]		Remove a INSIST in query_addadditional2(). [RT #16074]

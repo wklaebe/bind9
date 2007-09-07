@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: cache.c,v 1.57.18.13 2006/05/16 03:57:15 marka Exp $ */
+/* $Id: cache.c,v 1.57.18.15 2006/07/19 00:25:10 marka Exp $ */
 
 /*! \file */
 
@@ -190,7 +190,7 @@ adjust_increment(cache_cleaner_t *cleaner, unsigned int remaining,
 	usecs = isc_time_microdiff(&end, start);
 
 	isc_log_write(dns_lctx, DNS_LOGCATEGORY_DATABASE, DNS_LOGMODULE_CACHE,
-		      ISC_LOG_INFO, "adjust_increment interval=%u "
+		      ISC_LOG_DEBUG(1), "adjust_increment interval=%u "
 		      "names=%u usec=%" ISC_PLATFORM_QUADFORMAT "u",
 		      interval, names, usecs);
 	
@@ -204,8 +204,8 @@ adjust_increment(cache_cleaner_t *cleaner, unsigned int remaining,
 			if (cleaner->increment > DNS_CACHE_CLEANERINCREMENT)
 				cleaner->increment = DNS_CACHE_CLEANERINCREMENT;
 			isc_log_write(dns_lctx, DNS_LOGCATEGORY_DATABASE,
-				      DNS_LOGMODULE_CACHE, ISC_LOG_INFO,
-				      "%p:new clear->increment = %d\n",
+				      DNS_LOGMODULE_CACHE, ISC_LOG_DEBUG(1),
+				      "%p:new cleaner->increment = %u\n",
 				      cleaner, cleaner->increment);
 		}
 		return;
@@ -225,7 +225,7 @@ adjust_increment(cache_cleaner_t *cleaner, unsigned int remaining,
 	cleaner->increment = (unsigned int)new;
 
 	isc_log_write(dns_lctx, DNS_LOGCATEGORY_DATABASE, DNS_LOGMODULE_CACHE,
-		      ISC_LOG_INFO, "%p:new clear->increment = %u\n",
+		      ISC_LOG_DEBUG(1), "%p:new cleaner->increment = %u\n",
 		      cleaner, cleaner->increment);
 }
 

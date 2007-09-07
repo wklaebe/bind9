@@ -1,4 +1,18 @@
 
+	--- 9.4.0b4 released ---
+
+2101.	[bug]		OpenSSL version checks were not quite right.
+			[RT #16476]
+
+2100.	[port]		win32: copy libeay32.dll to Build\Debug.
+			Copy Debug\named-checkzone to Debug\named-compilezone.
+
+2099.	[port]		win32: more manifiest issues.
+
+2098.	[bug]		Race in rbtdb.c:no_references(), which occasionally
+			triggered an INSIST failure about the node lock
+			reference.  [RT #16411]
+
 	--- 9.4.0b3 released ---
 
 2097.	[bug]		named could reference a destroyed memory context

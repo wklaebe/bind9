@@ -5,6 +5,7 @@ PATH=/sbin:/bin:/usr/sbin:/usr/bin
 # for a chrooted server: "-u bind -t /var/lib/named"
 # Don't modify this line, change or create /etc/default/bind9.
 OPTIONS=""
+RESOLVCONF=yes
 
 test -f /etc/default/bind9 && . /etc/default/bind9
 
@@ -31,8 +32,8 @@ case "$1" in
 	fi
 	if start-stop-daemon --start --quiet --exec /usr/sbin/named \
 		--pidfile /var/run/bind/run/named.pid -- $OPTIONS; then
-	    if [ -x /sbin/resolvconf ] ; then
-		echo "nameserver 127.0.0.1" | /sbin/resolvconf -a lo
+	    if [ "X$RESOLVCONF" != "Xno" ] && [ -x /sbin/resolvconf ] ; then
+		echo "nameserver 127.0.0.1" | /sbin/resolvconf -a lo.named
 	    fi
 	fi
 	log_end_msg 0
@@ -40,27 +41,27 @@ case "$1" in
 
     stop)
 	log_daemon_msg "Stopping domain name service..."
-	if [ -x /sbin/resolvconf ]; then
-	    /sbin/resolvconf -d lo
+	if [ "X$RESOLVCONF" != "Xno" ] && [ -x /sbin/resolvconf ] ; then
+	    /sbin/resolvconf -d lo.named
 	fi
 	/usr/sbin/rndc stop
 	log_end_msg 0	
     ;;
 
-    reload)
+    reload|force-reload)
 	log_daemon_msg "Reloading domain name service..."
 	/usr/sbin/rndc reload
 	log_end_msg 0
     ;;
 
-    restart|force-reload)
+    restart)
 	$0 stop
 	sleep 2
 	$0 start
     ;;
     
     *)
-	log_action_msg "Usage: /etc/init.d/bind {start|stop|reload|restart|force-reload}"
+	log_action_msg "Usage: /etc/init.d/bind9 {start|stop|reload|restart|force-reload}"
 	exit 1
     ;;
 esac

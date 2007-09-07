@@ -1,3 +1,11 @@
+bind9 (1:9.3.2-2) unstable; urgency=low
+
+  * correct force-reload.  Closes: #333841
+  * Fix init.d's usage message.  Closes: #331090
+  * resolvconf tweaks.  Closes: #252232, #275412
+
+ -- LaMont Jones <lamont@debian.org>  Mon, 16 Jan 2006 15:17:04 -0700
+
 bind9 (1:9.3.2-1) unstable; urgency=low
 
   * New upstream

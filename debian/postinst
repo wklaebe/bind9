@@ -32,6 +32,8 @@ if [ "$1" = configure ]; then
 	else
 	    echo 'OPTIONS="-u bind"' >> /etc/default/bind9
 	fi
+	echo '# Set RESOLVCONF=no to not run resolvconf' >> /etc/default/bind9
+	echo 'RESOLVCONF=yes' >> /etc/default/bind9
     fi
 
     # Deal with the aftermath of 9.2.1-5  - it's a hack, but hey..

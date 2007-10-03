@@ -1,3 +1,10 @@
+bind9 (1:9.4.1-P1-3) unstable-UNRELEASED; urgency=low
+
+  * Start new release
+  * DO NOT EDIT: changelog is built from commit messages
+
+ -- LaMont Jones <lamont@debian.org>  Wed, 03 Oct 2007 02:15:52 -0600
+
 bind9 (1:9.4.1-P1-2) unstable; urgency=low
 
   * manpages: fix typo errors.  Closes: #395834

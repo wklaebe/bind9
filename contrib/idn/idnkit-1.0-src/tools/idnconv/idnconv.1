@@ -61,7 +61,7 @@ the file.
 Otherwise, \fBidnconv\fR converts \fIstdin\fR.
 .PP
 Since \fBidnconv\fR is specifically designed for converting
-internatinalized domain names, it may not be suitable as a general
+internationalized domain names, it may not be suitable as a general
 codeset converter.
 .\"
 .SH "OPERATION MODES"
@@ -76,7 +76,7 @@ the codeset (encoding) conversion.
 .IP \- 2
 local mapping
 .IP \- 2
-standard domain name preperation (NAMEPREP)
+standard domain name preparation (NAMEPREP)
 .RE
 .PP
 The other mode is a reverse conversion, from IDN-encoded domain name to
@@ -194,7 +194,7 @@ This option is only meaningful in the normal conversion mode.
 Perform local mapping, nameprep and conversion to output codeset for the entire
 input text.  If this option is not specified, only non-ASCII characters
 and their surrounding texts will be processed.
-See ``NORAML CONVERSION MECHANISM'' and ``REVERSE CONVERSION MECHANISM''
+See ``NORMAL CONVERSION MECHANISM'' and ``REVERSE CONVERSION MECHANISM''
 for details.
 .TP 4
 \fB\-alias\fP \fIpath\fP, \fB\-a\fP \fIpath\fP
@@ -236,7 +236,7 @@ the following properties in the line as internationalized domain names.
 .IP "\(bu" 2
 containing at least one non-ASCII character, and
 .IP "\(bu" 2
-consisting of legal domain name characters (alphabets, digits, hypens),
+consisting of legal domain name characters (alphabets, digits, hyphens),
 non-ASCII characters and period.
 .RE
 .IP "4. convert internationalized domain names to ACE" 4
@@ -245,7 +245,7 @@ For each internationalized domain name found in the line,
 The details about the conversion procedure is:
 .RS 4
 .IP "4.1. delimiter mapping" 4
-Substibute certain characters specified as domain name delimiter
+Substitute certain characters specified as domain name delimiter
 with period.
 .IP "4.2. local mapping" 4
 Perform local mapping.
@@ -299,7 +299,7 @@ Then, \fBidnconv\fR decodes the domain names.
 The decode procedure consists of the following steps.
 .RS 4
 .IP "4.1. Delimiter mapping" 4
-Substibute certain characters specified as domain name delimiter
+Substitute certain characters specified as domain name delimiter
 with period.
 .br
 .IP "4.2. NAMEPREP" 4
@@ -315,7 +315,7 @@ not performed.
 This step is skipped if the \-nonameprep (or \-N) option is specified.
 .IP "4.3. ACE conversion" 4
 Convert the string from ACE to UTF-8.
-.IP "4.4. Round trip checkning" 4
+.IP "4.4. Round trip checking" 4
 For each label, perform the normal conversion and compare it with
 the result of the step 4.2.
 This check succeeds, if they are equivalent strings.

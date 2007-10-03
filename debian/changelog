@@ -1,8 +1,15 @@
-bind9 (1:9.4.1-P1-2) UNRELEASED; urgency=low
+bind9 (1:9.4.1-P1-2) unstable; urgency=low
 
-  * Start new release
+  * manpages: fix typo errors.  Closes: #395834
+  * manpages: call it /etc/bind/named.conf throughout, and typos.  Closes: #419750
+  * named.conf.5: correct filename.  Closes: #428015
+  * bind9.NEWS: update version for ACL change doc.  Closes: #435225
+  * build: don't have dnsutils deliver man pages that it shouldn't.  LP: #82178
+  * nslookup.1: some of the manpage was not visible.  LP: #131415
+  * document git repositories
+  * unix/socket.c: don't send to a socket with pending_send.  Closes: #430065
 
- -- LaMont Jones <lamont@debian.org>  Wed, 12 Sep 2007 07:23:55 -0600
+ -- LaMont Jones <lamont@debian.org>  Wed, 03 Oct 2007 01:10:59 -0600
 
 bind9 (1:9.4.1-P1-1) unstable; urgency=high
 

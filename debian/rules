@@ -111,7 +111,7 @@ binary-arch: build install
 	dh_installchangelogs CHANGES -a
 	dh_movefiles --sourcedir=debian/bind9 -a
 	( cd debian/bind9/usr ; rm -fr bin include lib )
-	rmdir debian/bind9/usr/share/man/man[13]
+	rm -rf debian/bind9/usr/share/man/man[13]
 	dh_link -a
 	dh_strip -a
 	dh_compress -a

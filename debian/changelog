@@ -1,9 +1,8 @@
-bind9 (1:9.4.1-P1-3) unstable-UNRELEASED; urgency=low
+bind9 (1:9.4.1-P1-3) unstable; urgency=low
 
-  * Start new release
-  * DO NOT EDIT: changelog is built from commit messages
+  * Only deliver upstream changes with bind9-doc
 
- -- LaMont Jones <lamont@debian.org>  Wed, 03 Oct 2007 02:15:52 -0600
+ -- LaMont Jones <lamont@debian.org>  Thu, 04 Oct 2007 08:30:55 -0600
 
 bind9 (1:9.4.1-P1-2) unstable; urgency=low
 

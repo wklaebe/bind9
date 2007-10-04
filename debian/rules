@@ -86,7 +86,8 @@ binary-indep: build install
 	dh_installmenu -i
 	dh_installcron -i
 	dh_installinfo -i
-	dh_installchangelogs CHANGES -i
+	dh_installchangelogs -i # CHANGES # upstream changelog only in bind9-doc
+	dh_installchangelogs -pbind9-doc CHANGES
 	dh_link -i
 	dh_compress -i
 	dh_fixperms -i
@@ -108,7 +109,7 @@ binary-arch: build install
 	dh_installcron -a
 	dh_installmanpages -pbind9 runmdn.1 mdnconv.1 zone2ldap.1 nslint.8
 	dh_installinfo -a
-	dh_installchangelogs CHANGES -a
+	dh_installchangelogs -a # CHANGES # upstream changelog only in bind9-doc
 	dh_movefiles --sourcedir=debian/bind9 -a
 	( cd debian/bind9/usr ; rm -fr bin include lib )
 	rm -rf debian/bind9/usr/share/man/man[13]

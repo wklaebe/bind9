@@ -10,7 +10,7 @@ XS-Vcs-Git: git://git.debian.org/~lamont/bind9.git
 
 Package: bind9
 Architecture: any
-Depends: ${shlibs:Depends}, netbase, adduser, libdns32 (=${Source-Version}), libisccfg30 (=${Source-Version}), libisc32 (=${Source-Version}), libisccc30 (=${Source-Version}), lsb-base (>=3.0-6)
+Depends: ${shlibs:Depends}, netbase, adduser, libdns32 (=${Source-Version}), libisccfg30 (=${Source-Version}), libisc33 (=${Source-Version}), libisccc30 (=${Source-Version}), lsb-base (>=3.0-6)
 Conflicts: bind
 Replaces: bind, dnsutils (<< 1:9.1.0-3)
 Suggests: dnsutils, bind9-doc
@@ -44,7 +44,7 @@ Section: libdevel
 Architecture: any
 Conflicts: bind-dev
 Replaces: bind-dev
-Depends: libdns32 (= ${Source-Version}), libisc32 (= ${Source-Version}), libisccc30(= ${Source-Version}), libisccfg30 (= ${Source-Version}), liblwres30 (= ${Source-Version}) 
+Depends: libdns32 (= ${Source-Version}), libisc33 (= ${Source-Version}), libisccc30(= ${Source-Version}), libisccfg30 (= ${Source-Version}), liblwres30 (= ${Source-Version}) 
 Description: Static Libraries and Headers used by BIND
  This package delivers archive-style libraries, header files, and API man
  pages for libbind, libdns, libisc, and liblwres.  These are are only needed 
@@ -77,7 +77,7 @@ Description: DNS Shared Library used by BIND
  This package delivers the libdns shared library used by BIND's daemons and
  clients.
 
-Package: libisc32
+Package: libisc33
 Section: libs
 Priority: standard
 Architecture: any

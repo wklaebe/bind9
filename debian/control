@@ -5,6 +5,8 @@ Maintainer: LaMont Jones <lamont@debian.org>
 Uploaders: Bdale Garbee <bdale@gag.com>
 Build-Depends: debhelper (>=5), libssl-dev, libtool, bison
 Standards-Version: 3.7.2.0
+XS-Vcs-Browser: http://git.debian.org/?p=users/lamont/bind9.git
+XS-Vcs-Git: git://git.debian.org/~lamont/bind9.git
 
 Package: bind9
 Architecture: any

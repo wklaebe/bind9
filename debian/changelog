@@ -5,6 +5,31 @@ bind9 (1:9.4.2~rc1-1) experimental-UNRELEASED; urgency=low
 
  -- LaMont Jones <lamont@debian.org>  Fri, 12 Oct 2007 18:33:57 -0600
 
+bind9 (1:9.4.1-P1-3) unstable; urgency=low
+
+  * Only deliver upstream changes with bind9-doc
+
+ -- LaMont Jones <lamont@debian.org>  Thu, 04 Oct 2007 08:30:55 -0600
+
+bind9 (1:9.4.1-P1-2) unstable; urgency=low
+
+  * manpages: fix typo errors.  Closes: #395834
+  * manpages: call it /etc/bind/named.conf throughout, and typos.  Closes: #419750
+  * named.conf.5: correct filename.  Closes: #428015
+  * bind9.NEWS: update version for ACL change doc.  Closes: #435225
+  * build: don't have dnsutils deliver man pages that it shouldn't.  LP: #82178
+  * nslookup.1: some of the manpage was not visible.  LP: #131415
+  * document git repositories
+  * unix/socket.c: don't send to a socket with pending_send.  Closes: #430065
+
+ -- LaMont Jones <lamont@debian.org>  Wed, 03 Oct 2007 01:10:59 -0600
+
+bind9 (1:9.4.1-P1-1) unstable; urgency=high
+
+  * New upstream version, addresses CVE-2007-2926 and CVE-2007-2925 
+
+ -- Bdale Garbee <bdale@gag.com>  Thu, 26 Jul 2007 16:41:50 -0600
+
 bind9 (1:9.4.1-1) unstable; urgency=low
 
   * New upstream version

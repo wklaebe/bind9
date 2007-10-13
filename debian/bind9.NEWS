@@ -1,4 +1,4 @@
-bind9 (1:9.4.0~rc1.0-2) experimental; urgency=low
+bind9 (1:9.4.0-1) experimental; urgency=low
 
   As of bind 9.4, allow-query-cache and allow-recursion default to the
   builtin acls 'localnets' and 'localhost'.  If you are setting up a
@@ -11,4 +11,4 @@ bind9 (1:9.4.0~rc1.0-2) experimental; urgency=low
 
   The best fix is for full BCP 38 deployment to remove spoofed traffic.
 
- -- LaMont Jones <lamont@debian.org>  Wed, 24 Jan 2007 09:34:15 -0700
+ -- LaMont Jones <lamont@debian.org>  Wed, 03 Oct 2007 00:52:44 -0600

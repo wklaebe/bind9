@@ -2287,7 +2287,10 @@ process_fds(isc_socketmgr_t *manager, int maxfd,
 			if (!SOCK_DEAD(sock)) {
 				if (sock->connecting)
 					dispatch_connect(sock);
-				else
+				/*
+				 * Don't send if it's already pending
+				 */
+				else if (!sock->pending_send)
 					dispatch_send(sock);
 			}
 			FD_CLR(i, &manager->write_fds);

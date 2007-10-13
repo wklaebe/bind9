@@ -88,7 +88,7 @@
 2207.	[port]		Some implementations of getaddrinfo() fail to set
 			ai_canonname correctly. [RT #17061]
 
-	--- 9.4.2b1 released ---
+	--- 9.4.1-P1 released ---
 
 2206.	[security]	"allow-query-cache" and "allow-recursion" now
 			cross inherit from each other.

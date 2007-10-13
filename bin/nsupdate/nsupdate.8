@@ -60,11 +60,11 @@ and the name server. Currently, the only supported encryption algorithm for TSIG
 and
 \fBserver\fR
 statements would be added to
-\fI/etc/named.conf\fR
+\fI/etc/bind/named.conf\fR
 so that the name server can associate the appropriate secret key and algorithm with the IP address of the client application that will be using TSIG authentication. SIG(0) uses public key cryptography. To use a SIG(0) key, the public key must be stored in a KEY record in a zone served by the name server.
 \fBnsupdate\fR
 does not read
-\fI/etc/named.conf\fR.
+\fI/etc/bind/named.conf\fR.
 .PP
 \fBnsupdate\fR
 uses the

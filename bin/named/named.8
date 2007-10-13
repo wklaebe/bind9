@@ -42,7 +42,7 @@ is a Domain Name System (DNS) server, part of the BIND 9 distribution from ISC. 
 When invoked without arguments,
 \fBnamed\fR
 will read the default configuration file
-\fI/etc/named.conf\fR, read any initial data, and listen for queries.
+\fI/etc/bind/named.conf\fR, read any initial data, and listen for queries.
 .SH "OPTIONS"
 .PP
 \-4
@@ -68,7 +68,7 @@ are mutually exclusive.
 Use
 \fIconfig\-file\fR
 as the configuration file instead of the default,
-\fI/etc/named.conf\fR. To ensure that reloading the configuration file continues to work after the server has changed its working directory due to to a possible
+\fI/etc/bind/named.conf\fR. To ensure that reloading the configuration file continues to work after the server has changed its working directory due to a possible
 \fBdirectory\fR
 option in the configuration file,
 \fIconfig\-file\fR
@@ -206,7 +206,7 @@ configuration file is too complex to describe in detail here. A complete descrip
 BIND 9 Administrator Reference Manual.
 .SH "FILES"
 .PP
-\fI/etc/named.conf\fR
+\fI/etc/bind/named.conf\fR
 .RS 4
 The default configuration file.
 .RE

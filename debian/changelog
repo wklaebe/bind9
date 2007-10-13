@@ -1,3 +1,10 @@
+bind9 (1:9.4.2~rc1-1) experimental-UNRELEASED; urgency=low
+
+  * Start new release
+  * DO NOT EDIT: changelog is built from commit messages
+
+ -- LaMont Jones <lamont@debian.org>  Fri, 12 Oct 2007 18:33:57 -0600
+
 bind9 (1:9.4.1-1) unstable; urgency=low
 
   * New upstream version

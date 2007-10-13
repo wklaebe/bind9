@@ -2,7 +2,7 @@
  * Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
- * Permission to use, copy, modify, and distribute this software for any
+ * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: adb.c,v 1.215.18.15 2007/02/26 23:46:22 tbox Exp $ */
+/* $Id: adb.c,v 1.215.18.17 2007/09/11 02:23:26 marka Exp $ */
 
 /*! \file 
  *
@@ -3471,7 +3471,9 @@ dns_adb_findaddrinfo(dns_adb_t *adb, isc_sockaddr_t *sa,
 
 	port = isc_sockaddr_getport(sa);
 	addr = new_adbaddrinfo(adb, entry, port);
-	if (addr != NULL) {
+	if (addr == NULL) {
+		result = ISC_R_NOMEMORY;
+	} else {
 		inc_entry_refcnt(adb, entry, ISC_FALSE);
 		*addrp = addr;
 	}

@@ -2,7 +2,7 @@
  * Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
- * Permission to use, copy, modify, and distribute this software for any
+ * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: update.c,v 1.109.18.21 2007/05/18 23:46:28 tbox Exp $ */
+/* $Id: update.c,v 1.109.18.23 2007/08/28 07:20:01 tbox Exp $ */
 
 #include <config.h>
 
@@ -2189,7 +2189,7 @@ remove_orphaned_ds(dns_db_t *db, dns_dbversion_t *newver, dns_diff_t *diff) {
 	for (t = ISC_LIST_HEAD(diff->tuples);
 	     t != NULL;
 	     t = ISC_LIST_NEXT(t, link)) {
-		if (t->op != DNS_DIFFOP_DEL ||
+		if (t->op != DNS_DIFFOP_ADD ||
 		    t->rdata.type != dns_rdatatype_ns)
 			continue;
 		CHECK(rrset_exists(db, newver, &t->name, dns_rdatatype_ns, 0,
@@ -2240,7 +2240,7 @@ check_mx(ns_client_t *client, dns_zone_t *zone,
 	for (t = ISC_LIST_HEAD(diff->tuples);
 	     t != NULL;
 	     t = ISC_LIST_NEXT(t, link)) {
-		if (t->op != DNS_DIFFOP_DEL ||
+		if (t->op != DNS_DIFFOP_ADD ||
 		    t->rdata.type != dns_rdatatype_mx)
 			continue;
 

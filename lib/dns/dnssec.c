@@ -2,7 +2,7 @@
  * Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
- * Permission to use, copy, modify, and distribute this software for any
+ * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -16,7 +16,7 @@
  */
 
 /*
- * $Id: dnssec.c,v 1.81.18.8 2007/05/18 23:46:28 tbox Exp $
+ * $Id: dnssec.c,v 1.81.18.10 2007/09/14 04:35:42 marka Exp $
  */
 
 /*! \file */
@@ -406,16 +406,11 @@ dns_dnssec_verify2(dns_name_t *name, dns_rdataset_t *set, dst_key_t *key,
 	 */
 	dns_fixedname_init(&fnewname);
 	labels = dns_name_countlabels(name) - 1;
-	if (labels - sig.labels > 0) {
-		dns_name_split(name, sig.labels + 1, NULL,
-			       dns_fixedname_name(&fnewname));
-		RUNTIME_CHECK(dns_name_downcase(dns_fixedname_name(&fnewname),
-						dns_fixedname_name(&fnewname),
-						NULL)
-			      == ISC_R_SUCCESS);
-	}
-	else
-		dns_name_downcase(name, dns_fixedname_name(&fnewname), NULL);
+	RUNTIME_CHECK(dns_name_downcase(name, dns_fixedname_name(&fnewname),
+				        NULL) == ISC_R_SUCCESS);
+	if (labels - sig.labels > 0)
+		dns_name_split(dns_fixedname_name(&fnewname), sig.labels + 1,
+			       NULL, dns_fixedname_name(&fnewname));
 
 	dns_name_toregion(dns_fixedname_name(&fnewname), &r);
 

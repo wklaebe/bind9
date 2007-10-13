@@ -1,8 +1,8 @@
 /*
- * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1997-2003  Internet Software Consortium.
  *
- * Permission to use, copy, modify, and distribute this software for any
+ * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: mem.c,v 1.116.18.12 2006/12/08 05:07:59 marka Exp $ */
+/* $Id: mem.c,v 1.116.18.17 2007/08/28 07:20:06 tbox Exp $ */
 
 /*! \file */
 
@@ -1948,7 +1948,7 @@ isc_mem_checkdestroyed(FILE *file) {
 		}
 		fflush(file);
 #endif
-		INSIST(1);
+		INSIST(0);
 	}
 	UNLOCK(&lock);
 }

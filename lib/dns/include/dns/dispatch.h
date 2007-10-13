@@ -1,8 +1,8 @@
 /*
- * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2007  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
- * Permission to use, copy, modify, and distribute this software for any
+ * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dispatch.h,v 1.48.18.2 2005/04/29 00:16:12 marka Exp $ */
+/* $Id: dispatch.h,v 1.48.18.5 2007/08/28 07:20:05 tbox Exp $ */
 
 #ifndef DNS_DISPATCH_H
 #define DNS_DISPATCH_H 1
@@ -439,6 +439,13 @@ dns_dispatch_importrecv(dns_dispatch_t *disp, isc_event_t *event);
  * Requires:
  *\li 	disp is valid, and the attribute DNS_DISPATCHATTR_NOLISTEN is set.
  * 	event != NULL
+ */
+
+void
+dns_dispatch_hash(void *data, size_t len);
+/*%<
+ * Feed 'data' to the dispatch query id generator where 'len' is the size
+ * of 'data'.
  */
 
 ISC_LANG_ENDDECLS

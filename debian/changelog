@@ -1,7 +1,13 @@
-bind9 (1:9.3.4-2etch2) stable-security-UNRELEASED; urgency=low
+bind9 (1:9.3.4-2etch2) stable-proposed-updates; urgency=low
 
-  * Start new release
-  * DO NOT EDIT: changelog is built from commit messages
+  [Thomas Antepoth]
+
+  * unix/socket.c: don't send to a socket with pending_send.  Closes: #430065
+
+  [LaMont Jones]
+
+  * document git repositories
+  * db.root: l.root-servers.net changed IP address.  Closes: #449148
 
  -- LaMont Jones <lamont@debian.org>  Mon, 05 Nov 2007 19:48:23 -0700
 

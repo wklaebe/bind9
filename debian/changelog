@@ -1,3 +1,10 @@
+bind9 (1:9.3.4-2etch2) stable-security-UNRELEASED; urgency=low
+
+  * Start new release
+  * DO NOT EDIT: changelog is built from commit messages
+
+ -- LaMont Jones <lamont@debian.org>  Mon, 05 Nov 2007 19:48:23 -0700
+
 bind9 (1:9.3.4-2etch1) stable-security; urgency=high
 
   * Fix DNS cache poisoning through predictable query IDs. (CVE-2007-2926)

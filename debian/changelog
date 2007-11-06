@@ -1,3 +1,16 @@
+bind9 (1:9.4.1-P1-4) unstable; urgency=low
+
+  [Thomas Antepoth]
+
+  * unix/socket.c: don't send to a socket with pending_send.  Closes: #430065
+
+  [LaMont Jones]
+
+  * document git repositories
+  * db.root: l.root-servers.net changed IP address.  Closes: #449148
+
+ -- LaMont Jones <lamont@debian.org>  Mon, 05 Nov 2007 21:06:47 -0700
+
 bind9 (1:9.4.1-P1-3) unstable; urgency=low
 
   * Only deliver upstream changes with bind9-doc

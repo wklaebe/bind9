@@ -1,0 +1,5 @@
+etc/bind
+usr/bin
+usr/sbin
+var/cache/bind
+var/run/bind/run

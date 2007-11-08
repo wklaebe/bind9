@@ -32,6 +32,7 @@ configure-stamp:
 		--enable-shared \
 		--enable-static \
 		--with-openssl=/usr \
+		--with-gssapi=/usr \
 		--with-gnu-ld \
 		--enable-ipv6
 	touch configure-stamp

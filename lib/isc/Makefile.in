@@ -114,12 +114,14 @@ libisc.la: ${OBJS} ${SYMTBLOBJS}
 		${CC} ${ALL_CFLAGS} ${LDFLAGS} -o libisc.la -rpath ${libdir} \
 		-version-info ${LIBINTERFACE}:${LIBREVISION}:${LIBAGE} \
 		${OBJS} ${SYMTBLOBJS} ${LIBS}
+	ln -sf .libs/libisc.so .
 
 libisc-nosymtbl.la: ${OBJS}
 	${LIBTOOL_MODE_LINK} \
 		${CC} ${ALL_CFLAGS} ${LDFLAGS} -o libisc-nosymtbl.la -rpath ${libdir} \
 		-version-info ${LIBINTERFACE}:${LIBREVISION}:${LIBAGE} \
 		${OBJS} ${LIBS}
+	ln -sf .libs/libisc-nosymtbl.so .
 
 timestamp: libisc.@A@ libisc-nosymtbl.@A@
 	touch timestamp
@@ -133,3 +135,4 @@ install:: timestamp installdirs
 clean distclean::
 	rm -f libisc.@A@ libisc-nosymtbl.@A@ libisc.la \
 	libisc-nosymtbl.la timestamp
+	rm -f libisc.so libisc-nosymtbl.so

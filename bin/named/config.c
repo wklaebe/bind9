@@ -15,14 +15,13 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: config.c,v 1.79 2007/06/18 23:47:18 tbox Exp $ */
+/* $Id: config.c,v 1.82 2007/10/19 17:15:53 explorer Exp $ */
 
 /*! \file */
 
 #include <config.h>
 
 #include <stdlib.h>
-#include <string.h>
 
 #include <isc/buffer.h>
 #include <isc/log.h>
@@ -31,6 +30,7 @@
 #include <isc/region.h>
 #include <isc/result.h>
 #include <isc/sockaddr.h>
+#include <isc/string.h>
 #include <isc/util.h>
 
 #include <isccfg/namedconf.h>
@@ -129,14 +129,14 @@ options {\n\
 	max-ncache-ttl 10800; /* 3 hours */\n\
 	max-cache-ttl 604800; /* 1 week */\n\
 	transfer-format many-answers;\n\
-	max-cache-size 0;\n\
+	max-cache-size 32M;\n\
 	check-names master fail;\n\
 	check-names slave warn;\n\
 	check-names response ignore;\n\
 	check-mx warn;\n\
 	acache-enable no;\n\
 	acache-cleaning-interval 60;\n\
-	max-acache-size 0;\n\
+	max-acache-size 16M;\n\
 	dnssec-enable yes;\n\
 	dnssec-validation no; /* Make yes for 9.5. */ \n\
 	dnssec-accept-expired no;\n\
@@ -152,6 +152,7 @@ options {\n\
 	notify yes;\n\
 #	also-notify <none>\n\
 	notify-delay 5;\n\
+	notify-to-soa no;\n\
 	dialup no;\n\
 #	forward <none>\n\
 #	forwarders <none>\n\

@@ -54,7 +54,11 @@ BIND 9.5.0
 
 	Experimental http server and statistics support for named via xml.
 
+	Faster ACL processing.
+
 	Use Doxygen to generate internal documention.
+
+        Efficient LRU cache-cleaning mechanism.
 
 BIND 9.4.0
 
@@ -77,7 +81,9 @@ BIND 9.4.0
 	used to specify the default zone access level rather than
 	having to have every zone override the global value.
 	allow-query-cache can be set at both the options and view
-	levels.  If allow-query-cache is not set allow-query applies.
+	levels. If allow-query-cache is not set then allow-recursion
+	is used if set, otherwise allow-query is used if set, otherwise
+	the default (localhost; localnets;) is used.
 
 	rndc: the source address can now be specified.
 

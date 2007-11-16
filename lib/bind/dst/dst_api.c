@@ -1,5 +1,5 @@
 #ifndef LINT
-static const char rcsid[] = "$Header: /proj/cvs/prod/bind9/lib/bind/dst/dst_api.c,v 1.15 2006/03/09 23:57:56 marka Exp $";
+static const char rcsid[] = "$Header: /proj/cvs/prod/bind9/lib/bind/dst/dst_api.c,v 1.17 2007/09/24 17:18:25 each Exp $";
 #endif
 
 /*
@@ -359,7 +359,7 @@ dst_read_key(const char *in_keyname, const u_int16_t in_id,
 					pubkey->dk_alg) == 0)
 		dg_key = dst_free_key(dg_key);
 
-	pubkey = dst_free_key(pubkey);
+	(void)dst_free_key(pubkey);
 	return (dg_key);
 }
 
@@ -434,6 +434,7 @@ dst_s_write_private_key(const DST_KEY *key)
 		if ((nn = fwrite(encoded_block, 1, len, fp)) != len) {
 			EREPORT(("dst_write_private_key(): Write failure on %s %d != %d errno=%d\n",
 				 file, len, nn, errno));
+			fclose(fp);
 			return (-5);
 		}
 		fclose(fp);

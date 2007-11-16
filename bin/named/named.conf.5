@@ -12,7 +12,7 @@
 .\" OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 .\" PERFORMANCE OF THIS SOFTWARE.
 .\"
-.\" $Id: named.conf.5,v 1.28 2007/06/20 02:27:32 marka Exp $
+.\" $Id: named.conf.5,v 1.31 2007/10/21 22:15:32 marka Exp $
 .\"
 .hy 0
 .ad l
@@ -218,8 +218,8 @@ options {
 	max\-ncache\-ttl \fIinteger\fR;
 	max\-cache\-ttl \fIinteger\fR;
 	transfer\-format ( many\-answers | one\-answer );
-	max\-cache\-size \fIsize_no_default\fR;
-	max\-acache\-size \fIsize_no_default\fR;
+	max\-cache\-size \fIsize\fR;
+	max\-acache\-size \fIsize\fR;
 	clients\-per\-query \fInumber\fR;
 	max\-clients\-per\-query \fInumber\fR;
 	check\-names ( master | slave | response )
@@ -259,10 +259,12 @@ options {
 	allow\-update { \fIaddress_match_element\fR; ... };
 	allow\-update\-forwarding { \fIaddress_match_element\fR; ... };
 	update\-check\-ksk \fIboolean\fR;
+	masterfile\-format ( text | raw );
 	notify \fInotifytype\fR;
 	notify\-source ( \fIipv4_address\fR | * ) [ port ( \fIinteger\fR | * ) ];
 	notify\-source\-v6 ( \fIipv6_address\fR | * ) [ port ( \fIinteger\fR | * ) ];
 	notify\-delay \fIseconds\fR;
+	notify\-to\-soa \fIboolean\fR;
 	also\-notify [ port \fIinteger\fR ] { ( \fIipv4_address\fR | \fIipv6_address\fR )
 		[ port \fIinteger\fR ]; ... };
 	allow\-notify { \fIaddress_match_element\fR; ... };
@@ -358,8 +360,8 @@ view \fIstring\fR \fIoptional_class\fR {
 	max\-ncache\-ttl \fIinteger\fR;
 	max\-cache\-ttl \fIinteger\fR;
 	transfer\-format ( many\-answers | one\-answer );
-	max\-cache\-size \fIsize_no_default\fR;
-	max\-acache\-size \fIsize_no_default\fR;
+	max\-cache\-size \fIsize\fR;
+	max\-acache\-size \fIsize\fR;
 	clients\-per\-query \fInumber\fR;
 	max\-clients\-per\-query \fInumber\fR;
 	check\-names ( master | slave | response )
@@ -399,10 +401,12 @@ view \fIstring\fR \fIoptional_class\fR {
 	allow\-update { \fIaddress_match_element\fR; ... };
 	allow\-update\-forwarding { \fIaddress_match_element\fR; ... };
 	update\-check\-ksk \fIboolean\fR;
+	masterfile\-format ( text | raw );
 	notify \fInotifytype\fR;
 	notify\-source ( \fIipv4_address\fR | * ) [ port ( \fIinteger\fR | * ) ];
 	notify\-source\-v6 ( \fIipv6_address\fR | * ) [ port ( \fIinteger\fR | * ) ];
 	notify\-delay \fIseconds\fR;
+	notify\-to\-soa \fIboolean\fR;
 	also\-notify [ port \fIinteger\fR ] { ( \fIipv4_address\fR | \fIipv6_address\fR )
 		[ port \fIinteger\fR ]; ... };
 	allow\-notify { \fIaddress_match_element\fR; ... };
@@ -477,10 +481,12 @@ zone \fIstring\fR \fIoptional_class\fR {
 		\fIrrtypelist\fR; ...
 	};
 	update\-check\-ksk \fIboolean\fR;
+	masterfile\-format ( text | raw );
 	notify \fInotifytype\fR;
 	notify\-source ( \fIipv4_address\fR | * ) [ port ( \fIinteger\fR | * ) ];
 	notify\-source\-v6 ( \fIipv6_address\fR | * ) [ port ( \fIinteger\fR | * ) ];
 	notify\-delay \fIseconds\fR;
+	notify\-to\-soa \fIboolean\fR;
 	also\-notify [ port \fIinteger\fR ] { ( \fIipv4_address\fR | \fIipv6_address\fR )
 		[ port \fIinteger\fR ]; ... };
 	allow\-notify { \fIaddress_match_element\fR; ... };

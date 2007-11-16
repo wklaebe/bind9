@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: zoneconf.c,v 1.137 2007/06/19 23:46:59 tbox Exp $ */
+/* $Id: zoneconf.c,v 1.139 2007/09/18 00:22:30 marka Exp $ */
 
 /*% */
 
@@ -90,7 +90,7 @@ configure_zone_acl(const cfg_obj_t *zconfig, const cfg_obj_t *vconfig,
 	}
 
 	result = cfg_acl_fromconfig(aclobj, config, ns_g_lctx, actx,
-				    dns_zone_getmctx(zone), &dacl);
+				    dns_zone_getmctx(zone), 0, &dacl);
 	if (result != ISC_R_SUCCESS)
 		return (result);
 	(*setzacl)(zone, dacl);
@@ -543,6 +543,12 @@ ns_zone_configure(const cfg_obj_t *config, const cfg_obj_t *vconfig,
 		INSIST(result == ISC_R_SUCCESS);
 		RETERR(dns_zone_setnotifysrc6(zone, cfg_obj_assockaddr(obj)));
 		ns_add_reserved_dispatch(ns_g_server, cfg_obj_assockaddr(obj));
+
+		obj = NULL;
+		result = ns_config_get(maps, "notify-to-soa", &obj);
+		INSIST(result == ISC_R_SUCCESS);
+		dns_zone_setoption(zone, DNS_ZONEOPT_NOTIFYTOSOA,
+				   cfg_obj_asboolean(obj));
 
 		dns_zone_setisself(zone, ns_client_isself, NULL);
 

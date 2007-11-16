@@ -14,7 +14,7 @@
  - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  - PERFORMANCE OF THIS SOFTWARE.
 -->
-<!-- $Id: Bv9ARM.ch06.html,v 1.161 2007/07/09 02:38:43 marka Exp $ -->
+<!-- $Id: Bv9ARM.ch06.html,v 1.167 2007/10/31 01:36:29 marka Exp $ -->
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
@@ -48,52 +48,52 @@
 <dt><span class="sect1"><a href="Bv9ARM.ch06.html#configuration_file_elements">Configuration File Elements</a></span></dt>
 <dd><dl>
 <dt><span class="sect2"><a href="Bv9ARM.ch06.html#address_match_lists">Address Match Lists</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2573511">Comment Syntax</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2573587">Comment Syntax</a></span></dt>
 </dl></dd>
 <dt><span class="sect1"><a href="Bv9ARM.ch06.html#Configuration_File_Grammar">Configuration File Grammar</a></span></dt>
 <dd><dl>
-<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2574123"><span><strong class="command">acl</strong></span> Statement Grammar</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2574131"><span><strong class="command">acl</strong></span> Statement Grammar</a></span></dt>
 <dt><span class="sect2"><a href="Bv9ARM.ch06.html#acl"><span><strong class="command">acl</strong></span> Statement Definition and
           Usage</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2574313"><span><strong class="command">controls</strong></span> Statement Grammar</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2574321"><span><strong class="command">controls</strong></span> Statement Grammar</a></span></dt>
 <dt><span class="sect2"><a href="Bv9ARM.ch06.html#controls_statement_definition_and_usage"><span><strong class="command">controls</strong></span> Statement Definition and
           Usage</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2574810"><span><strong class="command">include</strong></span> Statement Grammar</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2574825"><span><strong class="command">include</strong></span> Statement Definition and
+<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2574749"><span><strong class="command">include</strong></span> Statement Grammar</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2574764"><span><strong class="command">include</strong></span> Statement Definition and
           Usage</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2574849"><span><strong class="command">key</strong></span> Statement Grammar</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2574870"><span><strong class="command">key</strong></span> Statement Definition and Usage</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2574961"><span><strong class="command">logging</strong></span> Statement Grammar</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2575086"><span><strong class="command">logging</strong></span> Statement Definition and
+<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2574788"><span><strong class="command">key</strong></span> Statement Grammar</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2574809"><span><strong class="command">key</strong></span> Statement Definition and Usage</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2575036"><span><strong class="command">logging</strong></span> Statement Grammar</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2575162"><span><strong class="command">logging</strong></span> Statement Definition and
           Usage</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2576467"><span><strong class="command">lwres</strong></span> Statement Grammar</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2576609"><span><strong class="command">lwres</strong></span> Statement Definition and Usage</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2576673"><span><strong class="command">masters</strong></span> Statement Grammar</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2576716"><span><strong class="command">masters</strong></span> Statement Definition and
+<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2576474"><span><strong class="command">lwres</strong></span> Statement Grammar</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2576616"><span><strong class="command">lwres</strong></span> Statement Definition and Usage</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2576680"><span><strong class="command">masters</strong></span> Statement Grammar</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2576724"><span><strong class="command">masters</strong></span> Statement Definition and
           Usage</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2576731"><span><strong class="command">options</strong></span> Statement Grammar</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2576739"><span><strong class="command">options</strong></span> Statement Grammar</a></span></dt>
 <dt><span class="sect2"><a href="Bv9ARM.ch06.html#options"><span><strong class="command">options</strong></span> Statement Definition and
           Usage</a></span></dt>
 <dt><span class="sect2"><a href="Bv9ARM.ch06.html#server_statement_grammar"><span><strong class="command">server</strong></span> Statement Grammar</a></span></dt>
 <dt><span class="sect2"><a href="Bv9ARM.ch06.html#server_statement_definition_and_usage"><span><strong class="command">server</strong></span> Statement Definition and
             Usage</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2585664"><span><strong class="command">trusted-keys</strong></span> Statement Grammar</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2585713"><span><strong class="command">trusted-keys</strong></span> Statement Definition
+<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2585725"><span><strong class="command">trusted-keys</strong></span> Statement Grammar</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2585774"><span><strong class="command">trusted-keys</strong></span> Statement Definition
             and Usage</a></span></dt>
 <dt><span class="sect2"><a href="Bv9ARM.ch06.html#view_statement_grammar"><span><strong class="command">view</strong></span> Statement Grammar</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2585793"><span><strong class="command">view</strong></span> Statement Definition and Usage</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2585854"><span><strong class="command">view</strong></span> Statement Definition and Usage</a></span></dt>
 <dt><span class="sect2"><a href="Bv9ARM.ch06.html#zone_statement_grammar"><span><strong class="command">zone</strong></span>
             Statement Grammar</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2587264"><span><strong class="command">zone</strong></span> Statement Definition and Usage</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2587345"><span><strong class="command">zone</strong></span> Statement Definition and Usage</a></span></dt>
 </dl></dd>
-<dt><span class="sect1"><a href="Bv9ARM.ch06.html#id2589589">Zone File</a></span></dt>
+<dt><span class="sect1"><a href="Bv9ARM.ch06.html#id2589691">Zone File</a></span></dt>
 <dd><dl>
 <dt><span class="sect2"><a href="Bv9ARM.ch06.html#types_of_resource_records_and_when_to_use_them">Types of Resource Records and When to Use Them</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2591542">Discussion of MX Records</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2591644">Discussion of MX Records</a></span></dt>
 <dt><span class="sect2"><a href="Bv9ARM.ch06.html#Setting_TTLs">Setting TTLs</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2592230">Inverse Mapping in IPv4</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2592357">Other Zone File Directives</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2592682"><acronym class="acronym">BIND</acronym> Master File Extension: the  <span><strong class="command">$GENERATE</strong></span> Directive</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2592401">Inverse Mapping in IPv4</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2592528">Other Zone File Directives</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2592785"><acronym class="acronym">BIND</acronym> Master File Extension: the  <span><strong class="command">$GENERATE</strong></span> Directive</a></span></dt>
 <dt><span class="sect2"><a href="Bv9ARM.ch06.html#zonefile_format">Additional File Formats</a></span></dt>
 </dl></dd>
 </dl>
@@ -429,7 +429,7 @@
 <a name="address_match_lists"></a>Address Match Lists</h3></div></div></div>
 <div class="sect3" lang="en">
 <div class="titlepage"><div><div><h4 class="title">
-<a name="id2573364"></a>Syntax</h4></div></div></div>
+<a name="id2573365"></a>Syntax</h4></div></div></div>
 <pre class="programlisting"><code class="varname">address_match_list</code> = address_match_list_element ;
   [<span class="optional"> address_match_list_element; ... </span>]
 <code class="varname">address_match_list_element</code> = [<span class="optional"> ! </span>] (ip_address [<span class="optional">/length</span>] |
@@ -438,14 +438,13 @@
 </div>
 <div class="sect3" lang="en">
 <div class="titlepage"><div><div><h4 class="title">
-<a name="id2573392"></a>Definition and Usage</h4></div></div></div>
+<a name="id2573393"></a>Definition and Usage</h4></div></div></div>
 <p>
             Address match lists are primarily used to determine access
             control for various server operations. They are also used in
             the <span><strong class="command">listen-on</strong></span> and <span><strong class="command">sortlist</strong></span>
-            statements. The elements
-            which constitute an address match list can be any of the
-            following:
+            statements. The elements which constitute an address match
+            list can be any of the following:
           </p>
 <div class="itemizedlist"><ul type="disc">
 <li>an IP address (IPv4 or IPv6)</li>
@@ -462,26 +461,27 @@
 <p>
             Elements can be negated with a leading exclamation mark (`!'),
             and the match list names "any", "none", "localhost", and
-            "localnets"
-            are predefined. More information on those names can be found in
-            the description of the acl statement.
+            "localnets" are predefined. More information on those names
+            can be found in the description of the acl statement.
           </p>
 <p>
             The addition of the key clause made the name of this syntactic
             element something of a misnomer, since security keys can be used
             to validate access without regard to a host or network address.
-            Nonetheless,
-            the term "address match list" is still used throughout the
-            documentation.
+            Nonetheless, the term "address match list" is still used
+            throughout the documentation.
           </p>
 <p>
             When a given IP address or prefix is compared to an address
-            match list, the list is traversed in order until an element
-            matches.
+            match list, the comparison takes place in approximately O(1)
+            time.  However, key comparisons require that the list of keys
+            be traversed until a matching key is found, and therefore may
+            be somewhat slower.
+          </p>
+<p>
             The interpretation of a match depends on whether the list is being
-            used
-            for access control, defining listen-on ports, or in a sortlist,
-            and whether the element was negated.
+            used for access control, defining listen-on ports, or in a
+            sortlist, and whether the element was negated.
           </p>
 <p>
             When used as an access control list, a non-negated match
@@ -499,28 +499,30 @@
             <span><strong class="command">allow-update-forwarding</strong></span>, and
             <span><strong class="command">blackhole</strong></span> all use address match
             lists.  Similarly, the listen-on option will cause the
-            server to not accept queries on any of the machine's
+            server to refuse queries on any of the machine's
             addresses which do not match the list.
           </p>
 <p>
-            Because of the first-match aspect of the algorithm, an element
-            that defines a subset of another element in the list should come
-            before the broader element, regardless of whether either is
-            negated. For
-            example, in
-            <span><strong class="command">1.2.3/24; ! 1.2.3.13;</strong></span> the 1.2.3.13
-            element is
-            completely useless because the algorithm will match any lookup for
-            1.2.3.13 to the 1.2.3/24 element.
-            Using <span><strong class="command">! 1.2.3.13; 1.2.3/24</strong></span> fixes
-            that problem by having 1.2.3.13 blocked by the negation but all
-            other 1.2.3.* hosts fall through.
+            Order of insertion is signficant.  If more than one element
+            in an ACL is found to match a given IP address or prefix,
+            preference will be given to the one that came
+            <span class="emphasis"><em>first</em></span> in the ACL definition.
+            Because of this first-match behavior, an element that
+            defines a subset of another element in the list should
+            come before the broader element, regardless of whether
+            either is negated. For example, in
+            <span><strong class="command">1.2.3/24; ! 1.2.3.13;</strong></span>
+            the 1.2.3.13 element is completely useless because the
+            algorithm will match any lookup for 1.2.3.13 to the 1.2.3/24
+            element.  Using <span><strong class="command">! 1.2.3.13; 1.2.3/24</strong></span> fixes
+            that problem by having 1.2.3.13 blocked by the negation, but
+            all other 1.2.3.* hosts fall through.
           </p>
 </div>
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2573511"></a>Comment Syntax</h3></div></div></div>
+<a name="id2573587"></a>Comment Syntax</h3></div></div></div>
 <p>
           The <acronym class="acronym">BIND</acronym> 9 comment syntax allows for
           comments to appear
@@ -530,7 +532,7 @@
         </p>
 <div class="sect3" lang="en">
 <div class="titlepage"><div><div><h4 class="title">
-<a name="id2573594"></a>Syntax</h4></div></div></div>
+<a name="id2573602"></a>Syntax</h4></div></div></div>
 <p>
             </p>
 <pre class="programlisting">/* This is a <acronym class="acronym">BIND</acronym> comment as in C */</pre>
@@ -545,7 +547,7 @@
 </div>
 <div class="sect3" lang="en">
 <div class="titlepage"><div><div><h4 class="title">
-<a name="id2573624"></a>Definition and Usage</h4></div></div></div>
+<a name="id2573632"></a>Definition and Usage</h4></div></div></div>
 <p>
             Comments may appear anywhere that whitespace may appear in
             a <acronym class="acronym">BIND</acronym> configuration file.
@@ -779,7 +781,7 @@
       </p>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2574123"></a><span><strong class="command">acl</strong></span> Statement Grammar</h3></div></div></div>
+<a name="id2574131"></a><span><strong class="command">acl</strong></span> Statement Grammar</h3></div></div></div>
 <pre class="programlisting"><span><strong class="command">acl</strong></span> acl-name {
     address_match_list
 };
@@ -797,8 +799,7 @@
 <p>
           Note that an address match list's name must be defined
           with <span><strong class="command">acl</strong></span> before it can be used
-          elsewhere; no
-          forward references are allowed.
+          elsewhere; no forward references are allowed.
         </p>
 <p>
           The following ACLs are built-in:
@@ -862,7 +863,7 @@
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2574313"></a><span><strong class="command">controls</strong></span> Statement Grammar</h3></div></div></div>
+<a name="id2574321"></a><span><strong class="command">controls</strong></span> Statement Grammar</h3></div></div></div>
 <pre class="programlisting"><span><strong class="command">controls</strong></span> {
    [ inet ( ip_addr | * ) [ port ip_port ] allow { <em class="replaceable"><code> address_match_list </code></em> }
                 keys { <em class="replaceable"><code>key_list</code></em> }; ]
@@ -984,12 +985,12 @@
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2574810"></a><span><strong class="command">include</strong></span> Statement Grammar</h3></div></div></div>
+<a name="id2574749"></a><span><strong class="command">include</strong></span> Statement Grammar</h3></div></div></div>
 <pre class="programlisting">include <em class="replaceable"><code>filename</code></em>;</pre>
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2574825"></a><span><strong class="command">include</strong></span> Statement Definition and
+<a name="id2574764"></a><span><strong class="command">include</strong></span> Statement Definition and
           Usage</h3></div></div></div>
 <p>
           The <span><strong class="command">include</strong></span> statement inserts the
@@ -1004,7 +1005,7 @@
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2574849"></a><span><strong class="command">key</strong></span> Statement Grammar</h3></div></div></div>
+<a name="id2574788"></a><span><strong class="command">key</strong></span> Statement Grammar</h3></div></div></div>
 <pre class="programlisting">key <em class="replaceable"><code>key_id</code></em> {
     algorithm <em class="replaceable"><code>string</code></em>;
     secret <em class="replaceable"><code>string</code></em>;
@@ -1013,7 +1014,7 @@
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2574870"></a><span><strong class="command">key</strong></span> Statement Definition and Usage</h3></div></div></div>
+<a name="id2574809"></a><span><strong class="command">key</strong></span> Statement Definition and Usage</h3></div></div></div>
 <p>
           The <span><strong class="command">key</strong></span> statement defines a shared
           secret key for use with TSIG (see <a href="Bv9ARM.ch04.html#tsig" title="TSIG">the section called &#8220;TSIG&#8221;</a>)
@@ -1060,7 +1061,7 @@
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2574961"></a><span><strong class="command">logging</strong></span> Statement Grammar</h3></div></div></div>
+<a name="id2575036"></a><span><strong class="command">logging</strong></span> Statement Grammar</h3></div></div></div>
 <pre class="programlisting"><span><strong class="command">logging</strong></span> {
    [ <span><strong class="command">channel</strong></span> <em class="replaceable"><code>channel_name</code></em> {
      ( <span><strong class="command">file</strong></span> <em class="replaceable"><code>path name</code></em>
@@ -1084,7 +1085,7 @@
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2575086"></a><span><strong class="command">logging</strong></span> Statement Definition and
+<a name="id2575162"></a><span><strong class="command">logging</strong></span> Statement Definition and
           Usage</h3></div></div></div>
 <p>
           The <span><strong class="command">logging</strong></span> statement configures a
@@ -1118,7 +1119,7 @@
         </p>
 <div class="sect3" lang="en">
 <div class="titlepage"><div><div><h4 class="title">
-<a name="id2575139"></a>The <span><strong class="command">channel</strong></span> Phrase</h4></div></div></div>
+<a name="id2575214"></a>The <span><strong class="command">channel</strong></span> Phrase</h4></div></div></div>
 <p>
             All log output goes to one or more <span class="emphasis"><em>channels</em></span>;
             you can make as many of them as you want.
@@ -1573,8 +1574,8 @@ category notify { null; };
                       class and type.  It also reports whether the
                       Recursion Desired flag was set (+ if set, -
                       if not set), if the query was signed (S),
-                      EDNS was in use (E), if DO (DNSSSEC ok) was
-                      set (D), or if CD (checking disabled) was set
+                      EDNS was in use (E), if DO (DNSSEC Ok) was
+                      set (D), or if CD (Checking Disabled) was set
                       (C).
                     </p>
 
@@ -1674,7 +1675,7 @@ category notify { null; };
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2576467"></a><span><strong class="command">lwres</strong></span> Statement Grammar</h3></div></div></div>
+<a name="id2576474"></a><span><strong class="command">lwres</strong></span> Statement Grammar</h3></div></div></div>
 <p>
            This is the grammar of the <span><strong class="command">lwres</strong></span>
           statement in the <code class="filename">named.conf</code> file:
@@ -1689,7 +1690,7 @@ category notify { null; };
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2576609"></a><span><strong class="command">lwres</strong></span> Statement Definition and Usage</h3></div></div></div>
+<a name="id2576616"></a><span><strong class="command">lwres</strong></span> Statement Definition and Usage</h3></div></div></div>
 <p>
           The <span><strong class="command">lwres</strong></span> statement configures the
           name
@@ -1740,14 +1741,14 @@ category notify { null; };
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2576673"></a><span><strong class="command">masters</strong></span> Statement Grammar</h3></div></div></div>
+<a name="id2576680"></a><span><strong class="command">masters</strong></span> Statement Grammar</h3></div></div></div>
 <pre class="programlisting">
 <span><strong class="command">masters</strong></span> <em class="replaceable"><code>name</code></em> [<span class="optional">port <em class="replaceable"><code>ip_port</code></em></span>] { ( <em class="replaceable"><code>masters_list</code></em> | <em class="replaceable"><code>ip_addr</code></em> [<span class="optional">port <em class="replaceable"><code>ip_port</code></em></span>] [<span class="optional">key <em class="replaceable"><code>key</code></em></span>] ) ; [<span class="optional">...</span>] };
 </pre>
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2576716"></a><span><strong class="command">masters</strong></span> Statement Definition and
+<a name="id2576724"></a><span><strong class="command">masters</strong></span> Statement Definition and
           Usage</h3></div></div></div>
 <p><span><strong class="command">masters</strong></span>
           lists allow for a common set of masters to be easily used by
@@ -1756,7 +1757,7 @@ category notify { null; };
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2576731"></a><span><strong class="command">options</strong></span> Statement Grammar</h3></div></div></div>
+<a name="id2576739"></a><span><strong class="command">options</strong></span> Statement Grammar</h3></div></div></div>
 <p>
           This is the grammar of the <span><strong class="command">options</strong></span>
           statement in the <code class="filename">named.conf</code> file:
@@ -1773,6 +1774,7 @@ category notify { null; };
     [<span class="optional"> tkey-dhkey <em class="replaceable"><code>key_name</code></em> <em class="replaceable"><code>key_tag</code></em>; </span>]
     [<span class="optional"> cache-file <em class="replaceable"><code>path_name</code></em>; </span>]
     [<span class="optional"> dump-file <em class="replaceable"><code>path_name</code></em>; </span>]
+    [<span class="optional"> memstatistics <em class="replaceable"><code>yes_or_no</code></em>; </span>]
     [<span class="optional"> memstatistics-file <em class="replaceable"><code>path_name</code></em>; </span>]
     [<span class="optional"> pid-file <em class="replaceable"><code>path_name</code></em>; </span>]
     [<span class="optional"> recursing-file <em class="replaceable"><code>path_name</code></em>; </span>]
@@ -1863,6 +1865,7 @@ category notify { null; };
     [<span class="optional"> notify-delay <em class="replaceable"><code>seconds</code></em> ; </span>]
     [<span class="optional"> notify-source (<em class="replaceable"><code>ip4_addr</code></em> | <code class="constant">*</code>) [<span class="optional">port <em class="replaceable"><code>ip_port</code></em></span>] ; </span>]
     [<span class="optional"> notify-source-v6 (<em class="replaceable"><code>ip6_addr</code></em> | <code class="constant">*</code>) [<span class="optional">port <em class="replaceable"><code>ip_port</code></em></span>] ; </span>]
+    [<span class="optional"> notify-to-soa <em class="replaceable"><code>yes_or_no</code></em> ; </span>]
     [<span class="optional"> also-notify { <em class="replaceable"><code>ip_addr</code></em> [<span class="optional">port <em class="replaceable"><code>ip_port</code></em></span>] ; [<span class="optional"> <em class="replaceable"><code>ip_addr</code></em> [<span class="optional">port <em class="replaceable"><code>ip_port</code></em></span>] ; ... </span>] }; </span>]
     [<span class="optional"> max-ixfr-log-size <em class="replaceable"><code>number</code></em>; </span>]
     [<span class="optional"> max-journal-size <em class="replaceable"><code>size_spec</code></em>; </span>]
@@ -2020,8 +2023,7 @@ category notify { null; };
 <dd><p>
                 The pathname of the file the server writes memory
                 usage statistics to on exit. If not specified,
-                the default is
-                <code class="filename">named.memstats</code>.
+                the default is <code class="filename">named.memstats</code>.
               </p></dd>
 <dt><span class="term"><span><strong class="command">pid-file</strong></span></span></dt>
 <dd><p>
@@ -2167,6 +2169,14 @@ options {
                   8 to enable checking
                   for memory leaks on exit. <acronym class="acronym">BIND</acronym> 9 ignores the option and always performs
                   the checks.
+                </p></dd>
+<dt><span class="term"><span><strong class="command">memstatistics</strong></span></span></dt>
+<dd><p>
+                  Write memory statistics to the file specfied by
+                  <span><strong class="command">memstatistics-file</strong></span> at exit.
+                  The default is <strong class="userinput"><code>no</code></strong> unless
+                  '-m record' is specified on the command line in
+                  which case it is <strong class="userinput"><code>yes</code></strong>.
                 </p></dd>
 <dt><span class="term"><span><strong class="command">dialup</strong></span></span></dt>
 <dd>
@@ -2487,6 +2497,17 @@ options {
                   to crash.
                 </p>
 </dd>
+<dt><span class="term"><span><strong class="command">notify-to-soa</strong></span></span></dt>
+<dd><p>
+                  If <strong class="userinput"><code>yes</code></strong> do not check the nameservers
+                  in the NS RRset against the SOA MNAME.  Normally a NOTIFY
+                  message is not sent to the SOA MNAME (SOA ORIGIN) as it is
+                  supposed to contain the name of the ultimate master.
+                  Sometimes, however, a slave is listed as the SOA MNAME in
+                  hidden master configurations and in that case you would
+                  want the ultimate master to still send NOTIFY messages to
+                  all the nameservers listed in the NS RRset.
+                </p></dd>
 <dt><span class="term"><span><strong class="command">recursion</strong></span></span></dt>
 <dd><p>
                   If <strong class="userinput"><code>yes</code></strong>, and a
@@ -2763,7 +2784,7 @@ options {
                   from RFC 952 and RFC 821 as modified by RFC 1123.
                 </p>
 <p><span><strong class="command">check-names</strong></span>
-                  applies to the owner names of A, AAA and MX records.
+                  applies to the owner names of A, AAAA and MX records.
                   It also applies to the domain names in the RDATA of NS, SOA
                   and MX records.
                   It also applies to the RDATA of PTR records where the owner
@@ -2851,7 +2872,7 @@ options {
 </div>
 <div class="sect3" lang="en">
 <div class="titlepage"><div><div><h4 class="title">
-<a name="id2580750"></a>Forwarding</h4></div></div></div>
+<a name="id2580812"></a>Forwarding</h4></div></div></div>
 <p>
             The forwarding facility can be used to create a large site-wide
             cache on a few servers, reducing traffic over links to external
@@ -2895,7 +2916,7 @@ options {
 </div>
 <div class="sect3" lang="en">
 <div class="titlepage"><div><div><h4 class="title">
-<a name="id2580809"></a>Dual-stack Servers</h4></div></div></div>
+<a name="id2581008"></a>Dual-stack Servers</h4></div></div></div>
 <p>
             Dual-stack servers are used as servers of last resort to work
             around
@@ -3091,7 +3112,7 @@ options {
 </div>
 <div class="sect3" lang="en">
 <div class="titlepage"><div><div><h4 class="title">
-<a name="id2581442"></a>Interfaces</h4></div></div></div>
+<a name="id2581504"></a>Interfaces</h4></div></div></div>
 <p>
             The interfaces and ports that the server will answer queries
             from may be specified using the <span><strong class="command">listen-on</strong></span> option. <span><strong class="command">listen-on</strong></span> takes
@@ -3475,7 +3496,7 @@ query-source-v6 address * port *;
 </div>
 <div class="sect3" lang="en">
 <div class="titlepage"><div><div><h4 class="title">
-<a name="id2582408"></a>Bad UDP Port Lists</h4></div></div></div>
+<a name="id2582538"></a>Bad UDP Port Lists</h4></div></div></div>
 <p><span><strong class="command">avoid-v4-udp-ports</strong></span>
             and <span><strong class="command">avoid-v6-udp-ports</strong></span> specify a list
             of IPv4 and IPv6 UDP ports that will not be used as system
@@ -3489,7 +3510,7 @@ query-source-v6 address * port *;
 </div>
 <div class="sect3" lang="en">
 <div class="titlepage"><div><div><h4 class="title">
-<a name="id2582423"></a>Operating System Resource Limits</h4></div></div></div>
+<a name="id2582553"></a>Operating System Resource Limits</h4></div></div></div>
 <p>
             The server's usage of many system resources can be limited.
             Scaled values are allowed when specifying resource limits.  For
@@ -3548,7 +3569,7 @@ query-source-v6 address * port *;
 </div>
 <div class="sect3" lang="en">
 <div class="titlepage"><div><div><h4 class="title">
-<a name="id2582606"></a>Server  Resource Limits</h4></div></div></div>
+<a name="id2582668"></a>Server  Resource Limits</h4></div></div></div>
 <p>
             The following options set limits on the server's
             resource consumption that are enforced internally by the
@@ -3607,9 +3628,7 @@ query-source-v6 address * port *;
                   with
                   multiple views, the limit applies separately to the cache of
                   each
-                  view.  The default is <code class="literal">unlimited</code>, meaning that
-                  records are purged from the cache only when their TTLs
-                  expire.
+                  view.  The default is <code class="literal">32M</code>.
                 </p></dd>
 <dt><span class="term"><span><strong class="command">tcp-listen-queue</strong></span></span></dt>
 <dd><p>
@@ -3626,7 +3645,7 @@ query-source-v6 address * port *;
 </div>
 <div class="sect3" lang="en">
 <div class="titlepage"><div><div><h4 class="title">
-<a name="id2582808"></a>Periodic Task Intervals</h4></div></div></div>
+<a name="id2582870"></a>Periodic Task Intervals</h4></div></div></div>
 <div class="variablelist"><dl>
 <dt><span class="term"><span><strong class="command">cleaning-interval</strong></span></span></dt>
 <dd><p>
@@ -4505,10 +4524,7 @@ query-source-v6 address * port *;
                   In a server with multiple views, the limit applies
                   separately to the
                   acache of each view.
-                  The default is <code class="literal">unlimited</code>,
-                  meaning that
-                  entries are purged from the acache only at the
-                  periodic cleaning time.
+                  The default is <code class="literal">16M</code>.
                 </p></dd>
 </dl></div>
 </div>
@@ -4709,7 +4725,7 @@ query-source-v6 address * port *;
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2585664"></a><span><strong class="command">trusted-keys</strong></span> Statement Grammar</h3></div></div></div>
+<a name="id2585725"></a><span><strong class="command">trusted-keys</strong></span> Statement Grammar</h3></div></div></div>
 <pre class="programlisting">trusted-keys {
     <em class="replaceable"><code>string</code></em> <em class="replaceable"><code>number</code></em> <em class="replaceable"><code>number</code></em> <em class="replaceable"><code>number</code></em> <em class="replaceable"><code>string</code></em> ;
     [<span class="optional"> <em class="replaceable"><code>string</code></em> <em class="replaceable"><code>number</code></em> <em class="replaceable"><code>number</code></em> <em class="replaceable"><code>number</code></em> <em class="replaceable"><code>string</code></em> ; [<span class="optional">...</span>]</span>]
@@ -4718,7 +4734,7 @@ query-source-v6 address * port *;
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2585713"></a><span><strong class="command">trusted-keys</strong></span> Statement Definition
+<a name="id2585774"></a><span><strong class="command">trusted-keys</strong></span> Statement Definition
             and Usage</h3></div></div></div>
 <p>
             The <span><strong class="command">trusted-keys</strong></span> statement defines
@@ -4761,7 +4777,7 @@ query-source-v6 address * port *;
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2585793"></a><span><strong class="command">view</strong></span> Statement Definition and Usage</h3></div></div></div>
+<a name="id2585854"></a><span><strong class="command">view</strong></span> Statement Definition and Usage</h3></div></div></div>
 <p>
             The <span><strong class="command">view</strong></span> statement is a powerful
             feature
@@ -4907,6 +4923,7 @@ view "external" {
     [<span class="optional"> max-transfer-time-out <em class="replaceable"><code>number</code></em> ; </span>]
     [<span class="optional"> notify <em class="replaceable"><code>yes_or_no</code></em> | <em class="replaceable"><code>explicit</code></em> | <em class="replaceable"><code>master-only</code></em> ; </span>]
     [<span class="optional"> notify-delay <em class="replaceable"><code>seconds</code></em> ; </span>]
+    [<span class="optional"> notify-to-soa <em class="replaceable"><code>yes_or_no</code></em>; </span>]
     [<span class="optional"> pubkey <em class="replaceable"><code>number</code></em> <em class="replaceable"><code>number</code></em> <em class="replaceable"><code>number</code></em> <em class="replaceable"><code>string</code></em> ; </span>]
     [<span class="optional"> notify-source (<em class="replaceable"><code>ip4_addr</code></em> | <code class="constant">*</code>) [<span class="optional">port <em class="replaceable"><code>ip_port</code></em></span>] ; </span>]
     [<span class="optional"> notify-source-v6 (<em class="replaceable"><code>ip6_addr</code></em> | <code class="constant">*</code>) [<span class="optional">port <em class="replaceable"><code>ip_port</code></em></span>] ; </span>]
@@ -4948,6 +4965,8 @@ zone <em class="replaceable"><code>zone_name</code></em> [<span class="optional"
     [<span class="optional"> max-transfer-time-in <em class="replaceable"><code>number</code></em> ; </span>]
     [<span class="optional"> max-transfer-time-out <em class="replaceable"><code>number</code></em> ; </span>]
     [<span class="optional"> notify <em class="replaceable"><code>yes_or_no</code></em> | <em class="replaceable"><code>explicit</code></em> | <em class="replaceable"><code>master-only</code></em> ; </span>]
+    [<span class="optional"> notify-delay <em class="replaceable"><code>seconds</code></em> ; </span>]
+    [<span class="optional"> notify-to-soa <em class="replaceable"><code>yes_or_no</code></em>; </span>]
     [<span class="optional"> pubkey <em class="replaceable"><code>number</code></em> <em class="replaceable"><code>number</code></em> <em class="replaceable"><code>number</code></em> <em class="replaceable"><code>string</code></em> ; </span>]
     [<span class="optional"> transfer-source (<em class="replaceable"><code>ip4_addr</code></em> | <code class="constant">*</code>) [<span class="optional">port <em class="replaceable"><code>ip_port</code></em></span>] ; </span>]
     [<span class="optional"> transfer-source-v6 (<em class="replaceable"><code>ip6_addr</code></em> | <code class="constant">*</code>) [<span class="optional">port <em class="replaceable"><code>ip_port</code></em></span>] ; </span>]
@@ -5017,10 +5036,10 @@ zone <em class="replaceable"><code>zone_name</code></em> [<span class="optional"
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2587264"></a><span><strong class="command">zone</strong></span> Statement Definition and Usage</h3></div></div></div>
+<a name="id2587345"></a><span><strong class="command">zone</strong></span> Statement Definition and Usage</h3></div></div></div>
 <div class="sect3" lang="en">
 <div class="titlepage"><div><div><h4 class="title">
-<a name="id2587271"></a>Zone Types</h4></div></div></div>
+<a name="id2587352"></a>Zone Types</h4></div></div></div>
 <div class="informaltable"><table border="1">
 <colgroup>
 <col>
@@ -5229,7 +5248,7 @@ zone <em class="replaceable"><code>zone_name</code></em> [<span class="optional"
 </div>
 <div class="sect3" lang="en">
 <div class="titlepage"><div><div><h4 class="title">
-<a name="id2587690"></a>Class</h4></div></div></div>
+<a name="id2587840"></a>Class</h4></div></div></div>
 <p>
               The zone's name may optionally be followed by a class. If
               a class is not specified, class <code class="literal">IN</code> (for <code class="varname">Internet</code>),
@@ -5251,7 +5270,7 @@ zone <em class="replaceable"><code>zone_name</code></em> [<span class="optional"
 </div>
 <div class="sect3" lang="en">
 <div class="titlepage"><div><div><h4 class="title">
-<a name="id2587860"></a>Zone Options</h4></div></div></div>
+<a name="id2587941"></a>Zone Options</h4></div></div></div>
 <div class="variablelist"><dl>
 <dt><span class="term"><span><strong class="command">allow-notify</strong></span></span></dt>
 <dd><p>
@@ -5457,6 +5476,12 @@ zone <em class="replaceable"><code>zone_name</code></em> [<span class="optional"
 <dd><p>
                     See the description of
                     <span><strong class="command">notify-delay</strong></span> in <a href="Bv9ARM.ch06.html#tuning" title="Tuning">the section called &#8220;Tuning&#8221;</a>.
+                  </p></dd>
+<dt><span class="term"><span><strong class="command">notify-to-soa</strong></span></span></dt>
+<dd><p>
+                    See the description of
+                    <span><strong class="command">notify-to-soa</strong></span> in
+                    <a href="Bv9ARM.ch06.html#boolean_options" title="Boolean Options">the section called &#8220;Boolean Options&#8221;</a>.
                   </p></dd>
 <dt><span class="term"><span><strong class="command">pubkey</strong></span></span></dt>
 <dd><p>
@@ -5746,7 +5771,7 @@ zone <em class="replaceable"><code>zone_name</code></em> [<span class="optional"
 </div>
 <div class="sect1" lang="en">
 <div class="titlepage"><div><div><h2 class="title" style="clear: both">
-<a name="id2589589"></a>Zone File</h2></div></div></div>
+<a name="id2589691"></a>Zone File</h2></div></div></div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
 <a name="types_of_resource_records_and_when_to_use_them"></a>Types of Resource Records and When to Use Them</h3></div></div></div>
@@ -5759,7 +5784,7 @@ zone <em class="replaceable"><code>zone_name</code></em> [<span class="optional"
           </p>
 <div class="sect3" lang="en">
 <div class="titlepage"><div><div><h4 class="title">
-<a name="id2589607"></a>Resource Records</h4></div></div></div>
+<a name="id2589778"></a>Resource Records</h4></div></div></div>
 <p>
               A domain name identifies a node.  Each node has a set of
               resource information, which may be empty.  The set of resource
@@ -6410,7 +6435,7 @@ zone <em class="replaceable"><code>zone_name</code></em> [<span class="optional"
 </div>
 <div class="sect3" lang="en">
 <div class="titlepage"><div><div><h4 class="title">
-<a name="id2590953"></a>Textual expression of RRs</h4></div></div></div>
+<a name="id2591124"></a>Textual expression of RRs</h4></div></div></div>
 <p>
               RRs are represented in binary form in the packets of the DNS
               protocol, and are usually represented in highly encoded form
@@ -6613,7 +6638,7 @@ zone <em class="replaceable"><code>zone_name</code></em> [<span class="optional"
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2591542"></a>Discussion of MX Records</h3></div></div></div>
+<a name="id2591644"></a>Discussion of MX Records</h3></div></div></div>
 <p>
             As described above, domain servers store information as a
             series of resource records, each of which contains a particular
@@ -6871,7 +6896,7 @@ zone <em class="replaceable"><code>zone_name</code></em> [<span class="optional"
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2592230"></a>Inverse Mapping in IPv4</h3></div></div></div>
+<a name="id2592401"></a>Inverse Mapping in IPv4</h3></div></div></div>
 <p>
             Reverse name resolution (that is, translation from IP address
             to name) is achieved by means of the <span class="emphasis"><em>in-addr.arpa</em></span> domain
@@ -6932,7 +6957,7 @@ zone <em class="replaceable"><code>zone_name</code></em> [<span class="optional"
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2592357"></a>Other Zone File Directives</h3></div></div></div>
+<a name="id2592528"></a>Other Zone File Directives</h3></div></div></div>
 <p>
             The Master File Format was initially defined in RFC 1035 and
             has subsequently been extended. While the Master File Format
@@ -6947,7 +6972,7 @@ zone <em class="replaceable"><code>zone_name</code></em> [<span class="optional"
           </p>
 <div class="sect3" lang="en">
 <div class="titlepage"><div><div><h4 class="title">
-<a name="id2592448"></a>The <span><strong class="command">$ORIGIN</strong></span> Directive</h4></div></div></div>
+<a name="id2592550"></a>The <span><strong class="command">$ORIGIN</strong></span> Directive</h4></div></div></div>
 <p>
               Syntax: <span><strong class="command">$ORIGIN</strong></span>
               <em class="replaceable"><code>domain-name</code></em>
@@ -6975,7 +7000,7 @@ WWW.EXAMPLE.COM. CNAME MAIN-SERVER.EXAMPLE.COM.
 </div>
 <div class="sect3" lang="en">
 <div class="titlepage"><div><div><h4 class="title">
-<a name="id2592577"></a>The <span><strong class="command">$INCLUDE</strong></span> Directive</h4></div></div></div>
+<a name="id2592611"></a>The <span><strong class="command">$INCLUDE</strong></span> Directive</h4></div></div></div>
 <p>
               Syntax: <span><strong class="command">$INCLUDE</strong></span>
               <em class="replaceable"><code>filename</code></em>
@@ -7011,7 +7036,7 @@ WWW.EXAMPLE.COM. CNAME MAIN-SERVER.EXAMPLE.COM.
 </div>
 <div class="sect3" lang="en">
 <div class="titlepage"><div><div><h4 class="title">
-<a name="id2592646"></a>The <span><strong class="command">$TTL</strong></span> Directive</h4></div></div></div>
+<a name="id2592748"></a>The <span><strong class="command">$TTL</strong></span> Directive</h4></div></div></div>
 <p>
               Syntax: <span><strong class="command">$TTL</strong></span>
               <em class="replaceable"><code>default-ttl</code></em>
@@ -7030,7 +7055,7 @@ WWW.EXAMPLE.COM. CNAME MAIN-SERVER.EXAMPLE.COM.
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2592682"></a><acronym class="acronym">BIND</acronym> Master File Extension: the  <span><strong class="command">$GENERATE</strong></span> Directive</h3></div></div></div>
+<a name="id2592785"></a><acronym class="acronym">BIND</acronym> Master File Extension: the  <span><strong class="command">$GENERATE</strong></span> Directive</h3></div></div></div>
 <p>
             Syntax: <span><strong class="command">$GENERATE</strong></span>
             <em class="replaceable"><code>range</code></em>

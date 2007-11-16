@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: aclconf.c,v 1.9 2007/06/19 23:47:22 tbox Exp $ */
+/* $Id: aclconf.c,v 1.14 2007/10/19 00:28:20 each Exp $ */
 
 #include <config.h>
 
@@ -27,6 +27,7 @@
 #include <isccfg/aclconf.h>
 
 #include <dns/acl.h>
+#include <dns/iptable.h>
 #include <dns/fixedname.h>
 #include <dns/log.h>
 
@@ -39,7 +40,8 @@ cfg_aclconfctx_init(cfg_aclconfctx_t *ctx) {
 
 void
 cfg_aclconfctx_destroy(cfg_aclconfctx_t *ctx) {
-     	dns_acl_t *dacl, *next;
+	dns_acl_t *dacl, *next;
+
 	for (dacl = ISC_LIST_HEAD(ctx->named_acl_cache);
 	     dacl != NULL;
 	     dacl = next)
@@ -67,7 +69,9 @@ get_acl_def(const cfg_obj_t *cctx, const char *name, const cfg_obj_t **ret) {
 		const cfg_obj_t *acl = cfg_listelt_value(elt);
 		const char *aclname = cfg_obj_asstring(cfg_tuple_get(acl, "name"));
 		if (strcasecmp(aclname, name) == 0) {
-			*ret = cfg_tuple_get(acl, "value");
+			if (ret != NULL) {
+				*ret = cfg_tuple_get(acl, "value");
+			}
 			return (ISC_R_SUCCESS);
 		}
 	}
@@ -77,7 +81,8 @@ get_acl_def(const cfg_obj_t *cctx, const char *name, const cfg_obj_t **ret) {
 static isc_result_t
 convert_named_acl(const cfg_obj_t *nameobj, const cfg_obj_t *cctx,
 		  isc_log_t *lctx, cfg_aclconfctx_t *ctx,
-		  isc_mem_t *mctx, dns_acl_t **target)
+		  isc_mem_t *mctx, unsigned int nest_level,
+		  dns_acl_t **target)
 {
 	isc_result_t result;
 	const cfg_obj_t *cacl = NULL;
@@ -115,7 +120,8 @@ convert_named_acl(const cfg_obj_t *nameobj, const cfg_obj_t *cctx,
 	DE_CONST(aclname, loop.name);
 	loop.magic = LOOP_MAGIC;
 	ISC_LIST_APPEND(ctx->named_acl_cache, &loop, nextincache);
-	result = cfg_acl_fromconfig(cacl, cctx, lctx, ctx, mctx, &dacl);
+	result = cfg_acl_fromconfig(cacl, cctx, lctx, ctx, mctx,
+				    nest_level, &dacl);
 	ISC_LIST_UNLINK(ctx->named_acl_cache, &loop, nextincache);
 	loop.magic = 0;
 	loop.name = NULL;
@@ -157,28 +163,44 @@ convert_keyname(const cfg_obj_t *keyobj, isc_log_t *lctx, isc_mem_t *mctx,
 isc_result_t
 cfg_acl_fromconfig(const cfg_obj_t *caml,
 		   const cfg_obj_t *cctx,
-	 	   isc_log_t *lctx,
+		   isc_log_t *lctx,
 		   cfg_aclconfctx_t *ctx,
 		   isc_mem_t *mctx,
+		   unsigned int nest_level,
 		   dns_acl_t **target)
 {
 	isc_result_t result;
-	unsigned int count;
-	dns_acl_t *dacl = NULL;
+	dns_acl_t *dacl = NULL, *inneracl = NULL;
 	dns_aclelement_t *de;
 	const cfg_listelt_t *elt;
+	dns_iptable_t *iptab;
 
-	REQUIRE(target != NULL && *target == NULL);
+	REQUIRE(target != NULL);
+	REQUIRE(*target == NULL || DNS_ACL_VALID(*target));
 
-	count = 0;
-	for (elt = cfg_list_first(caml);
-	     elt != NULL;
-	     elt = cfg_list_next(elt))
-		count++;
-
-	result = dns_acl_create(mctx, count, &dacl);
-	if (result != ISC_R_SUCCESS)
-		return (result);
+	if (*target != NULL) {
+		/*
+		 * If target already points to an ACL, then we're being
+		 * called recursively to configure a nested ACL.  The
+		 * nested ACL's contents should just be absorbed into its
+		 * parent ACL.
+		 */
+		dns_acl_attach(*target, &dacl);
+		dns_acl_detach(target);
+	} else {
+		/*
+		 * Need to allocate a new ACL structure.  Count the items
+		 * in the ACL definition and allocate space for that many
+		 * elements (even though some or all of them may end up in
+		 * the iptable instead of the element array).
+		 */
+		isc_boolean_t recurse = ISC_TF(nest_level == 0);
+		result = dns_acl_create(mctx,
+					cfg_list_length(caml, recurse),
+					&dacl);
+		if (result != ISC_R_SUCCESS)
+			return (result);
+	}
 
 	de = dacl->elements;
 	for (elt = cfg_list_first(caml);
@@ -186,55 +208,142 @@ cfg_acl_fromconfig(const cfg_obj_t *caml,
 	     elt = cfg_list_next(elt))
 	{
 		const cfg_obj_t *ce = cfg_listelt_value(elt);
+		isc_boolean_t	neg;
+
 		if (cfg_obj_istuple(ce)) {
 			/* This must be a negated element. */
 			ce = cfg_tuple_get(ce, "value");
-			de->negative = ISC_TRUE;
-		} else {
-			de->negative = ISC_FALSE;
+			neg = ISC_TRUE;
+		} else
+			neg = ISC_FALSE;
+
+		/*
+		 * If nest_level is nonzero, then every element is
+		 * to be stored as a separate, nested ACL rather than
+		 * merged into the main iptable.
+		 */
+		iptab = dacl->iptable;
+
+		if (nest_level != 0) {
+			result = dns_acl_create(mctx,
+						cfg_list_length(ce, ISC_FALSE),
+						&de->nestedacl);
+			if (result != ISC_R_SUCCESS)
+				goto cleanup;
+			iptab = de->nestedacl->iptable;
 		}
 
 		if (cfg_obj_isnetprefix(ce)) {
 			/* Network prefix */
-			de->type = dns_aclelementtype_ipprefix;
+			isc_netaddr_t	addr;
+			unsigned int	bitlen;
 
-			cfg_obj_asnetprefix(ce,
-					    &de->u.ip_prefix.address,
-					    &de->u.ip_prefix.prefixlen);
+			cfg_obj_asnetprefix(ce, &addr, &bitlen);
+
+                        /*
+                         * If nesting ACLs (nest_level != 0), we negate
+                         * the nestedacl element, not the iptable entry
+                         */
+			result = dns_iptable_addprefix(iptab, &addr, bitlen,
+				              ISC_TF(nest_level != 0 || !neg));
+			if (result != ISC_R_SUCCESS)
+				goto cleanup;
+
+			if (nest_level != 0) {
+				de->type = dns_aclelementtype_nestedacl;
+				de->negative = neg;
+			} else
+				continue;
+		} else if (cfg_obj_islist(ce)) {
+			/*
+			 * If we're nesting ACLs, put the nested
+			 * ACL onto the elements list; otherwise
+			 * merge it into *this* ACL.
+			 */
+			if (nest_level == 0) {
+				if (inneracl != NULL)
+					dns_acl_detach(&inneracl);
+
+				result = cfg_acl_fromconfig(ce, cctx, lctx,
+							    ctx, mctx, 0,
+						 	    &inneracl);
+				if (result != ISC_R_SUCCESS)
+					goto cleanup;
+
+				dns_acl_merge(dacl, inneracl,
+					      ISC_TF(!neg));
+				dns_acl_detach(&inneracl);
+				continue;
+			} else {
+				de->type = dns_aclelementtype_nestedacl;
+				de->negative = neg;
+				result = cfg_acl_fromconfig(ce, cctx, lctx,
+							    ctx, mctx,
+						 	    nest_level - 1,
+						 	    &de->nestedacl);
+				if (result != ISC_R_SUCCESS)
+					goto cleanup;
+				/* Fall through */
+			}
 		} else if (cfg_obj_istype(ce, &cfg_type_keyref)) {
 			/* Key name */
 			de->type = dns_aclelementtype_keyname;
-			dns_name_init(&de->u.keyname, NULL);
+			de->negative = neg;
+			dns_name_init(&de->keyname, NULL);
 			result = convert_keyname(ce, lctx, mctx,
-						 &de->u.keyname);
-			if (result != ISC_R_SUCCESS)
-				goto cleanup;
-		} else if (cfg_obj_islist(ce)) {
-			/* Nested ACL */
-			de->type = dns_aclelementtype_nestedacl;
-			result = cfg_acl_fromconfig(ce, cctx, lctx, ctx,
-						    mctx, &de->u.nestedacl);
+						 &de->keyname);
 			if (result != ISC_R_SUCCESS)
 				goto cleanup;
 		} else if (cfg_obj_isstring(ce)) {
 			/* ACL name */
 			const char *name = cfg_obj_asstring(ce);
-			if (strcasecmp(name, "localhost") == 0) {
+			if (strcasecmp(name, "any") == 0) {
+				/* iptable entry with zero bit length */
+				dns_iptable_addprefix(iptab, NULL, 0,
+						      ISC_TRUE);
+				continue;
+			} else if (strcasecmp(name, "none") == 0) {
+				/* negated "any" */
+				dns_iptable_addprefix(iptab, NULL, 0,
+						      ISC_FALSE);
+				continue;
+			} else if (strcasecmp(name, "localhost") == 0) {
 				de->type = dns_aclelementtype_localhost;
+				de->negative = neg;
 			} else if (strcasecmp(name, "localnets") == 0) {
 				de->type = dns_aclelementtype_localnets;
-			}  else if (strcasecmp(name, "any") == 0) {
-				de->type = dns_aclelementtype_any;
-			}  else if (strcasecmp(name, "none") == 0) {
-				de->type = dns_aclelementtype_any;
-				de->negative = ISC_TF(! de->negative);
+				de->negative = neg;
 			} else {
-				de->type = dns_aclelementtype_nestedacl;
-				result = convert_named_acl(ce, cctx, lctx,
-							   ctx, mctx,
-							   &de->u.nestedacl);
+				result = get_acl_def(cctx, name, NULL);
+				if (result == ISC_R_SUCCESS) {
+					/* found it in acl definitions */
+					if (inneracl != NULL)
+						dns_acl_detach(&inneracl);
+					result = convert_named_acl(ce, cctx,
+							lctx, ctx, mctx,
+							(nest_level != 0)
+							  ?  (nest_level - 1)
+							  : 0,
+							&inneracl);
+				}
 				if (result != ISC_R_SUCCESS)
 					goto cleanup;
+
+				if (nest_level != 0) {
+					de->type = dns_aclelementtype_nestedacl;
+					de->negative = neg;
+					if(de->nestedacl != NULL)
+						dns_acl_detach(&de->nestedacl);
+					dns_acl_attach(inneracl,
+						       &de->nestedacl);
+					dns_acl_detach(&inneracl);
+					/* Fall through */
+				} else {
+					dns_acl_merge(dacl, inneracl,
+						      ISC_TF(!neg));
+					dns_acl_detach(&inneracl);
+					continue;
+				}
 			}
 		} else {
 			cfg_obj_log(ce, lctx, ISC_LOG_WARNING,
@@ -243,14 +352,30 @@ cfg_acl_fromconfig(const cfg_obj_t *caml,
 			result = ISC_R_FAILURE;
 			goto cleanup;
 		}
+
+		/*
+		 * This should only be reached for localhost, localnets
+		 * and keyname elements, and nested ACLs if nest_level is
+		 * nonzero (i.e., in sortlists). 
+		 */
+		if (de->nestedacl != NULL &&
+		    de->type != dns_aclelementtype_nestedacl)
+			dns_acl_detach(&de->nestedacl);
+
+		dacl->node_count++;
+		de->node_num = dacl->node_count;
+
 		de++;
 		dacl->length++;
+		INSIST(dacl->length <= dacl->alloc);
 	}
 
-	*target = dacl;
-	return (ISC_R_SUCCESS);
+	dns_acl_attach(dacl, target);
+	result = ISC_R_SUCCESS;
 
  cleanup:
+	if (inneracl != NULL)
+		dns_acl_detach(&inneracl);
 	dns_acl_detach(&dacl);
 	return (result);
 }

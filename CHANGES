@@ -1,4 +1,160 @@
 
+	--- 9.5.0a7 released ---
+
+2258.	[bug]		Fallback from IXFR/TSIG to SOA/AXFR/TSIG broken.
+			[RT #17241]
+
+2257.	[bug]		win32: Use the full path to vcredist_x86.exe when
+			calling it. [RT #17222]
+
+2256.	[bug]		win32: Correctly register the installation location of
+			bindevt.dll. [RT #17159]
+
+2255.	[bug]		L.ROOT-SERVERS.NET is now 199.7.83.42.
+
+2254.	[bug]		timer.c:dispatch() failed to lock timer->lock
+			when reading timer->idle allowing it to see
+			intermediate values as timer->idle was reset by
+			isc_timer_touch(). [RT #17243]
+
+2253.	[func]	 	"max-cache-size" defaults to 32M.
+			"max-acache-size" defaults to 16M.
+
+2252.   [bug]           Fixed errors in sortlist code [RT #17216]
+
+2251.	[placeholder]
+
+2250.	[func]		New flag 'memstatistics' to state whether the
+			memory statistics file should be written or not.
+			Additionally named's -m option will cause the
+			statistics file to be written. [RT #17113]
+			
+2249.   [bug]           Only set Authentic Data bit if client requested
+                        DNSSEC, per RFC 3655 [RT #17175]
+
+2248.   [cleanup]       Fix several errors reported by Coverity. [RT #17160]
+
+2247.	[doc]		Sort doc/misc/options. [RT #17067]
+
+2246.	[bug]		Make the startup of test servers (ans.pl) more
+			robust. [RT #17147]
+
+2245.	[bug]		Validating lack of DS records at trust anchors wasn't
+			working. [RT #17151]
+
+2244.	[func]		Allow the check of nameserver names against the
+			SOA MNAME field to be disabled by specifying
+			'notify-to-soa yes;'.  [RT #17073]
+
+2243.	[func]		Configuration files without a newline at the end now
+			parse without error. [RT #17120]
+
+2242.	[bug]		nsupdate: GSS-TSIG support using the Heimdal Kerberos
+			library could require a source of random data.
+			[RT #17127]
+
+2241.	[func]		nsupdate: add a interative 'help' command. [RT #17099]
+
+2240.	[bug]		Cleanup nsupdates GSS-TSIG support.  Convert
+			a number of INSIST()s into plain fatal() errors
+			which report the triggering result code.
+			The 'key' command wasn't disabling GSS-TSIG.
+			[RT #17099]
+
+2239.	[func]		Ship a prebuilt bin/named/bind9.xsl.h. [RT #17114]
+
+2238.	[bug]		It was possible to trigger a REQUIRE when a
+			validation was cancelled. [RT #17106]
+
+2237.	[bug]		libbind: res_init() was not thread aware. [RT #17123]
+
+2236.	[bug]		dnssec-signzone failed to preserve the case of
+			of wildcard owner names. [RT #17085]
+
+2235.	[bug]		<isc/atomic.h> was not being installed. [RT #17135]
+
+2234.   [port]          Correct some compiler warnings on SCO OSr5 [RT #17134]
+  
+2233.   [func]          Add support for O(1) ACL processing, based on
+                        radix tree code originally written by kevin
+                        brintnall. [RT #16288]
+
+2232.	[bug]		dns_adb_findaddrinfo() could fail and return
+			ISC_R_SUCCESS. [RT #17137]
+
+2231.	[bug]		Building dlzbdb (contrib/dlz/bin/dlzbdb) was broken.
+			[RT #17088]
+
+2230.	[bug]		We could INSIST reading a corrupted journal.
+			[RT #17132]
+
+2229.	[bug]		Null pointer dereference on query pool creation
+			failure. [RT #17133]
+
+2228.	[contrib]	contrib: Change 2188 was incomplete.
+
+2227.	[cleanup]	Tidied up the FAQ. [RT #17121]
+
+2226.	[placeholder]
+
+2225.	[bug]		More support for systems with no IPv4 addresses.
+		        [RT #17111]
+
+2224.	[bug]		Defer journal compaction if a xfrin is in progress.
+			[RT #17119]
+
+2223.	[bug]		Make a new journal when compacting. [RT #17119]
+
+2222.	[func]		named-checkconf now checks server key references.
+		        [RT #17097]
+
+2221.	[bug]		Set the event result code to reflect the actual
+			record turned to caller when a cache update is
+			rejected due to a more credible answer existing.
+			[RT #17017]
+
+2220.	[bug]		win32: Address a race condition in final shutdown of
+			the Windows socket code. [RT #17028]
+			
+2219.	[bug]		Apply zone consistancy checks to additions, not
+			removals, when updating. [RT #17049]
+
+2218.	[bug]		Remove unnecessary REQUIRE from dns_validator_create().
+			[RT #16976]
+
+2217.	[func]		Adjust update log levels. [RT #17092]
+
+2216.	[cleanup]	Fix a number of errors reported by Coverity.
+		        [RT #17094]
+
+2215.	[bug]		Bad REQUIRE check isc_hmacsha1_verify(). [RT #17094]
+
+2214.	[bug]		Deregister OpenSSL lock callback when cleaning
+			up.  Reorder OpenSSL cleanup so that RAND_cleanup()
+			is called before the locks are destroyed. [RT #17098]
+
+2213.	[bug]		SIG0 diagnostic failure messages were looking at the
+			wrong status code. [RT #17101]
+
+2212.	[func]		'host -m' now causes memory statistics and active
+			memory to be printed at exit. [RT 17028]
+
+2211.	[func]		Update "dynamic update temporarily disabled" message.
+			[RT #17065]
+
+2210.	[bug]		Deleting class specific records via UPDATE could
+			fail.  [RT #17074]
+
+2209.	[port]		osx: linking against user supplied static OpenSSL
+			libraries failed as the system ones were still being
+			found. [RT #17078]
+
+2208.	[port]		win32: make sure both build methods produce the
+			same output. [RT #17058]
+
+2207.	[port]		Some implementations of getaddrinfo() fail to set
+			ai_canonname correctly. [RT #17061]
+
 	--- 9.5.0a6 released ---
 
 2206.	[security]	"allow-query-cache" and "allow-recursion" now
@@ -18,7 +174,7 @@
 	
 2205.	[bug]		libbind: change #2119 broke thread support. [RT #16982]
 
-2204	[bug]		"rndc flushanme name unknown-view" caused named
+2204.	[bug]		"rndc flushanme name unknown-view" caused named
 			to crash. [RT #16984]
 
 2203.	[security]	Query id generation was cryptographically weak.

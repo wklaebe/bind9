@@ -18,7 +18,7 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<!-- File: $Id: Bv9ARM-book.xml,v 1.331 2007/07/09 02:14:39 marka Exp $ -->
+<!-- File: $Id: Bv9ARM-book.xml,v 1.339 2007/10/19 17:15:53 explorer Exp $ -->
 <book xmlns:xi="http://www.w3.org/2001/XInclude">
   <title>BIND 9 Administrator Reference Manual</title>
 
@@ -3023,9 +3023,8 @@ $ORIGIN 0.0.0.0.0.0.0.0.8.b.d.0.1.0.0.2.ip6.arpa.
             Address match lists are primarily used to determine access
             control for various server operations. They are also used in
             the <command>listen-on</command> and <command>sortlist</command>
-            statements. The elements
-            which constitute an address match list can be any of the
-            following:
+            statements. The elements which constitute an address match
+            list can be any of the following:
           </para>
           <itemizedlist>
             <listitem>
@@ -3053,28 +3052,30 @@ $ORIGIN 0.0.0.0.0.0.0.0.8.b.d.0.1.0.0.2.ip6.arpa.
           <para>
             Elements can be negated with a leading exclamation mark (`!'),
             and the match list names "any", "none", "localhost", and
-            "localnets"
-            are predefined. More information on those names can be found in
-            the description of the acl statement.
+            "localnets" are predefined. More information on those names
+            can be found in the description of the acl statement.
           </para>
 
           <para>
             The addition of the key clause made the name of this syntactic
             element something of a misnomer, since security keys can be used
             to validate access without regard to a host or network address.
-            Nonetheless,
-            the term "address match list" is still used throughout the
-            documentation.
+            Nonetheless, the term "address match list" is still used
+            throughout the documentation.
           </para>
 
           <para>
             When a given IP address or prefix is compared to an address
-            match list, the list is traversed in order until an element
-            matches.
+            match list, the comparison takes place in approximately O(1)
+            time.  However, key comparisons require that the list of keys
+            be traversed until a matching key is found, and therefore may
+            be somewhat slower.
+          </para>
+
+          <para>
             The interpretation of a match depends on whether the list is being
-            used
-            for access control, defining listen-on ports, or in a sortlist,
-            and whether the element was negated.
+            used for access control, defining listen-on ports, or in a
+            sortlist, and whether the element was negated.
           </para>
 
 	  <para>
@@ -3093,23 +3094,25 @@ $ORIGIN 0.0.0.0.0.0.0.0.8.b.d.0.1.0.0.2.ip6.arpa.
 	    <command>allow-update-forwarding</command>, and
 	    <command>blackhole</command> all use address match
 	    lists.  Similarly, the listen-on option will cause the
-	    server to not accept queries on any of the machine's
+	    server to refuse queries on any of the machine's
 	    addresses which do not match the list.
 	  </para>
 
           <para>
-            Because of the first-match aspect of the algorithm, an element
-            that defines a subset of another element in the list should come
-            before the broader element, regardless of whether either is
-            negated. For
-            example, in
-            <command>1.2.3/24; ! 1.2.3.13;</command> the 1.2.3.13
-            element is
-            completely useless because the algorithm will match any lookup for
-            1.2.3.13 to the 1.2.3/24 element.
-            Using <command>! 1.2.3.13; 1.2.3/24</command> fixes
-            that problem by having 1.2.3.13 blocked by the negation but all
-            other 1.2.3.* hosts fall through.
+            Order of insertion is signficant.  If more than one element
+            in an ACL is found to match a given IP address or prefix,
+            preference will be given to the one that came
+            <emphasis>first</emphasis> in the ACL definition.
+            Because of this first-match behavior, an element that
+            defines a subset of another element in the list should
+            come before the broader element, regardless of whether
+            either is negated. For example, in
+            <command>1.2.3/24; ! 1.2.3.13;</command>
+            the 1.2.3.13 element is completely useless because the
+            algorithm will match any lookup for 1.2.3.13 to the 1.2.3/24
+            element.  Using <command>! 1.2.3.13; 1.2.3/24</command> fixes
+            that problem by having 1.2.3.13 blocked by the negation, but
+            all other 1.2.3.* hosts fall through.
           </para>
         </sect3>
       </sect2>
@@ -3390,8 +3393,7 @@ $ORIGIN 0.0.0.0.0.0.0.0.8.b.d.0.1.0.0.2.ip6.arpa.
         <para>
           Note that an address match list's name must be defined
           with <command>acl</command> before it can be used
-          elsewhere; no
-          forward references are allowed.
+          elsewhere; no forward references are allowed.
         </para>
 
         <para>
@@ -4212,8 +4214,8 @@ category notify { null; };
 		      class and type.  It also reports whether the
 		      Recursion Desired flag was set (+ if set, -
 		      if not set), if the query was signed (S),
-		      EDNS was in use (E), if DO (DNSSSEC ok) was
-		      set (D), or if CD (checking disabled) was set
+		      EDNS was in use (E), if DO (DNSSEC Ok) was
+		      set (D), or if CD (Checking Disabled) was set
 		      (C).
 		    </para>
 
@@ -4423,6 +4425,7 @@ category notify { null; };
     <optional> tkey-dhkey <replaceable>key_name</replaceable> <replaceable>key_tag</replaceable>; </optional>
     <optional> cache-file <replaceable>path_name</replaceable>; </optional>
     <optional> dump-file <replaceable>path_name</replaceable>; </optional>
+    <optional> memstatistics <replaceable>yes_or_no</replaceable>; </optional>
     <optional> memstatistics-file <replaceable>path_name</replaceable>; </optional>
     <optional> pid-file <replaceable>path_name</replaceable>; </optional>
     <optional> recursing-file <replaceable>path_name</replaceable>; </optional>
@@ -4513,6 +4516,7 @@ category notify { null; };
     <optional> notify-delay <replaceable>seconds</replaceable> ; </optional>
     <optional> notify-source (<replaceable>ip4_addr</replaceable> | <constant>*</constant>) <optional>port <replaceable>ip_port</replaceable></optional> ; </optional>
     <optional> notify-source-v6 (<replaceable>ip6_addr</replaceable> | <constant>*</constant>) <optional>port <replaceable>ip_port</replaceable></optional> ; </optional>
+    <optional> notify-to-soa <replaceable>yes_or_no</replaceable> ; </optional>
     <optional> also-notify { <replaceable>ip_addr</replaceable> <optional>port <replaceable>ip_port</replaceable></optional> ; <optional> <replaceable>ip_addr</replaceable> <optional>port <replaceable>ip_port</replaceable></optional> ; ... </optional> }; </optional>
     <optional> max-ixfr-log-size <replaceable>number</replaceable>; </optional>
     <optional> max-journal-size <replaceable>size_spec</replaceable>; </optional>
@@ -4716,8 +4720,7 @@ category notify { null; };
               <para>
                 The pathname of the file the server writes memory
                 usage statistics to on exit. If not specified,
-                the default is
-                <filename>named.memstats</filename>.
+                the default is <filename>named.memstats</filename>.
               </para>
             </listitem>
           </varlistentry>
@@ -4925,6 +4928,19 @@ options {
                   8 to enable checking
                   for memory leaks on exit. <acronym>BIND</acronym> 9 ignores the option and always performs
                   the checks.
+                </para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><command>memstatistics</command></term>
+              <listitem>
+                <para>
+		  Write memory statistics to the file specfied by
+		  <command>memstatistics-file</command> at exit.
+		  The default is <userinput>no</userinput> unless
+		  '-m record' is specified on the command line in
+		  which case it is <userinput>yes</userinput>.
                 </para>
               </listitem>
             </varlistentry>
@@ -5298,6 +5314,22 @@ options {
             </varlistentry>
 
             <varlistentry>
+              <term><command>notify-to-soa</command></term>
+              <listitem>
+                <para>
+		  If <userinput>yes</userinput> do not check the nameservers
+		  in the NS RRset against the SOA MNAME.  Normally a NOTIFY
+		  message is not sent to the SOA MNAME (SOA ORIGIN) as it is
+		  supposed to contain the name of the ultimate master.
+		  Sometimes, however, a slave is listed as the SOA MNAME in
+		  hidden master configurations and in that case you would
+		  want the ultimate master to still send NOTIFY messages to
+		  all the nameservers listed in the NS RRset.
+                </para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
               <term><command>recursion</command></term>
               <listitem>
                 <para>
@@ -5647,7 +5679,7 @@ options {
                   from RFC 952 and RFC 821 as modified by RFC 1123.
                 </para>
                 <para><command>check-names</command>
-		  applies to the owner names of A, AAA and MX records.
+		  applies to the owner names of A, AAAA and MX records.
 		  It also applies to the domain names in the RDATA of NS, SOA
 		  and MX records.
 		  It also applies to the RDATA of PTR records where the owner
@@ -6780,9 +6812,7 @@ query-source-v6 address * port *;
                   with
                   multiple views, the limit applies separately to the cache of
                   each
-                  view.  The default is <literal>unlimited</literal>, meaning that
-                  records are purged from the cache only when their TTLs
-                  expire.
+                  view.  The default is <literal>32M</literal>.
                 </para>
               </listitem>
             </varlistentry>
@@ -7826,10 +7856,7 @@ query-source-v6 address * port *;
                   In a server with multiple views, the limit applies
                   separately to the
                   acache of each view.
-                  The default is <literal>unlimited</literal>,
-                  meaning that
-                  entries are purged from the acache only at the
-                  periodic cleaning time.
+                  The default is <literal>16M</literal>.
                 </para>
               </listitem>
             </varlistentry>
@@ -8263,6 +8290,7 @@ view "external" {
     <optional> max-transfer-time-out <replaceable>number</replaceable> ; </optional>
     <optional> notify <replaceable>yes_or_no</replaceable> | <replaceable>explicit</replaceable> | <replaceable>master-only</replaceable> ; </optional>
     <optional> notify-delay <replaceable>seconds</replaceable> ; </optional>
+    <optional> notify-to-soa <replaceable>yes_or_no</replaceable>; </optional>
     <optional> pubkey <replaceable>number</replaceable> <replaceable>number</replaceable> <replaceable>number</replaceable> <replaceable>string</replaceable> ; </optional>
     <optional> notify-source (<replaceable>ip4_addr</replaceable> | <constant>*</constant>) <optional>port <replaceable>ip_port</replaceable></optional> ; </optional>
     <optional> notify-source-v6 (<replaceable>ip6_addr</replaceable> | <constant>*</constant>) <optional>port <replaceable>ip_port</replaceable></optional> ; </optional>
@@ -8304,6 +8332,8 @@ zone <replaceable>zone_name</replaceable> <optional><replaceable>class</replacea
     <optional> max-transfer-time-in <replaceable>number</replaceable> ; </optional>
     <optional> max-transfer-time-out <replaceable>number</replaceable> ; </optional>
     <optional> notify <replaceable>yes_or_no</replaceable> | <replaceable>explicit</replaceable> | <replaceable>master-only</replaceable> ; </optional>
+    <optional> notify-delay <replaceable>seconds</replaceable> ; </optional>
+    <optional> notify-to-soa <replaceable>yes_or_no</replaceable>; </optional>
     <optional> pubkey <replaceable>number</replaceable> <replaceable>number</replaceable> <replaceable>number</replaceable> <replaceable>string</replaceable> ; </optional>
     <optional> transfer-source (<replaceable>ip4_addr</replaceable> | <constant>*</constant>) <optional>port <replaceable>ip_port</replaceable></optional> ; </optional>
     <optional> transfer-source-v6 (<replaceable>ip6_addr</replaceable> | <constant>*</constant>) <optional>port <replaceable>ip_port</replaceable></optional> ; </optional>
@@ -8961,6 +8991,17 @@ zone <replaceable>zone_name</replaceable> <optional><replaceable>class</replacea
                   <para>
                     See the description of
                     <command>notify-delay</command> in <xref linkend="tuning"/>.
+                  </para>
+                </listitem>
+              </varlistentry>
+
+              <varlistentry>
+                <term><command>notify-to-soa</command></term>
+                <listitem>
+                  <para>
+                    See the description of
+                    <command>notify-to-soa</command> in
+		    <xref linkend="boolean_options"/>.
                   </para>
                 </listitem>
               </varlistentry>
@@ -11024,18 +11065,18 @@ zone "example.com" {
       <sect1>
         <title>Incrementing and Changing the Serial Number</title>
 
-        <para>
-          Zone serial numbers are just numbers &mdash; they aren't date
-          related.  A lot of people set them to a number that represents a
-          date, usually of the form YYYYMMDDRR. A number of people
-          tested these numbers for Y2K compliance and set the number
-          to the year 2000 to see if it would work. They then tried to restore
-          the old serial number. This caused problems because serial
-          numbers are used to indicate that a zone has been updated. If the
-          serial number on the slave server is lower than the serial number
-          on the master, the slave server will attempt to update its copy of
-          the zone.
-        </para>
+	<para>
+	  Zone serial numbers are just numbers &mdash; they aren't
+	  date related.  A lot of people set them to a number that
+	  represents a date, usually of the form YYYYMMDDRR.
+	  Occasionally they will make a mistake and set them to a
+	  "date in the future" then try to correct them by setting
+	  them to the "current date".  This causes problems because
+	  serial numbers are used to indicate that a zone has been
+	  updated.  If the serial number on the slave server is
+	  lower than the serial number on the master, the slave
+	  server will attempt to update its copy of the zone.
+	</para>
 
         <para>
           Setting the serial number to a lower number on the master
@@ -12247,15 +12288,6 @@ zone "example.com" {
                 </authorgroup>
                 <title>DNS IPv6 Transport Operational Guidelines</title>
                 <pubdate>September 2004</pubdate>
-              </biblioentry>
-              <biblioentry>
-                <abbrev>RFC2352</abbrev>
-                <author>
-                  <surname>Vaughan</surname>
-                  <firstname>O.</firstname>
-                </author>
-                <title>A Convention For Using Legal Names as Domain Names</title>
-                <pubdate>May 1998</pubdate>
               </biblioentry>
             </bibliodiv>
             <bibliodiv>

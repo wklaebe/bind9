@@ -16,7 +16,7 @@
  *
  * Portions Copyright (C) 1995-2000 by Network Associates, Inc.
  *
- * Permission to use, copy, modify, and distribute this software for any
+ * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -31,7 +31,7 @@
 
 /*
  * Principal Author: Brian Wellington
- * $Id: openssl_link.c,v 1.14 2007/06/19 23:47:16 tbox Exp $
+ * $Id: openssl_link.c,v 1.16 2007/08/28 07:20:42 tbox Exp $
  */
 #ifdef OPENSSL
 
@@ -197,6 +197,7 @@ dst__openssl_init() {
 	mem_free(rm);
 #endif
  cleanup_mutexinit:
+	CRYPTO_set_locking_callback(NULL);
 	DESTROYMUTEXBLOCK(locks, nlocks);
  cleanup_mutexalloc:
 	mem_free(locks);
@@ -240,15 +241,16 @@ dst__openssl_destroy() {
 	}
 #endif
 #endif
-	if (locks != NULL) {
-		DESTROYMUTEXBLOCK(locks, nlocks);
-		mem_free(locks);
-	}
 	if (rm != NULL) {
 #if OPENSSL_VERSION_NUMBER >= 0x00907000L
 		RAND_cleanup();
 #endif
 		mem_free(rm);
+	}
+	if (locks != NULL) {
+		CRYPTO_set_locking_callback(NULL);
+		DESTROYMUTEXBLOCK(locks, nlocks);
+		mem_free(locks);
 	}
 }
 

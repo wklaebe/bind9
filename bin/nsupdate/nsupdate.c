@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: nsupdate.c,v 1.151 2007/06/18 23:47:21 tbox Exp $ */
+/* $Id: nsupdate.c,v 1.154 2007/09/16 02:37:12 marka Exp $ */
 
 /*! \file */
 
@@ -148,7 +148,7 @@ static isc_sockaddr_t *localaddr = NULL;
 static isc_sockaddr_t *serveraddr = NULL;
 static isc_sockaddr_t tempaddr;
 static char *keystr = NULL, *keyfile = NULL;
-static isc_entropy_t *entp = NULL;
+static isc_entropy_t *entropy = NULL;
 static isc_boolean_t shuttingdown = ISC_FALSE;
 static FILE *input;
 static isc_boolean_t interactive = ISC_TRUE;
@@ -208,6 +208,69 @@ error(const char *format, ...) ISC_FORMAT_PRINTF(1, 2);
 #define STATUS_SEND	(isc_uint16_t)1
 #define STATUS_QUIT	(isc_uint16_t)2
 #define STATUS_SYNTAX	(isc_uint16_t)3
+
+typedef struct entropysource entropysource_t;
+
+struct entropysource {
+	isc_entropysource_t *source;
+	isc_mem_t *mctx;
+	ISC_LINK(entropysource_t) link;
+};
+
+static ISC_LIST(entropysource_t) sources;
+
+static void
+setup_entropy(isc_mem_t *mctx, const char *randomfile, isc_entropy_t **ectx)
+{
+	isc_result_t result;
+	isc_entropysource_t *source = NULL;
+	entropysource_t *elt;
+	int usekeyboard = ISC_ENTROPY_KEYBOARDMAYBE;
+
+	REQUIRE(ectx != NULL);
+
+	if (*ectx == NULL) {
+		result = isc_entropy_create(mctx, ectx);
+		if (result != ISC_R_SUCCESS)
+			fatal("could not create entropy object");
+		ISC_LIST_INIT(sources);
+	}
+
+	if (randomfile != NULL && strcmp(randomfile, "keyboard") == 0) {
+		usekeyboard = ISC_ENTROPY_KEYBOARDYES;
+		randomfile = NULL;
+	}
+
+	result = isc_entropy_usebestsource(*ectx, &source, randomfile,
+					   usekeyboard);
+
+	if (result != ISC_R_SUCCESS)
+		fatal("could not initialize entropy source: %s",
+		      isc_result_totext(result));
+
+	if (source != NULL) {
+		elt = isc_mem_get(mctx, sizeof(*elt));
+		if (elt == NULL)
+			fatal("out of memory");
+		elt->source = source;
+		elt->mctx = mctx;
+		ISC_LINK_INIT(elt, link);
+		ISC_LIST_APPEND(sources, elt, link);
+	}
+}
+
+static void
+cleanup_entropy(isc_entropy_t **ectx) {
+	entropysource_t *source;
+	while (!ISC_LIST_EMPTY(sources)) {
+		source = ISC_LIST_HEAD(sources);
+		ISC_LIST_UNLINK(sources, source, link);
+		isc_entropy_destroysource(&source->source);
+		isc_mem_put(source->mctx, source, sizeof(*source));
+	}
+	isc_entropy_detach(ectx);
+}
+
 
 static dns_rdataclass_t
 getzoneclass(void) {
@@ -565,10 +628,7 @@ doshutdown(void) {
 		is_dst_up = ISC_FALSE;
 	}
 
-	if (entp != NULL) {
-		ddebug("Detach from entropy");
-		isc_entropy_detach(&entp);
-	}
+	cleanup_entropy(&entropy);
 
 	lwres_conf_clear(lwctx);
 	lwres_context_destroy(&lwctx);
@@ -636,9 +696,6 @@ setup_system(void) {
 	if (!have_ipv4 && !have_ipv6)
 		fatal("could not find either IPv4 or IPv6");
 
-	result = isc_mem_create(0, 0, &mctx);
-	check_result(result, "isc_mem_create");
-
 	result = isc_log_create(mctx, &lctx, &logconfig);
 	check_result(result, "isc_log_create");
 
@@ -686,14 +743,13 @@ setup_system(void) {
 		}
 	}
 
-	result = isc_entropy_create(mctx, &entp);
-	check_result(result, "isc_entropy_create");
+	setup_entropy(mctx, NULL, &entropy);
 
-	result = isc_hash_create(mctx, entp, DNS_NAME_MAXWIRE);
+	result = isc_hash_create(mctx, entropy, DNS_NAME_MAXWIRE);
 	check_result(result, "isc_hash_create");
 	isc_hash_init();
 
-	result = dns_dispatchmgr_create(mctx, entp, &dispatchmgr);
+	result = dns_dispatchmgr_create(mctx, entropy, &dispatchmgr);
 	check_result(result, "dns_dispatchmgr_create");
 
 	result = isc_socketmgr_create(mctx, &socketmgr);
@@ -711,7 +767,7 @@ setup_system(void) {
 	result = isc_task_onshutdown(global_task, shutdown_program, NULL);
 	check_result(result, "isc_task_onshutdown");
 
-	result = dst_lib_init(mctx, entp, 0);
+	result = dst_lib_init(mctx, entropy, 0);
 	check_result(result, "dst_lib_init");
 	is_dst_up = ISC_TRUE;
 
@@ -767,16 +823,47 @@ get_address(char *host, in_port_t port, isc_sockaddr_t *sockaddr) {
 	INSIST(count == 1);
 }
 
+#define PARSE_ARGS_FMT "dDMl:y:govk:rR::t:u:"
+
 static void
-parse_args(int argc, char **argv) {
+pre_parse_args(int argc, char **argv) {
+	int ch;
+
+	while ((ch = isc_commandline_parse(argc, argv, PARSE_ARGS_FMT)) != -1) {
+		switch (ch) {
+		case 'M': /* was -dm */
+			debugging = ISC_TRUE;
+			ddebugging = ISC_TRUE;
+			memdebugging = ISC_TRUE;
+			isc_mem_debugging = ISC_MEM_DEBUGTRACE |
+					    ISC_MEM_DEBUGRECORD;
+			break;
+
+		case '?':
+			if (isc_commandline_option != '?')
+				fprintf(stderr, "%s: invalid argument -%c\n",
+					argv[0], isc_commandline_option);
+			fprintf(stderr, "usage: nsupdate [-d] "
+				"[-g | -o | -y keyname:secret | -k keyfile] "
+				"[-v] [filename]\n");
+			exit(1);
+
+		default:
+			break;
+		}
+	}
+	isc_commandline_reset = ISC_TRUE;
+	isc_commandline_index = 1;
+}
+
+static void
+parse_args(int argc, char **argv, isc_mem_t *mctx, isc_entropy_t **ectx) {
 	int ch;
 	isc_uint32_t i;
 	isc_result_t result;
 
 	debug("parse_args");
-	while ((ch = isc_commandline_parse(argc, argv, "dDMl:y:govk:r:t:u:")
-		) != -1)
-	{
+	while ((ch = isc_commandline_parse(argc, argv, PARSE_ARGS_FMT)) != -1) {
 		switch (ch) {
 		case 'd':
 			debugging = ISC_TRUE;
@@ -785,12 +872,7 @@ parse_args(int argc, char **argv) {
 			debugging = ISC_TRUE;
 			ddebugging = ISC_TRUE;
 			break;
-		case 'M': /* was -dm */
-			debugging = ISC_TRUE;
-			ddebugging = ISC_TRUE;
-			memdebugging = ISC_TRUE;
-			isc_mem_debugging = ISC_MEM_DEBUGTRACE |
-					    ISC_MEM_DEBUGRECORD;
+		case 'M':
 			break;
 		case 'l':
 			result = isc_parse_uint32(&i, isc_commandline_argument,
@@ -847,14 +929,10 @@ parse_args(int argc, char **argv) {
 				exit(1);
 			}
 			break;
-		case '?':
-			if (isc_commandline_option != '?')
-				fprintf(stderr, "%s: invalid argument -%c\n",
-					argv[0], isc_commandline_option);
-			fprintf(stderr, "usage: nsupdate [-d] "
-				"[-g | -o | -y keyname:secret | -k keyfile] "
-				"[-v] [filename]\n");
-			exit(1);
+
+		case 'R':
+			setup_entropy(mctx, isc_commandline_argument, ectx);
+			break;
 
 		default:
 			fprintf(stderr, "%s: unhandled option: %c\n",
@@ -1654,8 +1732,10 @@ get_next_command(void) {
 			show_message(stdout, answer, "Answer:");
 		return (STATUS_MORE);
 	}
-	if (strcasecmp(word, "key") == 0)
+	if (strcasecmp(word, "key") == 0) {
+		usegsstsig = ISC_FALSE;
 		return (evaluate_key(cmdline));
+	}
 	if (strcasecmp(word, "gsstsig") == 0) {
 #ifdef GSSAPI
 		usegsstsig = ISC_TRUE;
@@ -1672,6 +1752,28 @@ get_next_command(void) {
 #else
 		fprintf(stderr, "gsstsig not supported\n");
 #endif
+		return (STATUS_MORE);
+	}
+	if (strcasecmp(word, "help") == 0) {
+		fprintf(stdout,
+"local address [port]      (set local resolver)\n"
+"server address [port]     (set master server for zone)\n"
+"send                      (send the update request)\n"
+"show                      (show the update request)\n"
+"answer	                   (show the answer to the last request)\n"
+"quit                      (quit, any pending update is not sent\n"
+"help			   (display this message_\n"
+"key [hmac:]keyname secret (use TSIG to sign the request)\n"
+"gsstsig                   (use GSS_TSIG to sign the request)\n"
+"oldgsstsig                (use Microsoft's GSS_TSIG to sign the request)\n"
+"zone name                 (set the zone to be updated)\n"
+"class CLASS               (set the zone's DNS class, e.g. IN (default), CH)\n"
+"prereq nxdomain name      (does this name not exist)\n"
+"prereq yxdomain name      (does this name exist)\n"
+"prereq nxrrset ....       (does this RRset exist)\n"
+"prereq yxrrset ....       (does this RRset not exist)\n"
+"update add ....           (add the given record to the zone)\n"
+"update delete ....        (remove the given record(s) from the zone)\n");
 		return (STATUS_MORE);
 	}
 	fprintf(stderr, "incorrect section name: %s\n", word);
@@ -2142,6 +2244,10 @@ start_gssrequest(dns_name_t *master)
 		dns_tsigkeyring_destroy(&gssring);
 	gssring = NULL;
 	result = dns_tsigkeyring_create(mctx, &gssring);
+	
+	if (result != ISC_R_SUCCESS)
+		fatal("dns_tsigkeyring_create failed: %s",
+		      isc_result_totext(result));
 
 	dns_name_format(master, namestr, sizeof(namestr));
 	if (kserver == NULL) {
@@ -2157,30 +2263,45 @@ start_gssrequest(dns_name_t *master)
 	dns_fixedname_init(&fname);
 	servname = dns_fixedname_name(&fname);
 
-	sprintf(servicename,"DNS/%s", namestr);
+	result = isc_string_printf(servicename, sizeof(servicename),
+				   "DNS/%s", namestr);
+	if (result != ISC_R_SUCCESS)
+		fatal("isc_string_printf(servicename) failed: %s",
+		      isc_result_totext(result));
 	isc_buffer_init(&buf, servicename, strlen(servicename));
 	isc_buffer_add(&buf, strlen(servicename));
 	result = dns_name_fromtext(servname, &buf, dns_rootname,
 				   ISC_FALSE, NULL);
+	if (result != ISC_R_SUCCESS)
+		fatal("dns_name_fromtext(servname) failed: %s",
+		      isc_result_totext(result));
       
 	dns_fixedname_init(&fkname);
 	keyname = dns_fixedname_name(&fkname);
 
 	isc_random_get(&val);
-	sprintf(keystr, "%u.sig-%s", val, namestr);
+	result = isc_string_printf(keystr, sizeof(keystr), "%u.sig-%s",
+				   val, namestr);
+	if (result != ISC_R_SUCCESS)
+		fatal("isc_string_printf(keystr) failed: %s",
+		      isc_result_totext(result));
 	isc_buffer_init(&buf, keystr, strlen(keystr));
 	isc_buffer_add(&buf, strlen(keystr));
 
 	result = dns_name_fromtext(keyname, &buf, dns_rootname,
 				   ISC_FALSE, NULL);
-	INSIST(result == ISC_R_SUCCESS);
+	if (result != ISC_R_SUCCESS)
+		fatal("dns_name_fromtext(keyname) failed: %s",
+		      isc_result_totext(result));
 
 	/* Windows doesn't recognize name compression in the key name. */
 	keyname->attributes |= DNS_NAMEATTR_NOCOMPRESS;
 
 	rmsg = NULL;
 	result = dns_message_create(mctx, DNS_MESSAGE_INTENTRENDER, &rmsg);
-	INSIST(result == ISC_R_SUCCESS);
+	if (result != ISC_R_SUCCESS)
+		fatal("dns_message_create failed: %s",
+		      isc_result_totext(result));
 
 	/* Build first request. */
 
@@ -2189,7 +2310,9 @@ start_gssrequest(dns_name_t *master)
 					&context, use_win2k_gsstsig);
 	if (result == ISC_R_FAILURE)
 		fatal("Check your Kerberos ticket, it may have expired.");
-	INSIST(result == ISC_R_SUCCESS);
+	if (result != ISC_R_SUCCESS)
+		fatal("dns_tkey_buildgssquery failed: %s",
+		      isc_result_totext(result));
 
 	send_gssrequest(localaddr, kserver, rmsg, &request, context);
 }
@@ -2458,17 +2581,18 @@ cleanup(void) {
 		dns_message_destroy(&answer);
 
 #ifdef GSSAPI
-	if (usegsstsig) {
-		if (tsigkey != NULL) {
-			ddebug("detach tsigkey x%p", tsigkey);
-			dns_tsigkey_detach(&tsigkey);
-		}
-		ddebug("Destroying GSS-TSIG keyring");
-		if (gssring != NULL)
-			dns_tsigkeyring_destroy(&gssring);
+	if (tsigkey != NULL) {
+		ddebug("detach tsigkey x%p", tsigkey);
+		dns_tsigkey_detach(&tsigkey);
 	}
-	if (kserver != NULL)
+	if (gssring != NULL) {
+		ddebug("Destroying GSS-TSIG keyring");
+		dns_tsigkeyring_destroy(&gssring);
+	}
+	if (kserver != NULL) {
 		isc_mem_put(mctx, kserver, sizeof(isc_sockaddr_t));
+		kserver = NULL;
+	}
 #endif
 
 	ddebug("Shutting down task manager");
@@ -2533,7 +2657,12 @@ main(int argc, char **argv) {
 
 	isc_app_start();
 
-	parse_args(argc, argv);
+	pre_parse_args(argc, argv);
+
+	result = isc_mem_create(0, 0, &mctx);
+	check_result(result, "isc_mem_create");
+
+	parse_args(argc, argv, mctx, &entropy);
 
 	setup_system();
 

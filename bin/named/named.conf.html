@@ -13,7 +13,7 @@
  - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  - PERFORMANCE OF THIS SOFTWARE.
 -->
-<!-- $Id: named.conf.html,v 1.37 2007/06/20 02:27:32 marka Exp $ -->
+<!-- $Id: named.conf.html,v 1.40 2007/10/21 22:15:32 marka Exp $ -->
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
@@ -216,8 +216,8 @@ options {<br>
 	max-ncache-ttl <em class="replaceable"><code>integer</code></em>;<br>
 	max-cache-ttl <em class="replaceable"><code>integer</code></em>;<br>
 	transfer-format ( many-answers | one-answer );<br>
-	max-cache-size <em class="replaceable"><code>size_no_default</code></em>;<br>
-	max-acache-size <em class="replaceable"><code>size_no_default</code></em>;<br>
+	max-cache-size <em class="replaceable"><code>size</code></em>;<br>
+	max-acache-size <em class="replaceable"><code>size</code></em>;<br>
 	clients-per-query <em class="replaceable"><code>number</code></em>;<br>
 	max-clients-per-query <em class="replaceable"><code>number</code></em>;<br>
 	check-names ( master | slave | response )<br>
@@ -261,10 +261,12 @@ options {<br>
 	allow-update-forwarding { <em class="replaceable"><code>address_match_element</code></em>; ... };<br>
 	update-check-ksk <em class="replaceable"><code>boolean</code></em>;<br>
 <br>
+	masterfile-format ( text | raw );<br>
 	notify <em class="replaceable"><code>notifytype</code></em>;<br>
 	notify-source ( <em class="replaceable"><code>ipv4_address</code></em> | * ) [<span class="optional"> port ( <em class="replaceable"><code>integer</code></em> | * ) </span>];<br>
 	notify-source-v6 ( <em class="replaceable"><code>ipv6_address</code></em> | * ) [<span class="optional"> port ( <em class="replaceable"><code>integer</code></em> | * ) </span>];<br>
 	notify-delay <em class="replaceable"><code>seconds</code></em>;<br>
+	notify-to-soa <em class="replaceable"><code>boolean</code></em>;<br>
 	also-notify [<span class="optional"> port <em class="replaceable"><code>integer</code></em> </span>] { ( <em class="replaceable"><code>ipv4_address</code></em> | <em class="replaceable"><code>ipv6_address</code></em> )<br>
 		[<span class="optional"> port <em class="replaceable"><code>integer</code></em> </span>]; ... };<br>
 	allow-notify { <em class="replaceable"><code>address_match_element</code></em>; ... };<br>
@@ -319,7 +321,7 @@ options {<br>
 </p></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2544424"></a><h2>VIEW</h2>
+<a name="id2544428"></a><h2>VIEW</h2>
 <div class="literallayout"><p><br>
 view <em class="replaceable"><code>string</code></em> <em class="replaceable"><code>optional_class</code></em> {<br>
 	match-clients { <em class="replaceable"><code>address_match_element</code></em>; ... };<br>
@@ -370,8 +372,8 @@ view <em class="replaceable"><code>string</code></em> <em class="replaceable"><c
 	max-ncache-ttl <em class="replaceable"><code>integer</code></em>;<br>
 	max-cache-ttl <em class="replaceable"><code>integer</code></em>;<br>
 	transfer-format ( many-answers | one-answer );<br>
-	max-cache-size <em class="replaceable"><code>size_no_default</code></em>;<br>
-	max-acache-size <em class="replaceable"><code>size_no_default</code></em>;<br>
+	max-cache-size <em class="replaceable"><code>size</code></em>;<br>
+	max-acache-size <em class="replaceable"><code>size</code></em>;<br>
 	clients-per-query <em class="replaceable"><code>number</code></em>;<br>
 	max-clients-per-query <em class="replaceable"><code>number</code></em>;<br>
 	check-names ( master | slave | response )<br>
@@ -415,10 +417,12 @@ view <em class="replaceable"><code>string</code></em> <em class="replaceable"><c
 	allow-update-forwarding { <em class="replaceable"><code>address_match_element</code></em>; ... };<br>
 	update-check-ksk <em class="replaceable"><code>boolean</code></em>;<br>
 <br>
+	masterfile-format ( text | raw );<br>
 	notify <em class="replaceable"><code>notifytype</code></em>;<br>
 	notify-source ( <em class="replaceable"><code>ipv4_address</code></em> | * ) [<span class="optional"> port ( <em class="replaceable"><code>integer</code></em> | * ) </span>];<br>
 	notify-source-v6 ( <em class="replaceable"><code>ipv6_address</code></em> | * ) [<span class="optional"> port ( <em class="replaceable"><code>integer</code></em> | * ) </span>];<br>
 	notify-delay <em class="replaceable"><code>seconds</code></em>;<br>
+	notify-to-soa <em class="replaceable"><code>boolean</code></em>;<br>
 	also-notify [<span class="optional"> port <em class="replaceable"><code>integer</code></em> </span>] { ( <em class="replaceable"><code>ipv4_address</code></em> | <em class="replaceable"><code>ipv6_address</code></em> )<br>
 		[<span class="optional"> port <em class="replaceable"><code>integer</code></em> </span>]; ... };<br>
 	allow-notify { <em class="replaceable"><code>address_match_element</code></em>; ... };<br>
@@ -465,7 +469,7 @@ view <em class="replaceable"><code>string</code></em> <em class="replaceable"><c
 </p></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2545081"></a><h2>ZONE</h2>
+<a name="id2545090"></a><h2>ZONE</h2>
 <div class="literallayout"><p><br>
 zone <em class="replaceable"><code>string</code></em> <em class="replaceable"><code>optional_class</code></em> {<br>
 	type ( master | slave | stub | hint |<br>
@@ -502,10 +506,12 @@ zone <em class="replaceable"><code>string</code></em> <em class="replaceable"><c
 	};<br>
 	update-check-ksk <em class="replaceable"><code>boolean</code></em>;<br>
 <br>
+	masterfile-format ( text | raw );<br>
 	notify <em class="replaceable"><code>notifytype</code></em>;<br>
 	notify-source ( <em class="replaceable"><code>ipv4_address</code></em> | * ) [<span class="optional"> port ( <em class="replaceable"><code>integer</code></em> | * ) </span>];<br>
 	notify-source-v6 ( <em class="replaceable"><code>ipv6_address</code></em> | * ) [<span class="optional"> port ( <em class="replaceable"><code>integer</code></em> | * ) </span>];<br>
 	notify-delay <em class="replaceable"><code>seconds</code></em>;<br>
+	notify-to-soa <em class="replaceable"><code>boolean</code></em>;<br>
 	also-notify [<span class="optional"> port <em class="replaceable"><code>integer</code></em> </span>] { ( <em class="replaceable"><code>ipv4_address</code></em> | <em class="replaceable"><code>ipv6_address</code></em> )<br>
 		[<span class="optional"> port <em class="replaceable"><code>integer</code></em> </span>]; ... };<br>
 	allow-notify { <em class="replaceable"><code>address_match_element</code></em>; ... };<br>
@@ -551,12 +557,12 @@ zone <em class="replaceable"><code>string</code></em> <em class="replaceable"><c
 </p></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2545371"></a><h2>FILES</h2>
+<a name="id2545384"></a><h2>FILES</h2>
 <p><code class="filename">/etc/named.conf</code>
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2545383"></a><h2>SEE ALSO</h2>
+<a name="id2545396"></a><h2>SEE ALSO</h2>
 <p><span class="citerefentry"><span class="refentrytitle">named</span>(8)</span>,
       <span class="citerefentry"><span class="refentrytitle">named-checkconf</span>(8)</span>,
       <span class="citerefentry"><span class="refentrytitle">rndc</span>(8)</span>,

@@ -1,4 +1,4 @@
-bind9 (1:9.4.2~rc2-1) experimental-UNRELEASED; urgency=low
+bind9 (1:9.4.2~rc2-1) experimental; urgency=low
 
   * New upstream release
 

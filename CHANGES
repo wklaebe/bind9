@@ -1,4 +1,26 @@
 
+	--- 9.4.2rc2 released ---
+
+2259.	[bug]		Reverse incorrect LIBINTERFACE bump of libisc
+			in 9.4.2rc1.  Applications built against 9.4.2rc1
+			will need to be rebuilt.
+
+2258.	[bug]		Fallback from IXFR/TSIG to SOA/AXFR/TSIG broken.
+			[RT #17241]
+
+2257.	[bug]		win32: Use the full path to vcredist_x86.exe when
+			calling it. [RT #17222]
+
+2256.	[bug]		win32: Correctly register the installation location of
+			bindevt.dll. [RT #17159]
+
+2255.	[bug]		L.ROOT-SERVERS.NET is now 199.7.83.42.
+
+2254.	[bug]		timer.c:dispatch() failed to lock timer->lock
+			when reading timer->idle allowing it to see
+			intermediate values as timer->idle was reset by
+			isc_timer_touch(). [RT #17243]
+
 	--- 9.4.2rc1 released ---
 
 2251.	[doc]		Update memstatistics-file documentation to reflect

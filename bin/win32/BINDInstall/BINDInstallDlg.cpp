@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: BINDInstallDlg.cpp,v 1.15.18.15 2007/08/28 07:20:02 tbox Exp $ */
+/* $Id: BINDInstallDlg.cpp,v 1.15.18.17 2007/10/31 01:43:36 marka Exp $ */
 
 /*
  * Copyright (c) 1999-2000 by Nortel Networks Corporation
@@ -387,6 +387,9 @@ void CBINDInstallDlg::OnUninstall() {
  * User pressed the install button.  Make it go.
  */
 void CBINDInstallDlg::OnInstall() {
+#if _MSC_VER >= 1400
+	char Vcredist_x86[MAX_PATH];
+#endif
 	BOOL success = FALSE;
 	int oldlen;
 
@@ -481,7 +484,14 @@ void CBINDInstallDlg::OnInstall() {
 	 * Vcredist_x86.exe /q:a /c:"msiexec /i vcredist.msi /qn /l*v %temp%\vcredist_x86.log"
 	 */
 	/*system(".\\Vcredist_x86.exe /q:a /c:\"msiexec /i vcredist.msi /qn /l*v %temp%\vcredist_x86.log\"");*/
-	system(".\\Vcredist_x86.exe");
+
+	/*
+	 * Enclose full path to Vcredist_x86.exe in quotes as
+	 * m_currentDir may contain spaces.
+	 */
+	sprintf(Vcredist_x86, "\"%s\\Vcredist_x86.exe\"",
+		(LPCTSTR) m_currentDir);
+	system(Vcredist_x86);
 #endif
 	try {
 		CreateDirs();
@@ -917,10 +927,9 @@ void CBINDInstallDlg::UnregisterService(BOOL uninstall) {
 void CBINDInstallDlg::RegisterMessages() {
 	HKEY hKey;
 	DWORD dwData;
-	char pszMsgDLL[MAX_PATH], buf[MAX_PATH];
+	char pszMsgDLL[MAX_PATH];
 
-	GetSystemDirectory(buf, MAX_PATH);
-	sprintf(pszMsgDLL, "%s\\%s", buf, "bindevt.dll");
+	sprintf(pszMsgDLL, "%s\\%s", (LPCTSTR)m_binDir, "bindevt.dll");
 
 	SetCurrent(IDS_REGISTER_MESSAGES);
 	/* Create a new key for named */

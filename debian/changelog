@@ -1,7 +1,6 @@
-bind9 (1:9.4.2~rc1-1) experimental-UNRELEASED; urgency=low
+bind9 (1:9.4.2~rc2-1) experimental-UNRELEASED; urgency=low
 
-  * Start new release
-  * DO NOT EDIT: changelog is built from commit messages
+  * New upstream release
 
  -- LaMont Jones <lamont@debian.org>  Fri, 12 Oct 2007 18:33:57 -0600
 

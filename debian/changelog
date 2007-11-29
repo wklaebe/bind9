@@ -1,3 +1,10 @@
+bind9 (1:9.4.2-1) experimental-UNRELEASED; urgency=low
+
+  * Start new release
+  * DO NOT EDIT: changelog is built from commit messages
+
+ -- LaMont Jones <lamont@debian.org>  Sat, 17 Nov 2007 10:50:07 -0700
+
 bind9 (1:9.4.2~rc2-1) experimental; urgency=low
 
   * New upstream release
@@ -13,9 +20,10 @@ bind9 (1:9.4.1-P1-4) unstable; urgency=low
   [LaMont Jones]
 
   * document git repositories
-  * db.root: l.root-servers.net changed IP address.  Closes: #449148
+  * db.root: l.root-servers.net changed IP address.  Closes: #449148  LP: #160176
+  * init.d: if there are no networks configured, error out quickly
 
- -- LaMont Jones <lamont@debian.org>  Mon, 05 Nov 2007 21:06:47 -0700
+ -- LaMont Jones <lamont@debian.org>  Thu, 08 Nov 2007 21:31:55 -0700
 
 bind9 (1:9.4.1-P1-3) unstable; urgency=low
 

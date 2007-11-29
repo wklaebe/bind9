@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: resolver.c,v 1.284.18.64 2007/10/31 05:14:59 marka Exp $ */
+/* $Id: resolver.c,v 1.284.18.66 2007/11/01 13:53:27 shane Exp $ */
 
 /*! \file */
 
@@ -823,12 +823,12 @@ fctx_sendevents(fetchctx_t *fctx, isc_result_t result) {
 			if (fctx->res->spillat > fctx->res->spillatmax &&
 			    fctx->res->spillatmax != 0)
 				fctx->res->spillat = fctx->res->spillatmax;
+			logit = ISC_TRUE;
 			isc_interval_set(&i, 20 * 60, 0);
 			result = isc_timer_reset(fctx->res->spillattimer,
 						 isc_timertype_ticker, NULL,
 						 &i, ISC_TRUE);
 			RUNTIME_CHECK(result == ISC_R_SUCCESS);
-			logit = ISC_TRUE;
 		}
 		UNLOCK(&fctx->res->lock);
 		if (logit)

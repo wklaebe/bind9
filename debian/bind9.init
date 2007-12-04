@@ -55,7 +55,7 @@ case "$1" in
 	    exit 1
 	fi
 
-	if start-stop-daemon --start --quiet --exec /usr/sbin/named \
+	if start-stop-daemon --start --oknodo --quiet --exec /usr/sbin/named \
 		--pidfile /var/run/bind/run/named.pid -- $OPTIONS; then
 	    if [ "X$RESOLVCONF" != "Xno" ] && [ -x /sbin/resolvconf ] ; then
 		echo "nameserver 127.0.0.1" | /sbin/resolvconf -a lo.named

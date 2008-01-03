@@ -1,9 +1,11 @@
 #!/bin/sh
 
 ### BEGIN INIT INFO
-# Provides:          bind9 $named
-# Required-Start:    $syslog $local_fs $remote_fs $network
-# Required-Stop:     $syslog $local_fs $remote_fs $network
+# Provides:          bind9
+# Required-Start:    $remote_fs
+# Required-Stop:     $remote_fs
+# Should-Start:      $network
+# Should-Stop:       $network
 # Default-Start:     2 3 4 5
 # Default-Stop:      0 1 6
 # Short-Description: Start and stop bind9
@@ -55,7 +57,7 @@ case "$1" in
 	    exit 1
 	fi
 
-	if start-stop-daemon --start --quiet --exec /usr/sbin/named \
+	if start-stop-daemon --start --oknodo --quiet --exec /usr/sbin/named \
 		--pidfile /var/run/bind/run/named.pid -- $OPTIONS; then
 	    if [ "X$RESOLVCONF" != "Xno" ] && [ -x /sbin/resolvconf ] ; then
 		echo "nameserver 127.0.0.1" | /sbin/resolvconf -a lo.named

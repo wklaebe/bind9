@@ -11,6 +11,12 @@ if [ "$1" = configure ]; then
 	adduser --system --home /var/cache/bind --no-create-home \
 		--disabled-password --ingroup bind bind
 
+    if [ -z "$lastversion" ] || dpkg --compare-versions "$lastversion" lt 1:9.4.2-2 ; then
+	mkdir /var/lib/bind
+	chown root:bind /var/lib/bind
+	chmod 775 /var/lib/bind
+    fi
+
     if [ ! -s /etc/bind/rndc.key ]; then
 	rndc-confgen -r /dev/urandom -a
     fi
@@ -55,6 +61,5 @@ if [ "$1" = configure ]; then
     fi
 
 fi
-
 
 #DEBHELPER#

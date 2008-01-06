@@ -5,6 +5,19 @@ bind9 (1:9.5.0~b1-1) experimental-UNRELEASED; urgency=low
 
  -- LaMont Jones <lamont@debian.org>  Wed, 02 Jan 2008 19:35:16 -0700
 
+bind9 (1:9.4.2-2) unstable; urgency=low
+
+  * init.d: add --oknodo to start-stop-daemon.  Closes: #411881
+  * init: LSB dependency info.  Closes: #459421, #448006
+  * meta: bind9 Suggests: resolvconf.  Closes: #252285
+  * bind9: deliver /var/lib/bind directory, and document.
+    Closes: #248771, #200253, #202981, #209022
+  * lwresd: create bind user/group and rndc key if needed, at install.
+    Closes: #190742
+  * dnsutils: update long description.  Closes: #236901
+
+ -- LaMont Jones <lamont@debian.org>  Sun, 06 Jan 2008 12:25:31 -0700
+
 bind9 (1:9.4.2-1) unstable; urgency=low
 
   [Mike O'Connor]

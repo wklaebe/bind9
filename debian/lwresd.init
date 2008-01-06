@@ -1,5 +1,18 @@
 #!/bin/sh
 
+### BEGIN INIT INFO
+# Provides:          lwresd
+# Required-Start:    $remote_fs
+# Should-Start:	     $syslog $network
+# Required-Stop:     $remote_fs
+# Should-Stop:	     $syslog $network
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: Start and stop the Lightweight Resolver Daemon.
+### END INIT INFO
+
+. /lib/lsb/init-functions
+
 PATH=/sbin:/bin:/usr/sbin:/usr/bin
 NAME=lwresd
 DAEMON=/usr/sbin/lwresd
@@ -20,16 +33,22 @@ case "$1" in
 	chmod 775 /var/run/bind/run
 	chown root:bind /var/run/bind/run >/dev/null 2>&1 || true
 
-	echo -n "Starting domain name service: $NAME"
-	start-stop-daemon --start --quiet --exec $DAEMON  -- $OPTIONS
-	echo "."	
+	log_daemon_msg "Starting domain name service" $NAME
+	if start-stop-daemon --start --quiet --exec $DAEMON  -- $OPTIONS; then
+	    log_end_msg 0
+	else
+	    log_end_msg 1
+	fi
     ;;
 
     stop)
-	echo -n "Stopping domain name service: $NAME"
-	start-stop-daemon --stop --quiet  \
-	    --pidfile /var/run/bind/run/$NAME.pid --exec $DAEMON
-	echo "."	
+	log_daemon_msg "Stopping domain name service" $NAME
+	if start-stop-daemon --stop --quiet  \
+	    --pidfile /var/run/bind/run/$NAME.pid --exec $DAEMON; then
+	    log_end_msg 0
+	else
+	    log_end_msg 1
+	fi
     ;;
 
     restart|force-reload)
@@ -39,7 +58,7 @@ case "$1" in
     ;;
     
     *)
-	echo "Usage: /etc/init.d/$NAME {start|stop|restart|force-reload}" >&2
+	log_action_msg "Usage: /etc/init.d/$NAME {start|stop|restart|force-reload}"
 	exit 1
     ;;
 esac

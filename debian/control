@@ -13,7 +13,7 @@ Architecture: any
 Depends: ${shlibs:Depends}, netbase, adduser, libdns32 (=${Source-Version}), libisccfg30 (=${Source-Version}), libisc32 (=${Source-Version}), libisccc30 (=${Source-Version}), lsb-base (>=3.0-6)
 Conflicts: bind
 Replaces: bind, dnsutils (<< 1:9.1.0-3)
-Suggests: dnsutils, bind9-doc
+Suggests: dnsutils, bind9-doc, resolvconf
 Description: Internet Domain Name Server
  ${Description}
  .

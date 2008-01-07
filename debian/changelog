@@ -1,3 +1,10 @@
+bind9 (1:9.4.2-3) unstable; urgency=low
+
+  * don't run rndc-confgen when it's not there.  Closes: #459551
+  * control: drop use of ${Source-Version}
+
+ -- LaMont Jones <lamont@debian.org>  Mon, 07 Jan 2008 10:16:06 -0700
+
 bind9 (1:9.4.2-2) unstable; urgency=low
 
   * init.d: add --oknodo to start-stop-daemon.  Closes: #411881

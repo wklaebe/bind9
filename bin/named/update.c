@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2008  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: update.c,v 1.137 2007/08/28 00:05:06 marka Exp $ */
+/* $Id: update.c,v 1.138.2.2 2008/01/17 23:46:36 tbox Exp $ */
 
 #include <config.h>
 
@@ -426,7 +426,7 @@ foreach_node_rr_action(void *data, dns_rdataset_t *rdataset) {
 	     result = dns_rdataset_next(rdataset))
 	{
 		rr_t rr = { 0, DNS_RDATA_INIT };
-		
+
 		dns_rdataset_current(rdataset, &rr.rdata);
 		rr.ttl = rdataset->ttl;
 		result = (*ctx->rr_action)(ctx->rr_action_data, &rr);
@@ -857,10 +857,14 @@ temp_check(isc_mem_t *mctx, dns_diff_t *temp, dns_db_t *db,
 		/* A new unique name begins here. */
 		node = NULL;
 		result = dns_db_findnode(db, name, ISC_FALSE, &node);
-		if (result == ISC_R_NOTFOUND)
+		if (result == ISC_R_NOTFOUND) {
+			dns_diff_clear(&trash);
 			return (DNS_R_NXRRSET);
-		if (result != ISC_R_SUCCESS)
+		}
+		if (result != ISC_R_SUCCESS) {
+			dns_diff_clear(&trash);
 			return (result);
+		}
 
 		/* A new unique type begins here. */
 		while (t != NULL && dns_name_equal(&t->name, name)) {
@@ -888,6 +892,7 @@ temp_check(isc_mem_t *mctx, dns_diff_t *temp, dns_db_t *db,
 						     &rdataset, NULL);
 			if (result != ISC_R_SUCCESS) {
 				dns_db_detachnode(db, &node);
+				dns_diff_clear(&trash);
 				return (DNS_R_NXRRSET);
 			}
 
@@ -1128,7 +1133,7 @@ typedef struct {
 
 static isc_result_t
 add_rr_prepare_action(void *data, rr_t *rr) {
-	isc_result_t result = ISC_R_SUCCESS;	
+	isc_result_t result = ISC_R_SUCCESS;
 	add_rr_prepare_ctx_t *ctx = data;
 	dns_difftuple_t *tuple = NULL;
 	isc_boolean_t equal;
@@ -1671,14 +1676,14 @@ add_sigs(dns_db_t *db, dns_dbversion_t *ver, dns_name_t *name,
 	dns_db_detachnode(db, &node);
 
 	for (i = 0; i < nkeys; i++) {
-		
+
 		if (check_ksk && type != dns_rdatatype_dnskey &&
 		    (dst_key_flags(keys[i]) & DNS_KEYFLAG_KSK) != 0)
 			continue;
 
 		if (!dst_key_isprivate(keys[i]))
 			continue;
-		
+
 		/* Calculate the signature, creating a RRSIG RDATA. */
 		CHECK(dns_dnssec_sign(name, &rdataset, keys[i],
 				      &inception, &expire,
@@ -2272,7 +2277,7 @@ check_mx(ns_client_t *client, dns_zone_t *zone,
 				   ownerbuf, namebuf,
 				   dns_result_totext(DNS_R_MXISADDRESS));
 		}
-		
+
 		/*
 		 * Check zone integrity checks.
 		 */
@@ -2472,10 +2477,10 @@ update_action(isc_task_t *task, isc_event_t *event) {
 	else if (client->signer == NULL)
 		CHECK(checkupdateacl(client, NULL, "update", zonename,
 				     ISC_FALSE, ISC_TRUE));
-	
+
 	if (dns_zone_getupdatedisabled(zone))
 		FAILC(DNS_R_REFUSED, "dynamic update temporarily disabled "
-			             "because the zone is frozen.  Use "
+				     "because the zone is frozen.  Use "
 				     "'rndc thaw' to re-enable updates.");
 
 	/*
@@ -2879,7 +2884,7 @@ update_action(isc_task_t *task, isc_event_t *event) {
 	 * The reason for failure should have been logged at this point.
 	 */
 	if (ver != NULL) {
-		update_log(client, zone, LOGLEVEL_DEBUG, 
+		update_log(client, zone, LOGLEVEL_DEBUG,
 			   "rolling back");
 		dns_db_closeversion(db, &ver, ISC_FALSE);
 	}

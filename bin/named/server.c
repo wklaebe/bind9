@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2008  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,13 +15,14 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: server.c,v 1.493 2007/11/26 02:43:53 marka Exp $ */
+/* $Id: server.c,v 1.495.10.6 2008/01/24 02:29:56 jinmei Exp $ */
 
 /*! \file */
 
 #include <config.h>
 
 #include <stdlib.h>
+#include <unistd.h>
 
 #include <isc/app.h>
 #include <isc/base64.h>
@@ -89,6 +90,7 @@
 #include <named/main.h>
 #include <named/os.h>
 #include <named/server.h>
+#include <named/statschannel.h>
 #include <named/tkeyconf.h>
 #include <named/tsigconf.h>
 #include <named/zoneconf.h>
@@ -201,6 +203,7 @@ static const struct {
 #endif
 
 	/* RFC 3330 */
+	{ "0.IN-ADDR.ARPA", ISC_FALSE },	/* THIS NETWORK */
 	{ "127.IN-ADDR.ARPA", ISC_FALSE },	/* LOOPBACK */
 	{ "254.169.IN-ADDR.ARPA", ISC_FALSE },	/* LINK LOCAL */
 	{ "2.0.192.IN-ADDR.ARPA", ISC_FALSE },	/* TEST NET */
@@ -219,27 +222,10 @@ static const struct {
 	{ NULL, ISC_FALSE }
 };
 
-#ifdef HAVE_LIBXML2
-
-void
-server_httpd_create(ns_server_t *server);
-
-static isc_result_t
-render_index(const char *url, const char *querystring, void *args,
-	     unsigned int *retcode, const char **retmsg, const char **mimetype,
-	     isc_buffer_t *b, isc_httpdfree_t **freecb,
-	     void **freecb_args);
-
-static isc_result_t
-render_xsl(const char *url, const char *querystring, void *args,
-	   unsigned int *retcode, const char **retmsg, const char **mimetype,
-	   isc_buffer_t *b, isc_httpdfree_t **freecb,
-	   void **freecb_args);
-
-void
-server_generatexml(ns_server_t *server, int *buflen, xmlChar **buf);
-
-#endif /* HAVE_LIBXML2 */
+/*%
+ * The default max-cache-size
+ */
+#define NS_MAXCACHESIZE_DEFAULT	33554432 /*%< Bytes.  33554432 = 32MB */
 
 static void
 fatal(const char *msg, isc_result_t result);
@@ -320,8 +306,8 @@ configure_view_acl(const cfg_obj_t *vconfig, const cfg_obj_t *config,
  */
 static isc_result_t
 configure_view_sortlist(const cfg_obj_t *vconfig, const cfg_obj_t *config,
-		        cfg_aclconfctx_t *actx, isc_mem_t *mctx,
-                        dns_acl_t **aclp)
+			cfg_aclconfctx_t *actx, isc_mem_t *mctx,
+			dns_acl_t **aclp)
 {
 	isc_result_t result;
 	const cfg_obj_t *maps[3];
@@ -344,12 +330,12 @@ configure_view_sortlist(const cfg_obj_t *vconfig, const cfg_obj_t *config,
 	if (aclobj == NULL)
 		return (ISC_R_SUCCESS);
 
-        /*
-         * Use a nest level of 3 for the "top level" of the sortlist;
-         * this means each entry in the top three levels will be stored
-         * as lists of separate, nested ACLs, rather than merged together
-         * into IP tables as is usually done with ACLs.
-         */
+	/*
+	 * Use a nest level of 3 for the "top level" of the sortlist;
+	 * this means each entry in the top three levels will be stored
+	 * as lists of separate, nested ACLs, rather than merged together
+	 * into IP tables as is usually done with ACLs.
+	 */
 	result = cfg_acl_fromconfig(aclobj, config, ns_g_lctx,
 				    actx, mctx, 3, aclp);
 
@@ -508,7 +494,7 @@ configure_view_dnsseckeys(const cfg_obj_t *vconfig, const cfg_obj_t *config,
 	*target = keytable; /* Transfer ownership. */
 	keytable = NULL;
 	result = ISC_R_SUCCESS;
-	
+
  cleanup:
 	return (result);
 }
@@ -524,7 +510,7 @@ mustbesecure(const cfg_obj_t *mbs, dns_resolver_t *resolver)
 	isc_boolean_t value;
 	isc_result_t result;
 	isc_buffer_t b;
-	
+
 	dns_fixedname_init(&fixed);
 	name = dns_fixedname_name(&fixed);
 	for (element = cfg_list_first(mbs);
@@ -542,7 +528,7 @@ mustbesecure(const cfg_obj_t *mbs, dns_resolver_t *resolver)
 	}
 
 	result = ISC_R_SUCCESS;
-	
+
  cleanup:
 	return (result);
 }
@@ -902,7 +888,7 @@ on_disable_list(const cfg_obj_t *disablelist, dns_name_t *zonename) {
 
 	dns_fixedname_init(&fixed);
 	name = dns_fixedname_name(&fixed);
-	
+
 	for (element = cfg_list_first(disablelist);
 	     element != NULL;
 	     element = cfg_list_next(element))
@@ -1127,7 +1113,7 @@ configure_view(dns_view_t *view, const cfg_obj_t *config,
 				result = ISC_R_NOMEMORY;
 				goto cleanup;
 			}
-			
+
 			result = dns_dlzstrtoargv(mctx, s, &dlzargc, &dlzargv);
 			if (result != ISC_R_SUCCESS) {
 				isc_mem_free(mctx, s);
@@ -1198,11 +1184,21 @@ configure_view(dns_view_t *view, const cfg_obj_t *config,
 
 	obj = NULL;
 	result = ns_config_get(maps, "max-cache-size", &obj);
-	INSIST(result == ISC_R_SUCCESS);
-	if (cfg_obj_isstring(obj)) {
+	INSIST(result == ISC_R_SUCCESS || result == ISC_R_NOTFOUND);
+	if (result == ISC_R_NOTFOUND) {
+		max_cache_size = NS_MAXCACHESIZE_DEFAULT;
+		isc_log_write(ns_g_lctx, NS_LOGCATEGORY_GENERAL,
+			      NS_LOGMODULE_SERVER, ISC_LOG_INFO,
+			      "default max-cache-size (%u) applies%s%s",
+			      max_cache_size, sep, viewname);
+	} else if (cfg_obj_isstring(obj)) {
 		str = cfg_obj_asstring(obj);
-		INSIST(strcasecmp(str, "unlimited") == 0);
-		max_cache_size = ISC_UINT32_MAX;
+		INSIST(strcasecmp(str, "unlimited") == 0 ||
+		       strcasecmp(str, "default") == 0);
+		if (strcasecmp(str, "unlimited") == 0)
+			max_cache_size = ISC_UINT32_MAX;
+		else
+			max_cache_size = NS_MAXCACHESIZE_DEFAULT;
 	} else {
 		isc_resourcevalue_t value;
 		value = cfg_obj_asuint64(obj);
@@ -1380,7 +1376,7 @@ configure_view(dns_view_t *view, const cfg_obj_t *config,
 	if (udpsize > 4096)
 		udpsize = 4096;
 	dns_resolver_setudpsize(view->resolver, (isc_uint16_t)udpsize);
-	
+
 	/*
 	 * Set the maximum UDP response size.
 	 */
@@ -1560,7 +1556,7 @@ configure_view(dns_view_t *view, const cfg_obj_t *config,
 		view->transfer_format = dns_one_answer;
 	else
 		INSIST(0);
-	
+
 	/*
 	 * Set sources where additional data and CNAME/DNAME
 	 * targets for authoritative answers may be found.
@@ -1642,11 +1638,11 @@ configure_view(dns_view_t *view, const cfg_obj_t *config,
 					 "allow-query-cache", actx,
 					 ns_g_mctx, &view->queryacl));
 
-        /*
-         * Configure sortlist, if set
-         */
+	/*
+	 * Configure sortlist, if set
+	 */
 	CHECK(configure_view_sortlist(vconfig, config, actx, ns_g_mctx,
-                                      &view->sortlist));
+				      &view->sortlist));
 
 	obj = NULL;
 	result = ns_config_get(maps, "request-ixfr", &obj);
@@ -1669,7 +1665,7 @@ configure_view(dns_view_t *view, const cfg_obj_t *config,
 	dns_resolver_setclientsperquery(view->resolver,
 					cfg_obj_asuint32(obj),
 					max_clients_per_query);
-			
+
 	obj = NULL;
 	result = ns_config_get(maps, "dnssec-enable", &obj);
 	INSIST(result == ISC_R_SUCCESS);
@@ -1898,7 +1894,7 @@ configure_view(dns_view_t *view, const cfg_obj_t *config,
 			if (result == ISC_R_SUCCESS &&
 			    forwarders->fwdpolicy == dns_fwdpolicy_only)
 				continue;
-						
+
 			if (!rfc1918 && empty_zones[empty_zone].rfc1918) {
 				if (logit) {
 					isc_log_write(ns_g_lctx,
@@ -1964,7 +1960,7 @@ configure_view(dns_view_t *view, const cfg_obj_t *config,
 			dns_zone_detach(&zone);
 		}
 	}
-	
+
 	result = ISC_R_SUCCESS;
 
  cleanup:
@@ -2280,7 +2276,7 @@ configure_zone(const cfg_obj_t *config, const cfg_obj_t *zconfig,
 							       "name"));
 		else
 			vname = "<default view>";
-	
+
 		isc_log_write(ns_g_lctx, NS_LOGCATEGORY_GENERAL,
 			      NS_LOGMODULE_SERVER, ISC_LOG_ERROR,
 			      "zone '%s': wrong class for view '%s'",
@@ -2539,7 +2535,7 @@ add_listenelt(isc_mem_t *mctx, ns_listenlist_t *list, isc_sockaddr_t *addr,
 	dns_acl_t *src_acl = NULL;
 	isc_result_t result;
 	isc_sockaddr_t any_sa6;
-        isc_netaddr_t netaddr;
+	isc_netaddr_t netaddr;
 
 	REQUIRE(isc_sockaddr_pf(addr) == AF_INET6);
 
@@ -2547,13 +2543,13 @@ add_listenelt(isc_mem_t *mctx, ns_listenlist_t *list, isc_sockaddr_t *addr,
 	if (!isc_sockaddr_equal(&any_sa6, addr) &&
 	    (wcardport_ok || isc_sockaddr_getport(addr) != 0)) {
 		isc_netaddr_fromin6(&netaddr, &addr->type.sin6.sin6_addr);
-  
+
 		result = dns_acl_create(mctx, 0, &src_acl);
 		if (result != ISC_R_SUCCESS)
 			return (result);
 
-                result = dns_iptable_addprefix(src_acl->iptable,
-                                               &netaddr, 128, ISC_TRUE);
+		result = dns_iptable_addprefix(src_acl->iptable,
+					       &netaddr, 128, ISC_TRUE);
 		if (result != ISC_R_SUCCESS)
 			goto clean;
 
@@ -2657,7 +2653,7 @@ adjust_interfaces(ns_server_t *server, isc_mem_t *mctx) {
 	}
 
 	ns_interfacemgr_adjust(server->interfacemgr, list, ISC_TRUE);
-	
+
  clean:
 	ns_listenlist_detach(&list);
 	return;
@@ -2746,7 +2742,7 @@ setstring(ns_server_t *server, char **field, const char *value) {
 
 	*field = copy;
 	return (ISC_R_SUCCESS);
-}	
+}
 
 /*
  * Replace the current value of '*field', a dynamically allocated
@@ -2817,7 +2813,7 @@ portlist_fromconf(dns_portlist_t *portlist, unsigned int family,
 	     element = cfg_list_next(element)) {
 		const cfg_obj_t *obj = cfg_listelt_value(element);
 		in_port_t port = (in_port_t)cfg_obj_asuint32(obj);
-		
+
 		result = dns_portlist_add(portlist, family, port);
 		if (result != ISC_R_SUCCESS)
 			break;
@@ -2881,7 +2877,7 @@ load_configuration(const char *filename, ns_server_t *server,
 
 	/* Ensure exclusive access to configuration data. */
 	result = isc_task_beginexclusive(server->task);
-	RUNTIME_CHECK(result == ISC_R_SUCCESS);	
+	RUNTIME_CHECK(result == ISC_R_SUCCESS);
 
 	/*
 	 * Parse the global default pseudo-config file.
@@ -2934,6 +2930,15 @@ load_configuration(const char *filename, ns_server_t *server,
 	CHECK(result);
 
 	/*
+	 * Check that the working directory is writable.
+	 */
+	if (access(".", W_OK) != 0) {
+		isc_log_write(ns_g_lctx, NS_LOGCATEGORY_GENERAL,
+			      NS_LOGMODULE_SERVER, ISC_LOG_ERROR,
+			      "the working directory is not writable");
+	}
+
+	/*
 	 * Check the validity of the configuration.
 	 */
 	CHECK(bind9_check_namedconf(config, ns_g_lctx, ns_g_mctx));
@@ -2978,38 +2983,8 @@ load_configuration(const char *filename, ns_server_t *server,
 	INSIST(result == ISC_R_SUCCESS);
 	server->aclenv.match_mapped = cfg_obj_asboolean(obj);
 
-#ifdef HAVE_LIBXML2
-	/*
-	 * [Re]configure the httpd server.
-	 *
-	 * If it is no longer there but was previously configured, destroy
-	 * it here.
-	 *
-	 * If the IP address or port has changed, destroy the old server
-	 * and create a new one.
-	 *
-	 * XXXMLG this will have to change later.  Eventually, we will want
-	 * XXXMLG to start it once, and add/remove listener ports as the
-	 * XXXMLG user wants, which will allow more than one.
-	 * XXXMLG We will also want to support IPv6 and some form of ACL.
-	 */
-	obj = NULL;
-	result = ns_config_get(maps, "stats-server", &obj);
-
-	if (result == ISC_R_SUCCESS && obj != NULL) {
-		if (!isc_sockaddr_equal(cfg_obj_assockaddr(obj),
-					&server->httpd_sockaddr)) {
-			if (server->httpd != NULL)
-				isc_httpdmgr_shutdown(&server->httpd);
-			server->httpd_sockaddr = *cfg_obj_assockaddr(obj);
-			server_httpd_create(server);
-
-		}
-	} else {
-		if (server->httpd != NULL)
-			isc_httpdmgr_shutdown(&server->httpd);
-	}
-#endif
+	CHECKM(ns_statschannels_configure(ns_g_server, config, &aclconfctx),
+	       "configuring statistics server(s)");
 
 	v4ports = NULL;
 	v6ports = NULL;
@@ -3189,7 +3164,7 @@ load_configuration(const char *filename, ns_server_t *server,
 				      NULL, &interval, ISC_FALSE));
 	}
 	server->heartbeat_interval = heartbeat_interval;
-	
+
 	isc_interval_set(&interval, 1200, 0);
 	CHECK(isc_timer_reset(server->pps_timer, isc_timertype_ticker, NULL,
 			      &interval, ISC_FALSE));
@@ -3429,7 +3404,7 @@ load_configuration(const char *filename, ns_server_t *server,
 		ns_os_writepidfile(lwresd_g_defaultpidfile, first_time);
 	else
 		ns_os_writepidfile(ns_g_defaultpidfile, first_time);
-	
+
 	obj = NULL;
 	if (options != NULL &&
 	    cfg_map_get(options, "memstatistics", &obj) == ISC_R_SUCCESS)
@@ -3575,7 +3550,7 @@ load_zones(ns_server_t *server, isc_boolean_t stop) {
 	 */
 	CHECK(dns_zonemgr_forcemaint(server->zonemgr));
  cleanup:
-	isc_task_endexclusive(server->task);	
+	isc_task_endexclusive(server->task);
 	return (result);
 }
 
@@ -3603,7 +3578,7 @@ load_new_zones(ns_server_t *server, isc_boolean_t stop) {
 	 */
 	dns_zonemgr_resumexfrs(server->zonemgr);
  cleanup:
-	isc_task_endexclusive(server->task);	
+	isc_task_endexclusive(server->task);
 	return (result);
 }
 
@@ -3687,11 +3662,7 @@ shutdown_server(isc_task_t *task, isc_event_t *event) {
 		      ISC_LOG_INFO, "shutting down%s",
 		      flush ? ": flushing changes" : "");
 
-#ifdef HAVE_LIBXML2
-	if (server->httpd != NULL)
-		isc_httpdmgr_shutdown(&server->httpd);
-#endif
-
+	ns_statschannels_shutdown(server);
 	ns_controls_shutdown(server->controls);
 	end_reserved_dispatches(server, ISC_TRUE);
 
@@ -3731,43 +3702,6 @@ shutdown_server(isc_task_t *task, isc_event_t *event) {
 
 	isc_event_free(&event);
 }
-
-#ifdef HAVE_LIBXML2
-
-void
-server_httpd_create(ns_server_t *server)
-{
-	isc_socket_t *sock;
-	isc_task_t *task;
-	isc_result_t result;
-
-	task = NULL;
-	result = isc_task_create(ns_g_taskmgr, 0, &task);
-	INSIST(result == ISC_R_SUCCESS);
-	isc_task_setname(task, "httpd", NULL);
-
-	sock = NULL;
-	result = isc_socket_create(ns_g_socketmgr, PF_INET,
-				   isc_sockettype_tcp, &sock);
-	INSIST(result == ISC_R_SUCCESS);
-	isc_socket_setname(sock, "httpd", NULL);
-
-	result = isc_socket_bind(sock, &server->httpd_sockaddr);
-	INSIST(result == ISC_R_SUCCESS);
-
-	server->httpd = NULL;
-	result = isc_httpdmgr_create(ns_g_mctx, sock, task, ns_g_timermgr,
-				     &server->httpd);
-	INSIST(result == ISC_R_SUCCESS);
-
-	isc_httpdmgr_addurl(server->httpd, "/", render_index, server);
-	isc_httpdmgr_addurl(server->httpd, "/bind9.xsl", render_xsl, server);
-
-	isc_task_detach(&task);
-	isc_socket_detach(&sock);
-}
-
-#endif
 
 void
 ns_server_create(isc_mem_t *mctx, ns_server_t **serverp) {
@@ -3838,7 +3772,7 @@ ns_server_create(isc_mem_t *mctx, ns_server_t **serverp) {
 	server->interface_timer = NULL;
 	server->heartbeat_timer = NULL;
 	server->pps_timer = NULL;
-	
+
 	server->interface_interval = 0;
 	server->heartbeat_interval = 0;
 
@@ -3861,13 +3795,13 @@ ns_server_create(isc_mem_t *mctx, ns_server_t **serverp) {
 
 	server->hostname_set = ISC_FALSE;
 	server->hostname = NULL;
-	server->version_set = ISC_FALSE;	
+	server->version_set = ISC_FALSE;
 	server->version = NULL;
 	server->server_usehostname = ISC_FALSE;
 	server->server_id = NULL;
 
-	CHECKFATAL(dns_stats_alloccounters(ns_g_mctx, &server->querystats),
-		   "dns_stats_alloccounters");
+	CHECKFATAL(dns_stats_create(ns_g_mctx, &server->querystats),
+		   "dns_stats_create");
 
 	server->flushonshutdown = ISC_FALSE;
 	server->log_queries = ISC_FALSE;
@@ -3878,10 +3812,7 @@ ns_server_create(isc_mem_t *mctx, ns_server_t **serverp) {
 	server->dispatchgen = 0;
 	ISC_LIST_INIT(server->dispatches);
 
-	/*
-	 * HTTP server configuration.
-	 */
-	server->httpd = NULL;
+	ISC_LIST_INIT(server->statschannels);
 
 	server->magic = NS_SERVER_MAGIC;
 	*serverp = server;
@@ -3894,7 +3825,7 @@ ns_server_destroy(ns_server_t **serverp) {
 
 	ns_controls_destroy(&server->controls);
 
-	dns_stats_freecounters(server->mctx, &server->querystats);
+	dns_stats_destroy(server->mctx, &server->querystats);
 
 	isc_mem_free(server->mctx, server->statsfile);
 	isc_mem_free(server->mctx, server->dumpfile);
@@ -4197,7 +4128,7 @@ zone_from_args(ns_server_t *server, char *args, dns_zone_t **zonep) {
 			goto fail1;
 	} else
 		rdclass = dns_rdataclass_in;
-	
+
 	if (viewtxt == NULL) {
 		result = dns_viewlist_findzone(&server->viewlist,
 					       dns_fixedname_name(&name),
@@ -4208,7 +4139,7 @@ zone_from_args(ns_server_t *server, char *args, dns_zone_t **zonep) {
 					   rdclass, &view);
 		if (result != ISC_R_SUCCESS)
 			goto fail1;
-	
+
 		result = dns_zt_find(view->zonetable, dns_fixedname_name(&name),
 				     0, NULL, zonep);
 		dns_view_detach(&view);
@@ -4229,7 +4160,7 @@ ns_server_retransfercommand(ns_server_t *server, char *args) {
 	isc_result_t result;
 	dns_zone_t *zone = NULL;
 	dns_zonetype_t type;
-	
+
 	result = zone_from_args(server, args, &zone);
 	if (result != ISC_R_SUCCESS)
 		return (result);
@@ -4242,7 +4173,7 @@ ns_server_retransfercommand(ns_server_t *server, char *args) {
 		result = ISC_R_NOTFOUND;
 	dns_zone_detach(&zone);
 	return (result);
-}	
+}
 
 /*
  * Act on a "reload" command from the command channel.
@@ -4253,7 +4184,7 @@ ns_server_reloadcommand(ns_server_t *server, char *args, isc_buffer_t *text) {
 	dns_zone_t *zone = NULL;
 	dns_zonetype_t type;
 	const char *msg = NULL;
-	
+
 	result = zone_from_args(server, args, &zone);
 	if (result != ISC_R_SUCCESS)
 		return (result);
@@ -4270,7 +4201,7 @@ ns_server_reloadcommand(ns_server_t *server, char *args, isc_buffer_t *text) {
 		} else {
 			result = dns_zone_load(zone);
 			dns_zone_detach(&zone);
-			switch (result) {	
+			switch (result) {
 			case ISC_R_SUCCESS:
 				 msg = "zone reload successful";
 				 break;
@@ -4292,7 +4223,7 @@ ns_server_reloadcommand(ns_server_t *server, char *args, isc_buffer_t *text) {
 		isc_buffer_putmem(text, (const unsigned char *)msg,
 				  strlen(msg) + 1);
 	return (result);
-}	
+}
 
 /*
  * Act on a "reconfig" command from the command channel.
@@ -4319,14 +4250,14 @@ ns_server_notifycommand(ns_server_t *server, char *args, isc_buffer_t *text) {
 		return (result);
 	if (zone == NULL)
 		return (ISC_R_UNEXPECTEDEND);
-	
+
 	dns_zone_notify(zone);
 	dns_zone_detach(&zone);
 	if (sizeof(msg) <= isc_buffer_availablelength(text))
 		isc_buffer_putmem(text, msg, sizeof(msg));
 
 	return (ISC_R_SUCCESS);
-}	
+}
 
 /*
  * Act on a "refresh" command from the command channel.
@@ -4353,17 +4284,17 @@ ns_server_refreshcommand(ns_server_t *server, char *args, isc_buffer_t *text) {
 			isc_buffer_putmem(text, msg1, sizeof(msg1));
 		return (ISC_R_SUCCESS);
 	}
-		
+
 	dns_zone_detach(&zone);
 	if (sizeof(msg2) <= isc_buffer_availablelength(text))
 		isc_buffer_putmem(text, msg2, sizeof(msg2));
 	return (ISC_R_FAILURE);
-}	
+}
 
 isc_result_t
 ns_server_togglequerylog(ns_server_t *server) {
 	server->log_queries = server->log_queries ? ISC_FALSE : ISC_TRUE;
-	
+
 	isc_log_write(ns_g_lctx, NS_LOGCATEGORY_GENERAL,
 		      NS_LOGMODULE_SERVER, ISC_LOG_INFO,
 		      "query logging is now %s",
@@ -4446,7 +4377,7 @@ ns_listenelt_fromconfig(const cfg_obj_t *listener, const cfg_obj_t *config,
 
 	result = cfg_acl_fromconfig(cfg_tuple_get(listener, "acl"),
 				   config, ns_g_lctx, actx, mctx, 0,
-                                   &delt->acl);
+				   &delt->acl);
 	if (result != ISC_R_SUCCESS) {
 		ns_listenelt_destroy(delt);
 		return (result);
@@ -4463,31 +4394,33 @@ ns_server_dumpstats(ns_server_t *server) {
 	FILE *fp = NULL;
 	int i;
 	int ncounters;
+	isc_uint64_t counters[DNS_STATS_NCOUNTERS];
 
 	isc_stdtime_get(&now);
 
 	CHECKMF(isc_stdio_open(server->statsfile, "a", &fp),
 		"could not open statistics dump file", server->statsfile);
-	
+
 	ncounters = DNS_STATS_NCOUNTERS;
 	fprintf(fp, "+++ Statistics Dump +++ (%lu)\n", (unsigned long)now);
-	
+
+	dns_stats_copy(server->querystats, counters);
 	for (i = 0; i < ncounters; i++)
 		fprintf(fp, "%s %" ISC_PRINT_QUADFORMAT "u\n",
-			dns_statscounter_names[i],
-			server->querystats[i]);
-	
+			dns_statscounter_names[i], counters[i]);
+
 	zone = NULL;
 	for (result = dns_zone_first(server->zonemgr, &zone);
 	     result == ISC_R_SUCCESS;
 	     next = NULL, result = dns_zone_next(zone, &next), zone = next)
 	{
-		isc_uint64_t *zonestats = dns_zone_getstatscounters(zone);
+		dns_stats_t *zonestats = dns_zone_getstats(zone);
 		if (zonestats != NULL) {
 			char zonename[DNS_NAME_FORMATSIZE];
 			dns_view_t *view;
 			char *viewname;
-			
+
+			dns_stats_copy(zonestats, counters);
 			dns_name_format(dns_zone_getorigin(zone),
 					zonename, sizeof(zonename));
 			view = dns_zone_getview(zone);
@@ -4496,7 +4429,7 @@ ns_server_dumpstats(ns_server_t *server) {
 				fprintf(fp, "%s %" ISC_PRINT_QUADFORMAT
 					"u %s",
 					dns_statscounter_names[i],
-					zonestats[i],
+					counters[i],
 					zonename);
 				if (strcmp(viewname, "_default") != 0)
 					fprintf(fp, " %s", viewname);
@@ -4507,7 +4440,7 @@ ns_server_dumpstats(ns_server_t *server) {
 	if (result == ISC_R_NOMORE)
 		result = ISC_R_SUCCESS;
 	CHECK(result);
-	
+
 	fprintf(fp, "--- Statistics Dump --- (%lu)\n", (unsigned long)now);
 
  cleanup:
@@ -4544,7 +4477,7 @@ static isc_result_t
 add_view_tolist(struct dumpcontext *dctx, dns_view_t *view) {
 	struct viewlistentry *vle;
 	isc_result_t result = ISC_R_SUCCESS;
-	
+
 	/*
 	 * Prevent duplicate views.
 	 */
@@ -4607,7 +4540,7 @@ dumpdone(void *arg, isc_result_t result) {
 	struct dumpcontext *dctx = arg;
 	char buf[1024+32];
 	const dns_master_style_t *style;
-	
+
 	if (result != ISC_R_SUCCESS)
 		goto cleanup;
 	if (dctx->mdctx != NULL)
@@ -4896,7 +4829,7 @@ ns_server_validation(ns_server_t *server, char *args) {
 	else
 		result = ISC_R_FAILURE;
  out:
-	isc_task_endexclusive(server->task);	
+	isc_task_endexclusive(server->task);
 	return (result);
 }
 
@@ -4957,7 +4890,7 @@ ns_server_flushcache(ns_server_t *server, char *args) {
 		} else
 			result = ISC_R_FAILURE;
 	}
-	isc_task_endexclusive(server->task);	
+	isc_task_endexclusive(server->task);
 	return (result);
 }
 
@@ -5035,7 +4968,7 @@ ns_server_flushname(ns_server_t *server, char *args) {
 				      viewname);
 		result = ISC_R_FAILURE;
 	}
-	isc_task_endexclusive(server->task);	
+	isc_task_endexclusive(server->task);
 	return (result);
 }
 
@@ -5118,7 +5051,7 @@ delete_keynames(dns_tsig_keyring_t *ring, char *target,
 		node = NULL;
 		dns_rbtnodechain_current(&chain, &foundname, origin, &node);
 		tkey = node->data;
-			
+
 		if (tkey != NULL) {
 			if (!tkey->generated)
 				goto nextkey;
@@ -5233,7 +5166,7 @@ list_keynames(dns_view_t *view, dns_tsig_keyring_t *ring, isc_buffer_t *text,
 		node = NULL;
 		dns_rbtnodechain_current(&chain, &foundname, origin, &node);
 		tkey = node->data;
-			
+
 		if (tkey != NULL) {
 			(*foundkeys)++;
 			dns_name_format(&tkey->name, namestr, sizeof(namestr));
@@ -5327,7 +5260,7 @@ ns_server_freeze(ns_server_t *server, isc_boolean_t freeze, char *args) {
 	char *journal;
 	const char *vname, *sep;
 	isc_boolean_t frozen;
-	
+
 	result = zone_from_args(server, args, &zone);
 	if (result != ISC_R_SUCCESS)
 		return (result);
@@ -5421,156 +5354,3 @@ ns_smf_add_message(isc_buffer_t *text) {
 	return (ISC_R_SUCCESS);
 }
 #endif /* HAVE_LIBSCF */
-
-#ifdef HAVE_LIBXML2
-
-/* XXXMLG below here sucks. */
-
-#define TRY(a) do { result = (a); INSIST(result == ISC_R_SUCCESS); } while(0);
-#define TRY0(a) do { xmlrc = (a); INSIST(xmlrc >= 0); } while(0);
-
-#define NODES 8
-#define SPACES 3
-
-void
-server_generatexml(ns_server_t *server, int *buflen, xmlChar **buf)
-{
-	char boottime[sizeof "yyyy-mm-ddThh:mm:ssZ"];
-	char nowstr[sizeof "yyyy-mm-ddThh:mm:ssZ"];
-	isc_time_t now;
-	xmlTextWriterPtr writer;
-	xmlDocPtr doc;
-	int xmlrc;
-	dns_view_t *view;
-	int i;
-
-	isc_time_now(&now);
-	isc_time_formatISO8601(&ns_g_boottime, boottime, sizeof boottime);
-	isc_time_formatISO8601(&now, nowstr, sizeof nowstr);
-
-	writer = xmlNewTextWriterDoc(&doc, 0);
-	TRY0(xmlTextWriterStartDocument(writer, NULL, "UTF-8", NULL));
-	TRY0(xmlTextWriterWritePI(writer, ISC_XMLCHAR "xml-stylesheet",
-			ISC_XMLCHAR "type=\"text/xsl\" href=\"/bind9.xsl\""));
-	TRY0(xmlTextWriterStartElement(writer, ISC_XMLCHAR "isc"));
-	TRY0(xmlTextWriterWriteAttribute(writer, ISC_XMLCHAR "version",
-					 ISC_XMLCHAR "1.0"));
-
-	TRY0(xmlTextWriterStartElement(writer, ISC_XMLCHAR "bind"));
-	TRY0(xmlTextWriterStartElement(writer, ISC_XMLCHAR "statistics"));
-	TRY0(xmlTextWriterWriteAttribute(writer, ISC_XMLCHAR "version",
-					 ISC_XMLCHAR "1.0"));
-
-	/*
-	 * Start by rendering the views we know of here.  For each view we
-	 * know of, call its rendering function.
-	 */
-	view = ISC_LIST_HEAD(server->viewlist);
-	TRY0(xmlTextWriterStartElement(writer, ISC_XMLCHAR "views"));
-	while (view != NULL) {
-		dns_view_xmlrender(view, writer, ISC_XML_RENDERALL);
-		view = ISC_LIST_NEXT(view, link);
-	}
-	TRY0(xmlTextWriterEndElement(writer)); /* views */
-
-	TRY0(xmlTextWriterStartElement(writer, ISC_XMLCHAR "socketmgr"));
-	isc_socketmgr_renderxml(ns_g_socketmgr, writer);
-	TRY0(xmlTextWriterEndElement(writer)); /* socketmgr */
-
-	TRY0(xmlTextWriterStartElement(writer, ISC_XMLCHAR "taskmgr"));
-	isc_taskmgr_renderxml(ns_g_taskmgr, writer);
-	TRY0(xmlTextWriterEndElement(writer)); /* taskmgr */
-
-	TRY0(xmlTextWriterStartElement(writer, ISC_XMLCHAR "server"));
-	xmlTextWriterStartElement(writer, ISC_XMLCHAR "boot-time");
-	xmlTextWriterWriteString(writer, ISC_XMLCHAR boottime);
-	xmlTextWriterEndElement(writer);
-	xmlTextWriterStartElement(writer, ISC_XMLCHAR "current-time");
-	xmlTextWriterWriteString(writer, ISC_XMLCHAR nowstr);
-	xmlTextWriterEndElement(writer);
-	TRY0(xmlTextWriterStartElement(writer, ISC_XMLCHAR "counters"));
-	for (i = 0; i < DNS_STATS_NCOUNTERS; i++) {
-		xmlTextWriterStartElement(writer,
-					ISC_XMLCHAR dns_statscounter_names[i]);
-		xmlTextWriterWriteFormatString(writer,
-					       "%" ISC_PRINT_QUADFORMAT "u",
-					       server->querystats[i]);
-		xmlTextWriterEndElement(writer);
-	}
-	xmlTextWriterEndElement(writer); /* counters */
-	xmlTextWriterEndElement(writer); /* server */
-
-	TRY0(xmlTextWriterStartElement(writer, ISC_XMLCHAR "memory"));
-	isc_mem_renderxml(server->mctx, writer);
-	TRY0(xmlTextWriterEndElement(writer)); /* memory */
-
-	TRY0(xmlTextWriterEndElement(writer)); /* statistics */
-	TRY0(xmlTextWriterEndElement(writer)); /* bind */
-	TRY0(xmlTextWriterEndElement(writer)); /* isc */
-
-	TRY0(xmlTextWriterEndDocument(writer));
-
-	xmlFreeTextWriter(writer);
-
-	xmlDocDumpFormatMemoryEnc(doc, buf, buflen, "UTF-8", 1);
-	xmlFreeDoc(doc);
-}
-
-static void
-wrap_xmlfree(isc_buffer_t *buffer, void *arg)
-{
-	UNUSED(arg);
-
-	xmlFree(isc_buffer_base(buffer));
-}
-
-static isc_result_t
-render_index(const char *url, const char *querystring, void *arg,
-	     unsigned int *retcode, const char **retmsg, const char **mimetype,
-	     isc_buffer_t *b, isc_httpdfree_t **freecb,
-	     void **freecb_args)
-{
-	unsigned char *msg;
-	int msglen;
-	ns_server_t *server = arg;
-
-	UNUSED(url);
-	UNUSED(querystring);
-
-	server_generatexml(server, &msglen, &msg);
-
-	*retcode = 200;
-	*retmsg = "OK";
-	*mimetype = "text/xml";
-	isc_buffer_reinit(b, msg, msglen);
-	isc_buffer_add(b, msglen);
-	*freecb = wrap_xmlfree;
-	*freecb_args = NULL;
-
-	return (ISC_R_SUCCESS);
-}
-
-static isc_result_t
-render_xsl(const char *url, const char *querystring, void *args,
-	   unsigned int *retcode, const char **retmsg, const char **mimetype,
-	   isc_buffer_t *b, isc_httpdfree_t **freecb,
-	   void **freecb_args)
-{
-#include "bind9.xsl.h"
-
-	UNUSED(url);
-	UNUSED(querystring);
-	UNUSED(args);
-
-	*retcode = 200;
-	*retmsg = "OK";
-	*mimetype = "text/xslt+xml";
-	isc_buffer_reinit(b, msg, strlen(msg));
-	isc_buffer_add(b, strlen(msg));
-	*freecb = NULL;
-	*freecb_args = NULL;
-
-	return (ISC_R_SUCCESS);
-}
-
-#endif /* HAVE_LIBXML2 */

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2008  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,14 +15,13 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: server.h,v 1.87 2007/06/19 23:46:59 tbox Exp $ */
+/* $Id: server.h,v 1.88.10.3 2008/01/24 02:29:56 jinmei Exp $ */
 
 #ifndef NAMED_SERVER_H
 #define NAMED_SERVER_H 1
 
 /*! \file */
 
-#include <isc/httpd.h>
 #include <isc/log.h>
 #include <isc/magic.h>
 #include <isc/quota.h>
@@ -64,7 +63,7 @@ struct ns_server {
 	isc_boolean_t		server_usehostname;
 	char *			server_id;	/*%< User-specified server id */
 
-        /*%
+	/*%
 	 * Current ACL environment.  This defines the
 	 * current values of the localhost and localnets
 	 * ACLs.
@@ -92,7 +91,7 @@ struct ns_server {
 	isc_boolean_t		flushonshutdown;
 	isc_boolean_t		log_queries;	/*%< For BIND 8 compatibility */
 
-	isc_uint64_t *		querystats;	/*%< Query statistics counters */
+	dns_stats_t *		querystats;	/*%< Query statistics counters */
 
 	ns_controls_t *		controls;	/*%< Control channels */
 	unsigned int		dispatchgen;
@@ -100,8 +99,7 @@ struct ns_server {
 
 	dns_acache_t		*acache;
 
-	isc_httpdmgr_t		*httpd;
-	isc_sockaddr_t		httpd_sockaddr;
+	ns_statschannellist_t	statschannels;
 };
 
 #define NS_SERVER_MAGIC			ISC_MAGIC('S','V','E','R')

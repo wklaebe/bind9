@@ -123,7 +123,7 @@ options {
         masterfile-format ( text | raw );
         match-mapped-addresses <boolean>;
         max-acache-size <size_no_default>;
-        max-cache-size <size_no_default>;
+        max-cache-size <size>;
         max-cache-ttl <integer>;
         max-clients-per-query <integer>;
         max-ixfr-log-size <size>; // obsolete
@@ -176,8 +176,6 @@ options {
         stacksize <size>;
         statistics-file <quoted_string>;
         statistics-interval <integer>; // not yet implemented
-        stats-server <addrport4>;
-        stats-server-v6 <addrport6>;
         suppress-initial-notify <boolean>; // not yet implemented
         tcp-clients <integer>;
         tcp-listen-queue <integer>;
@@ -221,6 +219,11 @@ server <netprefix> {
         transfer-source ( <ipv4_address> | * ) [ port ( <integer> | * ) ];
         transfer-source-v6 ( <ipv6_address> | * ) [ port ( <integer> | * ) ];
         transfers <integer>;
+};
+
+statistics-channels {
+        inet ( <ipv4_address> | <ipv6_address> | * ) [ port ( <integer> | *
+            ) ] [ allow { <address_match_element>; ... } ];
 };
 
 trusted-keys { <string> <integer> <integer> <integer> <quoted_string>; ... };
@@ -293,7 +296,7 @@ view <string> <optional_class> {
         match-destinations { <address_match_element>; ... };
         match-recursive-only <boolean>;
         max-acache-size <size_no_default>;
-        max-cache-size <size_no_default>;
+        max-cache-size <size>;
         max-cache-ttl <integer>;
         max-clients-per-query <integer>;
         max-ixfr-log-size <size>; // obsolete

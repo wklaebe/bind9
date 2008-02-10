@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2008  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: os.c,v 1.79 2007/06/19 23:46:59 tbox Exp $ */
+/* $Id: os.c,v 1.79.128.3 2008/01/17 23:46:36 tbox Exp $ */
 
 /*! \file */
 
@@ -326,7 +326,7 @@ ns_os_daemonize(void) {
 		/*
 		 * Wait for the child to finish loading for the first time.
 		 * This would be so much simpler if fork() worked once we
-	         * were multi-threaded.
+		 * were multi-threaded.
 		 */
 		(void)close(dfd[1]);
 		do {
@@ -496,15 +496,19 @@ ns_os_changeuser(void) {
 		ns_main_earlyfatal("setuid(): %s", strbuf);
 	}
 
-#if defined(HAVE_LINUX_CAPABILITY_H) && !defined(HAVE_LINUXTHREADS)
-	linux_minprivs();
-#endif
 #if defined(HAVE_SYS_PRCTL_H) && defined(PR_SET_DUMPABLE)
 	/*
 	 * Restore the ability of named to drop core after the setuid()
 	 * call has disabled it.
 	 */
-	prctl(PR_SET_DUMPABLE,1,0,0,0);
+	if (prctl(PR_SET_DUMPABLE,1,0,0,0) < 0) {
+		isc__strerror(errno, strbuf, sizeof(strbuf));
+		ns_main_earlywarning("prctl(PR_SET_DUMPABLE) failed: %s",
+				     strbuf);
+	}
+#endif
+#if defined(HAVE_LINUX_CAPABILITY_H) && !defined(HAVE_LINUXTHREADS)
+	linux_minprivs();
 #endif
 }
 
@@ -665,7 +669,7 @@ ns_os_shutdownmsg(char *command, isc_buffer_t *text) {
 	ptr = next_token(&input, " \t");
 	if (ptr == NULL)
 		return;
-	
+
 	if (strcmp(ptr, "-p") != 0)
 		return;
 

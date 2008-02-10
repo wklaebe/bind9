@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2008  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: message.c,v 1.237 2007/08/14 00:25:08 marka Exp $ */
+/* $Id: message.c,v 1.237.110.3 2008/01/17 23:46:37 tbox Exp $ */
 
 /*! \file */
 
@@ -1016,7 +1016,7 @@ getquestions(isc_buffer_t *source, dns_message_t *msg, dns_decompress_t *dctx,
 		if (name == NULL)
 			return (ISC_R_NOMEMORY);
 		free_name = ISC_TRUE;
-		
+
 		offsets = newoffsets(msg);
 		if (offsets == NULL) {
 			result = ISC_R_NOMEMORY;
@@ -1326,7 +1326,7 @@ getsection(isc_buffer_t *source, dns_message_t *msg, dns_decompress_t *dctx,
 			}
 			/*
 			 * When the rdata is empty, the data pointer is
-			 * never dereferenced, but it must still be non-NULL. 
+			 * never dereferenced, but it must still be non-NULL.
 			 * Casting 1 rather than "" avoids warnings about
 			 * discarding the const attribute of a string,
 			 * for compilers that would warn about such things.
@@ -1465,7 +1465,7 @@ getsection(isc_buffer_t *source, dns_message_t *msg, dns_decompress_t *dctx,
 							       rdataset)
 				      == ISC_R_SUCCESS);
 
-			if (rdtype != dns_rdatatype_opt && 
+			if (rdtype != dns_rdatatype_opt &&
 			    rdtype != dns_rdatatype_tsig &&
 			    !issigzero)
 			{
@@ -2930,19 +2930,24 @@ void
 dns_message_dumpsig(dns_message_t *msg, char *txt1) {
 	dns_rdata_t querytsigrdata = DNS_RDATA_INIT;
 	dns_rdata_any_tsig_t querytsig;
+	isc_result_t result;
 
 	if (msg->tsig != NULL) {
-		dns_rdataset_first(msg->tsig);
+		result = dns_rdataset_first(msg->tsig);
+		RUNTIME_CHECK(result == ISC_R_SUCCESS);
 		dns_rdataset_current(msg->tsig, &querytsigrdata);
-		dns_rdata_tostruct(&querytsigrdata, &querytsig, NULL);
+		result = dns_rdata_tostruct(&querytsigrdata, &querytsig, NULL);
+		RUNTIME_CHECK(result == ISC_R_SUCCESS);
 		hexdump(txt1, "TSIG", querytsig.signature,
 			querytsig.siglen);
 	}
 
 	if (msg->querytsig != NULL) {
-		dns_rdataset_first(msg->querytsig);
+		result = dns_rdataset_first(msg->querytsig);
+		RUNTIME_CHECK(result == ISC_R_SUCCESS);
 		dns_rdataset_current(msg->querytsig, &querytsigrdata);
-		dns_rdata_tostruct(&querytsigrdata, &querytsig, NULL);
+		result = dns_rdata_tostruct(&querytsigrdata, &querytsig, NULL);
+		RUNTIME_CHECK(result == ISC_R_SUCCESS);
 		hexdump(txt1, "QUERYTSIG", querytsig.signature,
 			querytsig.siglen);
 	}

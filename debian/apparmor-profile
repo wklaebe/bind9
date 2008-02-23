@@ -1,0 +1,24 @@
+# vim:syntax=apparmor
+# Last Modified: Fri Jun  1 16:43:22 2007
+#include <tunables/global>
+
+/usr/sbin/named {
+  #include <abstractions/base>
+  #include <abstractions/nameservice>
+
+  capability net_bind_service,
+  capability setgid,
+  capability setuid,
+  capability sys_chroot,
+
+  # Dynamic updates needs zone and journal files rw. We just allow rw for all
+  # in /etc/bind, and let DAC handle the rest
+  /etc/bind/* rw,
+
+  /proc/net/if_inet6 r,
+  /usr/sbin/named mr,
+  /var/cache/bind/* rw,
+  /var/run/bind/run/named.pid w,
+  # support for resolvconf
+  /var/run/bind/named.options r,
+}

@@ -1,3 +1,21 @@
+bind9 (1:9.5.0~b2-0) experimental; urgency=low
+
+  [Thiemo Seufer]
+
+  * mips:atomic.h: improve implementation of atomic ops, fix mips{el,64}
+
+  [LaMont Jones]
+
+  * manpages: call it /etc/bind/named.conf throughout, and typos.  Closes: #419750
+  * named.conf.5: correct filename.  Closes: #428015
+  * manpages: fix typo errors.  Closes: #395834
+  * Makefile.in: be explicit about library paths
+  * build: Turn on GSS-TSIG support.  LP: #158197
+  * build: soname changes
+  * db.root: include AAAA RRs.  Closes: #464111
+
+ -- LaMont Jones <lamont@debian.org>  Sat, 23 Feb 2008 08:06:17 -0700
+
 bind9 (1:9.4.2-4) unstable; urgency=low
 
   * incorporate ubuntu apparmor change from Jamie Strandboge,

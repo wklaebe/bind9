@@ -1,3 +1,4 @@
+etc/apparmor.d/
 etc/bind
 usr/bin
 usr/sbin

@@ -1,3 +1,16 @@
+bind9 (1:9.4.2-4) unstable; urgency=low
+
+  * incorporate ubuntu apparmor change from Jamie Strandboge,
+    with changes:
+    - Add apparmor profile, reload apparmor profile on config
+    - Add a note about apparmor to README.Debian
+    - conflicts/replaces old apparmor versions
+  * db.root: include AAAA RRs.  Closes: #464111
+  * Don't die when /var/lib/bind already exists.  LP: #191685
+  * build: turn on optimization.  Closes: #435194
+
+ -- LaMont Jones <lamont@debian.org>  Fri, 22 Feb 2008 22:05:25 -0700
+
 bind9 (1:9.4.2-3ubuntu1) hardy; urgency=low
 
   * add AppArmor profile

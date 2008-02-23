@@ -29,6 +29,6 @@ getent passwd bind >/dev/null 2>&1 ||
     adduser --system --home /var/cache/bind --no-create-home \
 	    --disabled-password --ingroup bind bind
 
-if [ ! -s /etc/bind/rndc.key ]; then
-    rndc-confgen -r /dev/urandom -a
+if [ ! -s /etc/bind/rndc.key ] && [ -x /usr/sbin/rndc-confgen ]; then
+    /usr/sbin/rndc-confgen -r /dev/urandom -a
 fi

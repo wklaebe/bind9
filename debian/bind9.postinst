@@ -12,7 +12,7 @@ if [ "$1" = configure ]; then
 		--disabled-password --ingroup bind bind
 
     if [ -z "$lastversion" ] || dpkg --compare-versions "$lastversion" lt 1:9.4.2-2 ; then
-	mkdir /var/lib/bind
+	mkdir -p /var/lib/bind
 	chown root:bind /var/lib/bind
 	chmod 775 /var/lib/bind
     fi
@@ -60,6 +60,10 @@ if [ "$1" = configure ]; then
 	chmod g+rwx /var/run/bind/run /var/cache/bind
     fi
 
+    # Reload AppArmor profile
+    if [ -x /etc/init.d/apparmor ]; then
+        invoke-rc.d apparmor force-reload || true
+    fi
 fi
 
 #DEBHELPER#

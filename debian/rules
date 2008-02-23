@@ -10,14 +10,17 @@ DEB_BUILD_ARCH := $(shell dpkg --print-installation-architecture)
 endif
 export arch = $(DEB_HOST_ARCH)
 
-#gcc3_4_arch = $(findstring $(arch),powerpc)
-#
-#ifeq ($(arch),$(gcc3_4_arch))
-#export CC=gcc-3.4
-#export CXX=g++-3.4
-#endif
+ifneq (,$(findstring debug,$(DEB_BUILD_OPTIONS)))
+DEBUG = -g
+endif
 
-export CFLAGS=-fno-strict-aliasing
+ifneq (,$(findstring noopt,$(DEB_BUILD_OPTIONS)))
+OPT = 
+else
+OPT = -O2
+endif
+
+export CFLAGS=-fno-strict-aliasing $(DEBUG) $(OPT)
 
 configure: configure-stamp
 configure-stamp:
@@ -60,6 +63,7 @@ clean:
 	dh_clean
 
 ETCBIND=debian/bind9/etc/bind
+ETCAPP=debian/bind9/etc/apparmor.d
 install: build
 	dh_testdir
 	dh_testroot
@@ -77,6 +81,7 @@ install: build
 	install -c -o bin -g bin -m 440 debian/named.conf.local ${ETCBIND}
 	install -c -o bin -g bin -m 440 debian/named.conf.options ${ETCBIND}
 	cp doc/arm/*.html debian/bind9-doc/usr/share/doc/bind9-doc/arm
+	install -m 644 -o root -g root debian/apparmor-profile ${ETCAPP}
 
 # Build architecture-independent files here.
 binary-indep: build install

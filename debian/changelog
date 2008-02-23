@@ -1,9 +1,38 @@
-bind9 (1:9.5.0~b1-1) experimental-UNRELEASED; urgency=low
+bind9 (1:9.4.2-4) unstable; urgency=low
 
-  * Start new release
-  * DO NOT EDIT: changelog is built from commit messages
+  * incorporate ubuntu apparmor change from Jamie Strandboge,
+    with changes:
+    - Add apparmor profile, reload apparmor profile on config
+    - Add a note about apparmor to README.Debian
+    - conflicts/replaces old apparmor versions
+  * db.root: include AAAA RRs.  Closes: #464111
+  * Don't die when /var/lib/bind already exists.  LP: #191685
+  * build: turn on optimization.  Closes: #435194
 
- -- LaMont Jones <lamont@debian.org>  Wed, 02 Jan 2008 19:35:16 -0700
+ -- LaMont Jones <lamont@debian.org>  Fri, 22 Feb 2008 22:05:25 -0700
+
+bind9 (1:9.4.2-3ubuntu1) hardy; urgency=low
+
+  * add AppArmor profile
+    + debian/apparmor-profile
+    + debian/bind9.postinst: Reload AA profile on configuration
+  * updated debian/README.Debian for note on AppArmor
+  * debian/control: Replaces apparmor-profiles << 2.1+1075-0ubuntu4 as we
+    should now take control
+  * debian/control: Conflicts with apparmor-profiles << 2.1+1075-0ubuntu4
+    to make sure that if earlier version of apparmor-profiles gets installed
+    it won't overwrite our profile
+  * Modify Maintainer value to match the DebianMaintainerField
+    specification.
+
+ -- Jamie Strandboge <jamie@ubuntu.com>  Wed, 13 Feb 2008 17:30:45 +0000
+
+bind9 (1:9.4.2-3) unstable; urgency=low
+
+  * don't run rndc-confgen when it's not there.  Closes: #459551
+  * control: drop use of ${Source-Version}
+
+ -- LaMont Jones <lamont@debian.org>  Mon, 07 Jan 2008 10:16:06 -0700
 
 bind9 (1:9.4.2-2) unstable; urgency=low
 

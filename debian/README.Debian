@@ -162,7 +162,5 @@ to you:
 
 Apparmor Profile
 ----------------
-Ubuntu has added the apparmor profile /etc/apparmor.d/usr.sbin.named to bind9.
-Before filing a bug against bind9 or apparmor, please see:
-
-https://wiki.ubuntu.com/DebuggingApparmor
+If your system uses apparmor, please see https://wiki.ubuntu.com/DebuggingApparmor
+prior to filing a bug against bind9.

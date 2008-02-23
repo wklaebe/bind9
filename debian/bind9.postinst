@@ -60,6 +60,10 @@ if [ "$1" = configure ]; then
 	chmod g+rwx /var/run/bind/run /var/cache/bind
     fi
 
+    # Reload AppArmor profile
+    if [ -x /etc/init.d/apparmor ]; then
+        invoke-rc.d apparmor force-reload || true
+    fi
 fi
 
 #DEBHELPER#

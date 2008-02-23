@@ -1,3 +1,19 @@
+bind9 (1:9.4.2-3ubuntu1) hardy; urgency=low
+
+  * add AppArmor profile
+    + debian/apparmor-profile
+    + debian/bind9.postinst: Reload AA profile on configuration
+  * updated debian/README.Debian for note on AppArmor
+  * debian/control: Replaces apparmor-profiles << 2.1+1075-0ubuntu4 as we
+    should now take control
+  * debian/control: Conflicts with apparmor-profiles << 2.1+1075-0ubuntu4
+    to make sure that if earlier version of apparmor-profiles gets installed
+    it won't overwrite our profile
+  * Modify Maintainer value to match the DebianMaintainerField
+    specification.
+
+ -- Jamie Strandboge <jamie@ubuntu.com>  Wed, 13 Feb 2008 17:30:45 +0000
+
 bind9 (1:9.4.2-3) unstable; urgency=low
 
   * don't run rndc-confgen when it's not there.  Closes: #459551

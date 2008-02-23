@@ -1,8 +1,7 @@
 Source: bind9
 Section: net
 Priority: optional
-Maintainer: Ubuntu Core Developers <ubuntu-devel-discuss@lists.ubuntu.com>
-XSBC-Original-Maintainer: LaMont Jones <lamont@debian.org>
+Maintainer: LaMont Jones <lamont@debian.org>
 Uploaders: Bdale Garbee <bdale@gag.com>
 Build-Depends: debhelper (>=5), libssl-dev, libtool, bison
 Standards-Version: 3.7.2.0

@@ -62,14 +62,15 @@ clean:
 	rm -f build-stamp configure-stamp
 	dh_clean
 
-ETCBIND=debian/bind9/etc/bind
-ETCAPP=debian/bind9/etc/apparmor.d
+ETCBIND=debian/tmp/etc/bind
+ETCAPP=debian/tmp/etc/apparmor.d
 install: build
 	dh_testdir
 	dh_testroot
 	dh_clean -k
 	dh_installdirs
-	$(MAKE) install DESTDIR=`pwd`/debian/bind9
+	for i in $$(cat debian/bind9.dirs); do mkdir -p debian/tmp/$$i; done
+	$(MAKE) install DESTDIR=`pwd`/debian/tmp
 	install -c -o bin -g bin -m 444 debian/db.0 ${ETCBIND}/db.0
 	install -c -o bin -g bin -m 444 debian/db.0 ${ETCBIND}/db.255
 	install -c -o bin -g bin -m 444 debian/db.empty ${ETCBIND}

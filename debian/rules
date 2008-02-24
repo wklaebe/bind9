@@ -62,15 +62,14 @@ clean:
 	rm -f build-stamp configure-stamp
 	dh_clean
 
-ETCBIND=debian/tmp/etc/bind
-ETCAPP=debian/tmp/etc/apparmor.d
+ETCBIND=debian/bind9/etc/bind
+ETCAPP=debian/bind9/etc/apparmor.d
 install: build
 	dh_testdir
 	dh_testroot
 	dh_clean -k
 	dh_installdirs
-	for i in $$(cat debian/bind9.dirs); do mkdir -p debian/tmp/$$i; done
-	$(MAKE) install DESTDIR=`pwd`/debian/tmp
+	$(MAKE) install DESTDIR=`pwd`/debian/bind9
 	install -c -o bin -g bin -m 444 debian/db.0 ${ETCBIND}/db.0
 	install -c -o bin -g bin -m 444 debian/db.0 ${ETCBIND}/db.255
 	install -c -o bin -g bin -m 444 debian/db.empty ${ETCBIND}
@@ -117,9 +116,8 @@ binary-arch: build install
 	dh_installmanpages -pbind9 runmdn.1 mdnconv.1 zone2ldap.1 nslint.8
 	dh_installinfo -a
 	dh_installchangelogs -a # CHANGES # upstream changelog only in bind9-doc
-	dh_install --sourcedir=debian/tmp -a
-	#( cd debian/bind9/usr ; rm -fr bin include lib )
-	#rm -rf debian/bind9/usr/share/man/man[13]
+	dh_install --sourcedir=debian/bind9 -a
+	(cd debian/bind9/ && rm -rf $$(cat ../*.install) )
 	dh_link -a
 	dh_strip -a
 	dh_compress -a

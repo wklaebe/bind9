@@ -10,7 +10,7 @@ XS-Vcs-Git: git://git.debian.org/~lamont/bind9.git
 
 Package: bind9
 Architecture: any
-Depends: ${shlibs:Depends}, netbase, adduser, libdns41 (=${Source-Version}), libisccfg40 (=${Source-Version}), libisc41 (=${Source-Version}), libisccc40 (=${Source-Version}), lsb-base (>=3.0-6)
+Depends: ${shlibs:Depends}, netbase, adduser, libdns41 (=${binary:Version}), libisccfg40 (=${binary:Version}), libisc41 (=${binary:Version}), libisccc40 (=${binary:Version}), lsb-base (>=3.0-6)
 Conflicts: bind, apparmor-profiles (<< 2.1+1075-0ubuntu4)
 Replaces: bind, dnsutils (<< 1:9.1.0-3), apparmor-profiles (<< 2.1+1075-0ubuntu4)
 Suggests: dnsutils, bind9-doc, resolvconf
@@ -44,7 +44,7 @@ Section: libdevel
 Architecture: any
 Conflicts: bind-dev
 Replaces: bind-dev
-Depends: libdns41 (= ${Source-Version}), libisc41 (= ${Source-Version}), libisccc40(= ${Source-Version}), libisccfg40 (= ${Source-Version}), liblwres40 (= ${Source-Version}) 
+Depends: libdns41 (= ${binary:Version}), libisc41 (= ${binary:Version}), libisccc40(= ${binary:Version}), libisccfg40 (= ${binary:Version}), liblwres40 (= ${binary:Version}) 
 Description: Static Libraries and Headers used by BIND
  This package delivers archive-style libraries, header files, and API man
  pages for libbind, libdns, libisc, and liblwres.  These are are only needed 

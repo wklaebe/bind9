@@ -117,9 +117,9 @@ binary-arch: build install
 	dh_installmanpages -pbind9 runmdn.1 mdnconv.1 zone2ldap.1 nslint.8
 	dh_installinfo -a
 	dh_installchangelogs -a # CHANGES # upstream changelog only in bind9-doc
-	dh_install --sourcedir=debian/bind9 -a
-	( cd debian/bind9/usr ; rm -fr bin include lib )
-	rm -rf debian/bind9/usr/share/man/man[13]
+	dh_install --sourcedir=debian/tmp -a
+	#( cd debian/bind9/usr ; rm -fr bin include lib )
+	#rm -rf debian/bind9/usr/share/man/man[13]
 	dh_link -a
 	dh_strip -a
 	dh_compress -a

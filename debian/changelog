@@ -1,4 +1,4 @@
-bind9 (1:9.5.0~b2-0) experimental; urgency=low
+bind9 (1:9.5.0~b2-1) experimental; urgency=low
 
   [Thiemo Seufer]
 
@@ -13,6 +13,12 @@ bind9 (1:9.5.0~b2-0) experimental; urgency=low
   * build: Turn on GSS-TSIG support.  LP: #158197
   * build: soname changes
   * db.root: include AAAA RRs.  Closes: #464111
+  * soname: lib{dns,isc}40 -> 41
+  * meta: use binary:Version instead of Source-Version
+
+  [Andreas John]
+
+  * Only use capabilities if they are present.  Closes: #360339, #212226
 
  -- LaMont Jones <lamont@debian.org>  Sat, 23 Feb 2008 08:06:17 -0700
 

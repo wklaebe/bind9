@@ -80,7 +80,7 @@ install: build
 	install -c -o bin -g bin -m 440 debian/named.conf.local ${ETCBIND}
 	install -c -o bin -g bin -m 440 debian/named.conf.options ${ETCBIND}
 	cp doc/arm/*.html debian/bind9-doc/usr/share/doc/bind9-doc/arm
-	install -m 644 -o root -g root debian/apparmor-profile ${ETCAPP}
+	install -m 644 -o root -g root debian/apparmor-profile ${ETCAPP}/usr.sbin.named
 
 # Build architecture-independent files here.
 binary-indep: build install

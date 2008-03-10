@@ -1,3 +1,17 @@
+bind9 (1:9.4.2-6) unstable; urgency=low
+
+  * Correct apparmor profile filename.  LP: #200739
+
+ -- LaMont Jones <lamont@debian.org>  Mon, 10 Mar 2008 14:28:01 -0600
+
+bind9 (1:9.4.2-5) unstable; urgency=low
+
+  * add "order random_1" support (return one random RR)
+  * Fix doc pathnames in README.Debian.  Closes: #266891
+  * Add AAAA ::1 entry to db.local.  Closes: #230088
+
+ -- LaMont Jones <lamont@debian.org>  Mon, 10 Mar 2008 13:51:28 -0600
+
 bind9 (1:9.5.0~b2-1) experimental; urgency=low
 
   [Thiemo Seufer]

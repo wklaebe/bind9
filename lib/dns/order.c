@@ -89,6 +89,7 @@ dns_order_add(dns_order_t *order, dns_name_t *name,
 	REQUIRE(DNS_ORDER_VALID(order));
 	REQUIRE(mode == DNS_RDATASETATTR_RANDOMIZE ||
 	        mode == DNS_RDATASETATTR_FIXEDORDER ||
+		mode == (DNS_RDATASETATTR_RANDOMIZE|DNS_RDATASETATTR_SINGLE) ||
 		mode == 0 /* DNS_RDATASETATTR_CYCLIC */ );
 
 	ent = isc_mem_get(order->mctx, sizeof(*ent));

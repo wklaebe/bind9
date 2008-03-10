@@ -1090,6 +1090,8 @@ configure_order(dns_order_t *order, const cfg_obj_t *ent) {
 		mode = DNS_RDATASETATTR_FIXEDORDER;
 	else if (!strcasecmp(str, "random"))
 		mode = DNS_RDATASETATTR_RANDOMIZE;
+	else if (!strcasecmp(str, "random_1"))
+		mode = DNS_RDATASETATTR_RANDOMIZE|DNS_RDATASETATTR_SINGLE;
 	else if (!strcasecmp(str, "cyclic"))
 		mode = 0;
 	else

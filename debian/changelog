@@ -1,3 +1,11 @@
+bind9 (1:9.4.2-5) unstable; urgency=low
+
+  * add "order random_1" support (return one random RR)
+  * Fix doc pathnames in README.Debian.  Closes: #266891
+  * Add AAAA ::1 entry to db.local.  Closes: #230088
+
+ -- LaMont Jones <lamont@debian.org>  Mon, 10 Mar 2008 13:51:28 -0600
+
 bind9 (1:9.4.2-4) unstable; urgency=low
 
   * incorporate ubuntu apparmor change from Jamie Strandboge,

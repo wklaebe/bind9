@@ -185,6 +185,8 @@ struct dns_rdataset {
 #define DNS_RDATASETATTR_REQUIREDGLUE	0x00010000
 #define DNS_RDATASETATTR_LOADORDER	0x00020000
 
+#define DNS_RDATASETATTR_SINGLE		0x10000000	/* Only return 1 answer */
+
 /*%
  * _OMITDNSSEC:
  * 	Omit DNSSEC records when rendering ncache records.

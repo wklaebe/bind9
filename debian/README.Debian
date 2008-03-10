@@ -2,9 +2,9 @@ Upgrading from BIND 8.X:
 -----------------------
 
 If you are upgrading an authoritative server from BIND 8.X, please install
-the bind9-doc package and read /usr/doc/bind9-doc/misc/migration.gz, which 
-contains a set of notes from the BIND maintainers on what changed that is
-likely to need your attention during an upgrade.
+the bind9-doc package and read /usr/share/doc/bind9-doc/misc/migration.gz,
+which contains a set of notes from the BIND maintainers on what changed
+that is likely to need your attention during an upgrade.
 
 
 Upgrading from earlier bind9 packages:

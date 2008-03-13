@@ -89,7 +89,8 @@ copy_rdataset(dns_rdataset_t *rdataset, isc_buffer_t *buffer) {
 
 isc_result_t
 dns_ncache_add(dns_message_t *message, dns_db_t *cache, dns_dbnode_t *node,
-	       dns_rdatatype_t covers, isc_stdtime_t now, dns_ttl_t maxttl,
+	       dns_rdatatype_t covers, isc_stdtime_t now,
+	       dns_ttl_t minttl, dns_ttl_t maxttl,
 	       dns_rdataset_t *addedrdataset)
 {
 	isc_result_t result;
@@ -145,6 +146,8 @@ dns_ncache_add(dns_message_t *message, dns_db_t *cache, dns_dbnode_t *node,
 				    type == dns_rdatatype_nsec) {
 					if (ttl > rdataset->ttl)
 						ttl = rdataset->ttl;
+					if (ttl < minttl)
+						ttl = minttl;
 					if (trust > rdataset->trust)
 						trust = rdataset->trust;
 					/*

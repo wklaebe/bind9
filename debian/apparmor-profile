@@ -14,6 +14,7 @@
   # Dynamic updates needs zone and journal files rw. We just allow rw for all
   # in /etc/bind, and let DAC handle the rest
   /etc/bind/* rw,
+  /var/lib/bind/* rw,
 
   /proc/net/if_inet6 r,
   /usr/sbin/named mr,

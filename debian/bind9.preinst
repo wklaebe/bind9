@@ -31,6 +31,10 @@ if [ "$1" = "upgrade" ]; then
                 # profile is same as in conffiles
                 ln -sf $APP_CONFFILE $APP_COMPLAIN
             fi
+        else
+            # force-complain on upgrade from pre-shipped profile and
+            # there is no existing profile
+            ln -sf $APP_CONFFILE $APP_COMPLAIN
         fi
     fi
 fi

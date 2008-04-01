@@ -13,12 +13,12 @@
 
   # Dynamic updates needs zone and journal files rw. We just allow rw for all
   # in /etc/bind, and let DAC handle the rest
-  /etc/bind/* rw,
-  /var/lib/bind/* rw,
+  /etc/bind/** rw,
+  /var/lib/bind/** rw,
 
   /proc/net/if_inet6 r,
   /usr/sbin/named mr,
-  /var/cache/bind/* rw,
+  /var/cache/bind/** rw,
   /var/run/bind/run/named.pid w,
   # support for resolvconf
   /var/run/bind/named.options r,

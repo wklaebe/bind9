@@ -11,14 +11,16 @@
   capability setuid,
   capability sys_chroot,
 
-  # Dynamic updates needs zone and journal files rw. We just allow rw for all
-  # in /etc/bind, and let DAC handle the rest
-  /etc/bind/** rw,
+  # /etc/bind should be read-only for bind
+  # /var/lib/bind is for dynamically updated zone (and journal) files.
+  # /var/cache/bind is for slave/stub data, since we're not the origin of it.
+  # See /usr/share/doc/bind9/README.Debian.gz
+  /etc/bind/** r,
   /var/lib/bind/** rw,
+  /var/cache/bind/** rw,
 
   /proc/net/if_inet6 r,
   /usr/sbin/named mr,
-  /var/cache/bind/** rw,
   /var/run/bind/run/named.pid w,
   # support for resolvconf
   /var/run/bind/named.options r,

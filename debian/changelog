@@ -1,3 +1,40 @@
+bind9 (1:9.4.2-9) unstable; urgency=low
+
+  * apparmor: allow subdirs in {/etc,/var/cache,/var/lib}/bind
+  * apparmor: make profile match README.Debian
+
+ -- LaMont Jones <lamont@debian.org>  Tue, 01 Apr 2008 21:13:05 -0600
+
+bind9 (1:9.4.2-8) unstable; urgency=low
+
+  [ISC]
+
+  * CVE-2008-0122: off by one error in (unused) inet_network function.
+    Closes: #462783  LP: #203476
+
+  [Michael Milligan]
+
+  * Fix min-cache-ttl and min-ncache-ttl keywords
+
+  [Jamie Strandboge]
+
+  * apparmor: force complain-mode for apparmor on certain upgrades.  LP: #203528
+  * debian/bind9.postrm: purge /etc/apparmor.d/force-complain/usr.sbin.named
+
+ -- LaMont Jones <lamont@debian.org>  Tue, 18 Mar 2008 18:35:15 -0600
+
+bind9 (1:9.4.2-7) unstable; urgency=low
+
+  [Jamie Strandboge]
+
+  * Allow rw access to /var/lib/bind/* in apparmor-profile.  LP: #201954
+
+  [LaMont Jones]
+
+  * Drop root-delegation comments from named.conf.  Closes: #217829, #297219
+
+ -- LaMont Jones <lamont@debian.org>  Sat, 15 Mar 2008 09:48:10 -0600
+
 bind9 (1:9.4.2-6) unstable; urgency=low
 
   * Correct apparmor profile filename.  LP: #200739

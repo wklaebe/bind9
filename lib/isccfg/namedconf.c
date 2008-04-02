@@ -762,6 +762,8 @@ view_clauses[] = {
 	{ "lame-ttl", &cfg_type_uint32, 0 },
 	{ "max-ncache-ttl", &cfg_type_uint32, 0 },
 	{ "max-cache-ttl", &cfg_type_uint32, 0 },
+	{ "min-ncache-ttl", &cfg_type_uint32, 0 },
+	{ "min-cache-ttl", &cfg_type_uint32, 0 },
 	{ "transfer-format", &cfg_type_transferformat, 0 },
 	{ "max-cache-size", &cfg_type_size, 0 },
 	{ "check-names", &cfg_type_checknames, CFG_CLAUSEFLAG_MULTI },

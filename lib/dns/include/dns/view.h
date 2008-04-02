@@ -126,6 +126,8 @@ struct dns_view {
 	isc_boolean_t			provideixfr;
 	dns_ttl_t			maxcachettl;
 	dns_ttl_t			maxncachettl;
+	dns_ttl_t			mincachettl;
+	dns_ttl_t			minncachettl;
 	in_port_t			dstport;
 	dns_aclenv_t			aclenv;
 	dns_rdatatype_t			preferred_glue;

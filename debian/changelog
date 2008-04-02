@@ -1,3 +1,10 @@
+bind9 (1:9.4.2-9) unstable; urgency=low
+
+  * apparmor: allow subdirs in {/etc,/var/cache,/var/lib}/bind
+  * apparmor: make profile match README.Debian
+
+ -- LaMont Jones <lamont@debian.org>  Tue, 01 Apr 2008 21:13:05 -0600
+
 bind9 (1:9.4.2-8) unstable; urgency=low
 
   [ISC]

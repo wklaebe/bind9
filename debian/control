@@ -3,14 +3,14 @@ Section: net
 Priority: optional
 Maintainer: LaMont Jones <lamont@debian.org>
 Uploaders: Bdale Garbee <bdale@gag.com>
-Build-Depends: libkrb5-dev, debhelper (>=5), libssl-dev, libtool, bison
+Build-Depends: libkrb5-dev, debhelper (>= 5), libssl-dev, libtool, bison
 Standards-Version: 3.7.2.0
 XS-Vcs-Browser: http://git.debian.org/?p=users/lamont/bind9.git
 XS-Vcs-Git: git://git.debian.org/~lamont/bind9.git
 
 Package: bind9
 Architecture: any
-Depends: ${shlibs:Depends}, netbase, adduser, libdns41 (=${binary:Version}), libisccfg40 (=${binary:Version}), libisc41 (=${binary:Version}), libisccc40 (=${binary:Version}), lsb-base (>=3.0-6)
+Depends: ${shlibs:Depends}, netbase, adduser, libdns41 (=${binary:Version}), libisccfg40 (=${binary:Version}), libisc41 (=${binary:Version}), libisccc40 (=${binary:Version}), lsb-base (>= 3.0-6), bind9utils (=${binary:Version})
 Conflicts: bind, apparmor-profiles (<< 2.1+1075-0ubuntu4)
 Replaces: bind, dnsutils (<< 1:9.1.0-3), apparmor-profiles (<< 2.1+1075-0ubuntu4)
 Suggests: dnsutils, bind9-doc, resolvconf
@@ -18,6 +18,13 @@ Description: Internet Domain Name Server
  ${Description}
  .
  This package provides the server and related configuration files.
+
+Package: bind9utils
+Architecture: any
+Replaces: bind9 (<= 1:9.5.0~b2-1)
+Description: Utilities for BIND
+ This package provides various utilities that are useful for maintaining a
+ working BIND installation.
 
 Package: bind9-doc
 Architecture: all
@@ -149,6 +156,7 @@ Package: lwresd
 Architecture: any
 Depends: ${shlibs:Depends}
 Recommends: libnss-lwres
+Suggests: bind9utils
 Description: Lightweight Resolver Daemon
  lwresd is the daemon providing name lookup services to clients that use
  the BIND 9 lightweight resolver library.  It is essentially a stripped-

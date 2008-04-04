@@ -154,7 +154,7 @@ option is used to select the query type.
 \fItype\fR
 can be any recognized query type: CNAME, NS, SOA, SIG, KEY, AXFR, etc. When no query type is specified,
 \fBhost\fR
-automatically selects an appropriate query type. By default it looks for A records, but if the
+automatically selects an appropriate query type. By default it looks for A, AAAA, and MX records, but if the
 \fB\-C\fR
 option was given, queries will be made for SOA records, and if
 \fIname\fR

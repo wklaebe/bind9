@@ -19,6 +19,9 @@
   /var/lib/bind/** rw,
   /var/cache/bind/** rw,
 
+  # dnscvsutil package
+  /var/lib/dnscvsutil/compiled/** rw,
+
   /proc/net/if_inet6 r,
   /usr/sbin/named mr,
   /var/run/bind/run/named.pid w,

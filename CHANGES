@@ -1,6 +1,129 @@
+	--- 9.5.0rc1 released ---
+
+2368.   [port]          Linux: use libcap for capability management if
+                        possible. [RT# 18026]
+
+2367.   [bug]           Improve counting of dns_resstatscounter_retry
+                        [RT #18030]
+
+2366.	[bug]		Adb shutdown race. [RT #18021]
+
+2365.   [bug]           Fix a bug that caused dns_acl_isany() to return
+                        spurious results. [RT #18000]
+
+2364.	[bug]		named could trigger a assertion when serving a
+			malformed signed zone. [RT #17828]
+
+2363.	[port]		sunos: pre-set "lt_cv_sys_max_cmd_len=4096;".
+			[RT #17513]
+
+2362.   [cleanup]       Make "rrset-order fixed" a compile-time option.
+                        settable by "./configure --enable-fixed-rrset".
+                        Disabled by default. [RT #17977]
+
+2361.	[bug]		"recursion" statistics counter could be counted
+			multiple times for a single query.  [RT #17990]
+
+	--- 9.5.0b3 released ---
+
+2360.	[bug]		Fix a condition where we release a database version
+			(which may acquire a lock) while holding the lock.
+
+2359.	[bug]		Fix NSID bug. [RT #17942]
+
+2358.	[doc]		Update host's default query description. [RT #17934]
+
+2356.	[bug]		Builtin mutex profiler was not scalable enough.
+			[RT #17436]
+
+2355.	[func]		Extend the number statistics counters available.
+			[RT #17590]
+
+2354.	[bug]		Failed to initialise sone rdatasetheader_t elements.
+			[RT #17927]
+
+2353.	[func]		Add support for Name Server ID (RFC 5001).
+			'dig +nsid' requests NSID from server.
+			'request-nsid yes;' causes recursive server to send
+			NSID requests to upstream servers.  Server responds
+			to NSID requests with the string configured by
+			'server-id' option.  [RT #17091]
+
+2352.	[bug]		Various GSS_API fixups. [RT #17729]
+
+2351.	[bug]		convertxsl.pl generated very long lines. [RT #17906]
+
+2350.	[port]		win32: IPv6 support. [RT #17797]
+
+2347.	[bug]		Delete now traverses the RB tree in the canonical
+			order. [RT #17451]
+
+2346.	[func]		Memory statistics now cover all active memory contexts
+			in increased detail. [RT #17580]
+
+2345.	[bug]		named-checkconf failed to detect when forwarders
+			were set at both the options/view level and in
+			a root zone. [RT #17671]
+
+2344.	[bug]		Improve "logging{ file ...; };" documentation.
+			[RT #17888]
+
+2343.	[bug]		(Seemingly) duplicate IPv6 entries could be
+			created in ADB. [RT #17837]
+
+2341.	[bug]		libbind: add missing -I../include for off source
+			tree builds. [RT #17606]
+
+2340.	[port]		openbsd: interface configuration. [RT #17700]
+
+2339.	[port]		tru64: support for libbind. [RT #17589]
+
+2338.	[bug]		check_ds() could be called with a non DS rdataset.
+			[RT #17598]
+
+2337.	[bug]		BUILD_LDFLAGS was not being correctly set.  [RT #17614]
+
+2335.	[port]		sunos:  libbind and *printf() support for long long. 
+			[RT #17513]
+
+2334.	[bug]		Bad REQUIRES in fromstruct_in_naptr(),  off by one
+			bug in fromstruct_txt(). [RT #17609]
+			
+2333.	[bug]		Fix off by one error in isc_time_nowplusinterval().
+			[RT #17608]
+
+2332.	[contrib]	query-loc-0.4.0. [RT #17602]
+
+2331.	[bug]		Failure to regenerate any signatures was not being
+			reported nor being past back to the UPDATE client.
+		 	[RT #17570]
+
+2330.	[bug]		Remove potential race condition when handling
+			over memory events. [RT #17572]
+
+			WARNING: API CHANGE: over memory callback
+			function now needs to call isc_mem_waterack().
+			See <isc/mem.h> for details.
+
+2329.	[bug]		Clearer help text for dig's '-x' and '-i' options.
+
+2328.	[maint]		Add AAAA addresses for A.ROOT-SERVERS.NET,
+			F.ROOT-SERVERS.NET, H.ROOT-SERVERS.NET,
+			J.ROOT-SERVERS.NET, K.ROOT-SERVERS.NET and
+			M.ROOT-SERVERS.NET.
+
+2327.	[bug]		It was possible to dereference a NULL pointer in
+			rbtdb.c.  Implement deadnode processing in zones as
+			we do for caches. [RT #17312]
+
+2326.	[bug]		It was possible to trigger a INSIST in the acache
+			processing.
+
+2325.	[port]		Linux: use capset() function if available. [RT #17557]
+
 	--- 9.5.0b2 released ---
 
-2324.	[bug]		Fix IPv6 matching against "any;" [RT #17533]
+2324.	[bug]		Fix IPv6 matching against "any;". [RT #17533]
 
 2323.	[port]		tru64: namespace clash. [RT #17547]
 
@@ -133,7 +256,7 @@
 2275.	[func]		Add support to dig to perform IXFR queries over UDP.
 			[RT #17235]
 
-2274.	[func]		Log zone transfer statistics. [RT #17161]
+2274.	[func]		Log zone transfer statistics. [RT #17336]
 
 2273.	[bug]		Adjust log level to WARNING when saving inconsistant
 			stub/slave master and journal files. [RT# 17279]
@@ -189,7 +312,7 @@
 2256.	[bug]		win32: Correctly register the installation location of
 			bindevt.dll. [RT #17159]
 
-2255.	[bug]		L.ROOT-SERVERS.NET is now 199.7.83.42.
+2255.	[maint]		L.ROOT-SERVERS.NET is now 199.7.83.42.
 
 2254.	[bug]		timer.c:dispatch() failed to lock timer->lock
 			when reading timer->idle allowing it to see
@@ -2284,7 +2407,7 @@
 1568.	[bug]		nsupdate now reports that the update failed in
 			interactive mode. [RT# 10236]
 
-1567.	[bug]		B.ROOT-SERVERS.NET is now 192.228.79.201.
+1567.	[maint]		B.ROOT-SERVERS.NET is now 192.228.79.201.
 
 1566.	[port]		Support for the cmsg framework on Solaris and HP/UX.
 			This also solved the problem that match-destinations
@@ -2787,7 +2910,7 @@
 1398.	[doc]		ARM: notify-also should have been also-notify.
 			[RT #4345]
 
-1397.	[bug]		J.ROOT-SERVERS.NET is now 192.58.128.30.
+1397.	[maint]		J.ROOT-SERVERS.NET is now 192.58.128.30.
 
 1396.	[func]		dnssec-signzone: adjust the default signing time by
 			1 hour to allow for clock skew.

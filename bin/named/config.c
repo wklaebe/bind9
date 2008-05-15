@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: config.c,v 1.82.38.2 2008/01/22 23:27:35 tbox Exp $ */
+/* $Id: config.c,v 1.82.38.4 2008/05/01 18:32:31 jinmei Exp $ */
 
 /*! \file */
 
@@ -99,6 +99,7 @@ options {\n\
 	use-ixfr true;\n\
 	edns-udp-size 4096;\n\
 	max-udp-size 4096;\n\
+	request-nsid false;\n\
 \n\
 	/* view */\n\
 	allow-notify {none;};\n\
@@ -123,7 +124,7 @@ options {\n\
 	query-source-v6 address *;\n\
 	notify-source *;\n\
 	notify-source-v6 *;\n\
-	cleaning-interval 60;\n\
+	cleaning-interval 0;  /* now meaningless */\n\
 	min-roots 2;\n\
 	lame-ttl 600;\n\
 	max-ncache-ttl 10800; /* 3 hours */\n\

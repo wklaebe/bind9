@@ -174,27 +174,9 @@ linux_setcaps(unsigned int caps) {
 	}
 }
 
-static unsigned int
-linux_getcaps(void) {
-	struct __user_cap_header_struct caphead;
-	struct __user_cap_data_struct cap;
-	char strbuf[ISC_STRERRORSIZE];
-
-	memset(&caphead, 0, sizeof(caphead));
-	caphead.version = _LINUX_CAPABILITY_VERSION;
-	caphead.pid = 0;
-	memset(&cap, 0, sizeof(cap));
-	if (syscall(SYS_capget, &caphead, &cap) < 0) {
-		isc__strerror(errno, strbuf, sizeof(strbuf));
-		ns_main_earlyfatal("capget failed: %s", strbuf);
-	}
-
-	return cap.permitted;
-}
-
 static void
 linux_initialprivs(void) {
-	unsigned int caps, current;
+	unsigned int caps;
 
 	/*%
 	 * We don't need most privileges, so we drop them right away.
@@ -203,7 +185,6 @@ linux_initialprivs(void) {
 	 */
 
 	caps = 0;
-	current = linux_getcaps();
 
 	/*
 	 * We need to be able to bind() to privileged ports, notably port 53!
@@ -243,14 +224,14 @@ linux_initialprivs(void) {
 	 * of files, the stack size, data size, and core dump size to
 	 * support named.conf options, this is now being added to test.
 	 */
-	caps |= (current & (1 << CAP_SYS_RESOURCE));
+	caps |= (1 << CAP_SYS_RESOURCE);
 
 	linux_setcaps(caps);
 }
 
 static void
 linux_minprivs(void) {
-	unsigned int caps, current;
+	unsigned int caps;
 
 	/*%
 	 * Drop all privileges except the ability to bind() to privileged
@@ -261,7 +242,6 @@ linux_minprivs(void) {
 	 */
 
 	caps = 0;
-	current = linux_getcaps();
 	caps |= (1 << CAP_NET_BIND_SERVICE);
 
 	/*
@@ -271,7 +251,7 @@ linux_minprivs(void) {
 	 * of files, the stack size, data size, and core dump size to
 	 * support named.conf options, this is now being added to test.
 	 */
-	caps |= (current & (1 << CAP_SYS_RESOURCE));
+	caps |= (1 << CAP_SYS_RESOURCE);
 
 	linux_setcaps(caps);
 }

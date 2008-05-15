@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2008  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: socket.c,v 1.52 2007/08/28 00:39:15 marka Exp $ */
+/* $Id: socket.c,v 1.52.94.2 2008/03/27 23:46:28 tbox Exp $ */
 
 /* This code has been rewritten to take advantage of Windows Sockets
  * I/O Completion Ports and Events. I/O Completion Ports is ONLY
@@ -91,8 +91,6 @@
 #include <isc/win32os.h>
 
 #include "errno2result.h"
-
-#define ISC_SOCKET_NAMES 1
 
 /*
  * Define this macro to control the behavior of connection
@@ -186,16 +184,16 @@ typedef isc_event_t intev_t;
 
 
 struct msghdr {
-        void	*msg_name;              /* optional address */
-        u_int   msg_namelen;            /* size of address */
-        WSABUF  *msg_iov;		/* scatter/gather array */
-        u_int   msg_iovlen;             /* # elements in msg_iov */
-        void	*msg_control;           /* ancillary data, see below */
-        u_int   msg_controllen;         /* ancillary data buffer len */
-        int     msg_flags;              /* flags on received message */
+	void	*msg_name;              /* optional address */
+	u_int   msg_namelen;            /* size of address */
+	WSABUF  *msg_iov;		/* scatter/gather array */
+	u_int   msg_iovlen;             /* # elements in msg_iov */
+	void	*msg_control;           /* ancillary data, see below */
+	u_int   msg_controllen;         /* ancillary data buffer len */
+	int     msg_flags;              /* flags on received message */
 	int	msg_totallen;		/* total length of this message */
 } msghdr;
-	
+
 /*%
  * The size to raise the recieve buffer to.
  */
@@ -226,11 +224,8 @@ struct isc_socket {
 	unsigned int		references;
 	SOCKET			fd;
 	int			pf;
-
-#ifdef ISC_SOCKET_NAMES   
 	char			name[16];
 	void *			tag;
-#endif
 
 	ISC_LIST(isc_socketevent_t)		send_list;
 	ISC_LIST(isc_socketevent_t)		recv_list;
@@ -510,7 +505,7 @@ iocompletionport_init(isc_socketmgr_t *manager) {
 
 	/*
 	 * Worker threads for servicing the I/O
- 	 */
+	 */
 	iocompletionport_createthreads(manager->maxIOCPThreads, manager);
 }
 
@@ -665,7 +660,7 @@ socket_eventlist_add(event_change_t *evchange, sock_event_list *evlist,
  */
 isc_boolean_t
 socket_eventlist_delete(event_change_t *evchange, sock_event_list *evlist,
-		        isc_socketmgr_t *manager)
+			isc_socketmgr_t *manager)
 {
 	int i;
 	WSAEVENT hEvent;
@@ -948,7 +943,7 @@ initialise(void) {
 void
 InitSockets(void) {
 	RUNTIME_CHECK(isc_once_do(&initialise_once,
-                                  initialise) == ISC_R_SUCCESS);
+				  initialise) == ISC_R_SUCCESS);
 	if (!initialised)
 		exit(1);
 }
@@ -3865,17 +3860,11 @@ isc_socket_setname(isc_socket_t *socket, const char *name, void *tag) {
 
 	REQUIRE(VALID_SOCKET(socket));
 
-#ifdef ISC_SOCKET_NAMES
 	LOCK(&socket->lock);
 	memset(socket->name, 0, sizeof(socket->name));
 	strncpy(socket->name, name, sizeof(socket->name) - 1);
 	socket->tag = tag;
 	UNLOCK(&socket->lock);
-#else
-	UNUSED(name);
-	UNUSED(tag);
-#endif
-
 }
 
 const char *

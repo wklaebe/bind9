@@ -1,3 +1,9 @@
+bind9 (1:9.5.0~rc1-0) experimental; urgency=low
+
+  * new upstream version
+
+ -- LaMont Jones <lamont@debian.org>  Thu, 15 May 2008 17:59:54 -0600
+
 bind9 (1:9.5.0~b2-2) experimental; urgency=low
 
   * meta: add bind9utils binary package, with various useful utilities.  Closes: #151957, #130445, #160483

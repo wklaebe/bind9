@@ -62,6 +62,15 @@ clean:
 	rm -f build-stamp configure-stamp
 	dh_clean
 
+newtemplate:
+	debconf-updatepo
+
+msgstats:
+	@cd debian/po && for i in *.po; do x=$$(msgfmt --statistics $$i 2>&1); echo $$i $$x; done; rm -f messages.mo *.po~
+
+msg-email:
+	@podebconf-report-po
+
 ETCBIND=debian/bind9/etc/bind
 ETCAPP=debian/bind9/etc/apparmor.d
 install: build
@@ -80,6 +89,7 @@ install: build
 	install -c -o bin -g bin -m 440 debian/named.conf ${ETCBIND}
 	install -c -o bin -g bin -m 440 debian/named.conf.local ${ETCBIND}
 	install -c -o bin -g bin -m 440 debian/named.conf.options ${ETCBIND}
+	install -c -o bin -g bin -m 644 debian/bind9-default.md5sum debian/bind9/usr/share/bind9/
 	cp doc/arm/*.html debian/bind9-doc/usr/share/doc/bind9-doc/arm
 	install -m 644 -o root -g root debian/apparmor-profile ${ETCAPP}/usr.sbin.named
 
@@ -114,6 +124,7 @@ binary-arch: build install
 	dh_installinit -a -- defaults 15 85
 	dh_installcron -a
 	dh_installmanpages -pbind9 runmdn.1 mdnconv.1 zone2ldap.1 nslint.8
+	dh_installdebconf -pbind9
 	dh_installinfo -a
 	dh_installchangelogs -a # CHANGES # upstream changelog only in bind9-doc
 	dh_install --sourcedir=debian/bind9 -a

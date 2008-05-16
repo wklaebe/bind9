@@ -2,6 +2,8 @@
 
 set -e
 
+. /usr/share/debconf/confmodule
+
 if [ "$1" = configure ]; then
     lastversion="$2";
 
@@ -21,8 +23,16 @@ if [ "$1" = configure ]; then
 	rndc-confgen -r /dev/urandom -a
     fi
 
+    if [ -e /etc/default/bind9 ] && [ "`cat /usr/share/bind9/bind9-default.md5sum`" = "`md5sum /etc/default/bind9`" ]; then
+        config="/etc/default/bind9"
+    elif [ ! -e /etc/default/bind9 ]; then
+        config="/etc/default/bind9"
+    else 
+        config="/etc/default/bind9.dpkg-dist"
+    fi
+
     localconf=""
-    if [ ! -f /etc/default/bind9 ]; then
+    if [ ! -f $config ]; then
 	for file in /etc/bind/named.conf /etc/bind/named.conf.local; do
 	    theirs=$(md5sum $file | sed 's/ .*$//')
 	    mine=$(dpkg --status bind9 | grep "^ $file " | sed -n 's/.* //p')
@@ -31,12 +41,67 @@ if [ "$1" = configure ]; then
 	    fi
 	done
 	if [ -n "$localconf" ]; then
-	    echo 'OPTIONS=""' >> /etc/default/bind9
+                db_reset bind9/start-as-user
 	else
-	    echo 'OPTIONS="-u bind"' >> /etc/default/bind9
+                db_set bind9/start-as-user bind || true
 	fi
-	echo '# Set RESOLVCONF=no to not run resolvconf' >> /etc/default/bind9
-	echo 'RESOLVCONF=yes' >> /etc/default/bind9
+   
+        echo '#' 
+        echo '# run resolvconf?' >> $config
+        db_get bind9/run-resolvconf
+        if [ ! -z "$RET" ] && [ "$RET" = "true" ]; then
+                echo "RESOLVCONF=yes" >> $config
+        else
+                echo "RESOLVCONF=no" >> $config
+        fi
+
+        db_get bind9/start-as-user
+        USER=$RET
+        db_get bind9/different-configuration-file
+        CONFFILE=$RET
+        
+        echo '' >> /etc/default/bind9
+        echo '# startup options for the server' >> $config
+        if [ ! -z "$USER" ] && [ ! -z "$CONFFILE" ]; then
+                echo "OPTIONS=\"-u $USER -c $CONFFILE\"" >> $config
+        elif [ ! -z "$USER" ]; then
+                echo "OPTIONS=\"-u $USER\"" >> $config
+        elif [ ! -z "$CONFFILE" ]; then
+                echo "OPTIONS=\"-c $CONFFILE\"" >> $config
+        else
+                echo "OPTIONS=\"\"" >> $config
+        fi
+    else
+        db_get bind9/run-resolvconf
+         if [ ! -z "$RET" ] && [ "$RET" = "true" ]; then
+	        sed -e "s#^\([[:space:]]*\)\(RESOLVCONF=[[:space:]]*\)[^ ]*#\1\2yes#g" -i $config
+        else
+	        sed -e "s#^\([[:space:]]*\)\(RESOLVCONF=[[:space:]]*\)[^ ]*#\1\2no#g" -i $config
+        fi
+        db_get bind9/run-as-user
+        if [ ! -z "$RET" ]; then
+            if [ ! -z "`grep OPTIONS $config`" ]; then
+                if [ ! -z "`grep OPTIONS $config | grep '\-u'`" ]; then
+                        sed -e "s#\([[:space:]]*OPTIONS[[:space:]]*\)=\"\([^\"]*\)-u[[:space:]]*[^\" ]*\([^\"]*\)\"#\1=\"\2-u $RET\3\"#g" -i $config
+                else 
+                        sed -e "s#\([[:space:]]*OPTIONS[[:space:]]*\)=\"\([^\"]*\)\"#\1=\"\2 -u $RET\"#g" -i $config
+                fi
+            else
+                echo "OPTIONS=\"-u $RET\""
+            fi
+        fi
+        db_get bind9/different-configuration-file
+        if [ ! -z "$RET" ]; then
+            if [ ! -z "`grep OPTIONS $config | grep '\-c'`" ]; then
+                sed -e "s#\([[:space:]]*OPTIONS[[:space:]]*\)=\"\([^\"]*\)-c[[:space:]]*[^\" ]*\([^\"]*\)\"#\1=\"\2-c $RET\3\"#g" -i $config
+            else 
+                sed -e "s#\([[:space:]]*OPTIONS[[:space:]]*\)=\"\([^\"]*\)\"#\1=\"\2 -c $RET\"#g" -i $config
+            fi
+        fi
+    fi
+
+    if [ "$config" = "/etc/default/bind9" ]; then
+        md5sum /etc/default/bind9 > /usr/share/bind9/bind9-default.md5sum
     fi
 
     # Deal with the aftermath of 9.2.1-5  - it's a hack, but hey..
@@ -65,5 +130,7 @@ if [ "$1" = configure ]; then
         invoke-rc.d apparmor force-reload || true
     fi
 fi
+
+db_stop
 
 #DEBHELPER#

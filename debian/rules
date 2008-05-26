@@ -60,6 +60,7 @@ clean:
 	-$(MAKE) distclean
 	find . -name \*.o -exec rm {} \;
 	rm -f build-stamp configure-stamp
+	rm -f debian/substvars lib/bind/include/isc/platform.h
 	dh_clean
 
 newtemplate:

@@ -78,7 +78,7 @@ if [ "$1" = configure ]; then
         else
 	        sed -e "s#^\([[:space:]]*\)\(RESOLVCONF=[[:space:]]*\)[^ ]*#\1\2no#g" -i $config
         fi
-        db_get bind9/run-as-user
+        db_get bind9/start-as-user
         if [ ! -z "$RET" ]; then
             if [ ! -z "`grep OPTIONS $config`" ]; then
                 if [ ! -z "`grep OPTIONS $config | grep '\-u'`" ]; then

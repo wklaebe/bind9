@@ -1,3 +1,11 @@
+bind9 (1:9.5.0~rc1-2~0ubuntu1) intrepid; urgency=low
+
+  * Upload what will become (maybe an ancestor of) -2 to intrepid.
+    - Only use capabilities if they are present: reprise.  Closes: #360339, #212226
+    - control: fix dnsutils description to avoid list reformatting.  Closes: #480317
+
+ -- LaMont Jones <lamont@ubuntu.com>  Mon, 26 May 2008 11:46:27 -0600
+
 bind9 (1:9.5.0~rc1-1) experimental; urgency=low
 
   [Patrick Winnertz]

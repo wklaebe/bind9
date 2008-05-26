@@ -148,9 +148,9 @@ Description: Clients provided with BIND
  This package delivers various client programs related to DNS that are 
  derived from the BIND source tree.
  .
- - dig	- query the DNS in various ways
- - nslookup - the older way to do it
- - nsupdate - perform dynamic updates (See RFC2136)
+  - dig	- query the DNS in various ways
+  - nslookup - the older way to do it
+  - nsupdate - perform dynamic updates (See RFC2136)
 
 Package: lwresd
 Architecture: any

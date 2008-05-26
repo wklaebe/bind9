@@ -147,7 +147,7 @@ Description: Clients provided with BIND
 
 Package: lwresd
 Architecture: any
-Depends: ${shlibs:Depends}
+Depends: ${shlibs:Depends}, adduser
 Recommends: libnss-lwres
 Description: Lightweight Resolver Daemon
  lwresd is the daemon providing name lookup services to clients that use

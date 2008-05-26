@@ -1,6 +1,24 @@
-bind9 (1:9.5.0~rc1-0) experimental; urgency=low
+bind9 (1:9.5.0~rc1-1) experimental; urgency=low
 
-  * new upstream version
+  [Patrick Winnertz]
+
+  * postinst: make add debconf support.  Closes: #473460
+
+  [Jamie Strandboge]
+
+  * debian/bind9.preinst: Apparmor force-complain on upgrade without
+    existing profile.  LP: #204658
+
+  [LaMont Jones]
+
+  * bind9utils: fix typos in .install
+  * host: manpage inaccurately describes default query.  LP: #203087
+  * apparmor: add dnscvsutil package files
+  * Revert "Only use capabilities if they are present." for merge of 9.5.0rc1.
+  * soname: libdns41 -> 42
+  * fix typos in debconf patch, #473460
+  * cleanup more files in clean target
+  * lwresd Depends: adduser
 
  -- LaMont Jones <lamont@debian.org>  Thu, 15 May 2008 17:59:54 -0600
 

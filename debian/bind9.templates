@@ -1,0 +1,19 @@
+Template: bind9/different-configuration-file
+Type: string
+Default:  
+_Description: Options that should be passed at startup to bind9
+ Please provide the options which should be passed to the
+ named on startup.
+
+Template: bind9/start-as-user
+Type: string
+Default: bind
+_Description: which user should bind9 run as?
+ The default is to start bind9 as bind user, if you would 
+ like to change that, please provide the username to be used.
+
+Template: bind9/run-resolvconf
+Type: boolean
+Default: true
+_Description: Should resolvconf be executed on startup?
+ Should resolvconf run when bind9 starts up?

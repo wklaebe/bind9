@@ -37,6 +37,12 @@ configure-stamp:
 		--with-openssl=/usr \
 		--with-gssapi=/usr \
 		--with-gnu-ld \
+		--with-dlz-postgres=no \
+		--with-dlz-mysql=no \
+		--with-dlz-bdb=yes \
+		--with-dlz-filesystem=yes \
+		--with-dlz-ldap=yes \
+		--with-dlz-stub=yes \
 		--enable-ipv6
 	touch configure-stamp
 
@@ -61,6 +67,7 @@ clean:
 	find . -name \*.o -exec rm {} \;
 	rm -f build-stamp configure-stamp
 	rm -f debian/substvars lib/bind/include/isc/platform.h
+	rm -f contrib/dlz/bin/dlzbdb/Makefile contrib/dlz/drivers/rules
 	dh_clean
 
 newtemplate:

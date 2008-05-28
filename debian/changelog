@@ -1,3 +1,10 @@
+bind9 (1:9.5.0~rc1-2~0ubuntu2) intrepid; urgency=low
+
+  * build: use the correct directories in dh_shlibdeps invocation
+  * build: turn on dlz.  LP: #227344
+
+ -- LaMont Jones <lamont@ubuntu.com>  Tue, 27 May 2008 21:43:06 -0600
+
 bind9 (1:9.5.0~rc1-2~0ubuntu1) intrepid; urgency=low
 
   * Upload what will become (maybe an ancestor of) -2 to intrepid.

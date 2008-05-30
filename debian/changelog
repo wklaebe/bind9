@@ -1,3 +1,18 @@
+bind9 (1:9.5.0.dfsg-0) experimental; urgency=low
+
+  [Internet Software Consortium, Inc]
+
+  * 9.5.0 release
+
+  [LaMont Jones]
+
+  * Only use capabilities if they are present: reprise.  Closes: #360339, #212226
+  * control: fix dnsutils description to avoid list reformatting.  Closes: #480317
+  * build: use the correct directories in dh_shlibdeps invocation
+  * build: turn on dlz.  No pgsql or mysql support yet.  LP: #227344
+
+ -- LaMont Jones <lamont@debian.org>  Thu, 29 May 2008 22:05:19 -0600
+
 bind9 (1:9.5.0~rc1-2~0ubuntu2) intrepid; urgency=low
 
   * build: use the correct directories in dh_shlibdeps invocation

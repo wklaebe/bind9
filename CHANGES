@@ -1,5 +1,207 @@
+	--- 9.4.3b1 released ---
+
+2358.	[doc]		Update host's default query description. [RT #17934]
+
+2356.	[bug]		Builtin mutex profiler was not scalable enough.
+			[RT #17436]
+
+2353.	[func]		libbind: nsid support. [RT #17091]
+
+2350.	[port]		win32: IPv6 support. [RT #17797]
+
+2347.	[bug]		Delete now traverses the RB tree in the canonical
+			order. [RT #17451]
+
+2345.	[bug]		named-checkconf failed to detect when forwarders
+			were set at both the options/view level and in
+			a root zone. [RT #17671]
+
+2344.	[bug]		Improve "logging{ file ...; };" documentation.
+			[RT #17888]
+
+2343.	[bug]		(Seemingly) duplicate IPv6 entries could be
+			created in ADB. [RT #17837]
+
+2341.	[bug]		libbind: add missing -I../include for off source
+			tree builds. [RT #17606]
+
+2340.	[port]		openbsd: interface configuration. [RT #17700]
+
+2339.	[port]		tru64: support for libbind. [RT #17589]
+
+2338.	[bug]		check_ds() could be called with a non DS rdataset.
+			[RT #17598]
+
+2337.	[bug]		BUILD_LDFLAGS was not being correctly set.  [RT #17614]
+
+2335.	[port]		sunos:  libbind and *printf() support for long long. 
+			[RT #17513]
+
+2334.	[bug]		Bad REQUIRES in fromstruct_in_naptr(),  off by one
+			bug in fromstruct_txt(). [RT #17609]
+			
+2333.	[bug]		Fix off by one error in isc_time_nowplusinterval().
+			[RT #17608]
+
+2332.	[contrib]	query-loc-0.4.0. [RT #17602]
+
+2331.	[bug]		Failure to regenerate any signatures was not being
+			report or past back to the UPDATE client. [RT #17570]
+
+2330.	[bug]		Remove potential race condition when handling
+			over memory events. [RT #17572]
+
+			WARNING: API CHANGE: over memory callback
+			function now needs to call isc_mem_waterack().
+			See <isc/mem.h> for details.
+
+2329.	[bug]		Clearer help text for dig's '-x' and '-i' options.
+
+2328.	[maint]		Add AAAA addresses for A.ROOT-SERVERS.NET,
+			F.ROOT-SERVERS.NET, H.ROOT-SERVERS.NET,
+			J.ROOT-SERVERS.NET, K.ROOT-SERVERS.NET and
+			M.ROOT-SERVERS.NET.
+
+2326.	[bug]		It was possible to trigger a INSIST in the acache
+			processing.
+
+2325.	[port]		Linux: use capset() function if available. [RT #17557]
+
+2323.	[port]		tru64: namespace clash. [RT #17547]
+
+2322.	[port]		MacOS: work around the limitation of setrlimit()
+			for RLIMIT_NOFILE. [RT #17526]
+
+2319.	[bug]		Silence Coverity warnings in 
+			lib/dns/rdata/in_1/apl_42.c. [RT #17469]
+
+2318.	[port]		sunos fixes for libbind.  [RT #17514]
+
+2314.	[bug]		Uninitialized memory use on error path in
+			bin/named/lwdnoop.c.  [RT #17476]
+
+2313.	[cleanup]	Silence Coverity warnings. Handle private stacks.
+			[RT #17447] [RT #17478]
+
+2312.	[cleanup]	Silence Coverity warning in lib/isc/unix/socket.c.
+			[RT #17458]
+
+2311.   [func]          Update ACL regression test. [RT #17462]
+
+2310.   [bug]		dig, host, nslookup: flush stdout before emitting
+			debug/fatal messages.  [RT #17501]
+
+2308.	[cleanup]	Silence Coverity warning in bin/named/controlconf.c.
+			[RT #17495]
+
+2307.	[bug]		Remove infinite loop from lib/dns/sdb.c. [RT #17496]
+
+2306.	[bug]		Remove potential race from lib/dns/resolver.c.
+			[RT #17470]
+
+2305.	[security]	inet_network() buffer overflow. CVE-2008-0122.
+
+2304.	[bug]		Check returns from all dns_rdata_tostruct() calls.
+			[RT #17460]
+
+2303.	[bug]		Remove unnecessary code from bin/named/lwdgnba.c.
+			[RT #17471]
+
+2302.	[bug]		Fix memset() calls in lib/tests/t_api.c. [RT #17472]
+
+2301.	[bug]		Remove resource leak and fix error messages in
+			bin/tests/system/lwresd/lwtest.c. [RT #17474]
+
+2300.	[bug]		Fixed failure to close open file in 
+			bin/tests/names/t_names.c. [RT #17473]
+
+2299.	[bug]		Remove unnecessary NULL check in
+			bin/nsupdate/nsupdate.c. [RT #17475]
+
+2298.	[bug]		isc_mutex_lock() failure not caught in
+			bin/tests/timers/t_timers.c. [RT #17468]
+
+2297.	[bug]		isc_entropy_createfilesource() failure not caught in
+			bin/tests/dst/t_dst.c. [RT #17467]
+
+2296.	[port]		Allow docbook stylesheet location to be specified to
+			configure. [RT #17457]
+
+2295.	[bug]		Silence static overrun error in bin/named/lwaddr.c.
+			[RT #17459]
+
+2293.	[func]		Add ACL regression test. [RT #17375]
+
+2292.	[bug]		Log if the working directory is not writable.
+			[RT #17312]
+
+2291.   [bug]           PR_SET_DUMPABLE may be set too late.  Also report
+			failure to set PR_SET_DUMPABLE. [RT #17312]
+
+2290.	[bug]		Let AD in the query signal that the client wants AD
+			set in the response. [RT #17301]
+
+2288.	[port]		win32: mark service as running when we have finished
+			loading.  [RT #17441]
+
+2287.	[bug]		Use 'volatile' if the compiler supports it. [RT #17413]
+
+2284.	[bug]		Memory leak in UPDATE prerequisite processing.
+			[RT #17377]
+
+2283.	[bug]		TSIG keys were not attaching to the memory
+			context.  TSIG keys should use the rings
+			memory context rather than the clients memory
+			context. [RT #17377]
+
+2279.   [bug]           Use setsockopt(SO_NOSIGPIPE), when available,
+			to protect applications from receiving spurious
+			SIGPIPE signals when using the resolver.
+
+2278.	[bug]		win32: handle the case where Windows returns no
+			searchlist or DNS suffix. [RT #17354]
+
+2277.	[bug]		Empty zone names were not correctly being caught at
+			in the post parse checks. [RT #17357]
+
+2273.	[bug]		Adjust log level to WARNING when saving inconsistant
+			stub/slave master and journal files. [RT# 17279]
+
+2272.	[bug]		Handle illegal dnssec-lookaside trust-anchor names.
+			[RT #17262]
+
+2270.	[bug]		dns_db_closeversion() version->writer could be reset
+			before it is tested. [RT #17290]
+
+2269.	[contrib]	dbus memory leaks and missing va_end calls. [RT #17232]
+
+2268.	[bug]		0.IN-ADDR.ARPA was missing from the empty zones
+			list.
+
+2266.	[bug]		client.c:get_clientmctx() returned the same mctx
+			once the pool of mctx's was filled. [RT #17218]
+
+2265.	[bug]		Test that the memory context's basic_table is non NULL
+			before freeing.  [RT #17265]
+
+2264.	[bug]		Server prefix length was being ignored. [RT #17308]
+
+2263.	[bug]		"named-checkconf -z" failed to set default value
+			for "check-integrity".  [RT #17306]
+
+2262.	[bug]		Error status from all but the last view could be
+			lost. [RT #17292]
+
+2260.	[bug]		Reported wrong clients-per-query when increasing the
+			value. [RT #17236]
+
+2247.	[doc]		Sort doc/misc/options. [RT #17067]
+
+2246.	[bug]		Make the startup of test servers (ans.pl) more
+			robust. [RT #17147]
 
 	--- 9.4.2 released ---
+
 	--- 9.4.2rc2 released ---
 
 2259.	[bug]		Reverse incorrect LIBINTERFACE bump of libisc
@@ -15,7 +217,7 @@
 2256.	[bug]		win32: Correctly register the installation location of
 			bindevt.dll. [RT #17159]
 
-2255.	[bug]		L.ROOT-SERVERS.NET is now 199.7.83.42.
+2255.	[maint]		L.ROOT-SERVERS.NET is now 199.7.83.42.
 
 2254.	[bug]		timer.c:dispatch() failed to lock timer->lock
 			when reading timer->idle allowing it to see
@@ -1997,7 +2199,7 @@
 1568.	[bug]		nsupdate now reports that the update failed in
 			interactive mode. [RT# 10236]
 
-1567.	[bug]		B.ROOT-SERVERS.NET is now 192.228.79.201.
+1567.	[maint]		B.ROOT-SERVERS.NET is now 192.228.79.201.
 
 1566.	[port]		Support for the cmsg framework on Solaris and HP/UX.
 			This also solved the problem that match-destinations
@@ -2500,7 +2702,7 @@
 1398.	[doc]		ARM: notify-also should have been also-notify.
 			[RT #4345]
 
-1397.	[bug]		J.ROOT-SERVERS.NET is now 192.58.128.30.
+1397.	[maint]		J.ROOT-SERVERS.NET is now 192.58.128.30.
 
 1396.	[func]		dnssec-signzone: adjust the default signing time by
 			1 hour to allow for clock skew.

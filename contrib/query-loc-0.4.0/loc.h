@@ -1,6 +1,6 @@
-/* $Id: loc.h,v 1.1.4.1 2005/04/01 06:17:38 marka Exp $ */
+/* $Id: loc.h,v 1.1.4.1 2008/02/15 02:19:42 marka Exp $ */
 
-#define VERSION "0.3.0"
+#define VERSION "0.4.0"
 
 #include "config.h"
 

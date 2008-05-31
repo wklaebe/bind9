@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2008  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,9 +15,9 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: adb.c,v 1.215.18.17 2007/09/11 02:23:26 marka Exp $ */
+/* $Id: adb.c,v 1.215.18.20 2008/03/20 22:44:12 jinmei Exp $ */
 
-/*! \file 
+/*! \file
  *
  * \note
  * In finds, if task == NULL, no events will be generated, and no events
@@ -71,7 +71,7 @@
 #define DNS_ADBFETCH6_MAGIC	  ISC_MAGIC('a', 'd', 'F', '6')
 #define DNS_ADBFETCH6_VALID(x)	  ISC_MAGIC_VALID(x, DNS_ADBFETCH6_MAGIC)
 
-/*! 
+/*!
  * The number of buckets needs to be a prime (for good hashing).
  *
  * XXXRTH  How many buckets do we need?
@@ -119,6 +119,7 @@ struct dns_adb {
 
 	isc_mutex_t			lock;
 	isc_mutex_t			reflock; /*%< Covers irefcnt, erefcnt */
+	isc_mutex_t                     overmemlock; /*%< Covers overmem */
 	isc_mem_t		       *mctx;
 	dns_view_t		       *view;
 	isc_timermgr_t		       *timermgr;
@@ -494,6 +495,7 @@ import_rdataset(dns_adbname_t *adbname, dns_rdataset_t *rdataset,
 	isc_boolean_t new_addresses_added;
 	dns_rdatatype_t rdtype;
 	unsigned int findoptions;
+	dns_adbnamehooklist_t *hookhead;
 
 	INSIST(DNS_ADBNAME_VALID(adbname));
 	adb = adbname->adb;
@@ -518,10 +520,12 @@ import_rdataset(dns_adbname_t *adbname, dns_rdataset_t *rdataset,
 			INSIST(rdata.length == 4);
 			memcpy(&ina.s_addr, rdata.data, 4);
 			isc_sockaddr_fromin(&sockaddr, &ina, 0);
+			hookhead = &adbname->v4;
 		} else {
 			INSIST(rdata.length == 16);
 			memcpy(in6a.s6_addr, rdata.data, 16);
 			isc_sockaddr_fromin6(&sockaddr, &in6a, 0);
+			hookhead = &adbname->v6;
 		}
 
 		INSIST(nh == NULL);
@@ -550,7 +554,7 @@ import_rdataset(dns_adbname_t *adbname, dns_rdataset_t *rdataset,
 
 			link_entry(adb, addr_bucket, entry);
 		} else {
-			for (anh = ISC_LIST_HEAD(adbname->v4);
+			for (anh = ISC_LIST_HEAD(*hookhead);
 			     anh != NULL;
 			     anh = ISC_LIST_NEXT(anh, plink))
 				if (anh->entry == foundentry)
@@ -563,12 +567,8 @@ import_rdataset(dns_adbname_t *adbname, dns_rdataset_t *rdataset,
 		}
 
 		new_addresses_added = ISC_TRUE;
-		if (nh != NULL) {
-			if (rdtype == dns_rdatatype_a)
-				ISC_LIST_APPEND(adbname->v4, nh, plink);
-			else
-				ISC_LIST_APPEND(adbname->v6, nh, plink);
-		}
+		if (nh != NULL)
+			ISC_LIST_APPEND(*hookhead, nh, plink);
 		nh = NULL;
 		result = dns_rdataset_next(rdataset);
 	}
@@ -1990,6 +1990,7 @@ destroy(dns_adb_t *adb) {
 	DESTROYLOCK(&adb->reflock);
 	DESTROYLOCK(&adb->lock);
 	DESTROYLOCK(&adb->mplock);
+	DESTROYLOCK(&adb->overmemlock);
 
 	isc_mem_putanddetach(&adb->mctx, adb, sizeof(dns_adb_t));
 }
@@ -2059,6 +2060,10 @@ dns_adb_create(isc_mem_t *mem, dns_view_t *view, isc_timermgr_t *timermgr,
 	result = isc_mutex_init(&adb->reflock);
 	if (result != ISC_R_SUCCESS)
 		goto fail0d;
+
+	result = isc_mutex_init(&adb->overmemlock);
+	if (result != ISC_R_SUCCESS)
+		goto fail0e;
 
 	/*
 	 * Initialize the bucket locks for names and elements.
@@ -2162,6 +2167,8 @@ dns_adb_create(isc_mem_t *mem, dns_view_t *view, isc_timermgr_t *timermgr,
 	if (adb->afmp != NULL)
 		isc_mempool_destroy(&adb->afmp);
 
+	DESTROYLOCK(&adb->overmemlock);
+ fail0e:
 	DESTROYLOCK(&adb->reflock);
  fail0d:
 	DESTROYLOCK(&adb->mplock);
@@ -3582,12 +3589,21 @@ water(void *arg, int mark) {
 	DP(ISC_LOG_DEBUG(1),
 	   "adb reached %s water mark", overmem ? "high" : "low");
 
-	adb->overmem = overmem;
-	if (overmem) {
-		isc_interval_set(&interval, 0, 1);
-		(void)isc_timer_reset(adb->timer, isc_timertype_once, NULL,
-				      &interval, ISC_TRUE);
+	/*
+	 * We can't use adb->lock as there is potential for water
+	 * to be called when adb->lock is held.
+	 */
+	LOCK(&adb->overmemlock);
+	if (adb->overmem != overmem) {
+		adb->overmem = overmem;
+		if (overmem) {
+			isc_interval_set(&interval, 0, 1);
+			(void)isc_timer_reset(adb->timer, isc_timertype_once,
+					      NULL, &interval, ISC_TRUE);
+		}
+		isc_mem_waterack(adb->mctx, mark);
 	}
+	UNLOCK(&adb->overmemlock);
 }
 
 void

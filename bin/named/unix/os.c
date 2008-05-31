@@ -1,8 +1,8 @@
 /*
- * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2006, 2008  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2002  Internet Software Consortium.
  *
- * Permission to use, copy, modify, and distribute this software for any
+ * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: os.c,v 1.66.18.11 2006/02/03 23:51:38 marka Exp $ */
+/* $Id: os.c,v 1.66.18.15 2008/01/30 05:00:03 marka Exp $ */
 
 /*! \file */
 
@@ -116,6 +116,16 @@ static int dfd[2] = { -1, -1 };
 static isc_boolean_t non_root = ISC_FALSE;
 static isc_boolean_t non_root_caps = ISC_FALSE;
 
+#if defined(HAVE_CAPSET)
+#undef _POSIX_SOURCE
+#ifdef HAVE_SYS_CAPABILITY_H
+#include <sys/capability.h>
+#else
+#include <linux/capability.h>
+int capset(cap_user_header_t hdrp, const cap_user_data_t datap);
+#endif
+#include <sys/prctl.h>
+#else
 /*%
  * We define _LINUX_FS_H to prevent it from being included.  We don't need
  * anything from it, and the files it includes cause warnings with 2.2
@@ -148,6 +158,7 @@ static isc_boolean_t non_root_caps = ISC_FALSE;
 #endif
 #define SYS_capset __NR_capset
 #endif
+#endif
 
 static void
 linux_setcaps(unsigned int caps) {
@@ -165,13 +176,23 @@ linux_setcaps(unsigned int caps) {
 	cap.effective = caps;
 	cap.permitted = caps;
 	cap.inheritable = 0;
-	if (syscall(SYS_capset, &caphead, &cap) < 0) {
+#ifdef HAVE_CAPSET
+	if (capset(&caphead, &cap) < 0 ) {
 		isc__strerror(errno, strbuf, sizeof(strbuf));
 		ns_main_earlyfatal("capset failed: %s:"
 				   " please ensure that the capset kernel"
 				   " module is loaded.  see insmod(8)",
 				   strbuf);
 	}
+#else
+	if (syscall(SYS_capset, &caphead, &cap) < 0) {
+		isc__strerror(errno, strbuf, sizeof(strbuf));
+		ns_main_earlyfatal("syscall(capset) failed: %s:"
+				   " please ensure that the capset kernel"
+				   " module is loaded.  see insmod(8)",
+				   strbuf);
+	}
+#endif
 }
 
 static void
@@ -326,7 +347,7 @@ ns_os_daemonize(void) {
 		/*
 		 * Wait for the child to finish loading for the first time.
 		 * This would be so much simpler if fork() worked once we
-	         * were multi-threaded.
+		 * were multi-threaded.
 		 */
 		(void)close(dfd[1]);
 		do {
@@ -496,15 +517,19 @@ ns_os_changeuser(void) {
 		ns_main_earlyfatal("setuid(): %s", strbuf);
 	}
 
-#if defined(HAVE_LINUX_CAPABILITY_H) && !defined(HAVE_LINUXTHREADS)
-	linux_minprivs();
-#endif
 #if defined(HAVE_SYS_PRCTL_H) && defined(PR_SET_DUMPABLE)
 	/*
 	 * Restore the ability of named to drop core after the setuid()
 	 * call has disabled it.
 	 */
-	prctl(PR_SET_DUMPABLE,1,0,0,0);
+	if (prctl(PR_SET_DUMPABLE,1,0,0,0) < 0) {
+		isc__strerror(errno, strbuf, sizeof(strbuf));
+		ns_main_earlywarning("prctl(PR_SET_DUMPABLE) failed: %s",
+				     strbuf);
+	}
+#endif
+#if defined(HAVE_LINUX_CAPABILITY_H) && !defined(HAVE_LINUXTHREADS)
+	linux_minprivs();
 #endif
 }
 
@@ -665,7 +690,7 @@ ns_os_shutdownmsg(char *command, isc_buffer_t *text) {
 	ptr = next_token(&input, " \t");
 	if (ptr == NULL)
 		return;
-	
+
 	if (strcmp(ptr, "-p") != 0)
 		return;
 

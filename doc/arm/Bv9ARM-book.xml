@@ -2,7 +2,7 @@
                "http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd"
 	       [<!ENTITY mdash "&#8212;">]>
 <!--
- - Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004-2008  Internet Systems Consortium, Inc. ("ISC")
  - Copyright (C) 2000-2003  Internet Software Consortium.
  -
  - Permission to use, copy, modify, and/or distribute this software for any
@@ -18,7 +18,7 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<!-- File: $Id: Bv9ARM-book.xml,v 1.241.18.82 2007/09/26 03:28:27 marka Exp $ -->
+<!-- File: $Id: Bv9ARM-book.xml,v 1.241.18.85 2008/03/14 14:37:32 jreed Exp $ -->
 <book xmlns:xi="http://www.w3.org/2001/XInclude">
   <title>BIND 9 Administrator Reference Manual</title>
 
@@ -28,6 +28,7 @@
       <year>2005</year>
       <year>2006</year>
       <year>2007</year>
+      <year>2008</year>
       <holder>Internet Systems Consortium, Inc. ("ISC")</holder>
     </copyright>
     <copyright>
@@ -3581,7 +3582,7 @@ $ORIGIN 0.0.0.0.0.0.0.0.8.b.d.0.1.0.0.2.ip6.arpa.
       </sect2>
       <sect2>
         <title><command>include</command> Statement Grammar</title>
-        <programlisting>include <replaceable>filename</replaceable>;</programlisting>
+        <programlisting><command>include</command> <replaceable>filename</replaceable>;</programlisting>
       </sect2>
       <sect2>
         <title><command>include</command> Statement Definition and
@@ -3602,7 +3603,7 @@ $ORIGIN 0.0.0.0.0.0.0.0.8.b.d.0.1.0.0.2.ip6.arpa.
       <sect2>
         <title><command>key</command> Statement Grammar</title>
 
-<programlisting>key <replaceable>key_id</replaceable> {
+<programlisting><command>key</command> <replaceable>key_id</replaceable> {
     algorithm <replaceable>string</replaceable>;
     secret <replaceable>string</replaceable>;
 };
@@ -4363,7 +4364,7 @@ category notify { null; };
           statement in the <filename>named.conf</filename> file:
         </para>
 
-<programlisting>options {
+<programlisting><command>options</command> {
     <optional> version <replaceable>version_string</replaceable>; </optional>
     <optional> hostname <replaceable>hostname_string</replaceable>; </optional>
     <optional> server-id <replaceable>server_id_string</replaceable>; </optional>
@@ -7672,7 +7673,7 @@ query-source-v6 address * port *;
       <sect2 id="server_statement_grammar">
         <title><command>server</command> Statement Grammar</title>
 
-<programlisting>server <replaceable>ip_addr[/prefixlen]</replaceable> {
+<programlisting><command>server</command> <replaceable>ip_addr[/prefixlen]</replaceable> {
     <optional> bogus <replaceable>yes_or_no</replaceable> ; </optional>
     <optional> provide-ixfr <replaceable>yes_or_no</replaceable> ; </optional>
     <optional> request-ixfr <replaceable>yes_or_no</replaceable> ; </optional>
@@ -7881,7 +7882,7 @@ query-source-v6 address * port *;
         <sect2>
           <title><command>trusted-keys</command> Statement Grammar</title>
 
-<programlisting>trusted-keys {
+<programlisting><command>trusted-keys</command> {
     <replaceable>string</replaceable> <replaceable>number</replaceable> <replaceable>number</replaceable> <replaceable>number</replaceable> <replaceable>string</replaceable> ;
     <optional> <replaceable>string</replaceable> <replaceable>number</replaceable> <replaceable>number</replaceable> <replaceable>number</replaceable> <replaceable>string</replaceable> ; <optional>...</optional></optional>
 };
@@ -7922,7 +7923,7 @@ query-source-v6 address * port *;
         <sect2 id="view_statement_grammar">
           <title><command>view</command> Statement Grammar</title>
 
-<programlisting>view <replaceable>view_name</replaceable>
+<programlisting><command>view</command> <replaceable>view_name</replaceable>
       <optional><replaceable>class</replaceable></optional> {
       match-clients { <replaceable>address_match_list</replaceable> };
       match-destinations { <replaceable>address_match_list</replaceable> };
@@ -8063,7 +8064,7 @@ view "external" {
           <title><command>zone</command>
             Statement Grammar</title>
 
-<programlisting>zone <replaceable>zone_name</replaceable> <optional><replaceable>class</replaceable></optional> {
+<programlisting><command>zone</command> <replaceable>zone_name</replaceable> <optional><replaceable>class</replaceable></optional> {
     type master;
     <optional> allow-query { <replaceable>address_match_list</replaceable> }; </optional>
     <optional> allow-transfer { <replaceable>address_match_list</replaceable> }; </optional>
@@ -10442,7 +10443,7 @@ $GENERATE 1-127 $ CNAME $.0</programlisting>
             is equivalent to
           </para>
 
-<programlisting>0.0.0.192.IN-ADDR.ARPA NS SERVER1.EXAMPLE.
+<programlisting>0.0.0.192.IN-ADDR.ARPA. NS SERVER1.EXAMPLE.
 0.0.0.192.IN-ADDR.ARPA. NS SERVER2.EXAMPLE.
 1.0.0.192.IN-ADDR.ARPA. CNAME 1.0.0.0.192.IN-ADDR.ARPA.
 2.0.0.192.IN-ADDR.ARPA. CNAME 2.0.0.0.192.IN-ADDR.ARPA.

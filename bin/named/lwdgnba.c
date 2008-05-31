@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2007  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2007, 2008  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: lwdgnba.c,v 1.13.2.1.2.8 2007/08/28 07:19:08 tbox Exp $ */
+/* $Id: lwdgnba.c,v 1.13.2.1.2.10 2008/01/14 23:45:30 tbox Exp $ */
 
 #include <config.h>
 
@@ -217,8 +217,6 @@ ns_lwdclient_processgnba(ns_lwdclient_t *client, lwres_buffer_t *b) {
 	result = lwres_gnbarequest_parse(cm->lwctx,
 					 b, &client->pkt, &req);
 	if (result != LWRES_R_SUCCESS)
-		goto out;
-	if (req->addr.address == NULL)
 		goto out;
 
 	client->options = 0;

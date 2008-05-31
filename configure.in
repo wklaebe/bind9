@@ -1,4 +1,4 @@
-# Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
+# Copyright (C) 2004-2008  Internet Systems Consortium, Inc. ("ISC")
 # Copyright (C) 1998-2003  Internet Software Consortium.
 #
 # Permission to use, copy, modify, and/or distribute this software for any
@@ -18,7 +18,7 @@ AC_DIVERT_PUSH(1)dnl
 esyscmd([sed "s/^/# /" COPYRIGHT])dnl
 AC_DIVERT_POP()dnl
 
-AC_REVISION($Revision: 1.294.2.23.2.78 $)
+AC_REVISION($Revision: 1.294.2.23.2.82 $)
 
 AC_INIT(lib/dns/name.c)
 AC_PREREQ(2.13)
@@ -237,6 +237,7 @@ AC_CHECK_HEADERS(fcntl.h sys/time.h unistd.h sys/sockio.h sys/select.h sys/param
 
 AC_C_CONST
 AC_C_INLINE
+AC_C_VOLATILE
 AC_CHECK_FUNC(sysctlbyname, AC_DEFINE(HAVE_SYSCTLBYNAME))
 
 #
@@ -1974,24 +1975,35 @@ fi
 AC_SUBST($1)
 ])
 
+# Look for Docbook-XSL stylesheets.  Location probably varies by system.
+# If it's not explicitly specified, guess where it might be found, based on
+# where SGML stuff lives on some systems (FreeBSD is the only one we're sure
+# of at the moment).
 #
-# Look for Docbook-XSL stylesheets.  Location probably varies by
-# system.  Guessing where it might be found, based on where SGML stuff
-# lives on some systems.  FreeBSD is the only one I'm sure of at the
-# moment.
-#
-
-docbook_xsl_trees="/usr/pkg/share/xsl /usr/local/share/xsl /usr/share/xsl"
+AC_MSG_CHECKING(for Docbook-XSL path)
+AC_ARG_WITH(docbook-xsl,
+[  --with-docbook-xsl=PATH    Specify path for Docbook-XSL stylesheets],
+   docbook_path="$withval", docbook_path="auto")
+case "$docbook_path" in
+auto)
+	AC_MSG_RESULT(auto)
+	docbook_xsl_trees="/usr/pkg/share/xsl/docbook /usr/local/share/xsl/docbook /usr/share/xsl/docbook"
+	;;
+*)
+	docbook_xsl_trees="$withval"
+	AC_MSG_RESULT($docbook_xsl_trees)
+	;;
+esac
 
 #
 # Look for stylesheets we need.
 #
 
-NOM_PATH_FILE(XSLT_DOCBOOK_STYLE_HTML, docbook/html/docbook.xsl, $docbook_xsl_trees)
-NOM_PATH_FILE(XSLT_DOCBOOK_STYLE_XHTML, docbook/xhtml/docbook.xsl, $docbook_xsl_trees)
-NOM_PATH_FILE(XSLT_DOCBOOK_STYLE_MAN, docbook/manpages/docbook.xsl, $docbook_xsl_trees)
-NOM_PATH_FILE(XSLT_DOCBOOK_CHUNK_HTML, docbook/html/chunk.xsl, $docbook_xsl_trees)
-NOM_PATH_FILE(XSLT_DOCBOOK_CHUNK_XHTML, docbook/xhtml/chunk.xsl, $docbook_xsl_trees)
+NOM_PATH_FILE(XSLT_DOCBOOK_STYLE_HTML, html/docbook.xsl, $docbook_xsl_trees)
+NOM_PATH_FILE(XSLT_DOCBOOK_STYLE_XHTML, xhtml/docbook.xsl, $docbook_xsl_trees)
+NOM_PATH_FILE(XSLT_DOCBOOK_STYLE_MAN, manpages/docbook.xsl, $docbook_xsl_trees)
+NOM_PATH_FILE(XSLT_DOCBOOK_CHUNK_HTML, html/chunk.xsl, $docbook_xsl_trees)
+NOM_PATH_FILE(XSLT_DOCBOOK_CHUNK_XHTML, xhtml/chunk.xsl, $docbook_xsl_trees)
 
 #
 # Same dance for db2latex

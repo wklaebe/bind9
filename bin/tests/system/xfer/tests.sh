@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Copyright (C) 2004, 2005, 2007  Internet Systems Consortium, Inc. ("ISC")
+# Copyright (C) 2004, 2005, 2007, 2008  Internet Systems Consortium, Inc. ("ISC")
 # Copyright (C) 2000, 2001, 2003  Internet Software Consortium.
 #
 # Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: tests.sh,v 1.24.12.10 2007/08/28 07:19:11 tbox Exp $
+# $Id: tests.sh,v 1.24.12.12 2008/01/22 23:26:39 tbox Exp $
 
 SYSTEMTESTTOP=..
 . $SYSTEMTESTTOP/conf.sh
@@ -66,7 +66,7 @@ $DIG $DIGOPTS tsigzone. \
 	> dig.out.ns3 || tmp=1
 	grep ";" dig.out.ns3 > /dev/null
 	if test $? -ne 0 ; then break; fi
-	echo "I: TSIG zone re-transfer"
+	echo "I: plain zone re-transfer"
 	sleep 5
 done
 if test $tmp -eq 1 ; then status=1; fi

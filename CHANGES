@@ -1,3 +1,105 @@
+	--- 9.3.5rc1 released ---
+
+2328.	[bug]		Add AAAA addresses for A.ROOT-SERVERS.NET,
+			F.ROOT-SERVERS.NET, H.ROOT-SERVERS.NET,
+			J.ROOT-SERVERS.NET, K.ROOT-SERVERS.NET and
+			M.ROOT-SERVERS.NET.
+
+2323.	[port]		tru64: namespace clash. [RT #17547]
+
+2322.	[port]		MacOS: work around the limitation of setrlimit()
+			for RLIMIT_NOFILE. [RT #17526]
+
+2321.   [bug]		Silence Coverity warnings in lib/dns/master.c,
+			lib/dns/rbtdb.c, lib/isccfg/namedconf.c,
+			lib/dns/tsig.c and bin/dnssec/dnssec-signzone.c.
+
+2319.	[bug]		Silence Coverity warnings in 
+			lib/dns/rdata/in_1/apl_42.c. [RT #17469]
+
+2318.	[port]		sunos fixes for libbind.  [RT #17514]
+
+2314.	[bug]		Uninitialized memory use on error path in
+			bin/named/lwdnoop.c.  [RT #17476]
+
+2313.	[cleanup]	Silence Coverity warnings. Handle private stacks.
+			[RT #17447] [RT #17478]
+
+2312.	[cleanup]	Silence Coverity warning in lib/isc/unix/socket.c.
+			[RT #17458]
+
+2311.   [func]          Update ACL regression test. [RT #17462]
+
+2310.	[bug]		dig, host, nslookup: flush stdout before emitting
+			debug/fatal messages.  [RT #17501]
+
+2308.	[cleanup]	Silence Coverity warning in bin/named/controlconf.c.
+			[RT #17495]
+
+2307.	[bug]		Remove infinite loop from lib/dns/sdb.c. [RT #17496]
+
+2305.	[security]	inet_network() buffer overflow. CVE-2008-0122.
+
+2304.	[bug]		Check returns from all dns_rdata_tostruct() calls.
+			[RT #17460]
+
+2303.	[bug]		Remove unnecessary code from bin/named/lwdgnba.c.
+			[RT #17471]
+
+2302.	[bug]		Fix memset() calls in lib/tests/t_api.c. [RT #17472]
+
+2301.	[bug]		Remove resource leak and fix error messages in
+			bin/tests/system/lwresd/lwtest.c. [RT #17474]
+
+2300.	[bug]		Fixed failure to close open file in 
+			bin/tests/names/t_names.c. [RT #17473]
+
+2299.	[bug]		Remove unnecessary NULL check in
+			bin/nsupdate/nsupdate.c. [RT #17475]
+
+2298.	[bug]		isc_mutex_lock() failure not caught in
+			bin/tests/timers/t_timers.c. [RT #17468]
+
+2297.	[bug]		isc_entropy_createfilesource() failure not caught in
+			bin/tests/dst/t_dst.c. [RT #17467]
+
+2296.	[port]		Allow docbook stylesheet location to be specified to
+			configure. [RT #17457]
+
+2295.	[bug]		Silence static overrun error in bin/named/lwaddr.c.
+			[RT #17459]
+
+2293.	[func]		Add ACL regression test. [RT #17375]
+
+2292.	[bug]		Log if the working directory is not writable.
+			[RT #17312]
+
+2291.   [bug]           PR_SET_DUMPABLE may be set too late.  Also report
+			failure to set PR_SET_DUMPABLE. [RT #17312]
+
+2290.	[bug]		Let AD in the query signal that the client wants AD
+			set in the response. [RT #17301]
+
+2288.	[port]		win32: mark service as running when we have finished
+			loading.  [RT #17441]
+
+2287.	[bug]		Use 'volatile' if the compiler supports it. [RT #17413]
+
+2284.	[bug]		Memory leak in UPDATE prerequisite processing.
+			[RT #17377]
+
+2283.	[bug]		TSIG keys were not attaching to the memory
+			context.  TSIG keys should use the rings
+			memory context rather than the clients memory
+			context. [RT #17377]
+
+2279.   [bug]           Use setsockopt(SO_NOSIGPIPE), when available,
+			to protect applications from receiving spurious
+			SIGPIPE signals when using the resolver.
+
+2277.	[bug]		Empty zone names were not correctly being caught at
+			in the post parse checks. [RT #17357]
+
 	--- 9.3.5b1 released ---
 
 2273.	[bug]		Adjust log level to WARNING when saving inconsistant

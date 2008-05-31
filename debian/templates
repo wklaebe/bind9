@@ -1,0 +1,20 @@
+Template: bind9/start-as-user
+Type: string
+Default: bind
+_Description: "User account for running the bind9 daemon:"
+ The default is to run bind9 under the 'bind' user account. If you would
+ like to use a different user account, please enter the username of that
+ account.
+
+Template: bind9/different-configuration-file
+Type: string
+Default:
+_Description: Other startup options for named:
+ Please provide any additional options (other than username) that should
+ be passed to named on startup.
+
+Template: bind9/run-resolvconf
+Type: boolean
+Default: true
+_Description: Should resolvconf be executed on startup?
+ Should resolvconf run when bind9 starts up?

@@ -1,8 +1,8 @@
 /*
- * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
- * Permission to use, copy, modify, and distribute this software for any
+ * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rbtdb.c,v 1.168.2.11.2.26 2006/03/02 23:18:20 marka Exp $ */
+/* $Id: rbtdb.c,v 1.168.2.11.2.33 2007/12/02 21:24:50 marka Exp $ */
 
 /*
  * Principal Author: Bob Halley
@@ -352,6 +352,19 @@ typedef struct rbtdb_dbiterator {
 static void free_rbtdb(dns_rbtdb_t *rbtdb, isc_boolean_t log,
 		       isc_event_t *event);
 
+/*%
+ * 'init_count' is used to initialize 'newheader->count' which inturn
+ * is used to determine where in the cycle rrset-order cyclic starts.
+ * We don't lock this as we don't care about simultanious updates.
+ *
+ * Note:
+ *	Both init_count and header->count can be ISC_UINT32_MAX.
+ *      The count on the returned rdataset however can't be as
+ *	that indicates that the database does not implement cyclic
+ *	processing.
+ */
+static unsigned int init_count;
+
 /*
  * Locking
  *
@@ -645,7 +658,7 @@ free_noqname(isc_mem_t *mctx, struct noqname **noqname) {
 	if ((*noqname)->nsec != NULL)
 		isc_mem_put(mctx, (*noqname)->nsec,
 			    dns_rdataslab_size((*noqname)->nsec, 0));
-	if ((*noqname)->nsec != NULL)
+	if ((*noqname)->nsecsig != NULL)
 		isc_mem_put(mctx, (*noqname)->nsecsig,
 			    dns_rdataslab_size((*noqname)->nsecsig, 0));
 	isc_mem_put(mctx, *noqname, sizeof(**noqname));
@@ -1062,6 +1075,7 @@ closeversion(dns_db_t *db, dns_dbversion_t **versionp, isc_boolean_t commit) {
 	rbtdb_serial_t serial, least_serial;
 	dns_rbtnode_t *rbtnode;
 	isc_mutex_t *lock;
+	isc_boolean_t writer;
 
 	REQUIRE(VALID_RBTDB(rbtdb));
 	version = (rbtdb_version_t *)*versionp;
@@ -1074,6 +1088,7 @@ closeversion(dns_db_t *db, dns_dbversion_t **versionp, isc_boolean_t commit) {
 	INSIST(!version->writer || !(commit && version->references > 1));
 	version->references--;
 	serial = version->serial;
+	writer = version->writer;
 	if (version->references == 0) {
 		if (version->writer) {
 			if (commit) {
@@ -1180,7 +1195,7 @@ closeversion(dns_db_t *db, dns_dbversion_t **versionp, isc_boolean_t commit) {
 	/*
 	 * Update the zone's secure status.
 	 */
-	if (version->writer && commit && !IS_CACHE(rbtdb))
+	if (writer && commit && !IS_CACHE(rbtdb))
 		rbtdb->secure = iszonesecure(db, rbtdb->origin_node);
 
 	if (cleanup_version != NULL) {
@@ -1513,8 +1528,8 @@ bind_rdataset(dns_rbtdb_t *rbtdb, dns_rbtnode_t *node,
 	raw = (unsigned char *)header + sizeof(*header);
 	rdataset->private3 = raw;
 	rdataset->count = header->count++;
-	if (header->count == ISC_UINT32_MAX)
-		header->count = 0;
+	if (rdataset->count == ISC_UINT32_MAX)
+		rdataset->count = 0;
 
 	/*
 	 * Reset iterator state.
@@ -2869,7 +2884,8 @@ find_coveringnsec(rbtdb_search_t *search, dns_dbnode_t **nodep,
 				}
 				continue;
 			}
-			if (NONEXISTENT(header) || NXDOMAIN(header)) {
+			if (NONEXISTENT(header) ||
+			    RBTDB_RDATATYPE_BASE(header->type) == 0) {
 				header_prev = header;
 				continue;
 			}
@@ -2895,7 +2911,7 @@ find_coveringnsec(rbtdb_search_t *search, dns_dbnode_t **nodep,
 			result = DNS_R_COVERINGNSEC;
 		} else if (!empty_node) {
 			result = ISC_R_NOTFOUND;
-		}else
+		} else
 			result = dns_rbtnodechain_prev(&search->chain, NULL,
 						       NULL);
  unlock_node:
@@ -4341,7 +4357,7 @@ addrdataset(dns_db_t *db, dns_dbnode_t *node, dns_dbversion_t *version,
 						rdataset->covers);
 	newheader->attributes = 0;
 	newheader->noqname = NULL;
-	newheader->count = 0;
+	newheader->count = init_count++;
 	newheader->trust = rdataset->trust;
 	if (rbtversion != NULL) {
 		newheader->serial = rbtversion->serial;
@@ -4422,7 +4438,7 @@ subtractrdataset(dns_db_t *db, dns_dbnode_t *node, dns_dbversion_t *version,
 	newheader->serial = rbtversion->serial;
 	newheader->trust = 0;
 	newheader->noqname = NULL;
-	newheader->count = 0;
+	newheader->count = init_count++;
 
 	LOCK(&rbtdb->node_locks[rbtnode->locknum].lock);
 
@@ -4655,7 +4671,7 @@ loading_addrdataset(void *arg, dns_name_t *name, dns_rdataset_t *rdataset) {
 	newheader->trust = rdataset->trust;
 	newheader->serial = 1;
 	newheader->noqname = NULL;
-	newheader->count = 0;
+	newheader->count = init_count++;
 
 	result = add(rbtdb, node, rbtdb->current_version, newheader,
 		     DNS_DBADD_MERGE, ISC_TRUE, NULL, 0);

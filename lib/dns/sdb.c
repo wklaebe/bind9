@@ -1,8 +1,8 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2006, 2007  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000, 2001, 2003  Internet Software Consortium.
  *
- * Permission to use, copy, modify, and distribute this software for any
+ * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: sdb.c,v 1.35.12.8 2004/07/22 04:01:58 marka Exp $ */
+/* $Id: sdb.c,v 1.35.12.13 2007/08/28 07:19:14 tbox Exp $ */
 
 #include <config.h>
 
@@ -119,6 +119,10 @@ typedef struct sdb_rdatasetiter {
 /* This is a reasonable value */
 #define SDB_DEFAULT_TTL		(60 * 60 * 24)
 
+#ifdef __COVERITY__
+#define MAYBE_LOCK(sdb) LOCK(&sdb->implementation->driverlock)
+#define MAYBE_UNLOCK(sdb) UNLOCK(&sdb->implementation->driverlock)
+#else
 #define MAYBE_LOCK(sdb)							\
 	do {								\
 		unsigned int flags = sdb->implementation->flags;	\
@@ -132,6 +136,7 @@ typedef struct sdb_rdatasetiter {
 		if ((flags & DNS_SDBFLAG_THREADSAFE) == 0)		\
 			UNLOCK(&sdb->implementation->driverlock);	\
 	} while (0)
+#endif
 
 static int dummy;
 
@@ -930,7 +935,8 @@ find(dns_db_t *db, dns_name_t *name, dns_dbversion_t *version,
 
 		xresult = dns_name_copy(xname, foundname, NULL);
 		if (xresult != ISC_R_SUCCESS) {
-			destroynode(node);
+			if (node != NULL)
+				destroynode(node);
 			if (dns_rdataset_isassociated(rdataset))
 				dns_rdataset_disassociate(rdataset);
 			return (DNS_R_BADDB);

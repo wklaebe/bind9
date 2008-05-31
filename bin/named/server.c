@@ -1,8 +1,8 @@
 /*
- * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
- * Permission to use, copy, modify, and distribute this software for any
+ * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: server.c,v 1.339.2.15.2.70 2006/05/24 04:30:24 marka Exp $ */
+/* $Id: server.c,v 1.339.2.15.2.75 2007/08/28 07:19:08 tbox Exp $ */
 
 #include <config.h>
 
@@ -289,6 +289,13 @@ configure_view_dnsseckey(const cfg_obj_t *vconfig, const cfg_obj_t *key,
 	isc_buffer_usedregion(&keydatabuf, &r);
 	keystruct.datalen = r.length;
 	keystruct.data = r.base;
+
+	if ((keystruct.algorithm == DST_ALG_RSASHA1 ||
+	     keystruct.algorithm == DST_ALG_RSAMD5) &&
+	    r.length > 1 && r.base[0] == 1 && r.base[1] == 3)
+		cfg_obj_log(key, ns_g_lctx, ISC_LOG_WARNING,
+			    "trusted key '%s' has a weak exponent",
+			    keynamestr);
 
 	CHECK(dns_rdata_fromstruct(NULL,
 				   keystruct.common.rdclass,
@@ -3414,6 +3421,7 @@ ns_server_reloadcommand(ns_server_t *server, char *args, isc_buffer_t *text) {
 		type = dns_zone_gettype(zone);
 		if (type == dns_zone_slave || type == dns_zone_stub) {
 			dns_zone_refresh(zone);
+			dns_zone_detach(&zone);
 			msg = "zone refresh queued";
 		} else {
 			result = dns_zone_load(zone);
@@ -3954,7 +3962,8 @@ isc_result_t
 ns_server_flushcache(ns_server_t *server, char *args) {
 	char *ptr, *viewname;
 	dns_view_t *view;
-	isc_boolean_t flushed = ISC_FALSE;
+	isc_boolean_t flushed;
+	isc_boolean_t found;
 	isc_result_t result;
 
 	/* Skip the command name. */
@@ -3967,22 +3976,27 @@ ns_server_flushcache(ns_server_t *server, char *args) {
 
 	result = isc_task_beginexclusive(server->task);
 	RUNTIME_CHECK(result == ISC_R_SUCCESS);
+	flushed = ISC_TRUE;
+	found = ISC_FALSE;
 	for (view = ISC_LIST_HEAD(server->viewlist);
 	     view != NULL;
 	     view = ISC_LIST_NEXT(view, link))
 	{
 		if (viewname != NULL && strcasecmp(viewname, view->name) != 0)
 			continue;
+		found = ISC_TRUE;
 		result = dns_view_flushcache(view);
 		if (result != ISC_R_SUCCESS)
-			goto out;
-		flushed = ISC_TRUE;
+			flushed = ISC_FALSE;
 	}
-	if (flushed)
+	if (flushed && found) {
 		result = ISC_R_SUCCESS;
-	else
-		result = ISC_R_FAILURE;
- out:
+	} else {
+		if (!found)
+			result = ISC_R_NOTFOUND;
+		else
+			result = ISC_R_FAILURE;
+	}
 	isc_task_endexclusive(server->task);	
 	return (result);
 }
@@ -3991,7 +4005,8 @@ isc_result_t
 ns_server_flushname(ns_server_t *server, char *args) {
 	char *ptr, *target, *viewname;
 	dns_view_t *view;
-	isc_boolean_t flushed = ISC_FALSE;
+	isc_boolean_t flushed;
+	isc_boolean_t found;
 	isc_result_t result;
 	isc_buffer_t b;
 	dns_fixedname_t fixed;
@@ -4021,18 +4036,22 @@ ns_server_flushname(ns_server_t *server, char *args) {
 	result = isc_task_beginexclusive(server->task);
 	RUNTIME_CHECK(result == ISC_R_SUCCESS);
 	flushed = ISC_TRUE;
+	found = ISC_FALSE;
 	for (view = ISC_LIST_HEAD(server->viewlist);
 	     view != NULL;
 	     view = ISC_LIST_NEXT(view, link))
 	{
 		if (viewname != NULL && strcasecmp(viewname, view->name) != 0)
 			continue;
+		found = ISC_TRUE;
 		result = dns_view_flushname(view, name);
 		if (result != ISC_R_SUCCESS)
 			flushed = ISC_FALSE;
 	}
-	if (flushed)
+	if (flushed && found)
 		result = ISC_R_SUCCESS;
+	else if (!found)
+		result = ISC_R_NOTFOUND;
 	else
 		result = ISC_R_FAILURE;
 	isc_task_endexclusive(server->task);	

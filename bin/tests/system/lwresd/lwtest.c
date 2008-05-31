@@ -1,8 +1,8 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
- * Copyright (C) 2000-2002  Internet Software Consortium.
+ * Copyright (C) 2004, 2007  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2000-2003  Internet Software Consortium.
  *
- * Permission to use, copy, modify, and distribute this software for any
+ * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -15,15 +15,15 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: lwtest.c,v 1.22.2.4.2.4 2004/03/08 04:04:37 marka Exp $ */
+/* $Id: lwtest.c,v 1.22.2.4.2.8 2007/09/13 05:18:08 each Exp $ */
 
 #include <config.h>
 
 #include <assert.h>
 #include <stdlib.h>
-#include <string.h>
 
 #include <isc/net.h>
+#include <isc/string.h>
 
 #include <lwres/lwres.h>
 #include <lwres/netdb.h>

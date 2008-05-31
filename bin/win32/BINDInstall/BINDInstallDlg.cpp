@@ -1,8 +1,8 @@
 /*
  * Portions Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
- * Portions Copyright (C) 2001, 2003  Internet Software Consortium.
+ * Portions Copyright (C) 2001-2003  Internet Software Consortium.
  *
- * Permission to use, copy, modify, and distribute this software for any
+ * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: BINDInstallDlg.cpp,v 1.6.2.6.2.16.4.1 2007/06/27 01:16:43 marka Exp $ */
+/* $Id: BINDInstallDlg.cpp,v 1.6.2.6.2.24 2007/10/31 01:43:11 marka Exp $ */
 
 /*
  * Copyright (c) 1999-2000 by Nortel Networks Corporation
@@ -386,6 +386,9 @@ void CBINDInstallDlg::OnUninstall() {
  * User pressed the install button.  Make it go.
  */
 void CBINDInstallDlg::OnInstall() {
+#if _MSC_VER >= 1400
+	char Vcredist_x86[MAX_PATH];
+#endif
 	BOOL success = FALSE;
 	int oldlen;
 
@@ -480,7 +483,14 @@ void CBINDInstallDlg::OnInstall() {
 	 * Vcredist_x86.exe /q:a /c:"msiexec /i vcredist.msi /qn /l*v %temp%\vcredist_x86.log"
 	 */
 	/*system(".\\Vcredist_x86.exe /q:a /c:\"msiexec /i vcredist.msi /qn /l*v %temp%\vcredist_x86.log\"");*/
-	system(".\\Vcredist_x86.exe");
+
+	/*
+	 * Enclose full path to Vcredist_x86.exe in quotes as
+	 * m_currentDir may contain spaces.
+	 */
+	sprintf(Vcredist_x86, "\"%s\\Vcredist_x86.exe\"",
+		(LPCTSTR) m_currentDir);
+	system(Vcredist_x86);
 #endif
 	try {
 		CreateDirs();
@@ -916,10 +926,9 @@ void CBINDInstallDlg::UnregisterService(BOOL uninstall) {
 void CBINDInstallDlg::RegisterMessages() {
 	HKEY hKey;
 	DWORD dwData;
-	char pszMsgDLL[MAX_PATH], buf[MAX_PATH];
+	char pszMsgDLL[MAX_PATH];
 
-	GetSystemDirectory(buf, MAX_PATH);
-	sprintf(pszMsgDLL, "%s\\%s", buf, "bindevt.dll");
+	sprintf(pszMsgDLL, "%s\\%s", (LPCTSTR)m_binDir, "bindevt.dll");
 
 	SetCurrent(IDS_REGISTER_MESSAGES);
 	/* Create a new key for named */

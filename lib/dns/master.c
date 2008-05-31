@@ -1,8 +1,8 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2006, 2007  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
- * Permission to use, copy, modify, and distribute this software for any
+ * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: master.c,v 1.122.2.8.2.14 2004/05/05 01:32:16 marka Exp $ */
+/* $Id: master.c,v 1.122.2.8.2.21 2007/08/28 07:19:13 tbox Exp $ */
 
 #include <config.h>
 
@@ -246,7 +246,8 @@ loadctx_destroy(dns_loadctx_t *lctx);
 
 #define MANYERRS(lctx, result) \
 		((result != ISC_R_SUCCESS) && \
-		((lctx)->options & DNS_MASTER_MANYERRORS) != 0)
+		 (result != ISC_R_IOERROR) && \
+		 ((lctx)->options & DNS_MASTER_MANYERRORS) != 0)
 
 #define SETRESULT(lctx, r) \
 		do { \
@@ -1117,6 +1118,7 @@ load(dns_loadctx_t *lctx) {
 					isc_mem_free(mctx, gtype);
 				if (rhs != NULL)
 					isc_mem_free(mctx, rhs);
+				range = lhs = gtype = rhs = NULL;
 				/* RANGE */
 				GETTOKEN(lctx->lex, 0, &token, ISC_FALSE);
 				range = isc_mem_strdup(mctx,
@@ -1367,7 +1369,7 @@ load(dns_loadctx_t *lctx) {
 		} else {
 			UNEXPECTED_ERROR(__FILE__, __LINE__,
 					 "%s:%lu: isc_lex_gettoken() returned "
-					 "unexpeced token type (%d)",
+					 "unexpected token type (%d)",
 					 source, line, token.type);
 			result = ISC_R_UNEXPECTED;
 			if (MANYERRS(lctx, result)) {
@@ -2040,8 +2042,7 @@ dns_master_loadbuffer(isc_buffer_t *buffer, dns_name_t *top,
 	INSIST(result != DNS_R_CONTINUE);
 
  cleanup:
-	if (lctx != NULL)
-		dns_loadctx_detach(&lctx);
+	dns_loadctx_detach(&lctx);
 	return (result);
 }
 
@@ -2076,8 +2077,7 @@ dns_master_loadbufferinc(isc_buffer_t *buffer, dns_name_t *top,
 	}
 
  cleanup:
-	if (lctx != NULL)
-		dns_loadctx_detach(&lctx);
+	dns_loadctx_detach(&lctx);
 	return (result);
 }
 

@@ -1,0 +1,63 @@
+# translation of bind9 debconf to Portuguese
+# Copyright (C) 2008 Américo Monteiro
+# This file is distributed under the same license as the bind9 package.
+#
+# Américo Monteiro <a_monteiro@netcabo.pt>, 2008.
+msgid ""
+msgstr ""
+"Project-Id-Version: bind9 1:9.5.0.dfsg-1\n"
+"Report-Msgid-Bugs-To: bind9@packages.debian.org\n"
+"POT-Creation-Date: 2008-04-03 11:03+0200\n"
+"PO-Revision-Date: 2008-05-31 19:49+0100\n"
+"Last-Translator: Américo Monteiro <a_monteiro@netcabo.pt>\n"
+"Language-Team: Portuguese <traduz@debianpt.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: KBabel 1.11.4\n"
+
+#. Type: string
+#. Description
+#: ../templates:1001
+msgid "Options that should be passed at startup to bind9"
+msgstr "Opções que devem ser passadas ao bind9 durante o arranque"
+
+#. Type: string
+#. Description
+#: ../templates:1001
+msgid ""
+"Please enter here the options which should be passed to the bind9-daemon on "
+"startup."
+msgstr ""
+"Por favor indique aqui as opções que devem ser aplicadas ao bind9-daemon "
+"durante o arranque da máquina."
+
+#. Type: string
+#. Description
+#: ../templates:2001
+msgid "which user should bind9 run as?"
+msgstr "Com que utilizador deve o bind9 correr?"
+
+#. Type: string
+#. Description
+#: ../templates:2001
+msgid ""
+"The default is to start bind9 as bind user, if you would  like to change "
+"that, please give here the username as which  bind9 should start as."
+msgstr ""
+"A pré-definição é arrancar o bind9 como utilizador 'bind', se você deseja "
+"alterar isto, por favor indique o nome de utilizador com que o bind9 deve "
+"arrancar."
+
+#. Type: boolean
+#. Description
+#: ../templates:3001
+msgid "Should resolvconf be executed on startup?"
+msgstr "Deve o resolvconf ser executado no arranque da máquina?"
+
+#. Type: boolean
+#. Description
+#: ../templates:3001
+msgid "Should resolvconf run when bind9 starts up?"
+msgstr "Deve o resolvconf correr quando o bind9 arranca?"
+

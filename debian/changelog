@@ -1,3 +1,12 @@
+bind9 (1:9.5.0.dfsg-1) unstable; urgency=low
+
+  [LaMont Jones]
+
+  * manpages: fix references that should say /etc/bind
+  * meta: build-depend libxml2-dev for statistics support
+
+ -- LaMont Jones <lamont@debian.org>  Sat, 31 May 2008 12:17:21 -0600
+
 bind9 (1:9.5.0.dfsg-0) experimental; urgency=low
 
   [Internet Software Consortium, Inc]

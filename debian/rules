@@ -101,6 +101,11 @@ install: build
 	cp doc/arm/*.html debian/bind9-doc/usr/share/doc/bind9-doc/arm
 	install -m 644 -o root -g root debian/apparmor-profile ${ETCAPP}/usr.sbin.named
 
+	install debian/ip-up.d debian/bind9/etc/ppp/ip-up.d/bind9
+	install debian/ip-down.d debian/bind9/etc/ppp/ip-down.d/bind9
+	install debian/ip-up.d debian/bind9/etc/network/if-up.d/bind9
+	install debian/ip-down.d debian/bind9/etc/network/if-down.d/bind9
+
 # Build architecture-independent files here.
 binary-indep: build install
 	dh_testdir -i

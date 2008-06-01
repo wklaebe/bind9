@@ -18,7 +18,7 @@ PATH=/sbin:/bin:/usr/sbin:/usr/bin
 # for a chrooted server: "-u bind -t /var/lib/named"
 # Don't modify this line, change or create /etc/default/bind9.
 OPTIONS=""
-RESOLVCONF=yes
+RESOLVCONF=no
 
 test -f /etc/default/bind9 && . /etc/default/bind9
 

@@ -4,4 +4,8 @@ usr/bin
 usr/sbin
 var/cache/bind
 var/run/bind/run
-usr/share/bind9/
+usr/share/bind9
+etc/ppp/ip-up.d
+etc/ppp/ip-down.d
+etc/network/if-up.d
+etc/network/if-down.d

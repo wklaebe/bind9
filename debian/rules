@@ -68,6 +68,7 @@ clean:
 	rm -f build-stamp configure-stamp
 	rm -f debian/substvars lib/bind/include/isc/platform.h
 	rm -f contrib/dlz/bin/dlzbdb/Makefile contrib/dlz/drivers/rules
+	rm -f doc/arm/Bv9ARM.pdf
 	dh_clean
 
 newtemplate:

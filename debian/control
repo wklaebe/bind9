@@ -10,7 +10,7 @@ XS-Vcs-Git: git://git.debian.org/~lamont/bind9.git
 
 Package: bind9
 Architecture: any
-Depends: ${shlibs:Depends}, debconf | debconf-2.0, netbase, adduser, libdns42 (=${binary:Version}), libisccfg40 (=${binary:Version}), libisc41 (=${binary:Version}), libisccc40 (=${binary:Version}), lsb-base (>= 3.0-6), bind9utils (=${binary:Version})
+Depends: ${shlibs:Depends}, debconf | debconf-2.0, netbase, adduser, libdns43 (=${binary:Version}), libisccfg40 (=${binary:Version}), libisc41 (=${binary:Version}), libisccc40 (=${binary:Version}), lsb-base (>= 3.0-6), bind9utils (=${binary:Version})
 Conflicts: bind, apparmor-profiles (<< 2.1+1075-0ubuntu4)
 Replaces: bind, dnsutils (<< 1:9.1.0-3), apparmor-profiles (<< 2.1+1075-0ubuntu4)
 Suggests: dnsutils, bind9-doc, resolvconf
@@ -51,7 +51,7 @@ Section: libdevel
 Architecture: any
 Conflicts: bind-dev
 Replaces: bind-dev
-Depends: libdns42 (= ${binary:Version}), libisc41 (= ${binary:Version}), libisccc40(= ${binary:Version}), libisccfg40 (= ${binary:Version}), liblwres40 (= ${binary:Version}) 
+Depends: libdns43 (= ${binary:Version}), libisc41 (= ${binary:Version}), libisccc40(= ${binary:Version}), libisccfg40 (= ${binary:Version}), liblwres40 (= ${binary:Version}) 
 Description: Static Libraries and Headers used by BIND
  This package delivers archive-style libraries, header files, and API man
  pages for libbind, libdns, libisc, and liblwres.  These are are only needed 
@@ -71,7 +71,7 @@ Description: BIND9 Shared Library used by BIND
  This package delivers the libbind9 shared library used by BIND's daemons and
  clients.
 
-Package: libdns42
+Package: libdns43
 Section: libs
 Priority: standard
 Architecture: any

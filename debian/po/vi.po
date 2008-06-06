@@ -1,0 +1,57 @@
+# Vietnamese translation for Bind 9.
+# Copyright © 2008 Free Software Foundation, Inc.
+# Clytie Siddall <clytie@riverland.net.au>, 2008.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: bind9 1:9.5.0.dfsg-1\n"
+"Report-Msgid-Bugs-To: bind9@packages.debian.org\n"
+"POT-Creation-Date: 2008-04-03 11:03+0200\n"
+"PO-Revision-Date: 2008-06-01 15:17+0930\n"
+"Last-Translator: Clytie Siddall <clytie@riverland.net.au>\n"
+"Language-Team: Vietnamese <vi-VN@googlegroups.com>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+"X-Generator: LocFactoryEditor 1.7b3\n"
+
+#: ../templates:1001
+#. Type: string
+#. Description
+msgid "Options that should be passed at startup to bind9"
+msgstr "Các tùy chọn nên gửi cho bind9 vào lúc khởi động"
+
+#: ../templates:1001
+#. Type: string
+#. Description
+msgid ""
+"Please enter here the options which should be passed to the bind9-daemon on "
+"startup."
+msgstr "Hãy nhập vào đây những tùy chọn nên gửi cho trình nền bing9 vào lúc khởi động hệ thống."
+
+#: ../templates:2001
+#. Type: string
+#. Description
+msgid "which user should bind9 run as?"
+msgstr "bind9 nên chạy dưới người dùng nào?"
+
+#: ../templates:2001
+#. Type: string
+#. Description
+msgid ""
+"The default is to start bind9 as bind user, if you would  like to change "
+"that, please give here the username as which  bind9 should start as."
+msgstr "Mặc định là khởi chạy bind9 dưới người dùng « bind ». Muốn thay đổi thiết lập này thì nhập ở đây tên người dùng dưới đó trình nền bind9 nên khởi chạy."
+
+#: ../templates:3001
+#. Type: boolean
+#. Description
+msgid "Should resolvconf be executed on startup?"
+msgstr "Khởi chạy thì cũng chạy resolveconf ?"
+
+#: ../templates:3001
+#. Type: boolean
+#. Description
+msgid "Should resolvconf run when bind9 starts up?"
+msgstr "Có nên thực hiện tiến trình resolveconf khi bind9 khởi chạy không?"

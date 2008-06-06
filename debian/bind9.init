@@ -28,9 +28,14 @@ test -x /usr/sbin/rndc || exit 0
 DISTRO=$(lsb_release -is 2>/dev/null || echo Debian)
 
 check_network() {
-    if [ -z "$(/sbin/ifconfig)" ]; then
-    	#log_action_msg "No networks configured."
-	return 1 
+    if [ "X$(/usr/bin/uname -o)" = XSolaris ]; then
+	IFCONFIG_OPTS="-au"
+    else
+	IFCONFIG_OPTS=""
+    fi
+    if [ -z "$(/sbin/ifconfig $IFCONFIG_OPTS)" ]; then
+       #log_action_msg "No networks configured."
+       return 1
     fi
     return 0
 }

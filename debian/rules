@@ -134,7 +134,7 @@ binary-arch: build install
 	dh_installdocs -a
 	dh_installexamples -a
 	dh_installmenu -a
-	dh_installinit -a -- defaults 15 85
+	dh_installinit -a --no-start -- defaults 15 85
 	dh_installcron -a
 	dh_installmanpages -pbind9 runmdn.1 mdnconv.1 zone2ldap.1 nslint.8
 	dh_installdebconf -pbind9

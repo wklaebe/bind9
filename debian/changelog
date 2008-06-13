@@ -1,3 +1,27 @@
+bind9 (1:9.5.0.dfsg-2) unstable; urgency=low
+
+  [Tim Spriggs]
+
+  * init.d: Nexenta has different ifconfig arguments
+
+  [LaMont Jones]
+
+  * templates rework from debian-l10n-english
+  * reload named when an interface goes up or down.  LP: #226495
+  * build: need to create the directories for interface restart triggering
+  * Build-Depends: libcap2-dev.  Closes: #485747
+  * Leave named running during update.  Closes: #453765
+  * Fix path to uname, cleaning up the nexenta checks.
+  * l10n: avoid double-question in templates.
+
+  [localization folks]
+
+  * l10n: Vietnamese debconf translations.  Closes: #483911 (Clytie Siddall)
+  * l10n: Portuguese debconf translations.  Closes: #483872 (Traduz -
+    Portuguese Translation Team)
+
+ -- LaMont Jones <lamont@debian.org>  Fri, 13 Jun 2008 16:54:42 -0600
+
 bind9 (1:9.5.0.dfsg-1) unstable; urgency=low
 
   [LaMont Jones]

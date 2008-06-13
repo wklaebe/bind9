@@ -16,6 +16,6 @@ Template: bind9/run-resolvconf
 Type: boolean
 Default: false
 _Description: Should resolv.conf settings be overridden?
- If this machine moves around, should the resolver be forced to use the
+ Please choose whether the resolver should be forced to use the
  local BIND9 daemon (named) rather than what the current connection
- recommends?
+ recommends, when this machine moves around.

@@ -28,7 +28,7 @@ test -x /usr/sbin/rndc || exit 0
 DISTRO=$(lsb_release -is 2>/dev/null || echo Debian)
 
 check_network() {
-    if [ "X$(/usr/bin/uname -o)" = XSolaris ]; then
+    if [ -x /usr/bin/uname ] && [ "X$(/usr/bin/uname -o)" = XSolaris ]; then
 	IFCONFIG_OPTS="-au"
     else
 	IFCONFIG_OPTS=""

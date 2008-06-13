@@ -129,6 +129,12 @@ if [ "$1" = configure ]; then
     if [ -x /etc/init.d/apparmor ]; then
         invoke-rc.d apparmor force-reload || true
     fi
+
+    if /usr/bin/pidof /usr/sbin/named >/dev/null 2>&1; then
+	invoke-rc.d bind9 restart
+    else
+    	invoke-rc.d bind9 start
+    fi
 fi
 
 db_stop

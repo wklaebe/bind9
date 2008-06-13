@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: bind9 1:9.5.0.dfsg-1\n"
 "Report-Msgid-Bugs-To: Source: bind9@packages.debian.org\n"
-"POT-Creation-Date: 2008-05-31 15:15-0600\n"
+"POT-Creation-Date: 2008-06-13 16:56-0600\n"
 "PO-Revision-Date: 2008-05-31 19:49+0100\n"
 "Last-Translator: Américo Monteiro <a_monteiro@netcabo.pt>\n"
 "Language-Team: Portuguese <traduz@debianpt.org>\n"
@@ -19,7 +19,7 @@ msgstr ""
 #. Type: string
 #. Description
 #: ../templates:1001
-msgid "\"User account for running the bind9 daemon:\""
+msgid "User account for running the BIND9 daemon:"
 msgstr ""
 
 #. Type: string
@@ -30,8 +30,8 @@ msgstr ""
 #| "The default is to start bind9 as bind user, if you would  like to change "
 #| "that, please give here the username as which  bind9 should start as."
 msgid ""
-"The default is to run bind9 under the 'bind' user account. If you would like "
-"to use a different user account, please enter the username of that account."
+"The default is to run the BIND9 daemon (named) under the 'bind' user "
+"account. To use a different account, please enter the appropriate username."
 msgstr ""
 "A pré-definição é arrancar o bind9 como utilizador 'bind', se você deseja "
 "alterar isto, por favor indique o nome de utilizador com que o bind9 deve "
@@ -52,7 +52,7 @@ msgstr ""
 #| "on startup."
 msgid ""
 "Please provide any additional options (other than username) that should be "
-"passed to named on startup."
+"passed to the BIND9 daemon (named) on startup."
 msgstr ""
 "Por favor indique aqui as opções que devem ser aplicadas ao bind9-daemon "
 "durante o arranque da máquina."
@@ -60,14 +60,22 @@ msgstr ""
 #. Type: boolean
 #. Description
 #: ../templates:3001
-msgid "Should resolvconf be executed on startup?"
+#, fuzzy
+#| msgid "Should resolvconf be executed on startup?"
+msgid "Should resolv.conf settings be overridden?"
 msgstr "Deve o resolvconf ser executado no arranque da máquina?"
 
 #. Type: boolean
 #. Description
 #: ../templates:3001
-msgid "Should resolvconf run when bind9 starts up?"
-msgstr "Deve o resolvconf correr quando o bind9 arranca?"
+msgid ""
+"Please choose whether the resolver should be forced to use the local BIND9 "
+"daemon (named) rather than what the current connection recommends, when this "
+"machine moves around."
+msgstr ""
+
+#~ msgid "Should resolvconf run when bind9 starts up?"
+#~ msgstr "Deve o resolvconf correr quando o bind9 arranca?"
 
 #, fuzzy
 #~| msgid "Options that should be passed at startup to bind9"

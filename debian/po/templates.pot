@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: Source: bind9@packages.debian.org\n"
-"POT-Creation-Date: 2008-05-31 15:15-0600\n"
+"POT-Creation-Date: 2008-06-13 16:56-0600\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -19,15 +19,15 @@ msgstr ""
 #. Type: string
 #. Description
 #: ../templates:1001
-msgid "\"User account for running the bind9 daemon:\""
+msgid "User account for running the BIND9 daemon:"
 msgstr ""
 
 #. Type: string
 #. Description
 #: ../templates:1001
 msgid ""
-"The default is to run bind9 under the 'bind' user account. If you would like "
-"to use a different user account, please enter the username of that account."
+"The default is to run the BIND9 daemon (named) under the 'bind' user "
+"account. To use a different account, please enter the appropriate username."
 msgstr ""
 
 #. Type: string
@@ -41,17 +41,20 @@ msgstr ""
 #: ../templates:2001
 msgid ""
 "Please provide any additional options (other than username) that should be "
-"passed to named on startup."
+"passed to the BIND9 daemon (named) on startup."
 msgstr ""
 
 #. Type: boolean
 #. Description
 #: ../templates:3001
-msgid "Should resolvconf be executed on startup?"
+msgid "Should resolv.conf settings be overridden?"
 msgstr ""
 
 #. Type: boolean
 #. Description
 #: ../templates:3001
-msgid "Should resolvconf run when bind9 starts up?"
+msgid ""
+"Please choose whether the resolver should be forced to use the local BIND9 "
+"daemon (named) rather than what the current connection recommends, when this "
+"machine moves around."
 msgstr ""

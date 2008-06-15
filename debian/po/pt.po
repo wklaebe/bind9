@@ -1,14 +1,14 @@
-# translation of bind9 debconf to Portuguese
+# translation of bind9_1:9.5.0.dfsg-2_pt debconf to Portuguese
 # Copyright (C) 2008 Américo Monteiro
 # This file is distributed under the same license as the bind9 package.
 #
 # Américo Monteiro <a_monteiro@netcabo.pt>, 2008.
 msgid ""
 msgstr ""
-"Project-Id-Version: bind9 1:9.5.0.dfsg-1\n"
+"Project-Id-Version: bind9_1:9.5.0.dfsg-2_pt\n"
 "Report-Msgid-Bugs-To: Source: bind9@packages.debian.org\n"
 "POT-Creation-Date: 2008-06-13 16:56-0600\n"
-"PO-Revision-Date: 2008-05-31 19:49+0100\n"
+"PO-Revision-Date: 2008-06-14 11:55+0100\n"
 "Last-Translator: Américo Monteiro <a_monteiro@netcabo.pt>\n"
 "Language-Team: Portuguese <traduz@debianpt.org>\n"
 "MIME-Version: 1.0\n"
@@ -20,12 +20,11 @@ msgstr ""
 #. Description
 #: ../templates:1001
 msgid "User account for running the BIND9 daemon:"
-msgstr ""
+msgstr "Conta de utilizador para correr o deamon BIND9:"
 
 #. Type: string
 #. Description
 #: ../templates:1001
-#, fuzzy
 #| msgid ""
 #| "The default is to start bind9 as bind user, if you would  like to change "
 #| "that, please give here the username as which  bind9 should start as."
@@ -33,20 +32,19 @@ msgid ""
 "The default is to run the BIND9 daemon (named) under the 'bind' user "
 "account. To use a different account, please enter the appropriate username."
 msgstr ""
-"A pré-definição é arrancar o bind9 como utilizador 'bind', se você deseja "
-"alterar isto, por favor indique o nome de utilizador com que o bind9 deve "
-"arrancar."
+"A pré-definição é correr o deamon BIND9 (named) sob a conta de utilizador "
+"'bind'. Para usar uma conta diferente, por favor indique o nome de utilizador "
+"apropriado."
 
 #. Type: string
 #. Description
 #: ../templates:2001
 msgid "Other startup options for named:"
-msgstr ""
+msgstr "Outras opções de arranque para o named:"
 
 #. Type: string
 #. Description
 #: ../templates:2001
-#, fuzzy
 #| msgid ""
 #| "Please enter here the options which should be passed to the bind9-daemon "
 #| "on startup."
@@ -54,16 +52,15 @@ msgid ""
 "Please provide any additional options (other than username) that should be "
 "passed to the BIND9 daemon (named) on startup."
 msgstr ""
-"Por favor indique aqui as opções que devem ser aplicadas ao bind9-daemon "
-"durante o arranque da máquina."
+"Por favor forneça quaisquer opções adicionais (além do nome de utilizador) que "
+"deverão ser enviadas ao deamon BIND9 (named) durante o arranque. "
 
 #. Type: boolean
 #. Description
 #: ../templates:3001
-#, fuzzy
 #| msgid "Should resolvconf be executed on startup?"
 msgid "Should resolv.conf settings be overridden?"
-msgstr "Deve o resolvconf ser executado no arranque da máquina?"
+msgstr "Devem as configurações de resolv.conf ser substituidas?"
 
 #. Type: boolean
 #. Description
@@ -73,14 +70,7 @@ msgid ""
 "daemon (named) rather than what the current connection recommends, when this "
 "machine moves around."
 msgstr ""
+"Por favor escolha se a resolução de nomes deverá ser forçada a usar o deamon "
+"local BIND9 (named) em vez do que a corrente ligação recomenda, quando esta "
+"máquina está ligada."
 
-#~ msgid "Should resolvconf run when bind9 starts up?"
-#~ msgstr "Deve o resolvconf correr quando o bind9 arranca?"
-
-#, fuzzy
-#~| msgid "Options that should be passed at startup to bind9"
-#~ msgid "Options that should be passed at startup to bind9 on startup:"
-#~ msgstr "Opções que devem ser passadas ao bind9 durante o arranque"
-
-#~ msgid "which user should bind9 run as?"
-#~ msgstr "Com que utilizador deve o bind9 correr?"

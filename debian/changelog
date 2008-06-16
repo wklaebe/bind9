@@ -1,3 +1,24 @@
+bind9 (1:9.5.0.dfsg-3) unstable; urgency=low
+
+  [LaMont Jones]
+
+  * bind9utils Depends: libbind9-40.  Closes: #486194
+  * bind9 should not deliver manpages for nonexistant binaries. 
+    Closes: #486196
+
+  [localization folks]
+
+  * l10n: Vietnamese debconf templates translation update.  Closes: #486185
+    (Clytie Siddall)
+  * l10n: Russian debconf templates translation.  Closes: #486191 (Yuri Kozlov)
+  * l10n: Galician debconf template.  Closes: #486215 (Jacobo Tarrio)
+  * l10n: French debconf templates.  Closes: #486325 (CALARESU Luc)
+  * l10n: Czech debconf translation.  Closes: #486337 (Miroslav Kure)
+  * l10n: Updated Portuguese translation.  Closes: #486267 (Traduz -
+    Portuguese Translation Team)
+
+ -- LaMont Jones <lamont@debian.org>  Sun, 15 Jun 2008 18:25:02 -0600
+
 bind9 (1:9.5.0.dfsg-2) unstable; urgency=low
 
   [Tim Spriggs]

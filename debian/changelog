@@ -1,3 +1,12 @@
+bind9 (1:9.4.2-11) unstable; urgency=low
+
+  * apparmor: add dnscvsutil package files
+  * lwresd Depends: adduser
+  * control: fix dnsutils description to avoid list reformatting. 
+    Closes: #480317
+
+ -- LaMont Jones <lamont@debian.org>  Tue, 17 Jun 2008 21:30:12 -0600
+
 bind9 (1:9.4.2-10) unstable; urgency=low
 
   [Jamie Strandboge]

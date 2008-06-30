@@ -1,3 +1,24 @@
+bind9 (1:9.5.0.dfsg-4) unstable-UNRELEASED; urgency=low
+
+  * new release tag
+
+ -- LaMont Jones <lamont@debian.org>  Mon, 30 Jun 2008 11:22:05 -0600
+
+bind9 (1:9.4.2-12) unstable; urgency=low
+
+  * apparmor: allow bind to create files in /var/{lib,cache}/bind
+
+ -- LaMont Jones <lamont@debian.org>  Mon, 30 Jun 2008 11:17:53 -0600
+
+bind9 (1:9.4.2-11) unstable; urgency=low
+
+  * apparmor: add dnscvsutil package files
+  * lwresd Depends: adduser
+  * control: fix dnsutils description to avoid list reformatting. 
+    Closes: #480317
+
+ -- LaMont Jones <lamont@debian.org>  Tue, 17 Jun 2008 21:30:12 -0600
+
 bind9 (1:9.5.0.dfsg-3) unstable; urgency=low
 
   [LaMont Jones]

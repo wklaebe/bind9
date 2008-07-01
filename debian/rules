@@ -151,7 +151,7 @@ binary-arch: build install
 	dh_fixperms -a
 	dh_makeshlibs -a
 	dh_installdeb -a
-	dh_shlibdeps -l"debian/libbind9-40/usr/lib:debian/libdns42/usr/lib:debian/libisc41/usr/lib:debian/libisccc40/usr/lib:debian/libisccfg40/usr/lib:debian/liblwres40/usr/lib:/usr/lib/libfakeroot" -a
+	dh_shlibdeps -l"debian/libbind9-40/usr/lib:debian/liblwres40/usr/lib:/usr/lib/libfakeroot" -a
 	for i in $$(sed -n '/^Package:/s/^.* //p' debian/control); do cat debian/vars.in >> debian/$$i.substvars; done
 	cat debian/vars.in >> debian/substvars
 	dh_gencontrol -a

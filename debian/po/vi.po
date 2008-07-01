@@ -4,10 +4,10 @@
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: bind9 1:9.5.0.dfsg-1\n"
+"Project-Id-Version: bind9 1:9.5.0.dfsg-2\n"
 "Report-Msgid-Bugs-To: Source: bind9@packages.debian.org\n"
 "POT-Creation-Date: 2008-06-13 16:56-0600\n"
-"PO-Revision-Date: 2008-06-01 15:17+0930\n"
+"PO-Revision-Date: 2008-06-14 15:35+0930\n"
 "Last-Translator: Clytie Siddall <clytie@riverland.net.au>\n"
 "Language-Team: Vietnamese <vi-VN@googlegroups.com>\n"
 "MIME-Version: 1.0\n"
@@ -16,30 +16,29 @@ msgstr ""
 "Plural-Forms: nplurals=1; plural=0;\n"
 "X-Generator: LocFactoryEditor 1.7b3\n"
 
+#: ../templates:1001
 #. Type: string
 #. Description
-#: ../templates:1001
 msgid "User account for running the BIND9 daemon:"
-msgstr ""
+msgstr "Tài khoản người dùng để chạy trình nền BIND9:"
 
+#: ../templates:1001
 #. Type: string
 #. Description
-#: ../templates:1001
 msgid ""
 "The default is to run the BIND9 daemon (named) under the 'bind' user "
 "account. To use a different account, please enter the appropriate username."
-msgstr ""
+msgstr "Mặc định là chạy trình nền BIND9 (đặt tên) dưới tài khoản người dùng « bind ». Để sử dụng tài khoản khác, hãy nhập tên người dùng thích hợp."
 
+#: ../templates:2001
 #. Type: string
 #. Description
-#: ../templates:2001
 msgid "Other startup options for named:"
-msgstr ""
+msgstr "Tùy chọn khởi chạy khác cần đặt tên:"
 
+#: ../templates:2001
 #. Type: string
 #. Description
-#: ../templates:2001
-#, fuzzy
 #| msgid ""
 #| "Please enter here the options which should be passed to the bind9-daemon "
 #| "on startup."
@@ -47,39 +46,20 @@ msgid ""
 "Please provide any additional options (other than username) that should be "
 "passed to the BIND9 daemon (named) on startup."
 msgstr ""
-"Hãy nhập vào đây những tùy chọn nên gửi cho trình nền bing9 vào lúc khởi "
-"động hệ thống."
+"Hãy nhập vào đây bất kỳ tùy chọn bổ sung (khác với tên người dùng) nên gửi cho trình nền BIND9 vào lúc khởi chạy."
 
+#: ../templates:3001
 #. Type: boolean
 #. Description
-#: ../templates:3001
-#, fuzzy
 #| msgid "Should resolvconf be executed on startup?"
 msgid "Should resolv.conf settings be overridden?"
-msgstr "Khởi chạy thì cũng chạy resolveconf ?"
+msgstr "Co nên ghi đè lên thiết lập « resolv.conf » không?"
 
+#: ../templates:3001
 #. Type: boolean
 #. Description
-#: ../templates:3001
 msgid ""
 "Please choose whether the resolver should be forced to use the local BIND9 "
 "daemon (named) rather than what the current connection recommends, when this "
 "machine moves around."
-msgstr ""
-
-#~ msgid "Options that should be passed at startup to bind9"
-#~ msgstr "Các tùy chọn nên gửi cho bind9 vào lúc khởi động"
-
-#~ msgid "which user should bind9 run as?"
-#~ msgstr "bind9 nên chạy dưới người dùng nào?"
-
-#~ msgid ""
-#~ "The default is to start bind9 as bind user, if you would  like to change "
-#~ "that, please give here the username as which  bind9 should start as."
-#~ msgstr ""
-#~ "Mặc định là khởi chạy bind9 dưới người dùng « bind ». Muốn thay đổi thiết "
-#~ "lập này thì nhập ở đây tên người dùng dưới đó trình nền bind9 nên khởi "
-#~ "chạy."
-
-#~ msgid "Should resolvconf run when bind9 starts up?"
-#~ msgstr "Có nên thực hiện tiến trình resolveconf khi bind9 khởi chạy không?"
+msgstr "Hãy chọn có nên ép buộc trình giải quyết sử dụng trình nền BIND9 cục bộ (đặt tên) hơn là kết nối hiện thời đề nghị gì khi máy này ở nơi khác."

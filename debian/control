@@ -10,7 +10,7 @@ XS-Vcs-Git: git://git.debian.org/~lamont/bind9.git
 
 Package: bind9
 Architecture: any
-Depends: ${shlibs:Depends}, debconf | debconf-2.0, netbase, adduser, libdns43 (=${binary:Version}), libisccfg40 (=${binary:Version}), libisc41 (=${binary:Version}), libisccc40 (=${binary:Version}), lsb-base (>= 3.0-6), bind9utils (=${binary:Version})
+Depends: ${shlibs:Depends}, debconf | debconf-2.0, netbase, adduser, libbind9-41 (=${binary:Version}), lsb-base (>= 3.0-6), bind9utils (=${binary:Version})
 Conflicts: bind, apparmor-profiles (<< 2.1+1075-0ubuntu4)
 Replaces: bind, dnsutils (<< 1:9.1.0-3), apparmor-profiles (<< 2.1+1075-0ubuntu4)
 Suggests: dnsutils, bind9-doc, resolvconf
@@ -22,6 +22,7 @@ Description: Internet Domain Name Server
 Package: bind9utils
 Architecture: any
 Replaces: bind9 (<= 1:9.5.0~b2-1)
+Depends: libbind9-41
 Description: Utilities for BIND
  This package provides various utilities that are useful for maintaining a
  working BIND installation.
@@ -51,51 +52,25 @@ Section: libdevel
 Architecture: any
 Conflicts: bind-dev
 Replaces: bind-dev
-Depends: libdns43 (= ${binary:Version}), libisc41 (= ${binary:Version}), libisccc40(= ${binary:Version}), libisccfg40 (= ${binary:Version}), liblwres40 (= ${binary:Version}) 
+Depends: libbind9-41 (= ${binary:Version}), liblwres40 (= ${binary:Version}) 
 Description: Static Libraries and Headers used by BIND
  This package delivers archive-style libraries, header files, and API man
  pages for libbind, libdns, libisc, and liblwres.  These are are only needed 
  if you want to compile other packages that need more nameserver API than the 
  resolver code provided in libc.
 
-Package: libbind9-40
+Package: libbind9-41
 Section: libs
 Priority: standard
 Architecture: any
-Conflicts: libbind0
-Replaces: libbind0
+Conflicts: libbind0, libdns42, libisc41, libisccc40, libisccfg40
+Replaces: libbind0, libdns42, libisc41, libisccc40, libisccfg40
+Provides: libbind0, libdns42, libisc41, libisccc40, libisccfg40
 Depends: ${shlibs:Depends}
-Description: BIND9 Shared Library used by BIND
+Description: BIND9 Shared Libraries used by BIND
  ${Description}
  .
- This package delivers the libbind9 shared library used by BIND's daemons and
- clients.
-
-Package: libdns43
-Section: libs
-Priority: standard
-Architecture: any
-Conflicts: libbind0
-Replaces: libbind0
-Depends: ${shlibs:Depends}
-Description: DNS Shared Library used by BIND
- ${Description}
- .
- This package delivers the libdns shared library used by BIND's daemons and
- clients.
-
-Package: libisc41
-Section: libs
-Priority: standard
-Architecture: any
-Conflicts: libbind0
-Replaces: libbind0
-Depends: ${shlibs:Depends}
-Description: ISC Shared Library used by BIND
- ${Description}
- .
- This package delivers the libisc shared library used by BIND's daemons and
- clients.
+ This package delivers the shared libraries used by BIND (daemons and clients).
 
 Package: liblwres40
 Section: libs
@@ -107,33 +82,7 @@ Depends: ${shlibs:Depends}
 Description: Lightweight Resolver Library used by BIND
  ${Description}
  .
- This package delivers the liblwres shared library used by BIND's daemons
- and clients.
-
-Package: libisccc40
-Section: libs
-Architecture: any
-Conflicts: libbind0
-Replaces: libbind0
-Depends: ${shlibs:Depends}
-Description: Command Channel Library used by BIND
- ${Description}
- .
- This package delivers the libisccc shared library used by BIND's daemons
- and clients, particularly rndc.
-
-Package: libisccfg40
-Section: libs
-Architecture: any
-Conflicts: libbind0
-Replaces: libbind0
-Depends: ${shlibs:Depends}
-Description: Config File Handling Library used by BIND
- ${Description}
- .
- This package delivers the libisccfg shared library used by BIND's daemons
- and clients to read and write ISC-style configuration files like named.conf
- and rndc.conf.
+ This package delivers the liblwres shared library used by BIND (daemons and clients.)
 
 Package: dnsutils
 Priority: standard

@@ -1,6 +1,22 @@
-bind9 (1:9.5.0.dfsg-4) unstable-UNRELEASED; urgency=low
+bind9 (1:9.5.0.dfsg-4) unstable; urgency=low
 
-  * new release tag
+  [LaMont Jones]
+
+  * control: fix dnsutils description to avoid list reformatting. 
+    Closes: #480317
+  * lwresd: restart in postinst.  Closes: #486481
+  * meta: merge the mess of single-lib packages back into one large one.
+  * apparmor: allow bind to create files in /var/{lib,cache}/bind
+  * build: drop .la files.  Closes: #486969
+  * build: drop the extra lib path from the library-package merge
+  * meta: liblwres40 does not conflict with the libbind9-40-provided libbind0
+
+  [localization folks]
+
+  * l10n: German debconf translation.  Closes: #486547 (Helge Kreutzmann)
+  * l10n: Indonesian debconf translations.  Closes: #486503 (Arief S Fitrianto)
+  * l10n: Slovak po-debconf translation Closes: #488905 (helix84)
+  * l10n: Turkish debconf template.  Closes: #486479 (Mert Dirik)
 
  -- LaMont Jones <lamont@debian.org>  Mon, 30 Jun 2008 11:22:05 -0600
 

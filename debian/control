@@ -65,7 +65,7 @@ Priority: standard
 Architecture: any
 Conflicts: libbind0, libdns42, libisc41, libisccc40, libisccfg40
 Replaces: libbind0, libdns42, libisc41, libisccc40, libisccfg40
-Provides: libbind0, libdns42, libisc41, libisccc40, libisccfg40
+Provides: libdns42, libisc41, libisccc40, libisccfg40
 Depends: ${shlibs:Depends}
 Description: BIND9 Shared Libraries used by BIND
  ${Description}
@@ -76,8 +76,8 @@ Package: liblwres40
 Section: libs
 Priority: standard
 Architecture: any
-Conflicts: libbind0
 Replaces: libbind0
+Conflicts: libbind0
 Depends: ${shlibs:Depends}
 Description: Lightweight Resolver Library used by BIND
  ${Description}

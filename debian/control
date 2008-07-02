@@ -76,7 +76,6 @@ Package: liblwres40
 Section: libs
 Priority: standard
 Architecture: any
-Conflicts: libbind0
 Replaces: libbind0
 Depends: ${shlibs:Depends}
 Description: Lightweight Resolver Library used by BIND

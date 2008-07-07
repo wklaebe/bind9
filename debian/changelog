@@ -1,3 +1,20 @@
+bind9 (1:9.5.0.dfsg-5) unstable; urgency=low
+
+  [Internet Software Consortium, Inc]
+
+  * Randomize UDP query source ports to improve forgery resilience.
+    (CVE-2008-1447)                                                                              
+  [LaMont Jones]
+
+  * add build-depends: texlive-latex-base, xsltproc, remove Bv9ARM.pdf in clean
+  * fix sonames
+  * drop unneeded build-deps, since we do not actually deliver B9vARM.pdf
+  * meta: cleanup libbind9-41 Provides/Conflicts
+  * build: fix sonames for new libraries
+  * postinst: really restart bind/lwresd in postinst
+
+ -- LaMont Jones <lamont@debian.org>  Sun, 06 Jul 2008 21:34:18 -0600
+
 bind9 (1:9.5.0.dfsg-4) unstable; urgency=low
 
   [LaMont Jones]

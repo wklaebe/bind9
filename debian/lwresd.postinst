@@ -33,7 +33,7 @@ if [ ! -s /etc/bind/rndc.key ] && [ -x /usr/sbin/rndc-confgen ]; then
     /usr/sbin/rndc-confgen -r /dev/urandom -a
 fi
 
-if /usr/bin/pidof /usr/sbin/lwresd >/dev/null 2>&1; then
+if /bin/pidof /usr/sbin/lwresd >/dev/null 2>&1; then
     invoke-rc.d lwresd restart
 else
     invoke-rc.d lwresd start

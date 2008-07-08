@@ -1,4 +1,4 @@
-bind9 (1:9.5.0-P1.dfsg-1) unstable; urgency=low
+bind9 (1:9.5.0.dfsg.P1-1) unstable; urgency=low
 
   * Repackage 9.5.0.dfsg-5 with the -P1 tarball.
 

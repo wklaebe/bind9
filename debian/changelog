@@ -1,9 +1,16 @@
+bind9 (1:9.5.0-P1.dfsg-1) unstable; urgency=low
+
+  * Repackage 9.5.0.dfsg-5 with the -P1 tarball.
+
+ -- LaMont Jones <lamont@debian.org>  Tue, 08 Jul 2008 15:06:07 -0600
+
 bind9 (1:9.5.0.dfsg-5) unstable; urgency=low
 
   [Internet Software Consortium, Inc]
 
   * Randomize UDP query source ports to improve forgery resilience.
     (CVE-2008-1447)                                                                              
+
   [LaMont Jones]
 
   * add build-depends: texlive-latex-base, xsltproc, remove Bv9ARM.pdf in clean

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2008  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1998-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: socket.h,v 1.72 2007/06/18 23:47:44 tbox Exp $ */
+/* $Id: socket.h,v 1.72.128.5 2008/07/03 00:14:13 each Exp $ */
 
 #ifndef ISC_SOCKET_H
 #define ISC_SOCKET_H 1
@@ -146,7 +146,7 @@ typedef enum {
 	isc_sockettype_udp = 1,
 	isc_sockettype_tcp = 2,
 	isc_sockettype_unix = 3,
-	isc_sockettype_fdwatch = 4,
+	isc_sockettype_fdwatch = 4
 } isc_sockettype_t;
 
 /*@{*/
@@ -358,6 +358,51 @@ isc_socket_detach(isc_socket_t **socketp);
  *		for all tasks.
  *
  *		All resources used by the socket have been freed
+ */
+
+isc_result_t
+isc_socket_open(isc_socket_t *sock);
+/*%<
+ * Open a new socket file descriptor of the given socket structure.  It simply
+ * opens a new descriptor; all of the other parameters including the socket
+ * type are inherited from the existing socket.  This function is provided to
+ * avoid overhead of destroying and creating sockets when many short-lived
+ * sockets are frequently opened and closed.  When the efficiency is not an
+ * issue, it should be safer to detach the unused socket and re-create a new
+ * one.  This optimization may not be available for some systems, in which
+ * case this function will return ISC_R_NOTIMPLEMENTED and must not be used.
+ *
+ * Requires:
+ *
+ * \li	there must be no other reference to this socket.
+ *
+ * \li	'socket' is a valid and previously closed by isc_socket_close()
+ *
+ * Returns:
+ *	Same as isc_socket_create().
+ * \li	ISC_R_NOTIMPLEMENTED
+ */
+
+isc_result_t
+isc_socket_close(isc_socket_t *sock);
+/*%<
+ * Close a socket file descriptor of the given socket structure.  This function
+ * is provided as an alternative to destroying an unused socket when overhead
+ * destroying/re-creating sockets can be significant, and is expected to be
+ * used with isc_socket_open().  This optimization may not be available for some
+ * systems, in which case this function will return ISC_R_NOTIMPLEMENTED and
+ * must not be used.
+ *
+ * Requires:
+ *
+ * \li	The socket must have a valid descriptor.
+ *
+ * \li	There must be no other reference to this socket.
+ *
+ * \li	There must be no pending I/O requests.
+ *
+ * Returns:
+ * \li	#ISC_R_NOTIMPLEMENTED
  */
 
 isc_result_t
@@ -780,7 +825,7 @@ isc_socket_cleanunix(isc_sockaddr_t *addr, isc_boolean_t active);
 
 isc_result_t
 isc_socket_permunix(isc_sockaddr_t *sockaddr, isc_uint32_t perm,
-                    isc_uint32_t owner, isc_uint32_t group);
+		    isc_uint32_t owner, isc_uint32_t group);
 /*%<
  * Set ownership and file permissions on the UNIX domain socket.
  *

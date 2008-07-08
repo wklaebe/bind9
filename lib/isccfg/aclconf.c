@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2008  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: aclconf.c,v 1.17 2007/12/21 06:46:47 marka Exp $ */
+/* $Id: aclconf.c,v 1.17.2.2 2008/05/29 23:46:34 tbox Exp $ */
 
 #include <config.h>
 
@@ -31,7 +31,7 @@
 #include <dns/fixedname.h>
 #include <dns/log.h>
 
-#define LOOP_MAGIC ISC_MAGIC('L','O','O','P') 
+#define LOOP_MAGIC ISC_MAGIC('L','O','O','P')
 
 void
 cfg_aclconfctx_init(cfg_aclconfctx_t *ctx) {
@@ -59,7 +59,7 @@ get_acl_def(const cfg_obj_t *cctx, const char *name, const cfg_obj_t **ret) {
 	isc_result_t result;
 	const cfg_obj_t *acls = NULL;
 	const cfg_listelt_t *elt;
-	
+
 	result = cfg_map_get(cctx, "acl", &acls);
 	if (result != ISC_R_SUCCESS)
 		return (result);
@@ -175,6 +175,7 @@ cfg_acl_fromconfig(const cfg_obj_t *caml,
 	const cfg_listelt_t *elt;
 	dns_iptable_t *iptab;
 	int new_nest_level = 0;
+	int nelem;
 
 	if (nest_level != 0)
 		new_nest_level = nest_level - 1;
@@ -205,6 +206,8 @@ cfg_acl_fromconfig(const cfg_obj_t *caml,
 		if (result != ISC_R_SUCCESS)
 			return (result);
 	}
+
+	nelem = cfg_list_length(caml, ISC_FALSE);
 
 	de = dacl->elements;
 	for (elt = cfg_list_first(caml);
@@ -350,6 +353,16 @@ nested_acl:
 				if (result != ISC_R_SUCCESS)
 					goto cleanup;
 
+				/*
+				 * There was only one element and it was
+				 * a nested named ACL; attach it to the
+				 * target and let's go home.
+				 */
+				if (nelem == 1) {
+					dns_acl_attach(inneracl, target);
+					goto cleanup;
+				}
+
 				goto nested_acl;
 			}
 		} else {
@@ -363,7 +376,7 @@ nested_acl:
 		/*
 		 * This should only be reached for localhost, localnets
 		 * and keyname elements, and nested ACLs if nest_level is
-		 * nonzero (i.e., in sortlists). 
+		 * nonzero (i.e., in sortlists).
 		 */
 		if (de->nestedacl != NULL &&
 		    de->type != dns_aclelementtype_nestedacl)

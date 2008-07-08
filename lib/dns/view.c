@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: view.c,v 1.143.128.5 2008/05/13 23:46:31 tbox Exp $ */
+/* $Id: view.c,v 1.143.128.7 2008/06/17 03:22:24 marka Exp $ */
 
 /*! \file */
 
@@ -172,6 +172,10 @@ dns_view_create(isc_mem_t *mctx, dns_rdataclass_t rdclass,
 	view->recursionacl = NULL;
 	view->recursiononacl = NULL;
 	view->sortlist = NULL;
+	view->transferacl = NULL;
+	view->notifyacl = NULL;
+	view->updateacl = NULL;
+	view->upfwdacl = NULL;
 	view->requestixfr = ISC_TRUE;
 	view->provideixfr = ISC_TRUE;
 	view->maxcachettl = 7 * 24 * 3600;
@@ -299,6 +303,14 @@ destroy(dns_view_t *view) {
 		dns_acl_detach(&view->recursiononacl);
 	if (view->sortlist != NULL)
 		dns_acl_detach(&view->sortlist);
+	if (view->transferacl != NULL)
+		dns_acl_detach(&view->transferacl);
+	if (view->notifyacl != NULL)
+		dns_acl_detach(&view->notifyacl);
+	if (view->updateacl != NULL)
+		dns_acl_detach(&view->updateacl);
+	if (view->upfwdacl != NULL)
+		dns_acl_detach(&view->upfwdacl);
 	if (view->delonly != NULL) {
 		dns_name_t *name;
 		int i;
@@ -860,17 +872,6 @@ dns_view_find(dns_view_t *view, dns_name_t *name, dns_rdatatype_t type,
 	}
 
  cleanup:
-	if (result == DNS_R_NXDOMAIN || result == DNS_R_NXRRSET) {
-		/*
-		 * We don't care about any DNSSEC proof data in these cases.
-		 */
-		if (dns_rdataset_isassociated(rdataset))
-			dns_rdataset_disassociate(rdataset);
-		if (sigrdataset != NULL &&
-		    dns_rdataset_isassociated(sigrdataset))
-			dns_rdataset_disassociate(sigrdataset);
-	}
-
 	if (dns_rdataset_isassociated(&zrdataset)) {
 		dns_rdataset_disassociate(&zrdataset);
 		if (dns_rdataset_isassociated(&zsigrdataset))

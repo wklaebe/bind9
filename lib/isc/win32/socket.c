@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: socket.c,v 1.52.94.2 2008/03/27 23:46:28 tbox Exp $ */
+/* $Id: socket.c,v 1.52.94.5 2008/07/03 00:14:13 each Exp $ */
 
 /* This code has been rewritten to take advantage of Windows Sockets
  * I/O Completion Ports and Events. I/O Completion Ports is ONLY
@@ -2030,6 +2030,13 @@ isc_socket_create(isc_socketmgr_t *manager, int pf, isc_sockettype_t type,
 	return (ISC_R_SUCCESS);
 }
 
+isc_result_t
+isc_socket_open(isc_socket_t *sock) {
+	REQUIRE(VALID_SOCKET(sock));
+
+	return (ISC_R_NOTIMPLEMENTED);
+}
+
 /*
  * Attach to a socket.  Caller must explicitly detach when it is done.
  */
@@ -2069,6 +2076,13 @@ isc_socket_detach(isc_socket_t **socketp) {
 		destroy_socket(&sock);
 
 	*socketp = NULL;
+}
+
+isc_result_t
+isc_socket_close(isc_socket_t *sock) {
+	REQUIRE(VALID_SOCKET(sock));
+
+	return (ISC_R_NOTIMPLEMENTED);
 }
 
 /*
@@ -2841,6 +2855,7 @@ isc_socketmgr_create(isc_mem_t *mctx, isc_socketmgr_t **managerp) {
 	 */
 	result = event_thread_create(&evthread, manager);
 	if (result != ISC_R_SUCCESS) {
+		isc_condition_destroy(&manager->shutdown_ok);
 		DESTROYLOCK(&manager->lock);
 		isc_mem_put(mctx, manager, sizeof(*manager));
 		return (result);

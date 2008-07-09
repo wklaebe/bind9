@@ -1,3 +1,11 @@
+bind9 (1:9.5.0.dfsg.P1-2) unstable; urgency=low
+
+  * Revert "meta: merge the mess of single-lib packages back into one large
+    one." - That way lies madness and pain.
+  * init.d/bind9: implement status function.  LP: #203169
+
+ -- LaMont Jones <lamont@debian.org>  Tue, 08 Jul 2008 21:56:58 -0600
+
 bind9 (1:9.5.0.dfsg.P1-1) unstable; urgency=low
 
   * Repackage 9.5.0.dfsg-5 with the -P1 tarball.

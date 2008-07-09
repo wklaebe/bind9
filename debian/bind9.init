@@ -42,7 +42,7 @@ check_network() {
 
 case "$1" in
     start)
-	log_daemon_msg "Starting domain name service..." "bind"
+	log_daemon_msg "Starting domain name service..." "bind9"
 
 	modprobe capability >/dev/null 2>&1 || true
 
@@ -74,7 +74,7 @@ case "$1" in
     ;;
 
     stop)
-	log_daemon_msg "Stopping domain name service..." "bind"
+	log_daemon_msg "Stopping domain name service..." "bind9"
 	if ! check_network; then
 	    log_end_msg 1
 	    exit 1
@@ -88,7 +88,7 @@ case "$1" in
     ;;
 
     reload|force-reload)
-	log_daemon_msg "Reloading domain name service..." "bind"
+	log_daemon_msg "Reloading domain name service..." "bind9"
 	if ! check_network; then
 	    log_end_msg 1
 	    exit 1
@@ -108,8 +108,17 @@ case "$1" in
 	$0 start
     ;;
     
+    status)
+    	ret=0
+	status_of_proc /usr/sbin/named bind9 2>/dev/null || ret=$?
+	if [ $ret = 127 ]; then
+	    pidofproc -p /var/run/bind/run/named.pid >/dev/null && ret=0 || ret=$?
+	fi
+	exit $ret
+	;;
+
     *)
-	log_action_msg "Usage: /etc/init.d/bind9 {start|stop|reload|restart|force-reload}"
+	log_action_msg "Usage: /etc/init.d/bind9 {start|stop|reload|restart|force-reload|status}"
 	exit 1
     ;;
 esac

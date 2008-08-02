@@ -146,6 +146,7 @@ binary-arch: build install
 	dh_installchangelogs -a # CHANGES # upstream changelog only in bind9-doc
 	dh_install --sourcedir=debian/bind9 -a
 	(cd debian/bind9/ && rm -rf $$(cat ../*.install) )
+	rm -f debian/bind9/usr/share/man/man1/query-loc.1
 	dh_link -a
 	dh_strip -a
 	dh_compress -a

@@ -1,3 +1,29 @@
+bind9 (1:9.5.0.dfsg.P2-1) unstable; urgency=low
+
+  [LaMont Jones]
+
+  * default to using resolvconf if it is installed
+  * fix sonames and dependencies.  Closes: #149259, #492418
+  * Do not build-depend libcap2-dev on non-linux.  Closes: #493392
+  * drop unused query-loc manpage.  Closes: #492564
+  * lwresd: Deliver /etc/bind directory.  Closes: #490027
+  * fix query-source comment in default install
+
+  [Internet Software Consortium, Inc]
+
+  * 9.5.0-P2.  Closes: #492949
+
+  [localization folks]
+
+  * l10n: Spanish debconf translation.  Closes: #492425 (Ignacio Mondino)
+  * l10n: Swedish debconf templates.  Closes: #491369 (Martin Ågren)
+  * l10n: Japanese debconf translations.  Closes: #492048 (Hideki Yamane
+    (Debian-JP))
+  * l10n: Finnish translation.  Closes: #490630 (Esko Arajärvi)
+  * l10n: Italian debconf translations.  Closes: #492587 (Alessandro Vietta)
+
+ -- LaMont Jones <lamont@debian.org>  Sat, 02 Aug 2008 14:20:20 -0600
+
 bind9 (1:9.5.0.dfsg.P1-2) unstable; urgency=low
 
   * Revert "meta: merge the mess of single-lib packages back into one large

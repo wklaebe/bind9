@@ -10,7 +10,7 @@ XS-Vcs-Git: git://git.debian.org/~lamont/bind9.git
 
 Package: bind9
 Architecture: any
-Depends: ${shlibs:Depends}, debconf | debconf-2.0, netbase, adduser, libdns43 (=${binary:Version}), libisccfg40 (=${binary:Version}), libisc41 (=${binary:Version}), libisccc40 (=${binary:Version}), lsb-base (>= 3.0-6), bind9utils (=${binary:Version})
+Depends: ${shlibs:Depends}, debconf | debconf-2.0, netbase, adduser, libdns43 (=${binary:Version}), libisccfg40 (=${binary:Version}), libisc44 (=${binary:Version}), libisccc40 (=${binary:Version}), lsb-base (>= 3.0-6), bind9utils (=${binary:Version}), liblwres40 (=${binary:Version}), libbind9-40 (=${binary:Version})
 Conflicts: bind, apparmor-profiles (<< 2.1+1075-0ubuntu4)
 Replaces: bind, dnsutils (<< 1:9.1.0-3), apparmor-profiles (<< 2.1+1075-0ubuntu4)
 Suggests: dnsutils, bind9-doc, resolvconf
@@ -37,7 +37,7 @@ Description: Documentation for BIND
 Package: bind9-host
 Priority: standard
 Architecture: any
-Depends: ${shlibs:Depends}
+Depends: ${shlibs:Depends}, libdns43 (=${binary:Version}), libisccfg40 (=${binary:Version}), libisc44 (=${binary:Version}), liblwres40 (=${binary:Version}), libbind9-40 (=${binary:Version})
 Conflicts: host, dnsutils (<< 1:9.0.0)
 Replaces: dnsutils (<< 1:9.0.0)
 Provides: host
@@ -65,7 +65,7 @@ Priority: standard
 Architecture: any
 Conflicts: libbind0, libbind9-41
 Replaces: libbind0
-Depends: ${shlibs:Depends}
+Depends: ${shlibs:Depends}, libdns43 (=${binary:Version}), libisccfg40 (=${binary:Version}), libisc44 (=${binary:Version})
 Description: BIND9 Shared Library used by BIND
  ${Description}
  .
@@ -78,14 +78,14 @@ Priority: standard
 Architecture: any
 Conflicts: libbind0, libbind9-41
 Replaces: libbind0
-Depends: ${shlibs:Depends}
+Depends: ${shlibs:Depends}, libisc44 (=${binary:Version})
 Description: DNS Shared Library used by BIND
  ${Description}
  .
  This package delivers the libdns shared library used by BIND's daemons and
  clients.
 
-Package: libisc41
+Package: libisc44
 Section: libs
 Priority: standard
 Architecture: any
@@ -116,7 +116,7 @@ Section: libs
 Architecture: any
 Conflicts: libbind0, libbind9-41
 Replaces: libbind0
-Depends: ${shlibs:Depends}
+Depends: ${shlibs:Depends}, libisc44 (=${binary:Version})
 Description: Command Channel Library used by BIND
  ${Description}
  .
@@ -128,7 +128,7 @@ Section: libs
 Architecture: any
 Conflicts: libbind0, libbind9-41
 Replaces: libbind0
-Depends: ${shlibs:Depends}
+Depends: ${shlibs:Depends}, libdns43 (=${binary:Version}), libisccc40 (=${binary:Version}), libisc44 (=${binary:Version})
 Description: Config File Handling Library used by BIND
  ${Description}
  .
@@ -139,7 +139,7 @@ Description: Config File Handling Library used by BIND
 Package: dnsutils
 Priority: standard
 Architecture: any
-Depends: ${shlibs:Depends}, bind9-host | host
+Depends: ${shlibs:Depends}, bind9-host | host, libdns43 (=${binary:Version}), libisccfg40 (=${binary:Version}), libisc44 (=${binary:Version}), liblwres40 (=${binary:Version}), libbind9-40 (=${binary:Version})
 Suggests: rblcheck
 Conflicts: netstd (<< 2.00)
 Replaces: bind, bind9 (<< 1:9.1.0-3)
@@ -155,7 +155,7 @@ Description: Clients provided with BIND
 
 Package: lwresd
 Architecture: any
-Depends: ${shlibs:Depends}, adduser
+Depends: ${shlibs:Depends}, adduser, libdns43 (=${binary:Version}), libisccfg40 (=${binary:Version}), libisccc40 (=${binary:Version}), libisc44 (=${binary:Version}), liblwres40 (=${binary:Version}), libbind9-40 (=${binary:Version})
 Recommends: libnss-lwres
 Suggests: bind9utils
 Description: Lightweight Resolver Daemon

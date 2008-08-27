@@ -110,6 +110,7 @@ install: build
 	install debian/ip-down.d debian/bind9/etc/ppp/ip-down.d/bind9
 	install debian/ip-up.d debian/bind9/etc/network/if-up.d/bind9
 	install debian/ip-down.d debian/bind9/etc/network/if-down.d/bind9
+	install -m644 debian/bind9.ufw.profile debian/bind9/etc/ufw/applications.d/bind9
 
 # Build architecture-independent files here.
 binary-indep: build install

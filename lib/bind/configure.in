@@ -22,6 +22,9 @@ AC_CONFIG_HEADER(config.h)
 
 AC_CANONICAL_HOST
 
+dnl Define _GNU_SOURCE, this should be done before any feature test.
+AC_DEFINE([_GNU_SOURCE], [], [Enabling GNU libc extensions])
+
 AC_PROG_MAKE_SET
 AC_PROG_RANLIB
 AC_PROG_INSTALL

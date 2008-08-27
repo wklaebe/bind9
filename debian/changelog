@@ -1,3 +1,9 @@
+bind9 (1:9.5.0.dfsg.P2-1ubuntu1) intrepid; urgency=low
+
+  * debian/{control,rules}: enable PIE hardening
+
+ -- Kees Cook <kees@ubuntu.com>  Wed, 20 Aug 2008 15:46:44 -0700
+
 bind9 (1:9.5.0.dfsg.P2-1) unstable; urgency=low
 
   [LaMont Jones]

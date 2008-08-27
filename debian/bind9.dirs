@@ -1,3 +1,4 @@
+etc/ufw/applications.d
 etc/apparmor.d/force-complain
 etc/bind
 usr/bin

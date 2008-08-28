@@ -21,6 +21,9 @@
   /var/cache/bind/** rw,
   /var/cache/bind/ rw,
 
+  # some people like to put logs in /var/log/named/
+  /var/log/named/** rw,
+
   # dnscvsutil package
   /var/lib/dnscvsutil/compiled/** rw,
 

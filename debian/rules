@@ -21,7 +21,7 @@ else
 OPT = -O2
 endif
 
-export CFLAGS=-fno-strict-aliasing $(DEBUG) $(OPT)
+export CFLAGS=-fno-strict-aliasing -DDIG_SIGCHASE $(DEBUG) $(OPT)
 
 configure: configure-stamp
 configure-stamp:

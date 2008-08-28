@@ -26,6 +26,7 @@ test -x /usr/sbin/rndc || exit 0
 
 . /lib/lsb/init-functions
 DISTRO=$(lsb_release -is 2>/dev/null || echo Debian)
+PIDFILE=/var/run/bind/run/named.pid
 
 check_network() {
     if [ -x /usr/bin/uname ] && [ "X$(/usr/bin/uname -o)" = XSolaris ]; then
@@ -63,7 +64,7 @@ case "$1" in
 	fi
 
 	if start-stop-daemon --start --oknodo --quiet --exec /usr/sbin/named \
-		--pidfile /var/run/bind/run/named.pid -- $OPTIONS; then
+		--pidfile ${PIDFILE} -- $OPTIONS; then
 	    if [ "X$RESOLVCONF" != "Xno" ] && [ -x /sbin/resolvconf ] ; then
 		echo "nameserver 127.0.0.1" | /sbin/resolvconf -a lo.named
 	    fi
@@ -110,11 +111,7 @@ case "$1" in
     
     status)
     	ret=0
-	status_of_proc /usr/sbin/named bind9 2>/dev/null || ret=$?
-	if [ $ret = 127 ]; then
-	    pidofproc -p /var/run/bind/run/named.pid >/dev/null && ret=0 || ret=$?
-	fi
-	exit $ret
+	status_of_proc -p ${PIDFILE} /usr/sbin/named bind9 2>/dev/null || ret=$?
 	;;
 
     *)

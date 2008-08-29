@@ -32,6 +32,7 @@ configure-stamp:
 		--sysconfdir=/etc/bind \
 		--localstatedir=/var/run/bind \
 		--enable-threads \
+		--enable-largefile \
 		--with-libtool \
 		--enable-shared \
 		--enable-static \

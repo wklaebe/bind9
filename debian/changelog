@@ -1,3 +1,28 @@
+bind9 (1:9.5.0.dfsg.P2-2) unstable; urgency=low
+
+  [Kees Cook]
+
+  * debian/{control,rules}: enable PIE hardening (from -1ubuntu1)
+
+  [Nicolas Valcárcel]
+
+  * Add ufw integration (from -1ubuntu2)
+
+  [Dustin Kirkland]
+
+  * use pid file in init.d/bind9 status.  LP: #247084
+
+  [LaMont Jones]
+
+  * dig: add -DDIG_SIGCHASE to compile options.  LP: #257682
+  * apparmor profile: add /var/log/named
+
+  [Nikita Ofitserov]
+
+  * ipv6 support requires _GNU_SOURCE definition.  LP: #249824
+
+ -- LaMont Jones <lamont@debian.org>  Thu, 28 Aug 2008 23:08:36 -0600
+
 bind9 (1:9.5.0.dfsg.P2-1) unstable; urgency=low
 
   [LaMont Jones]

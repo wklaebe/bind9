@@ -41,20 +41,19 @@ msgstr "Cuenta de usuario que ejecuta el demonio BIND9:"
 #. Type: string
 #. Description
 #: ../templates:1001
-#, fuzzy
 msgid ""
 "The default is to run the BIND9 daemon (named) under the 'bind' user "
 "account. To use a different account, please enter the appropriate username."
 msgstr ""
-"La cuenta de usuario por omisión que ejecuta el demonio BIND9 (named) es "
-"««bind»». Para usar una cuenta diferente, por favor ingrese el nombre de "
+"La cuenta de usuario por omisión que ejecuta el demonio BIND9 («named») es "
+"«bind». Para usar una cuenta diferente, por favor ingrese el nombre de "
 "usuario apropiado."
 
 #. Type: string
 #. Description
 #: ../templates:2001
 msgid "Other startup options for named:"
-msgstr "Otras opciones de inicio para named:"
+msgstr "Otras opciones de inicio para «named»:"
 
 #. Type: string
 #. Description
@@ -64,14 +63,14 @@ msgid ""
 "passed to the BIND9 daemon (named) on startup."
 msgstr ""
 "Ingrese cualquier opción adicional (además del nombre de usuario) que "
-"debiera pasarse como parámetro al demonio BIND9 (named) al inicio del "
+"debiera pasarse como parámetro al demonio BIND9 («named») al inicio del "
 "sistema."
 
 #. Type: boolean
 #. Description
 #: ../templates:3001
 msgid "Should resolv.conf settings be overridden?"
-msgstr "¿Debería sobreescribirse el archivo resolv.conf?"
+msgstr "¿Debería sobreescribirse el archivo «resolv.conf»?"
 
 #. Type: boolean
 #. Description
@@ -81,6 +80,6 @@ msgid ""
 "daemon (named) rather than what the current connection recommends, when this "
 "machine moves around."
 msgstr ""
-"Indique si se debería forzar al cliente a utilizar el demonio BIND9 (named) "
-"local en lugar de lo que la conexión actual recomiende, cuando la maquina "
+"Indique si se debería forzar al cliente a utilizar el demonio BIND9 («named») "
+"local en lugar de lo que la conexión actual recomiende, cuando este equipo "
 "este en movimiento."

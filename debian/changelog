@@ -1,3 +1,17 @@
+bind9 (1:9.5.0.dfsg.P2-3) unstable; urgency=low
+
+  [LaMont Jones]
+
+  * enable largefile support.  Closes: #497040
+
+  [localization folks]
+
+  * l10n: Dutch translation.  Closes: #499977 (Paul Gevers)
+  * l10n: simplified chinese debconf template.  Closes: #501103 (LI Daobing)
+  * l10n: Update spanish template.  Closes: #493775 (Ignacio Mondino)
+
+ -- LaMont Jones <lamont@debian.org>  Sun, 05 Oct 2008 20:20:00 -0600
+
 bind9 (1:9.5.0.dfsg.P2-2) unstable; urgency=low
 
   [Kees Cook]

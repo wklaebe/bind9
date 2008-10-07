@@ -1,3 +1,9 @@
+bind9 (1:9.5.0.dfsg.P2-4) unstable; urgency=low
+
+  * meta: fix typo in Depends: lsb-base.  Closes: #501365
+
+ -- LaMont Jones <lamont@debian.org>  Tue, 07 Oct 2008 17:20:11 -0600
+
 bind9 (1:9.5.0.dfsg.P2-3) unstable; urgency=low
 
   [LaMont Jones]

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2008  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1998-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rdata.h,v 1.67 2007/06/19 23:47:17 tbox Exp $ */
+/* $Id: rdata.h,v 1.70 2008/04/02 02:37:42 marka Exp $ */
 
 #ifndef DNS_RDATA_H
 #define DNS_RDATA_H 1
@@ -124,7 +124,8 @@ struct dns_rdata {
 
 #define DNS_RDATA_INIT { NULL, 0, 0, 0, 0, {(void*)(-1), (void *)(-1)}}
 
-#define DNS_RDATA_UPDATE	0x0001		/*%< update pseudo record */
+#define DNS_RDATA_UPDATE	0x0001		/*%< update pseudo record. */
+#define DNS_RDATA_OFFLINE	0x0002		/*%< RRSIG has a offline key. */
 
 /*
  * Flags affecting rdata formatting style.  Flags 0xFFFF0000
@@ -327,11 +328,11 @@ dns_rdata_fromtext(dns_rdata_t *rdata, dns_rdataclass_t rdclass,
  *\li	'target' is a valid region.
  *
  *\li	'origin' if non NULL it must be absolute.
- *	
+ *
  *\li	'callbacks' to be NULL or callbacks->warn and callbacks->error be
  *	initialized.
  *
- * Ensures, 
+ * Ensures,
  *	if result is success:
  *\li	 	If 'rdata' is not NULL, it is attached to the target.
 

@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: resolver.c,v 1.355.12.25 2008/09/04 04:28:31 marka Exp $ */
+/* $Id: resolver.c,v 1.381 2008/09/24 02:46:22 marka Exp $ */
 
 /*! \file */
 
@@ -239,6 +239,12 @@ struct fetchctx {
 	 * response to a query.
 	 */
 	const char *			reason;
+
+	/*%
+	 * Random numbers to use for mixing up server addresses.
+	 */
+	isc_uint32_t                    rand_buf;
+	isc_uint32_t                    rand_bits;
 };
 
 #define FCTX_MAGIC			ISC_MAGIC('F', '!', '!', '!')
@@ -362,10 +368,13 @@ struct dns_resolver {
  */
 #define FCTX_ADDRINFO_MARK              0x0001
 #define FCTX_ADDRINFO_FORWARDER         0x1000
+#define FCTX_ADDRINFO_TRIED             0x2000
 #define UNMARKED(a)                     (((a)->flags & FCTX_ADDRINFO_MARK) \
 					 == 0)
 #define ISFORWARDER(a)                  (((a)->flags & \
 					 FCTX_ADDRINFO_FORWARDER) != 0)
+#define TRIED(a)                        (((a)->flags & \
+					 FCTX_ADDRINFO_TRIED) != 0)
 
 #define NXDOMAIN(r) (((r)->attributes & DNS_RDATASETATTR_NXDOMAIN) != 0)
 
@@ -380,6 +389,7 @@ static isc_result_t ncache_adderesult(dns_message_t *message,
 				      dns_db_t *cache, dns_dbnode_t *node,
 				      dns_rdatatype_t covers,
 				      isc_stdtime_t now, dns_ttl_t maxttl,
+				      isc_boolean_t optout,
 				      dns_rdataset_t *ardataset,
 				      isc_result_t *eresultp);
 static void validated(isc_task_t *task, isc_event_t *event);
@@ -624,6 +634,12 @@ fctx_cancelquery(resquery_t **queryp, dns_dispatchevent_t **deventp,
 			factor = DNS_ADB_RTTADJREPLACE;
 		}
 		dns_adb_adjustsrtt(fctx->adb, query->addrinfo, rtt, factor);
+	}
+
+	/* Remember that the server has been tried. */
+	if (!TRIED(query->addrinfo)) {
+		dns_adb_changeflags(fctx->adb, query->addrinfo,
+				    FCTX_ADDRINFO_TRIED, FCTX_ADDRINFO_TRIED);
 	}
 
 	/*
@@ -893,7 +909,7 @@ log_edns(fetchctx_t *fctx) {
 	dns_name_format(&fctx->domain, domainbuf, sizeof(domainbuf));
 	isc_log_write(dns_lctx, DNS_LOGCATEGORY_EDNS_DISABLED,
 		      DNS_LOGMODULE_RESOLVER, ISC_LOG_INFO,
-		      "too many timeouts resolving '%s' (in '%s'?): %s",
+		      "success resolving '%s' (in '%s'?) after %s",
 		      fctx->info, domainbuf, fctx->reason);
 
 	fctx->reason = NULL;
@@ -1142,13 +1158,18 @@ fctx_query(fetchctx_t *fctx, dns_adbaddrinfo_t *addrinfo,
 	resquery_t *query;
 	isc_sockaddr_t addr;
 	isc_boolean_t have_addr = ISC_FALSE;
+	unsigned int srtt;
 
 	FCTXTRACE("query");
 
 	res = fctx->res;
 	task = res->buckets[fctx->bucketnum].task;
 
-	fctx_setretryinterval(fctx, addrinfo->srtt);
+	srtt = addrinfo->srtt;
+	if (ISFORWARDER(addrinfo) && srtt < 1000000)
+		srtt = 1000000;
+
+	fctx_setretryinterval(fctx, srtt);
 	result = fctx_startidletimer(fctx);
 	if (result != ISC_R_SUCCESS)
 		return (result);
@@ -2062,15 +2083,79 @@ add_bad(fetchctx_t *fctx, dns_adbaddrinfo_t *addrinfo, isc_result_t reason) {
 		      namebuf, typebuf, classbuf, addrbuf);
 }
 
+/*
+ * Return 'bits' bits of random entropy from fctx->rand_buf,
+ * refreshing it by calling isc_random_get() whenever the requested
+ * number of bits is greater than the number in the buffer.
+ */
+static inline isc_uint32_t
+random_bits(fetchctx_t *fctx, isc_uint32_t bits) {
+	isc_uint32_t ret = 0;
+
+	REQUIRE(VALID_FCTX(fctx));
+	REQUIRE(bits <= 32);
+	if (bits == 0)
+		return (0);
+
+	if (bits >= fctx->rand_bits) {
+		/* if rand_bits == 0, this is unnecessary but harmless */
+		bits -= fctx->rand_bits;
+		ret = fctx->rand_buf << bits;
+
+		/* refresh random buffer now */
+		isc_random_get(&fctx->rand_buf);
+		fctx->rand_bits = sizeof(fctx->rand_buf) * CHAR_BIT;
+	}
+
+	if (bits > 0) {
+		isc_uint32_t mask = 0xffffffff;
+		if (bits < 32) {
+			mask = (1 << bits) - 1;
+		}
+
+		ret |= fctx->rand_buf & mask;
+		fctx->rand_buf >>= bits;
+		fctx->rand_bits -= bits;
+	}
+
+	return (ret);
+}
+
+/*
+ * Add some random jitter to a server's RTT value so that the
+ * order of queries will be unpredictable.
+ *
+ * RTT values of servers which have been tried are fuzzed by 128 ms.
+ * Servers that haven't been tried yet have their RTT set to a random
+ * value between 0 ms and 7 ms; they should get to go first, but in
+ * unpredictable order.
+ */
+static inline void
+randomize_srtt(fetchctx_t *fctx, dns_adbaddrinfo_t *ai) {
+	if (TRIED(ai)) {
+		ai->srtt >>= 10; /* convert to milliseconds, near enough */
+		ai->srtt |= (ai->srtt & 0x80) | random_bits(fctx, 7);
+		ai->srtt <<= 10; /* now back to microseconds */
+	} else
+		ai->srtt = random_bits(fctx, 3) << 10;
+}
+
+/*
+ * Sort addrinfo list by RTT (with random jitter)
+ */
 static void
-sort_adbfind(dns_adbfind_t *find) {
+sort_adbfind(fetchctx_t *fctx, dns_adbfind_t *find) {
 	dns_adbaddrinfo_t *best, *curr;
 	dns_adbaddrinfolist_t sorted;
 
-	/*
-	 * Lame N^2 bubble sort.
-	 */
+	/* Add jitter to SRTT values */
+	curr = ISC_LIST_HEAD(find->list);
+	while (curr != NULL) {
+		randomize_srtt(fctx, curr);
+		curr = ISC_LIST_NEXT(curr, publink);
+	}
 
+	/* Lame N^2 bubble sort. */
 	ISC_LIST_INIT(sorted);
 	while (!ISC_LIST_EMPTY(find->list)) {
 		best = ISC_LIST_HEAD(find->list);
@@ -2086,19 +2171,25 @@ sort_adbfind(dns_adbfind_t *find) {
 	find->list = sorted;
 }
 
+/*
+ * Sort a list of finds by server RTT (with random jitter)
+ */
 static void
-sort_finds(fetchctx_t *fctx) {
+sort_finds(fetchctx_t *fctx, dns_adbfindlist_t *findlist) {
 	dns_adbfind_t *best, *curr;
 	dns_adbfindlist_t sorted;
 	dns_adbaddrinfo_t *addrinfo, *bestaddrinfo;
 
-	/*
-	 * Lame N^2 bubble sort.
-	 */
+	/* Sort each find's addrinfo list by SRTT (after adding jitter) */
+	for (curr = ISC_LIST_HEAD(*findlist);
+	     curr != NULL;
+	     curr = ISC_LIST_NEXT(curr, publink))
+		sort_adbfind(fctx, curr);
 
+	/* Lame N^2 bubble sort. */
 	ISC_LIST_INIT(sorted);
-	while (!ISC_LIST_EMPTY(fctx->finds)) {
-		best = ISC_LIST_HEAD(fctx->finds);
+	while (!ISC_LIST_EMPTY(*findlist)) {
+		best = ISC_LIST_HEAD(*findlist);
 		bestaddrinfo = ISC_LIST_HEAD(best->list);
 		INSIST(bestaddrinfo != NULL);
 		curr = ISC_LIST_NEXT(best, publink);
@@ -2111,30 +2202,10 @@ sort_finds(fetchctx_t *fctx) {
 			}
 			curr = ISC_LIST_NEXT(curr, publink);
 		}
-		ISC_LIST_UNLINK(fctx->finds, best, publink);
+		ISC_LIST_UNLINK(*findlist, best, publink);
 		ISC_LIST_APPEND(sorted, best, publink);
 	}
-	fctx->finds = sorted;
-
-	ISC_LIST_INIT(sorted);
-	while (!ISC_LIST_EMPTY(fctx->altfinds)) {
-		best = ISC_LIST_HEAD(fctx->altfinds);
-		bestaddrinfo = ISC_LIST_HEAD(best->list);
-		INSIST(bestaddrinfo != NULL);
-		curr = ISC_LIST_NEXT(best, publink);
-		while (curr != NULL) {
-			addrinfo = ISC_LIST_HEAD(curr->list);
-			INSIST(addrinfo != NULL);
-			if (addrinfo->srtt < bestaddrinfo->srtt) {
-				best = curr;
-				bestaddrinfo = addrinfo;
-			}
-			curr = ISC_LIST_NEXT(curr, publink);
-		}
-		ISC_LIST_UNLINK(fctx->altfinds, best, publink);
-		ISC_LIST_APPEND(sorted, best, publink);
-	}
-	fctx->altfinds = sorted;
+	*findlist = sorted;
 }
 
 static void
@@ -2185,7 +2256,6 @@ findname(fetchctx_t *fctx, dns_name_t *name, in_port_t port,
 		 * name.
 		 */
 		INSIST((find->options & DNS_ADBFIND_WANTEVENT) == 0);
-		sort_adbfind(find);
 		if (flags != 0 || port != 0) {
 			for (ai = ISC_LIST_HEAD(find->list);
 			     ai != NULL;
@@ -2454,7 +2524,8 @@ fctx_getaddresses(fetchctx_t *fctx) {
 		 * We've found some addresses.  We might still be looking
 		 * for more addresses.
 		 */
-		sort_finds(fctx);
+		sort_finds(fctx, &fctx->finds);
+		sort_finds(fctx, &fctx->altfinds);
 		result = ISC_R_SUCCESS;
 	}
 
@@ -3153,6 +3224,8 @@ fctx_create(dns_resolver_t *res, dns_name_t *name, dns_rdatatype_t type,
 	fctx->spilled = ISC_FALSE;
 	fctx->nqueries = 0;
 	fctx->reason = NULL;
+	fctx->rand_buf = 0;
+	fctx->rand_bits = 0;
 
 	dns_name_init(&fctx->nsname, NULL);
 	fctx->nsfetch = NULL;
@@ -3681,7 +3754,7 @@ validated(isc_task_t *task, isc_event_t *event) {
 			ttl = 0;
 
 		result = ncache_adderesult(fctx->rmessage, fctx->cache, node,
-					   covers, now, ttl,
+					   covers, now, ttl, vevent->optout,
 					   ardataset, &eresult);
 		if (result != ISC_R_SUCCESS)
 			goto noanswer_response;
@@ -3698,6 +3771,11 @@ validated(isc_task_t *task, isc_event_t *event) {
 		RUNTIME_CHECK(result == ISC_R_SUCCESS);
 		INSIST(vevent->sigrdataset != NULL);
 		vevent->sigrdataset->ttl = vevent->rdataset->ttl;
+		if (vevent->proofs[DNS_VALIDATOR_CLOSESTENCLOSER] != NULL) {
+			result = dns_rdataset_addclosest(vevent->rdataset,
+				 vevent->proofs[DNS_VALIDATOR_CLOSESTENCLOSER]);
+			RUNTIME_CHECK(result == ISC_R_SUCCESS);
+		}
 	}
 
 	/*
@@ -4238,12 +4316,12 @@ cache_message(fetchctx_t *fctx, dns_adbaddrinfo_t *addrinfo, isc_stdtime_t now)
 }
 
 /*
- * Do what dns_ncache_add() does, and then compute an appropriate eresult.
+ * Do what dns_ncache_addoptout() does, and then compute an appropriate eresult.
  */
 static isc_result_t
 ncache_adderesult(dns_message_t *message, dns_db_t *cache, dns_dbnode_t *node,
 		  dns_rdatatype_t covers, isc_stdtime_t now, dns_ttl_t maxttl,
-		  dns_rdataset_t *ardataset,
+		  isc_boolean_t optout, dns_rdataset_t *ardataset,
 		  isc_result_t *eresultp)
 {
 	isc_result_t result;
@@ -4253,8 +4331,8 @@ ncache_adderesult(dns_message_t *message, dns_db_t *cache, dns_dbnode_t *node,
 		dns_rdataset_init(&rdataset);
 		ardataset = &rdataset;
 	}
-	result = dns_ncache_add(message, cache, node, covers, now,
-				maxttl, ardataset);
+	result = dns_ncache_addoptout(message, cache, node, covers, now,
+				     maxttl, optout, ardataset);
 	if (result == DNS_R_UNCHANGED || result == ISC_R_SUCCESS) {
 		/*
 		 * If the cache now contains a negative entry and we
@@ -4418,7 +4496,8 @@ ncache_message(fetchctx_t *fctx, dns_adbaddrinfo_t *addrinfo,
 		ttl = 0;
 
 	result = ncache_adderesult(fctx->rmessage, fctx->cache, node,
-				   covers, now, ttl, ardataset, &eresult);
+				   covers, now, ttl, ISC_FALSE,
+				   ardataset, &eresult);
 	if (result != ISC_R_SUCCESS)
 		goto unlock;
 
@@ -4793,7 +4872,8 @@ noanswer_response(fetchctx_t *fctx, dns_name_t *oqname,
 				type = rdataset->type;
 				if (type == dns_rdatatype_rrsig)
 					type = rdataset->covers;
-				if (type == dns_rdatatype_nsec) {
+				if (type == dns_rdatatype_nsec ||
+				    type == dns_rdatatype_nsec3) {
 					/*
 					 * NSEC or RRSIG NSEC.
 					 */
@@ -4802,7 +4882,7 @@ noanswer_response(fetchctx_t *fctx, dns_name_t *oqname,
 							DNS_NAMEATTR_NCACHE;
 						rdataset->attributes |=
 							DNS_RDATASETATTR_NCACHE;
-					} else {
+					} else if (type == dns_rdatatype_nsec) {
 						name->attributes |=
 							DNS_NAMEATTR_CACHE;
 						rdataset->attributes |=
@@ -5014,6 +5094,13 @@ answer_response(fetchctx_t *fctx) {
 				found = ISC_FALSE;
 				want_chaining = ISC_FALSE;
 				aflag = 0;
+				if (rdataset->type == dns_rdatatype_nsec3) {
+					/*
+					 * NSEC3 records are not allowed to
+					 * appear in the answer section.
+					 */
+					return (DNS_R_FORMERR);
+				}
 				if (rdataset->type == type && !found_cname) {
 					/*
 					 * We've found an ordinary answer.

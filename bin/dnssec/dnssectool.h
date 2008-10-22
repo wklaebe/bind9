@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2007  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2007, 2008  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000, 2001, 2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dnssectool.h,v 1.20 2007/06/19 23:46:59 tbox Exp $ */
+/* $Id: dnssectool.h,v 1.22 2008/09/25 04:02:38 tbox Exp $ */
 
 #ifndef DNSSECTOOL_H
 #define DNSSECTOOL_H 1
@@ -41,7 +41,7 @@ vbprintf(int level, const char *fmt, ...) ISC_FORMAT_PRINTF(2, 3);
 
 void
 type_format(const dns_rdatatype_t type, char *cp, unsigned int size);
-#define TYPE_FORMATSIZE 10
+#define TYPE_FORMATSIZE 20
 
 void
 alg_format(const dns_secalg_t alg, char *cp, unsigned int size);

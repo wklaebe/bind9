@@ -46,6 +46,14 @@ isc_app_start
 isc_app_unblock
 isc_assertion_setcallback
 isc_assertion_typetotext
+isc_base32_decoderegion
+isc_base32_decodestring
+isc_base32_tobuffer
+isc_base32_totext
+isc_base32hex_decoderegion
+isc_base32hex_decodestring
+isc_base32hex_tobuffer
+isc_base32hex_totext
 isc_base64_decodestring
 isc_base64_tobuffer
 isc_base64_totext
@@ -179,6 +187,7 @@ isc_interfaceiter_first
 isc_interfaceiter_next
 isc_interval_iszero
 isc_interval_set
+isc_iterated_hash
 isc_keyboard_canceled
 isc_keyboard_close
 isc_keyboard_getchar
@@ -253,6 +262,7 @@ isc_mem_getquota
 isc_mem_gettag
 isc_mem_inuse
 isc_mem_ondestroy
+isc_mem_references
 isc_mem_setdestroycheck
 isc_mem_setname
 isc_mem_setquota
@@ -498,6 +508,7 @@ isc_time_nanoseconds
 isc_time_now
 isc_time_nowplusinterval
 isc_time_seconds
+isc_time_set
 isc_time_settoepoch
 isc_time_subtract
 isc_timer_attach
@@ -515,7 +526,6 @@ isc_win32os_servicepackminor
 isc_win32os_versioncheck
 openlog
 syslog
-
 
 ; Exported Data
 

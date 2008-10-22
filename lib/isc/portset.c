@@ -14,7 +14,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: portset.c,v 1.2.2.3 2008/06/24 23:26:49 marka Exp $ */
+/* $Id: portset.c,v 1.4 2008/06/24 23:24:35 marka Exp $ */
 
 /*! \file */
 

@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: types.h,v 1.43.128.3 2008/06/24 00:09:12 jinmei Exp $ */
+/* $Id: types.h,v 1.46 2008/06/23 19:41:19 jinmei Exp $ */
 
 #ifndef ISC_TYPES_H
 #define ISC_TYPES_H 1

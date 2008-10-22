@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2008  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2001, 2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: keyvalues.h,v 1.21 2007/06/19 23:47:16 tbox Exp $ */
+/* $Id: keyvalues.h,v 1.23 2008/09/25 04:02:39 tbox Exp $ */
 
 #ifndef DNS_KEYVALUES_H
 #define DNS_KEYVALUES_H 1
@@ -64,9 +64,11 @@
 #define DNS_KEYALG_RSA		DNS_KEYALG_RSAMD5
 #define DNS_KEYALG_DH		2       /*%< Diffie Hellman KEY */
 #define DNS_KEYALG_DSA		3       /*%< DSA KEY */
-#define DNS_KEYALG_DSS		NS_ALG_DSA
+#define DNS_KEYALG_NSEC3DSA	6
+#define DNS_KEYALG_DSS		DNS_ALG_DSA
 #define DNS_KEYALG_ECC		4
 #define DNS_KEYALG_RSASHA1	5
+#define DNS_KEYALG_NSEC3RSASHA1	7
 #define DNS_KEYALG_INDIRECT	252
 #define DNS_KEYALG_PRIVATEDNS	253
 #define DNS_KEYALG_PRIVATEOID	254     /*%< Key begins with OID giving alg */

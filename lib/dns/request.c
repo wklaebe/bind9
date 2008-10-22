@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: request.c,v 1.79.128.3 2008/07/22 03:46:43 marka Exp $ */
+/* $Id: request.c,v 1.82 2008/07/22 03:43:04 marka Exp $ */
 
 /*! \file */
 

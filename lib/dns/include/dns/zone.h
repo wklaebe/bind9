@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: zone.h,v 1.153.56.3 2008/04/03 06:10:21 marka Exp $ */
+/* $Id: zone.h,v 1.160 2008/09/24 02:46:23 marka Exp $ */
 
 #ifndef DNS_ZONE_H
 #define DNS_ZONE_H 1
@@ -33,6 +33,7 @@
 #include <isc/rwlock.h>
 
 #include <dns/masterdump.h>
+#include <dns/rdatastruct.h>
 #include <dns/types.h>
 
 typedef enum {
@@ -68,6 +69,7 @@ typedef enum {
 #define DNS_ZONEOPT_UPDATECHECKKSK 0x00800000U	/*%< check dnskey KSK flag */
 #define DNS_ZONEOPT_TRYTCPREFRESH 0x01000000U	/*%< try tcp refresh on udp failure */
 #define DNS_ZONEOPT_NOTIFYTOSOA	  0x02000000U	/*%< Notify the SOA MNAME */
+#define DNS_ZONEOPT_NSEC3TESTZONE 0x04000000U	/*%< nsec3-test-zone */
 
 #ifndef NOMINUM_PUBLIC
 /*
@@ -887,12 +889,16 @@ isc_boolean_t
 dns_zone_getupdatedisabled(dns_zone_t *zone);
 /*%<
  * Return update disabled.
+ * Transient unless called when running in isc_task_exclusive() mode.
  */
 
 void
 dns_zone_setupdatedisabled(dns_zone_t *zone, isc_boolean_t state);
 /*%<
  * Set update disabled.
+ * Should only be called only when running in isc_task_exclusive() mode.
+ * Failure to do so may result in updates being committed after the
+ * call has been made.
  */
 
 isc_boolean_t
@@ -1177,7 +1183,7 @@ dns_zone_getmgr(dns_zone_t *zone);
 void
 dns_zone_setsigvalidityinterval(dns_zone_t *zone, isc_uint32_t interval);
 /*%<
- * Set the zone's SIG validity interval.  This is the length of time
+ * Set the zone's RRSIG validity interval.  This is the length of time
  * for which DNSSEC signatures created as a result of dynamic updates
  * to secure zones will remain valid, in seconds.
  *
@@ -1188,7 +1194,26 @@ dns_zone_setsigvalidityinterval(dns_zone_t *zone, isc_uint32_t interval);
 isc_uint32_t
 dns_zone_getsigvalidityinterval(dns_zone_t *zone);
 /*%<
- * Get the zone's SIG validity interval.
+ * Get the zone's RRSIG validity interval.
+ *
+ * Requires:
+ * \li	'zone' to be a valid zone.
+ */
+
+void
+dns_zone_setsigresigninginterval(dns_zone_t *zone, isc_uint32_t interval);
+/*%<
+ * Set the zone's RRSIG re-signing interval.  A dynamic zone's RRSIG's
+ * will be re-signed 'interval' amount of time before they expire.
+ *
+ * Requires:
+ * \li	'zone' to be a valid zone.
+ */
+
+isc_uint32_t
+dns_zone_getsigresigninginterval(dns_zone_t *zone);
+/*%<
+ * Get the zone's RRSIG re-signing interval.
  *
  * Requires:
  * \li	'zone' to be a valid zone.
@@ -1582,7 +1607,7 @@ dns_zone_name(dns_zone_t *zone, char *buf, size_t len);
 
 isc_result_t
 dns_zone_checknames(dns_zone_t *zone, dns_name_t *name, dns_rdata_t *rdata);
-/*
+/*%<
  * Check if this record meets the check-names policy.
  *
  * Requires:
@@ -1598,7 +1623,7 @@ dns_zone_checknames(dns_zone_t *zone, dns_name_t *name, dns_rdata_t *rdata);
 
 void
 dns_zone_setacache(dns_zone_t *zone, dns_acache_t *acache);
-/*
+/*%<
  *	Associate the zone with an additional cache.
  *
  * Require:
@@ -1611,7 +1636,7 @@ dns_zone_setacache(dns_zone_t *zone, dns_acache_t *acache);
 
 void
 dns_zone_setcheckmx(dns_zone_t *zone, dns_checkmxfunc_t checkmx);
-/*
+/*%<
  *	Set the post load integrity callback function 'checkmx'.
  *	'checkmx' will be called if the MX is not within the zone.
  *
@@ -1621,7 +1646,7 @@ dns_zone_setcheckmx(dns_zone_t *zone, dns_checkmxfunc_t checkmx);
 
 void
 dns_zone_setchecksrv(dns_zone_t *zone, dns_checkmxfunc_t checksrv);
-/*
+/*%<
  *	Set the post load integrity callback function 'checksrv'.
  *	'checksrv' will be called if the SRV TARGET is not within the zone.
  *
@@ -1631,7 +1656,7 @@ dns_zone_setchecksrv(dns_zone_t *zone, dns_checkmxfunc_t checksrv);
 
 void
 dns_zone_setcheckns(dns_zone_t *zone, dns_checknsfunc_t checkns);
-/*
+/*%<
  *	Set the post load integrity callback function 'checkmx'.
  *	'checkmx' will be called if the MX is not within the zone.
  *
@@ -1641,7 +1666,7 @@ dns_zone_setcheckns(dns_zone_t *zone, dns_checknsfunc_t checkns);
 
 void
 dns_zone_setnotifydelay(dns_zone_t *zone, isc_uint32_t delay);
-/*
+/*%<
  * Set the minimum delay between sets of notify messages.
  *
  * Requires:
@@ -1650,7 +1675,7 @@ dns_zone_setnotifydelay(dns_zone_t *zone, isc_uint32_t delay);
 
 isc_uint32_t
 dns_zone_getnotifydelay(dns_zone_t *zone);
-/*
+/*%<
  * Get the minimum delay between sets of notify messages.
  *
  * Requires:
@@ -1659,7 +1684,7 @@ dns_zone_getnotifydelay(dns_zone_t *zone);
 
 void
 dns_zone_setisself(dns_zone_t *zone, dns_isselffunc_t isself, void *arg);
-/*
+/*%<
  * Set the isself callback function and argument.
  *
  * isc_boolean_t
@@ -1669,6 +1694,41 @@ dns_zone_setisself(dns_zone_t *zone, dns_isselffunc_t isself, void *arg);
  * 'isself' returns ISC_TRUE if a non-recursive query from 'srcaddr' to
  * 'destaddr' with optional key 'mykey' for class 'rdclass' would be
  * delivered to 'myview'.
+ */
+
+void
+dns_zone_setnodes(dns_zone_t *zone, isc_uint32_t nodes);
+/*%<
+ * Set the number of nodes that will be checked per quantum.
+ */
+
+void
+dns_zone_setsignatures(dns_zone_t *zone, isc_uint32_t signatures);
+/*%<
+ * Set the number of signatures that will be generated per quantum.
+ */
+
+isc_result_t
+dns_zone_signwithkey(dns_zone_t *zone, dns_secalg_t algorithm,
+		     isc_uint16_t keyid, isc_boolean_t delete);
+/*%<
+ * Initiate/resume signing of the entire zone with the zone DNSKEY(s)
+ * that match the given algorithm and keyid.
+ */
+
+isc_result_t
+dns_zone_addnsec3chain(dns_zone_t *zone, dns_rdata_nsec3param_t *nsec3param);
+/*%<
+ * Incrementally add a NSEC3 chain that corresponds to 'nsec3param'.
+ */
+
+void
+dns_zone_setprivatetype(dns_zone_t *zone, dns_rdatatype_t type);
+dns_rdatatype_t
+dns_zone_getprivatetype(dns_zone_t *zone);
+/*
+ * Get/Set the private record type.  It is expected that these interfaces
+ * will not be permanent.
  */
 
 ISC_LANG_ENDDECLS

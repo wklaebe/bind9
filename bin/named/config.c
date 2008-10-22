@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: config.c,v 1.82.38.7 2008/09/04 07:58:06 marka Exp $ */
+/* $Id: config.c,v 1.92 2008/09/27 23:35:31 jinmei Exp $ */
 
 /*! \file */
 
@@ -131,7 +131,7 @@ options {\n\
 	max-ncache-ttl 10800; /* 3 hours */\n\
 	max-cache-ttl 604800; /* 1 week */\n\
 	transfer-format many-answers;\n\
-#	max-cache-size default; /* set default in server.c */\n\
+	max-cache-size 0;\n\
 	check-names master fail;\n\
 	check-names slave warn;\n\
 	check-names response ignore;\n\
@@ -145,6 +145,7 @@ options {\n\
 	clients-per-query 10;\n\
 	max-clients-per-query 100;\n\
 	zero-no-soa-ttl-cache no;\n\
+	nsec3-test-zone no;\n\
 "
 
 "	/* zone */\n\
@@ -174,6 +175,9 @@ options {\n\
 	min-refresh-time 300;\n\
 	multi-master no;\n\
 	sig-validity-interval 30; /* days */\n\
+	sig-signing-nodes 100;\n\
+	sig-signing-signatures 10;\n\
+	sig-signing-type 65535;\n\
 	zone-statistics false;\n\
 	max-journal-size unlimited;\n\
 	ixfr-from-differences false;\n\

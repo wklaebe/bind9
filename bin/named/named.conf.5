@@ -12,7 +12,7 @@
 .\" OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 .\" PERFORMANCE OF THIS SOFTWARE.
 .\"
-.\" $Id: named.conf.5,v 1.31.38.1 2008/09/05 01:42:58 tbox Exp $
+.\" $Id: named.conf.5,v 1.36 2008/09/25 04:45:04 tbox Exp $
 .\"
 .hy 0
 .ad l
@@ -284,6 +284,10 @@ options {
 	min\-refresh\-time \fIinteger\fR;
 	multi\-master \fIboolean\fR;
 	sig\-validity\-interval \fIinteger\fR;
+	sig\-re\-signing\-interval \fIinteger\fR;
+	sig\-signing\-nodes \fIinteger\fR;
+	sig\-signing\-signatures \fIinteger\fR;
+	sig\-signing\-type \fIinteger\fR;
 	transfer\-source ( \fIipv4_address\fR | * )
 		[ port ( \fIinteger\fR | * ) ];
 	transfer\-source\-v6 ( \fIipv6_address\fR | * )
@@ -298,6 +302,7 @@ options {
 	try\-tcp\-refresh \fIboolean\fR;
 	zero\-no\-soa\-ttl \fIboolean\fR;
 	zero\-no\-soa\-ttl\-cache \fIboolean\fR;
+	nsec3\-test\-zone \fIboolean\fR;  // testing only
 	allow\-v6\-synthesis { \fIaddress_match_element\fR; ... }; // obsolete
 	deallocate\-on\-exit \fIboolean\fR; // obsolete
 	fake\-iquery \fIboolean\fR; // obsolete
@@ -478,7 +483,9 @@ zone \fIstring\fR \fIoptional_class\fR {
 	allow\-update\-forwarding { \fIaddress_match_element\fR; ... };
 	update\-policy {
 		( grant | deny ) \fIstring\fR
-		( name | subdomain | wildcard | self ) \fIstring\fR
+		( name | subdomain | wildcard | self | selfsub | selfwild |
+                  krb5\-self | ms\-self | krb5\-subdomain | ms\-subdomain |
+		  tcp\-self | 6to4\-self ) \fIstring\fR
 		\fIrrtypelist\fR; ...
 	};
 	update\-check\-ksk \fIboolean\fR;
@@ -518,6 +525,7 @@ zone \fIstring\fR \fIoptional_class\fR {
 	zone\-statistics \fIboolean\fR;
 	try\-tcp\-refresh \fIboolean\fR;
 	key\-directory \fIquoted_string\fR;
+	nsec3\-test\-zone \fIboolean\fR;  // testing only
 	ixfr\-base \fIquoted_string\fR; // obsolete
 	ixfr\-tmp\-file \fIquoted_string\fR; // obsolete
 	maintain\-ixfr\-base \fIboolean\fR; // obsolete

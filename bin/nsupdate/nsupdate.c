@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: nsupdate.c,v 1.154.56.3 2008/01/17 23:46:36 tbox Exp $ */
+/* $Id: nsupdate.c,v 1.163 2008/09/25 04:02:38 tbox Exp $ */
 
 /*! \file */
 
@@ -162,6 +162,8 @@ static unsigned int udp_retries = 3;
 static dns_rdataclass_t defaultclass = dns_rdataclass_in;
 static dns_rdataclass_t zoneclass = dns_rdataclass_none;
 static dns_message_t *answer = NULL;
+static isc_uint32_t default_ttl = 0;
+static isc_boolean_t default_ttl_set = ISC_FALSE;
 
 typedef struct nsu_requestinfo {
 	dns_message_t *msg;
@@ -1032,7 +1034,7 @@ parse_rdata(char **cmdlinep, dns_rdataclass_t rdataclass,
 		check_result(result, "isc_lex_openbuffer");
 		result = isc_buffer_allocate(mctx, &buf, MAXWIRE);
 		check_result(result, "isc_buffer_allocate");
-		result = dns_rdata_fromtext(rdata, rdataclass, rdatatype, lex,
+		result = dns_rdata_fromtext(NULL, rdataclass, rdatatype, lex,
 					    dns_rootname, 0, mctx, buf,
 					    &callbacks);
 		isc_lex_destroy(&lex);
@@ -1126,8 +1128,7 @@ make_prereq(char *cmdline, isc_boolean_t ispositive, isc_boolean_t isrrset) {
 	result = dns_message_gettemprdata(updatemsg, &rdata);
 	check_result(result, "dns_message_gettemprdata");
 
-	rdata->data = NULL;
-	rdata->length = 0;
+	dns_rdata_init(rdata);
 
 	if (isrrset && ispositive) {
 		retval = parse_rdata(&cmdline, rdataclass, rdatatype,
@@ -1388,6 +1389,39 @@ evaluate_zone(char *cmdline) {
 }
 
 static isc_uint16_t
+evaluate_ttl(char *cmdline) {
+	char *word;
+	isc_result_t result;
+	isc_uint32_t ttl;
+
+	word = nsu_strsep(&cmdline, " \t\r\n");
+	if (*word == 0) {
+		fprintf(stderr, "could not ttl\n");
+		return (STATUS_SYNTAX);
+	}
+
+	if (!strcasecmp(word, "none")) {
+		default_ttl = 0;
+		default_ttl_set = ISC_FALSE;
+		return (STATUS_MORE);
+	}
+
+	result = isc_parse_uint32(&ttl, word, 10);
+	if (result != ISC_R_SUCCESS)
+		return (STATUS_SYNTAX);
+
+	if (ttl > TTL_MAX) {
+		fprintf(stderr, "ttl '%s' is out of range (0 to %u)\n",
+			word, TTL_MAX);
+		return (STATUS_SYNTAX);
+	}
+	default_ttl = ttl;
+	default_ttl_set = ISC_TRUE;
+
+	return (STATUS_MORE);
+}
+
+static isc_uint16_t
 evaluate_class(char *cmdline) {
 	char *word;
 	isc_textregion_t r;
@@ -1446,10 +1480,7 @@ update_addordelete(char *cmdline, isc_boolean_t isdelete) {
 	result = dns_message_gettemprdata(updatemsg, &rdata);
 	check_result(result, "dns_message_gettemprdata");
 
-	rdata->rdclass = 0;
-	rdata->type = 0;
-	rdata->data = NULL;
-	rdata->length = 0;
+	dns_rdata_init(rdata);
 
 	/*
 	 * If this is an add, read the TTL and verify that it's in range.
@@ -1473,6 +1504,9 @@ update_addordelete(char *cmdline, isc_boolean_t isdelete) {
 	if (result != ISC_R_SUCCESS) {
 		if (isdelete) {
 			ttl = 0;
+			goto parseclass;
+		} else if (default_ttl_set) {
+			ttl = default_ttl;
 			goto parseclass;
 		} else {
 			fprintf(stderr, "ttl '%s': %s\n", word,
@@ -1722,6 +1756,15 @@ get_next_command(void) {
 		return (evaluate_class(cmdline));
 	if (strcasecmp(word, "send") == 0)
 		return (STATUS_SEND);
+	if (strcasecmp(word, "debug") == 0) {
+		if (debugging)
+			ddebugging = ISC_TRUE;
+		else
+			debugging = ISC_TRUE;
+		return (STATUS_MORE);
+	}
+	if (strcasecmp(word, "ttl") == 0)
+		return (evaluate_ttl(cmdline));
 	if (strcasecmp(word, "show") == 0) {
 		show_message(stdout, updatemsg, "Outgoing update query:");
 		return (STATUS_MORE);

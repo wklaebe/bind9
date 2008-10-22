@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: namedconf.c,v 1.78.46.10 2008/09/04 07:58:07 marka Exp $ */
+/* $Id: namedconf.c,v 1.92 2008/09/27 23:35:31 jinmei Exp $ */
 
 /*! \file */
 
@@ -260,7 +260,8 @@ static cfg_type_t cfg_type_mode = {
 
 static const char *matchtype_enums[] = {
 	"name", "subdomain", "wildcard", "self", "selfsub", "selfwild",
-	"krb5-self", "ms-self", "krb5-subdomain", "ms-subdomain", NULL };
+	"krb5-self", "ms-self", "krb5-subdomain", "ms-subdomain",
+	"tcp-self", "6to4-self", NULL };
 static cfg_type_t cfg_type_matchtype = {
 	"matchtype", cfg_parse_enum, cfg_print_ustring, cfg_doc_enum, &cfg_rep_string,
 	&matchtype_enums
@@ -819,7 +820,7 @@ view_clauses[] = {
 	{ "ixfr-from-differences", &cfg_type_ixfrdifftype, 0 },
 	{ "lame-ttl", &cfg_type_uint32, 0 },
 	{ "max-acache-size", &cfg_type_sizenodefault, 0 },
-	{ "max-cache-size", &cfg_type_size, 0 },
+	{ "max-cache-size", &cfg_type_sizenodefault, 0 },
 	{ "max-cache-ttl", &cfg_type_uint32, 0 },
 	{ "max-clients-per-query", &cfg_type_uint32, 0 },
 	{ "max-ncache-ttl", &cfg_type_uint32, 0 },
@@ -836,7 +837,7 @@ view_clauses[] = {
 	{ "query-source-v6", &cfg_type_querysource6, 0 },
 	{ "queryport-pool-ports", &cfg_type_uint32, CFG_CLAUSEFLAG_OBSOLETE },
 	{ "queryport-pool-updateinterval", &cfg_type_uint32,
-	  CFG_CLAUSEFLAG_OBSOLETE},
+	  CFG_CLAUSEFLAG_OBSOLETE },
 	{ "recursion", &cfg_type_boolean, 0 },
 	{ "request-ixfr", &cfg_type_boolean, 0 },
 	{ "request-nsid", &cfg_type_boolean, 0 },
@@ -861,6 +862,47 @@ view_only_clauses[] = {
 	{ "match-destinations", &cfg_type_bracketed_aml, 0 },
 	{ "match-recursive-only", &cfg_type_boolean, 0 },
 	{ NULL, NULL, 0 }
+};
+
+/*%
+ * Sig-validity-interval.
+ */
+static isc_result_t
+parse_optional_uint32(cfg_parser_t *pctx, const cfg_type_t *type,
+		      cfg_obj_t **ret)
+{
+	isc_result_t result;
+	UNUSED(type);
+
+	CHECK(cfg_peektoken(pctx, ISC_LEXOPT_NUMBER | ISC_LEXOPT_CNUMBER));
+	if (pctx->token.type == isc_tokentype_number) {
+		CHECK(cfg_parse_obj(pctx, &cfg_type_uint32, ret));
+	} else {
+		CHECK(cfg_parse_obj(pctx, &cfg_type_void, ret));
+	}
+ cleanup:
+	return (result);
+}
+
+static void
+doc_optional_uint32(cfg_printer_t *pctx, const cfg_type_t *type) {
+	UNUSED(type);
+	cfg_print_chars(pctx, "[ <integer> ]", 13);
+}
+
+static cfg_type_t cfg_type_optional_uint32 = {
+	"optional_uint32", parse_optional_uint32, NULL, doc_optional_uint32,
+	NULL, NULL };
+
+static cfg_tuplefielddef_t validityinterval_fields[] = {
+	{ "validity", &cfg_type_uint32, 0 },
+	{ "re-sign", &cfg_type_optional_uint32, 0 },
+	{ NULL, NULL, 0 }
+};
+
+static cfg_type_t cfg_type_validityinterval = {
+	"validityinterval", cfg_parse_tuple, cfg_print_tuple, cfg_doc_tuple,
+	&cfg_rep_tuple, validityinterval_fields
 };
 
 /*%
@@ -906,7 +948,11 @@ zone_clauses[] = {
 	{ "notify-source", &cfg_type_sockaddr4wild, 0 },
 	{ "notify-source-v6", &cfg_type_sockaddr6wild, 0 },
 	{ "notify-to-soa", &cfg_type_boolean, 0 },
-	{ "sig-validity-interval", &cfg_type_uint32, 0 },
+	{ "nsec3-test-zone", &cfg_type_boolean, CFG_CLAUSEFLAG_TESTONLY },
+	{ "sig-signing-nodes", &cfg_type_uint32, 0 },
+	{ "sig-signing-signatures", &cfg_type_uint32, 0 },
+	{ "sig-signing-type", &cfg_type_uint32, 0 },
+	{ "sig-validity-interval", &cfg_type_validityinterval, 0 },
 	{ "transfer-source", &cfg_type_sockaddr4wild, 0 },
 	{ "transfer-source-v6", &cfg_type_sockaddr6wild, 0 },
 	{ "try-tcp-refresh", &cfg_type_boolean, 0 },

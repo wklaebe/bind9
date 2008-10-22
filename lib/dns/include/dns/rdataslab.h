@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2008  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rdataslab.h,v 1.31 2007/06/19 23:47:17 tbox Exp $ */
+/* $Id: rdataslab.h,v 1.33 2008/04/01 23:47:10 tbox Exp $ */
 
 #ifndef DNS_RDATASLAB_H
 #define DNS_RDATASLAB_H 1
@@ -56,6 +56,13 @@ ISC_LANG_BEGINDECLS
 
 #define DNS_RDATASLAB_FORCE 0x1
 #define DNS_RDATASLAB_EXACT 0x2
+
+#define DNS_RDATASLAB_OFFLINE 0x01 	/* RRSIG is for offline DNSKEY */
+#define DNS_RDATASLAB_WARNMASK 0x0E	/*%< RRSIG(DNSKEY) expired
+					 * warnings number mask. */
+#define DNS_RDATASLAB_WARNSHIFT 1	/*%< How many bits to shift to find
+					 * remaining expired warning number. */
+
 
 /***
  *** Functions
@@ -146,10 +153,10 @@ dns_rdataslab_equal(unsigned char *slab1, unsigned char *slab2,
  */
 isc_boolean_t
 dns_rdataslab_equalx(unsigned char *slab1, unsigned char *slab2,
-		     unsigned int reservelen, dns_rdataclass_t rdclass, 
+		     unsigned int reservelen, dns_rdataclass_t rdclass,
 		     dns_rdatatype_t type);
 /*%<
- * Compare two rdataslabs for DNSSEC equality. 
+ * Compare two rdataslabs for DNSSEC equality.
  *
  * Requires:
  *\li	'slab1' and 'slab2' point to slabs.

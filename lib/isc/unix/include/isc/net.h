@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: net.h,v 1.46.128.2 2008/06/24 23:46:27 tbox Exp $ */
+/* $Id: net.h,v 1.48 2008/06/23 23:47:11 tbox Exp $ */
 
 #ifndef ISC_NET_H
 #define ISC_NET_H 1

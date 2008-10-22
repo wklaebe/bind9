@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2008  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: globals.h,v 1.73 2007/09/26 03:22:43 marka Exp $ */
+/* $Id: globals.h,v 1.76 2008/09/23 17:25:47 jinmei Exp $ */
 
 #ifndef NAMED_GLOBALS_H
 #define NAMED_GLOBALS_H 1
@@ -58,6 +58,7 @@ EXTERN isc_timermgr_t *		ns_g_timermgr		INIT(NULL);
 EXTERN isc_socketmgr_t *	ns_g_socketmgr		INIT(NULL);
 EXTERN cfg_parser_t *		ns_g_parser		INIT(NULL);
 EXTERN const char *		ns_g_version		INIT(VERSION);
+EXTERN const char *		ns_g_configargs		INIT(CONFIGARGS);
 EXTERN in_port_t		ns_g_port		INIT(0);
 EXTERN in_port_t		lwresd_g_listenport	INIT(0);
 
@@ -115,6 +116,7 @@ EXTERN const char *		ns_g_username		INIT(NULL);
 EXTERN int			ns_g_listen		INIT(3);
 EXTERN isc_time_t		ns_g_boottime;
 EXTERN isc_boolean_t		ns_g_memstatistics	INIT(ISC_FALSE);
+EXTERN isc_boolean_t		ns_g_clienttest		INIT(ISC_FALSE);
 
 #undef EXTERN
 #undef INIT

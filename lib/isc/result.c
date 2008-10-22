@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005, 2007  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2007, 2008  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1998-2001, 2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: result.c,v 1.69 2007/06/19 23:47:17 tbox Exp $ */
+/* $Id: result.c,v 1.71 2008/09/25 04:02:39 tbox Exp $ */
 
 /*! \file */
 
@@ -100,7 +100,8 @@ static const char *text[ISC_R_NRESULTS] = {
 	"not a valid number",			/*%< 56 */
 	"disabled",				/*%< 57 */
 	"max size",				/*%< 58 */
-	"invalid address format"		/*%< 59 */
+	"invalid address format",		/*%< 59 */
+	"bad base32 encoding",			/*%< 60 */
 };
 
 #define ISC_RESULT_RESULTSET			2

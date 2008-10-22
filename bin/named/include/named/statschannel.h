@@ -14,7 +14,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: statschannel.h,v 1.2.2.2 2008/04/03 06:10:19 marka Exp $ */
+/* $Id: statschannel.h,v 1.3 2008/04/03 05:55:51 marka Exp $ */
 
 #ifndef NAMED_STATSCHANNEL_H
 #define NAMED_STATSCHANNEL_H 1

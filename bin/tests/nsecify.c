@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2007  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2007, 2008  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2001, 2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: nsecify.c,v 1.6 2007/06/19 23:46:59 tbox Exp $ */
+/* $Id: nsecify.c,v 1.8 2008/09/25 04:02:38 tbox Exp $ */
 
 #include <config.h>
 
@@ -154,7 +154,7 @@ nsecify(char *filename) {
 	result = dns_db_newversion(db, &wversion);
 	check_result(result, "dns_db_newversion()");
 	dbiter = NULL;
-	result = dns_db_createiterator(db, ISC_FALSE, &dbiter);
+	result = dns_db_createiterator(db, 0, &dbiter);
 	check_result(result, "dns_db_createiterator()");
 	result = dns_dbiterator_first(dbiter);
 	node = NULL;

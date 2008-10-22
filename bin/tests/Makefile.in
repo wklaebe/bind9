@@ -1,4 +1,4 @@
-# Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
+# Copyright (C) 2004-2008  Internet Systems Consortium, Inc. ("ISC")
 # Copyright (C) 1998-2003  Internet Software Consortium.
 #
 # Permission to use, copy, modify, and/or distribute this software for any
@@ -13,7 +13,7 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: Makefile.in,v 1.129 2007/06/19 23:46:59 tbox Exp $
+# $Id: Makefile.in,v 1.131 2008/09/25 04:02:38 tbox Exp $
 
 srcdir =	@srcdir@
 VPATH =		@srcdir@
@@ -62,6 +62,7 @@ XTARGETS =	adb_test@EXEEXT@ \
 		gxba_test@EXEEXT@ \
 		gxbn_test@EXEEXT@ \
 		hash_test@EXEEXT@ \
+		nsec3hash@EXEEXT@ \
 		fsaccess_test@EXEEXT@ \
 		inter_test@EXEEXT@ \
 		journalprint@EXEEXT@ \
@@ -284,6 +285,10 @@ journalprint@EXEEXT@: journalprint.@O@ ${ISCDEPLIBS} ${DNSDEPLIBS}
 cfg_test@EXEEXT@: cfg_test.@O@ ${ISCCFGDEPLIBS} ${ISCDEPLIBS}
 	${LIBTOOL_MODE_LINK} ${CC} ${CFLAGS} ${LDFLAGS} -o $@ cfg_test.@O@ \
 		${ISCCFGLIBS} ${DNSLIBS} ${ISCLIBS} ${LIBS}
+
+nsec3hash@EXEEXT@: nsec3hash.@O@ ${ISCDEPLIBS} ${DNSDEPLIBS}
+	${LIBTOOL_MODE_LINK} ${CC} ${CFLAGS} ${LDFLAGS} -o $@ nsec3hash.@O@ \
+	${DNSLIBS} ${ISCLIBS} ${LIBS}
 
 distclean::
 	rm -f headerdep_test.sh

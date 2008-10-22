@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: socket.h,v 1.72.128.12 2008/09/04 07:58:07 marka Exp $ */
+/* $Id: socket.h,v 1.85 2008/09/04 07:46:02 marka Exp $ */
 
 #ifndef ISC_SOCKET_H
 #define ISC_SOCKET_H 1

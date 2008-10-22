@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: client.c,v 1.250.16.6 2008/05/27 22:36:09 each Exp $ */
+/* $Id: client.c,v 1.258 2008/06/23 19:41:18 jinmei Exp $ */
 
 #include <config.h>
 
@@ -465,6 +465,8 @@ exit_check(ns_client_t *client) {
 
 		if (client->state == client->newstate) {
 			client->newstate = NS_CLIENTSTATE_MAX;
+			if (client->needshutdown)
+				isc_task_shutdown(client->task);
 			goto unlock;
 		}
 	}
@@ -521,6 +523,14 @@ exit_check(ns_client_t *client) {
 
 		CTRACE("free");
 		client->magic = 0;
+		/*
+		 * Check that there are no other external references to
+		 * the memory context.
+		 */
+		if (ns_g_clienttest && isc_mem_references(client->mctx) != 1) {
+			isc_mem_stats(client->mctx, stderr);
+			INSIST(0);
+		}
 		isc_mem_putanddetach(&client->mctx, client, sizeof(*client));
 
 		goto unlock;
@@ -594,6 +604,7 @@ client_shutdown(isc_task_t *task, isc_event_t *event) {
 	}
 
 	client->newstate = NS_CLIENTSTATE_FREED;
+	client->needshutdown = ISC_FALSE;
 	(void)exit_check(client);
 }
 
@@ -646,7 +657,7 @@ ns_client_checkactive(ns_client_t *client) {
 		 * keep it active to make up for the shortage.
 		 */
 		isc_boolean_t need_another_client = ISC_FALSE;
-		if (TCP_CLIENT(client)) {
+		if (TCP_CLIENT(client) && !ns_g_clienttest) {
 			LOCK(&client->interface->lock);
 			if (client->interface->ntcpcurrent <
 			    client->interface->ntcptarget)
@@ -1941,13 +1952,17 @@ client_timeout(isc_task_t *task, isc_event_t *event) {
 static isc_result_t
 get_clientmctx(ns_clientmgr_t *manager, isc_mem_t **mctxp) {
 	isc_mem_t *clientmctx;
-#if NMCTXS > 0
 	isc_result_t result;
-#endif
 
 	/*
 	 * Caller must be holding the manager lock.
 	 */
+	if (ns_g_clienttest) {
+		result = isc_mem_create(0, 0, mctxp);
+		if (result == ISC_R_SUCCESS)
+			isc_mem_setname(*mctxp, "client", NULL);
+		return (result);
+	}
 #if NMCTXS > 0
 	INSIST(manager->nextmctx < NMCTXS);
 	clientmctx = manager->mctxpool[manager->nextmctx];
@@ -2103,6 +2118,8 @@ client_create(ns_clientmgr_t *manager, ns_client_t **clientp) {
 	result = isc_task_onshutdown(client->task, client_shutdown, client);
 	if (result != ISC_R_SUCCESS)
 		goto cleanup_query;
+
+	client->needshutdown = ns_g_clienttest;
 
 	CTRACE("create");
 
@@ -2525,7 +2542,9 @@ ns_clientmgr_createclients(ns_clientmgr_t *manager, unsigned int n,
 		 * Allocate a client.  First try to get a recycled one;
 		 * if that fails, make a new one.
 		 */
-		client = ISC_LIST_HEAD(manager->inactive);
+		client = NULL;
+		if (!ns_g_clienttest)
+			client = ISC_LIST_HEAD(manager->inactive);
 		if (client != NULL) {
 			MTRACE("recycle");
 			ISC_LIST_UNLINK(manager->inactive, client, link);

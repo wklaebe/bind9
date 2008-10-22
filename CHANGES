@@ -1,4 +1,52 @@
-	--- 9.5.1b2 released ---
+	--- 9.6.0a1 released ---
+
+2460.	[bug]		Don't call dns_db_getnsec3parameters() on the cache.
+			[RT #18697]
+
+2459.	[contrib]	Import dnssec-zkt to contrib/zkt. [RT #18448]
+
+2458.	[doc]		ARM: update and correction for max-cache-size.
+			[RT #18294]
+
+2457.	[tuning]	max-cache-size is reverted to 0, the previous
+			default.  It should be safe because expired cache
+			entries are also purged. [RT #18684]
+
+2456.	[bug]		In ACLs, ::/0 and 0.0.0.0/0 would both match any
+			address, regardless of family.  They now correctly
+			distinguish IPv4 from IPv6.  [RT #18559]
+                        
+2455.	[bug]		Stop metadata being transfered via axfr/ixfr.
+			[RT #18639]
+
+2454.	[func]		nsupdate: you can now set a default ttl. [RT #18317]
+
+2453.	[bug]		Remove NULL pointer dereference in dns_journal_print().
+			[RT #18316]
+
+2452.	[func]		Improve bin/test/journalprint. [RT #18316]
+
+2451.	[port]		solaris: handle runtime linking better. [RT #18356]
+
+2450.	[doc]		Fix lwresd docbook problem for manual page.
+			[RT #18672]
+
+2449.	[placeholder]
+
+2448.	[func]		Add NSEC3 support. [RT #15452]
+
+2447.	[cleanup]	libbind has been split out as a seperate product.
+
+2446.	[func]		Add a new log message about build options on startup.
+			A new command-line option '-V' for named is also
+			provided to show this information. [RT# 18645]
+
+2445.	[doc]		ARM out-of-date on empty reverse zones (list includes
+			RFC1918 address, but these are not yet compiled in).
+			[RT #18578]
+
+2444.	[port]		Linux, FreeBSD, AIX: Turn off path mtu discovery
+			(clear DF) for UDP responses and requests.
 
 2443.	[bug]		win32: UDP connect() would not generate an event,
 			and so connected UDP sockets would never clean up.
@@ -13,11 +61,10 @@
 2440.   [bug]		named-checkconf used an incorrect test to determine
 			if an ACL was set to none.
 
-2439.   [bug]           Potential NULL dereference in dns_acl_isanyornone().
-                        [RT #18559]
-        
-2438.	[bug]		Timeouts could be logged incorrectly under win32.
-			[RT #18617]
+2439.   [bug]		Potential NULL dereference in dns_acl_isanyornone().
+			[RT #18559]
+
+2438.   [bug]		Timeouts could be logged incorrectly under win32.
 
 2437.	[bug]		Sockets could be closed too early, leading to
 			inconsistent states in the socket module. [RT #18298]
@@ -31,7 +78,7 @@
 
 2433.	[tuning]	Set initial timeout to 800ms.
 
-2432.	[bug]		More Windows socket handling improvements.  Stop
+2432.   [bug]		More Windows socket handling improvements.  Stop
 			using I/O events and use IO Completion Ports
 			throughout.  Rewrite the receive path logic to make
 			it easier to support multiple simultaneous
@@ -51,6 +98,9 @@
 2428.	[bug]		dns_iptable_merge() mishandled merges of negative
 			tables. [RT #18409]
 
+2427.	[func]		Treat DNSKEY queries as if "minimal-response yes;"
+			was set. [RT #18528]
+
 2426.	[bug]		libbind: inet_net_pton() can sometimes return the
 			wrong value if excessively large netmasks are
 			supplied. [RT #18512]
@@ -63,6 +113,12 @@
 			epoll and /dev/poll to be selected at compile
 			time. [RT #18277]
 			
+2423.   [security]	Randomize server selection on queries, so as to
+                        make forgery a little more difficult.  Instead of
+                        always preferring the server with the lowest RTT,
+                        pick a server with RTT within the same 128
+                        millisecond band.  [RT #18441]
+
 2422.	[bug]		Handle the special return value of a empty node as
 			if it was a NXRRSET in the validator. [RT #18447]
 
@@ -71,7 +127,7 @@
 			Use caution: this option may not work for some
 			operating systems without rebuilding named.
 
-2420.	[bug]		Windows socket handling cleanup.  Let the io
+2420.   [bug]		Windows socket handling cleanup.  Let the io
 			completion event send out cancelled read/write
 			done events, which keeps us from writing to memeory
 			we no longer have ownership of.  Add debugging
@@ -118,9 +174,7 @@
 
 2407.	[port]		hpux: test for sys/dyntune.h. [RT #18421]
 
-xxxx.	[bug]		Connecting UDP sockets for outgoing queries could
-			unexpectedly fail with an 'address already in use'
-			error.
+2406.	[placeholder]
 
 2405.   [cleanup]       The default value for dnssec-validation was changed to
                         "yes" in 9.5.0-P1 and all subsequent releases; this
@@ -138,11 +192,13 @@ xxxx.	[bug]		Connecting UDP sockets for outgoing queries could
 2400.	[bug]		Log if kqueue()/epoll_create()/open(/dev/poll) fails.
 			[RT #18297]
 
+2399.	[placeholder]
+
 2398.	[bug]           Improve file descriptor management.  New,
 			temporary, named.conf option reserved-sockets,
 			default 512. [RT #18344]
 
-2397.	[bug]		gssapi_functions bad declaration. [RT #18355]
+2397.	[bug]		gssapi_functions had too many elements. [RT #18355]
 
 2396.	[bug]		Don't set SO_REUSEADDR for randomized ports.
 			[RT #18336]
@@ -172,17 +228,17 @@ xxxx.	[bug]		Connecting UDP sockets for outgoing queries could
 2388.	[bug]		Avoid using tables for layout purposes in
 			statistics XSL [RT #18159].
 
+2387.	[bug]		Silence compiler warnings in lib/isc/radix.c.
+			[RT #18147] [RT #18258]
+
 2386.	[func]		Add warning about too small 'open files' limit.
 			[RT #18269]
-
-	--- 9.5.1b1 released ---
 
 2385.	[bug]		A condition variable in socket.c could leak in
 			rare error handling [RT #17968].
 
-2384.	[security]	Additional support for query port randomization (change
-			#2375) including performance improvement and port range
-			specification.  [RT #17949, #18098]
+2384.	[security]	Fully randomize UDP query ports to improve
+			forgery resilience. [RT #17949, #18098]
 
 2383.	[bug]		named could double queries when they resulted in
 			SERVFAIL due to overkilling EDNS0 failure detection.
@@ -210,26 +266,24 @@ xxxx.	[bug]		Connecting UDP sockets for outgoing queries could
 
 2376.	[bug]		Change #2144 was not complete.
 
-2375.	[security]	Fully randomize UDP query ports to improve
-			forgery resilience. [RT #17949]
+2375.	[placeholder]
+
+2374.	[bug]		"blackhole" ACLs could cause named to segfault due
+			to some uninitialized memory. [RT #18095]
 
 2373.	[bug]		Default values of zone ACLs were re-parsed each time a
 			new zone was configured, causing an overconsumption
 			of memory. [RT #18092]
 
-	--- 9.5.0 released ---
+2372.	[bug]		Fixed incorrect TAG_HMACSHA256_BITS value [RT #18047]
 
-2374.	[bug]		"blackhole" ACLs could cause named to segfault due
-			to some uninitialized memory. [RT #18095]
-
-2372.	[bug]		fixed incorrect TAG_HMACSHA256_BITS value [RT #18047]
-
-2371.	[doc]		add +nsid option to dig man page. [RT #18039]
+2371.	[doc]		Add +nsid option to dig man page. [RT #18039]
 
 2370.	[bug]		"rndc freeze" could trigger an assertion in named
 			when called on a nonexistent zone. [RT #18050]
 
-	--- 9.5.0rc1 released ---
+2369.	[bug]		libbind: Array bounds overrun on read in bitncmp().
+			[RT #18054]
 
 2368.	[port]		Linux: use libcap for capability management if
 			possible. [RT# 18026]
@@ -242,20 +296,18 @@ xxxx.	[bug]		Connecting UDP sockets for outgoing queries could
 2365.	[bug]		Fix a bug that caused dns_acl_isany() to return
 			spurious results. [RT #18000]
 
-2364.	[bug]		named could trigger an assertion when serving a
+2364.	[bug]		named could trigger a assertion when serving a
 			malformed signed zone. [RT #17828]
 
 2363.	[port]		sunos: pre-set "lt_cv_sys_max_cmd_len=4096;".
 			[RT #17513]
 
-2362.	[cleanup]	Make "rrset-order fixed" a compile-time option.
+2362.   [cleanup]	Make "rrset-order fixed" a compile-time option.
 			settable by "./configure --enable-fixed-rrset".
 			Disabled by default. [RT #17977]
 
 2361.	[bug]		"recursion" statistics counter could be counted
 			multiple times for a single query.  [RT #17990]
-
-	--- 9.5.0b3 released ---
 
 2360.	[bug]		Fix a condition where we release a database version
 			(which may acquire a lock) while holding the lock.
@@ -263,6 +315,9 @@ xxxx.	[bug]		Connecting UDP sockets for outgoing queries could
 2359.	[bug]		Fix NSID bug. [RT #17942]
 
 2358.	[doc]		Update host's default query description. [RT #17934]
+
+2357.	[port]		Don't use OpenSSL's engine support in versions before
+			OpenSSL 0.9.7f. [RT #17922]
 
 2356.	[bug]		Built in mutex profiler was not scalable enough.
 			[RT #17436]
@@ -286,6 +341,13 @@ xxxx.	[bug]		Connecting UDP sockets for outgoing queries could
 
 2350.	[port]		win32: IPv6 support. [RT #17797]
 
+2349.	[func]		Provide incremental re-signing support for secure
+			dynamic zones. [RT #1091]
+
+2348.	[func]		Use the EVP interface to OpenSSL. Add PKCS#11 support.
+			Documentation is in the new README.pkcs11 file.
+			[RT #16844]
+
 2347.	[bug]		Delete now traverses the RB tree in the canonical
 			order. [RT #17451]
 
@@ -302,6 +364,8 @@ xxxx.	[bug]		Connecting UDP sockets for outgoing queries could
 2343.	[bug]		(Seemingly) duplicate IPv6 entries could be
 			created in ADB. [RT #17837]
 
+2342.	[func]		Use getifaddrs() if available under Linux. [RT #17224]
+
 2341.	[bug]		libbind: add missing -I../include for off source
 			tree builds. [RT #17606]
 
@@ -314,12 +378,16 @@ xxxx.	[bug]		Connecting UDP sockets for outgoing queries could
 
 2337.	[bug]		BUILD_LDFLAGS was not being correctly set.  [RT #17614]
 
-2335.	[port]		sunos:  libbind and *printf() support for long long.
+2336.	[func]		If "named -6" is specified then listen on all IPv6
+			interfaces if there are not listen-on-v6 clauses in
+			named.conf.  [RT #17581]
+
+2335.	[port]		sunos:  libbind and *printf() support for long long. 
 			[RT #17513]
 
 2334.	[bug]		Bad REQUIRES in fromstruct_in_naptr(),  off by one
 			bug in fromstruct_txt(). [RT #17609]
-
+			
 2333.	[bug]		Fix off by one error in isc_time_nowplusinterval().
 			[RT #17608]
 
@@ -352,8 +420,6 @@ xxxx.	[bug]		Connecting UDP sockets for outgoing queries could
 
 2325.	[port]		Linux: use capset() function if available. [RT #17557]
 
-	--- 9.5.0b2 released ---
-
 2324.	[bug]		Fix IPv6 matching against "any;". [RT #17533]
 
 2323.	[port]		tru64: namespace clash. [RT #17547]
@@ -361,10 +427,12 @@ xxxx.	[bug]		Connecting UDP sockets for outgoing queries could
 2322.	[port]		MacOS: work around the limitation of setrlimit()
 			for RLIMIT_NOFILE. [RT #17526]
 
+2321.	[placeholder]
+
 2320.	[func]		Make statistics counters thread-safe for platforms
 			that support certain atomic operations. [RT #17466]
 
-2319.	[bug]		Silence Coverity warnings in
+2319.	[bug]		Silence Coverity warnings in 
 			lib/dns/rdata/in_1/apl_42.c. [RT #17469]
 
 2318.	[port]		sunos fixes for libbind.  [RT #17514]
@@ -374,8 +442,8 @@ xxxx.	[bug]		Connecting UDP sockets for outgoing queries could
 2316.	[port]		Missing #include <isc/print.h> in lib/dns/gssapictx.c.
 			[RT #17513]
 
-2315.	[bug]		Used incorrect address family for mapped IPv4
-			addresses in acl.c. [RT #17519]
+2315.   [bug]           Used incorrect address family for mapped IPv4
+                        addresses in acl.c. [RT #17519]
 
 2314.	[bug]		Uninitialized memory use on error path in
 			bin/named/lwdnoop.c.  [RT #17476]
@@ -386,14 +454,14 @@ xxxx.	[bug]		Connecting UDP sockets for outgoing queries could
 2312.	[cleanup]	Silence Coverity warning in lib/isc/unix/socket.c.
 			[RT #17458]
 
-2311.	[bug]		IPv6 addresses could match IPv4 ACL entries and
-			vice versa. [RT #17462]
+2311.   [bug]           IPv6 addresses could match IPv4 ACL entries and
+                        vice versa. [RT #17462]
 
 2310.	[bug]		dig, host, nslookup: flush stdout before emitting
 			debug/fatal messages.  [RT #17501]
 
-2309.	[cleanup]	Fix Coverity warnings in lib/dns/acl.c and iptable.c.
-			[RT #17455]
+2309.   [cleanup]       Fix Coverity warnings in lib/dns/acl.c and iptable.c.
+                        [RT #17455]
 
 2308.	[cleanup]	Silence Coverity warning in bin/named/controlconf.c.
 			[RT #17495]
@@ -416,7 +484,7 @@ xxxx.	[bug]		Connecting UDP sockets for outgoing queries could
 2301.	[bug]		Remove resource leak and fix error messages in
 			bin/tests/system/lwresd/lwtest.c. [RT #17474]
 
-2300.	[bug]		Fixed failure to close open file in
+2300.	[bug]		Fixed failure to close open file in 
 			bin/tests/names/t_names.c. [RT #17473]
 
 2299.	[bug]		Remove unnecessary NULL check in
@@ -445,16 +513,27 @@ xxxx.	[bug]		Connecting UDP sockets for outgoing queries could
 2292.	[bug]		Log if the working directory is not writable.
 			[RT #17312]
 
-2291.	[bug]		PR_SET_DUMPABLE may be set too late.  Also report
+2291.   [bug]           PR_SET_DUMPABLE may be set too late.  Also report
 			failure to set PR_SET_DUMPABLE. [RT #17312]
 
 2290.	[bug]		Let AD in the query signal that the client wants AD
 			set in the response. [RT #17301]
 
+2289.	[func]		named-checkzone now reports the out-of-zone CNAME
+			found. [RT #17309]
+
 2288.	[port]		win32: mark service as running when we have finished
 			loading.  [RT #17441]
 
 2287.	[bug]		Use 'volatile' if the compiler supports it. [RT #17413]
+
+2286.	[func]		Allow a TCP connection to be used as a weak
+			authentication method for reverse zones.
+			New update-policy methods tcp-self and 6to4-self.
+			[RT #17378]
+
+2285.	[func]		Test framework for client memory context management.
+			[RT #17377]
 
 2284.	[bug]		Memory leak in UPDATE prerequisite processing.
 			[RT #17377]
@@ -472,7 +551,7 @@ xxxx.	[bug]		Connecting UDP sockets for outgoing queries could
 2280.	[func]		Allow the experimental http server to be reached
 			over IPv6 as well as IPv4. [RT #17332]
 
-2279.	[bug]		Use setsockopt(SO_NOSIGPIPE), when available,
+2279.   [bug]           Use setsockopt(SO_NOSIGPIPE), when available,
 			to protect applications from receiving spurious
 			SIGPIPE signals when using the resolver.
 
@@ -507,9 +586,9 @@ xxxx.	[bug]		Connecting UDP sockets for outgoing queries could
 
 	--- 9.5.0b1 released ---
 
-2267.	[bug]		Radix tree node_num value could be set incorrectly,
-			causing positive ACL matches to look like negative
-			ones.  [RT #17311]
+2267.   [bug]           Radix tree node_num value could be set incorrectly,
+                        causing positive ACL matches to look like negative
+                        ones.  [RT #17311]
 
 2266.	[bug]		client.c:get_clientmctx() returned the same mctx
 			once the pool of mctx's was filled. [RT #17218]
@@ -525,10 +604,10 @@ xxxx.	[bug]		Connecting UDP sockets for outgoing queries could
 2262.	[bug]		Error status from all but the last view could be
 			lost. [RT #17292]
 
-2261.	[bug]		Fix memory leak with "any" and "none" ACLs [RT #17272]
+2261.   [bug]           Fix memory leak with "any" and "none" ACLs [RT #17272]
 
 2260.	[bug]		Reported wrong clients-per-query when increasing the
-			value. [RT #17236]
+                        value. [RT #17236]
 
 2259.	[placeholder]
 
@@ -550,10 +629,10 @@ xxxx.	[bug]		Connecting UDP sockets for outgoing queries could
 			intermediate values as timer->idle was reset by
 			isc_timer_touch(). [RT #17243]
 
-2253.	[func]		"max-cache-size" defaults to 32M.
+2253.	[func]	 	"max-cache-size" defaults to 32M.
 			"max-acache-size" defaults to 16M.
 
-2252.	[bug]		Fixed errors in sortlist code [RT #17216]
+2252.   [bug]           Fixed errors in sortlist code [RT #17216]
 
 2251.	[placeholder]
 
@@ -561,11 +640,11 @@ xxxx.	[bug]		Connecting UDP sockets for outgoing queries could
 			memory statistics file should be written or not.
 			Additionally named's -m option will cause the
 			statistics file to be written. [RT #17113]
+			
+2249.   [bug]           Only set Authentic Data bit if client requested
+                        DNSSEC, per RFC 3655 [RT #17175]
 
-2249.	[bug]		Only set Authentic Data bit if client requested
-			DNSSEC, per RFC 3655 [RT #17175]
-
-2248.	[cleanup]	Fix several errors reported by Coverity. [RT #17160]
+2248.   [cleanup]       Fix several errors reported by Coverity. [RT #17160]
 
 2247.	[doc]		Sort doc/misc/options. [RT #17067]
 
@@ -606,11 +685,11 @@ xxxx.	[bug]		Connecting UDP sockets for outgoing queries could
 
 2235.	[bug]		<isc/atomic.h> was not being installed. [RT #17135]
 
-2234.	[port]		Correct some compiler warnings on SCO OSr5 [RT #17134]
-
-2233.	[func]		Add support for O(1) ACL processing, based on
-			radix tree code originally written by Kevin
-			Brintnall. [RT #16288]
+2234.   [port]          Correct some compiler warnings on SCO OSr5 [RT #17134]
+  
+2233.   [func]          Add support for O(1) ACL processing, based on
+                        radix tree code originally written by Kevin
+                        Brintnall. [RT #16288]
 
 2232.	[bug]		dns_adb_findaddrinfo() could fail and return
 			ISC_R_SUCCESS. [RT #17137]
@@ -631,7 +710,7 @@ xxxx.	[bug]		Connecting UDP sockets for outgoing queries could
 2226.	[placeholder]
 
 2225.	[bug]		More support for systems with no IPv4 addresses.
-			[RT #17111]
+		        [RT #17111]
 
 2224.	[bug]		Defer journal compaction if a xfrin is in progress.
 			[RT #17119]
@@ -639,7 +718,7 @@ xxxx.	[bug]		Connecting UDP sockets for outgoing queries could
 2223.	[bug]		Make a new journal when compacting. [RT #17119]
 
 2222.	[func]		named-checkconf now checks server key references.
-			[RT #17097]
+		        [RT #17097]
 
 2221.	[bug]		Set the event result code to reflect the actual
 			record turned to caller when a cache update is
@@ -648,7 +727,7 @@ xxxx.	[bug]		Connecting UDP sockets for outgoing queries could
 
 2220.	[bug]		win32: Address a race condition in final shutdown of
 			the Windows socket code. [RT #17028]
-
+			
 2219.	[bug]		Apply zone consistency checks to additions, not
 			removals, when updating. [RT #17049]
 
@@ -658,7 +737,7 @@ xxxx.	[bug]		Connecting UDP sockets for outgoing queries could
 2217.	[func]		Adjust update log levels. [RT #17092]
 
 2216.	[cleanup]	Fix a number of errors reported by Coverity.
-			[RT #17094]
+		        [RT #17094]
 
 2215.	[bug]		Bad REQUIRE check isc_hmacsha1_verify(). [RT #17094]
 
@@ -704,7 +783,7 @@ xxxx.	[bug]		Connecting UDP sockets for outgoing queries could
 			localhost;) is used.
 
 			[RT #16987]
-
+	
 2205.	[bug]		libbind: change #2119 broke thread support. [RT #16982]
 
 2204.	[bug]		"rndc flushanme name unknown-view" caused named
@@ -843,7 +922,7 @@ xxxx.	[bug]		Connecting UDP sockets for outgoing queries could
 			allow-query-on, allow-recursion-on and
 			allow-query-cache-on. [RT #16291]
 
-2164.	[bug]		The code to determine how named-checkzone /
+2164.	[bug]		The code to determine how named-checkzone / 
 			named-compilezone was called failed under windows.
 			[RT #16764]
 
@@ -1050,14 +1129,14 @@ xxxx.	[bug]		Connecting UDP sockets for outgoing queries could
 
 2095.	[port]		libbind: alway prototype inet_cidr_ntop_ipv6() and
 			net_cidr_ntop_ipv6(). [RT #16388]
-
+ 
 2094.	[contrib]	Update named-bootconf.  [RT# 16404]
 
 2093.	[bug]		named-checkzone -s was broken.
 
 2092.	[bug]		win32: dig, host, nslookup.  Use registry config
 			if resolv.conf does not exist or no nameservers
-			listed. [RT #15877]
+			listed. [RT #15877] 
 
 2091.	[port]		dighost.c: race condition on cleanup. [RT #16417]
 
@@ -1461,7 +1540,7 @@ xxxx.	[bug]		Connecting UDP sockets for outgoing queries could
 
 1964.	[func]		Separate out MX and SRV to CNAME checks. [RT #15723]
 
-1963.	[port]		Tru64 4.0E doesn't support send() and recv().
+1963.	[port]		Tru64 4.0E doesn't support send() and recv(). 
 			[RT #15586]
 
 1962.	[bug]		Named failed to clear old update-policy when it
@@ -1504,7 +1583,7 @@ xxxx.	[bug]		Connecting UDP sockets for outgoing queries could
 1951.	[security]	Drop queries from particular well known ports.
 			Don't return FORMERR to queries from particular
 			well known ports.  [RT #15636]
-
+			
 1950.	[port]		Solaris 2.5.1 and earlier cannot bind() then connect()
 			a TCP socket. This prevents the source address being
 			set for TCP connections. [RT #15628]
@@ -1526,7 +1605,7 @@ xxxx.	[bug]		Connecting UDP sockets for outgoing queries could
 1945.	[cleanup]	dnssec-keygen: RSA (RSAMD5) is no longer recommended.
 			To generate a RSAMD5 key you must explicitly request
 			RSAMD5. [RT #13780]
-
+			
 1944.	[cleanup]	isc_hash_create() does not need a read/write lock.
 			[RT #15522]
 
@@ -1638,7 +1717,7 @@ xxxx.	[bug]		Connecting UDP sockets for outgoing queries could
 			[RT #15034]
 
 1905.	[bug]		Strings returned from cfg_obj_asstring() should be
-			treated as read-only.  The prototype for
+			treated as read-only.  The prototype for 
 			cfg_obj_asstring() has been updated to reflect this.
 			[RT #15256]
 
@@ -1770,10 +1849,10 @@ xxxx.	[bug]		Connecting UDP sockets for outgoing queries could
 1863.	[bug]		rrset-order "fixed" error messages not complete.
 
 1862.	[func]		Add additional zone data constancy checks.
-			named-checkzone has extended checking of NS, MX and
+			named-checkzone has extended checking of NS, MX and 
 			SRV record and the hosts they reference.
 			named has extended post zone load checks.
-			New zone options: check-mx and integrity-check.
+			New zone options: check-mx and integrity-check. 
 			[RT #4940]
 
 1861.	[bug]		dig could trigger a INSIST on certain malformed
@@ -1816,9 +1895,9 @@ xxxx.	[bug]		Connecting UDP sockets for outgoing queries could
 1848.	[bug]		Improve SMF integration. [RT #13238]
 
 1847.	[bug]		isc_ondestroy_init() is called too late in
-			dns_rbtdb_create()/dns_rbtdb64_create().
+			dns_rbtdb_create()/dns_rbtdb64_create(). 
 			[RT #13661]
-
+			
 1846.	[contrib]	query-loc-0.3.0 from Stephane Bortzmeyer
 			<bortzmeyer@nic.fr>.
 
@@ -2110,7 +2189,7 @@ xxxx.	[bug]		Connecting UDP sockets for outgoing queries could
 			[RT #12866]
 
 1748.	[func]		dig now returns the byte count for axfr/ixfr.
-
+			
 1747.	[bug]		BIND 8 compatibility: named/named-checkconf failed
 			to parse "host-statistics-max" in named.conf.
 
@@ -2128,7 +2207,7 @@ xxxx.	[bug]		Connecting UDP sockets for outgoing queries could
 			requested number of worker threads then destruction
 			of the manager would trigger an INSIST() failure.
 			[RT #12790]
-
+			
 1742.	[bug]		Deleting all records at a node then adding a
 			previously existing record, in a single UPDATE
 			transaction, failed to leave / regenerate the
@@ -2139,7 +2218,7 @@ xxxx.	[bug]		Connecting UDP sockets for outgoing queries could
 
 1740.	[bug]		Replace rbt's hash algorithm as it performed badly
 			with certain zones. [RT #12729]
-
+			
 			NOTE: a hash context now needs to be established
 			via isc_hash_create() if the application was not
 			already doing this.
@@ -2154,7 +2233,7 @@ xxxx.	[bug]		Connecting UDP sockets for outgoing queries could
 
 1736.	[bug]		dst_key_fromnamedfile() could fail to read a
 			public key. [RT #12687]
-
+			
 1735.	[bug]		'dig +sigtrace' could die with a REQUIRE failure.
 			[RE #12688]
 
@@ -2331,7 +2410,7 @@ xxxx.	[bug]		Connecting UDP sockets for outgoing queries could
 
 1675.	[bug]		named would sometimes add extra NSEC records to
 			the authority section.
-
+			
 1674.	[port]		linux: increase buffer size used to scan
 			/proc/net/if_inet6.
 
@@ -2405,7 +2484,7 @@ xxxx.	[bug]		Connecting UDP sockets for outgoing queries could
 
 1648.	[func]		Update dnssec-lookaside named.conf syntax to support
 			multiple dnssec-lookaside namespaces (not yet
-			implemented).
+			implemented).  
 
 1647.	[bug]		It was possible trigger a INSIST when chasing a DS
 			record that required walking back over a empty node.
@@ -2435,7 +2514,7 @@ xxxx.	[bug]		Connecting UDP sockets for outgoing queries could
 
 1638.	[bug]		"ixfr-from-differences" could generate a REQUIRE
 			failure if the journal open failed. [RT #11347]
-
+			
 1637.	[bug]		Node reference leak on error in addnoqname().
 
 1636.	[bug]		The dump done callback could get ISC_R_SUCCESS even if
@@ -2529,21 +2608,21 @@ xxxx.	[bug]		Connecting UDP sockets for outgoing queries could
 1607.	[bug]		dig, host and nslookup were still using random()
 			to generate query ids. [RT# 11013]
 
-1606.	[bug]		DLV insecurity proof was failing.
+1606.	[bug]	 	DLV insecurity proof was failing.
 
 1605.	[func]		New dns_db_find() option DNS_DBFIND_COVERINGNSEC.
 
 1604.	[bug]		A xfrout_ctx_create() failure would result in
 			xfrout_ctx_destroy() being called with a
 			partially initialized structure.
-
+			
 1603.	[bug]		nsupdate: set interactive based on isatty().
 			[RT# 10929]
 
 1602.	[bug]		Logging to a file failed unless a size was specified.
 			[RT# 10925]
 
-1601.	[bug]		Silence spurious warning 'both "recursion no;" and
+1601.	[bug]		Silence spurious warning 'both "recursion no;" and 
 			"allow-recursion" active' warning from view "_bind".
 			[RT# 10920]
 

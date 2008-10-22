@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: db.c,v 1.83.128.2 2008/04/03 06:20:34 tbox Exp $ */
+/* $Id: db.c,v 1.88 2008/09/24 02:46:22 marka Exp $ */
 
 /*! \file */
 
@@ -226,6 +226,21 @@ dns_db_isstub(dns_db_t *db) {
 		return (ISC_TRUE);
 
 	return (ISC_FALSE);
+}
+
+isc_boolean_t
+dns_db_isdnssec(dns_db_t *db) {
+
+	/*
+	 * Is 'db' secure or partially secure?
+	 */
+
+	REQUIRE(DNS_DB_VALID(db));
+	REQUIRE((db->attributes & DNS_DBATTR_CACHE) == 0);
+
+	if (db->methods->isdnssec != NULL)
+		return ((db->methods->isdnssec)(db));
+	return ((db->methods->issecure)(db));
 }
 
 isc_boolean_t
@@ -450,6 +465,21 @@ dns_db_findnode(dns_db_t *db, dns_name_t *name,
 }
 
 isc_result_t
+dns_db_findnsec3node(dns_db_t *db, dns_name_t *name,
+		     isc_boolean_t create, dns_dbnode_t **nodep)
+{
+
+	/*
+	 * Find the node with name 'name'.
+	 */
+
+	REQUIRE(DNS_DB_VALID(db));
+	REQUIRE(nodep != NULL && *nodep == NULL);
+
+	return ((db->methods->findnsec3node)(db, name, create, nodep));
+}
+
+isc_result_t
 dns_db_find(dns_db_t *db, dns_name_t *name, dns_dbversion_t *version,
 	    dns_rdatatype_t type, unsigned int options, isc_stdtime_t now,
 	    dns_dbnode_t **nodep, dns_name_t *foundname,
@@ -583,7 +613,7 @@ dns_db_printnode(dns_db_t *db, dns_dbnode_t *node, FILE *out) {
  ***/
 
 isc_result_t
-dns_db_createiterator(dns_db_t *db, isc_boolean_t relative_names,
+dns_db_createiterator(dns_db_t *db, unsigned int flags,
 		      dns_dbiterator_t **iteratorp)
 {
 	/*
@@ -593,7 +623,7 @@ dns_db_createiterator(dns_db_t *db, isc_boolean_t relative_names,
 	REQUIRE(DNS_DB_VALID(db));
 	REQUIRE(iteratorp != NULL && *iteratorp == NULL);
 
-	return (db->methods->createiterator(db, relative_names, iteratorp));
+	return (db->methods->createiterator(db, flags, iteratorp));
 }
 
 /***
@@ -832,6 +862,18 @@ dns_db_unregister(dns_dbimplementation_t **dbimp) {
 	RWUNLOCK(&implock, isc_rwlocktype_write);
 }
 
+isc_result_t
+dns_db_getoriginnode(dns_db_t *db, dns_dbnode_t **nodep) {
+	REQUIRE(DNS_DB_VALID(db));
+	REQUIRE(dns_db_iszone(db) == ISC_TRUE);
+	REQUIRE(nodep != NULL && *nodep == NULL);
+
+	if (db->methods->getoriginnode != NULL)
+		return ((db->methods->getoriginnode)(db, nodep));
+
+	return (ISC_R_NOTFOUND);
+}
+
 dns_stats_t *
 dns_db_getrrsetstats(dns_db_t *db) {
 	REQUIRE(DNS_DB_VALID(db));
@@ -843,13 +885,42 @@ dns_db_getrrsetstats(dns_db_t *db) {
 }
 
 isc_result_t
-dns_db_getoriginnode(dns_db_t *db, dns_dbnode_t **nodep) {
+dns_db_getnsec3parameters(dns_db_t *db, dns_dbversion_t *version,
+			  dns_hash_t *hash, isc_uint8_t *flags,
+			  isc_uint16_t *iterations,
+			  unsigned char *salt, size_t *salt_length)
+{
 	REQUIRE(DNS_DB_VALID(db));
 	REQUIRE(dns_db_iszone(db) == ISC_TRUE);
-	REQUIRE(nodep != NULL && *nodep == NULL);
 
-	if (db->methods->getoriginnode != NULL)
-		return ((db->methods->getoriginnode)(db, nodep));
+	if (db->methods->getnsec3parameters != NULL)
+		return ((db->methods->getnsec3parameters)(db, version, hash,
+							  flags, iterations,
+							  salt, salt_length));
 
 	return (ISC_R_NOTFOUND);
+}
+
+isc_result_t
+dns_db_setsigningtime(dns_db_t *db, dns_rdataset_t *rdataset,
+		      isc_stdtime_t resign)
+{
+	if (db->methods->setsigningtime != NULL)
+		return ((db->methods->setsigningtime)(db, rdataset, resign));
+	return (ISC_R_NOTIMPLEMENTED);
+}
+
+isc_result_t
+dns_db_getsigningtime(dns_db_t *db, dns_rdataset_t *rdataset, dns_name_t *name)
+{
+	if (db->methods->getsigningtime != NULL)
+		return ((db->methods->getsigningtime)(db, rdataset, name));
+	return (ISC_R_NOTFOUND);
+}
+
+void
+dns_db_resigned(dns_db_t *db, dns_rdataset_t *rdataset, dns_dbversion_t *version)
+{
+	if (db->methods->resigned != NULL)
+		(db->methods->resigned)(db, rdataset, version);
 }

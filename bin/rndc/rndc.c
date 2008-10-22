@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rndc.c,v 1.118.128.3 2008/07/23 23:31:17 marka Exp $ */
+/* $Id: rndc.c,v 1.121 2008/07/23 23:27:54 marka Exp $ */
 
 /*! \file */
 

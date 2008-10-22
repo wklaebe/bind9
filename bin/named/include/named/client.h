@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: client.h,v 1.82.128.2 2008/04/03 06:08:26 tbox Exp $ */
+/* $Id: client.h,v 1.86 2008/04/03 02:01:08 marka Exp $ */
 
 #ifndef NAMED_CLIENT_H
 #define NAMED_CLIENT_H 1
@@ -97,6 +97,13 @@ struct ns_client {
 	int			nupdates;
 	int			nctls;
 	int			references;
+	isc_boolean_t		needshutdown; 	/*
+						 * Used by clienttest to get
+						 * the client to go from
+						 * inactive to free state
+						 * by shutting down the
+						 * client's task.
+						 */
 	unsigned int		attributes;
 	isc_task_t *		task;
 	dns_view_t *		view;

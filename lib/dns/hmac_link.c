@@ -1,5 +1,5 @@
 /*
- * Portions Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
+ * Portions Copyright (C) 2004-2008  Internet Systems Consortium, Inc. ("ISC")
  * Portions Copyright (C) 1999-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -31,7 +31,7 @@
 
 /*
  * Principal Author: Brian Wellington
- * $Id: hmac_link.c,v 1.9 2007/08/28 07:20:42 tbox Exp $
+ * $Id: hmac_link.c,v 1.11 2008/04/01 23:47:10 tbox Exp $
  */
 
 #include <config.h>
@@ -285,7 +285,7 @@ hmacmd5_parse(dst_key_t *key, isc_lex_t *lexer) {
 		switch (priv.elements[i].tag) {
 		case TAG_HMACMD5_KEY:
 			isc_buffer_init(&b, priv.elements[i].data,
-				        priv.elements[i].length);
+					priv.elements[i].length);
 			isc_buffer_add(&b, priv.elements[i].length);
 			tresult = hmacmd5_fromdns(key, &b);
 			if (tresult != ISC_R_SUCCESS)
@@ -323,6 +323,7 @@ static dst_func_t hmacmd5_functions = {
 	hmacmd5_tofile,
 	hmacmd5_parse,
 	NULL, /*%< cleanup */
+	NULL, /*%< fromlabel */
 };
 
 isc_result_t
@@ -554,7 +555,7 @@ hmacsha1_parse(dst_key_t *key, isc_lex_t *lexer) {
 		switch (priv.elements[i].tag) {
 		case TAG_HMACSHA1_KEY:
 			isc_buffer_init(&b, priv.elements[i].data,
-				        priv.elements[i].length);
+					priv.elements[i].length);
 			isc_buffer_add(&b, priv.elements[i].length);
 			tresult = hmacsha1_fromdns(key, &b);
 			if (tresult != ISC_R_SUCCESS)
@@ -592,6 +593,7 @@ static dst_func_t hmacsha1_functions = {
 	hmacsha1_tofile,
 	hmacsha1_parse,
 	NULL, /* cleanup */
+	NULL, /* fromlabel */
 };
 
 isc_result_t
@@ -823,7 +825,7 @@ hmacsha224_parse(dst_key_t *key, isc_lex_t *lexer) {
 		switch (priv.elements[i].tag) {
 		case TAG_HMACSHA224_KEY:
 			isc_buffer_init(&b, priv.elements[i].data,
-				        priv.elements[i].length);
+					priv.elements[i].length);
 			isc_buffer_add(&b, priv.elements[i].length);
 			tresult = hmacsha224_fromdns(key, &b);
 			if (tresult != ISC_R_SUCCESS)
@@ -861,6 +863,7 @@ static dst_func_t hmacsha224_functions = {
 	hmacsha224_tofile,
 	hmacsha224_parse,
 	NULL, /* cleanup */
+	NULL, /* fromlabel */
 };
 
 isc_result_t
@@ -1092,7 +1095,7 @@ hmacsha256_parse(dst_key_t *key, isc_lex_t *lexer) {
 		switch (priv.elements[i].tag) {
 		case TAG_HMACSHA256_KEY:
 			isc_buffer_init(&b, priv.elements[i].data,
-				        priv.elements[i].length);
+					priv.elements[i].length);
 			isc_buffer_add(&b, priv.elements[i].length);
 			tresult = hmacsha256_fromdns(key, &b);
 			if (tresult != ISC_R_SUCCESS)
@@ -1130,6 +1133,7 @@ static dst_func_t hmacsha256_functions = {
 	hmacsha256_tofile,
 	hmacsha256_parse,
 	NULL, /* cleanup */
+	NULL, /* fromlabel */
 };
 
 isc_result_t
@@ -1361,7 +1365,7 @@ hmacsha384_parse(dst_key_t *key, isc_lex_t *lexer) {
 		switch (priv.elements[i].tag) {
 		case TAG_HMACSHA384_KEY:
 			isc_buffer_init(&b, priv.elements[i].data,
-				        priv.elements[i].length);
+					priv.elements[i].length);
 			isc_buffer_add(&b, priv.elements[i].length);
 			tresult = hmacsha384_fromdns(key, &b);
 			if (tresult != ISC_R_SUCCESS)
@@ -1399,6 +1403,7 @@ static dst_func_t hmacsha384_functions = {
 	hmacsha384_tofile,
 	hmacsha384_parse,
 	NULL, /* cleanup */
+	NULL, /* fromlabel */
 };
 
 isc_result_t
@@ -1630,7 +1635,7 @@ hmacsha512_parse(dst_key_t *key, isc_lex_t *lexer) {
 		switch (priv.elements[i].tag) {
 		case TAG_HMACSHA512_KEY:
 			isc_buffer_init(&b, priv.elements[i].data,
-				        priv.elements[i].length);
+					priv.elements[i].length);
 			isc_buffer_add(&b, priv.elements[i].length);
 			tresult = hmacsha512_fromdns(key, &b);
 			if (tresult != ISC_R_SUCCESS)
@@ -1668,6 +1673,7 @@ static dst_func_t hmacsha512_functions = {
 	hmacsha512_tofile,
 	hmacsha512_parse,
 	NULL, /* cleanup */
+	NULL, /* fromlabel */
 };
 
 isc_result_t

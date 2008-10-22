@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: apl_42.c,v 1.12.128.2 2008/01/22 23:27:35 tbox Exp $ */
+/* $Id: apl_42.c,v 1.14 2008/01/22 23:28:04 tbox Exp $ */
 
 /* RFC3123 */
 

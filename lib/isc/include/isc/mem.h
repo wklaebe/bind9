@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: mem.h,v 1.72.128.3 2008/03/31 05:06:47 marka Exp $ */
+/* $Id: mem.h,v 1.78 2008/03/31 05:00:30 marka Exp $ */
 
 #ifndef ISC_MEM_H
 #define ISC_MEM_H 1
@@ -360,6 +360,7 @@ isc_mem_setwater(isc_mem_t *mctx, isc_mem_water_t water, void *water_arg,
  *		}
  *		UNLOCK(&foo->marklock);
  *	}
+ *
  * If 'water' is NULL then 'water_arg', 'hi_water' and 'lo_water' are
  * ignored and the state is reset.
  *
@@ -397,6 +398,12 @@ isc_mem_checkdestroyed(FILE *file);
  * Check that all memory contexts have been destroyed.
  * Prints out those that have not been.
  * Fatally fails if there are still active contexts.
+ */
+
+unsigned int
+isc_mem_references(isc_mem_t *ctx);
+/*%<
+ * Return the current reference count.
  */
 
 void

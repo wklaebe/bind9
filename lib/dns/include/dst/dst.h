@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2008  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dst.h,v 1.9 2007/06/19 23:47:17 tbox Exp $ */
+/* $Id: dst.h,v 1.12 2008/09/24 02:46:23 marka Exp $ */
 
 #ifndef DST_DST_H
 #define DST_DST_H 1
@@ -51,6 +51,8 @@ typedef struct dst_context 	dst_context_t;
 #define DST_ALG_DSA		3
 #define DST_ALG_ECC		4
 #define DST_ALG_RSASHA1		5
+#define DST_ALG_NSEC3DSA	6
+#define DST_ALG_NSEC3RSASHA1	7
 #define DST_ALG_HMACMD5		157
 #define DST_ALG_GSSAPI		160
 #define DST_ALG_HMACSHA1	161	/* XXXMPA */
@@ -433,6 +435,12 @@ dst_key_fromgssapi(dns_name_t *name, gss_ctx_id_t gssctx, isc_mem_t *mctx,
  *\li	If successful, *keyp will contain a valid key and be responsible for
  *	the context id.
  */
+
+isc_result_t
+dst_key_fromlabel(dns_name_t *name, int alg, unsigned int flags,
+		  unsigned int protocol, dns_rdataclass_t rdclass,
+		  const char *engine, const char *label, const char *pin,
+		  isc_mem_t *mctx, dst_key_t **keyp);
 
 isc_result_t
 dst_key_generate(dns_name_t *name, unsigned int alg,

@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: lex.h,v 1.35.128.2 2008/05/30 23:46:31 tbox Exp $ */
+/* $Id: lex.h,v 1.37 2008/05/30 23:47:01 tbox Exp $ */
 
 #ifndef ISC_LEX_H
 #define ISC_LEX_H 1

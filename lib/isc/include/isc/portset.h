@@ -14,7 +14,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: portset.h,v 1.3.2.2 2008/06/24 23:46:26 tbox Exp $ */
+/* $Id: portset.h,v 1.3 2008/06/23 23:47:11 tbox Exp $ */
 
 /*! \file isc/portset.h
  * \brief Transport Protocol Port Manipuration Module

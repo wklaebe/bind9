@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: stats.c,v 1.12.128.4 2008/04/03 06:20:34 tbox Exp $ */
+/* $Id: stats.c,v 1.16 2008/04/03 06:09:04 tbox Exp $ */
 
 /*! \file */
 

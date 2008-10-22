@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: msgs.h,v 1.15.128.2 2008/08/08 06:28:28 tbox Exp $ */
+/* $Id: msgs.h,v 1.17 2008/08/08 06:28:59 tbox Exp $ */
 
 #ifndef ISC_MSGS_H
 #define ISC_MSGS_H 1

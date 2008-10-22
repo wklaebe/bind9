@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: errno2result.c,v 1.14.128.5 2008/09/11 23:46:38 tbox Exp $ */
+/* $Id: errno2result.c,v 1.17 2008/09/12 04:46:25 marka Exp $ */
 
 #include <config.h>
 

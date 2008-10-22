@@ -17,7 +17,7 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<!-- $Id: named.conf.docbook,v 1.34.38.2 2008/09/04 23:46:41 tbox Exp $ -->
+<!-- $Id: named.conf.docbook,v 1.39 2008/09/24 02:46:21 marka Exp $ -->
 <refentry>
   <refentryinfo>
     <date>Aug 13, 2004</date>
@@ -317,7 +317,12 @@ options {
 	max-refresh-time <replaceable>integer</replaceable>;
 	min-refresh-time <replaceable>integer</replaceable>;
 	multi-master <replaceable>boolean</replaceable>;
+
 	sig-validity-interval <replaceable>integer</replaceable>;
+	sig-re-signing-interval <replaceable>integer</replaceable>;
+	sig-signing-nodes <replaceable>integer</replaceable>;
+	sig-signing-signatures <replaceable>integer</replaceable>;
+	sig-signing-type <replaceable>integer</replaceable>;
 
 	transfer-source ( <replaceable>ipv4_address</replaceable> | * )
 		<optional> port ( <replaceable>integer</replaceable> | * ) </optional>;
@@ -335,6 +340,8 @@ options {
 	try-tcp-refresh <replaceable>boolean</replaceable>;
 	zero-no-soa-ttl <replaceable>boolean</replaceable>;
 	zero-no-soa-ttl-cache <replaceable>boolean</replaceable>;
+
+	nsec3-test-zone <replaceable>boolean</replaceable>;  // testing only
 
 	allow-v6-synthesis { <replaceable>address_match_element</replaceable>; ... }; // obsolete
 	deallocate-on-exit <replaceable>boolean</replaceable>; // obsolete
@@ -534,7 +541,9 @@ zone <replaceable>string</replaceable> <replaceable>optional_class</replaceable>
 	allow-update-forwarding { <replaceable>address_match_element</replaceable>; ... };
 	update-policy {
 		( grant | deny ) <replaceable>string</replaceable>
-		( name | subdomain | wildcard | self ) <replaceable>string</replaceable>
+		( name | subdomain | wildcard | self | selfsub | selfwild |
+                  krb5-self | ms-self | krb5-subdomain | ms-subdomain |
+		  tcp-self | 6to4-self ) <replaceable>string</replaceable>
 		<replaceable>rrtypelist</replaceable>; ...
 	};
 	update-check-ksk <replaceable>boolean</replaceable>;
@@ -580,6 +589,8 @@ zone <replaceable>string</replaceable> <replaceable>optional_class</replaceable>
 	zone-statistics <replaceable>boolean</replaceable>;
 	try-tcp-refresh <replaceable>boolean</replaceable>;
 	key-directory <replaceable>quoted_string</replaceable>;
+
+	nsec3-test-zone <replaceable>boolean</replaceable>;  // testing only
 
 	ixfr-base <replaceable>quoted_string</replaceable>; // obsolete
 	ixfr-tmp-file <replaceable>quoted_string</replaceable>; // obsolete

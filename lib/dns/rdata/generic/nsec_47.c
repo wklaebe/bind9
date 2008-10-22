@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: nsec_47.c,v 1.9.128.2 2008/07/15 23:46:46 tbox Exp $ */
+/* $Id: nsec_47.c,v 1.11 2008/07/15 23:47:21 tbox Exp $ */
 
 /* reviewed: Wed Mar 15 18:21:15 PST 2000 by brister */
 

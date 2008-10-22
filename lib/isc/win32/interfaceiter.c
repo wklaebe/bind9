@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: interfaceiter.c,v 1.10.128.3 2008/04/18 19:47:26 each Exp $ */
+/* $Id: interfaceiter.c,v 1.13 2008/04/18 19:47:48 each Exp $ */
 
 /*
  * Note that this code will need to be revisited to support IPv6 Interfaces.

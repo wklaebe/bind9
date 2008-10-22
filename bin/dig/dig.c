@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dig.c,v 1.218.12.3 2008/04/03 02:12:21 marka Exp $ */
+/* $Id: dig.c,v 1.221 2008/04/03 02:01:08 marka Exp $ */
 
 /*! \file */
 

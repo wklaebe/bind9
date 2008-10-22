@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: main.c,v 1.158.48.3 2008/08/21 00:01:02 jinmei Exp $ */
+/* $Id: main.c,v 1.164 2008/09/23 17:25:47 jinmei Exp $ */
 
 /*! \file */
 
@@ -358,7 +358,7 @@ parse_command_line(int argc, char *argv[]) {
 	isc_commandline_errprint = ISC_FALSE;
 	while ((ch = isc_commandline_parse(argc, argv,
 					   "46c:C:d:fgi:lm:n:N:p:P:"
-					   "sS:t:u:vx:")) != -1) {
+					   "sS:t:T:u:vVx:")) != -1) {
 		switch (ch) {
 		case '4':
 			if (disable4)
@@ -445,11 +445,26 @@ parse_command_line(int argc, char *argv[]) {
 			/* XXXJAB should we make a copy? */
 			ns_g_chrootdir = isc_commandline_argument;
 			break;
+		case 'T':
+			/*
+			 * clienttest: make clients single shot with their
+			 * 	       own memory context.
+			 */
+			if (strcmp(isc_commandline_argument, "clienttest") == 0)
+				ns_g_clienttest = ISC_TRUE;
+			else
+				fprintf(stderr, "unknown -T flag '%s\n",
+					isc_commandline_argument);
+			break;
 		case 'u':
 			ns_g_username = isc_commandline_argument;
 			break;
 		case 'v':
 			printf("BIND %s\n", ns_g_version);
+			exit(0);
+		case 'V':
+			printf("BIND %s built with %s\n", ns_g_version,
+				ns_g_configargs);
 			exit(0);
 		case '?':
 			usage();
@@ -657,6 +672,9 @@ setup(void) {
 	isc_log_write(ns_g_lctx, NS_LOGCATEGORY_GENERAL, NS_LOGMODULE_MAIN,
 		      ISC_LOG_NOTICE, "starting BIND %s%s", ns_g_version,
 		      saved_command_line);
+
+	isc_log_write(ns_g_lctx, NS_LOGCATEGORY_GENERAL, NS_LOGMODULE_MAIN,
+		      ISC_LOG_NOTICE, "built with %s", ns_g_configargs);
 
 	/*
 	 * Get the initial resource limits.

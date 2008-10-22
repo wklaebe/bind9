@@ -14,7 +14,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: statschannel.c,v 1.2.2.13 2008/08/08 05:10:34 marka Exp $ */
+/* $Id: statschannel.c,v 1.14 2008/08/08 05:06:49 marka Exp $ */
 
 /*! \file */
 

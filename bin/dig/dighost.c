@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dighost.c,v 1.259.18.47 2008/01/17 23:45:57 tbox Exp $ */
+/* $Id: dighost.c,v 1.259.18.49 2008/07/23 23:33:02 marka Exp $ */
 
 /*! \file
  *  \note
@@ -2220,14 +2220,15 @@ send_tcp_connect(dig_query_t *query) {
 	sockcount++;
 	debug("sockcount=%d", sockcount);
 	if (specified_source)
-		result = isc_socket_bind(query->sock, &bind_address);
+		result = isc_socket_bind(query->sock, &bind_address,
+					 ISC_SOCKET_REUSEADDRESS);
 	else {
 		if ((isc_sockaddr_pf(&query->sockaddr) == AF_INET) &&
 		    have_ipv4)
 			isc_sockaddr_any(&bind_any);
 		else
 			isc_sockaddr_any6(&bind_any);
-		result = isc_socket_bind(query->sock, &bind_any);
+		result = isc_socket_bind(query->sock, &bind_any, 0);
 	}
 	check_result(result, "isc_socket_bind");
 	bringup_timer(query, TCP_TIMEOUT);
@@ -2274,11 +2275,12 @@ send_udp(dig_query_t *query) {
 		sockcount++;
 		debug("sockcount=%d", sockcount);
 		if (specified_source) {
-			result = isc_socket_bind(query->sock, &bind_address);
+			result = isc_socket_bind(query->sock, &bind_address,
+						 ISC_SOCKET_REUSEADDRESS);
 		} else {
 			isc_sockaddr_anyofpf(&bind_any,
 					isc_sockaddr_pf(&query->sockaddr));
-			result = isc_socket_bind(query->sock, &bind_any);
+			result = isc_socket_bind(query->sock, &bind_any, 0);
 		}
 		check_result(result, "isc_socket_bind");
 

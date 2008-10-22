@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: resolver.c,v 1.284.18.75 2008/06/24 02:02:50 jinmei Exp $ */
+/* $Id: resolver.c,v 1.284.18.78 2008/09/04 04:56:52 marka Exp $ */
 
 /*! \file */
 
@@ -1049,9 +1049,9 @@ fctx_setretryinterval(fetchctx_t *fctx, unsigned int rtt) {
 	 * list, and then we do exponential back-off.
 	 */
 	if (fctx->restarts < 3)
-		us = 500000;
+		us = 800000;
 	else
-		us = (500000 << (fctx->restarts - 2));
+		us = (800000 << (fctx->restarts - 2));
 
 	/*
 	 * Double the round-trip time.
@@ -1172,7 +1172,7 @@ fctx_query(fetchctx_t *fctx, dns_adbaddrinfo_t *addrinfo,
 			goto cleanup_query;
 
 #ifndef BROKEN_TCP_BIND_BEFORE_CONNECT
-		result = isc_socket_bind(query->tcpsocket, &addr);
+		result = isc_socket_bind(query->tcpsocket, &addr, 0);
 		if (result != ISC_R_SUCCESS)
 			goto cleanup_socket;
 #endif
@@ -2746,7 +2746,7 @@ fctx_timeout(isc_task_t *task, isc_event_t *event) {
 		 * them keep going.  Since we normally use separate sockets for
 		 * different queries, we adopt the former approach to reduce
 		 * the number of open sockets: cancel the oldest query if it
-		 * expired before the query had started (this is usually the
+		 * expired after the query had started (this is usually the
 		 * case but is not always so, depending on the task schedule
 		 * timing).
 		 */

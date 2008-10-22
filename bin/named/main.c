@@ -1,8 +1,8 @@
 /*
- * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2006, 2008  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
- * Permission to use, copy, modify, and distribute this software for any
+ * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: main.c,v 1.136.18.17 2006/11/10 18:51:14 marka Exp $ */
+/* $Id: main.c,v 1.136.18.19 2008/08/21 23:46:01 tbox Exp $ */
 
 /*! \file */
 
@@ -85,6 +85,7 @@ static char		program_name[ISC_DIR_NAMEMAX] = "named";
 static char		absolute_conffile[ISC_DIR_PATHMAX];
 static char		saved_command_line[512];
 static char		version[512];
+static unsigned int	maxsocks = 0;
 
 void
 ns_main_earlywarning(const char *format, ...) {
@@ -356,7 +357,8 @@ parse_command_line(int argc, char *argv[]) {
 
 	isc_commandline_errprint = ISC_FALSE;
 	while ((ch = isc_commandline_parse(argc, argv,
-			           "46c:C:d:fgi:lm:n:N:p:P:st:u:vx:")) != -1) {
+					   "46c:C:d:fgi:lm:n:N:p:P:"
+					   "sS:t:u:vx:")) != -1) {
 		switch (ch) {
 		case '4':
 			if (disable4)
@@ -435,6 +437,10 @@ parse_command_line(int argc, char *argv[]) {
 			/* XXXRTH temporary syntax */
 			want_stats = ISC_TRUE;
 			break;
+		case 'S':
+			maxsocks = parse_int(isc_commandline_argument,
+					     "max number of sockets");
+			break;
 		case 't':
 			/* XXXJAB should we make a copy? */
 			ns_g_chrootdir = isc_commandline_argument;
@@ -466,6 +472,7 @@ parse_command_line(int argc, char *argv[]) {
 static isc_result_t
 create_managers(void) {
 	isc_result_t result;
+	unsigned int socks;
 #ifdef ISC_PLATFORM_USETHREADS
 	unsigned int cpus_detected;
 #endif
@@ -497,12 +504,18 @@ create_managers(void) {
 		return (ISC_R_UNEXPECTED);
 	}
 
-	result = isc_socketmgr_create(ns_g_mctx, &ns_g_socketmgr);
+	result = isc_socketmgr_create2(ns_g_mctx, &ns_g_socketmgr, maxsocks);
 	if (result != ISC_R_SUCCESS) {
 		UNEXPECTED_ERROR(__FILE__, __LINE__,
 				 "isc_socketmgr_create() failed: %s",
 				 isc_result_totext(result));
 		return (ISC_R_UNEXPECTED);
+	}
+	result = isc_socketmgr_getmaxsockets(ns_g_socketmgr, &socks);
+	if (result == ISC_R_SUCCESS) {
+		isc_log_write(ns_g_lctx, NS_LOGCATEGORY_GENERAL,
+			      NS_LOGMODULE_SERVER,
+			      ISC_LOG_INFO, "using up to %u sockets", socks);
 	}
 
 	result = isc_entropy_create(ns_g_mctx, &ns_g_entropy);
@@ -665,7 +678,7 @@ setup(void) {
 					       sizeof(absolute_conffile));
 		if (result != ISC_R_SUCCESS)
 			ns_main_earlyfatal("could not construct absolute path of "
-					   "configuration file: %s", 
+					   "configuration file: %s",
 					   isc_result_totext(result));
 		ns_g_conffile = absolute_conffile;
 	}
@@ -757,7 +770,7 @@ ns_smf_get_instance(char **ins_name, int debug, isc_mem_t *mctx) {
 		if (debug)
 			UNEXPECTED_ERROR(__FILE__, __LINE__,
 					 "scf_handle_create() failed: %s",
-			 		 scf_strerror(scf_error()));
+					 scf_strerror(scf_error()));
 		return (ISC_R_FAILURE);
 	}
 

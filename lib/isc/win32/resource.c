@@ -1,8 +1,8 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2008  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000, 2001  Internet Software Consortium.
  *
- * Permission to use, copy, modify, and distribute this software for any
+ * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: resource.c,v 1.6 2004/03/05 05:11:58 marka Exp $ */
+/* $Id: resource.c,v 1.6.18.2 2008/08/01 23:45:58 tbox Exp $ */
 
 #include <config.h>
 
@@ -64,4 +64,9 @@ isc_resource_getlimit(isc_resource_t resource, isc_resourcevalue_t *value) {
 
 	*value = WIN32_MAX_OPEN_FILES;
 	return (ISC_R_SUCCESS);
+}
+
+isc_result_t
+isc_resource_getcurlimit(isc_resource_t resource, isc_resourcevalue_t *value) {
+	return (isc_resource_getlimit(resource, value));
 }

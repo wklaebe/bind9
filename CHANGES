@@ -1,3 +1,130 @@
+	--- 9.4.3b3 released ---
+
+2443.	[bug]		win32: UDP connect() would not generate an event,
+			and so connected UDP sockets would never clean up.
+			Fix this by doing an immediate WSAConnect() rather
+			than an io completion port type for UDP.
+
+2438.	[bug]		Timeouts could be logged incorrectly under win32.
+			[RT #18617]
+
+2437.	[bug]		Sockets could be closed too early, leading to
+			inconsistent states in the socket module. [RT #18298]
+
+2436.	[security]	win32: UDP client handler can be shutdown. [RT #18576]
+
+2433.	[tuning]	Set initial timeout to 800ms.
+
+2432.	[bug]		More Windows socket handling improvements.  Stop
+			using I/O events and use IO Completion Ports
+			throughout.  Rewrite the receive path logic to make
+			it easier to support multiple simultaneous
+			requestrs in the future.  Add stricter consistency
+			checking as a compile-time option (define
+			ISC_SOCKET_CONSISTENCY_CHECKS; defaults to off).
+
+2430.	[bug]		win32: isc_interval_set() could round down to
+			zero if the input was less than NS_INTERVAL
+			nanoseconds.  Round up instead. [RT #18549]
+
+2429.	[doc]		nsupdate should be in section 1 of the man pages.
+			[RT #18283]
+
+2426.	[bug]		libbind: inet_net_pton() can sometimes return the
+			wrong value if excessively large netmasks are
+			supplied. [RT #18512]
+
+2425.	[bug]		named didn't detect unavailable query source addresses
+			at load time. [RT #18536]
+
+2424.	[port]		configure now probes for a working epoll
+			implementation.  Allow the use of kqueue,
+			epoll and /dev/poll to be selected at compile
+			time. [RT #18277]
+			
+2422.	[bug]		Handle the special return value of a empty node as
+			if it was a NXRRSET in the validator. [RT #18447]
+
+2421.	[func]		Add new command line option '-S' for named to specify
+			the max number of sockets. [RT #18493]
+			Use caution: this option may not work for some
+			operating systems without rebuilding named.
+
+2420.	[bug]		Windows socket handling cleanup.  Let the io
+			completion event send out cancelled read/write
+			done events, which keeps us from writing to memeory
+			we no longer have ownership of.  Add debugging
+			socket_log() function.  Rework TCP socket handling
+			to not leak sockets.
+
+2417.	[bug]		Connecting UDP sockets for outgoing queries could
+			unexpectedly fail with an 'address already in use'
+			error. [RT #18411]
+
+2416.	[func]		Log file descriptors that cause exceeding the
+			internal maximum. [RT #18460]
+
+2414.	[bug]		A masterdump context held the database lock too long,
+			causing various troubles such as dead lock and
+			recursive lock acquisition. [RT #18311, #18456]
+
+2413.	[bug]		Fixed an unreachable code path in socket.c. [RT #18442]
+
+2412.	[bug]		win32: address a resourse leak. [RT #18374]
+
+2411.	[bug]		Allow using a larger number of sockets than FD_SETSIZE
+			for select().  To enable this, set ISC_SOCKET_MAXSOCKETS
+			at compilation time.  [RT #18433]
+
+2410.	[bug]		Correctly delete m_versionInfo. [RT #18432]
+
+2408.	[bug]		A duplicate TCP dispatch event could be sent, which
+			could then trigger an assertion failure in
+			resquery_response().  [RT #18275]
+
+2407.	[port]		hpux: test for sys/dyntune.h. [RT #18421]
+
+2404.	[port]		hpux: files unlimited support.
+
+2403.	[bug]		TSIG context leak. [RT #18341]
+
+2402.	[port]		Support Solaris 2.11 and over. [RT #18362]
+
+2401.	[bug]		Expect to get E[MN]FILE errno internal_accept()
+			(from accept() or fcntl() system calls). [RT #18358]
+
+2399.	[bug]		Abort timeout queries to reduce the number of open
+			UDP sockets. [RT #18367]
+
+2398.	[bug]           Improve file descriptor management.  New,
+			temporary, named.conf option reserved-sockets,
+			default 512. [RT #18344]
+
+2396.	[bug]		Don't set SO_REUSEADDR for randomized ports.
+			[RT #18336]
+
+2395.	[port]		Avoid warning and no effect from "files unlimited"
+			on Linux when running as root. [RT #18335]
+
+2394.	[bug]		Default configuration options set the limit for
+			open files to 'unlimited' as described in the
+			documentation. [RT #18331]
+
+2392.	[bug]		remove 'grep -q' from acl test script, some platforms
+			don't support it. [RT #18253]
+
+2391	[port]		hpux: cover additional recvmsg() error codes.
+			[RT #18301]
+
+2390	[bug]		dispatch.c could make a false warning on 'odd socket'.
+			[RT #18301].
+
+2389	[bug]		Move the "working directory writable" check to after
+			the ns_os_changeuser() call. [RT #18326]
+
+2386.	[func]		Add warning about too small 'open files' limit.
+			[RT #18269]
+
 	--- 9.4.3b2 released ---
 
 2385.	[bug]		A condition variable in socket.c could leak in
@@ -622,7 +749,7 @@
 2111.	[bug]		Fix a number of errors reported by Coverity.
 			[RT #16507]
 
-2110.	[bug]		"minimal-response yes;" interacted badly with BIND 8
+2110.	[bug]		"minimal-responses yes;" interacted badly with BIND 8
 			priming queries. [RT #16491]
 
 2109.	[port]		libbind: silence aix 5.3 compiler warnings. [RT #16502]

@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: xfrin.c,v 1.124.2.4.2.21.4.5 2008/07/28 23:47:49 tbox Exp $ */
+/* $Id: xfrin.c,v 1.124.2.4.2.26 2008/07/28 23:45:48 tbox Exp $ */
 
 #include <config.h>
 

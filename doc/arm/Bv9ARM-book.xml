@@ -18,7 +18,7 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<!-- File: $Id: Bv9ARM-book.xml,v 1.340.24.13 2008/06/24 00:09:11 jinmei Exp $ -->
+<!-- File: $Id: Bv9ARM-book.xml,v 1.340.24.17 2008/09/11 22:59:08 each Exp $ -->
 <book xmlns:xi="http://www.w3.org/2001/XInclude">
   <title>BIND 9 Administrator Reference Manual</title>
 
@@ -639,13 +639,11 @@
       <title>Supported Operating Systems</title>
       <para>
         ISC <acronym>BIND</acronym> 9 compiles and runs on a large
-        number
-        of Unix-like operating system and on NT-derived versions of
-        Microsoft Windows such as Windows 2000 and Windows XP.  For an
-        up-to-date
-        list of supported systems, see the README file in the top level
-        directory
-        of the BIND 9 source distribution.
+        number of Unix-like operating systems, and on some versions of
+        Microsoft Windows including Windows XP, Windows 2003, and
+        Windows 2008.  For an up-to-date list of supported systems,
+        see the README file in the top level directory of the BIND 9
+        source distribution.
       </para>
     </sect1>
   </chapter>
@@ -4541,6 +4539,7 @@ category notify { null; };
     <optional> max-transfer-idle-in <replaceable>number</replaceable>; </optional>
     <optional> max-transfer-idle-out <replaceable>number</replaceable>; </optional>
     <optional> tcp-clients <replaceable>number</replaceable>; </optional>
+    <optional> reserved-sockets <replaceable>number</replaceable>; </optional>
     <optional> recursive-clients <replaceable>number</replaceable>; </optional>
     <optional> serial-query-rate <replaceable>number</replaceable>; </optional>
     <optional> serial-queries <replaceable>number</replaceable>; </optional>
@@ -6943,6 +6942,25 @@ avoid-v6-udp-ports { 40000; range 50000 60000; };
             </varlistentry>
 
             <varlistentry>
+              <term><command>reserved-sockets</command></term>
+              <listitem>
+                <para>
+		  The number of file descriptors reserved for TCP, stdio,
+		  etc.  This needs to be big enough to cover the number of
+		  interfaces named listens on, tcp-clients as well as
+		  to provide room for outgoing TCP queries and incoming zone
+		  transfers.  The default is <literal>512</literal>.
+		  The minimum value is <literal>128</literal> and the
+		  maximum value is <literal>128</literal> less than
+		  maxsockets (-S).  This option may be removed in the future.
+                </para>
+                <para>
+		  This option has little effect on Windows.
+                </para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
               <term><command>max-cache-size</command></term>
               <listitem>
                 <para>
@@ -8244,7 +8262,7 @@ avoid-v6-udp-ports { 40000; range 50000 60000; };
           <para>
             Zones defined within a <command>view</command>
             statement will
-            be only be accessible to clients that match the <command>view</command>.
+            only be accessible to clients that match the <command>view</command>.
             By defining a zone of the same name in multiple views, different
             zone data can be given to different clients, for example,
             "internal"
@@ -12020,9 +12038,6 @@ $GENERATE 1-127 $ CNAME $.0</programlisting>
 		    <entry colname="3">
 		      <para>
 			Mismatch responses received.
-			When shown via an HTTP statistics channel,
-			this counter is shown in the
-			Name Server Statistics section for brevity.
 		      </para>
 		    </entry>
 		  </row>

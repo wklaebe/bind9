@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: server.c,v 1.495.10.15 2008/06/24 00:09:10 jinmei Exp $ */
+/* $Id: server.c,v 1.495.10.19 2008/09/04 23:46:41 tbox Exp $ */
 
 /*! \file */
 
@@ -36,6 +36,7 @@
 #include <isc/portset.h>
 #include <isc/print.h>
 #include <isc/resource.h>
+#include <isc/socket.h>
 #include <isc/stdio.h>
 #include <isc/string.h>
 #include <isc/task.h>
@@ -2883,29 +2884,32 @@ static isc_result_t
 load_configuration(const char *filename, ns_server_t *server,
 		   isc_boolean_t first_time)
 {
-	isc_result_t result;
-	isc_interval_t interval;
-	cfg_parser_t *parser = NULL;
+	cfg_aclconfctx_t aclconfctx;
 	cfg_obj_t *config;
-	const cfg_obj_t *options;
-	const cfg_obj_t *views;
-	const cfg_obj_t *obj;
-	const cfg_obj_t *usev4ports, *avoidv4ports, *usev6ports, *avoidv6ports;
-	const cfg_obj_t *maps[3];
-	const cfg_obj_t *builtin_views;
+	cfg_parser_t *parser = NULL;
 	const cfg_listelt_t *element;
+	const cfg_obj_t *builtin_views;
+	const cfg_obj_t *maps[3];
+	const cfg_obj_t *obj;
+	const cfg_obj_t *options;
+	const cfg_obj_t *usev4ports, *avoidv4ports, *usev6ports, *avoidv6ports;
+	const cfg_obj_t *views;
 	dns_view_t *view = NULL;
 	dns_view_t *view_next;
-	dns_viewlist_t viewlist;
 	dns_viewlist_t tmpviewlist;
-	cfg_aclconfctx_t aclconfctx;
-	isc_uint32_t interface_interval;
-	isc_uint32_t heartbeat_interval;
-	isc_uint32_t udpsize;
+	dns_viewlist_t viewlist;
 	in_port_t listen_port, udpport_low, udpport_high;
+	int i;
+	isc_interval_t interval;
 	isc_portset_t *v4portset = NULL;
 	isc_portset_t *v6portset = NULL;
-	int i;
+	isc_resourcevalue_t nfiles;
+	isc_result_t result;
+	isc_uint32_t heartbeat_interval;
+	isc_uint32_t interface_interval;
+	isc_uint32_t reserved;
+	isc_uint32_t udpsize;
+	unsigned int maxsocks;
 
 	cfg_aclconfctx_init(&aclconfctx);
 	ISC_LIST_INIT(viewlist);
@@ -2965,15 +2969,6 @@ load_configuration(const char *filename, ns_server_t *server,
 	CHECK(result);
 
 	/*
-	 * Check that the working directory is writable.
-	 */
-	if (access(".", W_OK) != 0) {
-		isc_log_write(ns_g_lctx, NS_LOGCATEGORY_GENERAL,
-			      NS_LOGMODULE_SERVER, ISC_LOG_ERROR,
-			      "the working directory is not writable");
-	}
-
-	/*
 	 * Check the validity of the configuration.
 	 */
 	CHECK(bind9_check_namedconf(config, ns_g_lctx, ns_g_mctx));
@@ -2993,6 +2988,48 @@ load_configuration(const char *filename, ns_server_t *server,
 	 * Set process limits, which (usually) needs to be done as root.
 	 */
 	set_limits(maps);
+
+	/*
+	 * Check if max number of open sockets that the system allows is
+	 * sufficiently large.  Failing this condition is not necessarily fatal,
+	 * but may cause subsequent runtime failures for a busy recursive
+	 * server.
+	 */
+	result = isc_socketmgr_getmaxsockets(ns_g_socketmgr, &maxsocks);
+	if (result != ISC_R_SUCCESS)
+		maxsocks = 0;
+	result = isc_resource_getcurlimit(isc_resource_openfiles, &nfiles);
+	if (result == ISC_R_SUCCESS && (isc_resourcevalue_t)maxsocks > nfiles) {
+		isc_log_write(ns_g_lctx, NS_LOGCATEGORY_GENERAL,
+			      NS_LOGMODULE_SERVER, ISC_LOG_WARNING,
+			      "max open files (%" ISC_PRINT_QUADFORMAT "u)"
+			      " is smaller than max sockets (%u)",
+			      nfiles, maxsocks);
+	}
+
+	/*
+	 * Set the number of socket reserved for TCP, stdio etc.
+	 */
+	obj = NULL;
+	result = ns_config_get(maps, "reserved-sockets", &obj);
+	INSIST(result == ISC_R_SUCCESS);
+	reserved = cfg_obj_asuint32(obj);
+	if (maxsocks != 0) {
+		if (maxsocks < 128U)			/* Prevent underflow. */
+			reserved = 0;
+		else if (reserved > maxsocks - 128U)	/* Minimum UDP space. */
+			reserved = maxsocks - 128;
+	}
+	/* Minimum TCP/stdio space. */
+	if (reserved < 128U)
+		reserved = 128;
+	if (reserved + 128U > maxsocks && maxsocks != 0) {
+		isc_log_write(ns_g_lctx, NS_LOGCATEGORY_GENERAL,
+			      NS_LOGMODULE_SERVER, ISC_LOG_WARNING,
+			      "less than 128 UDP sockets available after "
+			      "applying 'reserved-sockets' and 'maxsockets'");
+	}
+	isc__socketmgr_setreserved(ns_g_socketmgr, reserved);
 
 	/*
 	 * Configure various server options.
@@ -3385,6 +3422,15 @@ load_configuration(const char *filename, ns_server_t *server,
 	 */
 	if (first_time)
 		ns_os_changeuser();
+
+	/*
+	 * Check that the working directory is writable.
+	 */
+	if (access(".", W_OK) != 0) {
+		isc_log_write(ns_g_lctx, NS_LOGCATEGORY_GENERAL,
+			      NS_LOGMODULE_SERVER, ISC_LOG_ERROR,
+			      "the working directory is not writable");
+	}
 
 	/*
 	 * Configure the logging system.

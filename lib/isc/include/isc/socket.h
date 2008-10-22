@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: socket.h,v 1.72.128.5 2008/07/03 00:14:13 each Exp $ */
+/* $Id: socket.h,v 1.72.128.12 2008/09/04 07:58:07 marka Exp $ */
 
 #ifndef ISC_SOCKET_H
 #define ISC_SOCKET_H 1
@@ -77,6 +77,12 @@ ISC_LANG_BEGINDECLS
  * system in use must support at least this number (plus one on some.)
  */
 #define ISC_SOCKET_MAXSCATTERGATHER	8
+
+/*%
+ * In isc_socket_bind() set socket option SO_REUSEADDR prior to calling
+ * bind() if a non zero port is specified (AF_INET and AF_INET6).
+ */
+#define ISC_SOCKET_REUSEADDRESS		0x01U
 
 /***
  *** Types
@@ -239,6 +245,9 @@ isc_socket_create(isc_socketmgr_t *manager,
 /*%<
  * Create a new 'type' socket managed by 'manager'.
  *
+ * For isc_sockettype_fdwatch sockets you should use isc_socket_fdwatchcreate()
+ * rather than isc_socket_create().
+ *
  * Note:
  *
  *\li	'pf' is the desired protocol family, e.g. PF_INET or PF_INET6.
@@ -248,6 +257,8 @@ isc_socket_create(isc_socketmgr_t *manager,
  *\li	'manager' is a valid manager
  *
  *\li	'socketp' is a valid pointer, and *socketp == NULL
+ *
+ *\li	'type' is not isc_sockettype_fdwatch
  *
  * Ensures:
  *
@@ -372,11 +383,16 @@ isc_socket_open(isc_socket_t *sock);
  * one.  This optimization may not be available for some systems, in which
  * case this function will return ISC_R_NOTIMPLEMENTED and must not be used.
  *
+ * isc_socket_open() should not be called on sockets created by
+ * isc_socket_fdwatchcreate().
+ *
  * Requires:
  *
  * \li	there must be no other reference to this socket.
  *
  * \li	'socket' is a valid and previously closed by isc_socket_close()
+ *
+ * \li  'sock->type' is not isc_sockettype_fdwatch
  *
  * Returns:
  *	Same as isc_socket_create().
@@ -393,6 +409,9 @@ isc_socket_close(isc_socket_t *sock);
  * systems, in which case this function will return ISC_R_NOTIMPLEMENTED and
  * must not be used.
  *
+ * isc_socket_close() should not be called on sockets created by
+ * isc_socket_fdwatchcreate().
+ *
  * Requires:
  *
  * \li	The socket must have a valid descriptor.
@@ -401,12 +420,15 @@ isc_socket_close(isc_socket_t *sock);
  *
  * \li	There must be no pending I/O requests.
  *
+ * \li  'sock->type' is not isc_sockettype_fdwatch
+ *
  * Returns:
  * \li	#ISC_R_NOTIMPLEMENTED
  */
 
 isc_result_t
-isc_socket_bind(isc_socket_t *sock, isc_sockaddr_t *addressp);
+isc_socket_bind(isc_socket_t *sock, isc_sockaddr_t *addressp,
+		unsigned int options);
 /*%<
  * Bind 'socket' to '*addressp'.
  *
@@ -731,8 +753,15 @@ isc_socket_sendto2(isc_socket_t *sock, isc_region_t *region,
 
 isc_result_t
 isc_socketmgr_create(isc_mem_t *mctx, isc_socketmgr_t **managerp);
+
+isc_result_t
+isc_socketmgr_create2(isc_mem_t *mctx, isc_socketmgr_t **managerp,
+		      unsigned int maxsocks);
 /*%<
- * Create a socket manager.
+ * Create a socket manager.  If "maxsocks" is non-zero, it specifies the
+ * maximum number of sockets that the created manager should handle.
+ * isc_socketmgr_create() is equivalent of isc_socketmgr_create2() with
+ * "maxsocks" being zero.
  *
  * Notes:
  *
@@ -753,6 +782,23 @@ isc_socketmgr_create(isc_mem_t *mctx, isc_socketmgr_t **managerp);
  *\li	#ISC_R_SUCCESS
  *\li	#ISC_R_NOMEMORY
  *\li	#ISC_R_UNEXPECTED
+ *\li	#ISC_R_NOTIMPLEMENTED
+ */
+
+isc_result_t
+isc_socketmgr_getmaxsockets(isc_socketmgr_t *manager, unsigned int *nsockp);
+/*%<
+ * Returns in "*nsockp" the maximum number of sockets this manager may open.
+ *
+ * Requires:
+ *
+ *\li	'*manager' is a valid isc_socketmgr_t.
+ *\li	'nsockp' is not NULL.
+ *
+ * Returns:
+ *
+ *\li	#ISC_R_SUCCESS
+ *\li	#ISC_R_NOTIMPLEMENTED
  */
 
 void
@@ -856,6 +902,12 @@ const char *isc_socket_getname(isc_socket_t *socket);
 void *isc_socket_gettag(isc_socket_t *socket);
 /*%<
  * Get the tag associated with a socket, if any.
+ */
+
+void
+isc__socketmgr_setreserved(isc_socketmgr_t *mgr, isc_uint32_t);
+/*%<
+ * Temporary.  For use by named only.
  */
 
 #ifdef HAVE_LIBXML2

@@ -18,7 +18,7 @@ AC_DIVERT_PUSH(1)dnl
 esyscmd([sed "s/^/# /" COPYRIGHT])dnl
 AC_DIVERT_POP()dnl
 
-AC_REVISION($Revision: 1.432.60.13 $)
+AC_REVISION($Revision: 1.432.60.21 $)
 
 AC_INIT(lib/dns/name.c)
 AC_PREREQ(2.59)
@@ -231,6 +231,15 @@ case "$host" in
 	*-solaris*)
 		STD_CDEFINES="$STD_CDEFINES -D_XPG4_2 -D__EXTENSIONS__"
 		CPPFLAGS="$CPPFLAGS -D_XPG4_2 -D__EXTENSIONS__"
+		;;
+	# POSIX doesn't include the IPv6 Advanced Socket API and glibc hides
+	# parts of the IPv6 Advanced Socket API as a result.  This is stupid
+	# as it breaks how the two halves (Basic and Advanced) of the IPv6
+	# Socket API were designed to be used but we have to live with it.
+	# Define _GNU_SOURCE to pull in the IPv6 Advanced Socket API.
+	*-linux*)
+		STD_CDEFINES="$STD_CDEFINES -D_GNU_SOURCE"
+		CPPFLAGS="$CPPFLAGS -D_GNU_SOURCE"
 		;;
 esac
 
@@ -1125,6 +1134,16 @@ case "$host" in
 esac
 
 #
+# Work around Solaris's select() limitations.
+#
+case "$host" in
+	*-solaris2.[[89]]|*-solaris2.1?)
+	AC_DEFINE(FD_SETSIZE, 65536,
+		  [Solaris hack to get select_large_fdset.])
+	;;
+esac
+
+#
 # Purify support
 #
 AC_MSG_CHECKING(whether to use purify)
@@ -1169,7 +1188,7 @@ AC_SUBST(PURIFY)
 #
 # GNU libtool support
 #
-case $host in
+case $build_os in
 sunos*)
     # Just set the maximum command line length for sunos as it otherwise
     # takes a exceptionally long time to work it out. Required for libtool.
@@ -2741,6 +2760,10 @@ for e in $BUILD_LDFLAGS ; do
 		    ee=`echo $e | sed -e 's%^-L%-Wl,-rpath,%'`
 		    NEWFLAGS="$NEWFLAGS $e $ee"
 		    ;;
+		solaris*)
+		    ee=`echo $e | sed -e 's%^-L%-R%'`
+		    NEWFLAGS="$NEWFLAGS $e $ee"
+		    ;;
 		*)
 		    NEWFLAGS="$NEWFLAGS $e"
 		    ;;
@@ -2766,6 +2789,10 @@ for e in $DNS_GSSAPI_LIBS ; do
 		    ee=`echo $e | sed -e 's%^-L%-Wl,-rpath,%'`
 		    NEWFLAGS="$NEWFLAGS $e $ee"
 		    ;;
+		solaris*)
+		    ee=`echo $e | sed -e 's%^-L%-R%'`
+		    NEWFLAGS="$NEWFLAGS $e $ee"
+		    ;;
 		*)
 		    NEWFLAGS="$NEWFLAGS $e"
 		    ;;
@@ -2789,6 +2816,10 @@ for e in $DNS_CRYPTO_LIBS ; do
 		    ;;
 		freebsd*)
 		    ee=`echo $e | sed -e 's%^-L%-Wl,-rpath,%'`
+		    NEWFLAGS="$NEWFLAGS $e $ee"
+		    ;;
+		solaris*)
+		    ee=`echo $e | sed -e 's%^-L%-R%'`
 		    NEWFLAGS="$NEWFLAGS $e $ee"
 		    ;;
 		*)

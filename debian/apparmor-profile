@@ -22,6 +22,10 @@
   /var/cache/bind/** rw,
   /var/cache/bind/ rw,
 
+  # gssapi
+  /etc/krb5.keytab kr,
+  /etc/bind/krb5.keytab kr,
+
   # dnscvsutil package
   /var/lib/dnscvsutil/compiled/** rw,
 

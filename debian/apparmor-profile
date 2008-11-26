@@ -10,6 +10,7 @@
   capability setgid,
   capability setuid,
   capability sys_chroot,
+  capability sys_resource,
 
   # /etc/bind should be read-only for bind
   # /var/lib/bind is for dynamically updated zone (and journal) files.

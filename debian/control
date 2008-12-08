@@ -55,7 +55,7 @@ Replaces: bind-dev
 Depends: libbind9-40 (= ${binary:Version}), liblwres40 (= ${binary:Version}) 
 Description: Static Libraries and Headers used by BIND
  This package delivers archive-style libraries, header files, and API man
- pages for libbind, libdns, libisc, and liblwres.  These are are only needed 
+ pages for libbind, libdns, libisc, and liblwres.  These are only needed 
  if you want to compile other packages that need more nameserver API than the 
  resolver code provided in libc.
 
@@ -149,7 +149,7 @@ Description: Clients provided with BIND
  This package delivers various client programs related to DNS that are 
  derived from the BIND source tree.
  .
-  - dig	- query the DNS in various ways
+  - dig - query the DNS in various ways
   - nslookup - the older way to do it
   - nsupdate - perform dynamic updates (See RFC2136)
 

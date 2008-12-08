@@ -1,3 +1,31 @@
+bind9 (1:9.5.0.dfsg.P2-5) unstable; urgency=low
+
+  [ISC]
+
+  * 2463: IPv6 Advanced Socket API broken on linux.  LP: #249824
+
+  [Jamie Strandboge]
+
+  * apparmor: add capability sys_resource
+  * apparmor: add krb keytab access.  LP: #277370
+
+  [LaMont Jones]
+
+  * apparmor: allow proc/*/net/if_inet6 read access too.  LP: #289060
+  * apparmor: add /var/log/named/* entries.  LP: #294935
+
+  [Ben Hutchings]
+
+  * meta: Add dependency of bind9 on net-tools (ifconfig used in init script)
+  * meta: Fix bind9utils Depends.
+  * meta: fix typo in package description
+
+  [localization folks]
+
+  * l10n: add polish debconf translations.  Closes: #506856 (L)
+
+ -- LaMont Jones <lamont@debian.org>  Sun, 07 Dec 2008 21:03:29 -0700
+
 bind9 (1:9.5.0.dfsg.P2-4) unstable; urgency=low
 
   * meta: fix typo in Depends: lsb-base.  Closes: #501365

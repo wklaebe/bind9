@@ -22,7 +22,7 @@ Description: Internet Domain Name Server
 Package: bind9utils
 Architecture: any
 Replaces: bind9 (<= 1:9.5.0~b2-1)
-Depends: libbind9-40
+Depends: ${shlibs:Depends}
 Description: Utilities for BIND
  This package provides various utilities that are useful for maintaining a
  working BIND installation.

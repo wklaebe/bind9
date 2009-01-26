@@ -90,8 +90,6 @@ install: build
 	dh_clean -k
 	dh_installdirs
 	$(MAKE) install DESTDIR=`pwd`/debian/bind9
-	# idn stuff goes somewhere eventually.
-	rm -rf debian/bind9/usr/share/man/man1
 	rm -f debian/bind9/usr/lib/*.la
 	install -c -o bin -g bin -m 444 debian/db.0 ${ETCBIND}/db.0
 	install -c -o bin -g bin -m 444 debian/db.0 ${ETCBIND}/db.255
@@ -143,7 +141,6 @@ binary-arch: build install
 	dh_installmenu -a
 	dh_installinit -a --no-start -- defaults 15 85
 	dh_installcron -a
-	dh_installmanpages -pbind9 runmdn.1 mdnconv.1 zone2ldap.1 nslint.8
 	dh_installdebconf -pbind9
 	dh_installinfo -a
 	dh_installchangelogs -a # CHANGES # upstream changelog only in bind9-doc

@@ -16,7 +16,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: config.h.in,v 1.90.60.12 2008/10/21 02:46:16 marka Exp $ */
+/* $Id: acconfig.h,v 1.51 2007/06/19 23:46:59 tbox Exp $ */
 
 /*! \file */
 

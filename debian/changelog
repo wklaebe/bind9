@@ -1,3 +1,24 @@
+bind9 (1:9.5.1.dfsg.P1-1) unstable; urgency=low
+
+  * New upstream patch release
+    - supportable version of fix from 9.5.0.dfsg.P2-5.1
+    - CVE-2009-0025:  Closes: #511936
+    - 2475: Overly agressive cache entry removal.  Closes: #511768
+    - other bug fixes worthy of patch-release inclusion
+
+ -- LaMont Jones <lamont@debian.org>  Mon, 26 Jan 2009 10:33:42 -0700
+
+bind9 (1:9.5.0.dfsg.P2-5.1) unstable; urgency=low
+
+  * Non-maintainer upload.
+  * Apply upstream ACL fixes from 9.5.1 to fix RC bug. Patch was provided
+    by Evan Hunt (upstream bind9 developer) after Emmanuel Bouthenot
+    contacted him. Closes: #496954, #501800.
+  * Remove obsolete dh_installmanpages invocation which was adding
+    unwanted manual pages to bind9. Closes: #486196.
+
+ -- Ben Hutchings <ben@decadent.org.uk>  Fri, 02 Jan 2009 16:51:42 +0000
+
 bind9 (1:9.5.0.dfsg.P2-5) unstable; urgency=low
 
   [ISC]

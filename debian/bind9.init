@@ -84,7 +84,13 @@ case "$1" in
 	if [ "X$RESOLVCONF" != "Xno" ] && [ -x /sbin/resolvconf ] ; then
 	    /sbin/resolvconf -d lo.named
 	fi
-	/usr/sbin/rndc stop
+	pid=$(/usr/sbin/rndc stop -p | awk '/^pid:/ {print $2}')
+	if [ -n "$pid" ]; then
+	  while kill -0 $pid 2>/dev/null; do
+	    log_progress_msg "waiting for pid $pid to die"
+	    sleep 1
+	  done
+	fi
 	log_end_msg $?
     ;;
 
@@ -105,7 +111,6 @@ case "$1" in
 	fi
 
 	$0 stop
-	sleep 2
 	$0 start
     ;;
     

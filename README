@@ -43,6 +43,9 @@ BIND 9
 		Nominum, Inc.
 
 
+BIND 9.5.1
+	BIND 9.5.1 is a maintence release for BIND 9.5.
+
 BIND 9.5.0
 
 	BIND 9.5.0 has a number of new features over 9.4,
@@ -432,6 +435,10 @@ Building
 		To disable the default check set.  -DCHECK_SIBLING=0
 		named-checkzone checks out-of-zone addresses by default.
 		To disable this default set.  -DCHECK_LOCAL=0
+		Enable workaround for Solaris kernel bug about /dev/poll
+		  -DISC_SOCKET_USE_POLLWATCH=1
+		  The watch timeout is also configurable, e.g.,
+		  -DISC_SOCKET_POLLWATCH_TIMEOUT=20
 
 	    LDFLAGS
 		Linker flags. Defaults to empty string.

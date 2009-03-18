@@ -114,6 +114,7 @@ Description: Lightweight Resolver Library used by BIND
 
 Package: libisccc40
 Section: libs
+Priority: standard
 Architecture: any
 Conflicts: libbind0, libbind9-41
 Replaces: libbind0
@@ -126,6 +127,7 @@ Description: Command Channel Library used by BIND
 
 Package: libisccfg40
 Section: libs
+Priority: standard
 Architecture: any
 Conflicts: libbind0, libbind9-41
 Replaces: libbind0

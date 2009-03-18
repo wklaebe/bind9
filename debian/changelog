@@ -1,3 +1,9 @@
+bind9 (1:9.5.1.dfsg.P1-3) unstable; urgency=low
+
+  * package -2 for unstable
+
+ -- LaMont Jones <lamont@debian.org>  Wed, 18 Mar 2009 09:40:18 -0600
+
 bind9 (1:9.5.1.dfsg.P1-2) stable; urgency=low
 
   [Juhana Helovuo]

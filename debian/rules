@@ -11,6 +11,9 @@ DEB_BUILD_ARCH := $(shell dpkg --print-installation-architecture)
 endif
 export arch = $(DEB_HOST_ARCH)
 
+DEB_HOST_GNU_TYPE   ?= $(shell dpkg-architecture -qDEB_HOST_GNU_TYPE)
+DEB_BUILD_GNU_TYPE  ?= $(shell dpkg-architecture -qDEB_BUILD_GNU_TYPE)
+
 ifneq (,$(findstring debug,$(DEB_BUILD_OPTIONS)))
 DEBUG = -g
 endif
@@ -27,6 +30,8 @@ configure: configure-stamp
 configure-stamp:
 	dh_testdir
 	./configure --prefix=/usr \
+		--build=$(DEB_BUILD_GNU_TYPE) \
+		--host=$(DEB_HOST_GNU_TYPE) \
 		--mandir=\$${prefix}/share/man \
 		--infodir=\$${prefix}/share/info \
 		--sysconfdir=/etc/bind \

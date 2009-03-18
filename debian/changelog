@@ -1,3 +1,23 @@
+bind9 (1:9.5.1.dfsg.P1-2) stable; urgency=low
+
+  [Juhana Helovuo]
+
+  * fix atomic operations on alpha.  Closes: #512285
+
+  [Dann Frazier]
+
+  * fix atomic operations on ia64.  Closes: #520179
+
+  [LaMont Jones]
+
+  * build-conflict: libdb4.2-dev.  Closes: #515074, #507013
+
+  [localization folks]
+
+  * l10n: Basque debconf template.  Closes: #516549 (Piarres Beobide)
+
+ -- LaMont Jones <lamont@debian.org>  Wed, 18 Mar 2009 05:30:22 -0600
+
 bind9 (1:9.5.1.dfsg.P1-1) unstable; urgency=low
 
   * New upstream patch release

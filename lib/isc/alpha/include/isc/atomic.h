@@ -114,12 +114,14 @@ isc_atomic_xadd(isc_int32_t *p, isc_int32_t val) {
 
 	__asm__ volatile(
 		"1:"
+		"mb;"
 		"ldl_l %0, %1;"			/* load old value */
 		"mov %0, %2;"			/* copy the old value */
 		"addl %0, %3, %0;"		/* calculate new value */
 		"stl_c %0, %1;"			/* attempt to store */
 		"beq %0, 1b;"			/* spin if failed */
-		: "=&r"(temp), "+m"(*p), "=r"(prev)
+		"mb;"
+		: "=&r"(temp), "+m"(*p), "=&r"(prev)
 		: "r"(val)
 		: "memory");
 
@@ -132,10 +134,12 @@ isc_atomic_store(isc_int32_t *p, isc_int32_t val) {
 
 	__asm__ volatile(
 		"1:"
+		"mb;"
 		"ldl_l %0, %1;"			/* load old value */
 		"mov %2, %0;"			/* value to store */
 		"stl_c %0, %1;"			/* attempt to store */
 		"beq %0, 1b;"			/* if it failed, spin */
+		"mb;"
 		: "=&r"(temp), "+m"(*p)
 		: "r"(val)
 		: "memory");
@@ -147,6 +151,7 @@ isc_atomic_cmpxchg(isc_int32_t *p, isc_int32_t cmpval, isc_int32_t val) {
 
 	__asm__ volatile(
 		"1:"
+		"mb;"
 		"ldl_l %0, %1;"			/* load old value */
 		"mov %0, %2;"			/* copy the old value */
 		"cmpeq %0, %3, %0;"		/* compare */
@@ -154,8 +159,9 @@ isc_atomic_cmpxchg(isc_int32_t *p, isc_int32_t cmpval, isc_int32_t val) {
 		"mov %4, %0;"			/* value to store */
 		"stl_c %0, %1;"			/* attempt to store */
 		"beq %0, 1b;"			/* if it failed, spin */
+		"mb;"
 		"2:"
-		: "=&r"(temp), "+m"(*p), "=r"(prev)
+		: "=&r"(temp), "+m"(*p), "=&r"(prev)
 		: "r"(cmpval), "r"(val)
 		: "memory");
 

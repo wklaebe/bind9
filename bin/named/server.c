@@ -690,6 +690,8 @@ configure_order(dns_order_t *order, const cfg_obj_t *ent) {
 		mode = DNS_RDATASETATTR_FIXEDORDER;
 	else if (!strcasecmp(str, "random"))
 		mode = DNS_RDATASETATTR_RANDOMIZE;
+	else if (!strcasecmp(str, "random_1"))
+		mode = DNS_RDATASETATTR_RANDOMIZE|DNS_RDATASETATTR_SINGLE;
 	else if (!strcasecmp(str, "cyclic"))
 		mode = 0;
 	else
@@ -1735,6 +1737,18 @@ configure_view(dns_view_t *view, const cfg_obj_t *config,
 	result = ns_config_get(maps, "max-ncache-ttl", &obj);
 	INSIST(result == ISC_R_SUCCESS);
 	view->maxncachettl = cfg_obj_asuint32(obj);
+	if (view->maxncachettl > 7 * 24 * 3600)
+		view->maxncachettl = 7 * 24 * 3600;
+
+	obj = NULL;
+	result = ns_config_get(maps, "min-cache-ttl", &obj);
+	INSIST(result == ISC_R_SUCCESS);
+	view->mincachettl = cfg_obj_asuint32(obj);
+
+	obj = NULL;
+	result = ns_config_get(maps, "min-ncache-ttl", &obj);
+	INSIST(result == ISC_R_SUCCESS);
+	view->minncachettl = cfg_obj_asuint32(obj);
 	if (view->maxncachettl > 7 * 24 * 3600)
 		view->maxncachettl = 7 * 24 * 3600;
 

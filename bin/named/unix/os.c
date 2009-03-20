@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: os.c,v 1.84 2008/05/06 01:30:26 each Exp $ */
+/* $Id: os.c,v 1.87 2008/10/24 01:44:48 tbox Exp $ */
 
 /*! \file */
 
@@ -42,6 +42,7 @@
 #include <isc/buffer.h>
 #include <isc/file.h>
 #include <isc/print.h>
+#include <isc/resource.h>
 #include <isc/result.h>
 #include <isc/strerror.h>
 #include <isc/string.h>
@@ -194,16 +195,20 @@ linux_setcaps(cap_t caps) {
 #define SET_CAP(flag) \
 	do { \
 		capval = (flag); \
-		err = cap_set_flag(caps, CAP_EFFECTIVE, 1, &capval, CAP_SET); \
-		if (err == -1) { \
-			isc__strerror(errno, strbuf, sizeof(strbuf)); \
-			ns_main_earlyfatal("cap_set_proc failed: %s", strbuf); \
-		} \
-		\
-		err = cap_set_flag(caps, CAP_PERMITTED, 1, &capval, CAP_SET); \
-		if (err == -1) { \
-			isc__strerror(errno, strbuf, sizeof(strbuf)); \
-			ns_main_earlyfatal("cap_set_proc failed: %s", strbuf); \
+		cap_flag_value_t curval; \
+		err = cap_get_flag(cap_get_proc(), capval, CAP_PERMITTED, &curval); \
+		if (err != -1 && curval) { \
+			err = cap_set_flag(caps, CAP_EFFECTIVE, 1, &capval, CAP_SET); \
+			if (err == -1) { \
+				isc__strerror(errno, strbuf, sizeof(strbuf)); \
+				ns_main_earlyfatal("cap_set_proc failed: %s", strbuf); \
+			} \
+			\
+			err = cap_set_flag(caps, CAP_PERMITTED, 1, &capval, CAP_SET); \
+			if (err == -1) { \
+				isc__strerror(errno, strbuf, sizeof(strbuf)); \
+				ns_main_earlyfatal("cap_set_proc failed: %s", strbuf); \
+			} \
 		} \
 	} while (0)
 #define INIT_CAP \
@@ -563,6 +568,24 @@ ns_os_changeuser(void) {
 #endif
 #if defined(HAVE_LINUX_CAPABILITY_H) && !defined(HAVE_LINUXTHREADS)
 	linux_minprivs();
+#endif
+}
+
+void
+ns_os_adjustnofile() {
+#ifdef HAVE_LINUXTHREADS
+	isc_result_t result;
+	isc_resourcevalue_t newvalue;
+
+	/*
+	 * Linux: max number of open files specified by one thread doesn't seem
+	 * to apply to other threads on Linux.
+	 */
+	newvalue = ISC_RESOURCE_UNLIMITED;
+
+	result = isc_resource_setlimit(isc_resource_openfiles, newvalue);
+	if (result != ISC_R_SUCCESS)
+		ns_main_earlywarning("couldn't adjust limit on open files");
 #endif
 }
 

@@ -1,4 +1,10 @@
 
+	--- 9.6.0 released ---
+
+2520.	[bug]		Update xml statistics version number to 2.0 as change
+			#2388 made the schema incompatible to the previous
+			version. [RT #19080]
+
 	--- 9.6.0rc2 released ---
 
 2515.	[port]		win32: build dnssec-dsfromkey and dnssec-keyfromlabel.
@@ -311,6 +317,10 @@
 2411.	[bug]		Allow using a larger number of sockets than FD_SETSIZE
 			for select().  To enable this, set ISC_SOCKET_MAXSOCKETS
 			at compilation time.  [RT #18433]
+
+			Note: with changes #2469 and #2421 above, there is no
+			need to tweak ISC_SOCKET_MAXSOCKETS at compilation time
+			any more.
 
 2410.	[bug]		Correctly delete m_versionInfo. [RT #18432]
 

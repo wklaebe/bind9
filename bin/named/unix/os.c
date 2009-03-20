@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: os.c,v 1.87 2008/10/24 01:44:48 tbox Exp $ */
+/* $Id: os.c,v 1.89 2008/11/14 05:08:48 marka Exp $ */
 
 /*! \file */
 
@@ -196,7 +196,7 @@ linux_setcaps(cap_t caps) {
 	do { \
 		capval = (flag); \
 		cap_flag_value_t curval; \
-		err = cap_get_flag(cap_get_proc(), capval, CAP_PERMITTED, &curval); \
+		err = cap_get_flag(curcaps, capval, CAP_PERMITTED, &curval); \
 		if (err != -1 && curval) { \
 			err = cap_set_flag(caps, CAP_EFFECTIVE, 1, &capval, CAP_SET); \
 			if (err == -1) { \
@@ -218,16 +218,27 @@ linux_setcaps(cap_t caps) {
 			isc__strerror(errno, strbuf, sizeof(strbuf)); \
 			ns_main_earlyfatal("cap_init failed: %s", strbuf); \
 		} \
+		curcaps = cap_get_proc(); \
+		if (curcaps == NULL) { \
+			isc__strerror(errno, strbuf, sizeof(strbuf)); \
+			ns_main_earlyfatal("cap_get_proc failed: %s", strbuf); \
+		} \
+	} while (0)
+#define FREE_CAP \
+	{ \
+		cap_free(caps); \
+		cap_free(curcaps); \
 	} while (0)
 #else
-#define SET_CAP(flag) { caps |= (1 << (flag)); }
-#define INIT_CAP { caps = 0; }
+#define SET_CAP(flag) do { caps |= (1 << (flag)); } while (0)
+#define INIT_CAP do { caps = 0; } while (0)
 #endif /* HAVE_LIBCAP */
 
 static void
 linux_initialprivs(void) {
 	cap_t caps;
 #ifdef HAVE_LIBCAP
+	cap_t curcaps;
 	cap_value_t capval;
 	char strbuf[ISC_STRERRORSIZE];
 	int err;
@@ -281,12 +292,17 @@ linux_initialprivs(void) {
 	SET_CAP(CAP_SYS_RESOURCE);
 
 	linux_setcaps(caps);
+
+#ifdef HAVE_LIBCAP
+	FREE_CAP;
+#endif
 }
 
 static void
 linux_minprivs(void) {
 	cap_t caps;
 #ifdef HAVE_LIBCAP
+	cap_t curcaps;
 	cap_value_t capval;
 	char strbuf[ISC_STRERRORSIZE];
 	int err;
@@ -313,6 +329,10 @@ linux_minprivs(void) {
 	SET_CAP(CAP_SYS_RESOURCE);
 
 	linux_setcaps(caps);
+
+#ifdef HAVE_LIBCAP
+	FREE_CAP;
+#endif
 }
 
 #ifdef HAVE_SYS_PRCTL_H
@@ -645,6 +665,9 @@ ns_os_writepidfile(const char *filename, isc_boolean_t first_time) {
 	pid_t pid;
 	char strbuf[ISC_STRERRORSIZE];
 	void (*report)(const char *, ...);
+	unsigned int mode;
+	char *slash;
+	int n;
 
 	/*
 	 * The caller must ensure any required synchronization.
@@ -666,6 +689,27 @@ ns_os_writepidfile(const char *filename, isc_boolean_t first_time) {
 	}
 	/* This is safe. */
 	strcpy(pidfile, filename);
+
+	/*
+	 * Make the containing directory if it doesn't exist.
+	 */
+	slash = strrchr(pidfile, '/');
+	if (slash != NULL && slash != pidfile) {
+		*slash = '\0';
+		mode = S_IRUSR | S_IWUSR | S_IXUSR;	/* u=rwx */
+		mode |= S_IRGRP | S_IXGRP;		/* g=rx */
+		mode |= S_IROTH | S_IXOTH;		/* o=rx */
+		n = mkdir(pidfile, mode);
+		if (n == -1 && errno != EEXIST) {
+			isc__strerror(errno, strbuf, sizeof(strbuf));
+			(*report)("couldn't mkdir %s': %s", filename,
+				  strbuf);
+			free(pidfile);
+			pidfile = NULL;
+			return;
+		}
+		*slash = '/';
+	}
 
 	fd = safe_open(filename, ISC_FALSE);
 	if (fd < 0) {

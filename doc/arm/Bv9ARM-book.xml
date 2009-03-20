@@ -18,7 +18,7 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<!-- File: $Id: Bv9ARM-book.xml,v 1.377 2008/10/27 16:05:45 jreed Exp $ -->
+<!-- File: $Id: Bv9ARM-book.xml,v 1.380 2008/11/07 02:28:49 marka Exp $ -->
 <book xmlns:xi="http://www.w3.org/2001/XInclude">
   <title>BIND 9 Administrator Reference Manual</title>
 
@@ -3735,7 +3735,7 @@ $ORIGIN 0.0.0.0.0.0.0.0.8.b.d.0.1.0.0.2.ip6.arpa.
 
 <programlisting><command>logging</command> {
    [ <command>channel</command> <replaceable>channel_name</replaceable> {
-     ( <command>file</command> <replaceable>path name</replaceable>
+     ( <command>file</command> <replaceable>path_name</replaceable>
          [ <command>versions</command> ( <replaceable>number</replaceable> | <command>unlimited</command> ) ]
          [ <command>size</command> <replaceable>size spec</replaceable> ]
        | <command>syslog</command> <replaceable>syslog_facility</replaceable>
@@ -4327,7 +4327,7 @@ category notify { null; };
                   </entry>
                   <entry colname="2">
                     <para>
-                      Delegation only.  Logs queries that have have
+                      Delegation only.  Logs queries that have
                       been forced to NXDOMAIN as the result of a
                       delegation-only zone or
                       a <command>delegation-only</command> in a
@@ -4797,7 +4797,8 @@ category notify { null; };
             <listitem>
               <para>
                 The pathname of the file the server writes its process ID
-                in. If not specified, the default is <filename>/var/run/named.pid</filename>.
+                in. If not specified, the default is
+		<filename>/var/run/named/named.pid</filename>.
                 The pid-file is used by programs that want to send signals to
                 the running
                 name server. Specifying <command>pid-file none</command> disables the
@@ -7760,7 +7761,7 @@ avoid-v6-udp-ports { 40000; range 50000 60000; };
 	  <para>
 	    Named will attempt to determine if a built in zone already exists
 	    or is active (covered by a forward-only forwarding declaration)
-	    and will not not create a empty zone in that case.
+	    and will not create a empty zone in that case.
 	  </para>
 	  <para>
 	    The current list of empty zones is:
@@ -13217,7 +13218,7 @@ zone "example.com" {
 		<pubdate>March 2005</pubdate>
 	      </biblioentry>
 	      <biblioentry>
-	        <abbrev>RFC4044</abbrev>
+	        <abbrev>RFC4034</abbrev>
 	 	<authorgroup>
 		  <author>
 		    <firstname>R.</firstname>
@@ -14181,6 +14182,7 @@ zone "example.com" {
       <title>Manual pages</title>
       <xi:include href="../../bin/dig/dig.docbook"/>
       <xi:include href="../../bin/dig/host.docbook"/>
+      <xi:include href="../../bin/dnssec/dnssec-dsfromkey.docbook"/>
       <xi:include href="../../bin/dnssec/dnssec-keyfromlabel.docbook"/>
       <xi:include href="../../bin/dnssec/dnssec-keygen.docbook"/>
       <xi:include href="../../bin/dnssec/dnssec-signzone.docbook"/>

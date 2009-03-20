@@ -1,4 +1,19 @@
 
+	--- 9.6.0rc2 released ---
+
+2515.	[port]		win32: build dnssec-dsfromkey and dnssec-keyfromlabel.
+			[RT #19063]
+
+2513	[bug]		Fix windows cli build. [RT #19062]
+
+2510.	[bug]		"dig +sigchase" could trigger REQUIRE failures.
+			[RT #19033]
+
+2509.	[bug]		Specifying a fixed query source port was broken.
+			[RT #19051]
+
+2504.	[bug]		Address race condition in the socket code. [RT #18899]
+
 	--- 9.6.0rc1 released ---
 
 2498.	[bug]		Removed a bogus function argument used with
@@ -480,6 +495,9 @@
 
 2348.	[func]		Use the EVP interface to OpenSSL. Add PKCS#11 support.
 			Documentation is in the new README.pkcs11 file.
+			New tool, dnssec-keyfromlabel, which takes the
+			label of a key pair in a HSM and constructs a DNS
+			key pair for use by named and dnssec-signzone.
 			[RT #16844]
 
 2347.	[bug]		Delete now traverses the RB tree in the canonical

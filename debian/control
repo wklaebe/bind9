@@ -5,7 +5,7 @@ Maintainer: LaMont Jones <lamont@debian.org>
 Uploaders: Bdale Garbee <bdale@gag.com>
 Build-Depends: libkrb5-dev, debhelper (>= 5), libssl-dev, libtool, bison, libdb-dev, libldap2-dev, libxml2-dev, libcap2-dev [!kfreebsd-i386 !kfreebsd-amd64 !hurd-i386], hardening-wrapper
 Build-Conflicts: libdb4.2-dev
-Standards-Version: 3.7.2.0
+Standards-Version: 3.7.3.0
 XS-Vcs-Browser: http://git.debian.org/?p=users/lamont/bind9.git
 XS-Vcs-Git: git://git.debian.org/~lamont/bind9.git
 

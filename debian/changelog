@@ -8,14 +8,15 @@ bind9 (1:9.6.0.dfsg.P1-0) experimental; urgency=low
 
   * meta: fix override disparity
   * meta: soname package fixups for 9.6.0
-  * Drop min-cache-ttl and min-ncache-ttl keywords due to merge conflicts
+  * meta: update Standards-Version: 3.7.3.0
+  * upstream now uses a bind subdir.  Closes: #212659
 
   [Sven Joachim]
 
   * meta: pass host and build into configure for hybrid build machines. 
     Closes: #515110
 
- -- LaMont Jones <lamont@debian.org>  Fri, 20 Mar 2009 09:27:33 -0600
+ -- LaMont Jones <lamont@debian.org>  Fri, 20 Mar 2009 11:54:55 -0600
 
 bind9 (1:9.5.1.dfsg.P1-3) unstable; urgency=low
 

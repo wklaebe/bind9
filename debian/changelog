@@ -1,3 +1,15 @@
+bind9 (1:9.6.0.dfsg.P1-1) experimental; urgency=low
+
+  [Michael Milligan]
+
+  * Add min-cache-ttl and min-ncache-ttl keywords
+
+  [LaMont Jones]
+  
+  * Fix merge errors from 9.6.0.dfsg.P1-0
+
+ -- LaMont Jones <lamont@debian.org>  Fri, 20 Mar 2009 15:50:50 -0600
+
 bind9 (1:9.6.0.dfsg.P1-0) experimental; urgency=low
 
   [Internet Software Consortium, Inc]

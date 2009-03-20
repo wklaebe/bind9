@@ -2543,6 +2543,18 @@ configure_view(dns_view_t *view, cfg_obj_t *config, cfg_obj_t *vconfig,
 	if (view->maxncachettl > 7 * 24 * 3600)
 		view->maxncachettl = 7 * 24 * 3600;
 
+	obj = NULL;
+	result = ns_config_get(maps, "min-cache-ttl", &obj);
+	INSIST(result == ISC_R_SUCCESS);
+	view->mincachettl = cfg_obj_asuint32(obj);
+
+	obj = NULL;
+	result = ns_config_get(maps, "min-ncache-ttl", &obj);
+	INSIST(result == ISC_R_SUCCESS);
+	view->minncachettl = cfg_obj_asuint32(obj);
+	if (view->minncachettl > 7 * 24 * 3600)
+		view->minncachettl = 7 * 24 * 3600;
+
 	/*
 	 * Configure the view's cache.
 	 *

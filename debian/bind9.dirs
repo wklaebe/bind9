@@ -4,7 +4,7 @@ etc/bind
 usr/bin
 usr/sbin
 var/cache/bind
-var/run/bind/run
+var/run/named
 usr/share/bind9
 etc/ppp/ip-up.d
 etc/ppp/ip-down.d

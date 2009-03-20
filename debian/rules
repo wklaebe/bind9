@@ -30,7 +30,7 @@ configure-stamp:
 		--mandir=\$${prefix}/share/man \
 		--infodir=\$${prefix}/share/info \
 		--sysconfdir=/etc/bind \
-		--localstatedir=/var/run/bind \
+		--localstatedir=/var \
 		--enable-threads \
 		--enable-largefile \
 		--with-libtool \

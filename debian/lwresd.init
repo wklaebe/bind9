@@ -29,9 +29,9 @@ case "$1" in
 	modprobe capability >/dev/null 2>&1 || true
 
 	# dirs under /var/run can go away on reboots.
-	mkdir -p /var/run/bind/run
-	chmod 775 /var/run/bind/run
-	chown root:bind /var/run/bind/run >/dev/null 2>&1 || true
+	mkdir -p /var/run/named
+	chmod 775 /var/run/named
+	chown root:bind /var/run/named >/dev/null 2>&1 || true
 
 	log_daemon_msg "Starting domain name service" $NAME
 	if start-stop-daemon --start --quiet --exec $DAEMON  -- $OPTIONS; then
@@ -44,7 +44,7 @@ case "$1" in
     stop)
 	log_daemon_msg "Stopping domain name service" $NAME
 	if start-stop-daemon --stop --quiet  \
-	    --pidfile /var/run/bind/run/$NAME.pid --exec $DAEMON; then
+	    --pidfile /var/run/named/$NAME.pid --exec $DAEMON; then
 	    log_end_msg 0
 	else
 	    log_end_msg 1

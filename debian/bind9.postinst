@@ -109,7 +109,7 @@ if [ "$1" = configure ]; then
 	ugid=$(ls -l /etc/bind/rndc.key | awk '{print $3 $4}')
 	if [ "$ugid" = "bindbind" ]; then
 	    chown root:root /etc/bind/rndc.key
-	    chown root:bind /var/run/bind/run
+	    chown root:bind /var/run/named
 	    chown root:bind /var/cache/bind
 	fi
     fi
@@ -119,10 +119,10 @@ if [ "$1" = configure ]; then
 	[ -n "$localconf" ] || chown bind /etc/bind/rndc.key
 	chgrp bind /etc/bind
 	chmod g+s /etc/bind
-	chgrp bind /etc/bind/rndc.key /var/run/bind/run /var/cache/bind
+	chgrp bind /etc/bind/rndc.key /var/run/named /var/cache/bind
 	chgrp bind /etc/bind/named.conf*
 	chmod g+r /etc/bind/rndc.key /etc/bind/named.conf*
-	chmod g+rwx /var/run/bind/run /var/cache/bind
+	chmod g+rwx /var/run/named /var/cache/bind
     fi
 
     # Reload AppArmor profile

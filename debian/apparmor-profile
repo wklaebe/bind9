@@ -26,15 +26,18 @@
   /etc/krb5.keytab kr,
   /etc/bind/krb5.keytab kr,
 
+  # ssl
+  /etc/ssl/openssl.cnf r,
+
   # dnscvsutil package
   /var/lib/dnscvsutil/compiled/** rw,
 
   /proc/net/if_inet6 r,
   /proc/*/net/if_inet6 r,
   /usr/sbin/named mr,
-  /var/run/bind/run/named.pid w,
+  /var/run/named/named.pid w,
   # support for resolvconf
-  /var/run/bind/named.options r,
+  /var/run/named/named.options r,
 
   # some people like to put logs in /var/log/named/ instead of having
   # syslog do the heavy lifting.

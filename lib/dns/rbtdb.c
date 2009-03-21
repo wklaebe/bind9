@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2008  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2009  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rbtdb.c,v 1.270 2008/11/14 14:07:48 marka Exp $ */
+/* $Id: rbtdb.c,v 1.270.12.4 2009/03/05 04:57:40 marka Exp $ */
 
 /*! \file */
 
@@ -188,6 +188,15 @@ typedef isc_mutex_t nodelock_t;
 #define NODE_WEAKLOCK(l, t)     ((void)0)
 #define NODE_WEAKUNLOCK(l, t)   ((void)0)
 #define NODE_WEAKDOWNGRADE(l)   ((void)0)
+#endif
+
+/*%
+ * Whether to rate-limit updating the LRU to avoid possible thread contention.
+ * Our performance measurement has shown the cost is marginal, so it's defined
+ * to be 0 by default either with or without threads.
+ */
+#ifndef DNS_RBTDB_LIMITLRUUPDATE
+#define DNS_RBTDB_LIMITLRUUPDATE 0
 #endif
 
 /*
@@ -621,7 +630,7 @@ static void setnsec3parameters(dns_db_t *db, rbtdb_version_t *version,
 /*%
  * 'init_count' is used to initialize 'newheader->count' which inturn
  * is used to determine where in the cycle rrset-order cyclic starts.
- * We don't lock this as we don't care about simultanious updates.
+ * We don't lock this as we don't care about simultaneous updates.
  *
  * Note:
  *      Both init_count and header->count can be ISC_UINT32_MAX.
@@ -4801,8 +4810,8 @@ expirenode(dns_db_t *db, dns_dbnode_t *node, isc_stdtime_t now) {
 
 		/*
 		 * Note that 'log' can be true IFF rbtdb->overmem is also true.
-		 * rbtdb->ovemem can currently only be true for cache databases
-		 * -- hence all of the "overmem cache" log strings.
+		 * rbtdb->overmem can currently only be true for cache
+		 * databases -- hence all of the "overmem cache" log strings.
 		 */
 		log = ISC_TF(isc_log_wouldlog(dns_lctx, level));
 		if (log)
@@ -5226,19 +5235,15 @@ cname_and_other_data(dns_rbtnode_t *node, rbtdb_serial_t serial) {
 			 * Look for active extant "other data".
 			 *
 			 * "Other data" is any rdataset whose type is not
-			 * KEY, RRSIG KEY, NSEC, RRSIG NSEC or RRSIG CNAME.
+			 * KEY, NSEC, SIG or RRSIG.
 			 */
 			rdtype = RBTDB_RDATATYPE_BASE(header->type);
-			if (rdtype == dns_rdatatype_rrsig ||
-			    rdtype == dns_rdatatype_sig)
-				rdtype = RBTDB_RDATATYPE_EXT(header->type);
-			if (rdtype != dns_rdatatype_nsec &&
-			    rdtype != dns_rdatatype_key &&
-			    rdtype != dns_rdatatype_cname) {
+			if (rdtype != dns_rdatatype_key &&
+			    rdtype != dns_rdatatype_sig &&
+			    rdtype != dns_rdatatype_nsec &&
+			    rdtype != dns_rdatatype_rrsig) {
 				/*
-				 * We've found a type that isn't
-				 * NSEC, KEY, CNAME, or one of their
-				 * signatures.  Is it active and extant?
+				 * Is it active and extant?
 				 */
 				do {
 					if (header->serial <= serial &&
@@ -5942,7 +5947,7 @@ addrdataset(dns_db_t *db, dns_dbnode_t *node, dns_dbversion_t *version,
 
 	/*
 	 * Update the zone's secure status.  If version is non-NULL
-	 * this is defered until closeversion() is called.
+	 * this is deferred until closeversion() is called.
 	 */
 	if (result == ISC_R_SUCCESS && version == NULL && !IS_CACHE(rbtdb))
 		iszonesecure(db, version, rbtdb->origin_node);
@@ -6126,7 +6131,7 @@ subtractrdataset(dns_db_t *db, dns_dbnode_t *node, dns_dbversion_t *version,
 
 	/*
 	 * Update the zone's secure status.  If version is non-NULL
-	 * this is defered until closeversion() is called.
+	 * this is deferred until closeversion() is called.
 	 */
 	if (result == ISC_R_SUCCESS && version == NULL && !IS_CACHE(rbtdb))
 		iszonesecure(db, rbtdb->current_version, rbtdb->origin_node);
@@ -6181,7 +6186,7 @@ deleterdataset(dns_db_t *db, dns_dbnode_t *node, dns_dbversion_t *version,
 
 	/*
 	 * Update the zone's secure status.  If version is non-NULL
-	 * this is defered until closeversion() is called.
+	 * this is deferred until closeversion() is called.
 	 */
 	if (result == ISC_R_SUCCESS && version == NULL && !IS_CACHE(rbtdb))
 		iszonesecure(db, rbtdb->current_version, rbtdb->origin_node);
@@ -6872,7 +6877,7 @@ dns_rbtdb_create
 	isc_mem_attach(mctx, &rbtdb->common.mctx);
 
 	/*
-	 * Must be initalized before free_rbtdb() is called.
+	 * Must be initialized before free_rbtdb() is called.
 	 */
 	isc_ondestroy_init(&rbtdb->common.ondest);
 
@@ -8302,15 +8307,17 @@ rdataset_putadditional(dns_acache_t *acache, dns_rdataset_t *rdataset,
 
 /*%
  * See if a given cache entry that is being reused needs to be updated
- * in the LRU-list.  For the non-threaded case this is always true unless the
- * entry has already been marked as stale; for the threaded case, updating
- * the entry every time it is referenced might be expensive because it requires
- * a node write lock.  Thus this function returns true if the entry has not been
- * updated for some period of time.  We differentiate the NS or glue address
- * case and the others since experiments have shown that the former tends to be
- * accessed relatively infrequently and the cost of cache miss is higher
- * (e.g., a missing NS records may cause external queries at a higher level
- * zone, involving more transactions).
+ * in the LRU-list.  From the LRU management point of view, this function is
+ * expected to return true for almost all cases.  When used with threads,
+ * however, this may cause a non-negligible performance penalty because a
+ * writer lock will have to be acquired before updating the list.
+ * If DNS_RBTDB_LIMITLRUUPDATE is defined to be non 0 at compilation time, this
+ * function returns true if the entry has not been updated for some period of
+ * time.  We differentiate the NS or glue address case and the others since
+ * experiments have shown that the former tends to be accessed relatively
+ * infrequently and the cost of cache miss is higher (e.g., a missing NS records
+ * may cause external queries at a higher level zone, involving more
+ * transactions).
  *
  * Caller must hold the node (read or write) lock.
  */
@@ -8320,7 +8327,7 @@ need_headerupdate(rdatasetheader_t *header, isc_stdtime_t now) {
 	     (RDATASET_ATTR_NONEXISTENT|RDATASET_ATTR_STALE)) != 0)
 		return (ISC_FALSE);
 
-#ifdef ISC_PLATFORM_USETHREADS
+#if DNS_RBTDB_LIMITLRUUPDATE
 	if (header->type == dns_rdatatype_ns ||
 	    (header->trust == dns_trust_glue &&
 	     (header->type == dns_rdatatype_a ||
@@ -8399,6 +8406,15 @@ overmem_purge(dns_rbtdb_t *rbtdb, unsigned int locknum_start,
 		     header != NULL && purgecount > 0;
 		     header = header_prev) {
 			header_prev = ISC_LIST_PREV(header, lru_link);
+			/*
+			 * Unlink the entry at this point to avoid checking it
+			 * again even if it's currently used someone else and
+			 * cannot be purged at this moment.  This entry won't be
+			 * referenced any more (so unlinking is safe) since the
+			 * TTL was reset to 0.
+			 */
+			ISC_LIST_UNLINK(rbtdb->rdatasets[locknum], header,
+					lru_link);
 			expire_header(rbtdb, header, tree_locked);
 			purgecount--;
 		}

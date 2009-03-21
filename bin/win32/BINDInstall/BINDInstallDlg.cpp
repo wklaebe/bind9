@@ -1,5 +1,5 @@
 /*
- * Portions Copyright (C) 2004-2008  Internet Systems Consortium, Inc. ("ISC")
+ * Portions Copyright (C) 2004-2009  Internet Systems Consortium, Inc. ("ISC")
  * Portions Copyright (C) 2001, 2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: BINDInstallDlg.cpp,v 1.37.228.2 2008/12/14 21:33:07 tbox Exp $ */
+/* $Id: BINDInstallDlg.cpp,v 1.37.228.4 2009/01/18 23:47:35 tbox Exp $ */
 
 /*
  * Copyright (c) 1999-2000 by Nortel Networks Corporation
@@ -412,7 +412,7 @@ void CBINDInstallDlg::OnInstall() {
 
 	/*
 	 * Check that there is not leading / trailing whitespace.
-	 * This is for compatability with the standard password dialog.
+	 * This is for compatibility with the standard password dialog.
 	 * Passwords really should be treated as opaque blobs.
 	 */
 	oldlen = m_accountPassword.GetLength();

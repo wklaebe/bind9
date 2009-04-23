@@ -298,7 +298,7 @@ towiresorted(dns_rdataset_t *rdataset, const dns_name_t *owner_name,
 	dns_rdata_t rdata = DNS_RDATA_INIT;
 	isc_region_t r;
 	isc_result_t result;
-	unsigned int i, count, added, choice;
+	unsigned int i, real_count, count, added, choice;
 	isc_buffer_t savedbuffer, rdlen, rrbuffer;
 	unsigned int headlen;
 	isc_boolean_t question = ISC_FALSE;
@@ -341,6 +341,7 @@ towiresorted(dns_rdataset_t *rdataset, const dns_name_t *owner_name,
 		if (result != ISC_R_SUCCESS)
 			return (result);
 	}
+	real_count = count;
 
 	/*
 	 * Do we want to shuffle this anwer?
@@ -532,9 +533,9 @@ towiresorted(dns_rdataset_t *rdataset, const dns_name_t *owner_name,
 
  cleanup:
 	if (sorted != NULL && sorted != sorted_fixed)
-		isc_mem_put(cctx->mctx, sorted, count * sizeof(*sorted));
+		isc_mem_put(cctx->mctx, sorted, real_count * sizeof(*sorted));
 	if (shuffled != NULL && shuffled != shuffled_fixed)
-		isc_mem_put(cctx->mctx, shuffled, count * sizeof(*shuffled));
+		isc_mem_put(cctx->mctx, shuffled, real_count * sizeof(*shuffled));
 	return (result);
 }
 

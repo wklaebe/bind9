@@ -1,3 +1,9 @@
+bind9 (1:9.6.0.dfsg.P1-2) unstable; urgency=low
+
+  * random_1 broke memory usage assertions.
+
+ -- LaMont Jones <lamont@debian.org>  Thu, 23 Apr 2009 05:15:45 -0600
+
 bind9 (1:9.6.0.dfsg.P1-1) experimental; urgency=low
 
   [Michael Milligan]

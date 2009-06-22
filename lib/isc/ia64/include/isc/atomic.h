@@ -42,6 +42,7 @@ __attribute__ ((unused))
 		swapped = prev + val;
 		__asm__ volatile(
 			"mov ar.ccv=%2;"
+			";;"
 			"cmpxchg4.acq %0=%4,%3,ar.ccv"
 			: "=r" (swapped), "=m" (*p)
 			: "r" (prev), "r" (swapped), "m" (*p)

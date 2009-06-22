@@ -1,3 +1,11 @@
+bind9 (1:9.6.1.dfsg-1) unstable; urgency=low
+
+  [Internet Software Consortium, Inc]
+
+  * 9.6.1
+
+ -- LaMont Jones <lamont@debian.org>  Mon, 22 Jun 2009 14:33:20 -0600
+
 bind9 (1:9.6.0.dfsg.P1-3) unstable; urgency=low
 
   [Martin Zobel-Helas]

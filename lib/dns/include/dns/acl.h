@@ -53,7 +53,15 @@ typedef enum {
 	dns_aclelementtype_localhost,
 	dns_aclelementtype_localnets,
 	dns_aclelementtype_any
+#ifdef SUPPORT_GEOIP
+          ,
+	dns_aclelementtype_ipcountry
+#endif
 } dns_aclelemettype_t;
+
+#ifdef SUPPORT_GEOIP
+typedef char dns_aclipcountry[3];
+#endif
 
 typedef struct dns_aclipprefix dns_aclipprefix_t;
 
@@ -68,6 +76,9 @@ struct dns_aclelement {
 	dns_name_t		keyname;
 	dns_acl_t		*nestedacl;
 	int			node_num;
+#ifdef SUPPORT_GEOIP
+	dns_aclipcountry        country;
+#endif
 };
 
 struct dns_acl {

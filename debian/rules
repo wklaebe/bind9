@@ -45,6 +45,7 @@ configure-stamp:
 		--with-dlz-filesystem=yes \
 		--with-dlz-ldap=yes \
 		--with-dlz-stub=yes \
+		--with-geoip=/usr \
 		--enable-ipv6
 	touch configure-stamp
 

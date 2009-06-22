@@ -36,6 +36,7 @@ configure-stamp:
 		--with-libtool \
 		--enable-shared \
 		--enable-static \
+		--with-pkcs11 \
 		--with-openssl=/usr \
 		--with-gssapi=/usr \
 		--with-gnu-ld \

@@ -1,3 +1,27 @@
+bind9 (1:9.6.0.dfsg.P1-3) unstable; urgency=low
+
+  [Martin Zobel-Helas]
+
+  * GEO-IP Patch from
+    git://git.kernel.org/pub/scm/network/bind/bind-geodns.git.  Closes: #395191
+
+  [LaMont Jones]
+
+  * Remove /var/lib/bind on purge.  Closes: #527613
+  * Build-Depend: libdb-dev (>4.6).  Closes: #527877, #528772
+  * init.d: detect rndc errors better.  LP: #380962
+  * init.d: clean up exit status.  Closes: #523454
+  * Enable pkcs11 support, and then Revert - causes assertion failures
+    c.f.: #516552
+
+ -- LaMont Jones <lamont@debian.org>  Mon, 22 Jun 2009 13:58:32 -0600
+
+bind9 (1:9.6.0.dfsg.P1-2) unstable; urgency=low
+
+  * random_1 broke memory usage assertions.
+
+ -- LaMont Jones <lamont@debian.org>  Thu, 23 Apr 2009 05:15:45 -0600
+
 bind9 (1:9.6.0.dfsg.P1-1) experimental; urgency=low
 
   [Michael Milligan]

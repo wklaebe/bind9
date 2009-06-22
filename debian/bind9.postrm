@@ -5,6 +5,7 @@ then
 	rm -f /etc/bind/rndc.key /etc/default/bind9
 	rmdir /etc/bind >/dev/null 2>&1 || true
         rm -f /etc/apparmor.d/force-complain/usr.sbin.named >/dev/null 2>&1 || true
+	rmdir /var/lib/bind
 fi
 
 #DEBHELPER#

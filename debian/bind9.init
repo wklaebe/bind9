@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/sh -e
 
 ### BEGIN INIT INFO
 # Provides:          bind9
@@ -25,7 +25,6 @@ test -f /etc/default/bind9 && . /etc/default/bind9
 test -x /usr/sbin/rndc || exit 0
 
 . /lib/lsb/init-functions
-DISTRO=$(lsb_release -is 2>/dev/null || echo Debian)
 PIDFILE=/var/run/named/named.pid
 
 check_network() {
@@ -55,12 +54,11 @@ case "$1" in
 	if [ ! -x /usr/sbin/named ]; then
 	    log_action_msg "named binary missing - not starting"
 	    log_end_msg 1
-	    exit 1
 	fi
 
 	if ! check_network; then
+	    log_action_msg "no networks configured"
 	    log_end_msg 1
-	    exit 1
 	fi
 
 	if start-stop-daemon --start --oknodo --quiet --exec /usr/sbin/named \
@@ -77,36 +75,39 @@ case "$1" in
     stop)
 	log_daemon_msg "Stopping domain name service..." "bind9"
 	if ! check_network; then
+	    log_action_msg "no networks configured"
 	    log_end_msg 1
-	    exit 1
 	fi
 
 	if [ "X$RESOLVCONF" != "Xno" ] && [ -x /sbin/resolvconf ] ; then
 	    /sbin/resolvconf -d lo.named
 	fi
 	pid=$(/usr/sbin/rndc stop -p | awk '/^pid:/ {print $2}')
-	if [ -n "$pid" ]; then
+	if [ -z "$pid" ]; then		# no pid found, so either not running, or error
+	    pid=$(ps ax | awk '/\/usr\/sbin\/named/ {print $1}')
+	    [ -z $pid ] || log_end_msg 1
+	else
 	  while kill -0 $pid 2>/dev/null; do
 	    log_progress_msg "waiting for pid $pid to die"
 	    sleep 1
 	  done
 	fi
-	log_end_msg $?
+	log_end_msg 0
     ;;
 
     reload|force-reload)
 	log_daemon_msg "Reloading domain name service..." "bind9"
 	if ! check_network; then
+	    log_action_msg "no networks configured"
 	    log_end_msg 1
-	    exit 1
 	fi
 
-	/usr/sbin/rndc reload >/dev/null
-	log_end_msg $?
+	/usr/sbin/rndc reload >/dev/null && log_end_msg 0 || log_end_msg 1
     ;;
 
     restart)
 	if ! check_network; then
+	    log_action_msg "no networks configured"
 	    exit 1
 	fi
 
@@ -117,6 +118,7 @@ case "$1" in
     status)
     	ret=0
 	status_of_proc -p ${PIDFILE} /usr/sbin/named bind9 2>/dev/null || ret=$?
+	exit $ret
 	;;
 
     *)

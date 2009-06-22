@@ -54,13 +54,11 @@ case "$1" in
 	if [ ! -x /usr/sbin/named ]; then
 	    log_action_msg "named binary missing - not starting"
 	    log_end_msg 1
-	    exit 1
 	fi
 
 	if ! check_network; then
 	    log_action_msg "no networks configured"
 	    log_end_msg 1
-	    exit 1
 	fi
 
 	if start-stop-daemon --start --oknodo --quiet --exec /usr/sbin/named \
@@ -79,7 +77,6 @@ case "$1" in
 	if ! check_network; then
 	    log_action_msg "no networks configured"
 	    log_end_msg 1
-	    exit 1
 	fi
 
 	if [ "X$RESOLVCONF" != "Xno" ] && [ -x /sbin/resolvconf ] ; then
@@ -103,7 +100,6 @@ case "$1" in
 	if ! check_network; then
 	    log_action_msg "no networks configured"
 	    log_end_msg 1
-	    exit 1
 	fi
 
 	/usr/sbin/rndc reload >/dev/null && log_end_msg 0 || log_end_msg 1
@@ -122,6 +118,7 @@ case "$1" in
     status)
     	ret=0
 	status_of_proc -p ${PIDFILE} /usr/sbin/named bind9 2>/dev/null || ret=$?
+	exit $ret
 	;;
 
     *)

@@ -42,7 +42,7 @@ ISCLIBS =	../../lib/isc/libisc.@A@
 
 ISCDEPLIBS =	../../lib/isc/libisc.@A@
 
-LIBS =		@LIBS@ -L../../lib/isc -lcrypto
+LIBS =		@LIBS@ -L../../lib/isc -lcrypto @GEOIP_LIBS@
 
 # Alphabetically
 

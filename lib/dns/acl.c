@@ -21,6 +21,10 @@
 
 #include <config.h>
 
+#ifdef SUPPORT_GEOIP
+#include <GeoIP.h>
+#endif
+
 #include <isc/mem.h>
 #include <isc/once.h>
 #include <isc/string.h>
@@ -28,6 +32,10 @@
 
 #include <dns/acl.h>
 #include <dns/iptable.h>
+
+#ifdef SUPPORT_GEOIP
+static GeoIP *geoip = NULL;
+#endif
 
 /*
  * Create a new ACL, including an IP table and an array with room
@@ -320,6 +328,13 @@ dns_acl_merge(dns_acl_t *dest, dns_acl_t *source, isc_boolean_t pos)
 		dest->elements[nelem + i].node_num =
 			source->elements[i].node_num + dest->node_count;
 
+#ifdef SUPPORT_GEOIP
+		/* Country */
+		if (source->elements[i].type == dns_aclelementtype_ipcountry &&
+		   source->elements[i].country != NULL) {
+			strncpy(dest->elements[nelem + i].country, source->elements[i].country, 3);
+		}
+#endif
 		/* Duplicate nested acl. */
 		if (source->elements[i].type == dns_aclelementtype_nestedacl &&
 		   source->elements[i].nestedacl != NULL)
@@ -380,6 +395,32 @@ dns_aclelement_match(const isc_netaddr_t *reqaddr,
 	isc_result_t result;
 
 	switch (e->type) {
+#ifdef SUPPORT_GEOIP
+	case dns_aclelementtype_ipcountry:
+		/* Country match */
+		if (NULL == geoip) {
+			geoip = GeoIP_new(GEOIP_MEMORY_CACHE);
+		}
+		if (NULL != geoip) {
+			const char *value = NULL;
+
+			if (reqaddr->family == AF_INET) {
+				value = GeoIP_country_code_by_addr(geoip,inet_ntoa(reqaddr->type.in));
+#ifdef GEOIP_V6
+			} else if (reqaddr->family == AF_INET6) {
+				value = GeoIP_country_name_by_ipnum_v6(geoip, (geoipv6_t)reqaddr->type.in6);
+#endif
+			}
+                
+			if ((NULL != value) && (2 == strlen(value))) {
+				if ((e->country[0] == value[0]) && (e->country[1] == value[1])) {
+					return (ISC_TRUE);
+				}
+			}
+                }
+		return (ISC_FALSE);
+#endif
+
 	case dns_aclelementtype_keyname:
 		if (reqsigner != NULL &&
 		    dns_name_equal(reqsigner, &e->keyname)) {

@@ -31,10 +31,10 @@
  * (e.g., 1 and -1)?
  */
 static inline isc_int32_t
-isc_atomic_xadd(isc_int32_t *p, isc_int32_t val)
 #ifdef __GNUC__
 __attribute__ ((unused))
 #endif
+isc_atomic_xadd(isc_int32_t *p, isc_int32_t val)
 {
 	isc_int32_t prev, swapped;
 
@@ -58,10 +58,10 @@ __attribute__ ((unused))
  * This routine atomically stores the value 'val' in 'p'.
  */
 static inline void
-isc_atomic_store(isc_int32_t *p, isc_int32_t val)
 #ifdef __GNUC__
 __attribute__ ((unused))
 #endif
+isc_atomic_store(isc_int32_t *p, isc_int32_t val)
 {
 	__asm__ volatile(
 		"st4.rel %0=%1"
@@ -77,10 +77,10 @@ __attribute__ ((unused))
  * case.
  */
 static inline isc_int32_t
-isc_atomic_cmpxchg(isc_int32_t *p, isc_int32_t cmpval, isc_int32_t val)
 #ifdef __GNUC__
 __attribute__ ((unused))
 #endif
+isc_atomic_cmpxchg(isc_int32_t *p, isc_int32_t cmpval, isc_int32_t val)
 {
 	isc_int32_t ret;
 

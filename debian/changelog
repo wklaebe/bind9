@@ -1,3 +1,9 @@
+bind9 (1:9.6.1.dfsg-2) unstable; urgency=low
+
+  * ia64: fix atomic.h
+
+ -- LaMont Jones <lamont@debian.org>  Tue, 23 Jun 2009 01:56:35 -0600
+
 bind9 (1:9.6.1.dfsg-1) unstable; urgency=low
 
   [Internet Software Consortium, Inc]

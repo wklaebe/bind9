@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dig.c,v 1.225.26.4 2009/05/06 10:18:33 fdupont Exp $ */
+/* $Id: dig.c,v 1.229 2009/05/06 10:16:32 fdupont Exp $ */
 
 /*! \file */
 

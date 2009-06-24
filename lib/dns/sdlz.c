@@ -50,7 +50,7 @@
  * USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: sdlz.c,v 1.18.50.2 2009/04/21 23:47:18 tbox Exp $ */
+/* $Id: sdlz.c,v 1.20 2009/04/21 23:48:04 tbox Exp $ */
 
 /*! \file */
 

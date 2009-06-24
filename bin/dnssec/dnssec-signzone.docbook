@@ -18,10 +18,10 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<!-- $Id: dnssec-signzone.docbook,v 1.31.44.6 2009/06/09 01:47:19 each Exp $ -->
+<!-- $Id: dnssec-signzone.docbook,v 1.34 2009/06/05 21:59:43 jreed Exp $ -->
 <refentry id="man.dnssec-signzone">
   <refentryinfo>
-    <date>June 08, 2009</date>
+    <date>June 05, 2009</date>
   </refentryinfo>
 
   <refmeta>
@@ -73,6 +73,7 @@
       <arg><option>-o <replaceable class="parameter">origin</replaceable></option></arg>
       <arg><option>-O <replaceable class="parameter">output-format</replaceable></option></arg>
       <arg><option>-p</option></arg>
+      <arg><option>-P</option></arg>
       <arg><option>-r <replaceable class="parameter">randomdev</replaceable></option></arg>
       <arg><option>-s <replaceable class="parameter">start-time</replaceable></option></arg>
       <arg><option>-t</option></arg>
@@ -360,6 +361,22 @@
       </varlistentry>
 
       <varlistentry>
+        <term>-P</term>
+        <listitem>
+          <para>
+	    Disable post sign verification tests.
+          </para>
+          <para>
+	    The post sign verification test ensures that for each algorithm
+	    in use there is at least one non revoked self signed KSK key,
+	    that all revoked KSK keys are self signed, and that all records
+	    in the zone are signed by the algorithm.
+	    This option skips these tests.
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
         <term>-r <replaceable class="parameter">randomdev</replaceable></term>
         <listitem>
           <para>
@@ -488,33 +505,6 @@ db.example.com.signed
 % dnssec-signzone -o example.com db.example.com
 db.example.com.signed
 %</programlisting>
-  </refsect1>
-
-  <refsect1>
-    <title>KNOWN BUGS</title>
-    <para>
-        <command>dnssec-signzone</command> was designed so that it could
-        sign a zone partially, using only a subset of the DNSSEC keys
-        needed to produce a fully-signed zone.  This permits a zone
-        administrator, for example, to sign a zone with one key on one
-        machine, move the resulting partially-signed zone to a second
-        machine, and sign it again with a second key.
-    </para>
-    <para>
-        An unfortunate side-effect of this flexibility is that
-        <command>dnssec-signzone</command> does not check to make sure
-        it's signing a zone with any valid keys at all.  An attempt to
-        sign a zone without any keys will appear to succeed, producing
-        a "signed" zone with no signatures.  There is no warning issued
-        when a zone is not fully signed.
-    </para>
-
-    <para>
-        This will be corrected in a future release.  In the meantime, ISC
-        recommends examining the output of <command>dnssec-signzone</command>
-        to confirm that the zone is properly signed by all keys before
-        using it.
-    </para>
   </refsect1>
 
   <refsect1>

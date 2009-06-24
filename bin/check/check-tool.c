@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: check-tool.c,v 1.35.36.3 2009/01/20 02:03:18 marka Exp $ */
+/* $Id: check-tool.c,v 1.38 2009/01/20 02:01:11 marka Exp $ */
 
 /*! \file */
 

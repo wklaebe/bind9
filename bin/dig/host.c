@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: host.c,v 1.116.216.2 2009/05/06 23:47:18 tbox Exp $ */
+/* $Id: host.c,v 1.118 2009/05/06 23:47:50 tbox Exp $ */
 
 /*! \file */
 

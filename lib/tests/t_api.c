@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: t_api.c,v 1.63.156.2 2009/03/02 23:47:11 tbox Exp $ */
+/* $Id: t_api.c,v 1.65 2009/03/02 23:47:43 tbox Exp $ */
 
 /*! \file */
 

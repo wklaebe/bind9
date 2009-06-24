@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2007, 2009  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: namedconf.h,v 1.9 2007/06/19 23:47:22 tbox Exp $ */
+/* $Id: namedconf.h,v 1.12 2009/06/10 00:27:22 each Exp $ */
 
 #ifndef ISCCFG_NAMEDCONF_H
 #define ISCCFG_NAMEDCONF_H 1
@@ -33,11 +33,17 @@
 LIBISCCFG_EXTERNAL_DATA extern cfg_type_t cfg_type_namedconf;
 /*%< A complete named.conf file. */
 
+LIBISCCFG_EXTERNAL_DATA extern cfg_type_t cfg_type_bindkeys;
+/*%< A bind.keys file. */
+
 LIBISCCFG_EXTERNAL_DATA extern cfg_type_t cfg_type_rndcconf;
 /*%< A complete rndc.conf file. */
 
 LIBISCCFG_EXTERNAL_DATA extern cfg_type_t cfg_type_rndckey;
 /*%< A complete rndc.key file. */
+
+LIBISCCFG_EXTERNAL_DATA extern cfg_type_t cfg_type_ddnskey;
+/*%< A complete ddns.key file. */
 
 LIBISCCFG_EXTERNAL_DATA extern cfg_type_t cfg_type_keyref;
 /*%< A key reference, used as an ACL element */

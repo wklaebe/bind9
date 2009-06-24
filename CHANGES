@@ -1,8 +1,41 @@
+2613.	[placeholder]
 
-	--- 9.6.1 released ---
+	--- 9.7.0a1 released ---
+
+2612.	[func]		Add default values for the arguments to
+			dnssec-keygen.  Without arguments, it will now
+			generate a 1024-bit RSASHA1 zone-signing key,
+			or with the -f KSK option, a 2048-bit RSASHA1
+			key-signing key. [RT #19300]
+
+2611.	[func]		Add -l option to dnssec-dsfromkey to generate 
+			DLV records instead of DS records. [RT #19300]
+
+2610.	[port]		sunos: Change #2363 was not complete. [RT #19796]
+
+2609.	[func]		Simplify the configuration of dynamic zones:
+			- add ddns-confgen command to generate
+			  configuration text for named.conf
+			- add zone option "ddns-autoconf yes;", which
+			  causes named to generate a TSIG session key
+			  and allow updates to the zone using that key
+			- add '-l' (localhost) option to nsupdate, which
+			  causes nsupdate to connect to a locally-running
+			  named process using the session key generated
+			  by named
+			[RT #19284]
+			
+2608.	[func]		Perform post signing verification checks in
+			dnssec-signzone.  These can be disabled with -P.
+
+			The post sign verification test ensures that for each
+			algorithm in use there is at least one non revoked
+			self signed KSK key.  That all revoked KSK keys are
+			self signed.  That all records in the zone are signed
+			by the algorithm.  [RT #19653]
 
 2607.	[bug]		named could incorrectly delete NSEC3 records for
-			empty nodes when processing a update request.  
+			empty nodes when processing a update request.
 			[RT #19749]
 
 2606.	[bug]		"delegation-only" was not being accepted in
@@ -11,6 +44,11 @@
 2605.	[bug]		Accept DS responses from delegation only zones.
 			[RT # 19296]
 
+2604.	[func]		Add support for DNS rebinding attack prevention through
+			new options, deny-answer-addresses and
+			deny-answer-aliases.  Based on contributed code from
+			JD Nurmi, Google. [RT #18192]
+
 2603.	[port]		win32: handle .exe extension of named-checkzone and
 			named-comilezone argv[0] names under windows.
 			[RT #19767]
@@ -18,10 +56,16 @@
 2602.	[port]		win32: fix debugging command line build of libisccfg.
 			[RT #19767]
 
-	--- 9.6.1rc1 released ---
+2601.	[doc]		Mention file creation mode mask in the
+			named manual page.
+
+2600.	[doc]		ARM: miscellaneous reformatting for different
+			page widths. [RT #19574]
 
 2599.	[bug]		Address rapid memory growth when validation fails.
 			[RT #19654]
+
+2598.	[func]		Reserve the -F flag. [RT #19657]
 
 2597.	[bug]		Handle a validation failure with a insecure delegation
 			from a NSEC3 signed master/slave zone.  [RT #19464]
@@ -32,15 +76,30 @@
 
 2595.	[bug]		Fix unknown extended rcodes in dig. [RT #19625]
 
+2594.	[func]		Have rndc warn if using its default configuration
+			file when the key file also exists. [RT #19424]
+
+2593.	[bug]		Improve a corner source of SERVFAILs [RT #19632]
+
 2592.	[bug]		Treat "any" as a type in nsupdate. [RT #19455]
 
 2591.	[bug]		named could die when processing a update in
 			removed_orphaned_ds(). [RT #19507]
 
+2590.	[func]		Report zone/class of "update with no effect".
+			[RT #19542]
+
+2589.	[bug]		dns_db_unregister() failed to clear '*dbimp'.
+		        [RT #19626]
+
 2588.	[bug]		SO_REUSEADDR could be set unconditionally after failure
 			of bind(2) call.  This should be rare and mostly
 			harmless, but may cause interference with other
 			processes that happen to use the same port. [RT #19642]
+
+2587.	[func]		Improve logging by reporting serial numbers for
+			when zone serial has gone backwards or unchanged.
+			[RT #19506]
 
 2586.	[bug]		Missing cleanup of SIG rdataset in searching a DLZ DB
 			or SDB. [RT #19577]
@@ -58,16 +117,17 @@
 2582.	[bug]		Don't emit warning log message when we attempt to
 			remove non-existant journal. [RT #19516]
 
+2581.	[contrib]	dlz/mysql set MYSQL_OPT_RECONNECT option on connection.
+			Requires MySQL 5.0.19 or later. [RT #19084]
+
+2580.	[bug]		UpdateRej statistics counter could be incremented twice
+			for one rejection. [RT #19476]
+
 2579.	[bug]		DNSSEC lookaside validation failed to handle unknown
 			algorithms. [RT #19479]
 
 2578.	[bug]		Changed default sig-signing-type to 65534, because
 			65535 turns out to be reserved.  [RT #19477]
-
-2499.	[port]		solaris: lib/lwres/getaddrinfo.c namespace clash.
-			[RT #18837]
-
-	--- 9.6.1b1 released ---
 
 2577.	[doc]		Clarified some statistics counters. [RT #19454]
 
@@ -75,10 +135,38 @@
 			a zone transitions from insecure to secure.
 			Handle such incorrectly signed zones. [RT #19114]
 
+2575.	[func]		New functions dns_name_fromstring() and
+			dns_name_tostring(), to simplify conversion
+			of a string to a dns_name structure and vice
+			versa. [RT #19451]
+
 2574.	[doc]		Document nsupdate -g and -o. [RT #19351]
 
 2573.	[bug]		Replacing a non-CNAME record with a CNAME record in a
 			single transaction in a signed zone failed. [RT #19397]
+
+2572.	[func]		Simplify DLV configuration, with a new option
+			"dnssec-lookaside auto;"  This is the equivalent
+			of "dnssec-lookaside . trust-anchor dlv.isc.org;"
+			plus setting a trusted-key for dlv.isc.org.
+
+			Note: The trusted key is hard-coded into named,
+			but is also stored in (and can be overridden
+			by) $sysconfdir/bind.keys.  As the ISC DLV key
+			rolls over it can be kept up to date by replacing
+			the bind.keys file with a key downloaded from
+			https://www.isc.org/solutions/dlv. [RT #18685]
+
+2571.	[func]		Add a new tool "arpaname" which translates IP addresses
+			to the corresponding IN-ADDR.ARPA or IP6.ARPA name.
+			[RT #18976]
+
+2570.	[func]		Log the destination address the query was sent to.
+			[RT #19209]
+
+2569.	[func]		Move journalprint, nsec3hash, and genrandom
+			commands from bin/tests into bin/tools; 
+			"make install" will put them in $sbindir. [RT #19301]
 
 2568.	[bug]		Report when the write to indicate a otherwise
 			successful start fails. [RT #19360]
@@ -87,6 +175,15 @@
 			write_public_key() could miss write errors.
 			dnssec-dsfromkey could miss write errors.
 			[RT #19360]
+
+2566.	[cleanup]	Clarify logged message when an insecure DNSSEC
+			response arrives from a zone thought to be secure:
+			"insecurity proof failed" instead of "not
+			insecure". [RT #19400]
+
+2565.	[func]		Add support for HIP record.  Includes new functions
+			dns_rdata_hip_first(), dns_rdata_hip_next()
+			and dns_rdata_hip_current().  [RT #19384]
 
 2564.	[bug]		Only take EDNS fallback steps when processing timeouts.
 			[RT #19405]
@@ -104,6 +201,10 @@
 2559.	[bug]		dnssec-dsfromkey could compute bad DS records when
 			reading from a K* files.  [RT #19357]
 
+2558.	[func]		Set the ownership of missing directories created
+			for pid-file if -u has been specified on the command
+			line. [RT #19328]
+
 2557.	[cleanup]	PCI compliance:
 			* new libisc log module file
 			* isc_dir_chroot() now also changes the working
@@ -115,6 +216,9 @@
 			error checks in the correct order resulting in the
 			wrong error code sometimes being returned. [RT #19249]
 			
+2555.	[func]		dig: when emitting a hex dump also display the
+			corresponding characters. [RT #19258]
+
 2554.	[bug]		Validation of uppercase queries from NSEC3 zones could
 			fail. [RT #19297]
 
@@ -138,6 +242,10 @@
 			function isc_mem_reallocate() was introduced to address
 			this bug. [RT #19313]
 
+2546.	[func]		Add --enable-openssl-hash configure flag to use
+			OpenSSL (in place of internal routine) for hash
+			functions (MD5, SHA[12] and HMAC). [RT #18815]
+
 2545.	[doc]		ARM: Legal hostname checking (check-names) is
 			for SRV RDATA too. [RT #19304]
 
@@ -150,6 +258,8 @@
 2541.	[bug]		Conditionally update dispatch manager statistics.
 			[RT #19247]
 
+2540.	[func]		Add a nibble mode to $GENERATE. [RT #18872]
+
 2539.	[security]	Update the interaction between recursion, allow-query,
 			allow-query-cache and allow-recursion.  [RT #19198]
 
@@ -157,13 +267,19 @@
 			especially with threads and smaller max-cache-size
 			values. [RT #19240]
 
-2537.	[experimental]	Added more statistics counters including those on socket
+2537.	[func]		Added more statistics counters including those on socket
 			I/O events and query RTT histograms. [RT #18802]
 
 2536.	[cleanup]	Silence some warnings when -Werror=format-security is
 			specified. [RT #19083]
 
-2535.	[bug]		dig +showsearh and +trace interacted badly. [RT #19091]
+2535.	[bug]		dig +showsearch and +trace interacted badly. [RT #19091]
+
+2534.	[func]		Check NAPTR records regular expressions and
+			replacement strings to ensure they are syntactically
+			valid and consistant. [RT #18168]
+
+2533.	[doc]		ARM: document @ (at-sign). [RT #17144]
 
 2532.	[bug]		dig: check the question section of the response to
 			see if it matches the asked question. [RT #18495]
@@ -179,10 +295,14 @@
 2528.   [cleanup]       Silence spurious configure warning about
                         --datarootdir [RT #19096]
 
-2527.	[bug]		named could reuse cache on reload with
-			enabling/disabling validation. [RT #19119]
+2527.	[placeholder]
 
-2525.	[experimental]	New logging category "query-errors" to provide detailed
+2526.	[func]		New named option "attach-cache" that allows multiple
+			views to share a single cache to save memory and
+			improve lookup efficiency.  Based on contributed code
+			from Barclay Osborn, Google. [RT #18905]
+
+2525.	[func]		New logging category "query-errors" to provide detailed
 			internal information about query failures, especially
 			about server failures. [RT #19027]
 
@@ -195,9 +315,16 @@
 
 2521.	[bug]		Improve epoll cross compilation support. [RT #19047]
 
+2520.	[bug]		Update xml statistics version number to 2.0 as change
+			#2388 made the schema incompatible to the previous
+			version. [RT #19080]
+
 2519.	[bug]		dig/host with -4 or -6 didn't work if more than two
 			nameserver addresses of the excluded address family
 			preceded in resolv.conf. [RT #19081]
+
+2518.	[func]		Add support for the new CERT types from RFC 4398.
+			[RT #19077]
 
 2517.	[bug]		dig +trace with -4 or -6 failed when it chose a
 			nameserver address of the excluded address.
@@ -206,37 +333,20 @@
 2516.	[bug]		glue sort for responses was performed even when not
 			needed. [RT #19039]
 
+2515.	[port]		win32: build dnssec-dsfromkey and dnssec-keyfromlabel.
+			[RT #19063]
+
 2514.	[bug]		dig/host failed with -4 or -6 when resolv.conf contains
 			a nameserver of the excluded address family.
 			[RT #18848]
 
+2513.	[bug]		Fix windows cli build. [RT #19062]
+
+2512.	[func]		Print a summary of the cached records which make up
+			the negative response.  [RT #18885]
+
 2511.	[cleanup]	dns_rdata_tofmttext() add const to linebreak.
 			[RT #18885]
-
-2506.	[port]		solaris: Check at configure time if 
-			hack_shutup_pthreadonceinit is needed. [RT #19037]
-
-2505.	[port]		Treat amd64 similarly to x86_64 when determining
-			atomic operation support. [RT #19031]
-
-2503.	[port]		linux: improve compatibility with Linux Standard
-			Base. [RT #18793]
-
-2502.	[cleanup]	isc_radix: Improve compliance with coding style,
-			document function in <isc/radix.h>. [RT #18534]
-
-	--- 9.6.0 released ---
-
-2520.	[bug]		Update xml statistics version number to 2.0 as change
-			#2388 made the schema incompatible to the previous
-			version. [RT #19080]
-
-	--- 9.6.0rc2 released ---
-
-2515.	[port]		win32: build dnssec-dsfromkey and dnssec-keyfromlabel.
-			[RT #19063]
-
-2513	[bug]		Fix windows cli build. [RT #19062]
 
 2510.	[bug]		"dig +sigchase" could trigger REQUIRE failures.
 			[RT #19033]
@@ -244,7 +354,35 @@
 2509.	[bug]		Specifying a fixed query source port was broken.
 			[RT #19051]
 
+2508.	[placeholder]
+
+2507.	[func]		Log the recursion quota values when killing the
+			oldest query or refusing to recurse due to quota.
+			[RT #19022]
+
+2506.	[port]		solaris: Check at configure time if 
+			hack_shutup_pthreadonceinit is needed. [RT #19037]
+
+2505.	[port]		Treat amd64 similarly to x86_64 when determining
+			atomic operation support. [RT #19031]
+
 2504.	[bug]		Address race condition in the socket code. [RT #18899]
+
+2503.	[port]		linux: improve compatibility with Linux Standard
+			Base. [RT #18793]
+
+2502.	[cleanup]	isc_radix: Improve compliance with coding style,
+			document function in <isc/radix.h>. [RT #18534]
+
+2501.	[func]		$GENERATE now supports all rdata types.  Multi-field
+			rdata types need to be quoted.  See the ARM for
+			details. [RT #18368]
+
+2500.	[contrib]	contrib/sdb/pgsql/zonetodb.c called non-existent
+			function. [RT #18582]
+
+2499.	[port]		solaris: lib/lwres/getaddrinfo.c namespace clash.
+			[RT #18837]
 
 	--- 9.6.0rc1 released ---
 

@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: main.c,v 1.166.34.3 2009/04/03 20:18:59 marka Exp $ */
+/* $Id: main.c,v 1.172 2009/05/07 09:33:52 fdupont Exp $ */
 
 /*! \file */
 
@@ -87,6 +87,7 @@ static char		absolute_conffile[ISC_DIR_PATHMAX];
 static char		saved_command_line[512];
 static char		version[512];
 static unsigned int	maxsocks = 0;
+static int		maxudp = 0;
 
 void
 ns_main_earlywarning(const char *format, ...) {
@@ -358,7 +359,7 @@ parse_command_line(int argc, char *argv[]) {
 
 	isc_commandline_errprint = ISC_FALSE;
 	while ((ch = isc_commandline_parse(argc, argv,
-					   "46c:C:d:fgi:lm:n:N:p:P:"
+					   "46c:C:d:fFgi:lm:n:N:p:P:"
 					   "sS:t:T:u:vVx:")) != -1) {
 		switch (ch) {
 		case '4':
@@ -451,8 +452,12 @@ parse_command_line(int argc, char *argv[]) {
 			 * clienttest: make clients single shot with their
 			 * 	       own memory context.
 			 */
-			if (strcmp(isc_commandline_argument, "clienttest") == 0)
+			if (!strcmp(isc_commandline_argument, "clienttest"))
 				ns_g_clienttest = ISC_TRUE;
+			else if (!strcmp(isc_commandline_argument, "maxudp512"))
+				maxudp = 512;
+			else if (!strcmp(isc_commandline_argument, "maxudp1460"))
+				maxudp = 1460;
 			else
 				fprintf(stderr, "unknown -T flag '%s\n",
 					isc_commandline_argument);
@@ -467,12 +472,16 @@ parse_command_line(int argc, char *argv[]) {
 			printf("BIND %s built with %s\n", ns_g_version,
 				ns_g_configargs);
 			exit(0);
+		case 'F':
+			/* Reserved for FIPS mode */
+			/* FALLTHROUGH */
 		case '?':
 			usage();
 			if (isc_commandline_option == '?')
 				exit(0);
 			ns_main_earlyfatal("unknown option '-%c'",
 					   isc_commandline_option);
+			/* FALLTHROUGH */
 		default:
 			ns_main_earlyfatal("parsing options returned %d", ch);
 		}
@@ -525,6 +534,7 @@ create_managers(void) {
 				 isc_result_totext(result));
 		return (ISC_R_UNEXPECTED);
 	}
+	isc__socketmgr_maxudp(ns_g_socketmgr, maxudp);
 	result = isc_socketmgr_getmaxsockets(ns_g_socketmgr, &socks);
 	if (result == ISC_R_SUCCESS) {
 		isc_log_write(ns_g_lctx, NS_LOGCATEGORY_GENERAL,
@@ -719,8 +729,8 @@ setup(void) {
 					       absolute_conffile,
 					       sizeof(absolute_conffile));
 		if (result != ISC_R_SUCCESS)
-			ns_main_earlyfatal("could not construct absolute path of "
-					   "configuration file: %s",
+			ns_main_earlyfatal("could not construct absolute path "
+					   "of configuration file: %s",
 					   isc_result_totext(result));
 		ns_g_conffile = absolute_conffile;
 	}

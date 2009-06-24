@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: check.c,v 1.95.12.4 2009/06/03 00:06:01 marka Exp $ */
+/* $Id: check.c,v 1.103 2009/06/10 23:47:47 tbox Exp $ */
 
 /*! \file */
 
@@ -664,10 +664,20 @@ check_options(const cfg_obj_t *options, isc_log_t *logctx, isc_mem_t *mctx) {
 		     element = cfg_list_next(element))
 		{
 			const char *dlv;
+			const cfg_obj_t *anchor;
 
 			obj = cfg_listelt_value(element);
 
 			dlv = cfg_obj_asstring(cfg_tuple_get(obj, "domain"));
+			anchor = cfg_tuple_get(obj, "trust-anchor");
+
+			/*
+			 * If domain is "auto" and trust anchor is missing,
+			 * skip remaining tests
+			 */
+			if (!strcmp(dlv, "auto") && cfg_obj_isvoid(anchor))
+				continue;
+
 			isc_buffer_init(&b, dlv, strlen(dlv));
 			isc_buffer_add(&b, strlen(dlv));
 			tresult = dns_name_fromtext(name, &b, dns_rootname,
@@ -699,19 +709,31 @@ check_options(const cfg_obj_t *options, isc_log_t *logctx, isc_mem_t *mctx) {
 				if (result == ISC_R_SUCCESS)
 					result = ISC_R_FAILURE;
 			}
-			dlv = cfg_obj_asstring(cfg_tuple_get(obj,
-					       "trust-anchor"));
-			isc_buffer_init(&b, dlv, strlen(dlv));
-			isc_buffer_add(&b, strlen(dlv));
-			tresult = dns_name_fromtext(name, &b, dns_rootname,
-						    ISC_TRUE, NULL);
-			if (tresult != ISC_R_SUCCESS) {
+
+			if(!cfg_obj_isvoid(anchor)) {
+				dlv = cfg_obj_asstring(anchor);
+				isc_buffer_init(&b, dlv, strlen(dlv));
+				isc_buffer_add(&b, strlen(dlv));
+				tresult = dns_name_fromtext(name, &b,
+							    dns_rootname,
+							    ISC_TRUE, NULL);
+				if (tresult != ISC_R_SUCCESS) {
+					cfg_obj_log(obj, logctx, ISC_LOG_ERROR,
+						    "bad domain name '%s'",
+						    dlv);
+					if (result == ISC_R_SUCCESS)
+						result = tresult;
+				}
+			} else {
 				cfg_obj_log(obj, logctx, ISC_LOG_ERROR,
-					    "bad domain name '%s'", dlv);
+					"dnssec-lookaside requires "
+					"either 'auto' or a domain and "
+					"trust anchor");
 				if (result == ISC_R_SUCCESS)
-					result = tresult;
+					result = ISC_R_FAILURE;
 			}
 		}
+
 		if (symtab != NULL)
 			isc_symtab_destroy(&symtab);
 	}
@@ -970,17 +992,22 @@ check_update_policy(const cfg_obj_t *policy, isc_log_t *logctx) {
 			result = tresult;
 		}
 
-		dns_fixedname_init(&fixed);
-		str = cfg_obj_asstring(dname);
-		isc_buffer_init(&b, str, strlen(str));
-		isc_buffer_add(&b, strlen(str));
-		tresult = dns_name_fromtext(dns_fixedname_name(&fixed), &b,
-					    dns_rootname, ISC_FALSE, NULL);
-		if (tresult != ISC_R_SUCCESS) {
-			cfg_obj_log(dname, logctx, ISC_LOG_ERROR,
-				    "'%s' is not a valid name", str);
-			result = tresult;
+		if (tresult == ISC_R_SUCCESS &&
+		    strcasecmp(cfg_obj_asstring(matchtype), "zonesub") != 0) {
+			dns_fixedname_init(&fixed);
+			str = cfg_obj_asstring(dname);
+			isc_buffer_init(&b, str, strlen(str));
+			isc_buffer_add(&b, strlen(str));
+			tresult = dns_name_fromtext(dns_fixedname_name(&fixed),
+						    &b, dns_rootname,
+						    ISC_FALSE, NULL);
+			if (tresult != ISC_R_SUCCESS) {
+				cfg_obj_log(dname, logctx, ISC_LOG_ERROR,
+					    "'%s' is not a valid name", str);
+				result = tresult;
+			}
 		}
+
 		if (tresult == ISC_R_SUCCESS &&
 		    strcasecmp(cfg_obj_asstring(matchtype), "wildcard") == 0 &&
 		    !dns_name_iswildcard(dns_fixedname_name(&fixed))) {
@@ -1051,6 +1078,7 @@ check_zoneconf(const cfg_obj_t *zconfig, const cfg_obj_t *voptions,
 	{ "notify", MASTERZONE | SLAVEZONE },
 	{ "also-notify", MASTERZONE | SLAVEZONE },
 	{ "dialup", MASTERZONE | SLAVEZONE | STUBZONE },
+	{ "ddns-autoconf", MASTERZONE },
 	{ "delegation-only", HINTZONE | STUBZONE | DELEGATIONZONE },
 	{ "forward", MASTERZONE | SLAVEZONE | STUBZONE | FORWARDZONE },
 	{ "forwarders", MASTERZONE | SLAVEZONE | STUBZONE | FORWARDZONE },

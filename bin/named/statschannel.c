@@ -14,7 +14,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: statschannel.c,v 1.14.64.6 2009/02/17 03:43:07 marka Exp $ */
+/* $Id: statschannel.c,v 1.22 2009/02/17 03:40:28 marka Exp $ */
 
 /*! \file */
 
@@ -29,6 +29,7 @@
 #include <isc/stats.h>
 #include <isc/task.h>
 
+#include <dns/cache.h>
 #include <dns/db.h>
 #include <dns/opcode.h>
 #include <dns/resolver.h>
@@ -728,7 +729,7 @@ generatexml(ns_server_t *server, int *buflen, xmlChar **buf) {
 	TRY0(xmlTextWriterStartElement(writer, ISC_XMLCHAR "bind"));
 	TRY0(xmlTextWriterStartElement(writer, ISC_XMLCHAR "statistics"));
 	TRY0(xmlTextWriterWriteAttribute(writer, ISC_XMLCHAR "version",
-					 ISC_XMLCHAR "2.0"));
+					 ISC_XMLCHAR "2.1"));
 
 	/* Set common fields for statistics dump */
 	dumparg.type = statsformat_xml;
@@ -766,11 +767,15 @@ generatexml(ns_server_t *server, int *buflen, xmlChar **buf) {
 
 		cachestats = dns_db_getrrsetstats(view->cachedb);
 		if (cachestats != NULL) {
-			xmlTextWriterStartElement(writer,
-						  ISC_XMLCHAR "cache");
+			TRY0(xmlTextWriterStartElement(writer,
+						       ISC_XMLCHAR "cache"));
+			TRY0(xmlTextWriterWriteAttribute(writer,
+					 ISC_XMLCHAR "name",
+					 ISC_XMLCHAR
+					 dns_cache_getname(view->cache)));
 			dns_rdatasetstats_dump(cachestats, rdatasetstats_dump,
 					       &dumparg, 0);
-			xmlTextWriterEndElement(writer); /* cache */
+			TRY0(xmlTextWriterEndElement(writer)); /* cache */
 		}
 
 		xmlTextWriterEndElement(writer); /* view */
@@ -1314,7 +1319,15 @@ ns_stats_dump(ns_server_t *server, FILE *fp) {
 		if (strcmp(view->name, "_default") == 0)
 			fprintf(fp, "[View: default]\n");
 		else
-			fprintf(fp, "[View: %s]\n", view->name);
+			fprintf(fp, "[View: %s (Cache: %s)]\n", view->name,
+				dns_cache_getname(view->cache));
+		if (dns_view_iscacheshared(view)) {
+			/*
+			 * Avoid dumping redundant statistics when the cache is
+			 * shared.
+			 */
+			continue;
+		}
 		dns_rdatasetstats_dump(cachestats, rdatasetstats_dump, &dumparg,
 				       0);
 	}

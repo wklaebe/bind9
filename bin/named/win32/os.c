@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005, 2007, 2008  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2007-2009  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: os.c,v 1.31 2008/11/17 05:41:10 marka Exp $ */
+/* $Id: os.c,v 1.34 2009/06/12 02:33:21 each Exp $ */
 
 #include <config.h>
 #include <stdarg.h>
@@ -66,6 +66,7 @@ ns_paths_init() {
 	ns_g_defaultpidfile = isc_ntpaths_get(NAMED_PID_PATH);
 	lwresd_g_defaultpidfile = isc_ntpaths_get(LWRESD_PID_PATH);
 	ns_g_keyfile = isc_ntpaths_get(RNDC_KEY_PATH);
+	ns_g_defaultddnskeyfile = isc_ntpaths_get(DDNS_KEY_PATH);
 
 	Initialized = TRUE;
 }

@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dighost.c,v 1.311.70.8 2009/02/25 02:39:21 marka Exp $ */
+/* $Id: dighost.c,v 1.321 2009/02/25 02:34:21 marka Exp $ */
 
 /*! \file
  *  \note
@@ -393,7 +393,7 @@ count_dots(char *string) {
 
 static void
 hex_dump(isc_buffer_t *b) {
-	unsigned int len;
+	unsigned int len, i;
 	isc_region_t r;
 
 	isc_buffer_usedregion(b, &r);
@@ -401,11 +401,29 @@ hex_dump(isc_buffer_t *b) {
 	printf("%d bytes\n", r.length);
 	for (len = 0; len < r.length; len++) {
 		printf("%02x ", r.base[len]);
-		if (len % 16 == 15)
+		if (len % 16 == 15) {
+			fputs("         ", stdout);
+			for (i = len - 15; i <= len; i++) {
+				if (r.base[i] >= '!' && r.base[i] <= '}')
+					putchar(r.base[i]);
+				else
+					putchar('.');
+			}
 			printf("\n");
+		}
 	}
-	if (len % 16 != 0)
+	if (len % 16 != 0) {
+		for (i = len; (i % 16) != 0; i++)
+			fputs("   ", stdout);
+		fputs("         ", stdout);
+		for (i = ((len>>4)<<4); i < len; i++) {
+			if (r.base[i] >= '!' && r.base[i] <= '}')
+				putchar(r.base[i]);
+			else
+				putchar('.');
+		}
 		printf("\n");
+	}
 }
 
 /*%

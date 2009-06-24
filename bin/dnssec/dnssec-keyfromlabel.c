@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2007, 2008  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2007-2009  Internet Systems Consortium, Inc. ("ISC")
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -14,7 +14,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dnssec-keyfromlabel.c,v 1.4 2008/09/24 02:46:21 marka Exp $ */
+/* $Id: dnssec-keyfromlabel.c,v 1.6 2009/05/07 23:47:44 tbox Exp $ */
 
 /*! \file */
 
@@ -113,7 +113,7 @@ main(int argc, char **argv) {
 	isc_commandline_errprint = ISC_FALSE;
 
 	while ((ch = isc_commandline_parse(argc, argv,
-					 "a:c:f:kl:n:p:t:v:h")) != -1)
+					 "a:c:f:kl:n:p:t:v:Fh")) != -1)
 	{
 	    switch (ch) {
 		case 'a':
@@ -152,11 +152,14 @@ main(int argc, char **argv) {
 			if (*endp != '\0')
 				fatal("-v must be followed by a number");
 			break;
-
+		case 'F':
+			/* Reserved for FIPS mode */
+			/* FALLTHROUGH */
 		case '?':
 			if (isc_commandline_option != '?')
 				fprintf(stderr, "%s: invalid argument -%c\n",
 					program, isc_commandline_option);
+			/* FALLTHROUGH */
 		case 'h':
 			usage();
 

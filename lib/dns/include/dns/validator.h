@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: validator.h,v 1.41.48.3 2009/01/18 23:25:17 marka Exp $ */
+/* $Id: validator.h,v 1.44 2009/01/17 13:20:45 fdupont Exp $ */
 
 #ifndef DNS_VALIDATOR_H
 #define DNS_VALIDATOR_H 1

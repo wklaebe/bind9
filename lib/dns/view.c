@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: view.c,v 1.150.84.2 2009/01/29 23:47:44 tbox Exp $ */
+/* $Id: view.c,v 1.154 2009/05/29 22:22:37 jinmei Exp $ */
 
 /*! \file */
 
@@ -40,6 +40,7 @@
 #include <dns/masterdump.h>
 #include <dns/order.h>
 #include <dns/peer.h>
+#include <dns/rbt.h>
 #include <dns/rdataset.h>
 #include <dns/request.h>
 #include <dns/resolver.h>
@@ -155,6 +156,7 @@ dns_view_create(isc_mem_t *mctx, dns_rdataclass_t rdclass,
 	view->rootexclude = NULL;
 	view->resstats = NULL;
 	view->resquerystats = NULL;
+	view->cacheshared = ISC_FALSE;
 
 	/*
 	 * Initialize configuration data with default values.
@@ -177,6 +179,10 @@ dns_view_create(isc_mem_t *mctx, dns_rdataclass_t rdclass,
 	view->notifyacl = NULL;
 	view->updateacl = NULL;
 	view->upfwdacl = NULL;
+	view->denyansweracl = NULL;
+	view->answeracl_exclude = NULL;
+	view->denyanswernames = NULL;
+	view->answernames_exclude = NULL;
 	view->requestixfr = ISC_TRUE;
 	view->provideixfr = ISC_TRUE;
 	view->maxcachettl = 7 * 24 * 3600;
@@ -312,6 +318,14 @@ destroy(dns_view_t *view) {
 		dns_acl_detach(&view->updateacl);
 	if (view->upfwdacl != NULL)
 		dns_acl_detach(&view->upfwdacl);
+	if (view->denyansweracl != NULL)
+		dns_acl_detach(&view->denyansweracl);
+	if (view->answeracl_exclude != NULL)
+		dns_rbt_destroy(&view->answeracl_exclude);
+	if (view->denyanswernames != NULL)
+		dns_rbt_destroy(&view->denyanswernames);
+	if (view->answernames_exclude != NULL)
+		dns_rbt_destroy(&view->answernames_exclude);
 	if (view->delonly != NULL) {
 		dns_name_t *name;
 		int i;
@@ -627,9 +641,15 @@ dns_view_createresolver(dns_view_t *view,
 
 void
 dns_view_setcache(dns_view_t *view, dns_cache_t *cache) {
+	dns_view_setcache2(view, cache, ISC_FALSE);
+}
+
+void
+dns_view_setcache2(dns_view_t *view, dns_cache_t *cache, isc_boolean_t shared) {
 	REQUIRE(DNS_VIEW_VALID(view));
 	REQUIRE(!view->frozen);
 
+	view->cacheshared = shared;
 	if (view->cache != NULL) {
 		if (view->acache != NULL)
 			dns_acache_putdb(view->acache, view->cachedb);
@@ -642,6 +662,13 @@ dns_view_setcache(dns_view_t *view, dns_cache_t *cache) {
 
 	if (view->acache != NULL)
 		dns_acache_setdb(view->acache, view->cachedb);
+}
+
+isc_boolean_t
+dns_view_iscacheshared(dns_view_t *view) {
+	REQUIRE(DNS_VIEW_VALID(view));
+
+	return (view->cacheshared);
 }
 
 void
@@ -1279,15 +1306,22 @@ dns_view_dumpdbtostream(dns_view_t *view, FILE *fp) {
 
 isc_result_t
 dns_view_flushcache(dns_view_t *view) {
+	return (dns_view_flushcache2(view, ISC_FALSE));
+}
+
+isc_result_t
+dns_view_flushcache2(dns_view_t *view, isc_boolean_t fixuponly) {
 	isc_result_t result;
 
 	REQUIRE(DNS_VIEW_VALID(view));
 
 	if (view->cachedb == NULL)
 		return (ISC_R_SUCCESS);
-	result = dns_cache_flush(view->cache);
-	if (result != ISC_R_SUCCESS)
-		return (result);
+	if (!fixuponly) {
+		result = dns_cache_flush(view->cache);
+		if (result != ISC_R_SUCCESS)
+			return (result);
+	}
 	if (view->acache != NULL)
 		dns_acache_putdb(view->acache, view->cachedb);
 	dns_db_detach(&view->cachedb);

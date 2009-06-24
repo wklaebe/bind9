@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: diff.h,v 1.15.120.2 2009/01/18 23:47:41 tbox Exp $ */
+/* $Id: diff.h,v 1.17 2009/01/17 23:47:43 tbox Exp $ */
 
 #ifndef DNS_DIFF_H
 #define DNS_DIFF_H 1

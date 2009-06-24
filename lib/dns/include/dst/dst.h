@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2008  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2009  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dst.h,v 1.12 2008/09/24 02:46:23 marka Exp $ */
+/* $Id: dst.h,v 1.14 2009/06/11 23:47:55 tbox Exp $ */
 
 #ifndef DST_DST_H
 #define DST_DST_H 1
@@ -509,10 +509,12 @@ dst_key_paramcompare(const dst_key_t *key1, const dst_key_t *key2);
 void
 dst_key_free(dst_key_t **keyp);
 /*%<
- * Release all memory associated with the key.
+ * Decrement the key's reference counter and, when it reaches zero,
+ * release all memory associated with the key.
  *
  * Requires:
  *\li	"keyp" is not NULL and "*keyp" is a valid key.
+ *\li	reference counter greater than zero.
  *
  * Ensures:
  *\li	All memory associated with "*keyp" will be freed.

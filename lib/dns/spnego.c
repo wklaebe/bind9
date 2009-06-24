@@ -14,7 +14,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: spnego.c,v 1.8.118.2 2009/01/18 23:47:40 tbox Exp $ */
+/* $Id: spnego.c,v 1.10 2009/01/17 23:47:43 tbox Exp $ */
 
 /*! \file
  * \brief

@@ -31,7 +31,7 @@
 
 /*
  * Principal Author: Brian Wellington
- * $Id: openssl_link.c,v 1.22.112.3 2009/02/11 03:07:01 jinmei Exp $
+ * $Id: openssl_link.c,v 1.25 2009/02/11 03:04:18 jinmei Exp $
  */
 #ifdef OPENSSL
 

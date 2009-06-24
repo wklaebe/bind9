@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: cfg_test.c,v 1.19.332.2 2009/03/02 23:47:11 tbox Exp $ */
+/* $Id: cfg_test.c,v 1.21 2009/03/02 23:47:43 tbox Exp $ */
 
 /*! \file */
 

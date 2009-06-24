@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: adb.c,v 1.243.42.4 2009/02/03 22:34:28 jinmei Exp $ */
+/* $Id: adb.c,v 1.247 2009/02/03 22:33:13 jinmei Exp $ */
 
 /*! \file
  *

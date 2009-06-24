@@ -14,7 +14,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: base32.c,v 1.3.116.2 2009/01/18 23:47:41 tbox Exp $ */
+/* $Id: base32.c,v 1.5 2009/01/18 23:48:14 tbox Exp $ */
 
 /*! \file */
 

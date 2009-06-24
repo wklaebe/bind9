@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: os.c,v 1.89.12.5 2009/03/02 03:03:54 marka Exp $ */
+/* $Id: os.c,v 1.95 2009/03/02 03:08:22 marka Exp $ */
 
 /*! \file */
 
@@ -694,6 +694,13 @@ mkdirpath(char *filename, void (*report)(const char *, ...)) {
 				(*report)("couldn't mkdir '%s': %s", filename,
 					  strbuf);
 				goto error;
+			}
+			if (runas_pw != NULL &&
+			    chown(filename, runas_pw->pw_uid,
+				  runas_pw->pw_gid) == -1) {
+				isc__strerror(errno, strbuf, sizeof(strbuf));
+				(*report)("couldn't chown '%s': %s", filename,
+					  strbuf);
 			}
 		}
 		*slash = '/';

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2007  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2007, 2009  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: ntpaths.c,v 1.11 2007/06/18 23:47:49 tbox Exp $ */
+/* $Id: ntpaths.c,v 1.14 2009/06/12 02:33:21 each Exp $ */
 
 /*
  * This module fetches the required path information that is specific
@@ -44,6 +44,7 @@ static char lwresd_defaultpidfile[MAX_PATH];
 static char local_state_dir[MAX_PATH];
 static char sys_conf_dir[MAX_PATH];
 static char rndc_keyFile[MAX_PATH];
+static char ddns_keyFile[MAX_PATH];
 
 static DWORD baseLen = MAX_PATH;
 static BOOL Initialized = FALSE;
@@ -57,7 +58,7 @@ isc_ntpaths_init() {
 	if (RegOpenKeyEx(HKEY_LOCAL_MACHINE, BIND_SUBKEY, 0, KEY_READ, &hKey)
 		!= ERROR_SUCCESS)
 		keyFound = FALSE;
-	
+
 	if (keyFound == TRUE) {
 		/* Get the named directory */
 		if (RegQueryValueEx(hKey, "InstallDir", NULL, NULL,
@@ -84,6 +85,9 @@ isc_ntpaths_init() {
 	strcpy(rndc_keyFile, namedBase);
 	strcat(rndc_keyFile, "\\etc\\rndc.key");
 
+	strcpy(ddns_keyFile, namedBase);
+	strcat(ddns_keyFile, "\\etc\\ddns.key");
+
 	strcpy(rndc_confFile, namedBase);
 	strcat(rndc_confFile, "\\etc\\rndc.conf");
 	strcpy(ns_defaultpidfile, namedBase);
@@ -97,7 +101,7 @@ isc_ntpaths_init() {
 
 	strcpy(sys_conf_dir, namedBase);
 	strcat(sys_conf_dir, "\\etc");
-	
+
 	Initialized = TRUE;
 }
 
@@ -133,6 +137,9 @@ isc_ntpaths_get(int ind) {
 		break;
 	case RNDC_KEY_PATH:
 		return (rndc_keyFile);
+		break;
+	case DDNS_KEY_PATH:
+		return (ddns_keyFile);
 		break;
 	default:
 		return (NULL);

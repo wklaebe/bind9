@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2008  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2009  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2002, 2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: namedconf.c,v 1.92 2008/09/27 23:35:31 jinmei Exp $ */
+/* $Id: namedconf.c,v 1.98 2009/06/10 23:47:47 tbox Exp $ */
 
 /*! \file */
 
@@ -248,8 +248,8 @@ static cfg_type_t cfg_type_pubkey = {
  * Note that the old parser allows quotes around the RR type names.
  */
 static cfg_type_t cfg_type_rrtypelist = {
-	"rrtypelist", cfg_parse_spacelist, cfg_print_spacelist, cfg_doc_terminal,
-	&cfg_rep_list, &cfg_type_astring
+	"rrtypelist", cfg_parse_spacelist, cfg_print_spacelist,
+	cfg_doc_terminal, &cfg_rep_list, &cfg_type_astring
 };
 
 static const char *mode_enums[] = { "grant", "deny", NULL };
@@ -258,13 +258,51 @@ static cfg_type_t cfg_type_mode = {
 	&mode_enums
 };
 
+static isc_result_t
+parse_matchtype(cfg_parser_t *pctx, const cfg_type_t *type,
+		cfg_obj_t **ret) {
+	isc_result_t result;
+
+	CHECK(cfg_peektoken(pctx, 0));
+	if (pctx->token.type == isc_tokentype_string &&
+	    strcasecmp(TOKEN_STRING(pctx), "zonesub") == 0) {
+		pctx->flags |= CFG_PCTX_SKIP;
+	}
+	return (cfg_parse_enum(pctx, type, ret));
+
+ cleanup:
+	return (result);
+}
+
+static isc_result_t
+parse_matchname(cfg_parser_t *pctx, const cfg_type_t *type,
+			 cfg_obj_t **ret) {
+	isc_result_t result;
+	cfg_obj_t *obj = NULL;
+
+	if ((pctx->flags & CFG_PCTX_SKIP) != 0) {
+		pctx->flags &= ~CFG_PCTX_SKIP;
+		CHECK(cfg_parse_void(pctx, NULL, &obj));
+	} else
+		result = cfg_parse_astring(pctx, type, &obj);
+
+	*ret = obj;
+ cleanup:
+	return (result);
+}
+
 static const char *matchtype_enums[] = {
 	"name", "subdomain", "wildcard", "self", "selfsub", "selfwild",
 	"krb5-self", "ms-self", "krb5-subdomain", "ms-subdomain",
-	"tcp-self", "6to4-self", NULL };
+	"tcp-self", "6to4-self", "zonesub", NULL };
 static cfg_type_t cfg_type_matchtype = {
-	"matchtype", cfg_parse_enum, cfg_print_ustring, cfg_doc_enum, &cfg_rep_string,
-	&matchtype_enums
+	"matchtype", parse_matchtype, cfg_print_ustring,
+	cfg_doc_enum, &cfg_rep_string, &matchtype_enums
+};
+
+static cfg_type_t cfg_type_matchname = {
+	"optional_matchname", parse_matchname, cfg_print_ustring,
+	cfg_doc_tuple, &cfg_rep_tuple, &cfg_type_ustring
 };
 
 /*%
@@ -274,7 +312,7 @@ static cfg_tuplefielddef_t grant_fields[] = {
 	{ "mode", &cfg_type_mode, 0 },
 	{ "identity", &cfg_type_astring, 0 }, /* domain name */
 	{ "matchtype", &cfg_type_matchtype, 0 },
-	{ "name", &cfg_type_astring, 0 }, /* domain name */
+	{ "name", &cfg_type_matchname, 0 }, /* domain name */
 	{ "types", &cfg_type_rrtypelist, 0 },
 	{ NULL, NULL, 0 }
 };
@@ -657,6 +695,15 @@ namedconf_or_view_clauses[] = {
 };
 
 /*%
+ * Clauses that can occur in the bind.keys file.
+ */
+static cfg_clausedef_t
+bindkeys_clauses[] = {
+	{ "trusted-keys", &cfg_type_trustedkeys, CFG_CLAUSEFLAG_MULTI },
+	{ NULL, NULL, 0 }
+};
+
+/*%
  * Clauses that can be found within the 'options' statement.
  */
 static cfg_clausedef_t
@@ -665,9 +712,13 @@ options_clauses[] = {
 	{ "use-v6-udp-ports", &cfg_type_bracketed_portlist, 0 },
 	{ "avoid-v4-udp-ports", &cfg_type_bracketed_portlist, 0 },
 	{ "avoid-v6-udp-ports", &cfg_type_bracketed_portlist, 0 },
+	{ "bindkeys-file", &cfg_type_qstring, 0 },
 	{ "blackhole", &cfg_type_bracketed_aml, 0 },
 	{ "coresize", &cfg_type_size, 0 },
 	{ "datasize", &cfg_type_size, 0 },
+	{ "ddns-keyfile", &cfg_type_qstringornone, 0 },
+	{ "ddns-keyname", &cfg_type_astring, 0 },
+	{ "ddns-keyalg", &cfg_type_astring, 0 },
 	{ "deallocate-on-exit", &cfg_type_boolean, CFG_CLAUSEFLAG_OBSOLETE },
 	{ "directory", &cfg_type_qstring, CFG_CLAUSEFLAG_CALLBACK },
 	{ "dump-file", &cfg_type_qstring, 0 },
@@ -726,6 +777,34 @@ static cfg_type_t cfg_type_optional_exclude = {
 	"optional_exclude", parse_optional_keyvalue, print_keyvalue,
 	doc_optional_keyvalue, &cfg_rep_list, &exclude_kw };
 
+static keyword_type_t exceptionnames_kw = { "except-from", &cfg_type_namelist };
+
+static cfg_type_t cfg_type_optional_exceptionnames = {
+	"optional_allow", parse_optional_keyvalue, print_keyvalue,
+	doc_optional_keyvalue, &cfg_rep_list, &exceptionnames_kw };
+
+static cfg_tuplefielddef_t denyaddresses_fields[] = {
+	{ "acl", &cfg_type_bracketed_aml, 0 },
+	{ "except-from", &cfg_type_optional_exceptionnames, 0 },
+	{ NULL, NULL, 0 }
+};
+
+static cfg_type_t cfg_type_denyaddresses = {
+	"denyaddresses", cfg_parse_tuple, cfg_print_tuple, cfg_doc_tuple,
+	&cfg_rep_tuple, denyaddresses_fields
+};
+
+static cfg_tuplefielddef_t denyaliases_fields[] = {
+	{ "name", &cfg_type_namelist, 0 },
+	{ "except-from", &cfg_type_optional_exceptionnames, 0 },
+	{ NULL, NULL, 0 }
+};
+
+static cfg_type_t cfg_type_denyaliases = {
+	"denyaliases", cfg_parse_tuple, cfg_print_tuple, cfg_doc_tuple,
+	&cfg_rep_tuple, denyaliases_fields
+};
+
 static cfg_type_t cfg_type_algorithmlist = {
 	"algorithmlist", cfg_parse_bracketed_list, cfg_print_bracketed_list,
 	cfg_doc_bracketed_list, &cfg_rep_list, &cfg_type_astring };
@@ -764,14 +843,14 @@ static cfg_type_t cfg_type_masterformat = {
 
 static keyword_type_t trustanchor_kw = { "trust-anchor", &cfg_type_astring };
 
-static cfg_type_t cfg_type_trustanchor = {
-	"trust-anchor", parse_keyvalue, print_keyvalue, doc_keyvalue,
-	&cfg_rep_string, &trustanchor_kw
+static cfg_type_t cfg_type_optional_trustanchor = {
+	"optional_trustanchor", parse_optional_keyvalue, print_keyvalue,
+	doc_keyvalue, &cfg_rep_string, &trustanchor_kw
 };
 
 static cfg_tuplefielddef_t lookaside_fields[] = {
 	{ "domain", &cfg_type_astring, 0 },
-	{ "trust-anchor", &cfg_type_trustanchor, 0 },
+	{ "trust-anchor", &cfg_type_optional_trustanchor, 0 },
 	{ NULL, NULL, 0 }
 };
 
@@ -797,11 +876,14 @@ view_clauses[] = {
 	{ "allow-recursion-on", &cfg_type_bracketed_aml, 0 },
 	{ "allow-v6-synthesis", &cfg_type_bracketed_aml,
 	  CFG_CLAUSEFLAG_OBSOLETE },
+	{ "attach-cache", &cfg_type_astring, 0 },
 	{ "auth-nxdomain", &cfg_type_boolean, CFG_CLAUSEFLAG_NEWDEFAULT },
 	{ "cache-file", &cfg_type_qstring, 0 },
 	{ "check-names", &cfg_type_checknames, CFG_CLAUSEFLAG_MULTI },
 	{ "cleaning-interval", &cfg_type_uint32, 0 },
 	{ "clients-per-query", &cfg_type_uint32, 0 },
+	{ "deny-answer-addresses", &cfg_type_denyaddresses, 0 },
+	{ "deny-answer-aliases", &cfg_type_denyaliases, 0 },
 	{ "disable-algorithms", &cfg_type_disablealgorithm,
 	  CFG_CLAUSEFLAG_MULTI },
 	{ "disable-empty-zone", &cfg_type_astring, CFG_CLAUSEFLAG_MULTI },
@@ -926,6 +1008,7 @@ zone_clauses[] = {
 	{ "check-sibling", &cfg_type_boolean, 0 },
 	{ "check-srv-cname", &cfg_type_checkmode, 0 },
 	{ "check-wildcard", &cfg_type_boolean, 0 },
+	{ "ddns-autoconf", &cfg_type_boolean, 0 },
 	{ "dialup", &cfg_type_dialuptype, 0 },
 	{ "forward", &cfg_type_forwardtype, 0 },
 	{ "forwarders", &cfg_type_portiplist, 0 },
@@ -998,10 +1081,20 @@ namedconf_clausesets[] = {
 	namedconf_or_view_clauses,
 	NULL
 };
-
 LIBISCCFG_EXTERNAL_DATA cfg_type_t cfg_type_namedconf = {
 	"namedconf", cfg_parse_mapbody, cfg_print_mapbody, cfg_doc_mapbody,
 	&cfg_rep_map, namedconf_clausesets
+};
+
+/*% The bind.keys syntax (trusted-keys only). */
+static cfg_clausedef_t *
+bindkeys_clausesets[] = {
+	bindkeys_clauses,
+	NULL
+};
+LIBISCCFG_EXTERNAL_DATA cfg_type_t cfg_type_bindkeys = {
+	"bindkeys", cfg_parse_mapbody, cfg_print_mapbody, cfg_doc_mapbody,
+	&cfg_rep_map, bindkeys_clausesets
 };
 
 /*% The "options" statement syntax. */
@@ -2079,6 +2172,15 @@ rndckey_clausesets[] = {
 
 LIBISCCFG_EXTERNAL_DATA cfg_type_t cfg_type_rndckey = {
 	"rndckey", cfg_parse_mapbody, cfg_print_mapbody, cfg_doc_mapbody,
+	&cfg_rep_map, rndckey_clausesets
+};
+
+/*
+ * ddns.key has exactly the same syntax as rndc.key, but it's defined
+ * separately for clarity (and so we can extend it someday, if needed).
+ */
+LIBISCCFG_EXTERNAL_DATA cfg_type_t cfg_type_ddnskey = {
+	"ddnskey", cfg_parse_mapbody, cfg_print_mapbody, cfg_doc_mapbody,
 	&cfg_rep_map, rndckey_clausesets
 };
 

@@ -1,3 +1,11 @@
+bind9 (1:9.7.0~a1.dfsg-0) experimental; urgency=low
+
+  [Internet Software Consortium, Inc]
+
+  * 9.7.0a1
+
+ -- LaMont Jones <lamont@debian.org>  Wed, 24 Jun 2009 15:10:08 -0600
+
 bind9 (1:9.6.1.dfsg-2) unstable; urgency=low
 
   * ia64: fix atomic.h

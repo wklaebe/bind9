@@ -23,7 +23,9 @@ if [ "$1" = configure ]; then
 	rndc-confgen -r /dev/urandom -a
     fi
 
-    if [ -e /etc/default/bind9 ] && [ "`cat /usr/share/bind9/bind9-default.md5sum`" = "`md5sum /etc/default/bind9`" ]; then
+    theirs=$(md5sum /etc/default/bind9)
+    if [ -e /etc/default/bind9 ] && \
+       [ "$(cat /usr/share/bind9/bind9-default.md5sum)" = "$theirs" ]; then
         config="/etc/default/bind9"
     elif [ ! -e /etc/default/bind9 ]; then
         config="/etc/default/bind9"
@@ -102,16 +104,6 @@ if [ "$1" = configure ]; then
 
     if [ "$config" = "/etc/default/bind9" ]; then
         md5sum /etc/default/bind9 > /usr/share/bind9/bind9-default.md5sum
-    fi
-
-    # Deal with the aftermath of 9.2.1-5  - it's a hack, but hey..
-    if [ "$lastversion" = "9.2.1-5" ]; then
-	ugid=$(ls -l /etc/bind/rndc.key | awk '{print $3 $4}')
-	if [ "$ugid" = "bindbind" ]; then
-	    chown root:root /etc/bind/rndc.key
-	    chown root:bind /var/run/named
-	    chown root:bind /var/cache/bind
-	fi
     fi
 
     uid=$(ls -ln /etc/bind/rndc.key | awk '{print $3}')

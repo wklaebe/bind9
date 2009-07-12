@@ -35,7 +35,8 @@ if [ "$1" = configure ]; then
 
     localconf=""
     if [ ! -f $config ]; then
-	for file in /etc/bind/named.conf /etc/bind/named.conf.local; do
+	CONF=/etc/bind/named.conf
+	for file in ${CONF} ${CONF}.local ${CONF}.default-zones; do
 	    theirs=$(md5sum $file | sed 's/ .*$//')
 	    mine=$(dpkg --status bind9 | grep "^ $file " | sed -n 's/.* //p')
 	    if [ "$mine" != "$theirs" ]; then

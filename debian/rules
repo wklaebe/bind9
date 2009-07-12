@@ -101,6 +101,7 @@ install: build
 	install -c -o bin -g bin -m 444 debian/db.root ${ETCBIND}
 	install -c -o bin -g bin -m 440 debian/named.conf ${ETCBIND}
 	install -c -o bin -g bin -m 440 debian/named.conf.local ${ETCBIND}
+	install -c -o bin -g bin -m 440 debian/named.conf.default-zones ${ETCBIND}
 	install -c -o bin -g bin -m 440 debian/named.conf.options ${ETCBIND}
 	install -c -o bin -g bin -m 644 debian/bind9-default.md5sum debian/bind9/usr/share/bind9/
 	cp doc/arm/*.html debian/bind9-doc/usr/share/doc/bind9-doc/arm

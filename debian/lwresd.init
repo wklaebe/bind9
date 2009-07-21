@@ -16,6 +16,7 @@
 PATH=/sbin:/bin:/usr/sbin:/usr/bin
 NAME=lwresd
 DAEMON=/usr/sbin/lwresd
+PIDFILE=/var/run/lwresd/lwresd.pid
 
 # Don't modify this line, change or create /etc/default/lwresd.
 OPTIONS=""
@@ -29,9 +30,9 @@ case "$1" in
 	modprobe capability >/dev/null 2>&1 || true
 
 	# dirs under /var/run can go away on reboots.
-	mkdir -p /var/run/named
-	chmod 775 /var/run/named
-	chown root:bind /var/run/named >/dev/null 2>&1 || true
+	mkdir -p ${PIDFILE%/*}
+	chmod 775 ${PIDFILE%/*}
+	chown root:bind ${PIDFILE%/*} >/dev/null 2>&1 || true
 
 	log_daemon_msg "Starting domain name service" $NAME
 	if start-stop-daemon --start --quiet --exec $DAEMON  -- $OPTIONS; then
@@ -44,7 +45,7 @@ case "$1" in
     stop)
 	log_daemon_msg "Stopping domain name service" $NAME
 	if start-stop-daemon --stop --quiet  \
-	    --pidfile /var/run/named/$NAME.pid --exec $DAEMON; then
+	    --pidfile ${PIDFILE} --exec $DAEMON; then
 	    log_end_msg 0
 	else
 	    log_end_msg 1

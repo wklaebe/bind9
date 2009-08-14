@@ -1,3 +1,22 @@
+bind9 (1:9.6.1.dfsg.P1-2) unstable; urgency=low
+
+  [Jamie Strandboge]
+
+  * reload individual named profile, not all of apparmor.  LP: #412751
+
+  [Guillaume Delacour]
+
+  * bind9 did not purge cleanly.  Closes: #497959
+
+  [LaMont Jones]
+
+  * postinst: do not append a blank line to /etc/default/bind9. 
+    Closes: #541469
+  * init.d stop needs to not error out.  LP: #398033
+  * meta: fix build-depends.  Closes: #539230
+
+ -- LaMont Jones <lamont@debian.org>  Fri, 14 Aug 2009 17:03:31 -0600
+
 bind9 (1:9.6.1.dfsg.P1-1) unstable; urgency=low
 
   [Internet Software Consortium, Inc]

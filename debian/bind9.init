@@ -82,9 +82,9 @@ case "$1" in
 	if [ "X$RESOLVCONF" != "Xno" ] && [ -x /sbin/resolvconf ] ; then
 	    /sbin/resolvconf -d lo.named
 	fi
-	pid=$(/usr/sbin/rndc stop -p | awk '/^pid:/ {print $2}')
+	pid=$(/usr/sbin/rndc stop -p | awk '/^pid:/ {print $2}') || true
 	if [ -z "$pid" ]; then		# no pid found, so either not running, or error
-	    pid=$(pgrep -f ^/usr/sbin/named)
+	    pid=$(pgrep -f ^/usr/sbin/named) || true
 	    start-stop-daemon --stop --oknodo --quiet --exec /usr/sbin/named \
 		    --pidfile ${PIDFILE} -- $OPTIONS
 	fi

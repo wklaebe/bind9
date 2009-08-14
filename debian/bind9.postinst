@@ -61,7 +61,7 @@ if [ "$1" = configure ]; then
         db_get bind9/different-configuration-file
         CONFFILE=$RET
         
-        echo '' >> /etc/default/bind9
+        echo '' >> $config
         echo '# startup options for the server' >> $config
         if [ ! -z "$USER" ] && [ ! -z "$CONFFILE" ]; then
                 echo "OPTIONS=\"-u $USER -c $CONFFILE\"" >> $config

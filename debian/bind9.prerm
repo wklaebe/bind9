@@ -2,7 +2,7 @@
 set -e
 
 case "$1" in
-    remove|upgrade)
+    remove)
 	# if bind is running, stop it before removing
 	if pidof named >/dev/null 2>&1; then
 		# test if invoke-rc.d command is present on this system
@@ -13,6 +13,10 @@ case "$1" in
 		    /etc/init.d/bind9 stop
 		fi
 	fi
+    ;;
+
+    upgrade)
+	# leave bind running during the upgrade
     ;;
 
     *)

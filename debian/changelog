@@ -6,6 +6,51 @@ bind9 (1:9.7.0~a1.dfsg-0) experimental; urgency=low
 
  -- LaMont Jones <lamont@debian.org>  Wed, 24 Jun 2009 15:10:08 -0600
 
+bind9 (1:9.6.1.dfsg.P1-3) unstable; urgency=low
+
+  * Build-Depend on the fixed libgeoip-dev.  Closes: #540973
+
+ -- LaMont Jones <lamont@debian.org>  Mon, 17 Aug 2009 06:53:11 -0600
+
+bind9 (1:9.6.1.dfsg.P1-2) unstable; urgency=low
+
+  [Jamie Strandboge]
+
+  * reload individual named profile, not all of apparmor.  LP: #412751
+
+  [Guillaume Delacour]
+
+  * bind9 did not purge cleanly.  Closes: #497959
+
+  [LaMont Jones]
+
+  * postinst: do not append a blank line to /etc/default/bind9. 
+    Closes: #541469
+  * init.d stop needs to not error out.  LP: #398033
+  * meta: fix build-depends.  Closes: #539230
+
+ -- LaMont Jones <lamont@debian.org>  Fri, 14 Aug 2009 17:03:31 -0600
+
+bind9 (1:9.6.1.dfsg.P1-1) unstable; urgency=low
+
+  [Internet Software Consortium, Inc]
+
+  * A specially crafted update packet will cause named to exit. 
+    CVE-2009-0696, CERT VU#725188.  Closes: #538975
+
+  [InterNIC]
+
+  * Update db.root hints file.
+
+  [LaMont Jones]
+
+  * Move default zone definitions from named.conf to named.conf.default-zones.
+     Closes: #492308
+  * use start-stop-daemon if rndc stop fails.  Closes: #536487
+  * lwresd: pidfile name was wrong in init script.  Closes: #527137
+
+ -- LaMont Jones <lamont@debian.org>  Tue, 28 Jul 2009 22:03:14 -0600
+
 bind9 (1:9.6.1.dfsg-2) unstable; urgency=low
 
   * ia64: fix atomic.h

@@ -63,7 +63,7 @@ if [ "$1" = configure ]; then
         db_get bind9/different-configuration-file
         CONFFILE=$RET
         
-        echo '' >> /etc/default/bind9
+        echo '' >> $config
         echo '# startup options for the server' >> $config
         if [ ! -z "$USER" ] && [ ! -z "$CONFFILE" ]; then
                 echo "OPTIONS=\"-u $USER -c $CONFFILE\"" >> $config
@@ -119,8 +119,9 @@ if [ "$1" = configure ]; then
     fi
 
     # Reload AppArmor profile
-    if [ -x /etc/init.d/apparmor ]; then
-        invoke-rc.d apparmor force-reload || true
+    APP_PROFILE="/etc/apparmor.d/usr.sbin.named"
+    if [ -f "$APP_PROFILE" ] && aa-status --enabled 2>/dev/null; then
+        apparmor_parser -r "$APP_PROFILE" || true
     fi
 
     if /bin/pidof /usr/sbin/named >/dev/null 2>&1; then

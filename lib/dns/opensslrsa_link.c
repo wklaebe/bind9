@@ -17,14 +17,11 @@
 
 /*
  * Principal Author: Brian Wellington
- * $Id: opensslrsa_link.c,v 1.27 2009/09/07 12:54:59 fdupont Exp $
+ * $Id: opensslrsa_link.c,v 1.29 2009/10/05 17:30:49 fdupont Exp $
  */
 #ifdef OPENSSL
 #ifndef USE_EVP
 #define USE_EVP 1
-#endif
-#if USE_EVP
-#define USE_EVP_RSA 1
 #endif
 
 #include <config.h>
@@ -971,6 +968,8 @@ opensslrsa_fromlabel(dst_key_t *key, const char *engine, const char *label,
 
 	UNUSED(pin);
 
+	if (engine == NULL)
+		DST_RET(DST_R_NOENGINE);
 	e = dst__openssl_getengine(engine);
 	if (e == NULL)
 		DST_RET(DST_R_NOENGINE);

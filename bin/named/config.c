@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: config.c,v 1.101 2009/09/01 07:14:25 each Exp $ */
+/* $Id: config.c,v 1.103 2009/10/10 01:47:59 each Exp $ */
 
 /*! \file */
 
@@ -185,6 +185,7 @@ options {\n\
 	max-refresh-time 2419200; /* 4 weeks */\n\
 	min-refresh-time 300;\n\
 	multi-master no;\n\
+	secure-to-insecure no;\n\
 	sig-validity-interval 30; /* days */\n\
 	sig-signing-nodes 100;\n\
 	sig-signing-signatures 10;\n\
@@ -199,6 +200,7 @@ options {\n\
 	check-srv-cname warn;\n\
 	zero-no-soa-ttl yes;\n\
 	update-check-ksk yes;\n\
+	dnskey-ksk-only no;\n\
 	try-tcp-refresh yes; /* BIND 8 compat */\n\
 };\n\
 "

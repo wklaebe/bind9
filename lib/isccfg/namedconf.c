@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: namedconf.c,v 1.105 2009/09/02 16:10:03 each Exp $ */
+/* $Id: namedconf.c,v 1.109 2009/10/12 23:48:02 tbox Exp $ */
 
 /*! \file */
 
@@ -528,6 +528,13 @@ static cfg_type_t cfg_type_checknames = {
 static cfg_type_t cfg_type_bracketed_sockaddrlist = {
 	"bracketed_sockaddrlist", cfg_parse_bracketed_list, cfg_print_bracketed_list, cfg_doc_bracketed_list,
 	&cfg_rep_list, &cfg_type_sockaddr
+};
+
+static const char *autodnssec_enums[] = { "allow", "maintain", "create",
+					  "off", NULL };
+static cfg_type_t cfg_type_autodnssec = {
+	"autodnssec", cfg_parse_enum, cfg_print_ustring, cfg_doc_enum,
+	&cfg_rep_string, &autodnssec_enums
 };
 
 static cfg_type_t cfg_type_rrsetorder = {
@@ -1113,6 +1120,7 @@ zone_clauses[] = {
 	{ "check-srv-cname", &cfg_type_checkmode, 0 },
 	{ "check-wildcard", &cfg_type_boolean, 0 },
 	{ "dialup", &cfg_type_dialuptype, 0 },
+	{ "dnskey-ksk-only", &cfg_type_boolean, 0 },
 	{ "forward", &cfg_type_forwardtype, 0 },
 	{ "forwarders", &cfg_type_portiplist, 0 },
 	{ "key-directory", &cfg_type_qstring, 0 },
@@ -1135,6 +1143,7 @@ zone_clauses[] = {
 	{ "notify-source-v6", &cfg_type_sockaddr6wild, 0 },
 	{ "notify-to-soa", &cfg_type_boolean, 0 },
 	{ "nsec3-test-zone", &cfg_type_boolean, CFG_CLAUSEFLAG_TESTONLY },
+	{ "secure-to-insecure", &cfg_type_boolean, 0 },
 	{ "sig-signing-nodes", &cfg_type_uint32, 0 },
 	{ "sig-signing-signatures", &cfg_type_uint32, 0 },
 	{ "sig-signing-type", &cfg_type_uint32, 0 },
@@ -1172,6 +1181,7 @@ zone_only_clauses[] = {
 	 */
 	{ "check-names", &cfg_type_checkmode, 0 },
 	{ "ixfr-from-differences", &cfg_type_boolean, 0 },
+	{ "auto-dnssec", &cfg_type_autodnssec, 0 },
 	{ NULL, NULL, 0 }
 };
 

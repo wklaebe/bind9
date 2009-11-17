@@ -14,7 +14,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dnssec-dsfromkey.c,v 1.13 2009/09/01 00:22:24 jinmei Exp $ */
+/* $Id: dnssec-dsfromkey.c,v 1.16 2009/10/12 20:48:10 each Exp $ */
 
 /*! \file */
 
@@ -164,9 +164,9 @@ loadkey(char *filename, unsigned char *key_buf, unsigned int key_buf_size,
 		      filename, isc_result_totext(result));
 
 	if (verbose > 2) {
-		char keystr[KEY_FORMATSIZE];
+		char keystr[DST_KEY_FORMATSIZE];
 
-		key_format(key, keystr, sizeof(keystr));
+		dst_key_format(key, keystr, sizeof(keystr));
 		fprintf(stderr, "%s: %s\n", program, keystr);
 	}
 
@@ -195,7 +195,7 @@ logkey(dns_rdata_t *rdata)
 	isc_result_t result;
 	dst_key_t    *key = NULL;
 	isc_buffer_t buf;
-	char	     keystr[KEY_FORMATSIZE];
+	char	     keystr[DST_KEY_FORMATSIZE];
 
 	isc_buffer_init(&buf, rdata->data, rdata->length);
 	isc_buffer_add(&buf, rdata->length);
@@ -203,7 +203,7 @@ logkey(dns_rdata_t *rdata)
 	if (result != ISC_R_SUCCESS)
 		return;
 
-	key_format(key, keystr, sizeof(keystr));
+	dst_key_format(key, keystr, sizeof(keystr));
 	fprintf(stderr, "%s: %s\n", program, keystr);
 
 	dst_key_free(&key);
@@ -281,6 +281,9 @@ emit(unsigned int dtype, isc_boolean_t showall, char *lookaside,
 	fwrite(r.base, 1, r.length, stdout);
 	putchar('\n');
 }
+
+ISC_PLATFORM_NORETURN_PRE static void
+usage(void) ISC_PLATFORM_NORETURN_POST;
 
 static void
 usage(void) {
@@ -437,7 +440,8 @@ main(int argc, char **argv) {
 	result = dst_lib_init(mctx, ectx,
 			      ISC_ENTROPY_BLOCKING | ISC_ENTROPY_GOODONLY);
 	if (result != ISC_R_SUCCESS)
-		fatal("could not initialize dst");
+		fatal("could not initialize dst: %s",
+		      isc_result_totext(result));
 	isc_entropy_stopcallbacksources(ectx);
 
 	setup_logging(verbose, mctx, &log);

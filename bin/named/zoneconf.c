@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: zoneconf.c,v 1.154 2009/09/01 00:22:25 jinmei Exp $ */
+/* $Id: zoneconf.c,v 1.158 2009/10/12 23:48:01 tbox Exp $ */
 
 /*% */
 
@@ -172,7 +172,8 @@ parse_acl:
  */
 static isc_result_t
 configure_zone_ssutable(const cfg_obj_t *zconfig, dns_zone_t *zone,
-			const char *zname) {
+			const char *zname)
+{
 	const cfg_obj_t *updatepolicy = NULL;
 	const cfg_listelt_t *element, *element2;
 	dns_ssutable_t *table = NULL;
@@ -859,6 +860,11 @@ ns_zone_configure(const cfg_obj_t *config, const cfg_obj_t *vconfig,
 		dns_zone_setoption(zone, DNS_ZONEOPT_UPDATECHECKKSK,
 				   cfg_obj_asboolean(obj));
 
+		obj = NULL;
+		result = ns_config_get(maps, "dnskey-ksk-only", &obj);
+		INSIST(result == ISC_R_SUCCESS);
+		dns_zone_setoption(zone, DNS_ZONEOPT_DNSKEYKSKONLY,
+				   cfg_obj_asboolean(obj));
 	} else if (ztype == dns_zone_slave) {
 		RETERR(configure_zone_acl(zconfig, vconfig, config,
 					  allow_update_forwarding, ac, zone,
@@ -866,11 +872,13 @@ ns_zone_configure(const cfg_obj_t *config, const cfg_obj_t *vconfig,
 					  dns_zone_clearforwardacl));
 	}
 
-
 	/*%
 	 * Primary master functionality.
 	 */
 	if (ztype == dns_zone_master) {
+		isc_boolean_t allow = ISC_FALSE, maint = ISC_FALSE;
+		isc_boolean_t create = ISC_FALSE;
+
 		obj = NULL;
 		result = ns_config_get(maps, "check-wildcard", &obj);
 		if (result == ISC_R_SUCCESS)
@@ -929,6 +937,31 @@ ns_zone_configure(const cfg_obj_t *config, const cfg_obj_t *vconfig,
 			INSIST(0);
 		dns_zone_setoption(zone, DNS_ZONEOPT_WARNSRVCNAME, warn);
 		dns_zone_setoption(zone, DNS_ZONEOPT_IGNORESRVCNAME, ignore);
+
+		obj = NULL;
+		result = ns_config_get(maps, "secure-to-insecure", &obj);
+		INSIST(obj != NULL);
+		dns_zone_setoption(zone, DNS_ZONEOPT_SECURETOINSECURE,
+				   cfg_obj_asboolean(obj));
+
+		obj = NULL;
+		result = cfg_map_get(zoptions, "auto-dnssec", &obj);
+		if (result == ISC_R_SUCCESS) {
+			const char *arg = cfg_obj_asstring(obj);
+			if (strcasecmp(arg, "allow") == 0)
+				allow = ISC_TRUE;
+			else if (strcasecmp(arg, "maintain") == 0)
+				allow = maint = ISC_TRUE;
+			else if (strcasecmp(arg, "create") == 0)
+				allow = maint = create = ISC_TRUE;
+			else if (strcasecmp(arg, "off") == 0)
+				;
+			else
+				INSIST(0);
+			dns_zone_setkeyopt(zone, DNS_ZONEKEY_ALLOW, allow);
+			dns_zone_setkeyopt(zone, DNS_ZONEKEY_MAINTAIN, maint);
+			dns_zone_setkeyopt(zone, DNS_ZONEKEY_CREATE, create);
+		}
 	}
 
 	/*

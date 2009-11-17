@@ -18,7 +18,7 @@ AC_DIVERT_PUSH(1)dnl
 esyscmd([sed "s/^/# /" COPYRIGHT])dnl
 AC_DIVERT_POP()dnl
 
-AC_REVISION($Revision: 1.477 $)
+AC_REVISION($Revision: 1.485 $)
 
 AC_INIT(lib/dns/name.c)
 AC_PREREQ(2.59)
@@ -339,6 +339,20 @@ AC_TRY_COMPILE([],[long long i = 0; return (0);],
 AC_SUBST(ISC_PLATFORM_HAVELONGLONG)
 
 #
+# check for GCC noreturn attribute
+#
+AC_MSG_CHECKING(for GCC noreturn attribute)
+AC_TRY_COMPILE([],[void foo() __attribute__((noreturn));],
+	[AC_MSG_RESULT(yes)
+		ISC_PLATFORM_NORETURN_PRE="#define ISC_PLATFORM_NORETURN_PRE"
+		ISC_PLATFORM_NORETURN_POST="#define ISC_PLATFORM_NORETURN_POST __attribute__((noreturn))"],
+	[AC_MSG_RESULT(no)
+		ISC_PLATFORM_NORETURN_PRE="#define ISC_PLATFORM_NORETURN_PRE"
+		ISC_PLATFORM_NORETURN_POST="#define ISC_PLATFORM_NORETURN_POST"])
+AC_SUBST(ISC_PLATFORM_NORETURN_PRE)
+AC_SUBST(ISC_PLATFORM_NORETURN_POST)
+
+#
 # check if we have lifconf
 #
 AC_MSG_CHECKING(for struct lifconf)
@@ -511,7 +525,9 @@ case "$use_openssl" in
 	auto)
 		DST_OPENSSL_INC=""
 		USE_OPENSSL=""
-		AC_MSG_RESULT(not found)
+		AC_MSG_ERROR(
+[OpenSSL was not found in any of $openssldirs; use --with-openssl=/path
+If you don't want OpenSSL, use --without-openssl])
 		;;
 	*)
 		if test "$use_openssl" = "yes"
@@ -696,21 +712,37 @@ AC_SUBST(ISC_OPENSSL_INC)
 
 AC_MSG_CHECKING(for PKCS11 support)
 AC_ARG_WITH(pkcs11,
-[  --with-pkcs11           Build with PKCS11 support],
-   use_pkcs11="yes", use_pkcs11="no")
+[  --with-pkcs11[=PATH]      Build with PKCS11 support [yes|no|path]
+                          (PATH is for the PKCS11 provider)],
+   use_pkcs11="$withval", use_pkcs11="no")
 
 case "$use_pkcs11" in
-	no)
+	no|'')
 		AC_MSG_RESULT(disabled)
-		USE_PKCS11=""
+		USE_PKCS11=''
+		PKCS11_TOOLS=''
 		;;
-	yes)
+	yes|*)
 		AC_MSG_RESULT(using OpenSSL with PKCS11 support)
 		USE_PKCS11='-DUSE_PKCS11'
+		PKCS11_TOOLS=pkcs11
 		;;
 esac
-
 AC_SUBST(USE_PKCS11)
+AC_SUBST(PKCS11_TOOLS)
+
+AC_MSG_CHECKING(for PKCS11 tools)
+case "$use_pkcs11" in
+	no|yes|'')
+		AC_MSG_RESULT(disabled)
+		PKCS11_PROVIDER="undefined"
+		;;
+       *)
+		AC_MSG_RESULT(PKCS11 provider is "$use_pkcs11")
+		PKCS11_PROVIDER="$use_pkcs11"
+		;;
+esac
+AC_SUBST(PKCS11_PROVIDER)
 
 AC_MSG_CHECKING(for GSSAPI library)
 AC_ARG_WITH(gssapi,
@@ -1341,7 +1373,7 @@ yes|all|minimal)
 Install perl or explicitly disable the feature by --disable-symtable.])
 	fi
 	if test "$use_libtool" = "yes"; then
-		AC_MSG_WARN([Internal symbol table does not work with libtool.  Disabling symtbol table.])
+		AC_MSG_WARN([Internal symbol table does not work with libtool.  Disabling symbol table.])
 	else
 		MKSYMTBL_PROGRAM="$PERL"
 		if test $want_symtable = all; then
@@ -1409,11 +1441,11 @@ if test -z "$export_libdir"; then
 fi
 AC_SUBST(export_libdir)
 
-AC_ARG_WITH(export-installdir,
-	[  --with-export-installdir[=PATH]
+AC_ARG_WITH(export-includedir,
+	[  --with-export-includedir[=PATH]
                         installation directory for the header files of the
                         export library [[PREFIX/include/bind9]]],
-	export_installdir="$withval",)
+	export_includedir="$withval",)
 if test -z "$export_includedir"; then
 	export_includedir="\${prefix}/include/bind9/"
 fi
@@ -2401,7 +2433,37 @@ AC_ARG_ENABLE(atomic,
 			enable_atomic="autodetect")
 case "$enable_atomic" in
 	yes|''|autodetect)
-		use_atomic=yes
+		case "$host" in
+		powerpc-ibm-aix*)
+			if test "X$GCC" = "Xyes"; then
+				AC_MSG_CHECKING([if asm("isc"); works])
+				AC_TRY_COMPILE(,[
+				main() { asm("ics"); exit(0); }
+				],
+				[AC_MSG_RESULT(yes)
+				 use_atomic=yes],
+				[
+				saved_cflags="$CFLAGS"
+				CFLAGS="$CFLAGS -Wa,-many"
+				AC_TRY_RUN([
+				main() { asm("ics"); exit(0); }
+				],
+				[AC_MSG_RESULT([yes, required -Wa,-many])
+				 use_atomic=yes],
+				[AC_MSG_RESULT([no, use_atomic disabled])
+				 CFLAGS="$saved_cflags"
+				 use_atomic=no],
+				[AC_MSG_RESULT([cross compile, assume yes])
+				 CFLAGS="$saved_cflags"
+				 use_atomic=yes])
+				]
+				)
+			fi
+			;;
+		*)
+			use_atomic=yes
+			;;
+		esac
 		;;
 	no)
 		use_atomic=no
@@ -2866,7 +2928,7 @@ AC_SUBST_FILE(BIND9_MAKE_RULES)
 BIND9_MAKE_RULES=$BIND9_TOP_BUILDDIR/make/rules
 
 . $srcdir/version
-BIND9_VERSION="VERSION=${MAJORVER}.${MINORVER}.${PATCHVER}${RELEASETYPE}${RELEASEVER}"
+BIND9_VERSION="VERSION=${MAJORVER}.${MINORVER}${PATCHVER:+.}${PATCHVER}${RELEASETYPE}${RELEASEVER}"
 AC_SUBST(BIND9_VERSION)
 
 if test -z "$ac_configure_args"; then
@@ -3165,6 +3227,7 @@ AC_CONFIG_FILES([
 	bin/tests/headerdep_test.sh
 	bin/tools/Makefile
 	bin/dnssec/Makefile
+	bin/pkcs11/Makefile
 	doc/Makefile
 	doc/arm/Makefile
 	doc/misc/Makefile
@@ -3184,6 +3247,12 @@ AC_CONFIG_FILES([
 #
 
 AC_OUTPUT
+
+if test "X$USE_OPENSSL" = "X"; then
+cat << \EOF                                                             
+BIND is being built without OpenSSL. This means it will not have DNSSEC support.
+EOF
+fi
 
 if test "X$OPENSSL_WARNING" != "X"; then
 cat << \EOF

@@ -14,7 +14,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dnssec-revoke.c,v 1.11 2009/09/04 16:57:22 each Exp $ */
+/* $Id: dnssec-revoke.c,v 1.16 2009/10/12 20:48:10 each Exp $ */
 
 /*! \file */
 
@@ -46,11 +46,21 @@ int verbose;
 
 static isc_mem_t	*mctx = NULL;
 
+ISC_PLATFORM_NORETURN_PRE static void
+usage(void) ISC_PLATFORM_NORETURN_POST;
+
 static void
 usage(void) {
 	fprintf(stderr, "Usage:\n");
 	fprintf(stderr,	"    %s [options] keyfile\n\n", program);
 	fprintf(stderr, "Version: %s\n", VERSION);
+	fprintf(stderr, "\t-E engine:\n");
+#ifdef USE_PKCS11
+	fprintf(stderr, "\t\tname of an OpenSSL engine to use "
+				"(default is \"pkcs11\")\n");
+#else
+	fprintf(stderr, "\t\tname of an OpenSSL engine to use\n");
+#endif
 	fprintf(stderr, "    -f:	   force overwrite\n");
 	fprintf(stderr, "    -K directory: use directory for key files\n");
 	fprintf(stderr, "    -h:	   help\n");
@@ -67,9 +77,14 @@ usage(void) {
 int
 main(int argc, char **argv) {
 	isc_result_t result;
+#ifdef USE_PKCS11
+	const char *engine = "pkcs11";
+#else
+	const char *engine = NULL;
+#endif
 	char *filename = NULL, *dir = NULL;
 	char newname[1024], oldname[1024];
-	char keystr[KEY_FORMATSIZE];
+	char keystr[DST_KEY_FORMATSIZE];
 	char *endp;
 	int ch;
 	isc_entropy_t *ectx = NULL;
@@ -90,8 +105,11 @@ main(int argc, char **argv) {
 
 	isc_commandline_errprint = ISC_FALSE;
 
-	while ((ch = isc_commandline_parse(argc, argv, "fK:rhv:")) != -1) {
+	while ((ch = isc_commandline_parse(argc, argv, "E:fK:rhv:")) != -1) {
 		switch (ch) {
+		    case 'E':
+			engine = isc_commandline_argument;
+			break;
 		    case 'f':
 			force = ISC_TRUE;
 			break;
@@ -147,10 +165,11 @@ main(int argc, char **argv) {
 	result = isc_hash_create(mctx, ectx, DNS_NAME_MAXWIRE);
 	if (result != ISC_R_SUCCESS)
 		fatal("Could not initialize hash");
-	result = dst_lib_init(mctx, ectx,
-			      ISC_ENTROPY_BLOCKING | ISC_ENTROPY_GOODONLY);
+	result = dst_lib_init2(mctx, ectx, engine,
+			       ISC_ENTROPY_BLOCKING | ISC_ENTROPY_GOODONLY);
 	if (result != ISC_R_SUCCESS)
-		fatal("Could not initialize dst");
+		fatal("Could not initialize dst: %s",
+		      isc_result_totext(result));
 	isc_entropy_stopcallbacksources(ectx);
 
 	result = dst_key_fromnamedfile(filename, dir,
@@ -161,15 +180,22 @@ main(int argc, char **argv) {
 		      filename, isc_result_totext(result));
 
 	if (verbose > 2) {
-		char keystr[KEY_FORMATSIZE];
+		char keystr[DST_KEY_FORMATSIZE];
 
-		key_format(key, keystr, sizeof(keystr));
+		dst_key_format(key, keystr, sizeof(keystr));
 		fprintf(stderr, "%s: %s\n", program, keystr);
 	}
 
 	flags = dst_key_flags(key);
 	if ((flags & DNS_KEYFLAG_REVOKE) == 0) {
 		isc_stdtime_t now;
+
+
+		if ((flags & DNS_KEYFLAG_KSK) == 0)
+			fprintf(stderr, "%s: warning: Key is not flagged "
+					"as a KSK. Revoking a ZSK is "
+					"legal, but undefined.\n",
+					program);
 
 		isc_stdtime_get(&now);
 		dst_key_settime(key, DST_TIME_REVOKE, now);
@@ -187,7 +213,7 @@ main(int argc, char **argv) {
 		result = dst_key_tofile(key, DST_TYPE_PUBLIC|DST_TYPE_PRIVATE,
 					dir);
 		if (result != ISC_R_SUCCESS) {
-			key_format(key, keystr, sizeof(keystr));
+			dst_key_format(key, keystr, sizeof(keystr));
 			fatal("Failed to write key %s: %s", keystr,
 			      isc_result_totext(result));
 		}
@@ -216,7 +242,7 @@ main(int argc, char **argv) {
 				unlink(oldname);
 		}
 	} else {
-		key_format(key, keystr, sizeof(keystr));
+		dst_key_format(key, keystr, sizeof(keystr));
 		fatal("Key %s is already revoked", keystr);
 	}
 

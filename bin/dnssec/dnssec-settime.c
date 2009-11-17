@@ -14,7 +14,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dnssec-settime.c,v 1.11 2009/09/04 16:57:22 each Exp $ */
+/* $Id: dnssec-settime.c,v 1.17 2009/10/12 20:48:10 each Exp $ */
 
 /*! \file */
 
@@ -48,12 +48,21 @@ int verbose;
 
 static isc_mem_t	*mctx = NULL;
 
+ISC_PLATFORM_NORETURN_PRE static void
+usage(void) ISC_PLATFORM_NORETURN_POST;
+
 static void
 usage(void) {
 	fprintf(stderr, "Usage:\n");
 	fprintf(stderr,	"    %s [options] keyfile\n\n", program);
 	fprintf(stderr, "Version: %s\n", VERSION);
 	fprintf(stderr, "General options:\n");
+#ifdef USE_PKCS11
+	fprintf(stderr, "\t\tname of an OpenSSL engine to use "
+				"(default is \"pkcs11\")\n");
+#else
+	fprintf(stderr, "\t\tname of an OpenSSL engine to use\n");
+#endif
 	fprintf(stderr, "    -f:                 force update of old-style "
 						 "keys\n");
 	fprintf(stderr, "    -K directory:       set key file location\n");
@@ -66,8 +75,8 @@ usage(void) {
 						     "activation date\n");
 	fprintf(stderr, "    -R date/[+-]offset/none: set key "
 						     "revocation date\n");
-	fprintf(stderr, "    -U date/[+-]offset/none: set key "
-						     "unpublication date\n");
+	fprintf(stderr, "    -I date/[+-]offset/none: set key "
+						     "inactivation date\n");
 	fprintf(stderr, "    -D date/[+-]offset/none: set key "
 						     "deletion date\n");
 	fprintf(stderr, "Printing options:\n");
@@ -109,9 +118,14 @@ printtime(dst_key_t *key, int type, const char *tag, isc_boolean_t epoch,
 int
 main(int argc, char **argv) {
 	isc_result_t result;
+#ifdef USE_PKCS11
+	const char *engine = "pkcs11";
+#else
+	const char *engine = NULL;
+#endif
 	char *filename = NULL, *directory = NULL;
 	char newname[1024];
-	char keystr[KEY_FORMATSIZE];
+	char keystr[DST_KEY_FORMATSIZE];
 	char *endp, *p;
 	int ch;
 	isc_entropy_t *ectx = NULL;
@@ -119,16 +133,16 @@ main(int argc, char **argv) {
 	isc_buffer_t buf;
 	int major, minor;
 	isc_stdtime_t	now;
-	isc_stdtime_t	pub = 0, act = 0, rev = 0, unpub = 0, del = 0;
+	isc_stdtime_t	pub = 0, act = 0, rev = 0, inact = 0, del = 0;
 	isc_boolean_t	setpub = ISC_FALSE, setact = ISC_FALSE;
-	isc_boolean_t	setrev = ISC_FALSE, setunpub = ISC_FALSE;
+	isc_boolean_t	setrev = ISC_FALSE, setinact = ISC_FALSE;
 	isc_boolean_t	setdel = ISC_FALSE;
 	isc_boolean_t	unsetpub = ISC_FALSE, unsetact = ISC_FALSE;
-	isc_boolean_t	unsetrev = ISC_FALSE, unsetunpub = ISC_FALSE;
+	isc_boolean_t	unsetrev = ISC_FALSE, unsetinact = ISC_FALSE;
 	isc_boolean_t	unsetdel = ISC_FALSE;
 	isc_boolean_t	printcreate = ISC_FALSE, printpub = ISC_FALSE;
 	isc_boolean_t	printact = ISC_FALSE,  printrev = ISC_FALSE;
-	isc_boolean_t	printunpub = ISC_FALSE, printdel = ISC_FALSE;
+	isc_boolean_t	printinact = ISC_FALSE, printdel = ISC_FALSE;
 	isc_boolean_t	forceupdate = ISC_FALSE;
 	isc_boolean_t   epoch = ISC_FALSE;
 	isc_boolean_t   changed = ISC_FALSE;
@@ -147,8 +161,11 @@ main(int argc, char **argv) {
 	isc_stdtime_get(&now);
 
 	while ((ch = isc_commandline_parse(argc, argv,
-					   "fK:uhp:v:P:A:R:U:D:")) != -1) {
+					   "E:fK:uhp:v:P:A:R:I:D:")) != -1) {
 		switch (ch) {
+		case 'E':
+			engine = isc_commandline_argument;
+			break;
 		case 'f':
 			forceupdate = ISC_TRUE;
 			break;
@@ -159,7 +176,7 @@ main(int argc, char **argv) {
 				printpub = ISC_TRUE;
 				printact = ISC_TRUE;
 				printrev = ISC_TRUE;
-				printunpub = ISC_TRUE;
+				printinact = ISC_TRUE;
 				printdel = ISC_TRUE;
 				break;
 			}
@@ -178,8 +195,8 @@ main(int argc, char **argv) {
 				case 'R':
 					printrev = ISC_TRUE;
 					break;
-				case 'U':
-					printunpub = ISC_TRUE;
+				case 'I':
+					printinact = ISC_TRUE;
 					break;
 				case 'D':
 					printdel = ISC_TRUE;
@@ -251,16 +268,16 @@ main(int argc, char **argv) {
 						now, now);
 			}
 			break;
-		case 'U':
-			if (setunpub || unsetunpub)
-				fatal("-U specified more than once");
+		case 'I':
+			if (setinact || unsetinact)
+				fatal("-I specified more than once");
 
 			changed = ISC_TRUE;
 			if (!strcasecmp(isc_commandline_argument, "none")) {
-				unsetunpub = ISC_TRUE;
+				unsetinact = ISC_TRUE;
 			} else {
-				setunpub = ISC_TRUE;
-				unpub = strtotime(isc_commandline_argument,
+				setinact = ISC_TRUE;
+				inact = strtotime(isc_commandline_argument,
 						now, now);
 			}
 			break;
@@ -310,10 +327,11 @@ main(int argc, char **argv) {
 	result = isc_hash_create(mctx, ectx, DNS_NAME_MAXWIRE);
 	if (result != ISC_R_SUCCESS)
 		fatal("Could not initialize hash");
-	result = dst_lib_init(mctx, ectx,
-			      ISC_ENTROPY_BLOCKING | ISC_ENTROPY_GOODONLY);
+	result = dst_lib_init2(mctx, ectx, engine,
+			       ISC_ENTROPY_BLOCKING | ISC_ENTROPY_GOODONLY);
 	if (result != ISC_R_SUCCESS)
-		fatal("Could not initialize dst");
+		fatal("Could not initialize dst: %s",
+		      isc_result_totext(result));
 	isc_entropy_stopcallbacksources(ectx);
 
 	result = dst_key_fromnamedfile(filename, directory,
@@ -326,7 +344,7 @@ main(int argc, char **argv) {
 	if (!dst_key_isprivate(key))
 		fatal("%s is not a private key", filename);
 
-	key_format(key, keystr, sizeof(keystr));
+	dst_key_format(key, keystr, sizeof(keystr));
 
 	/* Is this an old-style key? */
 	dst_key_getprivateformat(key, &major, &minor);
@@ -360,10 +378,15 @@ main(int argc, char **argv) {
 		dst_key_unsettime(key, DST_TIME_ACTIVATE);
 
 	if (setrev) {
-		if ((dst_key_flags(key) & DNS_KEYFLAG_REVOKE) != 0 && rev > now)
+		if ((dst_key_flags(key) & DNS_KEYFLAG_REVOKE) != 0)
 			fprintf(stderr, "%s: warning: Key %s is already "
 					"revoked; changing the revocation date "
 					"will not affect this.\n",
+					program, keystr);
+		if ((dst_key_flags(key) & DNS_KEYFLAG_KSK) == 0)
+			fprintf(stderr, "%s: warning: Key %s is not flagged as "
+					"a KSK, but -R was used.  Revoking a "
+					"ZSK is legal, but undefined.\n",
 					program, keystr);
 		dst_key_settime(key, DST_TIME_REVOKE, rev);
 	} else if (unsetrev) {
@@ -375,10 +398,10 @@ main(int argc, char **argv) {
 		dst_key_unsettime(key, DST_TIME_REVOKE);
 	}
 
-	if (setunpub)
-		dst_key_settime(key, DST_TIME_UNPUBLISH, unpub);
-	else if (unsetunpub)
-		dst_key_unsettime(key, DST_TIME_UNPUBLISH);
+	if (setinact)
+		dst_key_settime(key, DST_TIME_INACTIVE, inact);
+	else if (unsetinact)
+		dst_key_unsettime(key, DST_TIME_INACTIVE);
 
 	if (setdel)
 		dst_key_settime(key, DST_TIME_DELETE, del);
@@ -400,8 +423,8 @@ main(int argc, char **argv) {
 	if (printrev)
 		printtime(key, DST_TIME_REVOKE, "Revoke", epoch, stdout);
 
-	if (printunpub)
-		printtime(key, DST_TIME_UNPUBLISH, "Unpublish", epoch, stdout);
+	if (printinact)
+		printtime(key, DST_TIME_INACTIVE, "Inactive", epoch, stdout);
 
 	if (printdel)
 		printtime(key, DST_TIME_DELETE, "Delete", epoch, stdout);
@@ -418,7 +441,7 @@ main(int argc, char **argv) {
 		result = dst_key_tofile(key, DST_TYPE_PUBLIC|DST_TYPE_PRIVATE,
 					directory);
 		if (result != ISC_R_SUCCESS) {
-			key_format(key, keystr, sizeof(keystr));
+			dst_key_format(key, keystr, sizeof(keystr));
 			fatal("Failed to write key %s: %s", keystr,
 			      isc_result_totext(result));
 		}

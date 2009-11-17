@@ -18,7 +18,7 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<!-- File: $Id: Bv9ARM-book.xml,v 1.428 2009/09/02 21:24:24 jreed Exp $ -->
+<!-- File: $Id: Bv9ARM-book.xml,v 1.437 2009/10/16 02:59:41 each Exp $ -->
 <book xmlns:xi="http://www.w3.org/2001/XInclude">
   <title>BIND 9 Administrator Reference Manual</title>
 
@@ -1170,7 +1170,33 @@ zone "eng.example.com" {
                   </varlistentry>
 
                   <varlistentry>
+                    <term><userinput>sign <replaceable>zone</replaceable>
+                        <optional><replaceable>class</replaceable>
+           <optional><replaceable>view</replaceable></optional></optional></userinput></term>
+                    <listitem>
+                      <para>
+                        Fetch all DNSSEC keys for the given zone
+                        from the key directory (see
+                        <command>key-directory</command> in
+                        <xref linkend="options"/>), and merge them
+                        into the zone's DNSKEY RRset.  If the DNSKEY RRset
+                        is changed as a result of this, then the zone is
+                        automatically re-signed with the new key set.
+                      </para>
+                      <para>
+                        This command requires that the
+                        <command>auto-dnssec</command> zone option to be set
+                        to <literal>allow</literal>,
+                        <literal>maintain</literal>, or
+                        <literal>create</literal>,  and also requires
+                        the zone to be configured to allow dynamic DNS.
+                        See <xref linkend="dynamic_update_policies"/> for
+                        more details.
+                      </para>
+                    </listitem>
+                  </varlistentry>
 
+                  <varlistentry>
                     <term><userinput>freeze
                         <optional><replaceable>zone</replaceable>
        <optional><replaceable>class</replaceable>
@@ -2086,17 +2112,16 @@ nameserver 172.16.72.4
         <sect3>
           <title>Automatic Generation</title>
           <para>
-            The following command will generate a 128-bit (16 byte) HMAC-MD5
+            The following command will generate a 128-bit (16 byte) HMAC-SHA256
             key as described above. Longer keys are better, but shorter keys
-            are easier to read. Note that the maximum key length is 512 bits;
-            keys longer than that will be digested with MD5 to produce a
-            128-bit key.
+            are easier to read. Note that the maximum key length is the digest
+            length, here 256 bits.
           </para>
           <para>
-            <userinput>dnssec-keygen -a hmac-md5 -b 128 -n HOST host1-host2.</userinput>
+            <userinput>dnssec-keygen -a hmac-sha256 -b 128 -n HOST host1-host2.</userinput>
           </para>
           <para>
-            The key is in the file <filename>Khost1-host2.+157+00000.private</filename>.
+            The key is in the file <filename>Khost1-host2.+163+00000.private</filename>.
             Nothing directly uses this file, but the base-64 encoded string
             following "<literal>Key:</literal>"
             can be extracted from the file and used as a shared secret:
@@ -2138,18 +2163,16 @@ nameserver 172.16.72.4
 
 <programlisting>
 key host1-host2. {
-  algorithm hmac-md5;
+  algorithm hmac-sha256;
   secret "La/E5CjG9O+os1jq0a2jdA==";
 };
 </programlisting>
 
         <para>
-          The algorithm, <literal>hmac-md5</literal>, is the only one supported by <acronym>BIND</acronym>.
           The secret is the one generated above. Since this is a secret, it
-          is recommended that either <filename>named.conf</filename> be non-world
-          readable, or the key directive be added to a non-world readable
-          file that is included by
-          <filename>named.conf</filename>.
+          is recommended that either <filename>named.conf</filename> be
+          non-world readable, or the key directive be added to a non-world
+          readable file that is included by <filename>named.conf</filename>.
         </para>
         <para>
           At this point, the key is recognized. This means that if the
@@ -4894,6 +4917,8 @@ badresp:1,adberr:0,findfail:0,valfail:0]
     <optional> allow-update { <replaceable>address_match_list</replaceable> }; </optional>
     <optional> allow-update-forwarding { <replaceable>address_match_list</replaceable> }; </optional>
     <optional> update-check-ksk <replaceable>yes_or_no</replaceable>; </optional>
+    <optional> dnskey-ksk-only <replaceable>yes_or_no</replaceable>; </optional>
+    <optional> secure-to-insecure <replaceable>yes_or_no</replaceable> ;</optional>
     <optional> try-tcp-refresh <replaceable>yes_or_no</replaceable>; </optional>
     <optional> allow-v6-synthesis { <replaceable>address_match_list</replaceable> }; </optional>
     <optional> blackhole { <replaceable>address_match_list</replaceable> }; </optional>
@@ -5302,9 +5327,9 @@ badresp:1,adberr:0,findfail:0,valfail:0]
             <listitem>
               <para>
                 The pathname of a file to override the built-in trusted
-		keys provided by named.  See the discussion of
-		<command>dnssec-lookaside</command> for details.
-                If not specified, the default is
+		keys provided by <command>named</command>.
+		See the discussion of <command>dnssec-lookaside</command>
+		for details.  If not specified, the default is
 		<filename>/etc/bind.keys</filename>.
               </para>
             </listitem>
@@ -5484,23 +5509,42 @@ options {
 		validator with an alternate method to validate DNSKEY
 		records at the top of a zone.  When a DNSKEY is at or
 		below a domain specified by the deepest
-		<command>dnssec-lookaside</command>, and the normal dnssec
+		<command>dnssec-lookaside</command>, and the normal DNSSEC
 		validation has left the key untrusted, the trust-anchor
-		will be append to the key name and a DLV record will be
+		will be appended to the key name and a DLV record will be
 		looked up to see if it can validate the key.  If the DLV
-		record validates a DNSKEY (similarly to the way a DS record
-		does) the DNSKEY RRset is deemed to be trusted.
+		record validates a DNSKEY (similarly to the way a DS
+                record does) the DNSKEY RRset is deemed to be trusted.
 	      </para>
 	      <para>
 		If <command>dnssec-lookaside</command> is set to
-		"auto", then built-in default values for
-		the domain and trust anchor will be used, along
-		with a built-in key for validation.
+		<userinput>auto</userinput>, then built-in default
+		values for the DLV domain and trust anchor will be
+		used, along with a built-in key for validation.
 	      </para>
-	      <para>
-		NOTE: Since the built-in key may expire, it can be
-		overridden without recompiling named by placing a new key
-		in the file <filename>bind.keys</filename>.
+              <para>
+                The default DLV key is stored in the file
+                <filename>bind.keys</filename>, which
+                <command>named</command> loads at startup if
+                <command>dnssec-lookaside</command> is set to
+                <constant>auto</constant>.  A copy of that file is
+                installed along with <acronym>BIND</acronym> 9, and is
+                current as of the release date.  If the DLV key expires, a
+                new copy of <filename>bind.keys</filename> can be downloaded
+                from <ulink>https://www.isc.org/solutions/dlv</ulink>.
+              </para>
+              <para>
+                (To prevent problems if <filename>bind.keys</filename> is
+                not found, the current key is also compiled in to
+                <command>named</command>.  Relying on this is not
+                recommended, however, as it requires <command>named</command>
+                to be recompiled with a new key when the DLV key expires.)
+              </para>
+              <para>
+                NOTE: Using <filename>bind.keys</filename> to store
+                locally-configured keys is possible, but not
+                recommended, as the file will be overwritten whenever
+                <acronym>BIND</acronym> 9 is re-installed or upgraded.
               </para>
             </listitem>
           </varlistentry>
@@ -6176,13 +6220,15 @@ options {
                   If <userinput>yes</userinput>, then an
                   IPv4-mapped IPv6 address will match any address match
                   list entries that match the corresponding IPv4 address.
-                  Enabling this option is sometimes useful on IPv6-enabled
-                  Linux
-                  systems, to work around a kernel quirk that causes IPv4
-                  TCP connections such as zone transfers to be accepted
-                  on an IPv6 socket using mapped addresses, causing
-                  address match lists designed for IPv4 to fail to match.
-                  The use of this option for any other purpose is discouraged.
+                </para>
+                <para>
+                  This option was introduced to work around a kernel quirk
+                  in some operating systems that causes IPv4 TCP
+                  connections, such as zone transfers, to be accepted on an
+                  IPv6 socket using mapped addresses.  This caused address
+                  match lists designed for IPv4 to fail to match.  However,
+                  <command>named</command> now solves this problem
+                  internally.  The use of this option is discouraged.
                 </para>
               </listitem>
             </varlistentry>
@@ -6267,7 +6313,9 @@ options {
                 <para>
 		  Accept expired signatures when verifying DNSSEC signatures.
                   The default is <userinput>no</userinput>.
-		  Setting this option to "yes" leaves <command>named</command> vulnerable to replay attacks.
+		  Setting this option to <userinput>yes</userinput>
+		  leaves <command>named</command> vulnerable to
+		  replay attacks.
                 </para>
               </listitem>
             </varlistentry>
@@ -6421,13 +6469,49 @@ options {
 	      <term><command>update-check-ksk</command></term>
 	      <listitem>
 	        <para>
-		  When regenerating the RRSIGs following a UPDATE
-		  request to a secure zone, check the KSK flag on
-		  the DNSKEY RR to determine if this key should be
-		  used to generate the RRSIG.  This flag is ignored
-		  if there are not DNSKEY RRs both with and without
-		  a KSK.
-		  The default is <command>yes</command>.
+                  When set to the default value of <literal>yes</literal>,
+                  check the KSK bit in each key to determine how the key
+                  should be used when generating RRSIGs for a secure zone.
+		</para>
+		<para>
+                  Ordinarily, zone-signing keys (that is, keys without the
+                  KSK bit set) are used to sign the entire zone, while
+                  key-signing keys (keys with the KSK bit set) are only
+                  used to sign the DNSKEY RRset at the zone apex.
+                  However, if this option is set to <literal>no</literal>,
+                  then the KSK bit is ignored; KSKs are treated as if they
+                  were ZSKs and are used to sign the entire zone.  This is
+                  similar to the <command>dnssec-signzone -z</command>
+                  command line option.
+		</para>
+		<para>
+                  When this option is set to <literal>yes</literal>, there
+                  must be at least two active keys for every algorithm
+                  represented in the DNSKEY RRset: at least one KSK and one
+                  ZSK per algorithm.  If there is any algorithm for which
+                  this requirement is not met, this option will be ignored
+                  for that algorithm.
+		</para>
+	      </listitem>
+	    </varlistentry>
+
+	    <varlistentry>
+	      <term><command>dnskey-ksk-only</command></term>
+	      <listitem>
+	        <para>
+                  When this option and <command>update-check-ksk</command>
+                  are both set to <literal>yes</literal>, only key-signing
+                  keys (that is, keys with the KSK bit set) will be used
+                  to sign the DNSKEY RRset at the zone apex.  Zone-signing
+                  keys (keys without the KSK bit set) will be used to sign
+                  the remainder of the zone, but not the DNSKEY RRset.
+                  This is similar to the
+                  <command>dnssec-signzone -x</command> command line option.
+		</para>
+		<para>
+		  The default is <command>no</command>.  If
+                  <command>update-check-ksk</command> is set to
+                  <literal>no</literal>, this option is ignored.
 		</para>
 	      </listitem>
 	    </varlistentry>
@@ -6439,6 +6523,17 @@ options {
 		  Try to refresh the zone using TCP if UDP queries fail.
 		  For BIND 8 compatibility, the default is
 		  <command>yes</command>.
+		</para>
+	      </listitem>
+	    </varlistentry>
+
+	    <varlistentry>
+	      <term><command>secure-to-insecure</command></term>
+	      <listitem>
+	        <para>
+		  Allow a zone to transition from secure to insecure by
+		  deleting all DNSKEY records.  The default is
+		  <command>no</command>.
 		</para>
 	      </listitem>
 	    </varlistentry>
@@ -9138,12 +9233,13 @@ deny-answer-aliases { "example.net"; };
             level of <filename>named.conf</filename>, not within a view.
 	  </para>
 	  <para>
-	    If the <command>dnssec-lookaside</command> option is set to
-            "auto", <command>named</command> will automatically initialize
-            a managed key for the zone <literal>dlv.isc.org</literal>.  The
-            key that is used to initialize the key maintenance process is
-            built into <command>named</command>, and can be overridden
-            from <command>bindkeys-file</command>.
+	    If the <command>dnssec-lookaside</command> option is
+	    set to <userinput>auto</userinput>, <command>named</command>
+	    will automatically initialize a managed key for the
+	    zone <literal>dlv.isc.org</literal>.  The key that is
+	    used to initialize the key maintenance process is built
+	    into <command>named</command>, and can be overridden
+	    from <command>bindkeys-file</command>.
 	  </para>
 	</sect2>
 
@@ -9337,6 +9433,7 @@ view "external" {
     <optional> min-retry-time <replaceable>number</replaceable> ; </optional>
     <optional> max-retry-time <replaceable>number</replaceable> ; </optional>
     <optional> key-directory <replaceable>path_name</replaceable>; </optional>
+    <optional> auto-dnssec <constant>allow</constant>|<constant>maintain</constant>|<constant>create</constant>|<constant>off</constant>; </optional>
     <optional> zero-no-soa-ttl <replaceable>yes_or_no</replaceable> ; </optional>
 };
 
@@ -9348,6 +9445,8 @@ zone <replaceable>zone_name</replaceable> <optional><replaceable>class</replacea
     <optional> allow-transfer { <replaceable>address_match_list</replaceable> }; </optional>
     <optional> allow-update-forwarding { <replaceable>address_match_list</replaceable> }; </optional>
     <optional> update-check-ksk <replaceable>yes_or_no</replaceable>; </optional>
+    <optional> dnskey-ksk-only <replaceable>yes_or_no</replaceable>; </optional>
+    <optional> secure-to-insecure <replaceable>yes_or_no</replaceable> ; </optional>
     <optional> try-tcp-refresh <replaceable>yes_or_no</replaceable>; </optional>
     <optional> also-notify { <replaceable>ip_addr</replaceable> <optional>port <replaceable>ip_port</replaceable></optional> ;
                   <optional> <replaceable>ip_addr</replaceable> <optional>port <replaceable>ip_port</replaceable></optional> ; ... </optional> }; </optional>
@@ -9860,6 +9959,16 @@ zone <replaceable>zone_name</replaceable> <optional><replaceable>class</replacea
               </varlistentry>
 
 	      <varlistentry>
+	        <term><command>dnskey-ksk-only</command></term>
+                <listitem>
+                  <para>
+                    See the description of
+                    <command>dnskey-ksk-only</command> in <xref linkend="boolean_options"/>.
+                  </para>
+                </listitem>
+              </varlistentry>
+
+	      <varlistentry>
 	        <term><command>try-tcp-refresh</command></term>
                 <listitem>
                   <para>
@@ -10241,6 +10350,39 @@ zone <replaceable>zone_name</replaceable> <optional><replaceable>class</replacea
               </varlistentry>
 
               <varlistentry>
+                <term><command>auto-dnssec</command></term>
+                <listitem>
+                  <para>
+                    Zones configured for dynamic DNS may also use this
+                    option to allow varying levels of autonatic DNSSEC key
+                    management. There are four possible settings:
+                  </para>
+                  <para>
+                    <command>auto-dnssec allow;</command> permits
+                    keys to be updated and the zone re-signed whenever the
+                    user issues the command <command>rndc sign</command>.
+                  </para>
+                  <para>
+                    <command>auto-dnssec maintain;</command> includes the
+                    above, but also automatically adjusts the zone's DNSSEC
+                    keys on schedule, according to the keys' timing metadata
+                    (see <xref linkend="man.dnssec-keygen"/> and
+                    <xref linkend="man.dnssec-settime"/>).
+                  </para>
+                  <para>
+                    <command>auto-dnssec create;</command> includes the
+                    above, but also allows <command>named</command>
+                    to create new keys in the key repository when needed.
+                    (NOTE: This option is not yet implemented; the syntax is
+                    being reserved for future use.)
+                  </para>
+                  <para>
+                    The default setting is <command>auto-dnssec off</command>.
+                  </para>
+                </listitem>
+              </varlistentry>
+
+              <varlistentry>
                 <term><command>multi-master</command></term>
                 <listitem>
                   <para>
@@ -10259,6 +10401,16 @@ zone <replaceable>zone_name</replaceable> <optional><replaceable>class</replacea
 		  </para>
 		</listitem>
 	      </varlistentry>
+
+              <varlistentry>
+                <term><command>secure-to-insecure</command></term>
+                <listitem>
+                  <para>
+                    See the description of
+                    <command>secure-to-insecure</command> in <xref linkend="boolean_options"/>.
+                  </para>
+                </listitem>
+              </varlistentry>
 
             </variablelist>
 

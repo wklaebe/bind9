@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: main.c,v 1.173 2009/09/01 18:40:25 jinmei Exp $ */
+/* $Id: main.c,v 1.175 2009/10/05 17:30:49 fdupont Exp $ */
 
 /*! \file */
 
@@ -138,6 +138,10 @@ ns_main_earlyfatal(const char *format, ...) {
 	exit(1);
 }
 
+ISC_PLATFORM_NORETURN_PRE static void
+assertion_failed(const char *file, int line, isc_assertiontype_t type,
+		 const char *cond) ISC_PLATFORM_NORETURN_POST;
+
 static void
 assertion_failed(const char *file, int line, isc_assertiontype_t type,
 		 const char *cond)
@@ -207,9 +211,10 @@ assertion_failed(const char *file, int line, isc_assertiontype_t type,
 	exit(1);
 }
 
-static void
+ISC_PLATFORM_NORETURN_PRE static void
 library_fatal_error(const char *file, int line, const char *format,
-		    va_list args) ISC_FORMAT_PRINTF(3, 0);
+		    va_list args)
+ISC_FORMAT_PRINTF(3, 0) ISC_PLATFORM_NORETURN_POST;
 
 static void
 library_fatal_error(const char *file, int line, const char *format,
@@ -293,8 +298,9 @@ usage(void) {
 	}
 	fprintf(stderr,
 		"usage: named [-4|-6] [-c conffile] [-d debuglevel] "
-		"[-f|-g] [-n number_of_cpus]\n"
-		"             [-p port] [-s] [-t chrootdir] [-u username]\n"
+		"[-E engine] [-f|-g]\n"
+		"             [-n number_of_cpus] [-p port] [-s] "
+		"[-t chrootdir] [-u username]\n"
 		"             [-m {usage|trace|record|size|mctx}]\n");
 }
 
@@ -403,7 +409,7 @@ parse_command_line(int argc, char *argv[]) {
 
 	isc_commandline_errprint = ISC_FALSE;
 	while ((ch = isc_commandline_parse(argc, argv,
-					   "46c:C:d:fFgi:lm:n:N:p:P:"
+					   "46c:C:d:E:fFgi:lm:n:N:p:P:"
 					   "sS:t:T:u:vVx:")) != -1) {
 		switch (ch) {
 		case '4':
@@ -438,6 +444,9 @@ parse_command_line(int argc, char *argv[]) {
 		case 'd':
 			ns_g_debuglevel = parse_int(isc_commandline_argument,
 						    "debug level");
+			break;
+		case 'E':
+			ns_g_engine = isc_commandline_argument;
 			break;
 		case 'f':
 			ns_g_foreground = ISC_TRUE;

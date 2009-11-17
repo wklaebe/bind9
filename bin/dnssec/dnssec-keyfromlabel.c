@@ -14,7 +14,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dnssec-keyfromlabel.c,v 1.13 2009/09/07 23:11:48 fdupont Exp $ */
+/* $Id: dnssec-keyfromlabel.c,v 1.22 2009/10/14 22:07:13 marka Exp $ */
 
 /*! \file */
 
@@ -28,6 +28,7 @@
 #include <isc/entropy.h>
 #include <isc/mem.h>
 #include <isc/region.h>
+#include <isc/print.h>
 #include <isc/string.h>
 #include <isc/util.h>
 
@@ -48,40 +49,55 @@
 const char *program = "dnssec-keyfromlabel";
 int verbose;
 
+#define DEFAULT_ALGORITHM "RSASHA1"
+#define DEFAULT_NSEC3_ALGORITHM "NSEC3RSASHA1"
+
 static const char *algs = "RSA | RSAMD5 | DH | DSA | RSASHA1 |"
 			  " NSEC3DSA | NSEC3RSASHA1";
+
+ISC_PLATFORM_NORETURN_PRE static void
+usage(void) ISC_PLATFORM_NORETURN_POST;
 
 static void
 usage(void) {
 	fprintf(stderr, "Usage:\n");
-	fprintf(stderr, "    %s -a alg -l label [options] name\n\n",
+	fprintf(stderr, "    %s -l label [options] name\n\n",
 		program);
 	fprintf(stderr, "Version: %s\n", VERSION);
 	fprintf(stderr, "Required options:\n");
-	fprintf(stderr, "    -a algorithm: %s\n", algs);
 	fprintf(stderr, "    -l label: label of the key pair\n");
 	fprintf(stderr, "    name: owner of the key\n");
 	fprintf(stderr, "Other options:\n");
-	fprintf(stderr, "    -c <class> (default: IN)\n");
+	fprintf(stderr, "    -a algorithm: %s\n", algs);
+	fprintf(stderr, "       (default: RSASHA1, or "
+			       "NSEC3RSASHA1 if using -3)\n");
+	fprintf(stderr, "    -3: use NSEC3-capable algorithm\n");
+	fprintf(stderr, "    -c class (default: IN)\n");
+#ifdef USE_PKCS11
+	fprintf(stderr, "    -E enginename (default: pkcs11)\n");
+#else
+	fprintf(stderr, "    -E enginename\n");
+#endif
 	fprintf(stderr, "    -f keyflag: KSK | REVOKE\n");
 	fprintf(stderr, "    -K directory: directory in which to place "
 			"key files\n");
 	fprintf(stderr, "    -k : generate a TYPE=KEY key\n");
 	fprintf(stderr, "    -n nametype: ZONE | HOST | ENTITY | USER | OTHER\n");
 	fprintf(stderr, "        (DNSKEY generation defaults to ZONE\n");
-	fprintf(stderr, "    -p <protocol>: default: 3 [dnssec]\n");
-	fprintf(stderr, "    -t <type>: "
+	fprintf(stderr, "    -p protocol: default: 3 [dnssec]\n");
+	fprintf(stderr, "    -t type: "
 		"AUTHCONF | NOAUTHCONF | NOAUTH | NOCONF "
 		"(default: AUTHCONF)\n");
-	fprintf(stderr, "    -v <verbose level>\n");
+	fprintf(stderr, "    -v verbose level\n");
 	fprintf(stderr, "Date options:\n");
 	fprintf(stderr, "    -P date/[+-]offset: set key publication date\n");
 	fprintf(stderr, "    -A date/[+-]offset: set key activation date\n");
 	fprintf(stderr, "    -R date/[+-]offset: set key revocation date\n");
-	fprintf(stderr, "    -U date/[+-]offset: set key unpublication date\n");
+	fprintf(stderr, "    -I date/[+-]offset: set key inactivation date\n");
 	fprintf(stderr, "    -D date/[+-]offset: set key deletion date\n");
+	fprintf(stderr, "    -G: generate key only; do not set -P or -A\n");
 	fprintf(stderr, "    -C: generate a backward-compatible key, omitting"
-			" dates\n");
+			" all dates\n");
 	fprintf(stderr, "Output:\n");
 	fprintf(stderr, "     K<name>+<alg>+<id>.key, "
 			"K<name>+<alg>+<id>.private\n");
@@ -93,6 +109,11 @@ int
 main(int argc, char **argv) {
 	char		*algname = NULL, *nametype = NULL, *type = NULL;
 	const char	*directory = NULL;
+#ifdef USE_PKCS11
+	const char	*engine = "pkcs11";
+#else
+	const char	*engine = NULL;
+#endif
 	char		*classname = NULL;
 	char		*endp;
 	dst_key_t	*key = NULL, *oldkey = NULL;
@@ -112,16 +133,18 @@ main(int argc, char **argv) {
 	isc_entropy_t	*ectx = NULL;
 	dns_rdataclass_t rdclass;
 	int		options = DST_TYPE_PRIVATE | DST_TYPE_PUBLIC;
-	char		*label = NULL, *engine = NULL;
+	char		*label = NULL;
 	isc_stdtime_t	publish = 0, activate = 0, revoke = 0;
-	isc_stdtime_t	unpublish = 0, delete = 0;
+	isc_stdtime_t	inactive = 0, delete = 0;
 	isc_stdtime_t	now;
 	isc_boolean_t	setpub = ISC_FALSE, setact = ISC_FALSE;
-	isc_boolean_t	setrev = ISC_FALSE, setunpub = ISC_FALSE;
+	isc_boolean_t	setrev = ISC_FALSE, setinact = ISC_FALSE;
 	isc_boolean_t	setdel = ISC_FALSE;
 	isc_boolean_t	unsetpub = ISC_FALSE, unsetact = ISC_FALSE;
-	isc_boolean_t	unsetrev = ISC_FALSE, unsetunpub = ISC_FALSE;
+	isc_boolean_t	unsetrev = ISC_FALSE, unsetinact = ISC_FALSE;
 	isc_boolean_t	unsetdel = ISC_FALSE;
+	isc_boolean_t	genonly = ISC_FALSE;
+	isc_boolean_t	use_nsec3 = ISC_FALSE;
 
 	if (argc == 1)
 		usage();
@@ -135,9 +158,12 @@ main(int argc, char **argv) {
 	isc_stdtime_get(&now);
 
 	while ((ch = isc_commandline_parse(argc, argv,
-				"a:Cc:f:K:kl:n:p:t:v:FhP:A:R:U:D:")) != -1)
+				"3a:Cc:E:f:K:kl:n:p:t:v:FhGP:A:R:I:D:")) != -1)
 	{
 	    switch (ch) {
+		case '3':
+			use_nsec3 = ISC_TRUE;
+			break;
 		case 'a':
 			algname = isc_commandline_argument;
 			break;
@@ -146,6 +172,9 @@ main(int argc, char **argv) {
 			break;
 		case 'c':
 			classname = isc_commandline_argument;
+			break;
+		case 'E':
+			engine = isc_commandline_argument;
 			break;
 		case 'f':
 			if (toupper(isc_commandline_argument[0]) == 'K')
@@ -181,6 +210,9 @@ main(int argc, char **argv) {
 			verbose = strtol(isc_commandline_argument, &endp, 0);
 			if (*endp != '\0')
 				fatal("-v must be followed by a number");
+			break;
+		case 'G':
+			genonly = ISC_TRUE;
 			break;
 		case 'P':
 			if (setpub || unsetpub)
@@ -218,16 +250,16 @@ main(int argc, char **argv) {
 				unsetrev = ISC_TRUE;
 			}
 			break;
-		case 'U':
-			if (setunpub || unsetunpub)
-				fatal("-U specified more than once");
+		case 'I':
+			if (setinact || unsetinact)
+				fatal("-I specified more than once");
 
 			if (strcasecmp(isc_commandline_argument, "none")) {
-				setunpub = ISC_TRUE;
-				unpublish = strtotime(isc_commandline_argument,
-						      now, now);
+				setinact = ISC_TRUE;
+				inactive = strtotime(isc_commandline_argument,
+						     now, now);
 			} else {
-				unsetunpub = ISC_TRUE;
+				unsetinact = ISC_TRUE;
 			}
 			break;
 		case 'D':
@@ -262,10 +294,11 @@ main(int argc, char **argv) {
 
 	if (ectx == NULL)
 		setup_entropy(mctx, NULL, &ectx);
-	ret = dst_lib_init(mctx, ectx,
-			   ISC_ENTROPY_BLOCKING | ISC_ENTROPY_GOODONLY);
+	ret = dst_lib_init2(mctx, ectx, engine,
+			    ISC_ENTROPY_BLOCKING | ISC_ENTROPY_GOODONLY);
 	if (ret != ISC_R_SUCCESS)
-		fatal("could not initialize dst");
+		fatal("could not initialize dst: %s",
+		      isc_result_totext(ret));
 
 	setup_logging(verbose, mctx, &log);
 
@@ -276,8 +309,27 @@ main(int argc, char **argv) {
 	if (argc > isc_commandline_index + 1)
 		fatal("extraneous arguments");
 
-	if (algname == NULL)
-		fatal("no algorithm was specified");
+	if (strchr(label, ':') == NULL &&
+	    engine != NULL && strlen(engine) != 0U) {
+		char *l;
+		int len;
+
+		len = strlen(label) + strlen(engine) + 2;
+		l = isc_mem_get(mctx, len);
+		snprintf(l, len, "%s:%s", engine, label);
+		label = l;
+	}
+
+	if (algname == NULL) {
+		if (use_nsec3)
+			algname = strdup(DEFAULT_NSEC3_ALGORITHM);
+		else
+			algname = strdup(DEFAULT_ALGORITHM);
+		if (verbose > 0)
+			fprintf(stderr, "no algorithm specified; "
+				"defaulting to %s\n", algname);
+	}
+
 	if (strcasecmp(algname, "RSA") == 0) {
 		fprintf(stderr, "The use of RSA (RSAMD5) is not recommended.\n"
 				"If you still wish to use RSA (RSAMD5) please "
@@ -291,6 +343,12 @@ main(int argc, char **argv) {
 			fatal("unknown algorithm %s", algname);
 		if (alg == DST_ALG_DH)
 			options |= DST_TYPE_KEY;
+	}
+
+	if (use_nsec3 &&
+	    alg != DST_ALG_NSEC3DSA && alg != DST_ALG_NSEC3RSASHA1) {
+		fatal("%s is incompatible with NSEC3; "
+		      "do not use the -3 option", algname);
 	}
 
 	if (type != NULL && (options & DST_TYPE_KEY) != 0) {
@@ -371,36 +429,58 @@ main(int argc, char **argv) {
 
 	if (ret != ISC_R_SUCCESS) {
 		char namestr[DNS_NAME_FORMATSIZE];
-		char algstr[ALG_FORMATSIZE];
+		char algstr[DNS_SECALG_FORMATSIZE];
 		dns_name_format(name, namestr, sizeof(namestr));
-		alg_format(alg, algstr, sizeof(algstr));
+		dns_secalg_format(alg, algstr, sizeof(algstr));
 		fatal("failed to get key %s/%s: %s\n",
 		      namestr, algstr, isc_result_totext(ret));
+		/* NOTREACHED */
 		exit(-1);
 	}
 
 	/*
 	 * Set key timing metadata (unless using -C)
+	 *
+	 * Publish and activation dates are set to "now" by default, but
+	 * can be overridden.  Creation date is always set to "now".
 	 */
 	if (!oldstyle) {
 		dst_key_settime(key, DST_TIME_CREATED, now);
 
+		if (genonly && (setpub || setact))
+			fatal("cannot use -G together with -P or -A options");
+
 		if (setpub)
 			dst_key_settime(key, DST_TIME_PUBLISH, publish);
+		else if (!genonly)
+			dst_key_settime(key, DST_TIME_PUBLISH, now);
+
 		if (setact)
 			dst_key_settime(key, DST_TIME_ACTIVATE, activate);
-		if (setrev)
+		else if (!genonly)
+			dst_key_settime(key, DST_TIME_ACTIVATE, now);
+
+		if (setrev) {
+			if (kskflag == 0)
+				fprintf(stderr, "%s: warning: Key is "
+					"not flagged as a KSK, but -R "
+					"was used. Revoking a ZSK is "
+					"legal, but undefined.\n",
+					program);
 			dst_key_settime(key, DST_TIME_REVOKE, revoke);
-		if (setunpub)
-			dst_key_settime(key, DST_TIME_UNPUBLISH, unpublish);
+		}
+
+		if (setinact)
+			dst_key_settime(key, DST_TIME_INACTIVE, inactive);
+
 		if (setdel)
 			dst_key_settime(key, DST_TIME_DELETE, delete);
 	} else {
-		if (setpub || setact || setrev || setunpub ||
+		if (setpub || setact || setrev || setinact ||
 		    setdel || unsetpub || unsetact ||
-		    unsetrev || unsetunpub || unsetdel)
+		    unsetrev || unsetinact || unsetdel || genonly)
 			fatal("cannot use -C together with "
-			      "-P, -A, -R, -U, or -D options");
+			      "-P, -A, -R, -I, -D, or -G options");
 		/*
 		 * Compatibility mode: Private-key-format
 		 * should be set to 1.2.
@@ -423,8 +503,8 @@ main(int argc, char **argv) {
 
 	ret = dst_key_tofile(key, options, directory);
 	if (ret != ISC_R_SUCCESS) {
-		char keystr[KEY_FORMATSIZE];
-		key_format(key, keystr, sizeof(keystr));
+		char keystr[DST_KEY_FORMATSIZE];
+		dst_key_format(key, keystr, sizeof(keystr));
 		fatal("failed to write key %s: %s\n", keystr,
 		      isc_result_totext(ret));
 	}

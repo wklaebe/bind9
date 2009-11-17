@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dst.h,v 1.17 2009/09/02 06:29:01 each Exp $ */
+/* $Id: dst.h,v 1.22 2009/10/12 20:48:12 each Exp $ */
 
 #ifndef DST_DST_H
 #define DST_DST_H 1
@@ -26,6 +26,8 @@
 #include <isc/stdtime.h>
 
 #include <dns/types.h>
+#include <dns/name.h>
+#include <dns/secalg.h>
 
 #include <dst/gssapi.h>
 
@@ -84,9 +86,17 @@ typedef struct dst_context 	dst_context_t;
 #define DST_TIME_PUBLISH	1
 #define DST_TIME_ACTIVATE	2
 #define DST_TIME_REVOKE 	3
-#define DST_TIME_UNPUBLISH	4
+#define DST_TIME_INACTIVE	4
 #define DST_TIME_DELETE 	5
-#define DST_MAX_TIMES		5
+#define DST_TIME_DSPUBLISH 	6
+#define DST_MAX_TIMES		6
+
+/* Numeric metadata definitions */
+#define DST_NUM_PREDECESSOR	0
+#define DST_NUM_SUCCESSOR	1
+#define DST_NUM_MAXTTL		2
+#define DST_NUM_ROLLPERIOD	3
+#define DST_MAX_NUMERIC		3
 
 /***
  *** Functions
@@ -94,6 +104,10 @@ typedef struct dst_context 	dst_context_t;
 
 isc_result_t
 dst_lib_init(isc_mem_t *mctx, isc_entropy_t *ectx, unsigned int eflags);
+
+isc_result_t
+dst_lib_init2(isc_mem_t *mctx, isc_entropy_t *ectx,
+	      const char *engine, unsigned int eflags);
 /*%<
  * Initializes the DST subsystem.
  *
@@ -104,6 +118,7 @@ dst_lib_init(isc_mem_t *mctx, isc_entropy_t *ectx, unsigned int eflags);
  * Returns:
  * \li	ISC_R_SUCCESS
  * \li	ISC_R_NOMEMORY
+ * \li	DST_R_NOENGINE
  *
  * Ensures:
  * \li	DST is properly initialized.
@@ -494,7 +509,31 @@ dst_key_generate(dns_name_t *name, unsigned int alg,
 isc_boolean_t
 dst_key_compare(const dst_key_t *key1, const dst_key_t *key2);
 /*%<
- * Compares two DST keys.
+ * Compares two DST keys.  Returns true if they match, false otherwise.
+ *
+ * Keys ARE NOT considered to match if one of them is the revoked version
+ * of the other.
+ *
+ * Requires:
+ *\li	"key1" is a valid key.
+ *\li	"key2" is a valid key.
+ *
+ * Returns:
+ *\li 	ISC_TRUE
+ * \li	ISC_FALSE
+ */
+
+isc_boolean_t
+dst_key_pubcompare(const dst_key_t *key1, const dst_key_t *key2,
+		   isc_boolean_t match_revoked_key);
+/*%<
+ * Compares only the public portions of two DST keys.  Returns true
+ * if they match, false otherwise.  This allows us, for example, to
+ * determine whether a public key found in a zone matches up with a
+ * key pair found on disk.
+ *
+ * If match_revoked_key is TRUE, then keys ARE considered to match if one
+ * of them is the revoked version of the other. Otherwise, they are not.
  *
  * Requires:
  *\li	"key1" is a valid key.
@@ -663,6 +702,37 @@ dst_key_setflags(dst_key_t *key, isc_uint32_t flags);
  */
 
 isc_result_t
+dst_key_getnum(const dst_key_t *key, int type, isc_uint32_t *valuep);
+/*%<
+ * Get a member of the numeric metadata array and place it in '*valuep'.
+ *
+ * Requires:
+ *	"key" is a valid key.
+ *	"type" is no larger than DST_MAX_NUMERIC
+ *	"timep" is not null.
+ */
+
+void
+dst_key_setnum(dst_key_t *key, int type, isc_uint32_t value);
+/*%<
+ * Set a member of the numeric metadata array.
+ *
+ * Requires:
+ *	"key" is a valid key.
+ *	"type" is no larger than DST_MAX_NUMERIC
+ */
+
+void
+dst_key_unsetnum(dst_key_t *key, int type);
+/*%<
+ * Flag a member of the numeric metadata array as "not set".
+ *
+ * Requires:
+ *	"key" is a valid key.
+ *	"type" is no larger than DST_MAX_NUMERIC
+ */
+
+isc_result_t
 dst_key_gettime(const dst_key_t *key, int type, isc_stdtime_t *timep);
 /*%<
  * Get a member of the timing metadata array and place it in '*timep'.
@@ -714,6 +784,15 @@ dst_key_setprivateformat(dst_key_t *key, int major, int minor);
  *
  * Requires:
  *	"key" is a valid key.
+ */
+
+#define DST_KEY_FORMATSIZE (DNS_NAME_FORMATSIZE + DNS_SECALG_FORMATSIZE + 7)
+
+void
+dst_key_format(dst_key_t *key, char *cp, unsigned int size);
+/*%<
+ * Write the uniquely identifying information about the key (name,
+ * algorithm, key ID) into a string 'cp' of size 'size'.
  */
 
 ISC_LANG_ENDDECLS

@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: server.c,v 1.548 2009/09/10 01:49:29 each Exp $ */
+/* $Id: server.c,v 1.551 2009/10/12 20:48:11 each Exp $ */
 
 /*! \file */
 
@@ -243,8 +243,8 @@ static const struct {
 	{ NULL, ISC_FALSE }
 };
 
-static void
-fatal(const char *msg, isc_result_t result);
+ISC_PLATFORM_NORETURN_PRE static void
+fatal(const char *msg, isc_result_t result) ISC_PLATFORM_NORETURN_POST;
 
 static void
 ns_server_reload(isc_task_t *task, isc_event_t *event);
@@ -4650,7 +4650,8 @@ ns_server_create(isc_mem_t *mctx, ns_server_t **serverp) {
 		   ISC_R_NOMEMORY : ISC_R_SUCCESS,
 		   "allocating reload event");
 
-	CHECKFATAL(dst_lib_init(ns_g_mctx, ns_g_entropy, ISC_ENTROPY_GOODONLY),
+	CHECKFATAL(dst_lib_init2(ns_g_mctx, ns_g_entropy,
+				 ns_g_engine, ISC_ENTROPY_GOODONLY),
 		   "initializing DST");
 
 	server->tkeyctx = NULL;
@@ -6245,6 +6246,38 @@ ns_server_tsiglist(ns_server_t *server, isc_buffer_t *text) {
 }
 
 /*
+ * Act on a "sign" command from the command channel.
+ */
+isc_result_t
+ns_server_sign(ns_server_t *server, char *args) {
+	isc_result_t result;
+	dns_zone_t *zone = NULL;
+	dns_zonetype_t type;
+	isc_uint16_t keyopts;
+
+	result = zone_from_args(server, args, &zone);
+	if (result != ISC_R_SUCCESS)
+		return (result);
+	if (zone == NULL)
+		return (ISC_R_UNEXPECTEDEND);   /* XXX: or do all zones? */
+
+	type = dns_zone_gettype(zone);
+	if (type != dns_zone_master) {
+		dns_zone_detach(&zone);
+		return (DNS_R_NOTMASTER);
+	}
+
+	keyopts = dns_zone_getkeyopts(zone);
+	if ((keyopts & DNS_ZONEKEY_ALLOW) != 0)
+		result = dns_zone_rekey(zone);
+	else
+		result = ISC_R_NOPERM;
+
+	dns_zone_detach(&zone);
+	return (result);
+}
+
+/*
  * Act on a "freeze" or "thaw" command from the command channel.
  */
 isc_result_t
@@ -6288,7 +6321,7 @@ ns_server_freeze(ns_server_t *server, isc_boolean_t freeze, char *args,
 	type = dns_zone_gettype(zone);
 	if (type != dns_zone_master) {
 		dns_zone_detach(&zone);
-		return (ISC_R_NOTFOUND);
+		return (DNS_R_NOTMASTER);
 	}
 
 	frozen = dns_zone_getupdatedisabled(zone);

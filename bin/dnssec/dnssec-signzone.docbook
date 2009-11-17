@@ -18,7 +18,7 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<!-- $Id: dnssec-signzone.docbook,v 1.36 2009/09/02 06:29:00 each Exp $ -->
+<!-- $Id: dnssec-signzone.docbook,v 1.42 2009/10/12 23:02:31 each Exp $ -->
 <refentry id="man.dnssec-signzone">
   <refentryinfo>
     <date>June 05, 2009</date>
@@ -60,6 +60,7 @@
       <arg><option>-a</option></arg>
       <arg><option>-c <replaceable class="parameter">class</replaceable></option></arg>
       <arg><option>-d <replaceable class="parameter">directory</replaceable></option></arg>
+      <arg><option>-E <replaceable class="parameter">engine</replaceable></option></arg>
       <arg><option>-e <replaceable class="parameter">end-time</replaceable></option></arg>
       <arg><option>-f <replaceable class="parameter">output-file</replaceable></option></arg>
       <arg><option>-g</option></arg>
@@ -80,7 +81,9 @@
       <arg><option>-s <replaceable class="parameter">start-time</replaceable></option></arg>
       <arg><option>-T <replaceable class="parameter">ttl</replaceable></option></arg>
       <arg><option>-t</option></arg>
+      <arg><option>-u</option></arg>
       <arg><option>-v <replaceable class="parameter">level</replaceable></option></arg>
+      <arg><option>-x</option></arg>
       <arg><option>-z</option></arg>
       <arg><option>-3 <replaceable class="parameter">salt</replaceable></option></arg>
       <arg><option>-H <replaceable class="parameter">iterations</replaceable></option></arg>
@@ -144,6 +147,18 @@
           <para>
             Look for <filename>dsset-</filename> or
             <filename>keyset-</filename> files in <option>directory</option>.
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>-E <replaceable class="parameter">engine</replaceable></term>
+        <listitem>
+          <para>
+            Uses a crypto hardware (OpenSSL engine) for the crypto operations
+            it supports, for instance signing with private keys from
+            a secure key store. When compiled with PKCS#11 support
+            it defaults to pcks11, the empty name resets it to no engine.
           </para>
         </listitem>
       </varlistentry>
@@ -516,6 +531,20 @@
       </varlistentry>
 
       <varlistentry>
+        <term>-u</term>
+        <listitem>
+          <para>
+            Update NSEC/NSEC3 chain when re-signing a previously signed
+            zone.  With this option, a zone signed with NSEC can be
+            switched to NSEC3, or a zone signed with NSEC3 can
+            be switch to NSEC or to NSEC3 with different parameters.
+            Without this option, <command>dnssec-signzone</command> will
+            retain the existing chain when re-signing.
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
         <term>-v <replaceable class="parameter">level</replaceable></term>
         <listitem>
           <para>
@@ -525,10 +554,26 @@
       </varlistentry>
 
       <varlistentry>
+        <term>-x</term>
+        <listitem>
+          <para>
+            Only sign the DNSKEY RRset with key-signing keys, and omit
+            signatures from zone-signing keys.  (This is similar to the
+            <command>dnskey-ksk-only yes;</command> zone option in
+            <command>named</command>.)
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
         <term>-z</term>
         <listitem>
           <para>
-            Ignore KSK flag on key when determining what to sign.
+            Ignore KSK flag on key when determining what to sign.  This
+            causes KSK-flagged keys to sign all records, not just the
+            DNSKEY RRset.  (This is similar to the
+            <command>update-check-ksk no;</command> zone option in
+            <command>named</command>.)
           </para>
         </listitem>
       </varlistentry>
@@ -537,7 +582,7 @@
         <term>-3 <replaceable class="parameter">salt</replaceable></term>
         <listitem>
           <para>
-            Generate a NSEC3 chain with the given hex encoded salt.
+            Generate an NSEC3 chain with the given hex encoded salt.
 	    A dash (<replaceable class="parameter">salt</replaceable>) can
 	    be used to indicate that no salt is to be used when generating		    the NSEC3 chain.
           </para>
@@ -548,8 +593,8 @@
         <term>-H <replaceable class="parameter">iterations</replaceable></term>
         <listitem>
           <para>
-	    When generating a NSEC3 chain use this many interations.  The
-	    default is 100.
+	    When generating an NSEC3 chain, use this many interations.  The
+	    default is 10.
           </para>
         </listitem>
       </varlistentry>
@@ -558,9 +603,15 @@
         <term>-A</term>
         <listitem>
           <para>
-	    When generating a NSEC3 chain set the OPTOUT flag on all
+	    When generating an NSEC3 chain set the OPTOUT flag on all
 	    NSEC3 records and do not generate NSEC3 records for insecure
 	    delegations.
+          </para>
+          <para>
+	    Using this option twice (i.e., <option>-AA</option>)
+	    turns the OPTOUT flag off for all records.  This is useful
+	    when using the <option>-u</option> option to modify an NSEC3
+	    chain which previously had OPTOUT set.
           </para>
         </listitem>
       </varlistentry>
@@ -595,10 +646,11 @@
     <para>
       The following command signs the <userinput>example.com</userinput>
       zone with the DSA key generated by <command>dnssec-keygen</command>
-      (Kexample.com.+003+17247).  The zone's keys must be in the master
-      file (<filename>db.example.com</filename>).  This invocation looks
-      for <filename>keyset</filename> files, in the current directory,
-      so that DS records can be generated from them (<command>-g</command>).
+      (Kexample.com.+003+17247).  Because the <command>-S</command> option
+      is not being used, the zone's keys must be in the master file
+      (<filename>db.example.com</filename>).  This invocation looks
+      for <filename>dsset</filename> files, in the current directory,
+      so that DS records can be imported from them (<command>-g</command>).
     </para>
 <programlisting>% dnssec-signzone -g -o example.com db.example.com \
 Kexample.com.+003+17247

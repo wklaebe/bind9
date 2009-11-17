@@ -10,6 +10,9 @@ bind9 (1:9.7.0.dfsg~b2-1) experimental; urgency=low
   * bind9: drop old stale code from postinst
   * prerm: do not stop named on upgrade.  Closes: #542888
   * Drop some RFCs that crept into the diff.
+  * meta: add ${misc:Depends}
+  * lintian: update config.guess, config.sub in idnkit-1.0 tree
+  * l10n: missing newline in pofile.
 
  -- LaMont Jones <lamont@debian.org>  Mon, 16 Nov 2009 18:53:24 -0700
 

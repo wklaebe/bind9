@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: config.c,v 1.97 2009/06/10 00:27:21 each Exp $ */
+/* $Id: config.c,v 1.104 2009/10/26 23:14:53 each Exp $ */
 
 /*! \file */
 
@@ -59,9 +59,9 @@ options {\n\
 	files unlimited;\n\
 	stacksize default;\n"
 #endif
-"#	ddns-keyfile \"" NS_LOCALSTATEDIR "/run/named/ddns.key\";\n\
-	ddns-keyname local-ddns;\n\
-	ddns-keyalg hmac-sha256;\n\
+"#	session-keyfile \"" NS_LOCALSTATEDIR "/run/named/session.key\";\n\
+	session-keyname local-ddns;\n\
+	session-keyalg hmac-sha256;\n\
 	deallocate-on-exit true;\n\
 #	directory <none>\n\
 	dump-file \"named_dump.db\";\n\
@@ -160,6 +160,10 @@ options {\n\
 	zero-no-soa-ttl-cache no;\n\
 	nsec3-test-zone no;\n\
 "
+#ifdef ALLOW_FILTER_AAAA_ON_V4
+"	filter-aaaa-on-v4 no;\n\
+"
+#endif
 
 "	/* zone */\n\
 	allow-query {any;};\n\
@@ -170,7 +174,6 @@ options {\n\
 	notify-delay 5;\n\
 	notify-to-soa no;\n\
 	dialup no;\n\
-	ddns-autoconf no;\n\
 #	forward <none>\n\
 #	forwarders <none>\n\
 	maintain-ixfr-base no;\n\
@@ -188,6 +191,7 @@ options {\n\
 	max-refresh-time 2419200; /* 4 weeks */\n\
 	min-refresh-time 300;\n\
 	multi-master no;\n\
+	secure-to-insecure no;\n\
 	sig-validity-interval 30; /* days */\n\
 	sig-signing-nodes 100;\n\
 	sig-signing-signatures 10;\n\
@@ -202,6 +206,7 @@ options {\n\
 	check-srv-cname warn;\n\
 	zero-no-soa-ttl yes;\n\
 	update-check-ksk yes;\n\
+	dnskey-ksk-only no;\n\
 	try-tcp-refresh yes; /* BIND 8 compat */\n\
 };\n\
 "
@@ -227,6 +232,7 @@ view \"_bind\" chaos {\n\
 		type master;\n\
 		database \"_builtin authors\";\n\
 	};\n\
+\n\
 	zone \"id.server\" chaos {\n\
 		type master;\n\
 		database \"_builtin id\";\n\
@@ -235,16 +241,27 @@ view \"_bind\" chaos {\n\
 "
 
 "#\n\
+#  The \"_meta\" view is for zones that are used to store internal\n\
+#  information for named, such as managed keys.  The zones are defined\n\
+#  elsewhere.\n\
+#\n\
+view \"_meta\" in {\n\
+	recursion no;\n\
+	notify no;\n\
+};\n\
+"
+
+"#\n\
 #  Default trusted key(s) for builtin DLV support\n\
 #  (used if \"dnssec-lookaside auto;\" is set and\n\
 #  sysconfdir/bind.keys doesn't exist).\n\
 #\n\
-# BEGIN TRUSTED KEYS\n"
+# BEGIN MANAGED KEYS\n"
 
 /* Imported from bind.keys.h: */
-TRUSTED_KEYS
+MANAGED_KEYS
 
-"# END TRUSTED KEYS\n\
+"# END MANAGED KEYS\n\
 ";
 
 isc_result_t
@@ -642,7 +659,7 @@ ns_config_getipandkeylist(const cfg_obj_t *config, const cfg_obj_t *list,
 		isc_buffer_add(&b, strlen(keystr));
 		dns_fixedname_init(&fname);
 		result = dns_name_fromtext(dns_fixedname_name(&fname), &b,
-					   dns_rootname, ISC_FALSE, NULL);
+					   dns_rootname, 0, NULL);
 		if (result != ISC_R_SUCCESS)
 			goto cleanup;
 		result = dns_name_dup(dns_fixedname_name(&fname), mctx,

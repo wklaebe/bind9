@@ -16,7 +16,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: config.h.in,v 1.115 2009/06/10 02:23:42 marka Exp $ */
+/* $Id: config.h.in,v 1.122 2009/10/27 22:26:05 marka Exp $ */
 
 /*! \file */
 
@@ -144,6 +144,9 @@ int sigwait(const unsigned int *set, int *sig);
 /* Define if threads need PTHREAD_SCOPE_SYSTEM */
 #undef NEED_PTHREAD_SCOPE_SYSTEM
 
+/* Define to enable the "filter-aaaa-on-v4" option. */
+#undef ALLOW_FILTER_AAAA_ON_V4
+
 /* Define if recvmsg() does not meet all of the BSD socket API specifications.
    */
 #undef BROKEN_RECVMSG
@@ -163,6 +166,12 @@ int sigwait(const unsigned int *set, int *sig);
 /* Define to 1 if you have the <dlfcn.h> header file. */
 #undef HAVE_DLFCN_H
 
+/* Define to 1 if you have the `EVP_sha256' function. */
+#undef HAVE_EVP_SHA256
+
+/* Define to 1 if you have the `EVP_sha512' function. */
+#undef HAVE_EVP_SHA512
+
 /* Define to 1 if you have the <fcntl.h> header file. */
 #undef HAVE_FCNTL_H
 
@@ -180,6 +189,9 @@ int sigwait(const unsigned int *set, int *sig);
 
 /* Define to 1 if you have the `cap' library (-lcap). */
 #undef HAVE_LIBCAP
+
+/* if system have backtrace function */
+#undef HAVE_LIBCTRACE
 
 /* Define to 1 if you have the `c_r' library (-lc_r). */
 #undef HAVE_LIBC_R
@@ -220,8 +232,20 @@ int sigwait(const unsigned int *set, int *sig);
 /* Define to 1 if you have the <regex.h> header file. */
 #undef HAVE_REGEX_H
 
+/* Define to 1 if you have the `setegid' function. */
+#undef HAVE_SETEGID
+
+/* Define to 1 if you have the `seteuid' function. */
+#undef HAVE_SETEUID
+
 /* Define to 1 if you have the `setlocale' function. */
 #undef HAVE_SETLOCALE
+
+/* Define to 1 if you have the `setresgid' function. */
+#undef HAVE_SETRESGID
+
+/* Define to 1 if you have the `setresuid' function. */
+#undef HAVE_SETRESUID
 
 /* Define to 1 if you have the <stdint.h> header file. */
 #undef HAVE_STDINT_H
@@ -276,6 +300,15 @@ int sigwait(const unsigned int *set, int *sig);
 
 /* Define to 1 if you have the <unistd.h> header file. */
 #undef HAVE_UNISTD_H
+
+/* return type of gai_srerror */
+#undef IRS_GAISTRERROR_RETURN_T
+
+/* Define to the buffer length type used by getnameinfo(3). */
+#undef IRS_GETNAMEINFO_BUFLEN_T
+
+/* Define to the flags type used by getnameinfo(3). */
+#undef IRS_GETNAMEINFO_FLAGS_T
 
 /* Defined if extern char *optarg is not declared. */
 #undef NEED_OPTARG

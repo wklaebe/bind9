@@ -12,7 +12,7 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: Makefile.in,v 1.3 2009/06/11 23:47:55 tbox Exp $
+# $Id: Makefile.in,v 1.7 2009/09/22 08:47:55 fdupont Exp $
 
 srcdir =	@srcdir@
 VPATH =		@srcdir@
@@ -25,12 +25,13 @@ top_srcdir =	@top_srcdir@
 CINCLUDES = -I${srcdir}/include ${ISC_INCLUDES} ${ISCCC_INCLUDES} \
 	${ISCCFG_INCLUDES} ${DNS_INCLUDES} ${BIND9_INCLUDES}
 
-CDEFINES =
+CDEFINES =	-DBIND9
 CWARNINGS =
 
 ISCCFGLIBS =	../../lib/isccfg/libisccfg.@A@
 ISCCCLIBS =	../../lib/isccc/libisccc.@A@
 ISCLIBS =	../../lib/isc/libisc.@A@
+ISCNOSYMLIBS =	../../lib/isc/libisc-nosymtbl.@A@
 DNSLIBS =	../../lib/dns/libdns.@A@ @DNS_CRYPTO_LIBS@
 BIND9LIBS =	../../lib/bind9/libbind9.@A@
 
@@ -43,7 +44,10 @@ BIND9DEPLIBS =	../../lib/bind9/libbind9.@A@
 RNDCLIBS =	${ISCCFGLIBS} ${ISCCCLIBS} ${BIND9LIBS} ${DNSLIBS} ${ISCLIBS} @LIBS@
 RNDCDEPLIBS =	${ISCCFGDEPLIBS} ${ISCCCDEPLIBS} ${BIND9DEPLIBS} ${DNSDEPLIBS} ${ISCDEPLIBS}
 
-CONFLIBS =	${DNSLIBS} ${ISCLIBS} @LIBS@
+LIBS =		${DNSLIBS} ${ISCLIBS} @LIBS@
+
+NOSYMLIBS =	${DNSLIBS} ${ISCNOSYMLIBS} @LIBS@
+
 CONFDEPLIBS =	${DNSDEPLIBS} ${ISCDEPLIBS}
 
 SRCS=		rndc-confgen.c ddns-confgen.c
@@ -68,17 +72,15 @@ rndc-confgen.@O@: rndc-confgen.c
 		-c ${srcdir}/rndc-confgen.c
 
 ddns-confgen.@O@: ddns-confgen.c
-	${LIBTOOL_MODE_COMPILE} ${CC} ${ALL_CFLAGS} \
-		-DDDNS_KEYFILE=\"${localstatedir}/run/named/ddns.key\" \
-		-c ${srcdir}/ddns-confgen.c
+	${LIBTOOL_MODE_COMPILE} ${CC} ${ALL_CFLAGS} -c ${srcdir}/ddns-confgen.c
 
 rndc-confgen@EXEEXT@: rndc-confgen.@O@ util.@O@ keygen.@O@ ${UOBJS} ${CONFDEPLIBS} 
-	${LIBTOOL_MODE_LINK} ${PURIFY} ${CC} ${CFLAGS} ${LDFLAGS} -o $@ rndc-confgen.@O@ util.@O@ keygen.@O@ \
-		${UOBJS} ${CONFLIBS}
+	export BASEOBJS="rndc-confgen.@O@ util.@O@ keygen.@O@ ${UOBJS}"; \
+	${FINALBUILDCMD}
 
 ddns-confgen@EXEEXT@: ddns-confgen.@O@ util.@O@ keygen.@O@ ${UOBJS} ${CONFDEPLIBS} 
-	${LIBTOOL_MODE_LINK} ${PURIFY} ${CC} ${CFLAGS} ${LDFLAGS} -o $@ ddns-confgen.@O@ util.@O@ keygen.@O@ \
-		${UOBJS} ${CONFLIBS}
+	export BASEOBJS="ddns-confgen.@O@ util.@O@ keygen.@O@ ${UOBJS}"; \
+	${FINALBUILDCMD}
 
 doc man:: ${MANOBJS}
 

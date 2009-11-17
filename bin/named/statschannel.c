@@ -14,7 +14,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: statschannel.c,v 1.22 2009/02/17 03:40:28 marka Exp $ */
+/* $Id: statschannel.c,v 1.24 2009/10/20 03:30:07 marka Exp $ */
 
 /*! \file */
 
@@ -130,11 +130,11 @@ init_desc(void) {
 	int i;
 
 	/* Initialize name server statistics */
-	memset((void *)nsstats_desc, 0,
-	       dns_nsstatscounter_max * sizeof(nsstats_desc[0]));
+	for (i = 0; i < dns_nsstatscounter_max; i++)
+		nsstats_desc[i] = NULL;
 #ifdef HAVE_LIBXML2
-	memset((void *)nsstats_xmldesc, 0,
-	       dns_nsstatscounter_max * sizeof(nsstats_xmldesc[0]));
+	for (i = 0; i < dns_nsstatscounter_max; i++)
+		nsstats_xmldesc[i] = NULL;
 #endif
 
 #define SET_NSSTATDESC(counterid, desc, xmldesc) \
@@ -198,11 +198,11 @@ init_desc(void) {
 	INSIST(i == dns_nsstatscounter_max);
 
 	/* Initialize resolver statistics */
-	memset((void *)resstats_desc, 0,
-	       dns_resstatscounter_max * sizeof(resstats_desc[0]));
+	for (i = 0; i < dns_resstatscounter_max; i++)
+		resstats_desc[i] = NULL;
 #ifdef  HAVE_LIBXML2
-	memset((void *)resstats_xmldesc, 0,
-	       dns_resstatscounter_max * sizeof(resstats_xmldesc[0]));
+	for (i = 0; i < dns_resstatscounter_max; i++)
+		resstats_xmldesc[i] = NULL;
 #endif
 
 #define SET_RESSTATDESC(counterid, desc, xmldesc) \
@@ -268,11 +268,11 @@ init_desc(void) {
 	INSIST(i == dns_resstatscounter_max);
 
 	/* Initialize zone statistics */
-	memset((void *)zonestats_desc, 0,
-	       dns_zonestatscounter_max * sizeof(zonestats_desc[0]));
+	for (i = 0; i < dns_zonestatscounter_max; i++)
+		zonestats_desc[i] = NULL;
 #ifdef  HAVE_LIBXML2
-	memset((void *)zonestats_xmldesc, 0,
-	       dns_zonestatscounter_max * sizeof(zonestats_xmldesc[0]));
+	for (i = 0; i < dns_zonestatscounter_max; i++)
+		zonestats_xmldesc[i] = NULL;
 #endif
 
 #define SET_ZONESTATDESC(counterid, desc, xmldesc) \
@@ -300,11 +300,11 @@ init_desc(void) {
 	INSIST(i == dns_zonestatscounter_max);
 
 	/* Initialize socket statistics */
-	memset((void *)sockstats_desc, 0,
-	       isc_sockstatscounter_max * sizeof(sockstats_desc[0]));
+	for (i = 0; i < isc_sockstatscounter_max; i++)
+		sockstats_desc[i] = NULL;
 #ifdef  HAVE_LIBXML2
-	memset((void *)sockstats_xmldesc, 0,
-	       isc_sockstatscounter_max * sizeof(sockstats_xmldesc[0]));
+	for (i = 0; i < isc_sockstatscounter_max; i++)
+		sockstats_xmldesc[i] = NULL;
 #endif
 
 #define SET_SOCKSTATDESC(counterid, desc, xmldesc) \
@@ -678,9 +678,11 @@ zone_xmlrender(dns_zone_t *zone, void *arg) {
 	xmlTextWriterWriteString(writer, ISC_XMLCHAR buf);
 	xmlTextWriterEndElement(writer);
 
-	serial = dns_zone_getserial(zone);
 	xmlTextWriterStartElement(writer, ISC_XMLCHAR "serial");
-	xmlTextWriterWriteFormatString(writer, "%u", serial);
+	if (dns_zone_getserial2(zone, &serial) == ISC_R_SUCCESS)
+		xmlTextWriterWriteFormatString(writer, "%u", serial);
+	else
+		xmlTextWriterWriteString(writer, ISC_XMLCHAR "-");
 	xmlTextWriterEndElement(writer);
 
 	zonestats = dns_zone_getrequeststats(zone);
@@ -729,7 +731,7 @@ generatexml(ns_server_t *server, int *buflen, xmlChar **buf) {
 	TRY0(xmlTextWriterStartElement(writer, ISC_XMLCHAR "bind"));
 	TRY0(xmlTextWriterStartElement(writer, ISC_XMLCHAR "statistics"));
 	TRY0(xmlTextWriterWriteAttribute(writer, ISC_XMLCHAR "version",
-					 ISC_XMLCHAR "2.1"));
+					 ISC_XMLCHAR "2.2"));
 
 	/* Set common fields for statistics dump */
 	dumparg.type = statsformat_xml;

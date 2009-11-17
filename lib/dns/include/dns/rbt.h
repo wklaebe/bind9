@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rbt.h,v 1.73 2009/01/17 23:47:43 tbox Exp $ */
+/* $Id: rbt.h,v 1.76 2009/10/27 04:46:58 marka Exp $ */
 
 #ifndef DNS_RBT_H
 #define DNS_RBT_H 1
@@ -94,10 +94,7 @@ struct dns_rbtnode {
 	 * The following bitfields add up to a total bitwidth of 32.
 	 * The range of values necessary for each item is indicated,
 	 * but in the case of "attributes" the field is wider to accommodate
-	 * possible future expansion.  "offsetlen" could be one bit
-	 * narrower by always adjusting its value by 1 to find the real
-	 * offsetlen, but doing so does not gain anything (except perhaps
-	 * another bit for "attributes", which doesn't yet need any more).
+	 * possible future expansion.
 	 *
 	 * In each case below the "range" indicated is what's _necessary_ for
 	 * the bitfield to hold, not what it actually _can_ hold.
@@ -106,10 +103,15 @@ struct dns_rbtnode {
 	unsigned int color : 1;         /*%< range is 0..1 */
 	unsigned int find_callback : 1; /*%< range is 0..1 */
 	unsigned int attributes : 3;    /*%< range is 0..2 */
-	unsigned int nsec3 : 1;    	/*%< range is 0..1 */
+	enum {
+	    DNS_RBT_NSEC_NORMAL=0,      /*      in main tree */
+	    DNS_RBT_NSEC_HAS_NSEC=1,    /*      also has node in nsec tree */
+	    DNS_RBT_NSEC_NSEC=2,        /*      in nsec tree */
+	    DNS_RBT_NSEC_NSEC3=3        /*      in nsec3 tree */
+	} nsec : 2;                     /*%< range is 0..3 */
 	unsigned int namelen : 8;       /*%< range is 1..255 */
 	unsigned int offsetlen : 8;     /*%< range is 1..128 */
-	unsigned int padbytes : 9;      /*%< range is 0..380 */
+	unsigned int oldnamelen : 8;    /*%< range is 1..255 */
 	/*@}*/
 
 #ifdef DNS_RBT_USEHASH
@@ -909,7 +911,7 @@ dns_rbtnodechain_nextflat(dns_rbtnodechain_t *chain, dns_name_t *name);
 	} while (0)
 #else  /* DNS_RBT_USEISCREFCOUNT */
 #define dns_rbtnode_refinit(node, n)    ((node)->references = (n))
-#define dns_rbtnode_refdestroy(node)    (REQUIRE((node)->references == 0))
+#define dns_rbtnode_refdestroy(node)    REQUIRE((node)->references == 0)
 #define dns_rbtnode_refcurrent(node)    ((node)->references)
 #define dns_rbtnode_refincrement0(node, refs)                   \
 	do {                                                    \

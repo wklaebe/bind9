@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: sdb.c,v 1.68 2009/04/21 23:48:04 tbox Exp $ */
+/* $Id: sdb.c,v 1.71 2009/10/08 23:13:07 marka Exp $ */
 
 /*! \file */
 
@@ -450,7 +450,7 @@ getnode(dns_sdballnodes_t *allnodes, const char *name, dns_sdbnode_t **nodep) {
 	isc_buffer_init(&b, name, strlen(name));
 	isc_buffer_add(&b, strlen(name));
 
-	result = dns_name_fromtext(newname, &b, origin, ISC_FALSE, NULL);
+	result = dns_name_fromtext(newname, &b, origin, 0, NULL);
 	if (result != ISC_R_SUCCESS)
 		return (result);
 
@@ -1260,7 +1260,7 @@ static dns_dbmethods_t sdb_methods = {
 	NULL,
 	NULL,
 	NULL,
-	NULL
+	NULL,
 };
 
 static isc_result_t
@@ -1458,9 +1458,11 @@ dbiterator_seek(dns_dbiterator_t *iterator, dns_name_t *name) {
 	sdb_dbiterator_t *sdbiter = (sdb_dbiterator_t *)iterator;
 
 	sdbiter->current = ISC_LIST_HEAD(sdbiter->nodelist);
-	while (sdbiter->current != NULL)
+	while (sdbiter->current != NULL) {
 		if (dns_name_equal(sdbiter->current->name, name))
 			return (ISC_R_SUCCESS);
+		sdbiter->current = ISC_LIST_NEXT(sdbiter->current, link);
+	}
 	return (ISC_R_NOTFOUND);
 }
 

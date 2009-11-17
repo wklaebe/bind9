@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: name.c,v 1.167 2009/03/11 23:47:35 tbox Exp $ */
+/* $Id: name.c,v 1.169 2009/09/01 17:36:51 jinmei Exp $ */
 
 /*! \file */
 
@@ -1018,7 +1018,6 @@ dns_name_toregion(dns_name_t *name, isc_region_t *r) {
 
 	DNS_NAME_TOREGION(name, r);
 }
-
 
 isc_result_t
 dns_name_fromtext(dns_name_t *name, isc_buffer_t *source,
@@ -2374,18 +2373,22 @@ dns_name_tostring(dns_name_t *name, char **target, isc_mem_t *mctx) {
  * allocating memory as needed
  */
 isc_result_t
-dns_name_fromstring(dns_name_t *target, const char *src, isc_mem_t *mctx) {
+dns_name_fromstring(dns_name_t *target, const char *src, unsigned int options,
+		    isc_mem_t *mctx)
+{
 	isc_result_t result;
 	isc_buffer_t buf;
 	dns_fixedname_t fn;
 	dns_name_t *name;
+
+	REQUIRE(src != NULL);
 
 	isc_buffer_init(&buf, src, strlen(src));
 	isc_buffer_add(&buf, strlen(src));
 	dns_fixedname_init(&fn);
 	name = dns_fixedname_name(&fn);
 
-	result = dns_name_fromtext(name, &buf, dns_rootname, ISC_FALSE, NULL);
+	result = dns_name_fromtext(name, &buf, dns_rootname, options, NULL);
 	if (result != ISC_R_SUCCESS)
 		return (result);
 

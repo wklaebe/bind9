@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: server.h,v 1.98 2009/06/10 00:27:21 each Exp $ */
+/* $Id: server.h,v 1.103 2009/10/26 23:14:53 each Exp $ */
 
 #ifndef NAMED_SERVER_H
 #define NAMED_SERVER_H 1
@@ -55,6 +55,8 @@ struct ns_server {
 	char *			statsfile;	/*%< Statistics file name */
 	char *			dumpfile;	/*%< Dump file name */
 	char *			bindkeysfile;	/*%< bind.keys file name */
+	isc_boolean_t           managedkeys;    /*%< A managed-keys
+						     statement exists */
 	char *			recfile;	/*%< Recursive file name */
 	isc_boolean_t		version_set;	/*%< User has set version */
 	char *			version;	/*%< User-specified version */
@@ -108,11 +110,14 @@ struct ns_server {
 
 	ns_statschannellist_t	statschannels;
 
-	dns_tsigkey_t		*ddnskey;
-	char			*ddns_keyfile;
-	dns_name_t		*ddns_keyname;
-	unsigned int		ddns_keyalg;
-	isc_uint16_t		ddns_keybits;
+	dns_tsigkey_t		*sessionkey;
+	char			*session_keyfile;
+	dns_name_t		*session_keyname;
+	unsigned int		session_keyalg;
+	isc_uint16_t		session_keybits;
+#ifdef ALLOW_FILTER_AAAA_ON_V4
+	dns_v4_aaaa_t		v4_aaaa;
+#endif
 };
 
 #define NS_SERVER_MAGIC			ISC_MAGIC('S','V','E','R')
@@ -284,7 +289,15 @@ ns_server_tsigdelete(ns_server_t *server, char *command, isc_buffer_t *text);
  * Enable or disable updates for a zone.
  */
 isc_result_t
-ns_server_freeze(ns_server_t *server, isc_boolean_t freeze, char *args);
+ns_server_freeze(ns_server_t *server, isc_boolean_t freeze, char *args,
+		 isc_buffer_t *text);
+
+/*%
+ * Update a zone's DNSKEY set from the key repository, and re-sign the
+ * zone if there were any changes.
+ */
+isc_result_t
+ns_server_sign(ns_server_t *server, char *args);
 
 /*%
  * Dump the current recursive queries.

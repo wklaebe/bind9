@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: db.h,v 1.97 2009/05/07 09:41:23 fdupont Exp $ */
+/* $Id: db.h,v 1.100 2009/07/19 23:47:55 tbox Exp $ */
 
 #ifndef DNS_DB_H
 #define DNS_DB_H 1
@@ -59,7 +59,10 @@
 #include <isc/ondestroy.h>
 #include <isc/stdtime.h>
 
+#include <dns/fixedname.h>
 #include <dns/name.h>
+#include <dns/rdata.h>
+#include <dns/rdataset.h>
 #include <dns/types.h>
 
 ISC_LANG_BEGINDECLS
@@ -490,6 +493,10 @@ dns_db_load(dns_db_t *db, const char *filename);
 
 isc_result_t
 dns_db_load2(dns_db_t *db, const char *filename, dns_masterformat_t format);
+
+isc_result_t
+dns_db_load3(dns_db_t *db, const char *filename, dns_masterformat_t format,
+	     unsigned int options);
 /*%<
  * Load master file 'filename' into 'db'.
  *
@@ -613,7 +620,7 @@ dns_db_closeversion(dns_db_t *db, dns_dbversion_t **versionp,
  *
  * Note: if '*versionp' is a read-write version and 'commit' is ISC_TRUE,
  * then all changes made in the version will take effect, otherwise they
- * will be rolled back.  The value if 'commit' is ignored for read-only
+ * will be rolled back.  The value of 'commit' is ignored for read-only
  * versions.
  *
  * Requires:

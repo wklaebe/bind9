@@ -1,7 +1,7 @@
 <!--
  - Copyright (C) 2009 Internet Systems Consortium, Inc. ("ISC")
  - 
- - Permission to use, copy, modify, and distribute this software for any
+ - Permission to use, copy, modify, and/or distribute this software for any
  - purpose with or without fee is hereby granted, provided that the above
  - copyright notice and this permission notice appear in all copies.
  - 
@@ -13,7 +13,7 @@
  - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  - PERFORMANCE OF THIS SOFTWARE.
 -->
-<!-- $Id: ddns-confgen.html,v 1.7 2009/06/17 01:12:48 tbox Exp $ -->
+<!-- $Id: ddns-confgen.html,v 1.10 2009/09/19 01:14:52 tbox Exp $ -->
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
@@ -28,10 +28,10 @@
 </div>
 <div class="refsynopsisdiv">
 <h2>Synopsis</h2>
-<div class="cmdsynopsis"><p><code class="command">ddns-confgen</code>  [<code class="option">-a <em class="replaceable"><code>algorithm</code></em></code>] [<code class="option">-h</code>] [<code class="option">-k <em class="replaceable"><code>keyname</code></em></code>] [<code class="option">-r <em class="replaceable"><code>randomfile</code></em></code>] [<code class="option">-s name | -z zone</code>] [<code class="option">-q</code>] [name]</p></div>
+<div class="cmdsynopsis"><p><code class="command">ddns-confgen</code>  [<code class="option">-a <em class="replaceable"><code>algorithm</code></em></code>] [<code class="option">-h</code>] [<code class="option">-k <em class="replaceable"><code>keyname</code></em></code>] [<code class="option">-r <em class="replaceable"><code>randomfile</code></em></code>] [ -s <em class="replaceable"><code>name</code></em>  |   -z <em class="replaceable"><code>zone</code></em> ] [<code class="option">-q</code>] [name]</p></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543377"></a><h2>DESCRIPTION</h2>
+<a name="id2543395"></a><h2>DESCRIPTION</h2>
 <p><span><strong class="command">ddns-confgen</strong></span>
       generates a key for use by <span><strong class="command">nsupdate</strong></span>
       and <span><strong class="command">named</strong></span>.  It simplifies configuration
@@ -58,7 +58,7 @@
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543436"></a><h2>OPTIONS</h2>
+<a name="id2543454"></a><h2>OPTIONS</h2>
 <div class="variablelist"><dl>
 <dt><span class="term">-a <em class="replaceable"><code>algorithm</code></em></span></dt>
 <dd><p>
@@ -75,7 +75,7 @@
 <dd><p>
 	    Specifies the key name of the DDNS authentication key.
 	    The default is <code class="constant">ddns-key</code> when neither
-	    the <span><strong class="command">-s</strong></span> nor <span><strong class="command">-z</strong></span> option is
+	    the <code class="option">-s</code> nor <code class="option">-z</code> option is
 	    specified; otherwise, the default
 	    is <code class="constant">ddns-key</code> as a separate label
 	    followed by the argument of the option, e.g.,
@@ -102,13 +102,15 @@
 	  </p></dd>
 <dt><span class="term">-s <em class="replaceable"><code>name</code></em></span></dt>
 <dd><p>
-	    Self mode:  The example <span><strong class="command">named.conf</strong></span> text
-            shows how to set an update policy for the specified
+	    Single host mode: The example <span><strong class="command">named.conf</strong></span> text
+	    shows how to set an update policy for the specified
 	    <em class="replaceable"><code>name</code></em>
-	    using the "self" nametype, instead of the "subdomain"
-	    nametype which allows matching on any name within a
-	    specified domain.
-	    This option cannot be used with the <span><strong class="command">-z</strong></span> option.
+	    using the "name" nametype.
+	    The default key name is
+	    ddns-key.<em class="replaceable"><code>name</code></em>.
+	    Note that the "self" nametype cannot be used, since
+	    the name to be updated may differ from the key name.
+	    This option cannot be used with the <code class="option">-z</code> option.
 	  </p></dd>
 <dt><span class="term">-z <em class="replaceable"><code>zone</code></em></span></dt>
 <dd><p>
@@ -118,12 +120,12 @@
 	    using the "zonesub" nametype, allowing updates to all subdomain
 	    names within
 	    that <em class="replaceable"><code>zone</code></em>.
-	    This option cannot be used with the <span><strong class="command">-s</strong></span> option.
+	    This option cannot be used with the <code class="option">-s</code> option.
 	  </p></dd>
 </dl></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543618"></a><h2>SEE ALSO</h2>
+<a name="id2543642"></a><h2>SEE ALSO</h2>
 <p><span class="citerefentry"><span class="refentrytitle">nsupdate</span>(1)</span>,
       <span class="citerefentry"><span class="refentrytitle">named.conf</span>(5)</span>,
       <span class="citerefentry"><span class="refentrytitle">named</span>(8)</span>,
@@ -131,7 +133,7 @@
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543656"></a><h2>AUTHOR</h2>
+<a name="id2543681"></a><h2>AUTHOR</h2>
 <p><span class="corpauthor">Internet Systems Consortium</span>
     </p>
 </div>

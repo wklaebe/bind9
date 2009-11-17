@@ -1,5 +1,5 @@
 /*
- * Portions Copyright (C) 2004-2008  Internet Systems Consortium, Inc. ("ISC")
+ * Portions Copyright (C) 2004-2009  Internet Systems Consortium, Inc. ("ISC")
  * Portions Copyright (C) 1999-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -31,7 +31,7 @@
 
 /*
  * Principal Author: Brian Wellington
- * $Id: hmac_link.c,v 1.11 2008/04/01 23:47:10 tbox Exp $
+ * $Id: hmac_link.c,v 1.15 2009/10/24 09:46:19 fdupont Exp $
  */
 
 #include <config.h>
@@ -149,11 +149,13 @@ hmacmd5_compare(const dst_key_t *key1, const dst_key_t *key2) {
 }
 
 static isc_result_t
-hmacmd5_generate(dst_key_t *key, int pseudorandom_ok) {
+hmacmd5_generate(dst_key_t *key, int pseudorandom_ok, void (*callback)(int)) {
 	isc_buffer_t b;
 	isc_result_t ret;
 	int bytes;
 	unsigned char data[HMAC_LEN];
+
+	UNUSED(callback);
 
 	bytes = (key->key_size + 7) / 8;
 	if (bytes > HMAC_LEN) {
@@ -268,15 +270,17 @@ hmacmd5_tofile(const dst_key_t *key, const char *directory) {
 }
 
 static isc_result_t
-hmacmd5_parse(dst_key_t *key, isc_lex_t *lexer) {
+hmacmd5_parse(dst_key_t *key, isc_lex_t *lexer, dst_key_t *pub) {
 	dst_private_t priv;
 	isc_result_t result, tresult;
 	isc_buffer_t b;
 	isc_mem_t *mctx = key->mctx;
 	unsigned int i;
 
+	UNUSED(pub);
 	/* read private key file */
-	result = dst__privstruct_parse(key, DST_ALG_HMACMD5, lexer, mctx, &priv);
+	result = dst__privstruct_parse(key, DST_ALG_HMACMD5, lexer, mctx,
+				       &priv);
 	if (result != ISC_R_SUCCESS)
 		return (result);
 
@@ -418,11 +422,13 @@ hmacsha1_compare(const dst_key_t *key1, const dst_key_t *key2) {
 }
 
 static isc_result_t
-hmacsha1_generate(dst_key_t *key, int pseudorandom_ok) {
+hmacsha1_generate(dst_key_t *key, int pseudorandom_ok, void (*callback)(int)) {
 	isc_buffer_t b;
 	isc_result_t ret;
 	int bytes;
 	unsigned char data[HMAC_LEN];
+
+	UNUSED(callback);
 
 	bytes = (key->key_size + 7) / 8;
 	if (bytes > HMAC_LEN) {
@@ -537,13 +543,14 @@ hmacsha1_tofile(const dst_key_t *key, const char *directory) {
 }
 
 static isc_result_t
-hmacsha1_parse(dst_key_t *key, isc_lex_t *lexer) {
+hmacsha1_parse(dst_key_t *key, isc_lex_t *lexer, dst_key_t *pub) {
 	dst_private_t priv;
 	isc_result_t result, tresult;
 	isc_buffer_t b;
 	isc_mem_t *mctx = key->mctx;
 	unsigned int i;
 
+	UNUSED(pub);
 	/* read private key file */
 	result = dst__privstruct_parse(key, DST_ALG_HMACSHA1, lexer, mctx,
 				       &priv);
@@ -688,11 +695,15 @@ hmacsha224_compare(const dst_key_t *key1, const dst_key_t *key2) {
 }
 
 static isc_result_t
-hmacsha224_generate(dst_key_t *key, int pseudorandom_ok) {
+hmacsha224_generate(dst_key_t *key, int pseudorandom_ok,
+		    void (*callback)(int))
+{
 	isc_buffer_t b;
 	isc_result_t ret;
 	int bytes;
 	unsigned char data[HMAC_LEN];
+
+	UNUSED(callback);
 
 	bytes = (key->key_size + 7) / 8;
 	if (bytes > HMAC_LEN) {
@@ -807,13 +818,14 @@ hmacsha224_tofile(const dst_key_t *key, const char *directory) {
 }
 
 static isc_result_t
-hmacsha224_parse(dst_key_t *key, isc_lex_t *lexer) {
+hmacsha224_parse(dst_key_t *key, isc_lex_t *lexer, dst_key_t *pub) {
 	dst_private_t priv;
 	isc_result_t result, tresult;
 	isc_buffer_t b;
 	isc_mem_t *mctx = key->mctx;
 	unsigned int i;
 
+	UNUSED(pub);
 	/* read private key file */
 	result = dst__privstruct_parse(key, DST_ALG_HMACSHA224, lexer, mctx,
 				       &priv);
@@ -958,11 +970,15 @@ hmacsha256_compare(const dst_key_t *key1, const dst_key_t *key2) {
 }
 
 static isc_result_t
-hmacsha256_generate(dst_key_t *key, int pseudorandom_ok) {
+hmacsha256_generate(dst_key_t *key, int pseudorandom_ok,
+		    void (*callback)(int))
+{
 	isc_buffer_t b;
 	isc_result_t ret;
 	int bytes;
 	unsigned char data[HMAC_LEN];
+
+	UNUSED(callback);
 
 	bytes = (key->key_size + 7) / 8;
 	if (bytes > HMAC_LEN) {
@@ -1077,13 +1093,14 @@ hmacsha256_tofile(const dst_key_t *key, const char *directory) {
 }
 
 static isc_result_t
-hmacsha256_parse(dst_key_t *key, isc_lex_t *lexer) {
+hmacsha256_parse(dst_key_t *key, isc_lex_t *lexer, dst_key_t *pub) {
 	dst_private_t priv;
 	isc_result_t result, tresult;
 	isc_buffer_t b;
 	isc_mem_t *mctx = key->mctx;
 	unsigned int i;
 
+	UNUSED(pub);
 	/* read private key file */
 	result = dst__privstruct_parse(key, DST_ALG_HMACSHA256, lexer, mctx,
 				       &priv);
@@ -1228,11 +1245,15 @@ hmacsha384_compare(const dst_key_t *key1, const dst_key_t *key2) {
 }
 
 static isc_result_t
-hmacsha384_generate(dst_key_t *key, int pseudorandom_ok) {
+hmacsha384_generate(dst_key_t *key, int pseudorandom_ok,
+		    void (*callback)(int))
+{
 	isc_buffer_t b;
 	isc_result_t ret;
 	int bytes;
 	unsigned char data[HMAC_LEN];
+
+	UNUSED(callback);
 
 	bytes = (key->key_size + 7) / 8;
 	if (bytes > HMAC_LEN) {
@@ -1347,13 +1368,14 @@ hmacsha384_tofile(const dst_key_t *key, const char *directory) {
 }
 
 static isc_result_t
-hmacsha384_parse(dst_key_t *key, isc_lex_t *lexer) {
+hmacsha384_parse(dst_key_t *key, isc_lex_t *lexer, dst_key_t *pub) {
 	dst_private_t priv;
 	isc_result_t result, tresult;
 	isc_buffer_t b;
 	isc_mem_t *mctx = key->mctx;
 	unsigned int i;
 
+	UNUSED(pub);
 	/* read private key file */
 	result = dst__privstruct_parse(key, DST_ALG_HMACSHA384, lexer, mctx,
 				       &priv);
@@ -1498,11 +1520,15 @@ hmacsha512_compare(const dst_key_t *key1, const dst_key_t *key2) {
 }
 
 static isc_result_t
-hmacsha512_generate(dst_key_t *key, int pseudorandom_ok) {
+hmacsha512_generate(dst_key_t *key, int pseudorandom_ok,
+		    void (*callback)(int))
+{
 	isc_buffer_t b;
 	isc_result_t ret;
 	int bytes;
 	unsigned char data[HMAC_LEN];
+
+	UNUSED(callback);
 
 	bytes = (key->key_size + 7) / 8;
 	if (bytes > HMAC_LEN) {
@@ -1617,13 +1643,14 @@ hmacsha512_tofile(const dst_key_t *key, const char *directory) {
 }
 
 static isc_result_t
-hmacsha512_parse(dst_key_t *key, isc_lex_t *lexer) {
+hmacsha512_parse(dst_key_t *key, isc_lex_t *lexer, dst_key_t *pub) {
 	dst_private_t priv;
 	isc_result_t result, tresult;
 	isc_buffer_t b;
 	isc_mem_t *mctx = key->mctx;
 	unsigned int i;
 
+	UNUSED(pub);
 	/* read private key file */
 	result = dst__privstruct_parse(key, DST_ALG_HMACSHA512, lexer, mctx,
 				       &priv);

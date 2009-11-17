@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: zoneconf.c,v 1.151 2009/06/10 23:47:47 tbox Exp $ */
+/* $Id: zoneconf.c,v 1.159 2009/10/22 03:43:16 each Exp $ */
 
 /*% */
 
@@ -172,19 +172,26 @@ parse_acl:
  */
 static isc_result_t
 configure_zone_ssutable(const cfg_obj_t *zconfig, dns_zone_t *zone,
-			const char *zname, isc_boolean_t autoddns)
+			const char *zname)
 {
 	const cfg_obj_t *updatepolicy = NULL;
 	const cfg_listelt_t *element, *element2;
 	dns_ssutable_t *table = NULL;
 	isc_mem_t *mctx = dns_zone_getmctx(zone);
+	isc_boolean_t autoddns = ISC_FALSE;
 	isc_result_t result;
 
 	(void)cfg_map_get(zconfig, "update-policy", &updatepolicy);
 
-	if (updatepolicy == NULL && !autoddns) {
+	if (updatepolicy == NULL) {
 		dns_zone_setssutable(zone, NULL);
 		return (ISC_R_SUCCESS);
+	}
+
+	if (cfg_obj_isstring(updatepolicy) &&
+	    strcmp("local", cfg_obj_asstring(updatepolicy)) == 0) {
+		autoddns = ISC_TRUE;
+		updatepolicy = NULL;
 	}
 
 	result = dns_ssutable_create(mctx, &table);
@@ -254,7 +261,7 @@ configure_zone_ssutable(const cfg_obj_t *zconfig, dns_zone_t *zone,
 		isc_buffer_init(&b, str, strlen(str));
 		isc_buffer_add(&b, strlen(str));
 		result = dns_name_fromtext(dns_fixedname_name(&fident), &b,
-					   dns_rootname, ISC_FALSE, NULL);
+					   dns_rootname, 0, NULL);
 		if (result != ISC_R_SUCCESS) {
 			cfg_obj_log(identity, ns_g_lctx, ISC_LOG_ERROR,
 				    "'%s' is not a valid name", str);
@@ -277,8 +284,7 @@ configure_zone_ssutable(const cfg_obj_t *zconfig, dns_zone_t *zone,
 			isc_buffer_init(&b, str, strlen(str));
 			isc_buffer_add(&b, strlen(str));
 			result = dns_name_fromtext(dns_fixedname_name(&fname),
-						   &b, dns_rootname,
-						   ISC_FALSE, NULL);
+						   &b, dns_rootname, 0, NULL);
 			if (result != ISC_R_SUCCESS) {
 				cfg_obj_log(identity, ns_g_lctx, ISC_LOG_ERROR,
 					    "'%s' is not a valid name", str);
@@ -336,14 +342,14 @@ configure_zone_ssutable(const cfg_obj_t *zconfig, dns_zone_t *zone,
 	}
 
 	/*
-	 * If this is a "ddns-autoconf" zone and a DDNS session key exists,
-	 * then use the default policy, equivalent to:
-	 * update-policy { grant <ddns-keyname> zonesub any; };
+	 * If "update-policy local;" and a session key exists,
+	 * then use the default policy, which is equivalent to:
+	 * update-policy { grant <session-keyname> zonesub any; };
 	 */
 	if (autoddns) {
 		dns_rdatatype_t any = dns_rdatatype_any;
 
-		if (ns_g_server->ddns_keyname == NULL) {
+		if (ns_g_server->session_keyname == NULL) {
 			isc_log_write(ns_g_lctx, NS_LOGCATEGORY_GENERAL,
 				      NS_LOGMODULE_SERVER, ISC_LOG_ERROR,
 				      "failed to enable auto DDNS policy "
@@ -354,7 +360,7 @@ configure_zone_ssutable(const cfg_obj_t *zconfig, dns_zone_t *zone,
 		}
 
 		result = dns_ssutable_addrule(table, ISC_TRUE,
-					      ns_g_server->ddns_keyname,
+					      ns_g_server->session_keyname,
 					      DNS_SSUMATCHTYPE_SUBDOMAIN,
 					      dns_zone_getorigin(zone),
 					      1, &any);
@@ -480,7 +486,6 @@ ns_zone_configure(const cfg_obj_t *config, const cfg_obj_t *vconfig,
 	isc_boolean_t check = ISC_FALSE, fail = ISC_FALSE;
 	isc_boolean_t warn = ISC_FALSE, ignore = ISC_FALSE;
 	isc_boolean_t ixfrdiff;
-	isc_boolean_t autoddns;
 	dns_masterformat_t masterformat;
 	isc_stats_t *zoneqrystats;
 	isc_boolean_t zonestats_on;
@@ -795,13 +800,7 @@ ns_zone_configure(const cfg_obj_t *config, const cfg_obj_t *vconfig,
 				      "address, which is insecure",
 				      zname);
 
-		obj = NULL;
-		result = ns_config_get(maps, "ddns-autoconf", &obj);
-		INSIST(result == ISC_R_SUCCESS);
-		autoddns = cfg_obj_asboolean(obj);
-
-		RETERR(configure_zone_ssutable(zoptions, zone, zname,
-					       autoddns));
+		RETERR(configure_zone_ssutable(zoptions, zone, zname));
 
 		obj = NULL;
 		result = ns_config_get(maps, "sig-validity-interval", &obj);
@@ -831,12 +830,6 @@ ns_zone_configure(const cfg_obj_t *config, const cfg_obj_t *vconfig,
 		result = ns_config_get(maps, "key-directory", &obj);
 		if (result == ISC_R_SUCCESS) {
 			filename = cfg_obj_asstring(obj);
-			if (!isc_file_isabsolute(filename)) {
-				cfg_obj_log(obj, ns_g_lctx, ISC_LOG_ERROR,
-					    "key-directory '%s' "
-					    "is not absolute", filename);
-				return (ISC_R_FAILURE);
-			}
 			RETERR(dns_zone_setkeydirectory(zone, filename));
 		}
 
@@ -861,6 +854,11 @@ ns_zone_configure(const cfg_obj_t *config, const cfg_obj_t *vconfig,
 		dns_zone_setoption(zone, DNS_ZONEOPT_UPDATECHECKKSK,
 				   cfg_obj_asboolean(obj));
 
+		obj = NULL;
+		result = ns_config_get(maps, "dnskey-ksk-only", &obj);
+		INSIST(result == ISC_R_SUCCESS);
+		dns_zone_setoption(zone, DNS_ZONEOPT_DNSKEYKSKONLY,
+				   cfg_obj_asboolean(obj));
 	} else if (ztype == dns_zone_slave) {
 		RETERR(configure_zone_acl(zconfig, vconfig, config,
 					  allow_update_forwarding, ac, zone,
@@ -868,11 +866,13 @@ ns_zone_configure(const cfg_obj_t *config, const cfg_obj_t *vconfig,
 					  dns_zone_clearforwardacl));
 	}
 
-
 	/*%
 	 * Primary master functionality.
 	 */
 	if (ztype == dns_zone_master) {
+		isc_boolean_t allow = ISC_FALSE, maint = ISC_FALSE;
+		isc_boolean_t create = ISC_FALSE;
+
 		obj = NULL;
 		result = ns_config_get(maps, "check-wildcard", &obj);
 		if (result == ISC_R_SUCCESS)
@@ -931,6 +931,31 @@ ns_zone_configure(const cfg_obj_t *config, const cfg_obj_t *vconfig,
 			INSIST(0);
 		dns_zone_setoption(zone, DNS_ZONEOPT_WARNSRVCNAME, warn);
 		dns_zone_setoption(zone, DNS_ZONEOPT_IGNORESRVCNAME, ignore);
+
+		obj = NULL;
+		result = ns_config_get(maps, "secure-to-insecure", &obj);
+		INSIST(obj != NULL);
+		dns_zone_setoption(zone, DNS_ZONEOPT_SECURETOINSECURE,
+				   cfg_obj_asboolean(obj));
+
+		obj = NULL;
+		result = cfg_map_get(zoptions, "auto-dnssec", &obj);
+		if (result == ISC_R_SUCCESS) {
+			const char *arg = cfg_obj_asstring(obj);
+			if (strcasecmp(arg, "allow") == 0)
+				allow = ISC_TRUE;
+			else if (strcasecmp(arg, "maintain") == 0)
+				allow = maint = ISC_TRUE;
+			else if (strcasecmp(arg, "create") == 0)
+				allow = maint = create = ISC_TRUE;
+			else if (strcasecmp(arg, "off") == 0)
+				;
+			else
+				INSIST(0);
+			dns_zone_setkeyopt(zone, DNS_ZONEKEY_ALLOW, allow);
+			dns_zone_setkeyopt(zone, DNS_ZONEKEY_MAINTAIN, maint);
+			dns_zone_setkeyopt(zone, DNS_ZONEKEY_CREATE, create);
+		}
 	}
 
 	/*

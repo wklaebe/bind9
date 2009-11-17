@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: globals.h,v 1.83 2009/06/10 00:27:21 each Exp $ */
+/* $Id: globals.h,v 1.86 2009/10/05 17:30:49 fdupont Exp $ */
 
 #ifndef NAMED_GLOBALS_H
 #define NAMED_GLOBALS_H 1
@@ -92,8 +92,8 @@ EXTERN cfg_obj_t *		ns_g_bindkeys		INIT(NULL);
 EXTERN const char *		ns_g_keyfile		INIT(NS_SYSCONFDIR
 							     "/rndc.key");
 
-EXTERN dns_tsigkey_t *		ns_g_ddnskey		INIT(NULL);
-EXTERN dns_name_t		ns_g_ddnskeyname;
+EXTERN dns_tsigkey_t *		ns_g_sessionkey		INIT(NULL);
+EXTERN dns_name_t		ns_g_sessionkeyname;
 
 EXTERN const char *		lwresd_g_conffile	INIT(NS_SYSCONFDIR
 							     "/lwresd.conf");
@@ -119,9 +119,9 @@ EXTERN const char *		ns_g_chrootdir		INIT(NULL);
 EXTERN isc_boolean_t		ns_g_foreground		INIT(ISC_FALSE);
 EXTERN isc_boolean_t		ns_g_logstderr		INIT(ISC_FALSE);
 
-EXTERN const char *		ns_g_defaultddnskeyfile	INIT(NS_LOCALSTATEDIR
-							     "/run/named/"
-							     "ddns.key");
+EXTERN const char *		ns_g_defaultsessionkeyfile
+					INIT(NS_LOCALSTATEDIR "/run/named/"
+							      "session.key");
 
 #if NS_RUN_PID_DIR
 EXTERN const char *		ns_g_defaultpidfile 	INIT(NS_LOCALSTATEDIR
@@ -138,6 +138,12 @@ EXTERN const char *		lwresd_g_defaultpidfile INIT(NS_LOCALSTATEDIR
 #endif
 
 EXTERN const char *		ns_g_username		INIT(NULL);
+
+#ifdef USE_PKCS11
+EXTERN const char *		ns_g_engine		INIT("pkcs11");
+#else
+EXTERN const char *		ns_g_engine		INIT(NULL);
+#endif
 
 EXTERN int			ns_g_listen		INIT(3);
 EXTERN isc_time_t		ns_g_boottime;

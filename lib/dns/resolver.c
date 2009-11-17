@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: resolver.c,v 1.402 2009/06/02 23:47:50 tbox Exp $ */
+/* $Id: resolver.c,v 1.408 2009/10/28 18:04:29 each Exp $ */
 
 /*! \file */
 
@@ -1015,6 +1015,7 @@ fctx_sendevents(fetchctx_t *fctx, isc_result_t result, int line) {
 		ISC_LIST_UNLINK(fctx->events, event, ev_link);
 		task = event->ev_sender;
 		event->ev_sender = fctx;
+		event->vresult = fctx->vresult;
 		if (!HAVE_ANSWER(fctx))
 			event->result = result;
 
@@ -1692,9 +1693,8 @@ resquery_send(resquery_t *query) {
 	if ((query->options & DNS_FETCHOPT_NOVALIDATE) != 0) {
 		fctx->qmessage->flags |= DNS_MESSAGEFLAG_CD;
 	} else if (res->view->enablevalidation) {
-		result = dns_keytable_issecuredomain(res->view->secroots,
-						     &fctx->name,
-						     &secure_domain);
+		result = dns_view_issecuredomain(res->view, &fctx->name,
+						 &secure_domain);
 		if (result != ISC_R_SUCCESS)
 			secure_domain = ISC_FALSE;
 		if (res->view->dlv != NULL)
@@ -2532,6 +2532,16 @@ findname(fetchctx_t *fctx, dns_name_t *name, in_port_t port,
 	}
 }
 
+static isc_boolean_t
+isstrictsubdomain(dns_name_t *name1, dns_name_t *name2) {
+	int order;
+	unsigned int nlabels;
+	dns_namereln_t namereln;
+
+	namereln = dns_name_fullcompare(name1, name2, &order, &nlabels);
+	return (ISC_TF(namereln == dns_namereln_subdomain));
+}
+
 static isc_result_t
 fctx_getaddresses(fetchctx_t *fctx) {
 	dns_rdata_t rdata = DNS_RDATA_INIT;
@@ -2577,23 +2587,40 @@ fctx_getaddresses(fetchctx_t *fctx) {
 		dns_name_t *name = &fctx->name;
 		dns_name_t suffix;
 		unsigned int labels;
+		dns_fixedname_t fixed;
+		dns_name_t *domain;
 
 		/*
 		 * DS records are found in the parent server.
 		 * Strip label to get the correct forwarder (if any).
 		 */
-		if (fctx->type == dns_rdatatype_ds &&
+		if (dns_rdatatype_atparent(fctx->type) &&
 		    dns_name_countlabels(name) > 1) {
 			dns_name_init(&suffix, NULL);
 			labels = dns_name_countlabels(name);
 			dns_name_getlabelsequence(name, 1, labels - 1, &suffix);
 			name = &suffix;
 		}
-		result = dns_fwdtable_find(fctx->res->view->fwdtable, name,
-					   &forwarders);
+
+		dns_fixedname_init(&fixed);
+		domain = dns_fixedname_name(&fixed);
+		result = dns_fwdtable_find2(fctx->res->view->fwdtable, name,
+					    domain, &forwarders);
 		if (result == ISC_R_SUCCESS) {
 			sa = ISC_LIST_HEAD(forwarders->addrs);
 			fctx->fwdpolicy = forwarders->fwdpolicy;
+			if (fctx->fwdpolicy == dns_fwdpolicy_only &&
+			    isstrictsubdomain(domain, &fctx->domain)) {
+				isc_mem_t *mctx;
+
+				mctx = res->buckets[fctx->bucketnum].mctx;
+				dns_name_free(&fctx->domain, mctx);
+				dns_name_init(&fctx->domain, NULL);
+				result = dns_name_dup(domain, mctx,
+						      &fctx->domain);
+				if (result != ISC_R_SUCCESS)
+					return (result);
+			}
 		}
 	}
 
@@ -3475,21 +3502,22 @@ fctx_create(dns_resolver_t *res, dns_name_t *name, dns_rdatatype_t type,
 	if (domain == NULL) {
 		dns_forwarders_t *forwarders = NULL;
 		unsigned int labels;
+		dns_name_t *fwdname = name;
 
 		/*
 		 * DS records are found in the parent server.
 		 * Strip label to get the correct forwarder (if any).
 		 */
-		if (fctx->type == dns_rdatatype_ds &&
+		if (dns_rdatatype_atparent(fctx->type) &&
 		    dns_name_countlabels(name) > 1) {
 			dns_name_init(&suffix, NULL);
 			labels = dns_name_countlabels(name);
 			dns_name_getlabelsequence(name, 1, labels - 1, &suffix);
-			name = &suffix;
+			fwdname = &suffix;
 		}
 		dns_fixedname_init(&fixed);
 		domain = dns_fixedname_name(&fixed);
-		result = dns_fwdtable_find2(fctx->res->view->fwdtable, name,
+		result = dns_fwdtable_find2(fctx->res->view->fwdtable, fwdname,
 					    domain, &forwarders);
 		if (result == ISC_R_SUCCESS)
 			fctx->fwdpolicy = forwarders->fwdpolicy;
@@ -3500,7 +3528,7 @@ fctx_create(dns_resolver_t *res, dns_name_t *name, dns_rdatatype_t type,
 			 * nameservers, and we're not in forward-only mode,
 			 * so find the best nameservers to use.
 			 */
-			if (dns_rdatatype_atparent(type))
+			if (dns_rdatatype_atparent(fctx->type))
 				findoptions |= DNS_DBFIND_NOEXACT;
 			result = dns_view_findzonecut(res->view, name, domain,
 						      0, findoptions, ISC_TRUE,
@@ -3863,6 +3891,7 @@ validated(isc_task_t *task, isc_event_t *event) {
 	REQUIRE(!ISC_LIST_EMPTY(fctx->validators));
 
 	vevent = (dns_validatorevent_t *)event;
+	fctx->vresult = vevent->result;
 
 	FCTXTRACE("received validation completion event");
 
@@ -4189,8 +4218,8 @@ cache_name(fetchctx_t *fctx, dns_name_t *name, dns_adbaddrinfo_t *addrinfo,
 	 * Is DNSSEC validation required for this name?
 	 */
 	if (res->view->enablevalidation) {
-		result = dns_keytable_issecuredomain(res->view->secroots, name,
-						     &secure_domain);
+		result = dns_view_issecuredomain(res->view, name,
+						 &secure_domain);
 		if (result != ISC_R_SUCCESS)
 			return (result);
 
@@ -4653,8 +4682,8 @@ ncache_message(fetchctx_t *fctx, dns_adbaddrinfo_t *addrinfo,
 	 * Is DNSSEC validation required for this name?
 	 */
 	if (fctx->res->view->enablevalidation) {
-		result = dns_keytable_issecuredomain(res->view->secroots, name,
-						     &secure_domain);
+		result = dns_view_issecuredomain(res->view, name,
+						 &secure_domain);
 		if (result != ISC_R_SUCCESS)
 			return (result);
 
@@ -7131,6 +7160,7 @@ dns_resolver_create(dns_view_t *view,
 	return (result);
 }
 
+#ifdef BIND9
 static void
 prime_done(isc_task_t *task, isc_event_t *event) {
 	dns_resolver_t *res;
@@ -7236,6 +7266,7 @@ dns_resolver_prime(dns_resolver_t *res) {
 		}
 	}
 }
+#endif /* BIND9 */
 
 void
 dns_resolver_freeze(dns_resolver_t *res) {

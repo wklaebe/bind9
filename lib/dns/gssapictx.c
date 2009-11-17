@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2008  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2009  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000, 2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: gssapictx.c,v 1.12 2008/04/03 06:09:04 tbox Exp $ */
+/* $Id: gssapictx.c,v 1.14 2009/09/02 23:48:02 tbox Exp $ */
 
 #include <config.h>
 
@@ -630,7 +630,7 @@ dst_gssapi_acceptctx(gss_cred_id_t cred,
 		isc_buffer_add(&namebuf, r.length);
 
 		RETERR(dns_name_fromtext(principal, &namebuf, dns_rootname,
-					 ISC_FALSE, NULL));
+					 0, NULL));
 
 		if (gnamebuf.length != 0) {
 			gret = gss_release_buffer(&minor, &gnamebuf);

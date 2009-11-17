@@ -17,12 +17,7 @@
 #include <errno.h>
 #include <string.h>
 #include <sys/types.h>
-#ifndef OPENCRYPTOKI
-#include <security/cryptoki.h>
-#include <security/pkcs11.h>
-#else
 #include <opencryptoki/pkcs11.h>
-#endif
 
 /* Define static key template values */
 static CK_BBOOL truevalue = TRUE;
@@ -137,7 +132,7 @@ main(int argc, char *argv[])
 
     /* Login to the Token (Keystore) */
     if (!pin)
-#ifndef OPENCRYPTOKI
+#ifndef HAVE_GETPASS
         pin = (CK_UTF8CHAR *)getpassphrase("Enter Pin: ");
 #else
         pin = (CK_UTF8CHAR *)getpass("Enter Pin: ");

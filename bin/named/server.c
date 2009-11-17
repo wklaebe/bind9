@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: server.c,v 1.540 2009/08/05 17:35:33 each Exp $ */
+/* $Id: server.c,v 1.548 2009/09/10 01:49:29 each Exp $ */
 
 /*! \file */
 
@@ -422,8 +422,7 @@ configure_view_nametable(const cfg_obj_t *vconfig, const cfg_obj_t *config,
 		str = cfg_obj_asstring(nameobj);
 		isc_buffer_init(&b, str, strlen(str));
 		isc_buffer_add(&b, strlen(str));
-		CHECK(dns_name_fromtext(name, &b, dns_rootname,
-					ISC_FALSE, NULL));
+		CHECK(dns_name_fromtext(name, &b, dns_rootname, 0, NULL));
 		/*
 		 * We don't need the node data, but need to set dummy data to
 		 * avoid a partial match with an empty node.  For example, if
@@ -431,7 +430,14 @@ configure_view_nametable(const cfg_obj_t *vconfig, const cfg_obj_t *config,
 		 * for baz.example.com, which is not the expected result.
 		 * We simply use (void *)1 as the dummy data.
 		 */
-		CHECK(dns_rbt_addname(*rbtp, name, (void *)1));
+		result = dns_rbt_addname(*rbtp, name, (void *)1);
+		if (result != ISC_R_SUCCESS) {
+			cfg_obj_log(nameobj, ns_g_lctx, ISC_LOG_ERROR,
+				    "failed to add %s for %s: %s",
+				    str, confname, isc_result_totext(result));
+			goto cleanup;
+		}
+
 	}
 
 	return (result);
@@ -468,6 +474,20 @@ dstkey_fromconfig(const cfg_obj_t *vconfig, const cfg_obj_t *key,
 	alg = cfg_obj_asuint32(cfg_tuple_get(key, "algorithm"));
 	keyname = dns_fixedname_name(&fkeyname);
 	keynamestr = cfg_obj_asstring(cfg_tuple_get(key, "name"));
+
+	if (managed) {
+		const char *initmethod;
+		initmethod = cfg_obj_asstring(cfg_tuple_get(key, "init"));
+
+		if (strcmp(initmethod, "initial-key") != 0) {
+			cfg_obj_log(key, ns_g_lctx, ISC_LOG_ERROR,
+				    "managed key '%s': "
+				    "invalid initialization method '%s'",
+				    keynamestr, initmethod);
+			result = ISC_R_FAILURE;
+			goto cleanup;
+		}
+	}
 
 	if (vconfig == NULL)
 		viewclass = dns_rdataclass_in;
@@ -519,9 +539,7 @@ dstkey_fromconfig(const cfg_obj_t *vconfig, const cfg_obj_t *key,
 	dns_fixedname_init(&fkeyname);
 	isc_buffer_init(&namebuf, keynamestr, strlen(keynamestr));
 	isc_buffer_add(&namebuf, strlen(keynamestr));
-	CHECK(dns_name_fromtext(keyname, &namebuf,
-				dns_rootname, ISC_FALSE,
-				NULL));
+	CHECK(dns_name_fromtext(keyname, &namebuf, dns_rootname, 0, NULL));
 	CHECK(dst_key_fromdns(keyname, viewclass, &rrdatabuf,
 			      mctx, &dstkey));
 
@@ -534,7 +552,6 @@ dstkey_fromconfig(const cfg_obj_t *vconfig, const cfg_obj_t *key,
 			    "ignoring %s key for '%s': no crypto support",
 			    managed ? "managed" : "trusted",
 			    keynamestr);
-		result = ISC_R_SUCCESS;
 	} else {
 		cfg_obj_log(key, ns_g_lctx, ISC_LOG_ERROR,
 			    "configuring %s key for '%s': %s",
@@ -575,6 +592,8 @@ load_view_keys(const cfg_obj_t *keys, const cfg_obj_t *vconfig,
 	}
 
  cleanup:
+	if (result == DST_R_NOCRYPTO)
+		result = ISC_R_SUCCESS;
 	return (result);
 }
 
@@ -705,8 +724,7 @@ mustbesecure(const cfg_obj_t *mbs, dns_resolver_t *resolver)
 		str = cfg_obj_asstring(cfg_tuple_get(obj, "name"));
 		isc_buffer_init(&b, str, strlen(str));
 		isc_buffer_add(&b, strlen(str));
-		CHECK(dns_name_fromtext(name, &b, dns_rootname,
-					ISC_FALSE, NULL));
+		CHECK(dns_name_fromtext(name, &b, dns_rootname, 0, NULL));
 		value = cfg_obj_asboolean(cfg_tuple_get(obj, "value"));
 		CHECK(dns_resolver_setmustbesecure(resolver, name, value));
 	}
@@ -866,7 +884,7 @@ configure_order(dns_order_t *order, const cfg_obj_t *ent) {
 	isc_buffer_add(&b, strlen(str));
 	dns_fixedname_init(&fixed);
 	result = dns_name_fromtext(dns_fixedname_name(&fixed), &b,
-				   dns_rootname, ISC_FALSE, NULL);
+				   dns_rootname, 0, NULL);
 	if (result != ISC_R_SUCCESS)
 		return (result);
 
@@ -1050,7 +1068,7 @@ disable_algorithms(const cfg_obj_t *disabled, dns_resolver_t *resolver) {
 	str = cfg_obj_asstring(cfg_tuple_get(disabled, "name"));
 	isc_buffer_init(&b, str, strlen(str));
 	isc_buffer_add(&b, strlen(str));
-	CHECK(dns_name_fromtext(name, &b, dns_rootname, ISC_FALSE, NULL));
+	CHECK(dns_name_fromtext(name, &b, dns_rootname, 0, NULL));
 
 	algorithms = cfg_tuple_get(disabled, "algorithms");
 	for (element = cfg_list_first(algorithms);
@@ -1103,7 +1121,7 @@ on_disable_list(const cfg_obj_t *disablelist, dns_name_t *zonename) {
 		isc_buffer_init(&b, str, strlen(str));
 		isc_buffer_add(&b, strlen(str));
 		result = dns_name_fromtext(name, &b, dns_rootname,
-					   ISC_TRUE, NULL);
+					   0, NULL);
 		RUNTIME_CHECK(result == ISC_R_SUCCESS);
 		if (dns_name_equal(name, zonename))
 			return (ISC_TRUE);
@@ -2104,7 +2122,7 @@ configure_view(dns_view_t *view, const cfg_obj_t *config,
 			isc_buffer_init(&b, str, strlen(str));
 			isc_buffer_add(&b, strlen(str));
 			CHECK(dns_name_fromtext(name, &b, dns_rootname,
-						ISC_TRUE, NULL));
+						0, NULL));
 #endif
 			str = cfg_obj_asstring(cfg_tuple_get(obj,
 							     "trust-anchor"));
@@ -2112,7 +2130,7 @@ configure_view(dns_view_t *view, const cfg_obj_t *config,
 			isc_buffer_add(&b, strlen(str));
 			dlv = dns_fixedname_name(&view->dlv_fixed);
 			CHECK(dns_name_fromtext(dlv, &b, dns_rootname,
-						ISC_TRUE, NULL));
+						DNS_NAME_DOWNCASE, NULL));
 			view->dlv = dns_fixedname_name(&view->dlv_fixed);
 		}
 	} else
@@ -2164,7 +2182,7 @@ configure_view(dns_view_t *view, const cfg_obj_t *config,
 				isc_buffer_init(&b, str, strlen(str));
 				isc_buffer_add(&b, strlen(str));
 				CHECK(dns_name_fromtext(name, &b, dns_rootname,
-							ISC_FALSE, NULL));
+							0, NULL));
 				CHECK(dns_view_excludedelegationonly(view,
 								     name));
 			}
@@ -2217,8 +2235,8 @@ configure_view(dns_view_t *view, const cfg_obj_t *config,
 			str = cfg_obj_asstring(obj);
 			isc_buffer_init(&buffer, str, strlen(str));
 			isc_buffer_add(&buffer, strlen(str));
-			CHECK(dns_name_fromtext(name, &buffer, dns_rootname,
-						ISC_FALSE, NULL));
+			CHECK(dns_name_fromtext(name, &buffer, dns_rootname, 0,
+						NULL));
 			isc_buffer_init(&buffer, server, sizeof(server) - 1);
 			CHECK(dns_name_totext(name, ISC_FALSE, &buffer));
 			server[isc_buffer_usedlength(&buffer)] = 0;
@@ -2232,8 +2250,8 @@ configure_view(dns_view_t *view, const cfg_obj_t *config,
 			str = cfg_obj_asstring(obj);
 			isc_buffer_init(&buffer, str, strlen(str));
 			isc_buffer_add(&buffer, strlen(str));
-			CHECK(dns_name_fromtext(name, &buffer, dns_rootname,
-						ISC_FALSE, NULL));
+			CHECK(dns_name_fromtext(name, &buffer, dns_rootname, 0,
+						NULL));
 			isc_buffer_init(&buffer, contact, sizeof(contact) - 1);
 			CHECK(dns_name_totext(name, ISC_FALSE, &buffer));
 			contact[isc_buffer_usedlength(&buffer)] = 0;
@@ -2259,8 +2277,8 @@ configure_view(dns_view_t *view, const cfg_obj_t *config,
 			/*
 			 * Look for zone on drop list.
 			 */
-			CHECK(dns_name_fromtext(name, &buffer, dns_rootname,
-						ISC_FALSE, NULL));
+			CHECK(dns_name_fromtext(name, &buffer, dns_rootname, 0,
+						NULL));
 			if (disablelist != NULL &&
 			    on_disable_list(disablelist, name))
 				continue;
@@ -2450,8 +2468,8 @@ configure_alternates(const cfg_obj_t *config, dns_view_t *view,
 			isc_buffer_add(&buffer, strlen(str));
 			dns_fixedname_init(&fixed);
 			name = dns_fixedname_name(&fixed);
-			CHECK(dns_name_fromtext(name, &buffer, dns_rootname,
-						ISC_FALSE, NULL));
+			CHECK(dns_name_fromtext(name, &buffer, dns_rootname, 0,
+						NULL));
 
 			portobj = cfg_tuple_get(alternate, "port");
 			if (cfg_obj_isuint32(portobj)) {
@@ -2664,7 +2682,7 @@ configure_zone(const cfg_obj_t *config, const cfg_obj_t *zconfig,
 	isc_buffer_add(&buffer, strlen(zname));
 	dns_fixedname_init(&fixorigin);
 	CHECK(dns_name_fromtext(dns_fixedname_name(&fixorigin),
-				&buffer, dns_rootname, ISC_FALSE, NULL));
+				&buffer, dns_rootname, 0, NULL));
 	origin = dns_fixedname_name(&fixorigin);
 
 	CHECK(ns_config_getclass(cfg_tuple_get(zconfig, "class"),
@@ -2884,7 +2902,7 @@ add_keydata_zone(dns_view_t *view, isc_mem_t *mctx) {
 	CHECK(dns_zone_create(&zone, mctx));
 
 	dns_name_init(&zname, NULL);
-	CHECK(dns_name_fromstring(&zname, KEYZONE, mctx));
+	CHECK(dns_name_fromstring(&zname, KEYZONE, 0, mctx));
 	CHECK(dns_zone_setorigin(zone, &zname));
 	dns_name_free(&zname, mctx);
 
@@ -3248,7 +3266,7 @@ set_limit(const cfg_obj_t **maps, const char *configname,
 	isc_log_write(ns_g_lctx, NS_LOGCATEGORY_GENERAL, NS_LOGMODULE_SERVER,
 		      result == ISC_R_SUCCESS ?
 			ISC_LOG_DEBUG(3) : ISC_LOG_WARNING,
-		      "set maximum %s to %" ISC_PRINT_QUADFORMAT "d: %s",
+		      "set maximum %s to %" ISC_PRINT_QUADFORMAT "u: %s",
 		      description, value, isc_result_totext(result));
 }
 
@@ -3464,8 +3482,7 @@ configure_session_key(const cfg_obj_t **maps, ns_server_t *server,
 	isc_buffer_init(&buffer, keynamestr, strlen(keynamestr));
 	isc_buffer_add(&buffer, strlen(keynamestr));
 	keyname = dns_fixedname_name(&fname);
-	result = dns_name_fromtext(keyname, &buffer, dns_rootname, ISC_FALSE,
-				   NULL);
+	result = dns_name_fromtext(keyname, &buffer, dns_rootname, 0, NULL);
 	if (result != ISC_R_SUCCESS)
 		return (result);
 
@@ -5046,7 +5063,7 @@ zone_from_args(ns_server_t *server, char *args, dns_zone_t **zonep) {
 	isc_buffer_add(&buf, strlen(zonetxt));
 	dns_fixedname_init(&name);
 	result = dns_name_fromtext(dns_fixedname_name(&name),
-				   &buf, dns_rootname, ISC_FALSE, NULL);
+				   &buf, dns_rootname, 0, NULL);
 	if (result != ISC_R_SUCCESS)
 		goto fail1;
 
@@ -5887,7 +5904,7 @@ ns_server_flushname(ns_server_t *server, char *args) {
 	isc_buffer_add(&b, strlen(target));
 	dns_fixedname_init(&fixed);
 	name = dns_fixedname_name(&fixed);
-	result = dns_name_fromtext(name, &b, dns_rootname, ISC_FALSE, NULL);
+	result = dns_name_fromtext(name, &b, dns_rootname, 0, NULL);
 	if (result != ISC_R_SUCCESS)
 		return (result);
 

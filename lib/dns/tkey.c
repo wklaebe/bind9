@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2008  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2009  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2001, 2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -16,7 +16,7 @@
  */
 
 /*
- * $Id: tkey.c,v 1.90 2008/04/03 00:45:23 marka Exp $
+ * $Id: tkey.c,v 1.92 2009/09/02 23:48:02 tbox Exp $
  */
 /*! \file */
 #include <config.h>
@@ -724,8 +724,7 @@ dns_tkey_processquery(dns_message_t *msg, dns_tkeyctx_t *tctx,
 			}
 			isc_buffer_init(&b, randomtext, sizeof(randomtext));
 			isc_buffer_add(&b, sizeof(randomtext));
-			result = dns_name_fromtext(keyname, &b, NULL,
-						   ISC_FALSE, NULL);
+			result = dns_name_fromtext(keyname, &b, NULL, 0, NULL);
 			if (result != ISC_R_SUCCESS)
 				goto failure;
 		}

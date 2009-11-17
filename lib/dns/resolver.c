@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: resolver.c,v 1.403 2009/07/13 06:24:27 marka Exp $ */
+/* $Id: resolver.c,v 1.405 2009/09/01 00:22:26 jinmei Exp $ */
 
 /*! \file */
 
@@ -1013,6 +1013,7 @@ fctx_sendevents(fetchctx_t *fctx, isc_result_t result, int line) {
 		ISC_LIST_UNLINK(fctx->events, event, ev_link);
 		task = event->ev_sender;
 		event->ev_sender = fctx;
+		event->vresult = fctx->vresult;
 		if (!HAVE_ANSWER(fctx))
 			event->result = result;
 
@@ -2530,6 +2531,16 @@ findname(fetchctx_t *fctx, dns_name_t *name, in_port_t port,
 	}
 }
 
+static isc_boolean_t
+isstrictsubdomain(dns_name_t *name1, dns_name_t *name2) {
+	int order;
+	unsigned int nlabels;
+	dns_namereln_t namereln;
+
+	namereln = dns_name_fullcompare(name1, name2, &order, &nlabels);
+	return (ISC_TF(namereln == dns_namereln_subdomain));
+}
+
 static isc_result_t
 fctx_getaddresses(fetchctx_t *fctx) {
 	dns_rdata_t rdata = DNS_RDATA_INIT;
@@ -2575,6 +2586,8 @@ fctx_getaddresses(fetchctx_t *fctx) {
 		dns_name_t *name = &fctx->name;
 		dns_name_t suffix;
 		unsigned int labels;
+		dns_fixedname_t fixed;
+		dns_name_t *domain;
 
 		/*
 		 * DS records are found in the parent server.
@@ -2587,11 +2600,26 @@ fctx_getaddresses(fetchctx_t *fctx) {
 			dns_name_getlabelsequence(name, 1, labels - 1, &suffix);
 			name = &suffix;
 		}
-		result = dns_fwdtable_find(fctx->res->view->fwdtable, name,
-					   &forwarders);
+
+		dns_fixedname_init(&fixed);
+		domain = dns_fixedname_name(&fixed);
+		result = dns_fwdtable_find2(fctx->res->view->fwdtable, name,
+					    domain, &forwarders);
 		if (result == ISC_R_SUCCESS) {
 			sa = ISC_LIST_HEAD(forwarders->addrs);
 			fctx->fwdpolicy = forwarders->fwdpolicy;
+			if (fctx->fwdpolicy == dns_fwdpolicy_only &&
+			    isstrictsubdomain(domain, &fctx->domain)) {
+				isc_mem_t *mctx;
+
+				mctx = res->buckets[fctx->bucketnum].mctx;
+				dns_name_free(&fctx->domain, mctx);
+				dns_name_init(&fctx->domain, NULL);
+				result = dns_name_dup(domain, mctx,
+						      &fctx->domain);
+				if (result != ISC_R_SUCCESS)
+					return (result);
+			}
 		}
 	}
 
@@ -3862,6 +3890,7 @@ validated(isc_task_t *task, isc_event_t *event) {
 	REQUIRE(!ISC_LIST_EMPTY(fctx->validators));
 
 	vevent = (dns_validatorevent_t *)event;
+	fctx->vresult = vevent->result;
 
 	FCTXTRACE("received validation completion event");
 
@@ -7124,6 +7153,7 @@ dns_resolver_create(dns_view_t *view,
 	return (result);
 }
 
+#ifdef BIND9
 static void
 prime_done(isc_task_t *task, isc_event_t *event) {
 	dns_resolver_t *res;
@@ -7229,6 +7259,7 @@ dns_resolver_prime(dns_resolver_t *res) {
 		}
 	}
 }
+#endif /* BIND9 */
 
 void
 dns_resolver_freeze(dns_resolver_t *res) {

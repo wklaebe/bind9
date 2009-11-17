@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: config.c,v 1.99 2009/07/14 22:54:56 each Exp $ */
+/* $Id: config.c,v 1.101 2009/09/01 07:14:25 each Exp $ */
 
 /*! \file */
 
@@ -248,12 +248,12 @@ view \"_meta\" in {\n\
 #  (used if \"dnssec-lookaside auto;\" is set and\n\
 #  sysconfdir/bind.keys doesn't exist).\n\
 #\n\
-# BEGIN TRUSTED KEYS\n"
+# BEGIN MANAGED KEYS\n"
 
 /* Imported from bind.keys.h: */
-TRUSTED_KEYS
+MANAGED_KEYS
 
-"# END TRUSTED KEYS\n\
+"# END MANAGED KEYS\n\
 ";
 
 isc_result_t
@@ -651,7 +651,7 @@ ns_config_getipandkeylist(const cfg_obj_t *config, const cfg_obj_t *list,
 		isc_buffer_add(&b, strlen(keystr));
 		dns_fixedname_init(&fname);
 		result = dns_name_fromtext(dns_fixedname_name(&fname), &b,
-					   dns_rootname, ISC_FALSE, NULL);
+					   dns_rootname, 0, NULL);
 		if (result != ISC_R_SUCCESS)
 			goto cleanup;
 		result = dns_name_dup(dns_fixedname_name(&fname), mctx,

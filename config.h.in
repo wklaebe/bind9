@@ -16,7 +16,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: config.h.in,v 1.116 2009/07/14 22:39:30 each Exp $ */
+/* $Id: config.h.in,v 1.120 2009/09/01 18:40:25 jinmei Exp $ */
 
 /*! \file */
 
@@ -292,6 +292,15 @@ int sigwait(const unsigned int *set, int *sig);
 /* Defined if extern char *optarg is not declared. */
 #undef NEED_OPTARG
 
+/* Define to the buffer length type used by getnameinfo(3). */
+#undef IRS_GETNAMEINFO_BUFLEN_T
+
+/* Define to the flags type used by getnameinfo(3). */
+#undef IRS_GETNAMEINFO_FLAGS_T
+
+/* Define to the return type of gai_strerror(3). */
+#undef IRS_GAISTRERROR_RETURN_T
+
 /* Define if connect does not honour the permission on the UNIX domain socket.
    */
 #undef NEED_SECURE_DIRECTORY
@@ -324,6 +333,9 @@ int sigwait(const unsigned int *set, int *sig);
 /* Defined if you need to use ioctl(FIONBIO) instead a fcntl call to make
    non-blocking. */
 #undef USE_FIONBIO_IOCTL
+
+/** define if the system have backtrace function. */
+#undef HAVE_LIBCTRACE
 
 /* define if idnkit support is to be included. */
 #undef WITH_IDN

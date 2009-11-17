@@ -1,3 +1,106 @@
+	--- 9.7.0a3 released ---
+
+2674.	[bug]		"dnssec-lookaside auto;" crashed if named was built
+			without openssl. [RT #20231]
+
+2673.	[bug]		The managed-keys.bind zone file could fail to
+			load due to a spurious result from sync_keyzone()
+			[RT #20045]
+
+2672.	[bug]		Don't enable searching in 'host' when doing reverse
+			lookups. [RT #20218]
+
+2671.	[bug]		Add support for PKCS#11 providers not returning
+			the public exponent in RSA private keys
+			(OpenCryptoki for instance) in
+			dnssec-keyfromlabel. [RT #19294]
+
+2670.	[bug]		Unexpected connect failures failed to log enough
+			information to be useful. [RT #20205]
+
+2669.	[func]		Update PKCS#11 support to support Keyper HSM.
+			Update PKCS#11 patch to be against openssl-0.9.8i.
+
+2668.	[func]		Several improvements to dnssec-* tools, including:
+			- dnssec-keygen and dnssec-settime can now set key
+			  metadata fields 0 (to unset a value, use "none")
+			- dnssec-revoke sets the revocation date in
+			  addition to the revoke bit
+			- dnssec-settime can now print individual metadata
+			  fields instead of always printing all of them,
+			  and can print them in unix epoch time format for
+			  use by scripts
+			[RT #19942]
+
+2667.	[func]		Add support for logging stack backtrace on assertion
+			failure (not available for all platforms). [RT #19780]
+
+2666.	[func]		Added an 'options' argument to dns_name_fromstring()
+			(API change from 9.7.0a2). [RT #20196]
+
+2665.	[func]		Clarify syntax for managed-keys {} statement, add
+			ARM documentation about RFC 5011 support. [RT #19874]
+
+2664.	[bug]		create_keydata() and minimal_update() in zone.c 
+			didn't properly check return values for some
+			functions.  [RT #19956]
+
+2663.	[func]		win32:  allow named to run as a service using
+			"NT AUTHORITY\LocalService" as the account. [RT #19977]
+
+2662.	[bug]		lwres_getipnodebyname() and lwres_getipnodebyaddr() 
+			returned a misleading error code when lwresd was
+			down. [RT #20028]
+
+2661.	[bug]		Check whether socket fd exceeds FD_SETSIZE when
+			creating lwres context. [RT #20029]
+
+2660.	[func]		Add a new set of DNS libraries for non-BIND9
+			applications.  See README.libdns. [RT #19369]
+
+2659.	[doc]		Clarify dnssec-keygen doc: key name must match zone
+			name for DNSSEC keys. [RT #19938]
+
+2658.	[bug]		dnssec-settime and dnssec-revoke didn't process
+			key file paths correctly. [RT #20078]
+
+2657.	[cleanup]	Lower "journal file <path> does not exist, creating it"
+			log level to debug 1. [RT #20058]
+
+2656.	[func]		win32: add a "tools only" check box to the installer
+			which causes it to only install dig, host, nslookup,
+			nsupdate and relevant DLLs.  [RT #19998]
+
+2655.	[doc]		Document that key-directory does not affect
+			bind.keys, rndc.key or session.key.  [RT #20155]
+
+2654.	[bug]		Improve error reporting on duplicated names for
+			deny-answer-xxx. [RT #20164]
+
+2653.	[bug]		Treat ENGINE_load_private_key() failures as key
+			not found rather than out of memory.  [RT #18033]
+
+2652.	[func]		Provide more detail about what record is being
+			deleted. [RT #20061]
+
+2651.	[bug]		Dates could print incorrectly in K*.key files on
+			64-bit systems. [RT #20076]
+
+2650.	[bug]		Assertion failure in dnssec-signzone when trying
+                        to read keyset-* files. [RT #20075]
+
+2649.	[bug]		Set the domain for forward only zones. [RT #19944]
+
+2648.	[port]		win32: isc_time_seconds() was broken. [RT #19900]
+
+2647.	[bug]		Remove unnecessary SOA updates when a new KSK is
+			added. [RT #19913]
+
+2646.	[bug]		Incorrect cleanup on error in socket.c. [RT #19987]
+
+2645.	[port]		"gcc -m32" didn't work on amd64 and x86_64 platforms
+			which default to 64 bits. [RT #19927]
+
 	--- 9.7.0a2 released ---
 
 2644.	[bug]		Change #2628 caused a regression on some systems;
@@ -55,7 +158,8 @@
 
 2630.	[func]		Improved syntax for DDNS autoconfiguration:  use
 			"update-policy local;" to switch on local DDNS in a
-			zone.  [RT #19875]
+			zone. (The "ddns-autoconf" option has been removed.)
+                        [RT #19875]
 
 2629.	[port]		Check for seteuid()/setegid(), use setresuid()/
 			setresgid() if not present. [RT #19932]

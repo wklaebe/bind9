@@ -14,7 +14,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dnssec-revoke.c,v 1.6 2009/07/19 05:26:05 each Exp $ */
+/* $Id: dnssec-revoke.c,v 1.11 2009/09/04 16:57:22 each Exp $ */
 
 /*! \file */
 
@@ -27,6 +27,7 @@
 #include <isc/buffer.h>
 #include <isc/commandline.h>
 #include <isc/entropy.h>
+#include <isc/file.h>
 #include <isc/hash.h>
 #include <isc/mem.h>
 #include <isc/print.h>
@@ -66,7 +67,7 @@ usage(void) {
 int
 main(int argc, char **argv) {
 	isc_result_t result;
-	char *filename = NULL, *dir= NULL;
+	char *filename = NULL, *dir = NULL;
 	char newname[1024], oldname[1024];
 	char keystr[KEY_FORMATSIZE];
 	char *endp;
@@ -95,7 +96,15 @@ main(int argc, char **argv) {
 			force = ISC_TRUE;
 			break;
 		    case 'K':
-			dir = isc_commandline_argument;
+			/*
+			 * We don't have to copy it here, but do it to
+			 * simplify cleanup later
+			 */
+			dir = isc_mem_strdup(mctx, isc_commandline_argument);
+			if (dir == NULL) {
+				fatal("Failed to allocate memory for "
+				      "directory");
+			}
 			break;
 		    case 'r':
 			remove = ISC_TRUE;
@@ -126,30 +135,11 @@ main(int argc, char **argv) {
 	if (argc > isc_commandline_index + 1)
 		fatal("Extraneous arguments");
 
-	if (dir == NULL) {
-		char *slash;
-#ifdef _WIN32
-		char *backslash;
-#endif
-
-		dir = strdup(argv[isc_commandline_index]);
-		filename = dir;
-
-		/* Figure out the directory name from the key name */
-		slash = strrchr(dir, '/');
-#ifdef _WIN32
-		backslash = strrchr(dir, '\\');
-		if ((slash != NULL && backslash != NULL && backslash > slash) ||
-		    (slash == NULL && backslash != NULL))
-			slash = backslash;
-#endif
-		if (slash != NULL) {
-			*slash++ = '\0';
-			filename = slash;
-		} else {
-			free(dir);
-			dir = strdup(".");
-		}
+	if (dir != NULL) {
+		filename = argv[isc_commandline_index];
+	} else {
+		isc_file_splitpath(mctx, argv[isc_commandline_index],
+				   &dir, &filename);
 	}
 
 	if (ectx == NULL)
@@ -179,6 +169,11 @@ main(int argc, char **argv) {
 
 	flags = dst_key_flags(key);
 	if ((flags & DNS_KEYFLAG_REVOKE) == 0) {
+		isc_stdtime_t now;
+
+		isc_stdtime_get(&now);
+		dst_key_settime(key, DST_TIME_REVOKE, now);
+
 		dst_key_setflags(key, flags | DNS_KEYFLAG_REVOKE);
 
 		isc_buffer_init(&buf, newname, sizeof(newname));
@@ -232,6 +227,7 @@ cleanup:
 	cleanup_entropy(&ectx);
 	if (verbose > 10)
 		isc_mem_stats(mctx, stdout);
+	isc_mem_free(mctx, dir);
 	isc_mem_destroy(&mctx);
 
 	return (0);

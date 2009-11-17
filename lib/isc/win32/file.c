@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: file.c,v 1.33 2009/06/11 23:47:55 tbox Exp $ */
+/* $Id: file.c,v 1.35 2009/09/02 17:58:06 each Exp $ */
 
 #include <config.h>
 
@@ -31,10 +31,12 @@
 #include <sys/utime.h>
 
 #include <isc/file.h>
+#include <isc/mem.h>
 #include <isc/result.h>
 #include <isc/time.h>
 #include <isc/util.h>
 #include <isc/stat.h>
+#include <isc/string.h>
 
 #include "errno2result.h"
 
@@ -539,5 +541,45 @@ isc_file_safecreate(const char *filename, FILE **fp) {
 	}
 
 	*fp = f;
+	return (ISC_R_SUCCESS);
+}
+
+isc_result_t
+isc_file_splitpath(isc_mem_t *mctx, char *path, char **dirname, char **basename)
+{
+	char *dir, *file, *slash;
+	char *backslash;
+
+	slash = strrchr(path, '/');
+
+	backslash = strrchr(path, '\\');
+	if ((slash != NULL && backslash != NULL && backslash > slash) ||
+	    (slash == NULL && backslash != NULL))
+		slash = backslash;
+
+	if (slash == path) {
+		file = ++slash;
+		dir = isc_mem_strdup(mctx, "/");
+	} else if (slash != NULL) {
+		file = ++slash;
+		dir = isc_mem_allocate(mctx, slash - path);
+		if (dir != NULL)
+			strlcpy(dir, path, slash - path);
+	} else {
+		file = path;
+		dir = isc_mem_strdup(mctx, ".");
+	}
+
+	if (dir == NULL)
+		return (ISC_R_NOMEMORY);
+
+	if (*file == '\0') {
+		isc_mem_free(mctx, dir);
+		return (ISC_R_INVALIDFILE);
+	}
+
+	*dirname = dir;
+	*basename = file;
+
 	return (ISC_R_SUCCESS);
 }

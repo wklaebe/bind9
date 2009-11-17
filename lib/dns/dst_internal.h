@@ -29,7 +29,7 @@
  * IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dst_internal.h,v 1.15 2009/07/19 04:18:05 each Exp $ */
+/* $Id: dst_internal.h,v 1.17 2009/09/03 04:09:58 marka Exp $ */
 
 #ifndef DST_DST_INTERNAL_H
 #define DST_DST_INTERNAL_H 1
@@ -117,6 +117,11 @@ struct dst_key {
 	} keydata;			/*%< pointer to key in crypto pkg fmt */
 
 	isc_stdtime_t	times[DST_MAX_TIMES + 1];    /*%< key timing metadata */
+	isc_boolean_t	timeset[DST_MAX_TIMES + 1];  /*%< metadata set? */
+
+	int		fmt_major;     /*%< private key format, major version */
+	int		fmt_minor;     /*%< private key format, minor version */
+
 	dst_func_t *    func;	       /*%< crypto package specific functions */
 };
 
@@ -168,7 +173,9 @@ struct dst_func {
 	isc_result_t (*todns)(const dst_key_t *key, isc_buffer_t *data);
 	isc_result_t (*fromdns)(dst_key_t *key, isc_buffer_t *data);
 	isc_result_t (*tofile)(const dst_key_t *key, const char *directory);
-	isc_result_t (*parse)(dst_key_t *key, isc_lex_t *lexer);
+	isc_result_t (*parse)(dst_key_t *key,
+			      isc_lex_t *lexer,
+			      dst_key_t *pub);
 
 	/* cleanup */
 	void (*cleanup)(void);

@@ -31,7 +31,7 @@
 
 /*
  * Principal Author: Brian Wellington
- * $Id: dst_api.c,v 1.25 2009/07/29 23:45:24 each Exp $
+ * $Id: dst_api.c,v 1.29 2009/09/03 04:09:58 marka Exp $
  */
 
 /*! \file */
@@ -69,7 +69,9 @@
 #define DST_AS_STR(t) ((t).value.as_textregion.base)
 
 static dst_func_t *dst_t_func[DST_MAX_ALGS];
+#ifdef BIND9
 static isc_entropy_t *dst_entropy_pool = NULL;
+#endif
 static unsigned int dst_entropy_flags = 0;
 static isc_boolean_t dst_initialized = ISC_FALSE;
 
@@ -126,7 +128,7 @@ static isc_result_t	addsuffix(char *filename, unsigned int len,
 			return (_r);		\
 	} while (0);				\
 
-#ifdef OPENSSL
+#if defined(OPENSSL) && defined(BIND9)
 static void *
 default_memalloc(void *arg, size_t size) {
 	UNUSED(arg);
@@ -146,12 +148,17 @@ isc_result_t
 dst_lib_init(isc_mem_t *mctx, isc_entropy_t *ectx, unsigned int eflags) {
 	isc_result_t result;
 
-	REQUIRE(mctx != NULL && ectx != NULL);
+	REQUIRE(mctx != NULL);
+#ifdef BIND9
+	REQUIRE(ectx != NULL);
+#else
+	UNUSED(ectx);
+#endif
 	REQUIRE(dst_initialized == ISC_FALSE);
 
 	dst__memory_pool = NULL;
 
-#ifdef OPENSSL
+#if defined(OPENSSL) && defined(BIND9)
 	UNUSED(mctx);
 	/*
 	 * When using --with-openssl, there seems to be no good way of not
@@ -170,7 +177,9 @@ dst_lib_init(isc_mem_t *mctx, isc_entropy_t *ectx, unsigned int eflags) {
 #else
 	isc_mem_attach(mctx, &dst__memory_pool);
 #endif
+#ifdef BIND9
 	isc_entropy_attach(ectx, &dst_entropy_pool);
+#endif
 	dst_entropy_flags = eflags;
 
 	dst_result_register();
@@ -218,9 +227,10 @@ dst_lib_destroy(void) {
 #endif
 	if (dst__memory_pool != NULL)
 		isc_mem_detach(&dst__memory_pool);
+#ifdef BIND9
 	if (dst_entropy_pool != NULL)
 		isc_entropy_detach(&dst_entropy_pool);
-
+#endif
 }
 
 isc_boolean_t
@@ -422,7 +432,6 @@ dst_key_fromnamedfile(const char *filename, const char *dirname,
 {
 	isc_result_t result;
 	dst_key_t *pubkey = NULL, *key = NULL;
-	dns_keytag_t id;
 	char *newfilename = NULL;
 	int newfilenamelen = 0;
 	isc_lex_t *lex = NULL;
@@ -479,11 +488,10 @@ dst_key_fromnamedfile(const char *filename, const char *dirname,
 	key = get_key_struct(pubkey->key_name, pubkey->key_alg,
 			     pubkey->key_flags, pubkey->key_proto, 0,
 			     pubkey->key_class, mctx);
-	id = pubkey->key_id;
-	dst_key_free(&pubkey);
-
-	if (key == NULL)
+	if (key == NULL) {
+		dst_key_free(&pubkey);
 		return (ISC_R_NOMEMORY);
+	}
 
 	if (key->func->parse == NULL)
 		RETERR(DST_R_UNSUPPORTEDALG);
@@ -502,17 +510,20 @@ dst_key_fromnamedfile(const char *filename, const char *dirname,
 	RETERR(isc_lex_openfile(lex, newfilename));
 	isc_mem_put(mctx, newfilename, newfilenamelen);
 
-	RETERR(key->func->parse(key, lex));
+	RETERR(key->func->parse(key, lex, pubkey));
 	isc_lex_destroy(&lex);
 
 	RETERR(computeid(key));
 
-	if (id != key->key_id)
+	if (pubkey->key_id != key->key_id)
 		RETERR(DST_R_INVALIDPRIVATEKEY);
+	dst_key_free(&pubkey);
 
 	*keyp = key;
 	return (ISC_R_SUCCESS);
  out:
+	if (pubkey != NULL)
+		dst_key_free(&pubkey);
 	if (newfilename != NULL)
 		isc_mem_put(mctx, newfilename, newfilenamelen);
 	if (lex != NULL)
@@ -647,7 +658,7 @@ dst_key_privatefrombuffer(dst_key_t *key, isc_buffer_t *buffer) {
 
 	RETERR(isc_lex_create(key->mctx, 1500, &lex));
 	RETERR(isc_lex_openbuffer(lex, buffer));
-	RETERR(key->func->parse(key, lex));
+	RETERR(key->func->parse(key, lex, NULL));
  out:
 	if (lex != NULL)
 		isc_lex_destroy(&lex);
@@ -776,7 +787,7 @@ dst_key_gettime(const dst_key_t *key, int type, isc_stdtime_t *timep) {
 	REQUIRE(VALID_KEY(key));
 	REQUIRE(timep != NULL);
 	REQUIRE(type <= DST_MAX_TIMES);
-	if (key->times[type] == 0)
+	if (!key->timeset[type])
 		return (ISC_R_NOTFOUND);
 	*timep = key->times[type];
 	return (ISC_R_SUCCESS);
@@ -787,6 +798,31 @@ dst_key_settime(dst_key_t *key, int type, isc_stdtime_t when) {
 	REQUIRE(VALID_KEY(key));
 	REQUIRE(type <= DST_MAX_TIMES);
 	key->times[type] = when;
+	key->timeset[type] = ISC_TRUE;
+}
+
+void
+dst_key_unsettime(dst_key_t *key, int type) {
+	REQUIRE(VALID_KEY(key));
+	REQUIRE(type <= DST_MAX_TIMES);
+	key->timeset[type] = ISC_FALSE;
+}
+
+isc_result_t
+dst_key_getprivateformat(const dst_key_t *key, int *majorp, int *minorp) {
+	REQUIRE(VALID_KEY(key));
+	REQUIRE(majorp != NULL);
+	REQUIRE(minorp != NULL);
+	*majorp = key->fmt_major;
+	*minorp = key->fmt_minor;
+	return (ISC_R_SUCCESS);
+}
+
+void
+dst_key_setprivateformat(dst_key_t *key, int major, int minor) {
+	REQUIRE(VALID_KEY(key));
+	key->fmt_major = major;
+	key->fmt_minor = minor;
 }
 
 isc_boolean_t
@@ -944,6 +980,7 @@ get_key_struct(dns_name_t *name, unsigned int alg,
 {
 	dst_key_t *key;
 	isc_result_t result;
+	int i;
 
 	key = (dst_key_t *) isc_mem_get(mctx, sizeof(dst_key_t));
 	if (key == NULL)
@@ -967,12 +1004,17 @@ get_key_struct(dns_name_t *name, unsigned int alg,
 	key->key_alg = alg;
 	key->key_flags = flags;
 	key->key_proto = protocol;
-	memset(key->times, 0, sizeof(key->times));
 	key->mctx = mctx;
 	key->keydata.generic = NULL;
 	key->key_size = bits;
 	key->key_class = rdclass;
 	key->func = dst_t_func[alg];
+	key->fmt_major = 0;
+	key->fmt_minor = 0;
+	for (i = 0; i < (DST_MAX_TIMES + 1); i++) {
+		key->times[i] = 0;
+		key->timeset[i] = ISC_FALSE;
+	}
 	return (key);
 }
 
@@ -1045,7 +1087,7 @@ dst_key_read_public(const char *filename, int type,
 	isc_buffer_init(&b, DST_AS_STR(token), strlen(DST_AS_STR(token)));
 	isc_buffer_add(&b, strlen(DST_AS_STR(token)));
 	ret = dns_name_fromtext(dns_fixedname_name(&name), &b, dns_rootname,
-				ISC_FALSE, NULL);
+				0, NULL);
 	if (ret != ISC_R_SUCCESS)
 		goto cleanup;
 
@@ -1138,14 +1180,17 @@ issymmetric(const dst_key_t *key) {
 static void
 printtime(const dst_key_t *key, int type, const char *tag, FILE *stream) {
 	isc_result_t result;
-	isc_stdtime_t when;
 	const char *output;
+	isc_stdtime_t when;
+	time_t t;
 
 	result = dst_key_gettime(key, type, &when);
 	if (result == ISC_R_NOTFOUND)
 		return;
 
-	output = ctime((time_t *) &when);
+	/* time_t and isc_stdtime_t might be different sizes */
+	t = when;
+	output = ctime(&t);
 	fprintf(stream, "%s: %s", tag, output);
 }
 
@@ -1229,7 +1274,7 @@ write_public_key(const dst_key_t *key, int type, const char *directory) {
 		printtime(key, DST_TIME_PUBLISH, "; Publish", fp);
 		printtime(key, DST_TIME_ACTIVATE, "; Activate", fp);
 		printtime(key, DST_TIME_REVOKE, "; Revoke", fp);
-		printtime(key, DST_TIME_REMOVE, "; Remove", fp);
+		printtime(key, DST_TIME_UNPUBLISH, "; Unpublish", fp);
 		printtime(key, DST_TIME_DELETE, "; Delete", fp);
 	}
 
@@ -1394,13 +1439,25 @@ addsuffix(char *filename, unsigned int len, const char *odirname,
 
 isc_result_t
 dst__entropy_getdata(void *buf, unsigned int len, isc_boolean_t pseudo) {
+#ifdef BIND9
 	unsigned int flags = dst_entropy_flags;
 	if (pseudo)
 		flags &= ~ISC_ENTROPY_GOODONLY;
 	return (isc_entropy_getdata(dst_entropy_pool, buf, len, NULL, flags));
+#else
+	UNUSED(buf);
+	UNUSED(len);
+	UNUSED(pseudo);
+
+	return (ISC_R_NOTIMPLEMENTED);
+#endif
 }
 
 unsigned int
 dst__entropy_status(void) {
+#ifdef BIND9
 	return (isc_entropy_status(dst_entropy_pool));
+#else
+	return (0);
+#endif
 }

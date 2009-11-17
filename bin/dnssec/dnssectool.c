@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dnssectool.c,v 1.49 2009/07/19 23:47:55 tbox Exp $ */
+/* $Id: dnssectool.c,v 1.53 2009/09/03 00:12:23 each Exp $ */
 
 /*! \file */
 
@@ -266,12 +266,23 @@ cleanup_entropy(isc_entropy_t **ectx) {
 }
 
 static isc_stdtime_t
-time_units(isc_stdtime_t offset, char suffix, const char *str) {
-	switch(suffix) {
+time_units(isc_stdtime_t offset, char *suffix, const char *str) {
+	switch (suffix[0]) {
 	    case 'Y': case 'y':
 		return (offset * (365 * 24 * 3600));
 	    case 'M': case 'm':
-		return (offset * (30 * 24 * 3600));
+		switch (suffix[1]) {
+		    case 'O': case 'o':
+			return (offset * (30 * 24 * 3600));
+		    case 'I': case 'i':
+			return (offset * 60);
+		    case '\0':
+			fatal("'%s' ambiguous: use 'mi' for minutes "
+			      "or 'mo' for months", str);
+		    default:
+			fatal("time value %s is invalid", str);
+		}
+		break;
 	    case 'W': case 'w':
 		return (offset * (7 * 24 * 3600));
 	    case 'D': case 'd':
@@ -286,6 +297,19 @@ time_units(isc_stdtime_t offset, char suffix, const char *str) {
 	return(0); /* silence compiler warning */
 }
 
+dns_ttl_t
+strtottl(const char *str) {
+	const char *orig = str;
+	dns_ttl_t ttl;
+	char *endp;
+
+	ttl = strtol(str, &endp, 0);
+	if (ttl == 0 && endp == str)
+		fatal("TTL must be numeric");
+	ttl = time_units(ttl, endp, orig);
+	return (ttl);
+}
+
 isc_stdtime_t
 strtotime(const char *str, isc_int64_t now, isc_int64_t base) {
 	isc_int64_t val, offset;
@@ -293,7 +317,7 @@ strtotime(const char *str, isc_int64_t now, isc_int64_t base) {
 	const char *orig = str;
 	char *endp;
 
-	if (strlen(str) == 1 && (str[0] == '0' || str[0] == '-'))
+	if ((str[0] == '0' || str[0] == '-') && str[1] == '\0')
 		return ((isc_stdtime_t) 0);
 
 	if (strncmp(str, "now", 3) == 0) {
@@ -305,11 +329,11 @@ strtotime(const char *str, isc_int64_t now, isc_int64_t base) {
 		return ((isc_stdtime_t) base);
 	else if (str[0] == '+') {
 		offset = strtol(str + 1, &endp, 0);
-		offset = time_units(offset, *endp, orig);
+		offset = time_units((isc_stdtime_t) offset, endp, orig);
 		val = base + offset;
 	} else if (str[0] == '-') {
 		offset = strtol(str + 1, &endp, 0);
-		offset = time_units(offset, *endp, orig);
+		offset = time_units((isc_stdtime_t) offset, endp, orig);
 		val = base - offset;
 	} else if (strlen(str) == 8U) {
 		char timestr[15];

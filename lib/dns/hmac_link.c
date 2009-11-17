@@ -1,5 +1,5 @@
 /*
- * Portions Copyright (C) 2004-2008  Internet Systems Consortium, Inc. ("ISC")
+ * Portions Copyright (C) 2004-2009  Internet Systems Consortium, Inc. ("ISC")
  * Portions Copyright (C) 1999-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -31,7 +31,7 @@
 
 /*
  * Principal Author: Brian Wellington
- * $Id: hmac_link.c,v 1.11 2008/04/01 23:47:10 tbox Exp $
+ * $Id: hmac_link.c,v 1.13 2009/09/03 23:48:12 tbox Exp $
  */
 
 #include <config.h>
@@ -268,13 +268,14 @@ hmacmd5_tofile(const dst_key_t *key, const char *directory) {
 }
 
 static isc_result_t
-hmacmd5_parse(dst_key_t *key, isc_lex_t *lexer) {
+hmacmd5_parse(dst_key_t *key, isc_lex_t *lexer, dst_key_t *pub) {
 	dst_private_t priv;
 	isc_result_t result, tresult;
 	isc_buffer_t b;
 	isc_mem_t *mctx = key->mctx;
 	unsigned int i;
 
+	UNUSED(pub);
 	/* read private key file */
 	result = dst__privstruct_parse(key, DST_ALG_HMACMD5, lexer, mctx, &priv);
 	if (result != ISC_R_SUCCESS)
@@ -537,13 +538,14 @@ hmacsha1_tofile(const dst_key_t *key, const char *directory) {
 }
 
 static isc_result_t
-hmacsha1_parse(dst_key_t *key, isc_lex_t *lexer) {
+hmacsha1_parse(dst_key_t *key, isc_lex_t *lexer, dst_key_t *pub) {
 	dst_private_t priv;
 	isc_result_t result, tresult;
 	isc_buffer_t b;
 	isc_mem_t *mctx = key->mctx;
 	unsigned int i;
 
+	UNUSED(pub);
 	/* read private key file */
 	result = dst__privstruct_parse(key, DST_ALG_HMACSHA1, lexer, mctx,
 				       &priv);
@@ -807,13 +809,14 @@ hmacsha224_tofile(const dst_key_t *key, const char *directory) {
 }
 
 static isc_result_t
-hmacsha224_parse(dst_key_t *key, isc_lex_t *lexer) {
+hmacsha224_parse(dst_key_t *key, isc_lex_t *lexer, dst_key_t *pub) {
 	dst_private_t priv;
 	isc_result_t result, tresult;
 	isc_buffer_t b;
 	isc_mem_t *mctx = key->mctx;
 	unsigned int i;
 
+	UNUSED(pub);
 	/* read private key file */
 	result = dst__privstruct_parse(key, DST_ALG_HMACSHA224, lexer, mctx,
 				       &priv);
@@ -1077,13 +1080,14 @@ hmacsha256_tofile(const dst_key_t *key, const char *directory) {
 }
 
 static isc_result_t
-hmacsha256_parse(dst_key_t *key, isc_lex_t *lexer) {
+hmacsha256_parse(dst_key_t *key, isc_lex_t *lexer, dst_key_t *pub) {
 	dst_private_t priv;
 	isc_result_t result, tresult;
 	isc_buffer_t b;
 	isc_mem_t *mctx = key->mctx;
 	unsigned int i;
 
+	UNUSED(pub);
 	/* read private key file */
 	result = dst__privstruct_parse(key, DST_ALG_HMACSHA256, lexer, mctx,
 				       &priv);
@@ -1347,13 +1351,14 @@ hmacsha384_tofile(const dst_key_t *key, const char *directory) {
 }
 
 static isc_result_t
-hmacsha384_parse(dst_key_t *key, isc_lex_t *lexer) {
+hmacsha384_parse(dst_key_t *key, isc_lex_t *lexer, dst_key_t *pub) {
 	dst_private_t priv;
 	isc_result_t result, tresult;
 	isc_buffer_t b;
 	isc_mem_t *mctx = key->mctx;
 	unsigned int i;
 
+	UNUSED(pub);
 	/* read private key file */
 	result = dst__privstruct_parse(key, DST_ALG_HMACSHA384, lexer, mctx,
 				       &priv);
@@ -1617,13 +1622,14 @@ hmacsha512_tofile(const dst_key_t *key, const char *directory) {
 }
 
 static isc_result_t
-hmacsha512_parse(dst_key_t *key, isc_lex_t *lexer) {
+hmacsha512_parse(dst_key_t *key, isc_lex_t *lexer, dst_key_t *pub) {
 	dst_private_t priv;
 	isc_result_t result, tresult;
 	isc_buffer_t b;
 	isc_mem_t *mctx = key->mctx;
 	unsigned int i;
 
+	UNUSED(pub);
 	/* read private key file */
 	result = dst__privstruct_parse(key, DST_ALG_HMACSHA512, lexer, mctx,
 				       &priv);

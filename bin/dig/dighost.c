@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dighost.c,v 1.321 2009/02/25 02:34:21 marka Exp $ */
+/* $Id: dighost.c,v 1.323 2009/07/19 04:18:03 each Exp $ */
 
 /*! \file
  *  \note
@@ -948,8 +948,9 @@ setup_file_key(void) {
 	dst_key_t *dstkey = NULL;
 
 	debug("setup_file_key()");
-	result = dst_key_fromnamedfile(keyfile, DST_TYPE_PRIVATE | DST_TYPE_KEY,
-				       mctx, &dstkey);
+	result = dst_key_fromnamedfile(keyfile, NULL,
+				       DST_TYPE_PRIVATE | DST_TYPE_KEY, mctx,
+				       &dstkey);
 	if (result != ISC_R_SUCCESS) {
 		fprintf(stderr, "Couldn't read key from %s: %s\n",
 			keyfile, isc_result_totext(result));
@@ -1066,7 +1067,9 @@ setup_system(void) {
 		debug("ndots is %d.", ndots);
 	}
 
-	copy_server_list(lwconf, &server_list);
+	/* If user doesn't specify server use nameservers from resolv.conf. */
+	if (ISC_LIST_EMPTY(server_list))
+		copy_server_list(lwconf, &server_list);
 
 	/* If we don't find a nameserver fall back to localhost */
 	if (ISC_LIST_EMPTY(server_list)) {
@@ -4049,7 +4052,7 @@ get_trusted_key(isc_mem_t *mctx)
 			return (ISC_R_FAILURE);
 		}
 		fclose(fptemp);
-		result = dst_key_fromnamedfile(filetemp, DST_TYPE_PUBLIC,
+		result = dst_key_fromnamedfile(filetemp, NULL, DST_TYPE_PUBLIC,
 					       mctx, &key);
 		removetmpkey(mctx, filetemp);
 		isc_mem_free(mctx, filetemp);

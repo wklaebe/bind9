@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: query.c,v 1.324 2009/05/07 09:41:22 fdupont Exp $ */
+/* $Id: query.c,v 1.326 2009/08/05 02:09:04 marka Exp $ */
 
 /*! \file */
 
@@ -2731,7 +2731,7 @@ query_addds(ns_client_t *client, dns_db_t *db, dns_dbnode_t *node,
 	return;
 
    addnsec3:
-	if (dns_db_iscache(db))
+	if (!dns_db_iszone(db))
 		goto cleanup;
 	/*
 	 * Add the NSEC3 which proves the DS does not exist.
@@ -3616,7 +3616,7 @@ query_findclosestnsec3(dns_name_t *qname, dns_db_t *db,
 		       dns_name_t *found)
 {
 	unsigned char salt[256];
-	size_t salt_length = sizeof(salt);
+	size_t salt_length;
 	isc_uint16_t iterations;
 	isc_result_t result;
 	unsigned int dboptions;

@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: config.c,v 1.97 2009/06/10 00:27:21 each Exp $ */
+/* $Id: config.c,v 1.99 2009/07/14 22:54:56 each Exp $ */
 
 /*! \file */
 
@@ -59,9 +59,9 @@ options {\n\
 	files unlimited;\n\
 	stacksize default;\n"
 #endif
-"#	ddns-keyfile \"" NS_LOCALSTATEDIR "/run/named/ddns.key\";\n\
-	ddns-keyname local-ddns;\n\
-	ddns-keyalg hmac-sha256;\n\
+"#	session-keyfile \"" NS_LOCALSTATEDIR "/run/named/session.key\";\n\
+	session-keyname local-ddns;\n\
+	session-keyalg hmac-sha256;\n\
 	deallocate-on-exit true;\n\
 #	directory <none>\n\
 	dump-file \"named_dump.db\";\n\
@@ -168,7 +168,6 @@ options {\n\
 	notify-delay 5;\n\
 	notify-to-soa no;\n\
 	dialup no;\n\
-	ddns-autoconf no;\n\
 #	forward <none>\n\
 #	forwarders <none>\n\
 	maintain-ixfr-base no;\n\
@@ -225,10 +224,22 @@ view \"_bind\" chaos {\n\
 		type master;\n\
 		database \"_builtin authors\";\n\
 	};\n\
+\n\
 	zone \"id.server\" chaos {\n\
 		type master;\n\
 		database \"_builtin id\";\n\
 	};\n\
+};\n\
+"
+
+"#\n\
+#  The \"_meta\" view is for zones that are used to store internal\n\
+#  information for named, such as managed keys.  The zones are defined\n\
+#  elsewhere.\n\
+#\n\
+view \"_meta\" in {\n\
+	recursion no;\n\
+	notify no;\n\
 };\n\
 "
 

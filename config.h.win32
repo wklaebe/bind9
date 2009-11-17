@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2006-2008  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2006-2009  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: config.h.win32,v 1.19 2008/09/25 07:44:12 marka Exp $ */
+/* $Id: config.h.win32,v 1.21 2009/07/17 23:47:40 tbox Exp $ */
 
 /*
  * win32 configuration file
@@ -234,3 +234,8 @@ typedef long off_t;
  * Windows doesn't use configure so just set "default" here.
  */
 #define CONFIGARGS "default"
+
+/*
+ * Define if libxml2 is present
+ */
+#define HAVE_LIBXML2 1

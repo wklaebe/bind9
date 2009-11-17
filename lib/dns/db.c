@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: db.c,v 1.90 2009/04/29 23:48:02 tbox Exp $ */
+/* $Id: db.c,v 1.93 2009/07/19 23:47:55 tbox Exp $ */
 
 /*! \file */
 
@@ -34,10 +34,12 @@
 
 #include <dns/callbacks.h>
 #include <dns/db.h>
+#include <dns/dbiterator.h>
 #include <dns/log.h>
 #include <dns/master.h>
 #include <dns/rdata.h>
 #include <dns/rdataset.h>
+#include <dns/rdatasetiter.h>
 #include <dns/result.h>
 
 /***
@@ -318,14 +320,19 @@ dns_db_endload(dns_db_t *db, dns_dbload_t **dbloadp) {
 
 isc_result_t
 dns_db_load(dns_db_t *db, const char *filename) {
-	return (dns_db_load2(db, filename, dns_masterformat_text));
+	return (dns_db_load3(db, filename, dns_masterformat_text, 0));
 }
 
 isc_result_t
 dns_db_load2(dns_db_t *db, const char *filename, dns_masterformat_t format) {
+	return (dns_db_load3(db, filename, format, 0));
+}
+
+isc_result_t
+dns_db_load3(dns_db_t *db, const char *filename, dns_masterformat_t format,
+	     unsigned int options) {
 	isc_result_t result, eresult;
 	dns_rdatacallbacks_t callbacks;
-	unsigned int options = 0;
 
 	/*
 	 * Load master file 'filename' into 'db'.
@@ -926,3 +933,4 @@ dns_db_resigned(dns_db_t *db, dns_rdataset_t *rdataset, dns_dbversion_t *version
 	if (db->methods->resigned != NULL)
 		(db->methods->resigned)(db, rdataset, version);
 }
+

@@ -1,3 +1,110 @@
+	--- 9.7.0a2 released ---
+
+2644.	[bug]		Change #2628 caused a regression on some systems;
+			named was unable to write the PID file and would
+			fail on startup. [RT #20001]
+
+2643.	[bug]		Stub zones interacted badly with NSEC3 support.
+			[RT #19777]
+
+2642.	[bug]		nsupdate could dump core on solaris when reading
+			improperly formatted key files.  [RT #20015]
+
+2641.	[bug]		Fixed an error in parsing update-policy syntax,
+			added a regression test to check it. [RT #20007]
+
+2640.	[security]	A specially crafted update packet will cause named
+			to exit. [RT #20000]
+
+2639.	[bug]		Silence compiler warnings in gssapi code. [RT #19954]
+
+2638.	[bug]		Install arpaname. [RT #19957]
+
+2637.	[func]		Rationalize dnssec-signzone's signwithkey() calling.
+			[RT #19959]
+
+2636.	[func]		Simplify zone signing and key maintenance with the
+			dnssec-* tools.  Major changes:
+			- all dnssec-* tools now take a -K option to
+			  specify a directory in which key files will be
+			  stored
+			- DNSSEC can now store metadata indicating when
+			  they are scheduled to be published, activated,
+			  revoked or removed; these values can be set by
+			  dnssec-keygen or overwritten by the new
+			  dnssec-settime command
+			- dnssec-signzone -S (for "smart") option reads key
+			  metadata and uses it to determine automatically
+			  which keys to publish to the zone, use for
+			  signing, revoke, or remove from the zone
+			[RT #19816]
+
+2635.	[bug]		isc_inet_ntop() incorrectly handled 0.0/16 addresses.
+			[RT #19716]
+
+2634.	[port]		win32: Add support for libxml2, enable
+			statschannel. [RT #19773]
+
+2633.	[bug]		Handle 15 bit rand() functions. [RT #19783]
+
+2632.	[func]		util/kit.sh: warn if documentation appears to be out of
+			date.  [RT #19922]
+
+2631.	[bug]		Handle "//", "/./" and "/../" in mkdirpath().
+			[RT #19926 ]
+
+2630.	[func]		Improved syntax for DDNS autoconfiguration:  use
+			"update-policy local;" to switch on local DDNS in a
+			zone.  [RT #19875]
+
+2629.	[port]		Check for seteuid()/setegid(), use setresuid()/
+			setresgid() if not present. [RT #19932]
+			
+2628.	[port]		linux: Allow /var/run/named/named.pid to be opened 
+			at startup with reduced capabilities in operation.
+			[RT #19884]
+
+2627.	[bug]		Named aborted if the same key was included in
+			trusted-keys more than once. [RT #19918]
+
+2626.	[bug]		Multiple trusted-keys could trigger an assertion
+			failure. [RT #19914]
+
+2625.	[bug]		Missing UNLOCK in rbtdb.c. [RT #19865]
+
+2624.	[func]		'named-checkconf -p' will print out the parsed
+			configuration. [RT #18871]
+
+2623.	[bug]		Named started seaches for DS non-optimally. [RT #19915]
+
+2622.	[bug]		Printing of named.conf grammar was broken. [RT #19919]
+ 
+2621.	[doc]		Made copyright boilterplate consistent.  [RT #19833]
+
+2620.	[bug]		Delay thawing the zone until the reload of it has
+			completed successfully.  [RT #19750]
+
+2619.	[func]		Add support for RFC 5011, automatic trust anchor
+			maintenance.  The new "managed-keys" statement can
+			be used in place of "trusted-keys" for zones which
+			support this protocol.  (Note: this syntax is
+			expected to change prior to 9.7.0 final.) [RT #19248]
+
+2618.	[bug]		The sdb and sdlz db_interator_seek() methods could
+			loop infinitely. [RT #19847]
+
+2617.	[bug]		ifconfig.sh failed to emit an error message when
+			run from the wrong location. [RT #19375]
+
+2616.	[bug]		'host' used the nameservers from resolv.conf even
+			when a explicit nameserver was specified. [RT #19852]
+
+2615.	[bug]		"__attribute__((unused))" was in the wrong place
+			for ia64 gcc builds. [RT #19854]
+
+2614.	[port]		win32: 'named -v' should automatically be executed
+			in the foreground. [RT #19844]
+
 2613.	[placeholder]
 
 	--- 9.7.0a1 released ---
@@ -327,7 +434,7 @@
 			[RT #19077]
 
 2517.	[bug]		dig +trace with -4 or -6 failed when it chose a
-			nameserver address of the excluded address.
+			nameserver address of the excluded address type.
 			[RT #18843]
 
 2516.	[bug]		glue sort for responses was performed even when not

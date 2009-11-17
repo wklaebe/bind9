@@ -1,6 +1,6 @@
-.\" Copyright (C) 2008 Internet Systems Consortium, Inc. ("ISC")
+.\" Copyright (C) 2008, 2009 Internet Systems Consortium, Inc. ("ISC")
 .\" 
-.\" Permission to use, copy, modify, and distribute this software for any
+.\" Permission to use, copy, modify, and/or distribute this software for any
 .\" purpose with or without fee is hereby granted, provided that the above
 .\" copyright notice and this permission notice appear in all copies.
 .\" 
@@ -12,7 +12,7 @@
 .\" OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 .\" PERFORMANCE OF THIS SOFTWARE.
 .\"
-.\" $Id: dnssec-keyfromlabel.8,v 1.6 2008/11/08 01:11:47 tbox Exp $
+.\" $Id: dnssec-keyfromlabel.8,v 1.9 2009/07/20 01:13:18 tbox Exp $
 .\"
 .hy 0
 .ad l
@@ -32,7 +32,7 @@
 dnssec\-keyfromlabel \- DNSSEC key generation tool
 .SH "SYNOPSIS"
 .HP 20
-\fBdnssec\-keyfromlabel\fR {\-a\ \fIalgorithm\fR} {\-l\ \fIlabel\fR} [\fB\-c\ \fR\fB\fIclass\fR\fR] [\fB\-f\ \fR\fB\fIflag\fR\fR] [\fB\-k\fR] [\fB\-n\ \fR\fB\fInametype\fR\fR] [\fB\-p\ \fR\fB\fIprotocol\fR\fR] [\fB\-t\ \fR\fB\fItype\fR\fR] [\fB\-v\ \fR\fB\fIlevel\fR\fR] {name}
+\fBdnssec\-keyfromlabel\fR {\-a\ \fIalgorithm\fR} {\-l\ \fIlabel\fR} [\fB\-c\ \fR\fB\fIclass\fR\fR] [\fB\-f\ \fR\fB\fIflag\fR\fR] [\fB\-k\fR] [\fB\-K\ \fR\fB\fIdirectory\fR\fR] [\fB\-n\ \fR\fB\fInametype\fR\fR] [\fB\-p\ \fR\fB\fIprotocol\fR\fR] [\fB\-t\ \fR\fB\fItype\fR\fR] [\fB\-v\ \fR\fB\fIlevel\fR\fR] {name}
 .SH "DESCRIPTION"
 .PP
 \fBdnssec\-keyfromlabel\fR
@@ -76,6 +76,11 @@ Set the specified flag in the flag field of the KEY/DNSKEY record. The only reco
 .RS 4
 Prints a short summary of the options and arguments to
 \fBdnssec\-keygen\fR.
+.RE
+.PP
+\-K \fIdirectory\fR
+.RS 4
+Sets the directory in which the key files are to be written.
 .RE
 .PP
 \-k
@@ -145,5 +150,5 @@ RFC 4033.
 .PP
 Internet Systems Consortium
 .SH "COPYRIGHT"
-Copyright \(co 2008 Internet Systems Consortium, Inc. ("ISC")
+Copyright \(co 2008, 2009 Internet Systems Consortium, Inc. ("ISC")
 .br

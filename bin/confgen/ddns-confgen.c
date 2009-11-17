@@ -14,7 +14,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: ddns-confgen.c,v 1.6 2009/06/17 19:18:37 jinmei Exp $ */
+/* $Id: ddns-confgen.c,v 1.8 2009/07/29 17:52:00 each Exp $ */
 
 /*! \file */
 
@@ -211,9 +211,9 @@ key \"%s\" {\n\
 # name \"%s\", place an \"update-policy\" statement\n\
 # like this one, adjusted as needed for your preferred permissions:\n\
 update-policy {\n\
-	  grant %s self . ANY;\n\
+	  grant %s name %s ANY;\n\
 };\n",
-			       self_domain, keyname);
+			       self_domain, keyname, self_domain);
 		} else if (zone != NULL) {
 			printf("\n\
 # Then, in the \"zone\" definition statement for \"%s\",\n\
@@ -234,12 +234,13 @@ update-policy {\n\
 };\n",
 			       keyname);
 		}
-	}
 
-	printf("\n\
+		printf("\n\
 # After the keyfile has been placed, the following command will\n\
 # execute nsupdate using this key:\n\
 nsupdate -k <keyfile>\n");
+
+	}
 
 	if (keybuf != NULL)
 		isc_mem_put(mctx, keybuf, len);

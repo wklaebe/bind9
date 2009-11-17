@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: types.h,v 1.133 2009/01/27 22:29:59 jinmei Exp $ */
+/* $Id: types.h,v 1.135 2009/07/19 04:18:05 each Exp $ */
 
 #ifndef DNS_TYPES_H
 #define DNS_TYPES_H 1
@@ -63,6 +63,8 @@ typedef struct dns_dispatchevent		dns_dispatchevent_t;
 typedef struct dns_dispatchlist			dns_dispatchlist_t;
 typedef struct dns_dispatchmgr			dns_dispatchmgr_t;
 typedef struct dns_dispentry			dns_dispentry_t;
+typedef struct dns_dnsseckey			dns_dnsseckey_t;
+typedef ISC_LIST(dns_dnsseckey_t)		dns_dnsseckeylist_t;
 typedef struct dns_dumpctx			dns_dumpctx_t;
 typedef struct dns_fetch			dns_fetch_t;
 typedef struct dns_fixedname			dns_fixedname_t;
@@ -72,6 +74,7 @@ typedef struct dns_iptable			dns_iptable_t;
 typedef isc_uint32_t				dns_iterations_t;
 typedef isc_uint16_t				dns_keyflags_t;
 typedef struct dns_keynode			dns_keynode_t;
+typedef ISC_LIST(dns_keynode_t)			dns_keynodelist_t;
 typedef struct dns_keytable			dns_keytable_t;
 typedef isc_uint16_t				dns_keytag_t;
 typedef struct dns_loadctx			dns_loadctx_t;

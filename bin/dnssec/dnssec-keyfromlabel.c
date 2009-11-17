@@ -14,7 +14,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dnssec-keyfromlabel.c,v 1.6 2009/05/07 23:47:44 tbox Exp $ */
+/* $Id: dnssec-keyfromlabel.c,v 1.9 2009/07/19 04:18:04 each Exp $ */
 
 /*! \file */
 
@@ -64,7 +64,9 @@ usage(void) {
 	fprintf(stderr, "    -n nametype: ZONE | HOST | ENTITY | USER | OTHER\n");
 	fprintf(stderr, "        (DNSKEY generation defaults to ZONE\n");
 	fprintf(stderr, "    -c <class> (default: IN)\n");
-	fprintf(stderr, "    -f keyflag: KSK\n");
+	fprintf(stderr, "    -f keyflag (KSK or REVOKE)\n");
+	fprintf(stderr, "    -K directory: directory in which to place "
+			"key files\n");
 	fprintf(stderr, "    -t <type>: "
 		"AUTHCONF | NOAUTHCONF | NOAUTH | NOCONF "
 		"(default: AUTHCONF)\n");
@@ -82,12 +84,13 @@ usage(void) {
 int
 main(int argc, char **argv) {
 	char		*algname = NULL, *nametype = NULL, *type = NULL;
+	char		*directory = NULL;
 	char		*classname = NULL;
 	char		*endp;
 	dst_key_t	*key = NULL, *oldkey;
 	dns_fixedname_t	fname;
 	dns_name_t	*name;
-	isc_uint16_t	flags = 0, ksk = 0;
+	isc_uint16_t	flags = 0, ksk = 0, revoke = 0;
 	dns_secalg_t	alg;
 	isc_boolean_t	null_key = ISC_FALSE;
 	isc_mem_t	*mctx = NULL;
@@ -113,7 +116,7 @@ main(int argc, char **argv) {
 	isc_commandline_errprint = ISC_FALSE;
 
 	while ((ch = isc_commandline_parse(argc, argv,
-					 "a:c:f:kl:n:p:t:v:Fh")) != -1)
+					 "a:c:f:K:kl:n:p:t:v:Fh")) != -1)
 	{
 	    switch (ch) {
 		case 'a':
@@ -125,9 +128,15 @@ main(int argc, char **argv) {
 		case 'f':
 			if (strcasecmp(isc_commandline_argument, "KSK") == 0)
 				ksk = DNS_KEYFLAG_KSK;
+			else if (strcasecmp(isc_commandline_argument,
+					    "REVOKE") == 0)
+				revoke = DNS_KEYFLAG_REVOKE;
 			else
 				fatal("unknown flag '%s'",
 				      isc_commandline_argument);
+			break;
+		case 'K':
+			directory = isc_commandline_argument;
 			break;
 		case 'k':
 			options |= DST_TYPE_KEY;
@@ -238,8 +247,10 @@ main(int argc, char **argv) {
 
 	if ((options & DST_TYPE_KEY) != 0)  /* KEY */
 		flags |= signatory;
-	else if ((flags & DNS_KEYOWNER_ZONE) != 0) /* DNSKEY */
+	else if ((flags & DNS_KEYOWNER_ZONE) != 0) { /* DNSKEY */
 		flags |= ksk;
+		flags |= revoke;
+	}
 
 	if (protocol == -1)
 		protocol = DNS_KEYPROTO_DNSSEC;
@@ -294,18 +305,18 @@ main(int argc, char **argv) {
 	 * case we return failure.
 	 */
 	ret = dst_key_fromfile(name, dst_key_id(key), alg,
-			       DST_TYPE_PRIVATE, NULL, mctx, &oldkey);
+			       DST_TYPE_PRIVATE, directory, mctx, &oldkey);
 	/* do not overwrite an existing key  */
 	if (ret == ISC_R_SUCCESS) {
 		isc_buffer_clear(&buf);
-		ret = dst_key_buildfilename(key, 0, NULL, &buf);
+		ret = dst_key_buildfilename(key, 0, directory, &buf);
 		fprintf(stderr, "%s: %s already exists\n",
 			program, filename);
 		dst_key_free(&key);
 		exit (1);
 	}
 
-	ret = dst_key_tofile(key, options, NULL);
+	ret = dst_key_tofile(key, options, directory);
 	if (ret != ISC_R_SUCCESS) {
 		char keystr[KEY_FORMATSIZE];
 		key_format(key, keystr, sizeof(keystr));
@@ -314,7 +325,7 @@ main(int argc, char **argv) {
 	}
 
 	isc_buffer_clear(&buf);
-	ret = dst_key_buildfilename(key, 0, NULL, &buf);
+	ret = dst_key_buildfilename(key, 0, directory, &buf);
 	printf("%s\n", filename);
 	dst_key_free(&key);
 

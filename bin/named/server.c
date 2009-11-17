@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: server.c,v 1.551 2009/10/12 20:48:11 each Exp $ */
+/* $Id: server.c,v 1.554 2009/10/27 22:46:13 each Exp $ */
 
 /*! \file */
 
@@ -552,6 +552,11 @@ dstkey_fromconfig(const cfg_obj_t *vconfig, const cfg_obj_t *key,
 			    "ignoring %s key for '%s': no crypto support",
 			    managed ? "managed" : "trusted",
 			    keynamestr);
+	} else if (result == DST_R_UNSUPPORTEDALG) {
+		cfg_obj_log(key, ns_g_lctx, ISC_LOG_WARNING,
+			    "skipping %s key for '%s': %s",
+			    managed ? "managed" : "trusted",
+			    keynamestr, isc_result_totext(result));
 	} else {
 		cfg_obj_log(key, ns_g_lctx, ISC_LOG_ERROR,
 			    "configuring %s key for '%s': %s",
@@ -573,7 +578,10 @@ load_view_keys(const cfg_obj_t *keys, const cfg_obj_t *vconfig,
 	const cfg_listelt_t *elt, *elt2;
 	const cfg_obj_t *key, *keylist;
 	dst_key_t *dstkey = NULL;
-	isc_result_t result = ISC_R_SUCCESS;
+	isc_result_t result;
+	dns_keytable_t *secroots = NULL;
+
+	CHECK(dns_view_getsecroots(view, &secroots));
 
 	for (elt = cfg_list_first(keys);
 	     elt != NULL;
@@ -584,14 +592,22 @@ load_view_keys(const cfg_obj_t *keys, const cfg_obj_t *vconfig,
 		     elt2 != NULL;
 		     elt2 = cfg_list_next(elt2)) {
 			key = cfg_listelt_value(elt2);
-			CHECK(dstkey_fromconfig(vconfig, key, managed,
-						&dstkey, mctx));
-			CHECK(dns_keytable_add(view->secroots, managed,
-					       &dstkey));
+			result = dstkey_fromconfig(vconfig, key, managed,
+						   &dstkey, mctx);
+			if (result ==  DST_R_UNSUPPORTEDALG) {
+				result = ISC_R_SUCCESS;
+				continue;
+			}
+			if (result != ISC_R_SUCCESS)
+				goto cleanup;
+
+			CHECK(dns_keytable_add(secroots, managed, &dstkey));
 		}
 	}
 
  cleanup:
+	if (secroots != NULL)
+		dns_keytable_detach(&secroots);
 	if (result == DST_R_NOCRYPTO)
 		result = ISC_R_SUCCESS;
 	return (result);
@@ -617,13 +633,17 @@ configure_view_dnsseckeys(dns_view_t *view, const cfg_obj_t *vconfig,
 	const cfg_obj_t *maps[4];
 	const cfg_obj_t *voptions = NULL;
 	const cfg_obj_t *options = NULL;
+	isc_boolean_t meta;
 	int i = 0;
 
 	/* We don't need trust anchors for the _bind view */
-	if (strcmp(view->name, "_bind") == 0) {
-		view->secroots = NULL;
+	if (strcmp(view->name, "_bind") == 0 &&
+	    view->rdclass == dns_rdataclass_chaos) {
 		return (ISC_R_SUCCESS);
 	}
+
+	meta = ISC_TF(strcmp(view->name, "_meta") == 0 &&
+		      view->rdclass == dns_rdataclass_in);
 
 	if (vconfig != NULL) {
 		voptions = cfg_tuple_get(vconfig, "options");
@@ -646,9 +666,7 @@ configure_view_dnsseckeys(dns_view_t *view, const cfg_obj_t *vconfig,
 	maps[i++] = ns_g_defaults;
 	maps[i] = NULL;
 
-	if (view->secroots != NULL)
-		dns_keytable_detach(&view->secroots);
-	result = dns_keytable_create(mctx, &view->secroots);
+	result = dns_view_initsecroots(view, mctx);
 	if (result != ISC_R_SUCCESS) {
 		isc_log_write(ns_g_lctx, NS_LOGCATEGORY_GENERAL,
 			      NS_LOGMODULE_SERVER, ISC_LOG_ERROR,
@@ -686,7 +704,7 @@ configure_view_dnsseckeys(dns_view_t *view, const cfg_obj_t *vconfig,
 		CHECK(load_view_keys(builtin_keys, vconfig, view,
 				     ISC_FALSE, mctx));
 
-		if (strcmp(view->name, "_meta") == 0)
+		if (meta)
 			CHECK(load_view_keys(builtin_managed_keys, vconfig,
 					     view, ISC_TRUE, mctx));
 	}
@@ -694,7 +712,7 @@ configure_view_dnsseckeys(dns_view_t *view, const cfg_obj_t *vconfig,
 	CHECK(load_view_keys(view_keys, vconfig, view, ISC_FALSE, mctx));
 	CHECK(load_view_keys(global_keys, vconfig, view, ISC_FALSE, mctx));
 
-	if (strcmp(view->name, "_meta") == 0)
+	if (meta)
 		CHECK(load_view_keys(global_managed_keys, vconfig, view,
 			       ISC_TRUE, mctx));
 
@@ -703,8 +721,7 @@ configure_view_dnsseckeys(dns_view_t *view, const cfg_obj_t *vconfig,
 }
 
 static isc_result_t
-mustbesecure(const cfg_obj_t *mbs, dns_resolver_t *resolver)
-{
+mustbesecure(const cfg_obj_t *mbs, dns_resolver_t *resolver) {
 	const cfg_listelt_t *element;
 	const cfg_obj_t *obj;
 	const char *str;
@@ -4344,6 +4361,25 @@ load_configuration(const char *filename, ns_server_t *server,
 		server->flushonshutdown = ISC_FALSE;
 	}
 
+#ifdef ALLOW_FILTER_AAAA_ON_V4
+	obj = NULL;
+	result = ns_config_get(maps, "filter-aaaa-on-v4", &obj);
+	INSIST(result == ISC_R_SUCCESS);
+	if (cfg_obj_isboolean(obj)) {
+		if (cfg_obj_asboolean(obj))
+			server->v4_aaaa = dns_v4_aaaa_filter;
+		else
+			server->v4_aaaa = dns_v4_aaaa_ok;
+	} else {
+		const char *v4_aaaastr = cfg_obj_asstring(obj);
+		if (strcasecmp(v4_aaaastr, "break-dnssec") == 0)
+			server->v4_aaaa
+					= dns_v4_aaaa_break_dnssec;
+		else
+			INSIST(0);
+	}
+
+#endif
 	result = ISC_R_SUCCESS;
 
  cleanup:

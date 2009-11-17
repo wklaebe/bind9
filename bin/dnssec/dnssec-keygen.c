@@ -29,7 +29,7 @@
  * IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dnssec-keygen.c,v 1.101 2009/10/12 20:48:10 each Exp $ */
+/* $Id: dnssec-keygen.c,v 1.106 2009/10/28 00:27:10 marka Exp $ */
 
 /*! \file */
 
@@ -37,6 +37,7 @@
 
 #include <ctype.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 #include <isc/buffer.h>
 #include <isc/commandline.h>
@@ -74,6 +75,8 @@ dsa_size_ok(int size) {
 ISC_PLATFORM_NORETURN_PRE static void
 usage(void) ISC_PLATFORM_NORETURN_POST;
 
+static void progress(int p);
+
 static void
 usage(void) {
 	fprintf(stderr, "Usage:\n");
@@ -83,8 +86,9 @@ usage(void) {
 	fprintf(stderr, "Options:\n");
 	fprintf(stderr, "    -K <directory>: write keys into directory\n");
 	fprintf(stderr, "    -a <algorithm>:\n");
-	fprintf(stderr, "        RSA | RSAMD5 | DSA | RSASHA1 | "
-				"NSEC3RSASHA1 | NSEC3DSA |\n");
+	fprintf(stderr, "        RSA | RSAMD5 | DSA | RSASHA1 | NSEC3RSASHA1"
+				" | NSEC3DSA |\n");
+	fprintf(stderr, "        RSASHA256 | RSASHA512 |\n");
 	fprintf(stderr, "        DH | HMAC-MD5 | HMAC-SHA1 | HMAC-SHA224 | "
 				"HMAC-SHA256 | \n");
 	fprintf(stderr, "        HMAC-SHA384 | HMAC-SHA512\n");
@@ -95,6 +99,8 @@ usage(void) {
 	fprintf(stderr, "	 RSAMD5:\t[512..%d]\n", MAX_RSA);
 	fprintf(stderr, "	 RSASHA1:\t[512..%d]\n", MAX_RSA);
 	fprintf(stderr, "	 NSEC3RSASHA1:\t[512..%d]\n", MAX_RSA);
+	fprintf(stderr, "	 RSASHA256:\t[512..%d]\n", MAX_RSA);
+	fprintf(stderr, "	 RSASHA512:\t[1024..%d]\n", MAX_RSA);
 	fprintf(stderr, "	 DH:\t\t[128..4096]\n");
 	fprintf(stderr, "	 DSA:\t\t[512..1024] and divisible by 64\n");
 	fprintf(stderr, "	 NSEC3DSA:\t[512..1024] and divisible "
@@ -154,6 +160,31 @@ usage(void) {
 	exit (-1);
 }
 
+static void
+progress(int p)
+{
+	char c = '*';
+
+	switch (p) {
+	case 0:
+		c = '.';
+		break;
+	case 1:
+		c = '+';
+		break;
+	case 2:
+		c = '*';
+		break;
+	case 3:
+		c = ' ';
+		break;
+	default:
+		break;
+	}
+	(void) putc(c, stderr);
+	(void) fflush(stderr);
+}
+
 int
 main(int argc, char **argv) {
 	char	        *algname = NULL, *nametype = NULL, *type = NULL;
@@ -195,6 +226,8 @@ main(int argc, char **argv) {
 	isc_boolean_t	unsetrev = ISC_FALSE, unsetinact = ISC_FALSE;
 	isc_boolean_t	unsetdel = ISC_FALSE;
 	isc_boolean_t	genonly = ISC_FALSE;
+	isc_boolean_t	quiet = ISC_FALSE;
+	isc_boolean_t	show_progress = ISC_FALSE;
 
 	if (argc == 1)
 		usage();
@@ -206,7 +239,7 @@ main(int argc, char **argv) {
 	/*
 	 * Process memory debugging argument first.
 	 */
-#define CMDLINE_FLAGS "3a:b:Cc:d:E:eFf:g:K:km:n:p:r:s:T:t:v:hGP:A:R:I:D:"
+#define CMDLINE_FLAGS "3a:b:Cc:d:E:eFf:g:K:km:n:p:qr:s:T:t:v:hGP:A:R:I:D:"
 	while ((ch = isc_commandline_parse(argc, argv, CMDLINE_FLAGS)) != -1) {
 		switch (ch) {
 		case 'm':
@@ -278,6 +311,10 @@ main(int argc, char **argv) {
 			break;
 		case 'K':
 			directory = isc_commandline_argument;
+			ret = try_dir(directory);
+			if (ret != ISC_R_SUCCESS)
+				fatal("cannot open directory %s: %s",
+				      directory, isc_result_totext(ret));
 			break;
 		case 'k':
 			fatal("The -k option has been deprecated.\n"
@@ -294,6 +331,9 @@ main(int argc, char **argv) {
 			if (*endp != '\0' || protocol < 0 || protocol > 255)
 				fatal("-p must be followed by a number "
 				      "[0..255]");
+			break;
+		case 'q':
+			quiet = ISC_TRUE;
 			break;
 		case 'r':
 			setup_entropy(mctx, isc_commandline_argument, &ectx);
@@ -409,6 +449,9 @@ main(int argc, char **argv) {
 		}
 	}
 
+	if (!isatty(0))
+		quiet = ISC_TRUE;
+
 	if (ectx == NULL)
 		setup_entropy(mctx, NULL, &ectx);
 	ret = dst_lib_init2(mctx, ectx, engine,
@@ -469,7 +512,8 @@ main(int argc, char **argv) {
 	}
 
 	if (use_nsec3 &&
-	    alg != DST_ALG_NSEC3DSA && alg != DST_ALG_NSEC3RSASHA1) {
+	    alg != DST_ALG_NSEC3DSA && alg != DST_ALG_NSEC3RSASHA1 &&
+	    alg != DST_ALG_RSASHA256 && alg!= DST_ALG_RSASHA512) {
 		fatal("%s is incompatible with NSEC3; "
 		      "do not use the -3 option", algname);
 	}
@@ -505,7 +549,12 @@ main(int argc, char **argv) {
 	case DNS_KEYALG_RSAMD5:
 	case DNS_KEYALG_RSASHA1:
 	case DNS_KEYALG_NSEC3RSASHA1:
+	case DNS_KEYALG_RSASHA256:
 		if (size != 0 && (size < 512 || size > MAX_RSA))
+			fatal("RSA key size %d out of range", size);
+		break;
+	case DNS_KEYALG_RSASHA512:
+		if (size != 0 && (size < 1024 || size > MAX_RSA))
 			fatal("RSA key size %d out of range", size);
 		break;
 	case DNS_KEYALG_DH:
@@ -574,7 +623,8 @@ main(int argc, char **argv) {
 	}
 
 	if (!(alg == DNS_KEYALG_RSAMD5 || alg == DNS_KEYALG_RSASHA1 ||
-	      alg == DNS_KEYALG_NSEC3RSASHA1) && rsa_exp != 0)
+	      alg == DNS_KEYALG_NSEC3RSASHA1 || alg == DNS_KEYALG_RSASHA256 ||
+	      alg == DNS_KEYALG_RSASHA512) && rsa_exp != 0)
 		fatal("specified RSA exponent for a non-RSA key");
 
 	if (alg != DNS_KEYALG_DH && generator != 0)
@@ -643,12 +693,22 @@ main(int argc, char **argv) {
 	switch(alg) {
 	case DNS_KEYALG_RSAMD5:
 	case DNS_KEYALG_RSASHA1:
+	case DNS_KEYALG_NSEC3RSASHA1:
+	case DNS_KEYALG_RSASHA256:
+	case DNS_KEYALG_RSASHA512:
 		param = rsa_exp;
+		show_progress = ISC_TRUE;
 		break;
+
 	case DNS_KEYALG_DH:
 		param = generator;
 		break;
+
 	case DNS_KEYALG_DSA:
+	case DNS_KEYALG_NSEC3DSA:
+		show_progress = ISC_TRUE;
+		/* fall through */
+
 	case DST_ALG_HMACMD5:
 	case DST_ALG_HMACSHA1:
 	case DST_ALG_HMACSHA224:
@@ -668,9 +728,19 @@ main(int argc, char **argv) {
 		conflict = ISC_FALSE;
 		oldkey = NULL;
 
-		/* generate the key */
-		ret = dst_key_generate(name, alg, size, param, flags, protocol,
-				       rdclass, mctx, &key);
+		if (!quiet && show_progress) {
+			fprintf(stderr, "Generating key pair.");
+			ret = dst_key_generate2(name, alg, size, param, flags,
+						protocol, rdclass, mctx, &key,
+						&progress);
+			putc('\n', stderr);
+			fflush(stderr);
+		} else {
+			ret = dst_key_generate2(name, alg, size, param, flags,
+						protocol, rdclass, mctx, &key,
+						NULL);
+		}
+
 		isc_entropy_stopcallbacksources(ectx);
 
 		if (ret != ISC_R_SUCCESS) {
@@ -759,8 +829,7 @@ main(int argc, char **argv) {
 		if (conflict == ISC_TRUE) {
 			if (verbose > 0) {
 				isc_buffer_clear(&buf);
-				ret = dst_key_buildfilename(key, 0, directory,
-							    &buf);
+				dst_key_buildfilename(key, 0, directory, &buf);
 				fprintf(stderr,
 					"%s: %s already exists, "
 					"generating a new key\n",
@@ -768,7 +837,6 @@ main(int argc, char **argv) {
 			}
 			dst_key_free(&key);
 		}
-
 	} while (conflict == ISC_TRUE);
 
 	if (conflict)

@@ -31,7 +31,7 @@
 
 /*
  * Principal Author: Brian Wellington
- * $Id: dst_api.c,v 1.41 2009/10/12 20:48:12 each Exp $
+ * $Id: dst_api.c,v 1.45 2009/10/27 22:25:37 marka Exp $
  */
 
 /*! \file */
@@ -201,9 +201,16 @@ dst_lib_init2(isc_mem_t *mctx, isc_entropy_t *ectx,
 	RETERR(dst__hmacsha512_init(&dst_t_func[DST_ALG_HMACSHA512]));
 #ifdef OPENSSL
 	RETERR(dst__openssl_init(engine));
-	RETERR(dst__opensslrsa_init(&dst_t_func[DST_ALG_RSAMD5]));
-	RETERR(dst__opensslrsa_init(&dst_t_func[DST_ALG_RSASHA1]));
-	RETERR(dst__opensslrsa_init(&dst_t_func[DST_ALG_NSEC3RSASHA1]));
+	RETERR(dst__opensslrsa_init(&dst_t_func[DST_ALG_RSAMD5],
+				    DST_ALG_RSAMD5));
+	RETERR(dst__opensslrsa_init(&dst_t_func[DST_ALG_RSASHA1],
+				    DST_ALG_RSASHA1));
+	RETERR(dst__opensslrsa_init(&dst_t_func[DST_ALG_NSEC3RSASHA1],
+				    DST_ALG_NSEC3RSASHA1));
+	RETERR(dst__opensslrsa_init(&dst_t_func[DST_ALG_RSASHA256],
+				    DST_ALG_RSASHA256));
+	RETERR(dst__opensslrsa_init(&dst_t_func[DST_ALG_RSASHA512],
+				    DST_ALG_RSASHA512));
 #ifdef HAVE_OPENSSL_DSA
 	RETERR(dst__openssldsa_init(&dst_t_func[DST_ALG_DSA]));
 	RETERR(dst__openssldsa_init(&dst_t_func[DST_ALG_NSEC3DSA]));
@@ -751,6 +758,18 @@ dst_key_generate(dns_name_t *name, unsigned int alg,
 		 dns_rdataclass_t rdclass,
 		 isc_mem_t *mctx, dst_key_t **keyp)
 {
+	return (dst_key_generate2(name, alg, bits, param, flags, protocol,
+				  rdclass, mctx, keyp, NULL));
+}
+
+isc_result_t
+dst_key_generate2(dns_name_t *name, unsigned int alg,
+		  unsigned int bits, unsigned int param,
+		  unsigned int flags, unsigned int protocol,
+		  dns_rdataclass_t rdclass,
+		  isc_mem_t *mctx, dst_key_t **keyp,
+		  void (*callback)(int))
+{
 	dst_key_t *key;
 	isc_result_t ret;
 
@@ -776,7 +795,7 @@ dst_key_generate(dns_name_t *name, unsigned int alg,
 		return (DST_R_UNSUPPORTEDALG);
 	}
 
-	ret = key->func->generate(key, param);
+	ret = key->func->generate(key, param, callback);
 	if (ret != ISC_R_SUCCESS) {
 		dst_key_free(&key);
 		return (ret);
@@ -1045,6 +1064,8 @@ dst_key_sigsize(const dst_key_t *key, unsigned int *n) {
 	case DST_ALG_RSAMD5:
 	case DST_ALG_RSASHA1:
 	case DST_ALG_NSEC3RSASHA1:
+	case DST_ALG_RSASHA256:
+	case DST_ALG_RSASHA512:
 		*n = (key->key_size + 7) / 8;
 		break;
 	case DST_ALG_DSA:
@@ -1300,6 +1321,8 @@ issymmetric(const dst_key_t *key) {
 	case DST_ALG_RSAMD5:
 	case DST_ALG_RSASHA1:
 	case DST_ALG_NSEC3RSASHA1:
+	case DST_ALG_RSASHA256:
+	case DST_ALG_RSASHA512:
 	case DST_ALG_DSA:
 	case DST_ALG_NSEC3DSA:
 	case DST_ALG_DH:
@@ -1545,7 +1568,8 @@ algorithm_status(unsigned int alg) {
 	if (alg == DST_ALG_RSAMD5 || alg == DST_ALG_RSASHA1 ||
 	    alg == DST_ALG_DSA || alg == DST_ALG_DH ||
 	    alg == DST_ALG_HMACMD5 || alg == DST_ALG_NSEC3DSA ||
-	    alg == DST_ALG_NSEC3RSASHA1)
+	    alg == DST_ALG_NSEC3RSASHA1 ||
+	    alg == DST_ALG_RSASHA256 || alg == DST_ALG_RSASHA512)
 		return (DST_R_NOCRYPTO);
 #endif
 	return (DST_R_UNSUPPORTEDALG);
@@ -1581,6 +1605,9 @@ isc_result_t
 dst__entropy_getdata(void *buf, unsigned int len, isc_boolean_t pseudo) {
 #ifdef BIND9
 	unsigned int flags = dst_entropy_flags;
+
+	if (len == 0)
+		return (ISC_R_SUCCESS);
 	if (pseudo)
 		flags &= ~ISC_ENTROPY_GOODONLY;
 	else
@@ -1598,6 +1625,23 @@ dst__entropy_getdata(void *buf, unsigned int len, isc_boolean_t pseudo) {
 unsigned int
 dst__entropy_status(void) {
 #ifdef BIND9
+#ifdef GSSAPI
+	unsigned int flags = dst_entropy_flags;
+	isc_result_t ret;
+	unsigned char buf[32];
+	static isc_boolean_t first = ISC_TRUE;
+
+	if (first) {
+		/* Someone believes RAND_status() initializes the PRNG */
+		flags &= ~ISC_ENTROPY_GOODONLY;
+		ret = isc_entropy_getdata(dst_entropy_pool, buf,
+					  sizeof(buf), NULL, flags);
+		INSIST(ret == ISC_R_SUCCESS);
+		isc_entropy_putdata(dst_entropy_pool, buf,
+				    sizeof(buf), 2 * sizeof(buf));
+		first = ISC_FALSE;
+	}
+#endif
 	return (isc_entropy_status(dst_entropy_pool));
 #else
 	return (0);

@@ -676,8 +676,11 @@ dns_view_freezezones
 dns_view_getpeertsig
 dns_view_getresquerystats
 dns_view_getresstats
+dns_view_getsecroots
 dns_view_gettsig
+dns_view_initsecroots
 dns_view_iscacheshared
+dns_view_issecuredomain
 dns_view_load
 dns_view_loadnew
 dns_view_setcache
@@ -881,6 +884,7 @@ dst_key_fromgssapi
 dst_key_fromlabel
 dst_key_fromnamedfile
 dst_key_generate
+dst_key_generate2
 dst_key_getprivateformat
 dst_key_gettime
 dst_key_id

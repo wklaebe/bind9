@@ -20,6 +20,7 @@
 1750:	Randomness Recommendations for Security
 1876:	A Means for Expressing Location Information in the Domain Name System
 1886:	DNS Extensions to support IP version 6
+1912:	Common DNS Operational and Configuration Errors
 1982:	Serial Number Arithmetic
 1995:	Incremental Zone Transfer in DNS
 1996:	A Mechanism for Prompt Notification of Zone Changes (DNS NOTIFY)
@@ -120,5 +121,5 @@
          Dynamic Host Configuration Protocol (DHCP) Information (DHCID RR)
 4892:	Requirements for a Mechanism Identifying a Name Server Instance
 5155:	DNS Security (DNSSEC) Hashed Authenticated Denial of Existence
-5295:	Host Identity Protocol (HIP) Domain Name System (DNS) Extension
+5205:	Host Identity Protocol (HIP) Domain Name System (DNS) Extension
 5507:	Design Choices When Expanding the DNS

@@ -1,3 +1,102 @@
+	--- 9.7.0b2 released ---
+
+2742.	[cleanup]	Clarify some DNSSEC-related log messages in
+			validator.c. [RT #19589]
+
+2741.	[func]		Allow the dnssec-keygen progress messages to be
+			suppressed (dnssec-keygen -q).  Automatically 
+			suppress the progress messages when stdin is not
+			a tty. [RT #20474]
+
+2740.	[placeholder]
+
+2739.	[cleanup]	Clean up API for initializing and clearing trust
+			anchors for a view. [RT #20211]
+
+2738.	[func]		Add RSASHA256 and RSASHA512 tests to the dnssec system
+			test. [RT #20453]
+
+2737.	[func]		UPDATE requests can leak existance information.
+			[RT #17261]
+
+2736.	[func]		Improve the performance of NSEC signed zones with
+			more than a normal amount of glue below a delegation.
+			[RT #20191]
+
+2735.	[bug]		dnssec-signzone could fail to read keys
+			that were specified on the command line with
+			full paths, but weren't in the current
+			directory. [RT #20421]
+
+2734.	[port]		cygwin: arpaname did not compile. [RT #20473]
+
+2733.	[cleanup]	Clean up coding style in pkcs11-* tools. [RT #20355]
+
+2732.	[func]		Add optional filter-aaaa-on-v4 option, available
+			if built with './configure --enable-filter-aaaa'.
+			Filters out AAAA answers to clients connecting
+			via IPv4.  (This is NOT recommended for general
+			use.) [RT #20339]
+
+2731.	[func]		Additional work on change 2709.  The key parser
+			will now ignore unrecognized fields when the
+			minor version number of the private key format
+			has been increased.  It will reject any key with
+			the major version number increased. [RT #20310]
+
+2730.	[func]		Have dnssec-keygen display a progress indication
+			a la 'openssl genrsa' on standard error. Note
+			when the first '.' is followed by a long stop
+			one has the choice between slow generation vs.
+			poor random quality, i.e., '-r /dev/urandom'.
+			[RT #20284]
+
+2729.	[func]		When constructing a CNAME from a DNAME use the DNAME
+			TTL. [RT #20451]
+
+2728.	[bug]		dnssec-keygen, dnssec-keyfromlabel and
+			dnssec-signzone now warn immediately if asked to
+			write into a nonexistent directory. [RT #20278]
+
+2727.	[func]		The 'key-directory' option can now specify a relative
+			path. [RT #20154]
+
+2726.	[func]		Added support for SHA-2 DNSSEC algorithms,
+			RSASHA256 and RSASHA512. [RT #20023]
+
+2725.	[doc]		Added information about the file "managed-keys.bind"
+			to the ARM. [RT #20235]
+
+2724.	[bug]		Updates to a existing node in secure zone using NSEC
+			were failing. [RT #20448]
+
+2723.	[bug]		isc_base32_totext(), isc_base32hex_totext(), and
+			isc_base64_totext(), didn't always mark regions of
+			memory as fully consumed after conversion.  [RT #20445]
+
+2722.	[bug]		Ensure that the memory associated with the name of
+			a node in a rbt tree is not altered during the life
+			of the node. [RT #20431]
+
+2721.	[port]		Have dst__entropy_status() prime the random number
+			generator. [RT #20369]
+
+2720.	[bug]		RFC 5011 trust anchor updates could trigger an
+			assert if the DNSKEY record was unsigned. [RT #20406]
+
+2719.	[func]		Skip trusted/managed keys for unsupported algorithms.
+			[RT #20392]
+
+2718.	[bug]		The space calculations in opensslrsa_todns() were
+			incorrect. [RT #20394]
+
+2717.	[bug]		named failed to update the NSEC/NSEC3 record when
+			the last private type record was removed as a result
+			of completing the signing the zone with a key.
+			[RT #20399]
+
+2716.	[bug]		nslookup debug mode didn't return the ttl. [RT #20414]
+
 	--- 9.7.0b1 released ---
 
 2715.	[bug]		Require OpenSSL support to be explicitly disabled.

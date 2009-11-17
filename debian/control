@@ -31,6 +31,7 @@ Description: Utilities for BIND
 Package: bind9-doc
 Architecture: all
 Section: doc
+Depends: ${misc:Depends}
 Description: Documentation for BIND
  This package provides various documents that are useful for maintaining a
  working BIND installation.

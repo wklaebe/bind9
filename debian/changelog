@@ -1,3 +1,18 @@
+bind9 (1:9.7.0.dfsg~b2-1) experimental; urgency=low
+
+  [Internet Software Consortium, Inc]
+
+  * 9.7.0b2
+
+  [LaMont Jones]
+
+  * /etc/bind/bind.keys need not be executable.
+  * bind9: drop old stale code from postinst
+  * prerm: do not stop named on upgrade.  Closes: #542888
+  * Drop some RFCs that crept into the diff.
+
+ -- LaMont Jones <lamont@debian.org>  Mon, 16 Nov 2009 18:53:24 -0700
+
 bind9 (1:9.7.0~a1.dfsg-0) experimental; urgency=low
 
   [Internet Software Consortium, Inc]

@@ -1,3 +1,9 @@
+bind9 (1:9.7.0.dfsg~b2-2) experimental; urgency=low
+
+  * dnsutils: remove pre-sarge dpkg-divert calls in postinst
+
+ -- LaMont Jones <lamont@debian.org>  Tue, 17 Nov 2009 22:42:40 -0600
+
 bind9 (1:9.7.0.dfsg~b2-1) experimental; urgency=low
 
   [Internet Software Consortium, Inc]

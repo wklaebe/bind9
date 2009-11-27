@@ -1,3 +1,24 @@
+bind9 (1:9.6.1.dfsg.P2-1) unstable; urgency=low
+
+  [Internet Software Consortium, Inc]
+
+  * 9.6.1-P2
+    - When validating, track whether pending data was from the
+      additional section or not and only return it if validates
+      as secure. [RT #20438] CVE-2009-4022
+
+  [LaMont Jones]
+
+  * prerm: do not stop named on upgrade.  Closes: #542888
+  * Drop some RFCs that crept into the diff.
+  * meta: add ${misc:Depends}
+  * lintian: update config.guess, config.sub in idnkit-1.0 tree
+  * dnsutils: remove pre-sarge dpkg-divert calls in postinst
+  * meta: soname changes
+  * l10n: missing newline in pofile.
+
+ -- LaMont Jones <lamont@debian.org>  Fri, 27 Nov 2009 10:07:10 -0700
+
 bind9 (1:9.6.1.dfsg.P1-3) unstable; urgency=low
 
   * Build-Depend on the fixed libgeoip-dev.  Closes: #540973

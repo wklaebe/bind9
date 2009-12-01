@@ -1,3 +1,124 @@
+	--- 9.7.0b3 released ---
+
+2785.	[bug]		Revoked keys could fail to self-sign [RT #20652]
+
+2784.	[bug]		TC was not always being set when required glue was
+			dropped. [RT #20655]
+
+2783.	[func]		Return minimal responses to EDNS/UDP queries with a UDP
+			buffer size of 512 or less.  [RT #20654]
+
+2782.	[port]		win32: use getaddrinfo() for hostname lookups.
+			[RT #20650]
+
+2781.	[bug]		Inactive keys could be used for signing. [RT #20649]
+
+2780.	[bug]		dnssec-keygen -A none didn't properly unset the
+			activation date in all cases. [RT #20648]
+
+2779.	[bug]		Dynamic key revokation could fail. [RT #20644]
+
+2778.	[bug]		dnssec-signzone could fail when a key was revoked
+			without deleting the unrevoked version. [RT #20638]
+
+2777.	[contrib]	DLZ MYSQL auto reconnect support discovery was wrong.
+
+2776.	[bug]		Change #2762 was not correct. [RT #20647]
+
+2775.	[bug]		Accept RSASHA256 and RSASHA512 as NSEC3 compatible
+			in dnssec-keyfromlabel. [RT #20643]
+
+2774.	[bug]		Existing cache DB wasn't being reused after
+			reconfiguration. [RT #20629]
+
+2773.	[bug]		In autosigned zones, the SOA could be signed
+			with the KSK. [RT #20628]
+
+2772.	[security]	When validating, track whether pending data was from
+			the additional section or not and only return it if
+			validates as secure. [RT #20438]
+
+2771.	[bug]		dnssec-signzone: DNSKEY records could be
+			corrupted when importing from key files [RT #20624]
+
+2770.	[cleanup]	Add log messages to resolver.c to indicate events
+			causing FORMERR responses. [RT #20526]
+
+2769.	[cleanup]	Change #2742 was incomplete. [RT #19589]
+
+2768.	[bug]		dnssec-signzone: -S no longer implies -g [RT #20568]
+
+2767.	[bug]		named could crash on startup if a zone was
+			configured with auto-dnssec and there was no
+			key-directory. [RT #20615]
+
+2766.	[bug]		isc_socket_fdwatchpoke() should only update the
+			socketmgr state if the socket is not pending on a
+			read or write.  [RT #20603]
+
+2765.	[bug]		Skip masters for which the TSIG key cannot be found.
+			[RT #20595]
+
+2764.	[bug]		"rndc-confgen -a" could trigger a REQUIRE. [RT #20610]
+
+2763.	[bug]		"rndc sign" didn't create an NSEC chain. [RT #20591]
+
+2762.	[bug]		DLV validation failed with a local slave DLV zone.
+			[RT #20577]
+
+2761.	[cleanup]	Enable internal symbol table for backtrace only for
+			systems that are known to work.  Currently, BSD
+			variants, Linux and Solaris are supported. [RT# 20202]
+
+2760.	[cleanup]	Corrected named-compilezone usage summary. [RT #20533]
+
+2759.	[doc]		Add information about .jbk/.jnw files to 
+			the ARM. [RT #20303]
+
+2758.	[bug]		win32: Added a workaround for a windows 2008 bug
+			that could cause the UDP client handler to shut
+			down. [RT #19176]
+
+2757.	[bug]		dig: assertion failure could occur in connect
+			timeout. [RT #20599]
+
+2756.	[bug]		Fixed corrupt logfile message in update.c. [RT# 20597]
+
+2755.	[placeholder]
+
+2754.	[bug]		Secure-to-insecure transitions failed when zone
+			was signed with NSEC3. [RT #20587]
+
+2753.	[bug]		Removed an unnecessary warning that could appear when
+			building an NSEC chain. [RT #20588]
+
+2752.	[bug]		Locking violation. [RT #20587]
+
+2751.	[bug]		Fixed a memory leak in dnssec-keyfromlabel. [RT #20588]
+
+2750.	[bug]		dig: assertion failure could occur when a server
+			didn't have an address. [RT #20579]
+
+2749.	[bug]		ixfr-from-differences generated a non-minimal ixfr
+			for NSEC3 signed zones. [RT #20452]
+
+2748.	[func]		Identify bad answers from GTLD servers and treat them
+			as referrals. [RT #18884]
+
+2747.	[bug]		Journal roll forwards failed to set the re-signing
+			time of RRSIGs correctly. [RT #20541]
+
+2746.	[port]		hpux: address signed/unsigned expansion mismatch of
+			dns_rbtnode_t.nsec. [RT #20542]
+
+2745.	[bug]		configure script didn't probe the return type of
+			gai_strerror(3) correctly. [RT #20573]
+
+2744.	[func]		Log if a query was over TCP. [RT #19961]
+
+2743.	[bug]		RRSIG could be incorrectly set in the NSEC3 record
+			for a insecure delegation.
+
 	--- 9.7.0b2 released ---
 
 2742.	[cleanup]	Clarify some DNSSEC-related log messages in

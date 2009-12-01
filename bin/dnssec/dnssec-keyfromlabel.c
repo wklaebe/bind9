@@ -14,7 +14,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dnssec-keyfromlabel.c,v 1.25 2009/10/27 18:56:48 each Exp $ */
+/* $Id: dnssec-keyfromlabel.c,v 1.28 2009/11/23 02:55:40 each Exp $ */
 
 /*! \file */
 
@@ -197,7 +197,7 @@ main(int argc, char **argv) {
 			options |= DST_TYPE_KEY;
 			break;
 		case 'l':
-			label = isc_commandline_argument;
+			label = isc_mem_strdup(mctx, isc_commandline_argument);
 			break;
 		case 'n':
 			nametype = isc_commandline_argument;
@@ -320,8 +320,11 @@ main(int argc, char **argv) {
 		int len;
 
 		len = strlen(label) + strlen(engine) + 2;
-		l = isc_mem_get(mctx, len);
+		l = isc_mem_allocate(mctx, len);
+		if (l == NULL)
+			fatal("cannot allocate memory");
 		snprintf(l, len, "%s:%s", engine, label);
+		isc_mem_free(mctx, label);
 		label = l;
 	}
 
@@ -351,7 +354,8 @@ main(int argc, char **argv) {
 	}
 
 	if (use_nsec3 &&
-	    alg != DST_ALG_NSEC3DSA && alg != DST_ALG_NSEC3RSASHA1) {
+	    alg != DST_ALG_NSEC3DSA && alg != DST_ALG_NSEC3RSASHA1 &&
+	    alg != DST_ALG_RSASHA256 && alg != DST_ALG_RSASHA512) {
 		fatal("%s is incompatible with NSEC3; "
 		      "do not use the -3 option", algname);
 	}
@@ -457,12 +461,14 @@ main(int argc, char **argv) {
 
 		if (setpub)
 			dst_key_settime(key, DST_TIME_PUBLISH, publish);
-		else if (!genonly)
+		else if (setact)
+			dst_key_settime(key, DST_TIME_PUBLISH, activate);
+		else if (!genonly && !unsetpub)
 			dst_key_settime(key, DST_TIME_PUBLISH, now);
 
 		if (setact)
 			dst_key_settime(key, DST_TIME_ACTIVATE, activate);
-		else if (!genonly)
+		else if (!genonly && !unsetact)
 			dst_key_settime(key, DST_TIME_ACTIVATE, now);
 
 		if (setrev) {
@@ -525,6 +531,7 @@ main(int argc, char **argv) {
 	dns_name_destroy();
 	if (verbose > 10)
 		isc_mem_stats(mctx, stdout);
+	isc_mem_free(mctx, label);
 	isc_mem_destroy(&mctx);
 
 	return (0);

@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: query.c,v 1.330 2009/10/26 23:47:35 tbox Exp $ */
+/* $Id: query.c,v 1.333 2009/11/24 03:09:57 marka Exp $ */
 
 /*! \file */
 
@@ -115,6 +115,8 @@
 #define DNS_GETDB_NOEXACT 0x01U
 #define DNS_GETDB_NOLOG 0x02U
 #define DNS_GETDB_PARTIAL 0x04U
+
+#define PENDINGOK(x)	(((x) & DNS_DBFIND_PENDINGOK) != 0)
 
 typedef struct client_additionalctx {
 	ns_client_t *client;
@@ -1761,8 +1763,8 @@ query_addadditional2(void *arg, dns_name_t *name, dns_rdatatype_t qtype) {
 	 */
 	if (result == ISC_R_SUCCESS &&
 	    additionaltype == dns_rdatasetadditional_fromcache &&
-	    (rdataset->trust == dns_trust_pending ||
-	     rdataset->trust == dns_trust_glue) &&
+	    (DNS_TRUST_PENDING(rdataset->trust) ||
+	     DNS_TRUST_GLUE(rdataset->trust)) &&
 	    !validate(client, db, fname, rdataset, sigrdataset)) {
 		dns_rdataset_disassociate(rdataset);
 		if (dns_rdataset_isassociated(sigrdataset))
@@ -1801,8 +1803,8 @@ query_addadditional2(void *arg, dns_name_t *name, dns_rdatatype_t qtype) {
 	 */
 	if (result == ISC_R_SUCCESS &&
 	    additionaltype == dns_rdatasetadditional_fromcache &&
-	    (rdataset->trust == dns_trust_pending ||
-	     rdataset->trust == dns_trust_glue) &&
+	    (DNS_TRUST_PENDING(rdataset->trust) ||
+	     DNS_TRUST_GLUE(rdataset->trust)) &&
 	    !validate(client, db, fname, rdataset, sigrdataset)) {
 		dns_rdataset_disassociate(rdataset);
 		if (dns_rdataset_isassociated(sigrdataset))
@@ -2602,14 +2604,14 @@ query_addbestns(ns_client_t *client) {
 	/*
 	 * Attempt to validate RRsets that are pending or that are glue.
 	 */
-	if ((rdataset->trust == dns_trust_pending ||
-	     (sigrdataset != NULL && sigrdataset->trust == dns_trust_pending))
+	if ((DNS_TRUST_PENDING(rdataset->trust) ||
+	     (sigrdataset != NULL && DNS_TRUST_PENDING(sigrdataset->trust)))
 	    && !validate(client, db, fname, rdataset, sigrdataset) &&
-	    (client->query.dboptions & DNS_DBFIND_PENDINGOK) == 0)
+	    !PENDINGOK(client->query.dboptions))
 		goto cleanup;
 
-	if ((rdataset->trust == dns_trust_glue ||
-	     (sigrdataset != NULL && sigrdataset->trust == dns_trust_glue)) &&
+	if ((DNS_TRUST_GLUE(rdataset->trust) ||
+	     (sigrdataset != NULL && DNS_TRUST_GLUE(sigrdataset->trust))) &&
 	    !validate(client, db, fname, rdataset, sigrdataset) &&
 	    SECURE(client) && WANTDNSSEC(client))
 		goto cleanup;
@@ -3733,6 +3735,8 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype)
 	dns_rdataset_t *noqname;
 	isc_boolean_t resuming;
 	int line = -1;
+	dns_rdataset_t tmprdataset;
+	unsigned int dboptions;
 
 	CTRACE("query_find");
 
@@ -3950,9 +3954,49 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype)
 	/*
 	 * Now look for an answer in the database.
 	 */
+	dboptions = client->query.dboptions;
+	if (sigrdataset == NULL && client->view->enablednssec) {
+		/*
+		 * If the client doesn't want DNSSEC we still want to
+		 * look for any data pending validation to save a remote
+		 * lookup if possible.
+		 */
+		dns_rdataset_init(&tmprdataset);
+		sigrdataset = &tmprdataset;
+		dboptions |= DNS_DBFIND_PENDINGOK;
+	}
+ refind:
 	result = dns_db_find(db, client->query.qname, version, type,
-			     client->query.dboptions, client->now,
-			     &node, fname, rdataset, sigrdataset);
+			     dboptions, client->now, &node, fname,
+			     rdataset, sigrdataset);
+	/*
+	 * If we have found pending data try to validate it.
+	 * If the data does not validate as secure and we can't
+	 * use the unvalidated data requery the database with
+	 * pending disabled to prevent infinite looping.
+	 */
+	if (result != ISC_R_SUCCESS || !DNS_TRUST_PENDING(rdataset->trust))
+		goto validation_done;
+	if (validate(client, db, fname, rdataset, sigrdataset))
+		goto validation_done;
+	if (rdataset->trust != dns_trust_pending_answer ||
+	    !PENDINGOK(client->query.dboptions)) {
+		dns_rdataset_disassociate(rdataset);
+		if (sigrdataset != NULL &&
+		    dns_rdataset_isassociated(sigrdataset))
+			dns_rdataset_disassociate(sigrdataset);
+		if (sigrdataset == &tmprdataset)
+			sigrdataset = NULL;
+		dns_db_detachnode(db, &node);
+		dboptions &= ~DNS_DBFIND_PENDINGOK;
+		goto refind;
+	}
+ validation_done:
+	if (sigrdataset == &tmprdataset) {
+		if (dns_rdataset_isassociated(sigrdataset))
+			dns_rdataset_disassociate(sigrdataset);
+		sigrdataset = NULL;
+	}
 
  resume:
 	CTRACE("query_find: resume");
@@ -5073,10 +5117,12 @@ log_query(ns_client_t *client, unsigned int flags, unsigned int extflags) {
 	isc_netaddr_format(&client->destaddr, onbuf, sizeof(onbuf));
 
 	ns_client_log(client, NS_LOGCATEGORY_QUERIES, NS_LOGMODULE_QUERY,
-		      level, "query: %s %s %s %s%s%s%s%s (%s)", namebuf,
+		      level, "query: %s %s %s %s%s%s%s%s%s (%s)", namebuf,
 		      classname, typename, WANTRECURSION(client) ? "+" : "-",
 		      (client->signer != NULL) ? "S": "",
 		      (client->opt != NULL) ? "E" : "",
+		      ((client->attributes & NS_CLIENTATTR_TCP) != 0) ?
+				 "T" : "",
 		      ((extflags & DNS_MESSAGEEXTFLAG_DO) != 0) ? "D" : "",
 		      ((flags & DNS_MESSAGEFLAG_CD) != 0) ? "C" : "",
 		      onbuf);
@@ -5260,6 +5306,14 @@ ns_query_start(ns_client_t *client) {
 	 * Turn on minimal response for DNSKEY and DS queries.
 	 */
 	if (qtype == dns_rdatatype_dnskey || qtype == dns_rdatatype_ds)
+		client->query.attributes |= (NS_QUERYATTR_NOAUTHORITY |
+					     NS_QUERYATTR_NOADDITIONAL);
+
+	/*
+	 * Turn on minimal responses for EDNS/UDP bufsize 512 queries.
+	 */
+	if (client->opt != NULL && client->udpsize <= 512U &&
+	    (client->attributes & NS_CLIENTATTR_TCP) == 0)
 		client->query.attributes |= (NS_QUERYATTR_NOAUTHORITY |
 					     NS_QUERYATTR_NOADDITIONAL);
 

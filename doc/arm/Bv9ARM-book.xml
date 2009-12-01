@@ -18,7 +18,7 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<!-- File: $Id: Bv9ARM-book.xml,v 1.440 2009/10/26 23:14:53 each Exp $ -->
+<!-- File: $Id: Bv9ARM-book.xml,v 1.445 2009/11/10 19:49:32 each Exp $ -->
 <book xmlns:xi="http://www.w3.org/2001/XInclude">
   <title>BIND 9 Administrator Reference Manual</title>
 
@@ -1727,6 +1727,11 @@ controls {
           each dynamic update, because that would be too slow when a large
           zone is updated frequently.  Instead, the dump is delayed by
           up to 15 minutes, allowing additional updates to take place.
+          During the dump process, transient files will be created
+          with the extensions <filename>.jnw</filename> and
+          <filename>.jbk</filename>; under ordinary circumstances, these
+          will be removed when the dump is complete, and can be safely
+          ignored.
         </para>
 
         <para>
@@ -4411,10 +4416,11 @@ category notify { null; };
 		      class and type.  Next it reports whether the
 		      Recursion Desired flag was set (+ if set, -
 		      if not set), if the query was signed (S),
-		      EDNS was in use (E), if DO (DNSSEC Ok) was
-		      set (D), or if CD (Checking Disabled) was set
-		      (C).  After this the destination address the
-		      query was sent to is reported.
+		      EDNS was in use (E), if TCP was used (T), if
+		      DO (DNSSEC Ok) was set (D), or if CD (Checking
+		      Disabled) was set (C).  After this the
+		      destination address the query was sent to is
+		      reported.
 		    </para>
 
                     <para>
@@ -4938,7 +4944,7 @@ badresp:1,adberr:0,findfail:0,valfail:0]
         <optional> port ( <replaceable>ip_port</replaceable> | <replaceable>*</replaceable> ) </optional> ) ; </optional>
     <optional> use-queryport-pool <replaceable>yes_or_no</replaceable>; </optional>
     <optional> queryport-pool-ports <replaceable>number</replaceable>; </optional>
-    <optional> queryport-pool-interval <replaceable>number</replaceable>; </optional>
+    <optional> queryport-pool-updateinterval <replaceable>number</replaceable>; </optional>
     <optional> max-transfer-time-in <replaceable>number</replaceable>; </optional>
     <optional> max-transfer-time-out <replaceable>number</replaceable>; </optional>
     <optional> max-transfer-idle-in <replaceable>number</replaceable>; </optional>
@@ -5000,8 +5006,7 @@ badresp:1,adberr:0,findfail:0,valfail:0]
     <optional> random-device <replaceable>path_name</replaceable> ; </optional>
     <optional> max-cache-size <replaceable>size_spec</replaceable> ; </optional>
     <optional> match-mapped-addresses <replaceable>yes_or_no</replaceable>; </optional>
-    <optional> match-mapped-addresses <replaceable>yes_or_no</replaceable>; </optional>
-    <optional> disable-aaaa-on-v4-transport ( <replaceable>yes_or_no</replaceable> | <replaceable>break-dnssec</replaceable> ); </optional>
+    <optional> filter-aaaa-on-v4 ( <replaceable>yes_or_no</replaceable> | <replaceable>break-dnssec</replaceable> ); </optional>
     <optional> preferred-glue ( <replaceable>A</replaceable> | <replaceable>AAAA</replaceable> | <replaceable>NONE</replaceable> ); </optional>
     <optional> edns-udp-size <replaceable>number</replaceable>; </optional>
     <optional> max-udp-size <replaceable>number</replaceable>; </optional>
@@ -6240,7 +6245,7 @@ options {
                 <para>
                   This option is only available when
                   <acronym>BIND</acronym> 9 is compiled with the
-                  <userinput>--with-filter-aaaa</userinput> option on the
+                  <userinput>--enable-filter-aaaa</userinput> option on the
                   "configure" command line.  It is intended to help the
                   transition from IPv4 to IPv6 by not giving IPv6 addresses
                   to DNS clients unless they have connections to the IPv6
@@ -6280,9 +6285,6 @@ options {
 		  Some AAAA records are given to IPv4 clients in glue records.
 		  IPv4 clients that are servers can then erroneously
 		  answer requests for AAAA records received via IPv4.
-                </para>
-                <para>
-		  security
                 </para>
               </listitem>
             </varlistentry>
@@ -8878,7 +8880,7 @@ deny-answer-aliases { "example.net"; };
                      <optional> port ( <replaceable>ip_port</replaceable> | <replaceable>*</replaceable> ) </optional>; </optional>
     <optional> use-queryport-pool <replaceable>yes_or_no</replaceable>; </optional>
     <optional> queryport-pool-ports <replaceable>number</replaceable>; </optional>
-    <optional> queryport-pool-interval <replaceable>number</replaceable>; </optional>
+    <optional> queryport-pool-updateinterval <replaceable>number</replaceable>; </optional>
 };
 </programlisting>
 

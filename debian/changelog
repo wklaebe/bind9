@@ -1,3 +1,16 @@
+bind9 (1:9.7.0.dfsg~b3-1) experimental; urgency=low
+
+  [Internet Software Consortium, Inc]
+
+  * 9.7.0b3
+
+  [LaMont Jones]
+
+  * Merge remote branch 'origin/master'
+  * soname changes
+
+ -- LaMont Jones <lamont@debian.org>  Mon, 30 Nov 2009 21:07:58 -0700
+
 bind9 (1:9.7.0.dfsg~b2-2) experimental; urgency=low
 
   * dnsutils: remove pre-sarge dpkg-divert calls in postinst

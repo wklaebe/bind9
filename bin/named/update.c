@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: update.c,v 1.166 2009/10/27 05:42:25 marka Exp $ */
+/* $Id: update.c,v 1.171 2009/11/24 03:42:32 each Exp $ */
 
 #include <config.h>
 
@@ -310,6 +310,10 @@ checkqueryacl(ns_client_t *client, dns_acl_t *queryacl, dns_name_t *zonename,
 			      "update '%s/%s' denied due to allow-query",
 			      namebuf, classbuf);
 	} else if (updateacl == NULL && ssutable == NULL) {
+		dns_name_format(zonename, namebuf, sizeof(namebuf));
+		dns_rdataclass_format(client->view->rdclass, classbuf,
+				      sizeof(classbuf));
+
 		result = DNS_R_REFUSED;
 		ns_client_log(client, NS_LOGCATEGORY_UPDATE_SECURITY,
 			      NS_LOGMODULE_UPDATE, ISC_LOG_INFO,
@@ -1879,8 +1883,8 @@ add_sigs(ns_client_t *client, dns_zone_t *zone, dns_db_t *db,
 				  (isc_stdtime_t) 0, &rdataset, NULL));
 	dns_db_detachnode(db, &node);
 
-#define REVOKE(x) ((dst_key_flags(x) & DNS_KEYFLAG_REVOKE) == 1)
-#define KSK(x) ((dst_key_flags(x) & DNS_KEYFLAG_KSK) == 1)
+#define REVOKE(x) ((dst_key_flags(x) & DNS_KEYFLAG_REVOKE) != 0)
+#define KSK(x) ((dst_key_flags(x) & DNS_KEYFLAG_KSK) != 0)
 #define ALG(x) dst_key_alg(x)
 
 	/*
@@ -1922,7 +1926,7 @@ add_sigs(ns_client_t *client, dns_zone_t *zone, dns_db_t *db,
 			if (type == dns_rdatatype_dnskey) {
 				if (!KSK(keys[i]) && keyset_kskonly)
 					continue;
-			} else if (!KSK(keys[i]))
+			} else if (KSK(keys[i]))
 				continue;
 		} else if (REVOKE(keys[i]) && type != dns_rdatatype_dnskey)
 			continue;
@@ -3043,14 +3047,15 @@ check_dnssec(ns_client_t *client, dns_zone_t *zone, dns_db_t *db,
 	CHECK(dns_nsec_nseconly(db, ver, &flag));
 
 	if (flag)
-		CHECK(dns_nsec3_activex(db, ver, ISC_FALSE, privatetype, &flag));
+		CHECK(dns_nsec3_activex(db, ver, ISC_FALSE,
+					privatetype, &flag));
 	if (flag) {
 		update_log(client, zone, ISC_LOG_WARNING,
 			   "NSEC only DNSKEYs and NSEC3 chains not allowed");
 	} else {
 		CHECK(get_iterations(db, ver, privatetype, &iterations));
 		CHECK(dns_nsec3_maxiterations(db, ver, client->mctx, &max));
-		if (iterations > max) {
+		if (max != 0 && iterations > max) {
 			flag = ISC_TRUE;
 			update_log(client, zone, ISC_LOG_WARNING,
 				   "too many NSEC3 iterations (%u) for "
@@ -3923,6 +3928,7 @@ update_action(isc_task_t *task, isc_event_t *event) {
 				memcpy(buf, rdata.data, rdata.length);
 				buf[1] |= DNS_NSEC3FLAG_UPDATE;
 				rdata.data = buf;
+
 				/*
 				 * Force the TTL to zero for NSEC3PARAM records.
 				 */

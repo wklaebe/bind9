@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: cache.c,v 1.85 2009/09/01 00:22:26 jinmei Exp $ */
+/* $Id: cache.c,v 1.87 2009/11/12 23:43:02 each Exp $ */
 
 /*! \file */
 
@@ -470,7 +470,9 @@ dns_cache_load(dns_cache_t *cache) {
 
 isc_result_t
 dns_cache_dump(dns_cache_t *cache) {
+#ifdef BIND9
 	isc_result_t result;
+#endif
 
 	REQUIRE(VALID_CACHE(cache));
 
@@ -482,11 +484,11 @@ dns_cache_dump(dns_cache_t *cache) {
 	result = dns_master_dump(cache->mctx, cache->db, NULL,
 				 &dns_master_style_cache, cache->filename);
 	UNLOCK(&cache->filelock);
+	return (result);
 #else
 	return (ISC_R_NOTIMPLEMENTED);
 #endif
 
-	return (result);
 }
 
 void

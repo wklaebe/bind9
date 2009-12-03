@@ -54,7 +54,7 @@ Section: libdevel
 Architecture: any
 Conflicts: bind-dev
 Replaces: bind-dev
-Depends: ${misc:Depends}, libbind9-60 (= ${binary:Version}), liblwres60 (= ${binary:Version}) 
+Depends: ${misc:Depends}, libbind9-60, liblwres60 
 Description: Static Libraries and Headers used by BIND
  This package delivers archive-style libraries, header files, and API man
  pages for libbind, libdns, libisc, and liblwres.  These are only needed 
@@ -67,7 +67,7 @@ Priority: standard
 Architecture: any
 Conflicts: libbind0, libbind9-41
 Replaces: libbind0
-Depends: ${shlibs:Depends}, ${misc:Depends}, libdns62 (=${binary:Version}), libisccfg60 (=${binary:Version}), libisc60 (=${binary:Version})
+Depends: ${shlibs:Depends}, ${misc:Depends}, libdns62, libisccfg60, libisc60
 Description: BIND9 Shared Library used by BIND
  ${Description}
  .
@@ -80,7 +80,7 @@ Priority: standard
 Architecture: any
 Conflicts: libbind0, libbind9-41
 Replaces: libbind0
-Depends: ${shlibs:Depends}, ${misc:Depends}, libisc60 (=${binary:Version})
+Depends: ${shlibs:Depends}, ${misc:Depends}, libisc60
 Description: DNS Shared Library used by BIND
  ${Description}
  .
@@ -118,7 +118,7 @@ Section: libs
 Architecture: any
 Conflicts: libbind0, libbind9-41
 Replaces: libbind0
-Depends: ${shlibs:Depends}, ${misc:Depends}, libisc60 (=${binary:Version})
+Depends: ${shlibs:Depends}, ${misc:Depends}, libisc60
 Description: Command Channel Library used by BIND
  ${Description}
  .
@@ -130,7 +130,7 @@ Section: libs
 Architecture: any
 Conflicts: libbind0, libbind9-41
 Replaces: libbind0
-Depends: ${shlibs:Depends}, ${misc:Depends}, libdns62 (=${binary:Version}), libisccc60 (=${binary:Version}), libisc60 (=${binary:Version})
+Depends: ${shlibs:Depends}, ${misc:Depends}, libdns62, libisccc60, libisc60
 Description: Config File Handling Library used by BIND
  ${Description}
  .

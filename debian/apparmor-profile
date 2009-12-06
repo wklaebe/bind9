@@ -36,6 +36,7 @@
   /proc/*/net/if_inet6 r,
   /usr/sbin/named mr,
   /var/run/named/named.pid w,
+  /var/run/named/session.key w,
   # support for resolvconf
   /var/run/named/named.options r,
 

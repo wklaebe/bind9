@@ -1,3 +1,11 @@
+bind9 (1:9.7.0.dfsg~b3-2) experimental; urgency=low
+
+  * merge changes from 9.6.1.dfsg.P2-1
+  * meta: drop verisoned depends from library packages, for less upgrade pain
+  * apparmor: allow named to create /var/run/named/session.key
+
+ -- LaMont Jones <lamont@debian.org>  Sun, 06 Dec 2009 11:46:17 -0700
+
 bind9 (1:9.7.0.dfsg~b3-1) experimental; urgency=low
 
   [Internet Software Consortium, Inc]
@@ -10,6 +18,27 @@ bind9 (1:9.7.0.dfsg~b3-1) experimental; urgency=low
   * soname changes
 
  -- LaMont Jones <lamont@debian.org>  Mon, 30 Nov 2009 21:07:58 -0700
+
+bind9 (1:9.6.1.dfsg.P2-1) unstable; urgency=low
+
+  [Internet Software Consortium, Inc]
+
+  * 9.6.1-P2
+    - When validating, track whether pending data was from the
+      additional section or not and only return it if validates
+      as secure. [RT #20438] CVE-2009-4022
+
+  [LaMont Jones]
+
+  * prerm: do not stop named on upgrade.  Closes: #542888
+  * Drop some RFCs that crept into the diff.
+  * meta: add ${misc:Depends}
+  * lintian: update config.guess, config.sub in idnkit-1.0 tree
+  * dnsutils: remove pre-sarge dpkg-divert calls in postinst
+  * meta: soname changes
+  * l10n: missing newline in pofile.
+
+ -- LaMont Jones <lamont@debian.org>  Fri, 27 Nov 2009 10:07:10 -0700
 
 bind9 (1:9.7.0.dfsg~b2-2) experimental; urgency=low
 

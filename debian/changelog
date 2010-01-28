@@ -1,3 +1,9 @@
+bind9 (1:9.7.0.dfsg~rc2-1) experimental; urgency=low
+
+  * New upstream release
+
+ -- LaMont Jones <lamont@debian.org>  Thu, 28 Jan 2010 05:46:50 -0700
+
 bind9 (1:9.7.0.dfsg~b3-2) experimental; urgency=low
 
   * merge changes from 9.6.1.dfsg.P2-1

@@ -1,3 +1,130 @@
+	--- 9.7.0rc2 released ---
+
+2843.	[func]		Prevent dnssec-keygen and dnssec-keyfromlabel from
+			creating key files if there is a chance that the new
+			key ID will collide with an existing one after
+			either of the keys has been revoked.  (To override
+			this in the case of dnssec-keyfromlabel, use the -y
+			option.  dnssec-keygen will simply create a
+			different, noncolliding key, so an override is
+			not necessary.) [RT #20838]
+
+2842.	[func]		Added "smartsign" and improved "autosign" and
+			"dnssec" regression tests. [RT #20865]
+
+2841.	[bug]		Change 2836 was not complete. [RT #20883]
+
+2840.	[bug]		Temporary fixed pkcs11-destroy usage check.
+			[RT #20760]
+
+2839.	[bug]		A KSK revoked by named could not be deleted.
+			[RT #20881]
+
+2838.	[placeholder]
+
+2837.	[port]		Prevent Linux spurious warnings about fwrite().
+			[RT #20812]
+
+2836.	[bug]		Keys that were scheduled to become active could
+			be delayed. [RT #20874]
+
+2835.	[bug]		Key inactivity dates were inadvertently stored in
+			the private key file with the outdated tag
+			"Unpublish" rather than "Inactive".  This has been
+			fixed; however, any existing keys that had Inactive
+			dates set will now need to have them reset, using
+			'dnssec-settime -I'. [RT #20868]
+
+2834.	[bug]		HMAC-SHA* keys that were longer than the algorithm
+			digest length were used incorrectly, leading to
+			interoperability problems with other DNS
+			implementations.  This has been corrected.
+			(Note: If an oversize key is in use, and
+			compatibility is needed with an older release of
+			BIND, the new tool "isc-hmac-fixup" can convert
+			the key secret to a form that will work with all
+			versions.) [RT #20751]
+
+2833.	[cleanup]	Fix usage messages in dnssec-keygen and dnssec-settime.
+			[RT #20851]
+
+2832.	[bug]		Modify "struct stat" in lib/export/samples/nsprobe.c
+			to avoid redefinition in some OSes [RT 20831]
+
+2831.	[security]	Do not attempt to validate or cache
+			out-of-bailiwick data returned with a secure
+			answer; it must be re-fetched from its original
+			source and validated in that context. [RT #20819]
+
+2830.	[bug]		Changing the OPTOUT setting could take multiple
+			passes. [RT #20813]
+
+2829.	[bug]		Fixed potential node inconsistency in rbtdb.c.
+			[RT #20808]
+
+2828.	[security]	Cached CNAME or DNAME RR could be returned to clients
+			without DNSSEC validation. [RT #20737]
+
+2827.	[security]	Bogus NXDOMAIN could be cached as if valid. [RT #20712]
+
+2826.	[bug]		NSEC3->NSEC transitions could fail due to a lock not
+			being released.  [RT #20740]
+
+2825.	[bug]		Changing the setting of OPTOUT in a NSEC3 chain that
+			was in the process of being created was not properly
+			recorded in the zone. [RT #20786]
+
+2824.	[bug]		"rndc sign" was not being run by the correct task.
+			[RT #20759]
+
+2823.	[bug]		rbtdb.c:getsigningtime() was missing locks. [RT #20781]
+
+2822.	[bug]		rbtdb.c:loadnode() could return the wrong result.
+			[RT #20802]
+
+2821.	[doc]		Add note that named-checkconf doesn't automatically
+			read rndc.key and bind.keys [RT #20758]
+
+2819.	[cleanup]	Removed unnecessary DNS_POINTER_MAXHOPS define.
+			[RT #20771]
+
+2818.	[cleanup]	rndc could return an incorrect error code 
+			when a zone was not found. [RT #20767]
+
+2817.	[cleanup]	Removed unnecessary isc_tasc_endexclusive() calls.
+			[RT #20768]
+
+2816.	[bug]		previous_closest_nsec() could fail to return
+			data for NSEC3 nodes [RT #29730]
+
+2815.	[bug]		Exclusively lock the task when freezing a zone.
+			[RT #19838]
+
+2814.	[func]		Provide a definitive error message when a master
+			zone is not loaded. [RT #20757]
+ 
+2813.	[bug]		Better handling of unreadable DNSSEC key files.
+			[RT #20710]
+
+2812.	[bug]		Make sure updates can't result in a zone with
+			NSEC-only keys and NSEC3 records. [RT 20748]
+
+2811.	[cleanup]	Add "rndc sign" to list of commands in rndc usage
+			output. [RT #20733]
+
+2810.	[doc]		Clarified the process of transitioning an NSEC3 zone
+			to insecure. [RT #20746]
+
+2809.	[cleanup]	Restored accidentally-deleted text in usage output
+			in dnssec-settime and dnssec-revoke [RT #20739]
+
+2808.	[bug]		Remove the attempt to install atomic.h from lib/isc.
+			atomic.h is correctly installed by the architecture
+			specific subdirectories.  [RT #20722]
+
+2807.	[bug]		Fixed a possible ASSERT when reconfiguring zone
+			keys. [RT #20720]
+
 	--- 9.7.0rc1 released ---
 
 2806.	[bug]		"rdnc sign" could delay re-signing the DNSKEY

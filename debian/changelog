@@ -1,3 +1,9 @@
+bind9 (1:9.7.0.dfsg-1) unstable; urgency=low
+
+  * New upstream release
+
+ -- LaMont Jones <lamont@debian.org>  Wed, 17 Feb 2010 14:53:36 -0700
+
 bind9 (1:9.7.0.dfsg~rc2-1) experimental; urgency=low
 
   * New upstream release

@@ -25014,7 +25014,7 @@ _ACEOF
 		# LinuxThreads requires some changes to the way we
 		# deal with signals.
 		#
-		*-linux*)
+		*-linux*|*-kfreebsd*-gnu)
 			cat >>confdefs.h <<\_ACEOF
 #define HAVE_LINUXTHREADS 1
 _ACEOF

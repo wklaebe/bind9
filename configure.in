@@ -1102,7 +1102,7 @@ then
 		# LinuxThreads requires some changes to the way we
 		# deal with signals.
 		#
-		*-linux*)
+		*-linux*|*-kfreebsd*-gnu)
 			AC_DEFINE(HAVE_LINUXTHREADS)
 			;;
 		#

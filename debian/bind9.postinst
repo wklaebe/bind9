@@ -23,9 +23,8 @@ if [ "$1" = configure ]; then
 	rndc-confgen -r /dev/urandom -a
     fi
 
-    theirs=$(md5sum /etc/default/bind9)
-    if [ -e /etc/default/bind9 ] && \
-       [ "$(cat /usr/share/bind9/bind9-default.md5sum)" = "$theirs" ]; then
+    if [ -f /etc/default/bind9 ] && \
+       [ "$(cat /usr/share/bind9/bind9-default.md5sum)" = "$(md5sum /etc/default/bind9)" ]; then
         config="/etc/default/bind9"
     elif [ ! -e /etc/default/bind9 ]; then
         config="/etc/default/bind9"
@@ -37,9 +36,13 @@ if [ "$1" = configure ]; then
     if [ ! -f $config ]; then
 	CONF=/etc/bind/named.conf
 	for file in ${CONF} ${CONF}.local ${CONF}.default-zones; do
-	    theirs=$(md5sum $file | sed 's/ .*$//')
-	    mine=$(dpkg --status bind9 | grep "^ $file " | sed -n 's/.* //p')
-	    if [ "$mine" != "$theirs" ]; then
+	    if [ -f ${file} ]; then
+		theirs=$(md5sum $file | sed 's/ .*$//')
+		mine=$(dpkg --status bind9 | grep "^ $file " | sed -n 's/.* //p')
+		if [ "$mine" != "$theirs" ]; then
+		    localconf="y"
+		fi
+	    else
 		localconf="y"
 	    fi
 	done

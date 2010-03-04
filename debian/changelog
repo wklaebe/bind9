@@ -1,3 +1,15 @@
+bind9 (1:9.7.0.dfsg-2) unstable; urgency=low
+
+  [Aurelien Jarno]
+
+  * kfreebsd has linux threads.  Closes: #470500
+
+  [LaMont Jones]
+
+  * do not error out on initial install.  Closes: #572443
+
+ -- LaMont Jones <lamont@debian.org>  Thu, 04 Mar 2010 09:32:13 -0700
+
 bind9 (1:9.7.0.dfsg-1) unstable; urgency=low
 
   * New upstream release

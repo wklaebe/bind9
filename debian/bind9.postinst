@@ -116,8 +116,8 @@ if [ "$1" = configure ]; then
 	chgrp bind /etc/bind
 	chmod g+s /etc/bind
 	chgrp bind /etc/bind/rndc.key /var/run/named /var/cache/bind
-	chgrp bind /etc/bind/named.conf*
-	chmod g+r /etc/bind/rndc.key /etc/bind/named.conf*
+	chgrp bind /etc/bind/named.conf* || true
+	chmod g+r /etc/bind/rndc.key /etc/bind/named.conf* || true
 	chmod g+rwx /var/run/named /var/cache/bind
     fi
 

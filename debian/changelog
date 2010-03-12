@@ -1,3 +1,18 @@
+bind9 (1:9.7.0.dfsg.1-1) unstable; urgency=low
+
+  [Niko Tyni]
+
+  * fix mips/mipsel startup.  Closes: #516616
+
+  [LaMont Jones]
+
+  * ignore failures due to a lack of /etc/bind/named.conf*.  LP: #422968
+  * ldap API changed regarding % sign.  LP: #227344
+  * Drop more rfc and draft files.  Closes: #572606
+  * update config.guess, config.sub.  Closes: #572528
+
+ -- LaMont Jones <lamont@debian.org>  Fri, 12 Mar 2010 14:56:08 -0700
+
 bind9 (1:9.7.0.dfsg-2) unstable; urgency=low
 
   [Aurelien Jarno]

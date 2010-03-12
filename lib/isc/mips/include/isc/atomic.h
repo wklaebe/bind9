@@ -40,7 +40,7 @@ isc_atomic_xadd(isc_int32_t *p, int val) {
 	"	addu	%0, $1, %2	\n"
 	"	sc	%0, %1		\n"
 	"	beqz	%0, 1b		\n"
-	"	 addu	%0, $1, %2	\n"
+	"	move	%0, $1		\n"
 	"	.set	pop		\n"
 	: "=&r" (orig), "+R" (*p)
 	: "r" (val)
@@ -74,10 +74,10 @@ isc_atomic_cmpxchg(isc_int32_t *p, int cmpval, int val) {
 	"	.set	noat		\n"
 	"1:	ll	$1, %1		\n"
 	"	bne	$1, %3, 2f	\n"
-	"	 move	%2, %4		\n"
+	"	move	%2, %4		\n"
 	"	sc	%2, %1		\n"
 	"	beqz	%2, 1b		\n"
-	"2:	 move	%0, $1		\n"
+	"2:	move	%0, $1		\n"
 	"	.set	pop		\n"
 	: "=&r"(orig), "+R" (*p), "=r" (tmp)
 	: "r"(cmpval), "r"(val)

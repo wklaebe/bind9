@@ -1,3 +1,12 @@
+bind9 (1:9.7.0.dfsg.P1-1) unstable; urgency=low
+
+  [Internet Software Consortium, Inc]
+
+  * 9.7.0-P1
+    - 2852. [bug] Handle broken DNSSEC trust chains better. [RT #15619]
+
+ -- LaMont Jones <lamont@debian.org>  Wed, 17 Mar 2010 08:06:42 -0600
+
 bind9 (1:9.7.0.dfsg.1-1) unstable; urgency=low
 
   [Niko Tyni]

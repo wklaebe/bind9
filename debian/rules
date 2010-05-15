@@ -7,7 +7,7 @@ export DEB_BUILD_HARDENING=1
 #export DH_VERBOSE=1
 
 ifndef DEB_HOST_ARCH
-DEB_BUILD_ARCH := $(shell dpkg --print-installation-architecture)
+DEB_BUILD_ARCH := $(shell dpkg --print-architecture)
 endif
 export arch = $(DEB_HOST_ARCH)
 
@@ -22,6 +22,10 @@ OPT = -O2
 endif
 
 export CFLAGS=-fno-strict-aliasing -DDIG_SIGCHASE $(DEBUG) $(OPT)
+
+ifeq ($(DEB_HOST_ARCH_OS),kfreebsd)
+EXTRA_FEATURES=--disable-linux-caps --disable-threads
+endif
 
 configure: configure-stamp
 configure-stamp:
@@ -46,7 +50,9 @@ configure-stamp:
 		--with-dlz-ldap=yes \
 		--with-dlz-stub=yes \
 		--with-geoip=/usr \
-		--enable-ipv6
+		--enable-ipv6 \
+		$(EXTRA_FEATURES)
+
 	touch configure-stamp
 
 build: configure-stamp build-stamp

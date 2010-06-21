@@ -1,6 +1,14 @@
-bind9 (1:9.7.1.dfsg-0.1) unstable; urgency=low
+bind9 (1:9.7.1.dfsg-1) unstable; urgency=low
 
-  * New upstream release
+  [Internet Software Consortium, Inc]
+
+  * 9.7.1
+
+  [LaMont Jones]
+
+  * Add freebsd support.  Closes: #578447
+  * soname changes
+  * freshen root cache.  LP: #596363
 
  -- LaMont Jones <lamont@debian.org>  Mon, 21 Jun 2010 09:53:30 -0600
 

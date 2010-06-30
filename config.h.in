@@ -184,6 +184,9 @@ int sigwait(const unsigned int *set, int *sig);
    MSVC and with C++ compilers. */
 #undef FLEXIBLE_ARRAY_MEMBER
 
+/* Defined if GeoIP supports IPv6 lookups */
+#undef GEOIP_V6
+
 /* Define to 1 if you have the `chroot' function. */
 #undef HAVE_CHROOT
 
@@ -192,9 +195,6 @@ int sigwait(const unsigned int *set, int *sig);
 
 /* Define to 1 if you have the `dlclose' function. */
 #undef HAVE_DLCLOSE
-
-/* Defined if GeoIP supports IPv6 lookups */
-#undef GEOIP_V6
 
 /* Define to 1 if you have the <dlfcn.h> header file. */
 #undef HAVE_DLFCN_H

@@ -29,13 +29,10 @@
 #include <isc/once.h>
 #include <isc/string.h>
 #include <isc/util.h>
+#include <dns/log.h>
 
 #include <dns/acl.h>
 #include <dns/iptable.h>
-
-#ifdef SUPPORT_GEOIP
-static GeoIP *geoip = NULL;
-#endif
 
 /*
  * Create a new ACL, including an IP table and an array with room
@@ -391,30 +388,65 @@ dns_aclelement_match(const isc_netaddr_t *reqaddr,
 	int indirectmatch;
 	isc_result_t result;
 
+	#ifdef SUPPORT_GEOIP
+	static GeoIP *geoip = NULL;
+	static isc_boolean_t geoip_init_tried = ISC_FALSE;
+	#ifdef GEOIP_V6
+	static GeoIP *geoip6 = NULL;
+	static isc_boolean_t geoip6_init_tried = ISC_FALSE;
+	#endif
+	#endif
+
 	switch (e->type) {
 #ifdef SUPPORT_GEOIP
 	case dns_aclelementtype_ipcountry:
 		/* Country match */
-		if (NULL == geoip) {
-			geoip = GeoIP_new(GEOIP_MEMORY_CACHE);
+		if (NULL == geoip && !geoip_init_tried) {
+			geoip_init_tried = ISC_TRUE;
+			if (GeoIP_db_avail(GEOIP_COUNTRY_EDITION)) {
+				geoip = GeoIP_open_type(GEOIP_COUNTRY_EDITION, GEOIP_MEMORY_CACHE);
+				if (NULL == geoip)
+					isc_log_write(dns_lctx, DNS_LOGCATEGORY_GENERAL,
+						      DNS_LOGMODULE_ACL, ISC_LOG_NOTICE,
+						      "Failed to open geoip database for ipv4");
+			} else {
+				isc_log_write(dns_lctx, DNS_LOGCATEGORY_GENERAL,
+					      DNS_LOGMODULE_ACL, ISC_LOG_NOTICE,
+					      "geoip database for ipv4 is not available");
+			}
 		}
-		if (NULL != geoip) {
-			const char *value = NULL;
-
-			if (reqaddr->family == AF_INET) {
-				value = GeoIP_country_code_by_addr(geoip,inet_ntoa(reqaddr->type.in));
 #ifdef GEOIP_V6
-			} else if (reqaddr->family == AF_INET6) {
-				value = GeoIP_country_name_by_ipnum_v6(geoip, (geoipv6_t)reqaddr->type.in6);
+		if (NULL == geoip6 && !geoip6_init_tried) {
+			geoip6_init_tried = ISC_TRUE;
+			if (GeoIP_db_avail(GEOIP_COUNTRY_EDITION_V6)) {
+				geoip6 = GeoIP_open_type(GEOIP_COUNTRY_EDITION_V6, GEOIP_MEMORY_CACHE);
+				if (NULL == geoip6)
+					isc_log_write(dns_lctx, DNS_LOGCATEGORY_GENERAL,
+						      DNS_LOGMODULE_ACL, ISC_LOG_NOTICE,
+						      "Failed to open geoip database for ipv6");
+			} else {
+				isc_log_write(dns_lctx, DNS_LOGCATEGORY_GENERAL,
+					      DNS_LOGMODULE_ACL, ISC_LOG_NOTICE,
+					      "geoip database for ipv6 is not available");
+			}
+		}
 #endif
-			}
+
+                const char *value = NULL;
+
+		if (reqaddr->family == AF_INET && geoip) {
+			value = GeoIP_country_code_by_addr(geoip,inet_ntoa(reqaddr->type.in));
+#ifdef GEOIP_V6
+		} else if (reqaddr->family == AF_INET6 && geoip6) {
+			value = GeoIP_country_code_by_ipnum_v6(geoip6, (geoipv6_t)reqaddr->type.in6);
+#endif
+		}
                 
-			if ((NULL != value) && (2 == strlen(value))) {
-				if ((e->country[0] == value[0]) && (e->country[1] == value[1])) {
-					return (ISC_TRUE);
-				}
+		if ((NULL != value) && (2 == strlen(value))) {
+			if ((e->country[0] == value[0]) && (e->country[1] == value[1])) {
+				return (ISC_TRUE);
 			}
-                }
+		}
 		return (ISC_FALSE);
 #endif
 

@@ -36,6 +36,14 @@ Description: Documentation for BIND
  This package provides various documents that are useful for maintaining a
  working BIND installation.
 
+Package: host
+Priority: standard
+Architecture: all
+Depends: bind9-host
+Description: Transitional package
+ This dummy package is provided for a smooth transition from the previous
+ host package.  It may safely be removed after installation.
+
 Package: bind9-host
 Priority: standard
 Architecture: any

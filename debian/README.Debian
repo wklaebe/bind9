@@ -86,8 +86,8 @@ subdirectory structure depending on complexity), using full pathnames in the
 named.conf file.  Any zones you are secondary for should be configured in
 named.conf with simple filenames (relative to /var/cache/bind), so the data
 files will be stored in BIND's working directory (defaults to /var/cache/bind).
-Zones subject to automatic updates via DHCP should be stored in /var/lib/bind,
-and specified with full pathnames.
+Zones subject to automatic updates (such as via DHCP and/or nsupdate) should be
+stored in /var/lib/bind, and specified with full pathnames.
 
 
 Running Chroot'ed:

@@ -1,3 +1,22 @@
+bind9 (1:9.7.1.dfsg-2) unstable; urgency=low
+
+  [Regid Ichira]
+
+  * explicitly add nsupdate to dynamic updates in README.Debian. 
+    Closes: #577398
+
+  [LaMont Jones]
+
+  * Cleanup bind9-host description.  Closes: #579421
+  * switch to 3.0 (quilt) source format, but not to quilt.  Closes: #578210
+
+  [Stephen Gran]
+
+  * updated geoip patch for ipv6, based on work by John 'Warthog9' Hawley
+    <warthog9@eaglescrag.net>.  Closes: #584603
+
+ -- LaMont Jones <lamont@debian.org>  Fri, 02 Jul 2010 08:19:29 -0600
+
 bind9 (1:9.7.1.dfsg-1) unstable; urgency=low
 
   [Internet Software Consortium, Inc]

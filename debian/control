@@ -45,9 +45,7 @@ Replaces: dnsutils (<< 1:9.0.0)
 Provides: host
 Description: Version of 'host' bundled with BIND 9.X
  This package provides the 'host' program in the form that is bundled with
- the BIND 9.X sources.  This version differs from the one provided in the
- package called host, which is from NIKHEF, and has a similar but different
- set of features/options.
+ the BIND 9.X sources.
 
 Package: libbind-dev
 Section: libdevel

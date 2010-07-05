@@ -1,3 +1,9 @@
+bind9 (1:9.7.1.dfsg.0-1) unstable; urgency=low
+
+  * Repack to drop zkt/doc/{draft,rfc}*  Closes: #588055
+
+ -- LaMont Jones <lamont@debian.org>  Mon, 05 Jul 2010 07:21:34 -0600
+
 bind9 (1:9.7.1.dfsg-2) unstable; urgency=low
 
   [Regid Ichira]

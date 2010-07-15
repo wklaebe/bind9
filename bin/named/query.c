@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: query.c,v 1.335.8.3 2010/03/12 23:49:51 tbox Exp $ */
+/* $Id: query.c,v 1.335.8.3.6.3 2010/07/15 01:38:15 jinmei Exp $ */
 
 /*! \file */
 
@@ -56,6 +56,7 @@
 #include <dns/zt.h>
 
 #include <named/client.h>
+#include <named/globals.h>
 #include <named/log.h>
 #include <named/server.h>
 #include <named/sortlist.h>
@@ -2038,7 +2039,7 @@ query_addrrset(ns_client_t *client, dns_name_t **namep,
 
 static inline isc_result_t
 query_addsoa(ns_client_t *client, dns_db_t *db, dns_dbversion_t *version,
-	     isc_boolean_t zero_ttl)
+	     isc_boolean_t zero_ttl, isc_boolean_t isassociated)
 {
 	dns_name_t *name;
 	dns_dbnode_t *node;
@@ -2054,6 +2055,12 @@ query_addsoa(ns_client_t *client, dns_db_t *db, dns_dbversion_t *version,
 	name = NULL;
 	rdataset = NULL;
 	node = NULL;
+
+	/*
+	 * Don't add the SOA record for test which set "-T nosoa".
+	 */
+	if (ns_g_nosoa && (!WANTDNSSEC(client) || !isassociated))
+		return (ISC_R_SUCCESS);
 
 	/*
 	 * Get resources and make 'name' be the database origin.
@@ -4332,7 +4339,8 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype)
 		/*
 		 * Add SOA.
 		 */
-		result = query_addsoa(client, db, version, ISC_FALSE);
+		result = query_addsoa(client, db, version, ISC_FALSE,
+				      dns_rdataset_isassociated(rdataset));
 		if (result != ISC_R_SUCCESS) {
 			QUERY_ERROR(result);
 			goto cleanup;
@@ -4380,9 +4388,11 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype)
 		    zone != NULL &&
 #endif
 		    dns_zone_getzeronosoattl(zone))
-			result = query_addsoa(client, db, version, ISC_TRUE);
+			result = query_addsoa(client, db, version, ISC_TRUE,
+					  dns_rdataset_isassociated(rdataset));
 		else
-			result = query_addsoa(client, db, version, ISC_FALSE);
+			result = query_addsoa(client, db, version, ISC_FALSE,
+					  dns_rdataset_isassociated(rdataset));
 		if (result != ISC_R_SUCCESS) {
 			QUERY_ERROR(result);
 			goto cleanup;
@@ -4754,7 +4764,7 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype)
 		if (fname != NULL)
 			dns_message_puttempname(client->message, &fname);
 
-		if (n == 0) {
+		if (n == 0 && is_zone) {
 			/*
 			 * We didn't match any rdatasets.
 			 */
@@ -4768,6 +4778,18 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype)
 				 * glue.  Ugh.
 				 */
 				if (!is_zone) {
+					/*
+					 * Note: this is dead code because
+					 * is_zone is always true due to the
+					 * condition above.  But naive
+					 * recursion would cause infinite
+					 * attempts of recursion because
+					 * the answer to (RR)SIG queries
+					 * won't be cached.  Until we figure
+					 * out what we should do and implement
+					 * it we intentionally keep this code
+					 * dead.
+					 */
 					authoritative = ISC_FALSE;
 					dns_rdatasetiter_destroy(&rdsiter);
 					if (RECURSIONOK(client)) {
@@ -4793,7 +4815,7 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype)
 				 * Add SOA.
 				 */
 				result = query_addsoa(client, db, version,
-						      ISC_FALSE);
+						      ISC_FALSE, ISC_FALSE);
 				if (result == ISC_R_SUCCESS)
 					result = ISC_R_NOMORE;
 			} else {

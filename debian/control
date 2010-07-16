@@ -48,8 +48,8 @@ Package: bind9-host
 Priority: standard
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}, libdns66 (=${binary:Version}), libisccfg60 (=${binary:Version}), libisc60 (=${binary:Version}), liblwres60 (=${binary:Version}), libbind9-60 (=${binary:Version})
-Conflicts: host, dnsutils (<< 1:9.0.0)
-Replaces: dnsutils (<< 1:9.0.0)
+Conflicts: host (<<1:9.7.0), dnsutils (<< 1:9.0.0)
+Replaces: dnsutils (<< 1:9.0.0), host (<< 1:9.7.0)
 Provides: host
 Description: Version of 'host' bundled with BIND 9.X
  This package provides the 'host' program in the form that is bundled with

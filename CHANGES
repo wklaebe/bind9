@@ -1,3 +1,21 @@
+
+	--- 9.7.2-P1 released ---
+
+2961.	[bug]		Be still more selective about the non-authoritative
+			answers we apply change 2748 to. [RT #22074]
+
+2960.	[func]		Check that named accepts non-authoritative answers.
+			[RT #21594]
+
+2959.	[func]		Check that named starts with a missing masterfile.
+			[RT #22076]
+
+2958.	[bug]		named failed to start with a missing master file.
+			[RT #22076]
+
+2928.	[bug]		Be more selective about the non-authoritative
+			answer we apply change 2748 to. [RT #21594]
+
 	--- 9.7.2 released ---
 
 2946.	[doc]		Document the default values for the minimum and maximum

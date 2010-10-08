@@ -15,7 +15,7 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: start.pl,v 1.13.514.2 2010/06/26 23:46:40 tbox Exp $
+# $Id: start.pl,v 1.13.396.2 2010/06/26 23:46:27 tbox Exp $
 
 # Framework for starting test servers.
 # Based on the type of server specified, check for port availability, remove

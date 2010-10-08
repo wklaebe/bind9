@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: namedconf.c,v 1.113.4.4 2010/06/02 01:10:06 marka Exp $ */
+/* $Id: namedconf.c,v 1.113.4.9 2010/07/11 23:46:36 tbox Exp $ */
 
 /*! \file */
 
@@ -101,6 +101,7 @@ static cfg_type_t cfg_type_negated;
 static cfg_type_t cfg_type_notifytype;
 static cfg_type_t cfg_type_optional_allow;
 static cfg_type_t cfg_type_optional_class;
+static cfg_type_t cfg_type_optional_qstring;
 static cfg_type_t cfg_type_optional_facility;
 static cfg_type_t cfg_type_optional_keyref;
 static cfg_type_t cfg_type_optional_port;
@@ -122,9 +123,7 @@ static cfg_type_t cfg_type_zone;
 static cfg_type_t cfg_type_zoneopts;
 static cfg_type_t cfg_type_dynamically_loadable_zones;
 static cfg_type_t cfg_type_dynamically_loadable_zones_opts;
-#ifdef ALLOW_FILTER_AAAA_ON_V4
 static cfg_type_t cfg_type_v4_aaaa;
-#endif
 
 /*
  * Clauses that can be found in a 'dynamically loadable zones' statement
@@ -870,6 +869,7 @@ options_clauses[] = {
 	{ "random-device", &cfg_type_qstring, 0 },
 	{ "recursive-clients", &cfg_type_uint32, 0 },
 	{ "reserved-sockets", &cfg_type_uint32, 0 },
+	{ "secroots-file", &cfg_type_qstring, 0 },
 	{ "serial-queries", &cfg_type_uint32, CFG_CLAUSEFLAG_OBSOLETE },
 	{ "serial-query-rate", &cfg_type_uint32, 0 },
 	{ "server-id", &cfg_type_serverid, 0 },
@@ -1058,8 +1058,15 @@ view_clauses[] = {
 	{ "transfer-format", &cfg_type_transferformat, 0 },
 	{ "use-queryport-pool", &cfg_type_boolean, CFG_CLAUSEFLAG_OBSOLETE },
 	{ "zero-no-soa-ttl-cache", &cfg_type_boolean, 0 },
+	{ "new-zone-file", &cfg_type_qstringornone, 0 },
 #ifdef ALLOW_FILTER_AAAA_ON_V4
+	{ "filter-aaaa", &cfg_type_bracketed_aml, 0 },
 	{ "filter-aaaa-on-v4", &cfg_type_v4_aaaa, 0 },
+#else
+	{ "filter-aaaa", &cfg_type_bracketed_aml,
+	   CFG_CLAUSEFLAG_NOTCONFIGURED },
+	{ "filter-aaaa-on-v4", &cfg_type_v4_aaaa,
+	   CFG_CLAUSEFLAG_NOTCONFIGURED },
 #endif
 	{ NULL, NULL, 0 }
 };
@@ -1391,6 +1398,42 @@ static cfg_type_t cfg_type_logging = {
 	"logging", cfg_parse_map, cfg_print_map, cfg_doc_map, &cfg_rep_map, logging_clausesets };
 
 
+/*%
+ * For parsing an 'addzone' statement
+ */
+
+/*%
+ * A zone statement.
+ */
+static cfg_tuplefielddef_t addzone_fields[] = {
+	{ "filepart", &cfg_type_optional_qstring, 0 },
+	{ "name", &cfg_type_astring, 0 },
+	{ "class", &cfg_type_optional_class, 0 },
+	{ "view", &cfg_type_optional_class, 0 },
+	{ "options", &cfg_type_zoneopts, 0 },
+	{ NULL, NULL, 0 }
+};
+static cfg_type_t cfg_type_addzone = {
+	"addzone", cfg_parse_tuple, cfg_print_tuple, cfg_doc_tuple, &cfg_rep_tuple, addzone_fields };
+
+static cfg_clausedef_t
+addzoneconf_clauses[] = {
+	{ "addzone", &cfg_type_addzone, 0 },
+	{ NULL, NULL, 0 }
+};
+
+static cfg_clausedef_t *
+addzoneconf_clausesets[] = {
+	addzoneconf_clauses,
+	NULL
+};
+
+LIBISCCFG_EXTERNAL_DATA cfg_type_t cfg_type_addzoneconf = {
+	"addzoneconf", cfg_parse_mapbody, cfg_print_mapbody, cfg_doc_mapbody,
+	&cfg_rep_map, addzoneconf_clausesets
+};
+
+
 static isc_result_t
 parse_unitstring(char *str, isc_resourcevalue_t *valuep) {
 	char *endp;
@@ -1610,7 +1653,6 @@ static cfg_type_t cfg_type_ixfrdifftype = {
 	&cfg_rep_string, ixfrdiff_enums,
 };
 
-#ifdef ALLOW_FILTER_AAAA_ON_V4
 static const char *v4_aaaa_enums[] = { "break-dnssec", NULL };
 static isc_result_t
 parse_v4_aaaa(cfg_parser_t *pctx, const cfg_type_t *type,
@@ -1622,7 +1664,6 @@ static cfg_type_t cfg_type_v4_aaaa = {
 	doc_enum_or_other, &cfg_rep_string, v4_aaaa_enums,
 };
 
-#endif
 static keyword_type_t key_kw = { "key", &cfg_type_astring };
 
 LIBISCCFG_EXTERNAL_DATA cfg_type_t cfg_type_keyref = {
@@ -1792,6 +1833,30 @@ parse_optional_class(cfg_parser_t *pctx, const cfg_type_t *type, cfg_obj_t **ret
 
 static cfg_type_t cfg_type_optional_class = {
 	"optional_class", parse_optional_class, NULL, cfg_doc_terminal,
+	NULL, NULL
+};
+
+/*%
+ * An optional string, distinguished by being in quotes
+ */
+static isc_result_t
+parse_optional_qstr(cfg_parser_t *pctx, const cfg_type_t *type,
+		    cfg_obj_t **ret)
+{
+	isc_result_t result;
+	UNUSED(type);
+	CHECK(cfg_peektoken(pctx, CFG_LEXOPT_QSTRING));
+	if (pctx->token.type == isc_tokentype_qstring)
+		CHECK(cfg_parse_obj(pctx, &cfg_type_qstring, ret));
+	else
+		CHECK(cfg_parse_obj(pctx, &cfg_type_void, ret));
+ cleanup:
+	return (result);
+}
+
+
+static cfg_type_t cfg_type_optional_qstring = {
+	"optional_quoted_string", parse_optional_qstr, NULL, cfg_doc_terminal,
 	NULL, NULL
 };
 

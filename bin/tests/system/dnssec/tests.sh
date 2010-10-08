@@ -15,7 +15,7 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: tests.sh,v 1.55.32.3.8.3 2010/07/15 01:38:15 jinmei Exp $
+# $Id: tests.sh,v 1.55.32.11 2010/07/15 01:26:10 jinmei Exp $
 
 SYSTEMTESTTOP=..
 . $SYSTEMTESTTOP/conf.sh
@@ -924,6 +924,48 @@ ret=0
 $DIG $DIGOPTS rfc2535.example. SOA @10.53.0.3 \
 	> dig.out.ns3.test$n || ret=1
 grep "status: NOERROR" dig.out.ns3.test$n > /dev/null || ret=1
+n=`expr $n + 1`
+if [ $ret != 0 ]; then echo "I:failed"; fi
+status=`expr $status + $ret`
+
+echo "I:checking that we can sign a zone with out-of-zone records ($n)"
+ret=0
+(
+cd signer
+RANDFILE=../random.data
+zone=example
+key1=`$KEYGEN -r $RANDFILE -a NSEC3RSASHA1 -b 1024 -n zone $zone`
+key2=`$KEYGEN -r $RANDFILE -f KSK -a NSEC3RSASHA1 -b 1024 -n zone $zone`
+cat example.db.in $key1.key $key2.key > example.db
+$SIGNER -o example -f example.db example.db > /dev/null 2>&1
+) || ret=1
+if [ $ret != 0 ]; then echo "I:failed"; fi
+status=`expr $status + $ret`
+
+echo "I:checking that we can sign a zone (NSEC3) with out-of-zone records ($n)"
+ret=0
+(
+cd signer
+RANDFILE=../random.data
+zone=example
+key1=`$KEYGEN -r $RANDFILE -a NSEC3RSASHA1 -b 1024 -n zone $zone`
+key2=`$KEYGEN -r $RANDFILE -f KSK -a NSEC3RSASHA1 -b 1024 -n zone $zone`
+cat example.db.in $key1.key $key2.key > example.db
+$SIGNER -3 - -H 10 -o example -f example.db example.db > /dev/null 2>&1
+grep "IQF9LQTLKKNFK0KVIFELRAK4IC4QLTMG.example. 0 IN NSEC3 1 0 10 - IQF9LQTLKKNFK0KVIFELRAK4IC4QLTMG A NS SOA RRSIG DNSKEY NSEC3PARAM" example.db > /dev/null 
+) || ret=1
+if [ $ret != 0 ]; then echo "I:failed"; fi
+status=`expr $status + $ret`
+
+# Test that "rndc secroots" is able to dump trusted keys
+echo "I:checking rndc secroots ($n)"
+ret=0
+$RNDC -c ../common/rndc.conf -s 10.53.0.4 -p 9953 secroots 2>&1 | sed 's/^/I:ns1 /'
+keyid=`cat ns1/managed.key.id`
+linecount=`grep "./RSAMD5/$keyid ; trusted" ns4/named.secroots | wc -l`
+[ "$linecount" -eq 1 ] || ret=1
+linecount=`cat ns4/named.secroots | wc -l`
+[ "$linecount" -eq 5 ] || ret=1
 n=`expr $n + 1`
 if [ $ret != 0 ]; then echo "I:failed"; fi
 status=`expr $status + $ret`

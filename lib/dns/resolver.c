@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: resolver.c,v 1.413.14.8.6.1 2010/06/29 04:49:49 marka Exp $ */
+/* $Id: resolver.c,v 1.413.14.11 2010/07/11 00:12:18 each Exp $ */
 
 /*! \file */
 
@@ -5628,7 +5628,7 @@ noanswer_response(fetchctx_t *fctx, dns_name_t *oqname,
 		 * trying other servers.
 		 */
 		if (dns_name_equal(ns_name, &fctx->domain)) {
-			log_formerr(fctx, "non-improving referral");
+			log_formerr(fctx, "sideways referral");
 			return (DNS_R_FORMERR);
 		}
 
@@ -6159,13 +6159,40 @@ answer_response(fetchctx_t *fctx) {
 	return (result);
 }
 
+static isc_boolean_t
+fctx_decreference(fetchctx_t *fctx) {
+	isc_boolean_t bucket_empty = ISC_FALSE;
+
+	INSIST(fctx->references > 0);
+	fctx->references--;
+	if (fctx->references == 0) {
+		/*
+		 * No one cares about the result of this fetch anymore.
+		 */
+		if (fctx->pending == 0 && fctx->nqueries == 0 &&
+		    ISC_LIST_EMPTY(fctx->validators) && SHUTTINGDOWN(fctx)) {
+			/*
+			 * This fctx is already shutdown; we were just
+			 * waiting for the last reference to go away.
+			 */
+			bucket_empty = fctx_destroy(fctx);
+		} else {
+			/*
+			 * Initiate shutdown.
+			 */
+			fctx_shutdown(fctx);
+		}
+	}
+	return (bucket_empty);
+}
+
 static void
 resume_dslookup(isc_task_t *task, isc_event_t *event) {
 	dns_fetchevent_t *fevent;
 	dns_resolver_t *res;
 	fetchctx_t *fctx;
 	isc_result_t result;
-	isc_boolean_t bucket_empty = ISC_FALSE;
+	isc_boolean_t bucket_empty;
 	isc_boolean_t locked = ISC_FALSE;
 	unsigned int bucketnum;
 	dns_rdataset_t nameservers;
@@ -6269,9 +6296,7 @@ resume_dslookup(isc_task_t *task, isc_event_t *event) {
 	isc_event_free(&event);
 	if (!locked)
 		LOCK(&res->buckets[bucketnum].lock);
-	fctx->references--;
-	if (fctx->references == 0)
-		bucket_empty = fctx_destroy(fctx);
+	bucket_empty = fctx_decreference(fctx);
 	UNLOCK(&res->buckets[bucketnum].lock);
 	if (bucket_empty)
 		empty_bucket(res);
@@ -6424,31 +6449,6 @@ iscname(fetchctx_t *fctx) {
 				      NULL, NULL);
 	return (result == ISC_R_SUCCESS ? ISC_TRUE : ISC_FALSE);
 }
-
-#ifdef notyet_betterreferral
-static isc_boolean_t
-betterreferral(fetchctx_t *fctx) {
-	isc_result_t result;
-	dns_name_t *name;
-	dns_rdataset_t *rdataset;
-	dns_message_t *message = fctx->rmessage;
-
-	for (result = dns_message_firstname(message, DNS_SECTION_AUTHORITY);
-	     result == ISC_R_SUCCESS;
-	     result = dns_message_nextname(message, DNS_SECTION_AUTHORITY)) {
-		name = NULL;
-		dns_message_currentname(message, DNS_SECTION_AUTHORITY, &name);
-		if (!dns_name_issubdomain(name, &fctx->domain))
-			continue;
-		for (rdataset = ISC_LIST_HEAD(name->list);
-		     rdataset != NULL;
-		     rdataset = ISC_LIST_NEXT(rdataset, link))
-			if (rdataset->type == dns_rdatatype_ns)
-				return (ISC_TRUE);
-	}
-	return (ISC_FALSE);
-}
-#endif
 
 static void
 resquery_response(isc_task_t *task, isc_event_t *event) {
@@ -6929,20 +6929,8 @@ resquery_response(isc_task_t *task, isc_event_t *event) {
 			 * it as a valid answer.
 			 */
 			result = answer_response(fctx);
-#ifdef notyet_betterreferral
-		} else if (fctx->type != dns_rdatatype_ns &&
-			   !betterreferral(fctx)) {
-#else
-		} else if (fctx->type != dns_rdatatype_ns) {
-#endif
-			/*
-			 * Lame response !!!.
-			 */
-			result = answer_response(fctx);
 		} else {
-#ifdef notyet_betterreferral
 			if (fctx->type == dns_rdatatype_ns) {
-#endif
 				/*
 				 * A BIND 8 server could incorrectly return a
 				 * non-authoritative answer to an NS query
@@ -6953,7 +6941,6 @@ resquery_response(isc_task_t *task, isc_event_t *event) {
 				 */
 				result = noanswer_response(fctx, NULL,
 						   LOOK_FOR_NS_IN_ANSWER);
-#ifdef notyet_betterreferral
 			} else {
 				/*
 				 * Some other servers may still somehow include
@@ -6970,7 +6957,6 @@ resquery_response(isc_task_t *task, isc_event_t *event) {
 				result = noanswer_response(fctx, NULL,
 						   LOOK_FOR_GLUE_IN_ANSWER);
 			}
-#endif
 			if (result != DNS_R_DELEGATION) {
 				/*
 				 * At this point, AA is not set, the response
@@ -7197,12 +7183,14 @@ resquery_response(isc_task_t *task, isc_event_t *event) {
 						  &fctx->nsfetch);
 		if (result != ISC_R_SUCCESS)
 			fctx_done(fctx, result, __LINE__);
-		LOCK(&fctx->res->buckets[fctx->bucketnum].lock);
-		fctx->references++;
-		UNLOCK(&fctx->res->buckets[fctx->bucketnum].lock);
-		result = fctx_stopidletimer(fctx);
-		if (result != ISC_R_SUCCESS)
-			fctx_done(fctx, result, __LINE__);
+		else {
+			LOCK(&fctx->res->buckets[fctx->bucketnum].lock);
+			fctx->references++;
+			UNLOCK(&fctx->res->buckets[fctx->bucketnum].lock);
+			result = fctx_stopidletimer(fctx);
+			if (result != ISC_R_SUCCESS)
+				fctx_done(fctx, result, __LINE__);
+		}
 	} else {
 		/*
 		 * We're done.
@@ -7667,13 +7655,11 @@ dns_resolver_prime(dns_resolver_t *res) {
 
 void
 dns_resolver_freeze(dns_resolver_t *res) {
-
 	/*
 	 * Freeze resolver.
 	 */
 
 	REQUIRE(VALID_RESOLVER(res));
-	REQUIRE(!res->frozen);
 
 	res->frozen = ISC_TRUE;
 }
@@ -8049,7 +8035,7 @@ dns_resolver_destroyfetch(dns_fetch_t **fetchp) {
 	dns_fetchevent_t *event, *next_event;
 	fetchctx_t *fctx;
 	unsigned int bucketnum;
-	isc_boolean_t bucket_empty = ISC_FALSE;
+	isc_boolean_t bucket_empty;
 
 	REQUIRE(fetchp != NULL);
 	fetch = *fetchp;
@@ -8077,27 +8063,7 @@ dns_resolver_destroyfetch(dns_fetch_t **fetchp) {
 		}
 	}
 
-	INSIST(fctx->references > 0);
-	fctx->references--;
-	if (fctx->references == 0) {
-		/*
-		 * No one cares about the result of this fetch anymore.
-		 */
-		if (fctx->pending == 0 && fctx->nqueries == 0 &&
-		    ISC_LIST_EMPTY(fctx->validators) &&
-		    SHUTTINGDOWN(fctx)) {
-			/*
-			 * This fctx is already shutdown; we were just
-			 * waiting for the last reference to go away.
-			 */
-			bucket_empty = fctx_destroy(fctx);
-		} else {
-			/*
-			 * Initiate shutdown.
-			 */
-			fctx_shutdown(fctx);
-		}
-	}
+	bucket_empty = fctx_decreference(fctx);
 
 	UNLOCK(&res->buckets[bucketnum].lock);
 

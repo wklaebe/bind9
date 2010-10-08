@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: view.c,v 1.159.8.5 2010/06/02 00:41:34 marka Exp $ */
+/* $Id: view.c,v 1.159.8.7 2010/07/11 00:12:19 each Exp $ */
 
 /*! \file */
 
@@ -179,9 +179,8 @@ dns_view_create(isc_mem_t *mctx, dns_rdataclass_t rdclass,
 	view->flush = ISC_FALSE;
 	view->dlv = NULL;
 	view->maxudp = 0;
-#ifdef ALLOW_FILTER_AAAA_ON_V4
 	view->v4_aaaa = dns_v4_aaaa_ok;
-#endif
+	view->v4_aaaa_acl = NULL;
 	dns_fixedname_init(&view->dlv_fixed);
 	view->managed_keys = NULL;
 
@@ -315,6 +314,8 @@ destroy(dns_view_t *view) {
 		dns_acl_detach(&view->upfwdacl);
 	if (view->denyansweracl != NULL)
 		dns_acl_detach(&view->denyansweracl);
+	if (view->v4_aaaa_acl != NULL)
+		dns_acl_detach(&view->v4_aaaa_acl);
 	if (view->answeracl_exclude != NULL)
 		dns_rbt_destroy(&view->answeracl_exclude);
 	if (view->denyanswernames != NULL)
@@ -708,7 +709,27 @@ dns_view_setdstport(dns_view_t *view, in_port_t dstport) {
 	view->dstport = dstport;
 }
 
+void
+dns_view_freeze(dns_view_t *view) {
+	REQUIRE(DNS_VIEW_VALID(view));
+	REQUIRE(!view->frozen);
+
+	if (view->resolver != NULL) {
+		INSIST(view->cachedb != NULL);
+		dns_resolver_freeze(view->resolver);
+	}
+	view->frozen = ISC_TRUE;
+}
+
 #ifdef BIND9
+void
+dns_view_thaw(dns_view_t *view) {
+	REQUIRE(DNS_VIEW_VALID(view));
+	REQUIRE(view->frozen);
+
+	view->frozen = ISC_FALSE;
+}
+
 isc_result_t
 dns_view_addzone(dns_view_t *view, dns_zone_t *zone) {
 	isc_result_t result;
@@ -721,18 +742,6 @@ dns_view_addzone(dns_view_t *view, dns_zone_t *zone) {
 	return (result);
 }
 #endif
-
-void
-dns_view_freeze(dns_view_t *view) {
-	REQUIRE(DNS_VIEW_VALID(view));
-	REQUIRE(!view->frozen);
-
-	if (view->resolver != NULL) {
-		INSIST(view->cachedb != NULL);
-		dns_resolver_freeze(view->resolver);
-	}
-	view->frozen = ISC_TRUE;
-}
 
 #ifdef BIND9
 isc_result_t

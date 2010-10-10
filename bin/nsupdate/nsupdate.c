@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: nsupdate.c,v 1.173.66.4 2010/05/18 06:24:27 marka Exp $ */
+/* $Id: nsupdate.c,v 1.173.66.8 2010/08/10 23:47:45 tbox Exp $ */
 
 /*! \file */
 
@@ -195,6 +195,7 @@ ddebug(const char *format, ...) ISC_FORMAT_PRINTF(1, 2);
 #ifdef GSSAPI
 static dns_fixedname_t fkname;
 static isc_sockaddr_t *kserver = NULL;
+static char *realm = NULL;
 static char servicename[DNS_NAME_FORMATSIZE];
 static dns_name_t *keyname;
 typedef struct nsu_gssinfo {
@@ -487,6 +488,19 @@ parse_hmac(dns_name_t **hmac, const char *hmacstr, size_t len) {
 	return (digestbits);
 }
 
+static int
+basenamelen(const char *file) {
+	int len = strlen(file);
+
+	if (len > 1 && file[len - 1] == '.')
+		len -= 1;
+	else if (len > 8 && strcmp(file + len - 8, ".private") == 0)
+		len -= 8;
+	else if (len > 4 && strcmp(file + len - 4, ".key") == 0)
+		len -= 4;
+	return (len);
+}
+
 static void
 setup_keystr(void) {
 	unsigned char *secret = NULL;
@@ -548,7 +562,8 @@ setup_keystr(void) {
 
 	debug("keycreate");
 	result = dns_tsigkey_create(keyname, hmacname, secret, secretlen,
-				    ISC_TRUE, NULL, 0, 0, mctx, NULL, &tsigkey);
+				    ISC_FALSE, NULL, 0, 0, mctx, NULL,
+				    &tsigkey);
 	if (result != ISC_R_SUCCESS)
 		fprintf(stderr, "could not create key from %s: %s\n",
 			keystr, dns_result_totext(result));
@@ -639,8 +654,9 @@ setup_keyfile(isc_mem_t *mctx, isc_log_t *lctx) {
 	}
 
 	if (result != ISC_R_SUCCESS) {
-		fprintf(stderr, "could not read key from %s: %s\n",
-			keyfile, isc_result_totext(result));
+		fprintf(stderr, "could not read key from %.*s.{private,key}: "
+				"%s\n", basenamelen(keyfile), keyfile,
+				isc_result_totext(result));
 		return;
 	}
 
@@ -1462,7 +1478,7 @@ evaluate_key(char *cmdline) {
 	if (tsigkey != NULL)
 		dns_tsigkey_detach(&tsigkey);
 	result = dns_tsigkey_create(keyname, hmacname, secret, secretlen,
-				    ISC_TRUE, NULL, 0, 0, mctx, NULL,
+				    ISC_FALSE, NULL, 0, 0, mctx, NULL,
 				    &tsigkey);
 	isc_mem_free(mctx, secret);
 	if (result != ISC_R_SUCCESS) {
@@ -1498,6 +1514,31 @@ evaluate_zone(char *cmdline) {
 	}
 
 	return (STATUS_MORE);
+}
+
+static isc_uint16_t
+evaluate_realm(char *cmdline) {
+#ifdef GSSAPI
+	char *word;
+	char buf[1024];
+
+	word = nsu_strsep(&cmdline, " \t\r\n");
+	if (*word == 0) {
+		if (realm != NULL)
+			isc_mem_free(mctx, realm);
+		realm = NULL;
+		return (STATUS_MORE);
+	}
+
+	snprintf(buf, sizeof(buf), "@%s", word);
+	realm = isc_mem_strdup(mctx, buf);
+	if (realm == NULL)
+		fatal("out of memory");
+	return (STATUS_MORE);
+#else
+	UNUSED(cmdline);
+	return (STATUS_SYNTAX);
+#endif
 }
 
 static isc_uint16_t
@@ -1891,6 +1932,8 @@ get_next_command(void) {
 		usegsstsig = ISC_FALSE;
 		return (evaluate_key(cmdline));
 	}
+	if (strcasecmp(word, "realm") == 0)
+		return (evaluate_realm(cmdline));
 	if (strcasecmp(word, "gsstsig") == 0) {
 #ifdef GSSAPI
 		usegsstsig = ISC_TRUE;
@@ -2423,7 +2466,7 @@ start_gssrequest(dns_name_t *master)
 	servname = dns_fixedname_name(&fname);
 
 	result = isc_string_printf(servicename, sizeof(servicename),
-				   "DNS/%s", namestr);
+				   "DNS/%s%s", namestr, realm ? realm : "");
 	if (result != ISC_R_SUCCESS)
 		fatal("isc_string_printf(servicename) failed: %s",
 		      isc_result_totext(result));
@@ -2461,7 +2504,6 @@ start_gssrequest(dns_name_t *master)
 		      isc_result_totext(result));
 
 	/* Build first request. */
-
 	context = GSS_C_NO_CONTEXT;
 	result = dns_tkey_buildgssquery(rmsg, keyname, servname, NULL, 0,
 					&context, use_win2k_gsstsig);
@@ -2762,6 +2804,10 @@ cleanup(void) {
 	if (kserver != NULL) {
 		isc_mem_put(mctx, kserver, sizeof(isc_sockaddr_t));
 		kserver = NULL;
+	}
+	if (realm != NULL) {
+		isc_mem_free(mctx, realm);
+		realm = NULL;
 	}
 #endif
 

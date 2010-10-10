@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: view.h,v 1.120.8.3 2010/05/14 23:49:21 tbox Exp $ */
+/* $Id: view.h,v 1.120.8.6.6.1 2010/09/24 06:32:57 marka Exp $ */
 
 #ifndef DNS_VIEW_H
 #define DNS_VIEW_H 1
@@ -125,6 +125,8 @@ struct dns_view {
 	isc_boolean_t			enablevalidation;
 	isc_boolean_t			acceptexpired;
 	dns_transfer_format_t		transfer_format;
+	dns_acl_t *			cacheacl;
+	dns_acl_t *			cacheonacl;
 	dns_acl_t *			queryacl;
 	dns_acl_t *			queryonacl;
 	dns_acl_t *			recursionacl;
@@ -156,9 +158,8 @@ struct dns_view {
 	dns_name_t *			dlv;
 	dns_fixedname_t			dlv_fixed;
 	isc_uint16_t			maxudp;
-#ifdef ALLOW_FILTER_AAAA_ON_V4
 	dns_v4_aaaa_t			v4_aaaa;
-#endif
+	dns_acl_t *			v4_aaaa_acl;
 
 	/*
 	 * Configurable data for server use only,
@@ -179,6 +180,14 @@ struct dns_view {
 	dns_viewlist_t *		viewlist;
 
 	dns_zone_t *			managed_keys;
+
+#ifdef BIND9
+	/* File in which to store configuration for newly added zones */
+	char *				new_zone_file;
+
+	void *				new_zone_config;
+	void				(*cfg_destroy)(void **);
+#endif
 };
 
 #define DNS_VIEW_MAGIC			ISC_MAGIC('V','i','e','w')
@@ -419,7 +428,7 @@ dns_view_addzone(dns_view_t *view, dns_zone_t *zone);
 void
 dns_view_freeze(dns_view_t *view);
 /*%<
- * Freeze view.
+ * Freeze view.  No changes can be made to view configuration while frozen.
  *
  * Requires:
  *
@@ -430,6 +439,21 @@ dns_view_freeze(dns_view_t *view);
  *\li	'view' is frozen.
  */
 
+void
+dns_view_thaw(dns_view_t *view);
+/*%<
+ * Thaw view.  This allows zones to be added or removed at runtime.  This is
+ * NOT thread-safe; the caller MUST have run isc_task_exclusive() prior to
+ * thawing the view.
+ *
+ * Requires:
+ *
+ *\li	'view' is a valid, frozen view.
+ *
+ * Ensures:
+ *
+ *\li	'view' is no longer frozen.
+ */
 isc_result_t
 dns_view_find(dns_view_t *view, dns_name_t *name, dns_rdatatype_t type,
 	      isc_stdtime_t now, unsigned int options, isc_boolean_t use_hints,
@@ -980,6 +1004,27 @@ dns_view_untrust(dns_view_t *view, dns_name_t *keyname,
  * \li	'keyname' is valid.
  * \li	'mctx' is valid.
  * \li	'dnskey' is valid.
+ */
+
+void
+dns_view_setnewzones(dns_view_t *view, isc_boolean_t allow, void *cfgctx,
+		     void (*cfg_destroy)(void **));
+/*%<
+ * Set whether or not to allow zones to be created or deleted at runtime.
+ *
+ * If 'allow' is ISC_TRUE, determines the filename into which new zone
+ * configuration will be written.  Preserves the configuration context
+ * (a pointer to which is passed in 'cfgctx') for use when parsing new
+ * zone configuration.  'cfg_destroy' points to a callback routine to
+ * destroy the configuration context when the view is destroyed.  (This
+ * roundabout method is used in order to avoid libdns having a dependency
+ * on libisccfg and libbind9.)
+ *
+ * If 'allow' is ISC_FALSE, removes any existing references to
+ * configuration context and frees any memory.
+ *
+ * Requires:
+ * \li 'view' is valid.
  */
 
 #endif /* DNS_VIEW_H */

@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: config.c,v 1.106.4.2 2010/05/14 23:49:18 tbox Exp $ */
+/* $Id: config.c,v 1.106.4.6 2010/08/11 18:19:54 each Exp $ */
 
 /*! \file */
 
@@ -80,6 +80,7 @@ options {\n\
 	bindkeys-file \"" NS_SYSCONFDIR "/bind.keys\";\n\
 	port 53;\n\
 	recursing-file \"named.recursing\";\n\
+	secroots-file \"named.secroots\";\n\
 "
 #ifdef PATH_RANDOMDEV
 "\
@@ -160,9 +161,11 @@ options {\n\
 	max-clients-per-query 100;\n\
 	zero-no-soa-ttl-cache no;\n\
 	nsec3-test-zone no;\n\
+	allow-new-zones no;\n\
 "
 #ifdef ALLOW_FILTER_AAAA_ON_V4
 "	filter-aaaa-on-v4 no;\n\
+	filter-aaaa { any; };\n\
 "
 #endif
 
@@ -218,6 +221,7 @@ options {\n\
 view \"_bind\" chaos {\n\
 	recursion no;\n\
 	notify no;\n\
+	allow-new-zones no;\n\
 \n\
 	zone \"version.bind\" chaos {\n\
 		type master;\n\

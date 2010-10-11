@@ -1,3 +1,23 @@
+bind9 (1:9.7.2.dfsg.P2-1) unstable; urgency=low
+
+  [Joe Dalton]
+
+  * Add Danish translation of debconf templates.  Closes: #599431
+
+  [Internet Software Consortium, Inc]
+
+  * v9.7.2-P2
+
+  [José Figueiredo]
+
+  * Add Brazilian Portuguese debconf templates translation.  Closes: #597616
+
+  [LaMont Jones]
+
+  * drop this v3 (quilt) source format idea.  Closes: #589916
+
+ -- LaMont Jones <lamont@debian.org>  Sun, 10 Oct 2010 19:01:57 -0600
+
 bind9 (1:9.7.1.dfsg.P2-2) unstable; urgency=low
 
   * Correct conflicts for bind9-host

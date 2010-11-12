@@ -1,3 +1,11 @@
+bind9 (1:9.7.2.dfsg.P2-2) unstable; urgency=low
+
+  [Roy Jamison]
+
+  * lib/isc/unix/resource.c was missing inttypes.h include.  LP: #674199
+
+ -- LaMont Jones <lamont@debian.org>  Fri, 12 Nov 2010 10:52:32 -0700
+
 bind9 (1:9.7.2.dfsg.P2-1) unstable; urgency=low
 
   [Joe Dalton]

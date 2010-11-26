@@ -1,3 +1,14 @@
+bind9 (1:9.7.2.dfsg.P2-2ubuntu1) natty; urgency=low
+
+  [ Andres Rodriguez ]
+  * Add apport hook (LP: #533601):
+    - debian/bind9.apport: Added.
+
+  [ Martin Pitt ]
+  * debian/rules: Install Apport hook when building on Ubuntu.
+
+ -- Martin Pitt <martin.pitt@ubuntu.com>  Fri, 26 Nov 2010 10:50:17 +0100
+
 bind9 (1:9.7.2.dfsg.P2-2) unstable; urgency=low
 
   [Roy Jamison]

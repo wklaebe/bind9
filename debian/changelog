@@ -1,3 +1,12 @@
+bind9 (1:9.7.2.dfsg.P2-3) unstable; urgency=low
+
+  [LaMont Jones]
+
+  * Adjust indentation for dpkg change.  Closes: #597171
+  * acknowledge and incorporate ubuntu change.
+
+ -- LaMont Jones <lamont@debian.org>  Fri, 26 Nov 2010 05:18:43 -0700
+
 bind9 (1:9.7.2.dfsg.P2-2ubuntu1) natty; urgency=low
 
   [ Andres Rodriguez ]

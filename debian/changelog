@@ -1,3 +1,20 @@
+bind9 (1:9.7.2.dfsg.P3-1) unstable; urgency=high
+
+  [ISC]
+  * Fix denial of service via ncache entry and a rrsig for the
+    same type (CVE-2010-3613)
+  * answers were incorrectly marked as insecure during key algorithm
+    rollover (CVE-2010-3614)
+  * Using "allow-query" in the "options" or "view" statements to
+    restrict access to authoritative zones had no effect.
+    (CVE-2010-3615)
+
+  [LaMont Jones]
+
+  * Adjust indentation for dpkg change.  Closes: #597171
+
+ -- LaMont Jones <lamont@debian.org>  Wed, 01 Dec 2010 16:32:48 -0700
+
 bind9 (1:9.7.2.dfsg.P2-3) unstable; urgency=low
 
   [LaMont Jones]

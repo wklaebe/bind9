@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: server.c,v 1.556.8.27.6.3 2010/11/16 02:26:24 sar Exp $ */
+/* $Id: server.c,v 1.556.8.32 2010/12/09 01:05:28 marka Exp $ */
 
 /*! \file */
 
@@ -634,6 +634,8 @@ load_view_keys(const cfg_obj_t *keys, const cfg_obj_t *vconfig,
 	}
 
  cleanup:
+	if (dstkey != NULL)
+		dst_key_free(&dstkey);
 	if (secroots != NULL)
 		dns_keytable_detach(&secroots);
 	if (result == DST_R_NOCRYPTO)
@@ -3568,7 +3570,6 @@ generate_session_key(const char *filename, const char *keynamestr,
 	CHECK(dns_tsigkey_createfromkey(dst_key_name(key), algname, key,
 					ISC_FALSE, NULL, now, now, mctx, NULL,
 					&tsigkey));
-	key = NULL;		/* ownership of key has been transferred */
 
 	/* Dump the key to the key file. */
 	fp = ns_os_openfile(filename, S_IRUSR|S_IWUSR, ISC_TRUE);
@@ -3588,6 +3589,8 @@ generate_session_key(const char *filename, const char *keynamestr,
 
 	RUNTIME_CHECK(isc_stdio_flush(fp) == ISC_R_SUCCESS);
 	RUNTIME_CHECK(isc_stdio_close(fp) == ISC_R_SUCCESS);
+
+	dst_key_free(&key);
 
 	*tsigkeyp = tsigkey;
 

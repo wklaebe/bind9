@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: main.c,v 1.175.60.3.8.1 2010/09/15 12:13:29 marka Exp $ */
+/* $Id: main.c,v 1.175.60.4 2010/09/15 12:10:53 marka Exp $ */
 
 /*! \file */
 

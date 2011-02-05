@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rbtdb.c,v 1.292.8.12.6.1 2010/11/16 07:04:09 marka Exp $ */
+/* $Id: rbtdb.c,v 1.292.8.15 2010/12/02 05:07:03 marka Exp $ */
 
 /*! \file */
 
@@ -2115,7 +2115,7 @@ cleanup_dead_nodes_callback(isc_task_t *task, isc_event_t *event) {
 	unsigned int locknum;
 	unsigned int refs;
 
-	RBTDB_LOCK(&rbtdb->lock, isc_rwlocktype_write);
+	RWLOCK(&rbtdb->tree_lock, isc_rwlocktype_write);
 	for (locknum = 0; locknum < rbtdb->node_lock_count; locknum++) {
 		NODE_LOCK(&rbtdb->node_locks[locknum].lock,
 			  isc_rwlocktype_write);
@@ -2125,7 +2125,7 @@ cleanup_dead_nodes_callback(isc_task_t *task, isc_event_t *event) {
 		NODE_UNLOCK(&rbtdb->node_locks[locknum].lock,
 			    isc_rwlocktype_write);
 	}
-	RBTDB_UNLOCK(&rbtdb->lock, isc_rwlocktype_write);
+	RWUNLOCK(&rbtdb->tree_lock, isc_rwlocktype_write);
 	if (again)
 		isc_task_send(task, &event);
 	else {
@@ -7391,6 +7391,8 @@ dns_rbtdb_create
 	 * change.
 	 */
 	if (!IS_CACHE(rbtdb)) {
+		dns_rbtnode_t *nsec3node;
+
 		rbtdb->origin_node = NULL;
 		result = dns_rbt_addnode(rbtdb->tree, &rbtdb->common.origin,
 					 &rbtdb->origin_node);
@@ -7412,6 +7414,32 @@ dns_rbtdb_create
 #else
 		rbtdb->origin_node->locknum =
 			dns_name_hash(&name, ISC_TRUE) %
+			rbtdb->node_lock_count;
+#endif
+		/*
+		 * Add an apex node to the NSEC3 tree so that NSEC3 searches
+		 * return partial matches when there is only a single NSEC3
+		 * record in the tree.
+		 */
+		nsec3node = NULL;
+		result = dns_rbt_addnode(rbtdb->nsec3, &rbtdb->common.origin,
+					 &nsec3node);
+		if (result != ISC_R_SUCCESS) {
+			INSIST(result != ISC_R_EXISTS);
+			free_rbtdb(rbtdb, ISC_FALSE, NULL);
+			return (result);
+		}
+		nsec3node->nsec = DNS_RBT_NSEC_NSEC3;
+		/*
+		 * We need to give the nsec3 origin node the right locknum.
+		 */
+		dns_name_init(&name, NULL);
+		dns_rbt_namefromnode(nsec3node, &name);
+#ifdef DNS_RBT_USEHASH
+		nsec3node->locknum = nsec3node->hashval %
+			rbtdb->node_lock_count;
+#else
+		nsec3node->locknum = dns_name_hash(&name, ISC_TRUE) %
 			rbtdb->node_lock_count;
 #endif
 	}

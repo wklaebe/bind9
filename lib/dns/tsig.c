@@ -16,7 +16,7 @@
  */
 
 /*
- * $Id: tsig.c,v 1.138.136.3 2010/07/09 05:14:08 each Exp $
+ * $Id: tsig.c,v 1.138.136.5 2010/12/09 01:05:28 marka Exp $
  */
 /*! \file */
 #include <config.h>
@@ -397,7 +397,9 @@ dns_tsigkey_createfromkey(dns_name_t *name, dns_name_t *algorithm,
 	} else
 		tkey->creator = NULL;
 
-	tkey->key = dstkey;
+	tkey->key = NULL;
+	if (dstkey != NULL)
+		dst_key_attach(dstkey, &tkey->key);
 	tkey->ring = ring;
 
 	if (key != NULL)
@@ -447,6 +449,8 @@ dns_tsigkey_createfromkey(dns_name_t *name, dns_name_t *algorithm,
 		isc_refcount_decrement(&tkey->refs, NULL);
 	isc_refcount_destroy(&tkey->refs);
  cleanup_creator:
+	if (tkey->key != NULL)
+		dst_key_free(&tkey->key);
 	if (tkey->creator != NULL) {
 		dns_name_free(tkey->creator, mctx);
 		isc_mem_put(mctx, tkey->creator, sizeof(dns_name_t));
@@ -626,7 +630,7 @@ dns_tsigkey_create(dns_name_t *name, dns_name_t *algorithm,
 	result = dns_tsigkey_createfromkey(name, algorithm, dstkey,
 					   generated, creator,
 					   inception, expire, mctx, ring, key);
-	if (result != ISC_R_SUCCESS && dstkey != NULL)
+	if (dstkey != NULL)
 		dst_key_free(&dstkey);
 	return (result);
 }

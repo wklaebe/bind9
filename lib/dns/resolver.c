@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: resolver.c,v 1.413.14.11.6.2 2010/09/15 12:24:38 marka Exp $ */
+/* $Id: resolver.c,v 1.413.14.13 2010/09/15 12:23:17 marka Exp $ */
 
 /*! \file */
 

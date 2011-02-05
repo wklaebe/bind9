@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: zone.c,v 1.540.2.29 2010/08/16 23:46:30 tbox Exp $ */
+/* $Id: zone.c,v 1.540.2.33 2010/12/02 23:26:57 marka Exp $ */
 
 /*! \file */
 
@@ -2831,6 +2831,7 @@ trust_key(dns_viewlist_t *viewlist, dns_name_t *keyname,
 	isc_buffer_t buffer;
 	dns_view_t *view;
 	dns_keytable_t *sr = NULL;
+	dst_key_t *dstkey = NULL;
 
 	/* Convert dnskey to DST key. */
 	isc_buffer_init(&buffer, data, sizeof(data));
@@ -2839,18 +2840,19 @@ trust_key(dns_viewlist_t *viewlist, dns_name_t *keyname,
 
 	for (view = ISC_LIST_HEAD(*viewlist); view != NULL;
 	     view = ISC_LIST_NEXT(view, link)) {
-		dst_key_t *key = NULL;
 
 		result = dns_view_getsecroots(view, &sr);
 		if (result != ISC_R_SUCCESS)
 			continue;
 
-		CHECK(dns_dnssec_keyfromrdata(keyname, &rdata, mctx, &key));
-		CHECK(dns_keytable_add(sr, ISC_TRUE, &key));
+		CHECK(dns_dnssec_keyfromrdata(keyname, &rdata, mctx, &dstkey));
+		CHECK(dns_keytable_add(sr, ISC_TRUE, &dstkey));
 		dns_keytable_detach(&sr);
 	}
 
   failure:
+	if (dstkey != NULL)
+		dst_key_free(&dstkey);
 	if (sr != NULL)
 		dns_keytable_detach(&sr);
 	return;
@@ -3235,6 +3237,7 @@ sync_keyzone(dns_zone_t *zone, dns_db_t *db) {
 			dns_fixedname_t fname;
 			dns_name_t *keyname;
 			dst_key_t *key;
+
 			key = dns_keynode_key(keynode);
 			dns_fixedname_init(&fname);
 
@@ -3639,8 +3642,8 @@ exit_check(dns_zone_t *zone) {
 }
 
 static isc_boolean_t
-zone_check_ns(dns_zone_t *zone, dns_db_t *db, dns_name_t *name,
-	      isc_boolean_t logit)
+zone_check_ns(dns_zone_t *zone, dns_db_t *db, dns_dbversion_t *version,
+	      dns_name_t *name, isc_boolean_t logit)
 {
 	isc_result_t result;
 	char namebuf[DNS_NAME_FORMATSIZE];
@@ -3660,13 +3663,13 @@ zone_check_ns(dns_zone_t *zone, dns_db_t *db, dns_name_t *name,
 	dns_fixedname_init(&fixed);
 	foundname = dns_fixedname_name(&fixed);
 
-	result = dns_db_find(db, name, NULL, dns_rdatatype_a,
+	result = dns_db_find(db, name, version, dns_rdatatype_a,
 			     0, 0, NULL, foundname, NULL, NULL);
 	if (result == ISC_R_SUCCESS)
 		return (ISC_TRUE);
 
 	if (result == DNS_R_NXRRSET) {
-		result = dns_db_find(db, name, NULL, dns_rdatatype_aaaa,
+		result = dns_db_find(db, name, version, dns_rdatatype_aaaa,
 				     0, 0, NULL, foundname, NULL, NULL);
 		if (result == ISC_R_SUCCESS)
 			return (ISC_TRUE);
@@ -3738,7 +3741,7 @@ zone_count_ns_rr(dns_zone_t *zone, dns_db_t *db, dns_dbnode_t *node,
 			result = dns_rdata_tostruct(&rdata, &ns, NULL);
 			RUNTIME_CHECK(result == ISC_R_SUCCESS);
 			if (dns_name_issubdomain(&ns.name, &zone->origin) &&
-			    !zone_check_ns(zone, db, &ns.name, logit))
+			    !zone_check_ns(zone, db, version, &ns.name, logit))
 				ecount++;
 		}
 		count++;
@@ -4450,6 +4453,7 @@ find_zone_keys(dns_zone_t *zone, dns_db_t *db, dns_dbversion_t *ver,
 	isc_result_t result;
 	dns_dbnode_t *node = NULL;
 	const char *directory = dns_zone_getkeydirectory(zone);
+
 	CHECK(dns_db_findnode(db, dns_db_origin(db), ISC_FALSE, &node));
 	result = dns_dnssec_findzonekeys2(db, ver, node, dns_db_origin(db),
 					  directory, mctx, maxkeys, keys,
@@ -11914,6 +11918,7 @@ got_transfer_quota(isc_task_t *task, isc_event_t *event) {
 	isc_sockaddr_t sourceaddr;
 	isc_sockaddr_t masteraddr;
 	isc_time_t now;
+	const char *soa_before = "";
 
 	UNUSED(task);
 
@@ -11941,6 +11946,8 @@ got_transfer_quota(isc_task_t *task, isc_event_t *event) {
 	isc_netaddr_fromsockaddr(&masterip, &zone->masteraddr);
 	(void)dns_peerlist_peerbyaddr(zone->view->peers, &masterip, &peer);
 
+	if (DNS_ZONE_FLAG(zone, DNS_ZONEFLG_SOABEFOREAXFR))
+		soa_before = "SOA before ";
 	/*
 	 * Decide whether we should request IXFR or AXFR.
 	 */
@@ -11951,8 +11958,12 @@ got_transfer_quota(isc_task_t *task, isc_event_t *event) {
 		xfrtype = dns_rdatatype_axfr;
 	} else if (DNS_ZONE_OPTION(zone, DNS_ZONEOPT_IXFRFROMDIFFS)) {
 		dns_zone_log(zone, ISC_LOG_DEBUG(1), "ixfr-from-differences "
-			     "set, requesting AXFR from %s", master);
-		xfrtype = dns_rdatatype_axfr;
+			     "set, requesting %sAXFR from %s", soa_before,
+			     master);
+		if (DNS_ZONE_FLAG(zone, DNS_ZONEFLG_SOABEFOREAXFR))
+			xfrtype = dns_rdatatype_soa;
+		else
+			xfrtype = dns_rdatatype_axfr;
 	} else if (DNS_ZONE_FLAG(zone, DNS_ZONEFLG_FORCEXFER)) {
 		dns_zone_log(zone, ISC_LOG_DEBUG(1),
 			     "forced reload, requesting AXFR of "
@@ -11977,8 +11988,8 @@ got_transfer_quota(isc_task_t *task, isc_event_t *event) {
 		}
 		if (use_ixfr == ISC_FALSE) {
 			dns_zone_log(zone, ISC_LOG_DEBUG(1),
-				     "IXFR disabled, requesting AXFR from %s",
-				     master);
+				     "IXFR disabled, requesting %sAXFR from %s",
+				     soa_before, master);
 			if (DNS_ZONE_FLAG(zone, DNS_ZONEFLG_SOABEFOREAXFR))
 				xfrtype = dns_rdatatype_soa;
 			else

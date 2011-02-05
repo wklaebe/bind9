@@ -14,7 +14,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: namespace.h,v 1.5.62.4 2010/12/04 13:27:10 marka Exp $ */
+/* $Id: namespace.h,v 1.9 2010/12/04 13:25:59 marka Exp $ */
 
 #ifndef ISCAPI_NAMESPACE_H
 #define ISCAPI_NAMESPACE_H 1

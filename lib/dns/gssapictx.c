@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: gssapictx.c,v 1.14.104.5 2010-12-22 02:36:17 marka Exp $ */
+/* $Id: gssapictx.c,v 1.18 2010/07/09 05:13:15 each Exp $ */
 
 #include <config.h>
 
@@ -358,7 +358,7 @@ dst_gssapi_identitymatchesrealmkrb5(dns_name_t *signer, dns_name_t *name,
 	if (rname == NULL)
 		return (isc_boolean_false);
 	*rname = '\0';
-	rname++;
+	rname += 2;
 
 	/*
 	 * Find the host portion of the signer's name.  We do this by

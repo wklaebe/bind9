@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: zone.c,v 1.540.2.34 2010-12-14 00:46:40 marka Exp $ */
+/* $Id: zone.c,v 1.577 2010/12/02 23:22:42 marka Exp $ */
 
 /*! \file */
 
@@ -1749,12 +1749,6 @@ zone_check_mx(dns_zone_t *zone, dns_db_t *db, dns_name_t *name,
 	dns_fixedname_t fixed;
 	dns_name_t *foundname;
 	int level;
-
-	/*
-	 * "." means the services does not exist.
-	 */
-	if (dns_name_equal(name, dns_rootname))
-		return (ISC_TRUE);
 
 	/*
 	 * Outside of zone.
@@ -10720,7 +10714,8 @@ dns_zone_notifyreceive(dns_zone_t *zone, isc_sockaddr_t *from,
 						  NULL, NULL);
 			RUNTIME_CHECK(result == ISC_R_SUCCESS);
 			if (isc_serial_le(serial, oldserial)) {
-			  dns_zone_log(zone, ISC_LOG_INFO,
+				dns_zone_log(zone,
+					     ISC_LOG_INFO,
 					     "notify from %s: "
 					     "zone is up to date",
 					     fromtext);

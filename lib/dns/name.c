@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: name.c,v 1.169.104.3 2010/07/09 05:14:08 each Exp $ */
+/* $Id: name.c,v 1.172 2010/07/09 05:13:15 each Exp $ */
 
 /*! \file */
 

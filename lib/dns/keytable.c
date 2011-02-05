@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: keytable.c,v 1.39.4.2 2010/06/25 23:46:33 tbox Exp $ */
+/* $Id: keytable.c,v 1.41 2010/06/25 23:46:51 tbox Exp $ */
 
 /*! \file */
 

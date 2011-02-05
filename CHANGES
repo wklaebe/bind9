@@ -1,35 +1,4 @@
-
-	--- 9.7.3rc1 released ---
-
-3007.	[bug]		Named failed to preserve the case of domain names in
-			rdata which is not compressible when writing master
-			files.  [RT #22863]
-
-3002.	[bug]		isc_mutex_init_errcheck() failed to destroy attr.
-			[RT #22766]
-
-2996.	[security]	Temporarily disable SO_ACCEPTFILTER support.
-			[RT #22589]
-
-2995.	[bug]		The Kerberos realm was not being correctly extracted
-			from the signer's identity. [RT #22770]
-
-2994.	[port]		NetBSD: use pthreads by default on NetBSD >= 5.0, and
-			do not use threads on earlier versions.  Also kill
-			the unproven-pthreads, mit-pthreads, and ptl2 support.
-
-2990.	[bug]		'dnssec-settime -S' no longer tests prepublication
-			interval validity when the interval is set to 0.
-			[RT #22761]
-
-2985.	[bug]		Add a regression test for change #2896. [RT #21324]
-
-2984.	[bug]		Don't run MX checks when the target of the MX record
-			is ".".  [RT #22645]
-
-2983.	[bug]		Include "loadkeys" in rndc help output. [RT #22493]
-
-	--- 9.7.3b1 released ---
+	--- 9.8.0a1 released ---
 
 2982.	[bug]		Reference count dst keys.  dst_key_attach() can be used
 			increment the reference count.
@@ -37,6 +6,8 @@
 			Note: dns_tsigkey_createfromkey() callers should now
 			always call dst_key_free() rather than setting it
 			to NULL on success. [RT #22672]
+
+2981.	[func]		Partial DNS64 support (AAAA synthesis). [RT #21991]
 
 2980.	[bug]		named didn't properly handle UPDATES that changed the
 			TTL of the NSEC3PARAM RRset. [RT #22363]
@@ -105,6 +76,8 @@
 2965.	[func]		Test HMAC functions using test data from RFC 2104 and
 			RFC 4634. [RT #21702]
 
+2964.	[placeholder]
+
 2963.	[security]	The allow-query acl was being applied instead of the
 			allow-query-cache acl to cache lookups. [RT #22114]
 
@@ -129,6 +102,8 @@
 
 2956.	[port]		Enable atomic operations on the PowerPC64. [RT #21899]
 
+2955.	[func]		Provide more detail in the recursing log. [RT #22043]
+
 2954.	[bug]		contrib: dlz_mysql_driver.c bad error handling on
 			build_sqldbinstance failure. [RT #21623]
 
@@ -150,10 +125,11 @@
 2949.	[bug]		dns_view_setnewzones() contained a memory leak if
 			it was called multiple times. [RT #21942]
 
-2928.	[bug]		Be more selective about the non-authoritative
-			answer we apply change 2748 to. [RT #21594]
+2948.	[port]		MacOS: provide a mechanism to configure the test 
+			interfaces at reboot. See bin/tests/system/README
+			for details.
 
-	--- 9.7.2 released ---
+2947.	[placeholder]
 
 2946.	[doc]		Document the default values for the minimum and maximum
 			zone refresh and retry values in the ARM. [RT #21886]
@@ -162,8 +138,6 @@
 
 2944.	[maint]		Remove ORCHID prefix from built in empty zones.
 			[RT #21772]
-
-	--- 9.7.2rc1 released ---
 
 2943.	[func]		Add support to load new keys into managed zones
 			without signing immediately with "rndc loadkeys".
@@ -232,8 +206,6 @@
 2932.	[cleanup]	Corrected a numbering error in the "dnssec" test.
 			[RT #21597]
 
-	--- 9.7.2b1 released ---
-
 2931.	[bug]		Temporarily and partially disable change 2864
 			because it would cause infinite attempts of RRSIG
 			queries.  This is an urgent care fix; we'll
@@ -260,6 +232,13 @@
 			   smaller)
 			[RT #19737]
 
+2928.	[bug]		Be more selective about the non-authoritative
+			answer we apply change 2748 to. [RT #21594]
+
+2927.	[placeholder]
+
+2926.	[placeholder]
+h
 2925.	[bug]		Named failed to accept uncachable negative responses
 			from insecure zones. [RT# 21555]
 
@@ -304,10 +283,6 @@
 
 2910.	[func]		Sanity check Kerberos credentials. [RT #20986]
 
-	--- 9.7.1 released ---
-
-	--- 9.7.1rc1 released ---
-
 2909.	[bug]		named-checkconf -p could die if "update-policy local;"
 			was specified in named.conf. [RT #21416]
 
@@ -329,8 +304,6 @@
 
 2903.	[bug]		managed-keys-directory missing from namedconf.c.
 			[RT #21370]
-
-	--- 9.7.1b1 released ---
 
 2902.	[func]		Add regression test for change 2897. [RT #21040]
 
@@ -469,6 +442,12 @@
 2856.	[bug]		The size of a memory allocation was not always properly
 			recorded. [RT #20927]
 
+2855.	[func]		nsupdate will now preserve the entered case of domain
+			names in update requests it sends. [RT #20928]
+
+2854.	[func]		dig: allow the final soa record in a axfr response to
+			be suppressed, dig +onesoa. [RT #20929]
+
 2853.	[bug]		add_sigs() could run out of scratch space. [RT #21015]
 
 2852.	[bug]		Handle broken DNSSEC trust chains better. [RT #15619]
@@ -478,8 +457,6 @@
 
 2850.	[bug]		If isc_heap_insert() failed due to memory shortage
 			the heap would have corrupted entries. [RT #20951]
-
-	--- 9.7.0 released ---
 
 2849.	[bug]		Don't treat errors from the xml2 library as fatal.
 			[RT #20945]
@@ -496,8 +473,6 @@
 
 2844.	[doc]		notify-delay default in ARM was wrong.  It should have
 			been five (5) seconds.
-
-	--- 9.7.0rc2 released ---
 
 2843.	[func]		Prevent dnssec-keygen and dnssec-keyfromlabel from
 			creating key files if there is a chance that the new
@@ -583,6 +558,10 @@
 
 2821.	[doc]		Add note that named-checkconf doesn't automatically
 			read rndc.key and bind.keys [RT #20758]
+
+2820.	[func]		Handle read access failure of OpenSSL configuration
+			file more user friendly (PKCS#11 engine patch).
+			[RT #20668]
 
 2819.	[cleanup]	Removed unnecessary DNS_POINTER_MAXHOPS define.
 			[RT #20771]

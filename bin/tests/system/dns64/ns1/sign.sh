@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/sh -e
 #
 # Copyright (C) 2010  Internet Systems Consortium, Inc. ("ISC")
 #
@@ -14,7 +14,20 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: prereq.sh,v 1.2.2.2 2010/06/17 05:43:51 marka Exp $
+# $Id: sign.sh,v 1.3 2010/12/08 23:51:56 tbox Exp $
 
-echo "I:This test is not yet written." >&2
-exit 1
+SYSTEMTESTTOP=../..
+. $SYSTEMTESTTOP/conf.sh
+
+RANDFILE=../random.data
+
+zone=signed
+infile=example.db
+zonefile=signed.db
+
+key1=`$KEYGEN -q -r $RANDFILE $zone`
+key2=`$KEYGEN -q -r $RANDFILE -fk $zone`
+
+cat $infile $key1.key $key2.key > $zonefile
+
+$SIGNER -P -g -r $RANDFILE -o $zone $zonefile > /dev/null

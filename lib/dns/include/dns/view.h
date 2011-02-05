@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: view.h,v 1.120.8.7 2010/09/24 05:54:06 marka Exp $ */
+/* $Id: view.h,v 1.128 2010/12/08 02:46:16 marka Exp $ */
 
 #ifndef DNS_VIEW_H
 #define DNS_VIEW_H 1
@@ -158,6 +158,8 @@ struct dns_view {
 	isc_uint16_t			maxudp;
 	dns_v4_aaaa_t			v4_aaaa;
 	dns_acl_t *			v4_aaaa_acl;
+	dns_dns64list_t 		dns64;
+	unsigned int 			dns64cnt;
 
 	/*
 	 * Configurable data for server use only,

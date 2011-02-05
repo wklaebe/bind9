@@ -189,6 +189,13 @@ dns_dlzfindzone
 dns_dlzregister
 dns_dlzstrtoargv
 dns_dlzunregister
+dns_dns64_aaaafroma
+dns_dns64_aaaaok
+dns_dns64_append
+dns_dns64_create
+dns_dns64_destroy
+dns_dns64_next
+dns_dns64_unlink
 dns_dnssec_findmatchingkeys
 dns_dnssec_findzonekeys
 dns_dnssec_findzonekeys2
@@ -374,11 +381,9 @@ dns_name_setbuffer
 dns_name_settotextfilter
 dns_name_split
 dns_name_tofilenametext
-dns_name_toprincipal
 dns_name_toregion
 dns_name_tostring
 dns_name_totext
-dns_name_totext2
 dns_name_towire
 dns_ncache_add
 dns_ncache_getrdataset

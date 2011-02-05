@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: t_api.c,v 1.65.154.3 2010-12-21 04:30:15 marka Exp $ */
+/* $Id: t_api.c,v 1.67 2010/06/08 23:50:24 tbox Exp $ */
 
 /*! \file */
 
@@ -242,6 +242,15 @@ main(int argc, char **argv) {
 
 	sa.sa_flags = 0;
 	sigfillset(&sa.sa_mask);
+
+#ifdef SIGCHLD
+	/*
+	 * This is mostly here for NetBSD's pthread implementation, until
+	 * people catch up to the latest unproven-pthread package.
+	 */
+	sa.sa_handler = SIG_DFL;
+	(void)sigaction(SIGCHLD, &sa, NULL);
+#endif
 
 	sa.sa_handler = t_sighandler;
 	(void)sigaction(SIGINT,  &sa, NULL);

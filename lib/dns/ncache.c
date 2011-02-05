@@ -93,17 +93,17 @@ copy_rdataset(dns_rdataset_t *rdataset, isc_buffer_t *buffer) {
 
 isc_result_t
 dns_ncache_add(dns_message_t *message, dns_db_t *cache, dns_dbnode_t *node,
-	       dns_rdatatype_t covers, isc_stdtime_t now, dns_ttl_t maxttl,
+	       dns_rdatatype_t covers, isc_stdtime_t now, dns_ttl_t minttl, dns_ttl_t maxttl,
 	       dns_rdataset_t *addedrdataset)
 {
-	return (dns_ncache_addoptout(message, cache, node, covers, now, maxttl,
+	return (dns_ncache_addoptout(message, cache, node, covers, now, minttl, maxttl,
 				    ISC_FALSE, addedrdataset));
 }
 
 isc_result_t
 dns_ncache_addoptout(dns_message_t *message, dns_db_t *cache,
 		     dns_dbnode_t *node, dns_rdatatype_t covers,
-		     isc_stdtime_t now, dns_ttl_t maxttl,
+		     isc_stdtime_t now, dns_ttl_t minttl, dns_ttl_t maxttl,
 		     isc_boolean_t optout, dns_rdataset_t *addedrdataset)
 {
 	isc_result_t result;
@@ -171,6 +171,8 @@ dns_ncache_addoptout(dns_message_t *message, dns_db_t *cache,
 				    type == dns_rdatatype_nsec3) {
 					if (ttl > rdataset->ttl)
 						ttl = rdataset->ttl;
+					if (ttl < minttl)
+						ttl = minttl;
 					if (trust > rdataset->trust)
 						trust = rdataset->trust;
 					/*

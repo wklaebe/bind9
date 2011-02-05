@@ -681,6 +681,74 @@ esac
 esac
 
 #
+# Check for GeoIP - if yes enable it
+#
+
+AC_MSG_CHECKING(for GeoIP library)
+AC_ARG_WITH(geoip,
+[  --with-geoip=PATH   Specify path for system-supplied GeoIP],
+    use_geoip="$withval", use_geoip="no")
+
+#geoipdirs="/usr/local /usr/pkg /usr/kerberos /usr"
+#
+#if test "$use_geoip" = "yes"
+#then
+#	for d in $geoipdirs
+#	do
+#		if test -f $d/include/include/GeoIP.h -o -f $d/include/GeoIP.h
+#		then
+#			use_geoip=$d
+#			break
+#		fi
+#	done
+#fi
+
+AC_DEFINE([GEOIP_V6], [1], [Defined if GeoIP supports IPv6 lookups])
+case "$use_geoip" in
+	no)
+		AC_MSG_RESULT(disabled)
+		USE_GEOIP=''
+		;;
+#	yes)
+#		AC_MSG_ERROR([--with-geoip must specify a path])
+#		;;
+	*)
+		AC_CHECK_HEADER(GeoIP.h,,
+					[AC_MSG_ERROR([GeoIP library header files not found])]
+				)
+		AC_CHECK_LIB(GeoIP, GeoIP_open,
+			[
+				AC_DEFINE(SUPPORT_GEOIP, 1, Define if you want GeoIP support.)
+			],
+			[
+				AC_MSG_ERROR([GeoIP library header files were found but the library was not found])
+			])
+		GEOIP_LIBS="-lGeoIP"
+                AC_MSG_CHECKING(for for GeoIP IPv6 support)
+                AC_TRY_COMPILE([
+#include <GeoIP.h>
+#include <netinet/in.h>
+],
+[
+
+extern const struct in6_addr in6addr_loopback;
+static GeoIP *geoip = NULL;
+
+const char* value = value = GeoIP_country_name_by_ipnum_v6(geoip, (geoipv6_t)in6addr_loopback);
+
+]
+,
+	[AC_MSG_RESULT(yes)
+		GEOIP_V6="#define GEOIP_V6 1"],
+	[AC_MSG_RESULT(no)
+		GEOIP_V6="#undef GEOIP_V6"])
+AC_DEFINE(GEOIP_V6)
+		;;
+esac
+
+AC_SUBST(GEOIP_LIBS)
+
+#
 # This would include the system openssl path (and linker options to use
 # it as needed) if it is found.
 #
@@ -1053,7 +1121,7 @@ then
 		# LinuxThreads requires some changes to the way we
 		# deal with signals.
 		#
-		*-linux*)
+		*-linux*|*-kfreebsd*-gnu)
 			AC_DEFINE(HAVE_LINUXTHREADS)
 			;;
 		#

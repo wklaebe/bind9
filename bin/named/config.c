@@ -142,6 +142,8 @@ options {\n\
 	lame-ttl 600;\n\
 	max-ncache-ttl 10800; /* 3 hours */\n\
 	max-cache-ttl 604800; /* 1 week */\n\
+	min-ncache-ttl 0; /* 0 hours */\n\
+	min-cache-ttl 0; /* 0 seconds */\n\
 	transfer-format many-answers;\n\
 	max-cache-size 0;\n\
 	check-names master fail;\n\

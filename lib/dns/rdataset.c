@@ -276,6 +276,7 @@ dns_rdataset_current(dns_rdataset_t *rdataset, dns_rdata_t *rdata) {
 #define MAX_SHUFFLE	32
 #define WANT_FIXED(r)	(((r)->attributes & DNS_RDATASETATTR_FIXEDORDER) != 0)
 #define WANT_RANDOM(r)	(((r)->attributes & DNS_RDATASETATTR_RANDOMIZE) != 0)
+#define WANT_SINGLE(r)	(((r)->attributes & DNS_RDATASETATTR_SINGLE) != 0)
 
 struct towire_sort {
 	int key;
@@ -299,7 +300,7 @@ towiresorted(dns_rdataset_t *rdataset, const dns_name_t *owner_name,
 	dns_rdata_t rdata = DNS_RDATA_INIT;
 	isc_region_t r;
 	isc_result_t result;
-	unsigned int i, count, added, choice;
+	unsigned int i, real_count, count, added, choice;
 	isc_buffer_t savedbuffer, rdlen, rrbuffer;
 	unsigned int headlen;
 	isc_boolean_t question = ISC_FALSE;
@@ -342,6 +343,7 @@ towiresorted(dns_rdataset_t *rdataset, const dns_name_t *owner_name,
 		if (result != ISC_R_SUCCESS)
 			return (result);
 	}
+	real_count = count;
 
 	/*
 	 * Do we want to shuffle this answer?
@@ -409,6 +411,9 @@ towiresorted(dns_rdataset_t *rdataset, const dns_name_t *owner_name,
 				else
 					sorted[i].key = 0; /* Unused */
 				sorted[i].rdata = &shuffled[i];
+			}
+			if (count > 1 && WANT_SINGLE(rdataset)) {
+				count = 1;
 			}
 		} else {
 			/*
@@ -530,9 +535,9 @@ towiresorted(dns_rdataset_t *rdataset, const dns_name_t *owner_name,
 
  cleanup:
 	if (sorted != NULL && sorted != sorted_fixed)
-		isc_mem_put(cctx->mctx, sorted, count * sizeof(*sorted));
+		isc_mem_put(cctx->mctx, sorted, real_count * sizeof(*sorted));
 	if (shuffled != NULL && shuffled != shuffled_fixed)
-		isc_mem_put(cctx->mctx, shuffled, count * sizeof(*shuffled));
+		isc_mem_put(cctx->mctx, shuffled, real_count * sizeof(*shuffled));
 	return (result);
 }
 

@@ -1033,6 +1033,8 @@ view_clauses[] = {
 	{ "max-clients-per-query", &cfg_type_uint32, 0 },
 	{ "max-ncache-ttl", &cfg_type_uint32, 0 },
 	{ "max-udp-size", &cfg_type_uint32, 0 },
+	{ "min-cache-ttl", &cfg_type_uint32, 0 },
+	{ "min-ncache-ttl", &cfg_type_uint32, 0 },
 	{ "min-roots", &cfg_type_uint32, CFG_CLAUSEFLAG_NOTIMP },
 	{ "minimal-responses", &cfg_type_boolean, 0 },
 	{ "preferred-glue", &cfg_type_astring, 0 },

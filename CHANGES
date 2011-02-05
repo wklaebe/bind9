@@ -1,3 +1,34 @@
+
+	--- 9.7.3rc1 released ---
+
+3007.	[bug]		Named failed to preserve the case of domain names in
+			rdata which is not compressible when writing master
+			files.  [RT #22863]
+
+3002.	[bug]		isc_mutex_init_errcheck() failed to destroy attr.
+			[RT #22766]
+
+2996.	[security]	Temporarily disable SO_ACCEPTFILTER support.
+			[RT #22589]
+
+2995.	[bug]		The Kerberos realm was not being correctly extracted
+			from the signer's identity. [RT #22770]
+
+2994.	[port]		NetBSD: use pthreads by default on NetBSD >= 5.0, and
+			do not use threads on earlier versions.  Also kill
+			the unproven-pthreads, mit-pthreads, and ptl2 support.
+
+2990.	[bug]		'dnssec-settime -S' no longer tests prepublication
+			interval validity when the interval is set to 0.
+			[RT #22761]
+
+2985.	[bug]		Add a regression test for change #2896. [RT #21324]
+
+2984.	[bug]		Don't run MX checks when the target of the MX record
+			is ".".  [RT #22645]
+
+2983.	[bug]		Include "loadkeys" in rndc help output. [RT #22493]
+
 	--- 9.7.3b1 released ---
 
 2982.	[bug]		Reference count dst keys.  dst_key_attach() can be used

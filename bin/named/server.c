@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2010  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2011  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: server.c,v 1.590 2010/12/09 00:54:33 marka Exp $ */
+/* $Id: server.c,v 1.599 2011-01-13 03:57:50 marka Exp $ */
 
 /*! \file */
 
@@ -602,7 +602,8 @@ dstkey_fromconfig(const cfg_obj_t *vconfig, const cfg_obj_t *key,
 
 static isc_result_t
 load_view_keys(const cfg_obj_t *keys, const cfg_obj_t *vconfig,
-	       dns_view_t *view, isc_boolean_t managed, isc_mem_t *mctx)
+	       dns_view_t *view, isc_boolean_t managed,
+	       dns_name_t *keyname, isc_mem_t *mctx)
 {
 	const cfg_listelt_t *elt, *elt2;
 	const cfg_obj_t *key, *keylist;
@@ -630,6 +631,16 @@ load_view_keys(const cfg_obj_t *keys, const cfg_obj_t *vconfig,
 			if (result != ISC_R_SUCCESS)
 				goto cleanup;
 
+			/*
+			 * If keyname was specified, we only add that key.
+			 */
+			if (keyname != NULL &&
+			    !dns_name_equal(keyname, dst_key_name(dstkey)))
+			{
+				dst_key_free(&dstkey);
+				continue;
+			}
+
 			CHECK(dns_keytable_add(secroots, managed, &dstkey));
 		}
 	}
@@ -653,15 +664,14 @@ load_view_keys(const cfg_obj_t *keys, const cfg_obj_t *vconfig,
 static isc_result_t
 configure_view_dnsseckeys(dns_view_t *view, const cfg_obj_t *vconfig,
 			  const cfg_obj_t *config, const cfg_obj_t *bindkeys,
-			  isc_boolean_t auto_dlv, isc_mem_t *mctx)
+			  isc_boolean_t auto_dlv, isc_boolean_t auto_root,
+			  isc_mem_t *mctx)
 {
 	isc_result_t result = ISC_R_SUCCESS;
 	const cfg_obj_t *view_keys = NULL;
 	const cfg_obj_t *global_keys = NULL;
 	const cfg_obj_t *view_managed_keys = NULL;
 	const cfg_obj_t *global_managed_keys = NULL;
-	const cfg_obj_t *builtin_keys = NULL;
-	const cfg_obj_t *builtin_managed_keys = NULL;
 	const cfg_obj_t *maps[4];
 	const cfg_obj_t *voptions = NULL;
 	const cfg_obj_t *options = NULL;
@@ -707,9 +717,12 @@ configure_view_dnsseckeys(dns_view_t *view, const cfg_obj_t *vconfig,
 	}
 
 	if (auto_dlv && view->rdclass == dns_rdataclass_in) {
+		const cfg_obj_t *builtin_keys = NULL;
+		const cfg_obj_t *builtin_managed_keys = NULL;
+
 		isc_log_write(ns_g_lctx, DNS_LOGCATEGORY_SECURITY,
 			      NS_LOGMODULE_SERVER, ISC_LOG_WARNING,
-			      "using built-in trusted-keys for view %s",
+			      "using built-in DLV key for view %s",
 			      view->name);
 
 		/*
@@ -730,19 +743,56 @@ configure_view_dnsseckeys(dns_view_t *view, const cfg_obj_t *vconfig,
 
 		if (builtin_keys != NULL)
 			CHECK(load_view_keys(builtin_keys, vconfig, view,
-					     ISC_FALSE, mctx));
+					     ISC_FALSE, view->dlv, mctx));
 		if (builtin_managed_keys != NULL)
 			CHECK(load_view_keys(builtin_managed_keys, vconfig,
-					     view, ISC_TRUE, mctx));
+					     view, ISC_TRUE, view->dlv, mctx));
 	}
 
-	CHECK(load_view_keys(view_keys, vconfig, view, ISC_FALSE, mctx));
-	CHECK(load_view_keys(view_managed_keys, vconfig, view, ISC_TRUE, mctx));
+	if (auto_root && view->rdclass == dns_rdataclass_in) {
+		const cfg_obj_t *builtin_keys = NULL;
+		const cfg_obj_t *builtin_managed_keys = NULL;
+
+		isc_log_write(ns_g_lctx, DNS_LOGCATEGORY_SECURITY,
+			      NS_LOGMODULE_SERVER, ISC_LOG_WARNING,
+			      "using built-in root key for view %s",
+			      view->name);
+
+		/*
+		 * If bind.keys exists, it overrides the managed-keys
+		 * clause hard-coded in ns_g_config.
+		 */
+		if (bindkeys != NULL) {
+			(void)cfg_map_get(bindkeys, "trusted-keys",
+					  &builtin_keys);
+			(void)cfg_map_get(bindkeys, "managed-keys",
+					  &builtin_managed_keys);
+		} else {
+			(void)cfg_map_get(ns_g_config, "trusted-keys",
+					  &builtin_keys);
+			(void)cfg_map_get(ns_g_config, "managed-keys",
+					  &builtin_managed_keys);
+		}
+
+		if (builtin_keys != NULL)
+			CHECK(load_view_keys(builtin_keys, vconfig, view,
+					     ISC_FALSE, dns_rootname, mctx));
+		if (builtin_managed_keys != NULL)
+			CHECK(load_view_keys(builtin_managed_keys, vconfig,
+					     view, ISC_TRUE, dns_rootname,
+					     mctx));
+	}
+
+	CHECK(load_view_keys(view_keys, vconfig, view, ISC_FALSE,
+			     NULL, mctx));
+	CHECK(load_view_keys(view_managed_keys, vconfig, view, ISC_TRUE,
+			     NULL, mctx));
+
 	if (view->rdclass == dns_rdataclass_in) {
 		CHECK(load_view_keys(global_keys, vconfig, view, ISC_FALSE,
-				     mctx));
+				     NULL, mctx));
 		CHECK(load_view_keys(global_managed_keys, vconfig, view,
-				     ISC_TRUE, mctx));
+				     ISC_TRUE, NULL, mctx));
 	}
 
 	/*
@@ -1290,6 +1340,212 @@ cache_sharable(dns_view_t *originview, dns_view_t *view,
 	return (ISC_TRUE);
 }
 
+#ifdef DLZ
+/*
+ * Callback from DLZ configure when the driver sets up a writeable zone
+ */
+static isc_result_t
+dlzconfigure_callback(dns_view_t *view, dns_zone_t *zone) {
+	dns_name_t *origin = dns_zone_getorigin(zone);
+	dns_rdataclass_t zclass = view->rdclass;
+	isc_result_t result;
+
+	result = dns_zonemgr_managezone(ns_g_server->zonemgr, zone);
+	if (result != ISC_R_SUCCESS)
+		return result;
+	dns_zone_setstats(zone, ns_g_server->zonestats);
+
+	return ns_zone_configure_writeable_dlz(view->dlzdatabase,
+					       zone, zclass, origin);
+}
+#endif
+
+static isc_result_t
+dns64_reverse(dns_view_t *view, isc_mem_t *mctx, isc_netaddr_t *na,
+	      unsigned int prefixlen, const char *server,
+	      const char *contact)
+{
+	char *cp;
+	char reverse[48+sizeof("ip6.arpa.")];
+	const char *dns64_dbtype[4] = { "_builtin", "dns64", ".", "." };
+	const char *sep = ": view ";
+	const char *viewname = view->name;
+	const unsigned char *s6;
+	dns_fixedname_t fixed;
+	dns_name_t *name;
+	dns_zone_t *zone = NULL;
+	int dns64_dbtypec = 4;
+	isc_buffer_t b;
+	isc_result_t result;
+
+	REQUIRE(prefixlen == 32 || prefixlen == 40 || prefixlen == 48 ||
+		prefixlen == 56 || prefixlen == 64 || prefixlen == 96);
+
+	if (!strcmp(viewname, "_default")) {
+		sep = "";
+		viewname = "";
+	}
+
+	/*
+	 * Construct the reverse name of the zone.
+	 */
+	cp = reverse;
+	s6 = na->type.in6.s6_addr;
+	while (prefixlen > 0) {
+		prefixlen -= 8;
+		sprintf(cp, "%x.%x.", s6[prefixlen/8] & 0xf,
+			(s6[prefixlen/8] >> 4) & 0xf);
+		cp += 4;
+	}
+	strcat(cp, "ip6.arpa.");
+
+	/*
+	 * Create the actual zone.
+	 */
+	if (server != NULL)
+		dns64_dbtype[2] = server;
+	if (contact != NULL)
+		dns64_dbtype[3] = contact;
+	dns_fixedname_init(&fixed);
+	name = dns_fixedname_name(&fixed);
+	isc_buffer_init(&b, reverse, strlen(reverse));
+	isc_buffer_add(&b, strlen(reverse));
+	CHECK(dns_name_fromtext(name, &b, dns_rootname, 0, NULL));
+	CHECK(dns_zone_create(&zone, mctx));
+	CHECK(dns_zone_setorigin(zone, name));
+	dns_zone_setview(zone, view);
+	CHECK(dns_zonemgr_managezone(ns_g_server->zonemgr, zone));
+	dns_zone_setclass(zone, view->rdclass);
+	dns_zone_settype(zone, dns_zone_master);
+	dns_zone_setstats(zone, ns_g_server->zonestats);
+	CHECK(dns_zone_setdbtype(zone, dns64_dbtypec, dns64_dbtype));
+	if (view->queryacl != NULL)
+		dns_zone_setqueryacl(zone, view->queryacl);
+	if (view->queryonacl != NULL)
+		dns_zone_setqueryonacl(zone, view->queryonacl);
+	dns_zone_setdialup(zone, dns_dialuptype_no);
+	dns_zone_setnotifytype(zone, dns_notifytype_no);
+	dns_zone_setoption(zone, DNS_ZONEOPT_NOCHECKNS, ISC_TRUE);
+	CHECK(setquerystats(zone, mctx, ISC_FALSE));	/* XXXMPA */
+	CHECK(dns_view_addzone(view, zone));
+	isc_log_write(ns_g_lctx, NS_LOGCATEGORY_GENERAL, NS_LOGMODULE_SERVER,
+		      ISC_LOG_INFO, "dns64 reverse zone%s%s: %s", sep,
+		      viewname, reverse);
+
+cleanup:
+	if (zone != NULL)
+		dns_zone_detach(&zone);
+	return (result);
+}
+
+static isc_result_t
+configure_rpz(dns_view_t *view, const cfg_listelt_t *element) {
+	const cfg_obj_t *rpz_obj, *policy_obj;
+	const char *str;
+	dns_fixedname_t fixed;
+	dns_name_t *origin;
+	dns_rpz_zone_t *old, *new;
+	dns_zone_t *zone = NULL;
+	isc_result_t result;
+	unsigned int l1, l2;
+
+	new = isc_mem_get(view->mctx, sizeof(*new));
+	if (new == NULL) {
+		result = ISC_R_NOMEMORY;
+		goto cleanup;
+	}
+
+	memset(new, 0, sizeof(*new));
+	dns_name_init(&new->nsdname, NULL);
+	dns_name_init(&new->origin, NULL);
+	dns_name_init(&new->cname, NULL);
+	ISC_LIST_INITANDAPPEND(view->rpz_zones, new, link);
+
+	rpz_obj = cfg_listelt_value(element);
+	policy_obj = cfg_tuple_get(rpz_obj, "policy");
+	if (cfg_obj_isvoid(policy_obj)) {
+		new->policy = DNS_RPZ_POLICY_GIVEN;
+	} else {
+		str = cfg_obj_asstring(policy_obj);
+		new->policy = dns_rpz_str2policy(str);
+		INSIST(new->policy != DNS_RPZ_POLICY_ERROR);
+	}
+
+	dns_fixedname_init(&fixed);
+	origin = dns_fixedname_name(&fixed);
+	str = cfg_obj_asstring(cfg_tuple_get(rpz_obj, "name"));
+	result = dns_name_fromstring(origin, str, DNS_NAME_DOWNCASE, NULL);
+	if (result != ISC_R_SUCCESS) {
+		cfg_obj_log(rpz_obj, ns_g_lctx, DNS_RPZ_ERROR_LEVEL,
+			    "invalid zone '%s'", str);
+		goto cleanup;
+	}
+
+	result = dns_name_fromstring2(&new->nsdname, DNS_RPZ_NSDNAME_ZONE,
+				      origin, DNS_NAME_DOWNCASE, view->mctx);
+	if (result != ISC_R_SUCCESS) {
+		cfg_obj_log(rpz_obj, ns_g_lctx, DNS_RPZ_ERROR_LEVEL,
+			    "invalid zone '%s'", str);
+		goto cleanup;
+	}
+
+	/*
+	 * The origin is part of 'nsdname' so we don't need to keep it
+	 * seperately.
+	 */
+	l1 = dns_name_countlabels(&new->nsdname);
+	l2 = dns_name_countlabels(origin);
+	dns_name_getlabelsequence(&new->nsdname, l1 - l2, l2, &new->origin);
+
+	/*
+	 * Are we configured to with the reponse policy zone?
+	 */
+	result = dns_view_findzone(view, &new->origin, &zone);
+	if (result != ISC_R_SUCCESS) {
+		cfg_obj_log(rpz_obj, ns_g_lctx, DNS_RPZ_ERROR_LEVEL,
+			    "unknown zone '%s'", str);
+		goto cleanup;
+	}
+
+	if (dns_zone_gettype(zone) != dns_zone_master &&
+	    dns_zone_gettype(zone) != dns_zone_slave) {
+		cfg_obj_log(rpz_obj, ns_g_lctx, DNS_RPZ_ERROR_LEVEL,
+			     "zone '%s' is neither master nor slave", str);
+		dns_zone_detach(&zone);
+		result = DNS_R_NOTMASTER;
+		goto cleanup;
+	}
+	dns_zone_detach(&zone);
+
+	for (old = ISC_LIST_HEAD(view->rpz_zones);
+	     old != new;
+	     old = ISC_LIST_NEXT(old, link)) {
+		++new->num;
+		if (dns_name_equal(&old->origin, &new->origin)) {
+			cfg_obj_log(rpz_obj, ns_g_lctx, DNS_RPZ_ERROR_LEVEL,
+				    "duplicate '%s'", str);
+			result = DNS_R_DUPLICATE;
+			goto cleanup;
+		}
+	}
+
+	if (new->policy == DNS_RPZ_POLICY_CNAME) {
+		str = cfg_obj_asstring(cfg_tuple_get(rpz_obj, "cname"));
+		result = dns_name_fromstring(&new->cname, str, 0, view->mctx);
+		if (result != ISC_R_SUCCESS) {
+			cfg_obj_log(rpz_obj, ns_g_lctx, DNS_RPZ_ERROR_LEVEL,
+				    "invalid cname '%s'", str);
+			goto cleanup;
+		}
+	}
+
+	return (ISC_R_SUCCESS);
+
+ cleanup:
+	dns_rpz_view_destroy(view);
+	return (result);
+}
+
 /*
  * Configure 'view' according to 'vconfig', taking defaults from 'config'
  * where values are missing in 'vconfig'.
@@ -1353,6 +1609,7 @@ configure_view(dns_view_t *view, cfg_parser_t* parser,
 	isc_stats_t *resstats = NULL;
 	dns_stats_t *resquerystats = NULL;
 	isc_boolean_t auto_dlv = ISC_FALSE;
+	isc_boolean_t auto_root = ISC_FALSE;
 	ns_cache_t *nsc;
 	isc_boolean_t zero_no_soattl;
 	cfg_parser_t *newzones_parser = NULL;
@@ -1563,6 +1820,14 @@ configure_view(dns_view_t *view, cfg_parser_t* parser,
 			isc_mem_put(mctx, dlzargv, dlzargc * sizeof(*dlzargv));
 			if (result != ISC_R_SUCCESS)
 				goto cleanup;
+
+			/*
+			 * If the dlz backend supports configuration,
+			 * then call its configure method now.
+			 */
+			result = dns_dlzconfigure(view, dlzconfigure_callback);
+			if (result != ISC_R_SUCCESS)
+				goto cleanup;
 		}
 	}
 #endif
@@ -1627,6 +1892,22 @@ configure_view(dns_view_t *view, cfg_parser_t* parser,
 		const cfg_listelt_t *element;
 		isc_netaddr_t na, suffix, *sp;
 		unsigned int prefixlen;
+		const char *server, *contact;
+		const cfg_obj_t *myobj;
+
+		myobj = NULL;
+		result = ns_config_get(maps, "dns64-server", &myobj);
+		if (result == ISC_R_SUCCESS)
+			server = cfg_obj_asstring(myobj);
+		else
+			server = NULL;
+
+		myobj = NULL;
+		result = ns_config_get(maps, "dns64-contact", &myobj);
+		if (result == ISC_R_SUCCESS)
+			contact = cfg_obj_asstring(myobj);
+		else
+			contact = NULL;
 
 		for (element = cfg_list_first(obj);
 		     element != NULL;
@@ -1694,6 +1975,10 @@ configure_view(dns_view_t *view, cfg_parser_t* parser,
 				goto cleanup;
 			dns_dns64_append(&view->dns64, dns64);
 			view->dns64cnt++;
+			result = dns64_reverse(view, mctx, &na, prefixlen,
+					       server, contact);
+			if (result != ISC_R_SUCCESS)
+				goto cleanup;
 			if (clients != NULL)
 				dns_acl_detach(&clients);
 			if (mapped != NULL)
@@ -1711,7 +1996,13 @@ configure_view(dns_view_t *view, cfg_parser_t* parser,
 	obj = NULL;
 	result = ns_config_get(maps, "dnssec-validation", &obj);
 	INSIST(result == ISC_R_SUCCESS);
-	view->enablevalidation = cfg_obj_asboolean(obj);
+	if (cfg_obj_isboolean(obj)) {
+		view->enablevalidation = cfg_obj_asboolean(obj);
+	} else {
+		/* If dnssec-validation is not boolean, it must be "auto" */
+		view->enablevalidation = ISC_TRUE;
+		auto_root = ISC_TRUE;
+	}
 
 	obj = NULL;
 	result = ns_config_get(maps, "max-cache-ttl", &obj);
@@ -2014,7 +2305,23 @@ configure_view(dns_view_t *view, cfg_parser_t* parser,
 					  ns_g_server->sessionkey));
 	}
 	dns_view_setkeyring(view, ring);
-	ring = NULL;		/* ownership transferred */
+	dns_tsigkeyring_detach(&ring);
+
+	/*
+	 * See if we can re-use a dynamic key ring.
+	 */
+	result = dns_viewlist_find(&ns_g_server->viewlist, view->name,
+				   view->rdclass, &pview);
+	if (result != ISC_R_NOTFOUND && result != ISC_R_SUCCESS)
+		goto cleanup;
+	if (pview != NULL) {
+		dns_view_getdynamickeyring(pview, &ring);
+		if (ring != NULL)
+			dns_view_setdynamickeyring(view, ring);
+		dns_tsigkeyring_detach(&ring);
+		dns_view_detach(&pview);
+	} else
+		dns_view_restorekeyring(view);
 
 	/*
 	 * Configure the view's peer list.
@@ -2333,24 +2640,6 @@ configure_view(dns_view_t *view, cfg_parser_t* parser,
 			dns_name_t *dlv;
 
 			obj = cfg_listelt_value(element);
-#if 0
-			dns_fixedname_t fixed;
-			dns_name_t *name;
-
-			/*
-			 * When we support multiple dnssec-lookaside
-			 * entries this is how to find the domain to be
-			 * checked. XXXMPA
-			 */
-			dns_fixedname_init(&fixed);
-			name = dns_fixedname_name(&fixed);
-			str = cfg_obj_asstring(cfg_tuple_get(obj,
-							     "domain"));
-			isc_buffer_init(&b, str, strlen(str));
-			isc_buffer_add(&b, strlen(str));
-			CHECK(dns_name_fromtext(name, &b, dns_rootname,
-						0, NULL));
-#endif
 			str = cfg_obj_asstring(cfg_tuple_get(obj,
 							     "trust-anchor"));
 			isc_buffer_init(&b, str, strlen(str));
@@ -2368,7 +2657,7 @@ configure_view(dns_view_t *view, cfg_parser_t* parser,
 	 * "security roots".
 	 */
 	CHECK(configure_view_dnsseckeys(view, vconfig, config, bindkeys,
-					auto_dlv, mctx));
+					auto_dlv, auto_root, mctx));
 	dns_resolver_resetmustbesecure(view->resolver);
 	obj = NULL;
 	result = ns_config_get(maps, "dnssec-must-be-secure", &obj);
@@ -2600,6 +2889,29 @@ configure_view(dns_view_t *view, cfg_parser_t* parser,
 		}
 	}
 
+	/*
+	 * Make the list of response policy zone names for views that
+	 * are used for real lookups and so care about hints.
+	 */
+	zonelist = NULL;
+	if (view->rdclass == dns_rdataclass_in && need_hints) {
+		obj = NULL;
+		result = ns_config_get(maps, "response-policy", &obj);
+		if (result == ISC_R_SUCCESS)
+			cfg_map_get(obj, "zone", &zonelist);
+	}
+	if (zonelist != NULL) {
+
+		for (element = cfg_list_first(zonelist);
+		     element != NULL;
+		     element = cfg_list_next(element)) {
+			result = configure_rpz(view, element);
+			if (result != ISC_R_SUCCESS)
+				goto cleanup;
+			dns_rpz_set_need(ISC_TRUE);
+		}
+	}
+
 	result = ISC_R_SUCCESS;
 
  cleanup:
@@ -2610,7 +2922,7 @@ configure_view(dns_view_t *view, cfg_parser_t* parser,
 	if (excluded != NULL)
 		dns_acl_detach(&excluded);
 	if (ring != NULL)
-		dns_tsigkeyring_destroy(&ring);
+		dns_tsigkeyring_detach(&ring);
 	if (zone != NULL)
 		dns_zone_detach(&zone);
 	if (dispatch4 != NULL)
@@ -6984,7 +7296,7 @@ ns_server_del_zone(ns_server_t *server, char *args) {
 	/* Rewrite zone list */
 	result = isc_stdio_open(filename, "r", &ifp);
 	if (ifp != NULL && result == ISC_R_SUCCESS) {
-		char *found = NULL, *p;
+		char *found = NULL, *p = NULL;
 		size_t n;
 
 		/* Create a temporary file */

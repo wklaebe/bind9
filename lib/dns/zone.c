@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2010  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2011  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: zone.c,v 1.577 2010/12/02 23:22:42 marka Exp $ */
+/* $Id: zone.c,v 1.582 2011-01-13 04:59:25 tbox Exp $ */
 
 /*! \file */
 
@@ -322,6 +322,11 @@ struct dns_zone {
 	 * True if added by "rndc addzone"
 	 */
 	isc_boolean_t           added;
+
+	/*%
+	 * whether a rpz radix was needed when last loaded
+	 */
+	isc_boolean_t           rpz_zone;
 };
 
 #define DNS_ZONE_FLAG(z,f) (ISC_TF(((z)->flags & (f)) != 0))
@@ -833,6 +838,7 @@ dns_zone_create(dns_zone_t **zonep, isc_mem_t *mctx) {
 	zone->nodes = 100;
 	zone->privatetype = (dns_rdatatype_t)0xffffU;
 	zone->added = ISC_FALSE;
+	zone->rpz_zone = ISC_FALSE;
 
 	zone->magic = ZONE_MAGIC;
 
@@ -1434,7 +1440,8 @@ zone_load(dns_zone_t *zone, unsigned int flags) {
 		 * "rndc reconfig", we are done.
 		 */
 		if (!isc_time_isepoch(&zone->loadtime) &&
-		    (flags & DNS_ZONELOADFLAG_NOSTAT) != 0) {
+		    (flags & DNS_ZONELOADFLAG_NOSTAT) != 0 &&
+		    zone->rpz_zone == dns_rpz_needed()) {
 			result = ISC_R_SUCCESS;
 			goto cleanup;
 		}
@@ -1443,7 +1450,8 @@ zone_load(dns_zone_t *zone, unsigned int flags) {
 		if (result == ISC_R_SUCCESS) {
 			if (DNS_ZONE_FLAG(zone, DNS_ZONEFLG_LOADED) &&
 			    !DNS_ZONE_FLAG(zone, DNS_ZONEFLG_HASINCLUDE) &&
-			    isc_time_compare(&filetime, &zone->loadtime) <= 0) {
+			    isc_time_compare(&filetime, &zone->loadtime) <= 0 &&
+			    zone->rpz_zone == dns_rpz_needed()) {
 				dns_zone_log(zone, ISC_LOG_DEBUG(1),
 					     "skipping load: master file "
 					     "older than last load");
@@ -1451,6 +1459,7 @@ zone_load(dns_zone_t *zone, unsigned int flags) {
 				goto cleanup;
 			}
 			loadtime = filetime;
+			zone->rpz_zone = dns_rpz_needed();
 		}
 	}
 
@@ -1749,6 +1758,12 @@ zone_check_mx(dns_zone_t *zone, dns_db_t *db, dns_name_t *name,
 	dns_fixedname_t fixed;
 	dns_name_t *foundname;
 	int level;
+
+	/*
+	 * "." means the services does not exist.
+	 */
+	if (dns_name_equal(name, dns_rootname))
+		return (ISC_TRUE);
 
 	/*
 	 * Outside of zone.
@@ -3412,6 +3427,7 @@ zone_postload(dns_zone_t *zone, dns_db_t *db, isc_time_t loadtime,
 	 */
 
 	switch (zone->type) {
+	case dns_zone_dlz:
 	case dns_zone_master:
 	case dns_zone_slave:
 	case dns_zone_stub:
@@ -4408,6 +4424,17 @@ dns_zone_getdb(dns_zone_t *zone, dns_db_t **dpb) {
 	ZONEDB_UNLOCK(&zone->dblock, isc_rwlocktype_read);
 
 	return (result);
+}
+
+void
+dns_zone_setdb(dns_zone_t *zone, dns_db_t *db) {
+	REQUIRE(DNS_ZONE_VALID(zone));
+	REQUIRE(zone->type == dns_zone_staticstub);
+
+	ZONEDB_LOCK(&zone->dblock, isc_rwlocktype_write);
+	REQUIRE(zone->db == NULL);
+	dns_db_attach(db, &zone->db);
+	ZONEDB_UNLOCK(&zone->dblock, isc_rwlocktype_write);
 }
 
 /*
@@ -14171,4 +14198,17 @@ isc_boolean_t
 dns_zone_getadded(dns_zone_t *zone) {
 	REQUIRE(DNS_ZONE_VALID(zone));
 	return (zone->added);
+}
+
+isc_result_t
+dns_zone_dlzpostload(dns_zone_t *zone, dns_db_t *db)
+{
+	isc_time_t loadtime;
+	isc_result_t result;
+	TIME_NOW(&loadtime);
+
+	LOCK_ZONE(zone);
+	result = zone_postload(zone, db, loadtime, ISC_R_SUCCESS);
+	UNLOCK_ZONE(zone);
+	return result;
 }

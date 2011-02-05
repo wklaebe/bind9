@@ -1,3 +1,107 @@
+
+	--- 9.8.0b1 released ---
+
+3008.	[func]		Response policy zones (RPZ) support. [RT #21726]
+
+3007.	[bug]		Named failed to preserve the case of domain names in
+			rdata which is not compressible when writing master
+			files.  [RT #22863]
+
+3006.	[func]		Allow dynamically generated TSIG keys to be preserved
+			across restarts of named.  Initially this is for
+			TSIG keys generated using GSSAPI. [RT #22639]
+
+3005.	[port]		Solaris: Work around the lack of
+			gsskrb5_register_acceptor_identity() by setting
+			the KRB5_KTNAME environment variable to the
+			contents of tkey-gssapi-keytab.  Also fixed
+			test errors on MacOSX.  [RT #22853]
+
+3004.	[func]		DNS64 reverse support. [RT #22769]
+
+3003.	[experimental]	Added update-policy match type "external",
+			enabling named to defer the decision of whether to
+			allow a dynamic update to an external daemon.
+			(Contributed by Andrew Tridgell.) [RT #22758]
+
+3002.	[bug]		isc_mutex_init_errcheck() failed to destroy attr.
+			[RT #22766]
+
+3001.	[func]		Added a default trust anchor for the root zone, which
+			can be switched on by setting "dnssec-validation auto;"
+			in the named.conf options. [RT #21727]
+
+3000.	[bug]		More TKEY/GSS fixes:
+			 - nsupdate can now get the default realm from
+			   the user's Kerberos principal
+			 - corrected gsstest compilation flags
+			 - improved documentation
+			 - fixed some NULL dereferences
+			[RT #22795]
+
+2999.	[func]		Add GOST support (RFC 5933). [RT #20639]
+
+2998.	[func]		Add isc_task_beginexclusive and isc_task_endexclusive
+			to the task api. [RT #22776]
+
+2997.	[func]		named -V now reports the OpenSSL and libxml2 verions
+			it was compiled against. [RT #22687]
+
+2996.	[security]	Temporarily disable SO_ACCEPTFILTER support.
+			[RT #22589]
+
+2995.	[bug]		The Kerberos realm was not being correctly extracted
+			from the signer's identity. [RT #22770]
+
+2994.	[port]		NetBSD: use pthreads by default on NetBSD >= 5.0, and
+			do not use threads on earlier versions.  Also kill
+			the unproven-pthreads, mit-pthreads, and ptl2 support.
+
+2993.	[func]		Dynamically grow adb hash tables. [RT #21186]
+
+2992.	[contrib]	contrib/check-secure-delegation.pl:  A simple tool
+			for looking at a secure delegation. [RT #22059]
+
+2991.	[contrib]	contrib/zone-edit.sh: A simple zone editing tool for
+			dynamic zones. [RT #22365]
+
+2990.	[bug]		'dnssec-settime -S' no longer tests prepublication
+			interval validity when the interval is set to 0.
+			[RT #22761]
+
+2989.	[func]		Added support for writable DLZ zones. (Contributed
+			by Andrew Tridgell of the Samba project.) [RT #22629]
+
+2988.	[experimental]	Added a "dlopen" DLZ driver, allowing the creation
+			of external DLZ drivers that can be loaded as
+			shared objects at runtime rather than linked with
+			named.  Currently this is switched on via a
+			compile-time option, "configure --with-dlz-dlopen".
+			Note: the syntax for configuring DLZ zones
+			is likely to be refined in future releases.
+			(Contributed by Andrew Tridgell of the Samba
+			project.) [RT #22629]
+
+2987.	[func]		Improve ease of configuring TKEY/GSS updates by
+			adding a "tkey-gssapi-keytab" option.  If set,
+			updates will be allowed with any key matching
+			a principal in the specified keytab file.
+			"tkey-gssapi-credential" is no longer required
+			and is expected to be deprecated.  (Contributed
+			by Andrew Tridgell of the Samba project.)
+			[RT #22629]
+
+2986.	[func]		Add new zone type "static-stub".  It's like a stub
+			zone, but the nameserver names and/or their IP
+			addresses are statically configured. [RT #21474]
+
+2985.	[bug]		Add a regression test for change #2896. [RT #21324]
+
+2984.	[bug]		Don't run MX checks when the target of the MX record
+			is ".".  [RT #22645]
+
+2983.	[bug]		Include "loadkeys" in rndc help output. [RT #22493]
+
 	--- 9.8.0a1 released ---
 
 2982.	[bug]		Reference count dst keys.  dst_key_attach() can be used

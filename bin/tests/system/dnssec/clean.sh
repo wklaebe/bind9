@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Copyright (C) 2004, 2007-2010  Internet Systems Consortium, Inc. ("ISC")
+# Copyright (C) 2004, 2007-2011  Internet Systems Consortium, Inc. ("ISC")
 # Copyright (C) 2000-2002  Internet Software Consortium.
 #
 # Permission to use, copy, modify, and/or distribute this software for any
@@ -15,9 +15,10 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: clean.sh,v 1.30 2010/09/07 00:58:35 marka Exp $
+# $Id: clean.sh,v 1.33 2011-01-04 23:47:13 tbox Exp $
 
-rm -f */K* */keyset-* */dsset-* */dlvset-* */signedkey-* */*.signed */trusted.conf */tmp* */*.jnl */*.bk
+rm -f */K* */keyset-* */dsset-* */dlvset-* */signedkey-* */*.signed
+rm -f */trusted.conf */managed.conf */tmp* */*.jnl */*.bk
 rm -f ns1/root.db ns2/example.db ns3/secure.example.db
 rm -f ns3/unsecure.example.db ns3/bogus.example.db ns3/keyless.example.db
 rm -f ns3/dynamic.example.db ns3/dynamic.example.db.signed.jnl
@@ -42,3 +43,6 @@ rm -f ns3/secure.optout.example.db
 rm -f */named.secroots
 rm -f ns1/managed.key.id
 rm -f signer/example.db
+rm -f ns2/algroll.db
+rm -f ns3/kskonly.example.db
+rm -f ns4/named.conf

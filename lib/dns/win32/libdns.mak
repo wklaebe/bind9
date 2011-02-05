@@ -163,6 +163,7 @@ CLEAN :
 	-@erase "$(INTDIR)\openssl_link.obj"
 	-@erase "$(INTDIR)\openssldh_link.obj"
 	-@erase "$(INTDIR)\openssldsa_link.obj"
+	-@erase "$(INTDIR)\opensslgost_link.obj"
 	-@erase "$(INTDIR)\opensslrsa_link.obj"
 	-@erase "$(INTDIR)\order.obj"
 	-@erase "$(INTDIR)\peer.obj"
@@ -181,10 +182,12 @@ CLEAN :
 	-@erase "$(INTDIR)\resolver.obj"
 	-@erase "$(INTDIR)\result.obj"
 	-@erase "$(INTDIR)\rootns.obj"
+	-@erase "$(INTDIR)\rpz.obj"
 	-@erase "$(INTDIR)\sdb.obj"
 	-@erase "$(INTDIR)\sdlz.obj"
 	-@erase "$(INTDIR)\soa.obj"
 	-@erase "$(INTDIR)\ssu.obj"
+	-@erase "$(INTDIR)\ssu_external.obj"
 	-@erase "$(INTDIR)\stats.obj"
 	-@erase "$(INTDIR)\tcpmsg.obj"
 	-@erase "$(INTDIR)\time.obj"
@@ -209,7 +212,7 @@ CLEAN :
     if not exist "$(OUTDIR)/$(NULL)" mkdir "$(OUTDIR)"
 
 CPP=cl.exe
-CPP_PROJ=/nologo /MD /W3 /GX /O2 /I "../../../../../openssl-0.9.8l/inc32/openssl/include" /I "./" /I "../../../" /I "include" /I "../include" /I "../../isc/win32" /I "../../isc/win32/include" /I "../../isc/include" /I "../../../lib/isc/noatomic/include" /I "../../../../openssl-0.9.8l/inc32" /I "../../../../libxml2-2.7.3/include" /D "NDEBUG" /D "BIND9" /D "WIN32" /D "_WINDOWS" /D "__STDC__" /D "_MBCS" /D "_USRDLL" /D "USE_MD5" /D "OPENSSL" /D "DST_USE_PRIVATE_OPENSSL" /D "LIBDNS_EXPORTS" /Fp"$(INTDIR)\libdns.pch" /YX /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /c 
+CPP_PROJ=/nologo /MD /W3 /GX /O2 /I "./" /I "../../../" /I "include" /I "../include" /I "../../isc/win32" /I "../../isc/win32/include" /I "../../isc/include" /I "../../../lib/isc/noatomic/include" /I "../../../../openssl-0.9.8l/inc32" /I "../../../../libxml2-2.7.3/include" /D "NDEBUG" /D "BIND9" /D "WIN32" /D "_WINDOWS" /D "__STDC__" /D "_MBCS" /D "_USRDLL" /D "USE_MD5" /D "OPENSSL" /D "DST_USE_PRIVATE_OPENSSL" /D "LIBDNS_EXPORTS" /Fp"$(INTDIR)\libdns.pch" /YX /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /c 
 
 .c{$(INTDIR)}.obj::
    $(CPP) @<<
@@ -302,11 +305,13 @@ LINK32_OBJS= \
 	"$(INTDIR)\resolver.obj" \
 	"$(INTDIR)\result.obj" \
 	"$(INTDIR)\rootns.obj" \
+	"$(INTDIR)\rpz.obj" \
 	"$(INTDIR)\rriterator.obj" \
 	"$(INTDIR)\sdb.obj" \
 	"$(INTDIR)\sdlz.obj" \
 	"$(INTDIR)\soa.obj" \
 	"$(INTDIR)\ssu.obj" \
+	"$(INTDIR)\ssu_external.obj" \
 	"$(INTDIR)\stats.obj" \
 	"$(INTDIR)\tcpmsg.obj" \
 	"$(INTDIR)\time.obj" \
@@ -333,6 +338,7 @@ LINK32_OBJS= \
 	"$(INTDIR)\openssl_link.obj" \
 	"$(INTDIR)\openssldh_link.obj" \
 	"$(INTDIR)\openssldsa_link.obj" \
+	"$(INTDIR)\opensslgost_link.obj" \
 	"$(INTDIR)\opensslrsa_link.obj" \
 	"..\..\isc\win32\Release\libisc.lib"
 
@@ -453,6 +459,8 @@ CLEAN :
 	-@erase "$(INTDIR)\openssldh_link.sbr"
 	-@erase "$(INTDIR)\openssldsa_link.obj"
 	-@erase "$(INTDIR)\openssldsa_link.sbr"
+	-@erase "$(INTDIR)\opensslgost_link.obj"
+	-@erase "$(INTDIR)\opensslgost_link.sbr"
 	-@erase "$(INTDIR)\opensslrsa_link.obj"
 	-@erase "$(INTDIR)\opensslrsa_link.sbr"
 	-@erase "$(INTDIR)\order.obj"
@@ -489,6 +497,8 @@ CLEAN :
 	-@erase "$(INTDIR)\result.sbr"
 	-@erase "$(INTDIR)\rootns.obj"
 	-@erase "$(INTDIR)\rootns.sbr"
+	-@erase "$(INTDIR)\rpz.obj"
+	-@erase "$(INTDIR)\rpz.sbr"
 	-@erase "$(INTDIR)\rriterator.obj"
 	-@erase "$(INTDIR)\rriterator.sbr"
 	-@erase "$(INTDIR)\sdb.obj"
@@ -498,7 +508,9 @@ CLEAN :
 	-@erase "$(INTDIR)\soa.obj"
 	-@erase "$(INTDIR)\soa.sbr"
 	-@erase "$(INTDIR)\ssu.obj"
+	-@erase "$(INTDIR)\ssu_external.obj"
 	-@erase "$(INTDIR)\ssu.sbr"
+	-@erase "$(INTDIR)\ssu_external.sbr"
 	-@erase "$(INTDIR)\stats.obj"
 	-@erase "$(INTDIR)\stats.sbr"
 	-@erase "$(INTDIR)\tcpmsg.obj"
@@ -629,11 +641,13 @@ BSC32_SBRS= \
 	"$(INTDIR)\resolver.sbr" \
 	"$(INTDIR)\result.sbr" \
 	"$(INTDIR)\rootns.sbr" \
+	"$(INTDIR)\rpz.sbr" \
 	"$(INTDIR)\rriterator.sbr" \
 	"$(INTDIR)\sdb.sbr" \
 	"$(INTDIR)\sdlz.sbr" \
 	"$(INTDIR)\soa.sbr" \
 	"$(INTDIR)\ssu.sbr" \
+	"$(INTDIR)\ssu_external.sbr" \
 	"$(INTDIR)\stats.sbr" \
 	"$(INTDIR)\tcpmsg.sbr" \
 	"$(INTDIR)\time.sbr" \
@@ -660,6 +674,7 @@ BSC32_SBRS= \
 	"$(INTDIR)\openssl_link.sbr" \
 	"$(INTDIR)\openssldh_link.sbr" \
 	"$(INTDIR)\openssldsa_link.sbr" \
+	"$(INTDIR)\opensslgost_link.sbr" \
 	"$(INTDIR)\opensslrsa_link.sbr"
 
 "$(OUTDIR)\libdns.bsc" : "$(OUTDIR)" $(BSC32_SBRS)
@@ -721,11 +736,13 @@ LINK32_OBJS= \
 	"$(INTDIR)\resolver.obj" \
 	"$(INTDIR)\result.obj" \
 	"$(INTDIR)\rootns.obj" \
+	"$(INTDIR)\rpz.obj" \
 	"$(INTDIR)\rriterator.obj" \
 	"$(INTDIR)\sdb.obj" \
 	"$(INTDIR)\sdlz.obj" \
 	"$(INTDIR)\soa.obj" \
 	"$(INTDIR)\ssu.obj" \
+	"$(INTDIR)\ssu_external.obj" \
 	"$(INTDIR)\stats.obj" \
 	"$(INTDIR)\tcpmsg.obj" \
 	"$(INTDIR)\time.obj" \
@@ -752,6 +769,7 @@ LINK32_OBJS= \
 	"$(INTDIR)\openssl_link.obj" \
 	"$(INTDIR)\openssldh_link.obj" \
 	"$(INTDIR)\openssldsa_link.obj" \
+	"$(INTDIR)\opensslgost_link.obj" \
 	"$(INTDIR)\opensslrsa_link.obj" \
 	"..\..\isc\win32\Debug\libisc.lib"
 
@@ -1660,6 +1678,24 @@ SOURCE=..\rootns.c
 
 !ENDIF 
 
+SOURCE=..\rpz.c
+
+!IF  "$(CFG)" == "libdns - Win32 Release"
+
+
+"$(INTDIR)\rpz.obj" : $(SOURCE) "$(INTDIR)"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
+!ELSEIF  "$(CFG)" == "libdns - Win32 Debug"
+
+
+"$(INTDIR)\rpz.obj"	"$(INTDIR)\rpz.sbr" : $(SOURCE) "$(INTDIR)"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
+!ENDIF 
+
 SOURCE=..\rriterator.c
 
 !IF  "$(CFG)" == "libdns - Win32 Release"
@@ -1745,6 +1781,24 @@ SOURCE=..\ssu.c
 
 
 "$(INTDIR)\ssu.obj"	"$(INTDIR)\ssu.sbr" : $(SOURCE) "$(INTDIR)"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
+!ENDIF 
+
+SOURCE=..\ssu_external.c
+
+!IF  "$(CFG)" == "libdns - Win32 Release"
+
+
+"$(INTDIR)\ssu_external.obj" : $(SOURCE) "$(INTDIR)"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
+!ELSEIF  "$(CFG)" == "libdns - Win32 Debug"
+
+
+"$(INTDIR)\ssu_external.obj"	"$(INTDIR)\ssu_external.sbr" : $(SOURCE) "$(INTDIR)"
 	$(CPP) $(CPP_PROJ) $(SOURCE)
 
 
@@ -2211,6 +2265,24 @@ SOURCE=..\openssldsa_link.c
 
 
 "$(INTDIR)\openssldsa_link.obj"	"$(INTDIR)\openssldsa_link.sbr" : $(SOURCE) "$(INTDIR)"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
+!ENDIF 
+
+SOURCE=..\opensslgost_link.c
+
+!IF  "$(CFG)" == "libdns - Win32 Release"
+
+
+"$(INTDIR)\opensslgost_link.obj" : $(SOURCE) "$(INTDIR)"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
+!ELSEIF  "$(CFG)" == "libdns - Win32 Debug"
+
+
+"$(INTDIR)\opensslgost_link.obj"	"$(INTDIR)\opensslgost_link.sbr" : $(SOURCE) "$(INTDIR)"
 	$(CPP) $(CPP_PROJ) $(SOURCE)
 
 

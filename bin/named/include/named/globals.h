@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: globals.h,v 1.89 2010/09/15 12:07:55 marka Exp $ */
+/* $Id: globals.h,v 1.89 2010-09-15 12:07:55 marka Exp $ */
 
 #ifndef NAMED_GLOBALS_H
 #define NAMED_GLOBALS_H 1

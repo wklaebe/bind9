@@ -14,7 +14,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: ddns-confgen.c,v 1.9 2009/09/29 15:06:05 fdupont Exp $ */
+/* $Id: ddns-confgen.c,v 1.9 2009-09-29 15:06:05 fdupont Exp $ */
 
 /*! \file */
 

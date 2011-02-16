@@ -14,7 +14,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dns64.c,v 1.6 2010/12/09 04:59:09 marka Exp $ */
+/* $Id: dns64.c,v 1.6 2010-12-09 04:59:09 marka Exp $ */
 
 #include <config.h>
 

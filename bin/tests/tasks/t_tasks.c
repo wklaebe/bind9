@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: t_tasks.c,v 1.42 2009/01/22 23:47:54 tbox Exp $ */
+/* $Id: t_tasks.c,v 1.42 2009-01-22 23:47:54 tbox Exp $ */
 
 #include <config.h>
 

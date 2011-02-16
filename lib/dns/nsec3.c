@@ -14,7 +14,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: nsec3.c,v 1.19 2010/12/07 02:53:34 marka Exp $ */
+/* $Id: nsec3.c,v 1.19 2010-12-07 02:53:34 marka Exp $ */
 
 #include <config.h>
 

@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: message.c,v 1.254 2010/06/03 05:23:27 marka Exp $ */
+/* $Id: message.c,v 1.254 2010-06-03 05:23:27 marka Exp $ */
 
 /*! \file */
 

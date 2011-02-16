@@ -14,7 +14,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rriterator.c,v 1.2 2009/06/30 02:52:32 each Exp $ */
+/* $Id: rriterator.c,v 1.2 2009-06-30 02:52:32 each Exp $ */
 
 /*! \file */
 

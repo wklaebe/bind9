@@ -16,7 +16,7 @@
  */
 
 /*
- * $Id: dnssec.c,v 1.119 2010/01/13 23:48:59 tbox Exp $
+ * $Id: dnssec.c,v 1.119 2010-01-13 23:48:59 tbox Exp $
  */
 
 /*! \file */

@@ -18,7 +18,7 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<!-- File: $Id: Bv9ARM-book.xml,v 1.476 2011-01-13 01:59:27 marka Exp $ -->
+<!-- File: $Id: Bv9ARM-book.xml,v 1.478.8.2 2011-02-03 07:39:02 marka Exp $ -->
 <book xmlns:xi="http://www.w3.org/2001/XInclude">
   <title>BIND 9 Administrator Reference Manual</title>
 
@@ -891,7 +891,7 @@ zone "eng.example.com" {
       </para>
       <para>
         For more detail on ordering responses, check the
-        <command>rrset-order</command> substatement in the
+        <command>rrset-order</command> sub-statement in the
         <command>options</command> statement, see
         <xref endterm="rrset_ordering_title" linkend="rrset_ordering"/>.
       </para>
@@ -5139,7 +5139,7 @@ badresp:1,adberr:0,findfail:0,valfail:0]
 	<optional> mapped { <replaceable>address_match_list</replaceable> }; </optional>
         <optional> exclude { <replaceable>address_match_list</replaceable> }; </optional>
 	<optional> suffix IPv6-address; </optional>
-	<optional> recursion-only <replaceable>yes_or_no</replaceable>; </optional>
+	<optional> recursive-only <replaceable>yes_or_no</replaceable>; </optional>
 	<optional> break-dnssec <replaceable>yes_or_no</replaceable>; </optional>
     }; </optional>;
     <optional> dns64-server <replaceable>name</replaceable> </optional>
@@ -5163,6 +5163,7 @@ badresp:1,adberr:0,findfail:0,valfail:0]
     <optional> disable-empty-zone <replaceable>zone_name</replaceable> ; </optional>
     <optional> zero-no-soa-ttl <replaceable>yes_or_no</replaceable> ; </optional>
     <optional> zero-no-soa-ttl-cache <replaceable>yes_or_no</replaceable> ; </optional>
+    <optional> resolver-query-timeout <replaceable>number</replaceable> ; </optional>
     <optional> deny-answer-addresses { <replaceable>address_match_list</replaceable> } <optional> except-from { <replaceable>namelist</replaceable> } </optional>;</optional>
     <optional> deny-answer-aliases { <replaceable>namelist</replaceable> } <optional> except-from { <replaceable>namelist</replaceable> } </optional>;</optional>
     <optional> response-policy { <replaceable>zone_name</replaceable> <optional> policy <replaceable>given</replaceable> | <replaceable>no-op</replaceable> | <replaceable>nxdomain</replaceable> | <replaceable>nodata</replaceable> | <replaceable>cname domain</replaceable> </optional> ; } ; </optional>
@@ -5777,25 +5778,25 @@ options {
 		not settable on a per-prefix basis.
 	      </para>
 	      <para>
-		Each <command>dns64</command> supports a optional
-		<command>clients</command> acl which defines which clients
-		see this directive.  If not defined it defaults to
-		<userinput>any;</userinput>.
+		Each <command>dns64</command> supports an optional
+		<command>clients</command> ACL that determines which
+                clients are affected by this directive.  If not defined,
+                it defaults to <userinput>any;</userinput>.
 	      </para>
 	      <para>
-		Each <command>dns64</command> supports a optional
-		<command>mapped</command> acl which selects which
-		IPv4 addresses are to be mapped are in the corresponding	
+		Each <command>dns64</command> supports an optional
+		<command>mapped</command> ACL that selects which
+		IPv4 addresses are to be mapped in the corresponding	
 		A RRset.  If not defined it defaults to
 		<userinput>any;</userinput>.
 	      </para>
 	      <para>
-		Each <command>dns64</command> supports a optional
-		<command>exclude</command> acl which selects which
+		Each <command>dns64</command> supports an optional
+		<command>exclude</command> ACL that selects which
 		IPv6 addresses will be ignored for the purposes
-		of determining if dns64 is to be applied.  Any
-		non matching address will prevent any further
-		DNS64 processing from occuring for this client.
+		of determining whether dns64 is to be applied.
+                Any non-matching address will prevent further
+		DNS64 processing from occurring for this client.
 	      </para>
 	      <para>
 		A optional <command>suffix</command> can also
@@ -7217,6 +7218,18 @@ options {
               </listitem>
             </varlistentry>
 
+            <varlistentry>
+              <term><command>resolver-query-timeout</command></term>
+              <listitem>
+                <para>
+		  The amount of time the resolver will spend attempting
+		  to resolve a recursive query before failing.  The
+		  default is <literal>10</literal> and the maximum is
+		  <literal>30</literal>.  Setting it to <literal>0</literal>
+		  will result in the default being used.
+                </para>
+              </listitem>
+            </varlistentry>
           </variablelist>
 
         </sect3>
@@ -8640,7 +8653,7 @@ avoid-v6-udp-ports { 40000; range 50000 60000; };
 		  buffer (<command>edns-udp-size</command>).
 		</para>
 		<para>
-		  Setting this to a low value will encourge additional
+		  Setting this to a low value will encourage additional
 		  TCP traffic to the nameserver.
 		</para>
 	      </listitem>
@@ -9764,7 +9777,7 @@ ns.domain.com.rpz-nsdname   CNAME   .
             to the master file as soon as possible afterward; in the case
             of the managed key database, this will usually occur within 30
             seconds.  So, whenever <command>named</command> is using
-            automatic key maintenace, those two files can be expected to
+            automatic key maintenance, those two files can be expected to
             exist in the working directory.  (For this reason among others,
             the working directory should be always be writable by
             <command>named</command>.)
@@ -11026,7 +11039,7 @@ example.com. NS ns2.example.net.
                 <listitem>
                   <para>
                     Zones configured for dynamic DNS may also use this
-                    option to allow varying levels of autonatic DNSSEC key
+                    option to allow varying levels of automatic DNSSEC key
                     management. There are four possible settings:
                   </para>
                   <para>

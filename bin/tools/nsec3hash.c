@@ -14,7 +14,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: nsec3hash.c,v 1.6 2009/10/06 21:20:44 each Exp $ */
+/* $Id: nsec3hash.c,v 1.6 2009-10-06 21:20:44 each Exp $ */
 
 #include <config.h>
 

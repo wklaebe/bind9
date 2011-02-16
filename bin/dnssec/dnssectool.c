@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dnssectool.c,v 1.60 2010/01/19 23:48:56 tbox Exp $ */
+/* $Id: dnssectool.c,v 1.60 2010-01-19 23:48:56 tbox Exp $ */
 
 /*! \file */
 

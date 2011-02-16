@@ -14,7 +14,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: filter-aaaa.c,v 1.2 2010/06/22 03:58:36 marka Exp $ */
+/* $Id: filter-aaaa.c,v 1.2 2010-06-22 03:58:36 marka Exp $ */
 
 #include <config.h>
 

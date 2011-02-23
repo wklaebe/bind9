@@ -1,3 +1,24 @@
+bind9 (1:9.7.3.dfsg-1) unstable; urgency=low
+
+  [Peter Palfrader]
+
+  * Add db-4.6 to bdb_libnames in dlz/config.dlz.in so that it finds the right
+    db.
+
+  [Internet Systems Consortium, Inc]
+
+  * 9.7.3 - Closes: #612287
+
+  [Mahyuddin Susanto]
+
+  * Updated Indonesian debconf templates.  Closes: #608559
+
+  [LaMont Jones]
+
+  * soname changes
+
+ -- LaMont Jones <lamont@debian.org>  Wed, 23 Feb 2011 09:14:36 -0700
+
 bind9 (1:9.7.3.dfsg~rc1-1) unstable; urgency=low
 
   [Internet Software Consortium, Inc]

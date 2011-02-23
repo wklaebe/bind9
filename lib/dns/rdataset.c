@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rdataset.c,v 1.84.186.2 2010/02/25 05:25:51 tbox Exp $ */
+/* $Id: rdataset.c,v 1.84.186.2 2010-02-25 05:25:51 tbox Exp $ */
 
 /*! \file */
 

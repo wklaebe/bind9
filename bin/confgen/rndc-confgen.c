@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rndc-confgen.c,v 1.5 2009/09/29 15:06:05 fdupont Exp $ */
+/* $Id: rndc-confgen.c,v 1.5 2009-09-29 15:06:05 fdupont Exp $ */
 
 /*! \file */
 

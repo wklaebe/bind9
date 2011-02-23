@@ -16,7 +16,7 @@
  */
 
 /*
- * $Id: gssapi_link.c,v 1.14 2009/10/24 23:47:36 tbox Exp $
+ * $Id: gssapi_link.c,v 1.14 2009-10-24 23:47:36 tbox Exp $
  */
 
 #include <config.h>

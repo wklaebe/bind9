@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: query.c,v 1.335.8.11 2010/09/24 05:54:05 marka Exp $ */
+/* $Id: query.c,v 1.335.8.11 2010-09-24 05:54:05 marka Exp $ */
 
 /*! \file */
 

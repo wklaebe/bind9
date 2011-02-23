@@ -14,7 +14,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: statschannel.c,v 1.24.40.2 2010/02/04 23:48:30 tbox Exp $ */
+/* $Id: statschannel.c,v 1.24.40.2 2010-02-04 23:48:30 tbox Exp $ */
 
 /*! \file */
 

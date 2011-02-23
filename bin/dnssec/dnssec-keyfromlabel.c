@@ -14,7 +14,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dnssec-keyfromlabel.c,v 1.29.8.2 2010/01/19 23:48:12 tbox Exp $ */
+/* $Id: dnssec-keyfromlabel.c,v 1.29.8.2 2010-01-19 23:48:12 tbox Exp $ */
 
 /*! \file */
 

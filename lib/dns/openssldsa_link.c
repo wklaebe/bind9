@@ -29,7 +29,7 @@
  * IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: openssldsa_link.c,v 1.18 2009/10/30 05:08:23 marka Exp $ */
+/* $Id: openssldsa_link.c,v 1.18 2009-10-30 05:08:23 marka Exp $ */
 
 #ifdef OPENSSL
 #ifndef USE_EVP

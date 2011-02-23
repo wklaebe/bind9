@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: builtin.c,v 1.15.154.2 2010/08/03 23:46:17 tbox Exp $ */
+/* $Id: builtin.c,v 1.15.154.2 2010-08-03 23:46:17 tbox Exp $ */
 
 /*! \file
  * \brief

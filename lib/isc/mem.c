@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: mem.c,v 1.153.104.6 2010/08/11 23:46:20 tbox Exp $ */
+/* $Id: mem.c,v 1.153.104.6 2010-08-11 23:46:20 tbox Exp $ */
 
 /*! \file */
 

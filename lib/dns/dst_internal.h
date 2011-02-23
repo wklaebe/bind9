@@ -29,7 +29,7 @@
  * IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dst_internal.h,v 1.23.32.2 2010/12/09 04:31:30 tbox Exp $ */
+/* $Id: dst_internal.h,v 1.23.32.2 2010-12-09 04:31:30 tbox Exp $ */
 
 #ifndef DST_DST_INTERNAL_H
 #define DST_DST_INTERNAL_H 1

@@ -14,7 +14,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: vtwrapper.c,v 1.2.2.3 2010/06/18 23:46:26 tbox Exp $ */
+/* $Id: vtwrapper.c,v 1.2.2.3 2010-06-18 23:46:26 tbox Exp $ */
 
 #define _GNU_SOURCE
 #include <sys/syscall.h>

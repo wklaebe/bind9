@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: timer.c,v 1.95 2009/10/05 17:30:49 fdupont Exp $ */
+/* $Id: timer.c,v 1.95 2009-10-05 17:30:49 fdupont Exp $ */
 
 /*! \file */
 

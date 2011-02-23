@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: cfg_test.c,v 1.21.154.1 2010/01/13 19:31:52 each Exp $ */
+/* $Id: cfg_test.c,v 1.21.154.1 2010-01-13 19:31:52 each Exp $ */
 
 /*! \file */
 

@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: namedconf.c,v 1.113.4.10 2010/08/11 18:19:58 each Exp $ */
+/* $Id: namedconf.c,v 1.113.4.10 2010-08-11 18:19:58 each Exp $ */
 
 /*! \file */
 

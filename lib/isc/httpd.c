@@ -14,7 +14,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: httpd.c,v 1.16.284.2 2010/02/04 23:48:30 tbox Exp $ */
+/* $Id: httpd.c,v 1.16.284.2 2010-02-04 23:48:30 tbox Exp $ */
 
 /*! \file */
 

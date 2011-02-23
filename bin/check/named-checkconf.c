@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: named-checkconf.c,v 1.51.4.3 2010/09/07 01:52:22 marka Exp $ */
+/* $Id: named-checkconf.c,v 1.51.4.3 2010-09-07 01:52:22 marka Exp $ */
 
 /*! \file */
 

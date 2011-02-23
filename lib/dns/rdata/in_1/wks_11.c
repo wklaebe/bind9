@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: wks_11.c,v 1.57 2009/12/04 21:09:34 marka Exp $ */
+/* $Id: wks_11.c,v 1.57 2009-12-04 21:09:34 marka Exp $ */
 
 /* Reviewed: Fri Mar 17 15:01:49 PST 2000 by explorer */
 

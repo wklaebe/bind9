@@ -14,7 +14,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: mem_api.c,v 1.5.104.3 2010/08/12 21:31:33 jinmei Exp $ */
+/* $Id: mem_api.c,v 1.5.104.3 2010-08-12 21:31:33 jinmei Exp $ */
 
 #include <config.h>
 

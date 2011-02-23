@@ -14,7 +14,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: nsprobe.c,v 1.5.66.2 2010/01/07 23:48:16 tbox Exp $ */
+/* $Id: nsprobe.c,v 1.5.66.2 2010-01-07 23:48:16 tbox Exp $ */
 
 #include <config.h>
 

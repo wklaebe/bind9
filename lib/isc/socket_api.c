@@ -14,7 +14,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: socket_api.c,v 1.5 2009/10/01 01:30:01 sar Exp $ */
+/* $Id: socket_api.c,v 1.5 2009-10-01 01:30:01 sar Exp $ */
 
 #include <config.h>
 

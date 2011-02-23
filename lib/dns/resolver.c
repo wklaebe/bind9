@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2010  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2011  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: resolver.c,v 1.413.14.13 2010/09/15 12:23:17 marka Exp $ */
+/* $Id: resolver.c,v 1.413.14.15 2011-01-27 23:46:37 tbox Exp $ */
 
 /*! \file */
 
@@ -7832,6 +7832,13 @@ static inline isc_boolean_t
 fctx_match(fetchctx_t *fctx, dns_name_t *name, dns_rdatatype_t type,
 	   unsigned int options)
 {
+	/*
+	 * Don't match fetch contexts that are shutting down.
+	 */
+	if (fctx->cloned || fctx->state == fetchstate_done ||
+	    ISC_LIST_EMPTY(fctx->events))
+		return (ISC_FALSE);
+
 	if (fctx->type != type || fctx->options != options)
 		return (ISC_FALSE);
 	return (dns_name_equal(&fctx->name, name));
@@ -7966,17 +7973,7 @@ dns_resolver_createfetch2(dns_resolver_t *res, dns_name_t *name,
 		}
 	}
 
-	/*
-	 * If we didn't have a fetch, would attach to a done fetch, this
-	 * fetch has already cloned its results, or if the fetch has gone
-	 * "idle" (no one was interested in it), we need to start a new
-	 * fetch instead of joining with the existing one.
-	 */
-	if (fctx == NULL ||
-	    fctx->state == fetchstate_done ||
-	    fctx->cloned ||
-	    ISC_LIST_EMPTY(fctx->events)) {
-		fctx = NULL;
+	if (fctx == NULL) {
 		result = fctx_create(res, name, type, domain, nameservers,
 				     options, bucketnum, &fctx);
 		if (result != ISC_R_SUCCESS)

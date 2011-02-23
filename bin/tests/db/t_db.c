@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: t_db.c,v 1.39 2009/09/01 00:22:25 jinmei Exp $ */
+/* $Id: t_db.c,v 1.39 2009-09-01 00:22:25 jinmei Exp $ */
 
 #include <config.h>
 

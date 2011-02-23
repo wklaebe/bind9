@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: aclconf.c,v 1.27.62.2 2010/08/13 23:46:28 tbox Exp $ */
+/* $Id: aclconf.c,v 1.27.62.2 2010-08-13 23:46:28 tbox Exp $ */
 
 #include <config.h>
 

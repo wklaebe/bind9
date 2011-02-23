@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: request.c,v 1.85 2009/09/01 00:22:26 jinmei Exp $ */
+/* $Id: request.c,v 1.85 2009-09-01 00:22:26 jinmei Exp $ */
 
 /*! \file */
 

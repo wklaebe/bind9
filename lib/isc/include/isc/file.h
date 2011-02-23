@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: file.h,v 1.37 2009/08/28 03:13:08 each Exp $ */
+/* $Id: file.h,v 1.37 2009-08-28 03:13:08 each Exp $ */
 
 #ifndef ISC_FILE_H
 #define ISC_FILE_H 1

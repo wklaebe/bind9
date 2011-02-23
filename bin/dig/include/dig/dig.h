@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dig.h,v 1.111 2009/09/29 15:06:06 fdupont Exp $ */
+/* $Id: dig.h,v 1.111 2009-09-29 15:06:06 fdupont Exp $ */
 
 #ifndef DIG_H
 #define DIG_H

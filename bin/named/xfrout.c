@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: xfrout.c,v 1.136.132.2 2010/05/27 23:49:54 tbox Exp $ */
+/* $Id: xfrout.c,v 1.136.132.2 2010-05-27 23:49:54 tbox Exp $ */
 
 #include <config.h>
 

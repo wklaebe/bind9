@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: keycreate.c,v 1.18 2009/09/01 00:22:25 jinmei Exp $ */
+/* $Id: keycreate.c,v 1.18 2009-09-01 00:22:25 jinmei Exp $ */
 
 #include <config.h>
 

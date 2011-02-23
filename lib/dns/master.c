@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: master.c,v 1.178 2009/09/01 00:22:26 jinmei Exp $ */
+/* $Id: master.c,v 1.178 2009-09-01 00:22:26 jinmei Exp $ */
 
 /*! \file */
 

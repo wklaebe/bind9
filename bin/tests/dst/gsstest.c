@@ -14,7 +14,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: gsstest.c,v 1.8 2009/09/02 23:48:01 tbox Exp $ */
+/* $Id: gsstest.c,v 1.8 2009-09-02 23:48:01 tbox Exp $ */
 
 #include <config.h>
 

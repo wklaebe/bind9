@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rbt.c,v 1.146 2009/10/27 04:46:58 marka Exp $ */
+/* $Id: rbt.c,v 1.146 2009-10-27 04:46:58 marka Exp $ */
 
 /*! \file */
 

@@ -29,7 +29,7 @@
  * IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dnssec-signzone.c,v 1.258.4.4 2010/06/03 23:49:23 tbox Exp $ */
+/* $Id: dnssec-signzone.c,v 1.258.4.4 2010-06-03 23:49:23 tbox Exp $ */
 
 /*! \file */
 

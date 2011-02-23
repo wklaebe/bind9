@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rbt_test.c,v 1.50 2009/09/02 23:48:01 tbox Exp $ */
+/* $Id: rbt_test.c,v 1.50 2009-09-02 23:48:01 tbox Exp $ */
 
 #include <config.h>
 

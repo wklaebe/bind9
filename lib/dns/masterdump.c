@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: masterdump.c,v 1.99 2009/11/17 23:55:18 marka Exp $ */
+/* $Id: masterdump.c,v 1.99 2009-11-17 23:55:18 marka Exp $ */
 
 /*! \file */
 

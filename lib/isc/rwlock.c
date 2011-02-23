@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rwlock.c,v 1.46 2009/01/18 23:48:14 tbox Exp $ */
+/* $Id: rwlock.c,v 1.46 2009-01-18 23:48:14 tbox Exp $ */
 
 /*! \file */
 

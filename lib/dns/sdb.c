@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: sdb.c,v 1.71.54.3 2010/08/16 05:14:15 marka Exp $ */
+/* $Id: sdb.c,v 1.71.54.3 2010-08-16 05:14:15 marka Exp $ */
 
 /*! \file */
 

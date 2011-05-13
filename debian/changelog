@@ -1,3 +1,15 @@
+bind9 (1:9.8.0.dfsg.P1-0) unstable; urgency=low
+
+  [Internet Software Consortium, Inc]
+
+  * 9.8.0-P1
+
+  [LaMont Jones]
+
+  * soname changes
+
+ -- LaMont Jones <lamont@debian.org>  Fri, 13 May 2011 03:46:22 -0600
+
 bind9 (1:9.7.3.dfsg-1) unstable; urgency=low
 
   [Peter Palfrader]

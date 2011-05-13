@@ -883,7 +883,7 @@ mysql_create(const char *dlzname, unsigned int argc, char *argv[],
 			      "mysql driver could not create "
 			      "database instance object.");
 		result = ISC_R_FAILURE;
-		goto full_cleanup;
+		goto cleanup;
 	}
 
 	/* create and set db connection */
@@ -1013,7 +1013,14 @@ static dns_sdlzmethods_t dlz_mysql_methods = {
 	mysql_lookup,
 	mysql_authority,
 	mysql_allnodes,
-	mysql_allowzonexfr
+	mysql_allowzonexfr,
+	NULL,
+	NULL,
+	NULL,
+	NULL,
+	NULL,
+	NULL,
+	NULL,
 };
 
 /*%

@@ -15,7 +15,7 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: sign.sh,v 1.35.32.4.6.1 2010/11/16 01:31:39 marka Exp $
+# $Id: sign.sh,v 1.41.40.2 2011-02-15 22:06:27 marka Exp $
 
 SYSTEMTESTTOP=../..
 . $SYSTEMTESTTOP/conf.sh
@@ -31,7 +31,8 @@ zonefile=example.db
 ( cd ../ns3 && sh sign.sh )
 
 for subdomain in secure bogus dynamic keyless nsec3 optout nsec3-unknown \
-    optout-unknown multiple rsasha256 rsasha512 kskonly
+    optout-unknown multiple rsasha256 rsasha512 kskonly update-nsec3 \
+    auto-nsec auto-nsec3 
 do
 	cp ../ns3/dsset-$subdomain.example. .
 done
@@ -115,7 +116,6 @@ cat $dlvinfile $dlvkeyname.key dlvset-$privzone > $dlvzonefile
 
 $SIGNER -P -g -r $RANDFILE -o $dlvzone $dlvzonefile > /dev/null
 
-
 # Sign the badparam secure file
 
 zone=badparam.
@@ -130,6 +130,19 @@ cat $infile $keyname1.key $keyname2.key >$zonefile
 $SIGNER -P -3 - -H 1 -g -r $RANDFILE -o $zone -k $keyname1 $zonefile $keyname2 > /dev/null
 
 sed 's/IN NSEC3 1 0 1 /IN NSEC3 1 0 10 /' $zonefile.signed > $zonefile.bad
+
+# Sign the single-nsec3 secure zone with optout
+
+zone=single-nsec3.
+infile=single-nsec3.db.in
+zonefile=single-nsec3.db
+
+keyname1=`$KEYGEN -q -r $RANDFILE -a RSASHA256 -b 1024 -n zone -f KSK $zone`
+keyname2=`$KEYGEN -q -r $RANDFILE -a RSASHA256 -b 1024 -n zone $zone`
+
+cat $infile $keyname1.key $keyname2.key >$zonefile
+
+$SIGNER -P -3 - -A -H 1 -g -r $RANDFILE -o $zone -k $keyname1 $zonefile $keyname2 > /dev/null
 
 #
 # algroll has just has the old DNSKEY records removed and is waiting

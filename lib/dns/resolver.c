@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2010  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2011  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: resolver.c,v 1.413.14.11.6.2 2010/09/15 12:24:38 marka Exp $ */
+/* $Id: resolver.c,v 1.428.6.5 2011-02-18 23:41:51 mgraff Exp $ */
 
 /*! \file */
 
@@ -103,6 +103,14 @@
 #define FCTXTRACE(m)
 #define FTRACE(m)
 #define QTRACE(m)
+#endif
+
+#ifndef DEFAULT_QUERY_TIMEOUT
+#define DEFAULT_QUERY_TIMEOUT 30  /* The default time in seconds for the whole query to live. */
+#endif
+
+#ifndef MAXIMUM_QUERY_TIMEOUT
+#define MAXIMUM_QUERY_TIMEOUT 30 /* The maximum time in seconds for the whole query to live. */
 #endif
 
 /*%
@@ -386,6 +394,7 @@ struct dns_resolver {
 	unsigned int			spillatmin;
 	isc_timer_t *			spillattimer;
 	isc_boolean_t			zero_no_soa_ttl;
+	unsigned int			query_timeout;
 
 	/* Locked by lock. */
 	unsigned int			references;
@@ -2355,76 +2364,12 @@ add_bad(fetchctx_t *fctx, dns_adbaddrinfo_t *addrinfo, isc_result_t reason,
 }
 
 /*
- * Return 'bits' bits of random entropy from fctx->rand_buf,
- * refreshing it by calling isc_random_get() whenever the requested
- * number of bits is greater than the number in the buffer.
- */
-static inline isc_uint32_t
-random_bits(fetchctx_t *fctx, isc_uint32_t bits) {
-	isc_uint32_t ret = 0;
-
-	REQUIRE(VALID_FCTX(fctx));
-	REQUIRE(bits <= 32);
-	if (bits == 0)
-		return (0);
-
-	if (bits >= fctx->rand_bits) {
-		/* if rand_bits == 0, this is unnecessary but harmless */
-		bits -= fctx->rand_bits;
-		ret = fctx->rand_buf << bits;
-
-		/* refresh random buffer now */
-		isc_random_get(&fctx->rand_buf);
-		fctx->rand_bits = sizeof(fctx->rand_buf) * CHAR_BIT;
-	}
-
-	if (bits > 0) {
-		isc_uint32_t mask = 0xffffffff;
-		if (bits < 32) {
-			mask = (1 << bits) - 1;
-		}
-
-		ret |= fctx->rand_buf & mask;
-		fctx->rand_buf >>= bits;
-		fctx->rand_bits -= bits;
-	}
-
-	return (ret);
-}
-
-/*
- * Add some random jitter to a server's RTT value so that the
- * order of queries will be unpredictable.
- *
- * RTT values of servers which have been tried are fuzzed by 128 ms.
- * Servers that haven't been tried yet have their RTT set to a random
- * value between 0 ms and 7 ms; they should get to go first, but in
- * unpredictable order.
- */
-static inline void
-randomize_srtt(fetchctx_t *fctx, dns_adbaddrinfo_t *ai) {
-	if (TRIED(ai)) {
-		ai->srtt >>= 10; /* convert to milliseconds, near enough */
-		ai->srtt |= (ai->srtt & 0x80) | random_bits(fctx, 7);
-		ai->srtt <<= 10; /* now back to microseconds */
-	} else
-		ai->srtt = random_bits(fctx, 3) << 10;
-}
-
-/*
- * Sort addrinfo list by RTT (with random jitter)
+ * Sort addrinfo list by RTT.
  */
 static void
-sort_adbfind(fetchctx_t *fctx, dns_adbfind_t *find) {
+sort_adbfind(dns_adbfind_t *find) {
 	dns_adbaddrinfo_t *best, *curr;
 	dns_adbaddrinfolist_t sorted;
-
-	/* Add jitter to SRTT values */
-	curr = ISC_LIST_HEAD(find->list);
-	while (curr != NULL) {
-		randomize_srtt(fctx, curr);
-		curr = ISC_LIST_NEXT(curr, publink);
-	}
 
 	/* Lame N^2 bubble sort. */
 	ISC_LIST_INIT(sorted);
@@ -2443,19 +2388,19 @@ sort_adbfind(fetchctx_t *fctx, dns_adbfind_t *find) {
 }
 
 /*
- * Sort a list of finds by server RTT (with random jitter)
+ * Sort a list of finds by server RTT.
  */
 static void
-sort_finds(fetchctx_t *fctx, dns_adbfindlist_t *findlist) {
+sort_finds(dns_adbfindlist_t *findlist) {
 	dns_adbfind_t *best, *curr;
 	dns_adbfindlist_t sorted;
 	dns_adbaddrinfo_t *addrinfo, *bestaddrinfo;
 
-	/* Sort each find's addrinfo list by SRTT (after adding jitter) */
+	/* Sort each find's addrinfo list by SRTT. */
 	for (curr = ISC_LIST_HEAD(*findlist);
 	     curr != NULL;
 	     curr = ISC_LIST_NEXT(curr, publink))
-		sort_adbfind(fctx, curr);
+		sort_adbfind(curr);
 
 	/* Lame N^2 bubble sort. */
 	ISC_LIST_INIT(sorted);
@@ -2840,8 +2785,8 @@ fctx_getaddresses(fetchctx_t *fctx, isc_boolean_t badcache) {
 		 * We've found some addresses.  We might still be looking
 		 * for more addresses.
 		 */
-		sort_finds(fctx, &fctx->finds);
-		sort_finds(fctx, &fctx->altfinds);
+		sort_finds(&fctx->finds);
+		sort_finds(&fctx->altfinds);
 		result = ISC_R_SUCCESS;
 	}
 
@@ -3660,7 +3605,7 @@ fctx_create(dns_resolver_t *res, dns_name_t *name, dns_rdatatype_t type,
 	/*
 	 * Compute an expiration time for the entire fetch.
 	 */
-	isc_interval_set(&interval, 30, 0);             /* XXXRTH constant */
+	isc_interval_set(&interval, res->query_timeout, 0);
 	iresult = isc_time_nowplusinterval(&fctx->expires, &interval);
 	if (iresult != ISC_R_SUCCESS) {
 		UNEXPECTED_ERROR(__FILE__, __LINE__,
@@ -7431,6 +7376,7 @@ dns_resolver_create(dns_view_t *view,
 	res->spillatmax = 100;
 	res->spillattimer = NULL;
 	res->zero_no_soa_ttl = ISC_FALSE;
+	res->query_timeout = DEFAULT_QUERY_TIMEOUT;
 	res->ndisps = 0;
 	res->nextdisp = 0; /* meaningless at this point, but init it */
 	res->nbuckets = ntasks;
@@ -7832,6 +7778,13 @@ static inline isc_boolean_t
 fctx_match(fetchctx_t *fctx, dns_name_t *name, dns_rdatatype_t type,
 	   unsigned int options)
 {
+	/*
+	 * Don't match fetch contexts that are shutting down.
+	 */
+	if (fctx->cloned || fctx->state == fetchstate_done ||
+	    ISC_LIST_EMPTY(fctx->events))
+		return (ISC_FALSE);
+
 	if (fctx->type != type || fctx->options != options)
 		return (ISC_FALSE);
 	return (dns_name_equal(&fctx->name, name));
@@ -7966,17 +7919,7 @@ dns_resolver_createfetch2(dns_resolver_t *res, dns_name_t *name,
 		}
 	}
 
-	/*
-	 * If we didn't have a fetch, would attach to a done fetch, this
-	 * fetch has already cloned its results, or if the fetch has gone
-	 * "idle" (no one was interested in it), we need to start a new
-	 * fetch instead of joining with the existing one.
-	 */
-	if (fctx == NULL ||
-	    fctx->state == fetchstate_done ||
-	    fctx->cloned ||
-	    ISC_LIST_EMPTY(fctx->events)) {
-		fctx = NULL;
+	if (fctx == NULL) {
 		result = fctx_create(res, name, type, domain, nameservers,
 				     options, bucketnum, &fctx);
 		if (result != ISC_R_SUCCESS)
@@ -8731,4 +8674,23 @@ dns_resolver_getoptions(dns_resolver_t *resolver) {
 	REQUIRE(VALID_RESOLVER(resolver));
 
 	return (resolver->options);
+}
+
+unsigned int
+dns_resolver_gettimeout(dns_resolver_t *resolver) {
+	REQUIRE(VALID_RESOLVER(resolver));
+
+	return (resolver->query_timeout);
+}
+
+void
+dns_resolver_settimeout(dns_resolver_t *resolver, unsigned int seconds) {
+	REQUIRE(VALID_RESOLVER(resolver));
+
+	if (seconds == 0)
+		seconds = DEFAULT_QUERY_TIMEOUT;
+	if (seconds > MAXIMUM_QUERY_TIMEOUT)
+		seconds = MAXIMUM_QUERY_TIMEOUT;
+
+	resolver->query_timeout = seconds;
 }

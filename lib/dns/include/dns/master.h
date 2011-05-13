@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: master.h,v 1.53 2009/07/01 23:47:36 tbox Exp $ */
+/* $Id: master.h,v 1.53 2009-07-01 23:47:36 tbox Exp $ */
 
 #ifndef DNS_MASTER_H
 #define DNS_MASTER_H 1

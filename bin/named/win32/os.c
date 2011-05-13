@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: os.c,v 1.37 2009/08/05 18:43:37 each Exp $ */
+/* $Id: os.c,v 1.37 2009-08-05 18:43:37 each Exp $ */
 
 #include <config.h>
 #include <stdarg.h>

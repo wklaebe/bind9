@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: t_api.h,v 1.22.558.2 2010/06/08 23:49:12 tbox Exp $ */
+/* $Id: t_api.h,v 1.24 2010-06-08 23:50:24 tbox Exp $ */
 
 #ifndef TESTS_T_API_H
 #define TESTS_T_API_H 1

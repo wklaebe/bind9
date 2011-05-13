@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: diff.c,v 1.23 2009/12/01 00:47:09 each Exp $ */
+/* $Id: diff.c,v 1.23 2009-12-01 00:47:09 each Exp $ */
 
 /*! \file */
 

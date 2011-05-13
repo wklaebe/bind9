@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2010  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2011  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: client.c,v 1.266.204.2 2010/09/24 08:31:08 tbox Exp $ */
+/* $Id: client.c,v 1.271 2011-01-11 23:47:12 tbox Exp $ */
 
 #include <config.h>
 
@@ -1777,9 +1777,11 @@ client_request(isc_task_t *task, isc_event_t *event) {
 
 	}
 	if (result == ISC_R_SUCCESS) {
+		char namebuf[DNS_NAME_FORMATSIZE];
+		dns_name_format(&client->signername, namebuf, sizeof(namebuf));
 		ns_client_log(client, DNS_LOGCATEGORY_SECURITY,
 			      NS_LOGMODULE_CLIENT, ISC_LOG_DEBUG(3),
-			      "request has valid signature");
+			      "request has valid signature: %s", namebuf);
 		client->signer = &client->signername;
 	} else if (result == ISC_R_NOTFOUND) {
 		ns_client_log(client, DNS_LOGCATEGORY_SECURITY,
@@ -2763,9 +2765,14 @@ void
 ns_client_dumprecursing(FILE *f, ns_clientmgr_t *manager) {
 	ns_client_t *client;
 	char namebuf[DNS_NAME_FORMATSIZE];
+	char original[DNS_NAME_FORMATSIZE];
 	char peerbuf[ISC_SOCKADDR_FORMATSIZE];
+	char typebuf[DNS_RDATATYPE_FORMATSIZE];
+	char classbuf[DNS_RDATACLASS_FORMATSIZE];
 	const char *name;
 	const char *sep;
+	const char *origfor;
+	dns_rdataset_t *rdataset;
 
 	REQUIRE(VALID_MANAGER(manager));
 
@@ -2783,8 +2790,31 @@ ns_client_dumprecursing(FILE *f, ns_clientmgr_t *manager) {
 			sep = "";
 		}
 		dns_name_format(client->query.qname, namebuf, sizeof(namebuf));
-		fprintf(f, "; client %s%s%s: '%s' requesttime %d\n",
-			peerbuf, sep, name, namebuf, client->requesttime);
+		if (client->query.qname != client->query.origqname &&
+		    client->query.origqname != NULL) {
+			origfor = " for ";
+			dns_name_format(client->query.origqname, original,
+					sizeof(original));
+		} else {
+			origfor = "";
+			original[0] = '\0';
+		}
+		rdataset = ISC_LIST_HEAD(client->query.qname->list);
+		if (rdataset == NULL && client->query.origqname != NULL)
+			rdataset = ISC_LIST_HEAD(client->query.origqname->list);
+		if (rdataset != NULL) {
+			dns_rdatatype_format(rdataset->type, typebuf,
+					     sizeof(typebuf));
+			dns_rdataclass_format(rdataset->rdclass, classbuf,
+					      sizeof(classbuf));
+		} else {
+			strcpy(typebuf, "-");
+			strcpy(classbuf, "-");
+		}
+		fprintf(f, "; client %s%s%s: id %u '%s/%s/%s'%s%s "
+			"requesttime %d\n", peerbuf, sep, name,
+			client->message->id, namebuf, typebuf, classbuf,
+			origfor, original, client->requesttime);
 		client = ISC_LIST_NEXT(client, link);
 	}
 	UNLOCK(&manager->lock);

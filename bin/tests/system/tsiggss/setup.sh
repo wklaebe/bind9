@@ -14,7 +14,9 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: prereq.sh,v 1.2.2.2 2010/06/17 05:43:51 marka Exp $
+# $Id: setup.sh,v 1.3 2010-12-20 23:47:20 tbox Exp $
 
-echo "I:This test is not yet written." >&2
-exit 1
+SYSTEMTESTTOP=..
+. $SYSTEMTESTTOP/conf.sh
+
+rm -f ns1/*.jnl 

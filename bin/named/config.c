@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: config.c,v 1.106.4.6 2010/08/11 18:19:54 each Exp $ */
+/* $Id: config.c,v 1.113.16.1 2011-02-03 05:50:05 marka Exp $ */
 
 /*! \file */
 
@@ -89,6 +89,7 @@ options {\n\
 #endif
 "\
 	recursive-clients 1000;\n\
+	resolver-query-timeout 30;\n\
 	rrset-order {type NS order random; order cyclic; };\n\
 	serial-queries 20;\n\
 	serial-query-rate 20;\n\
@@ -376,6 +377,8 @@ ns_config_getzonetype(const cfg_obj_t *zonetypeobj) {
 		ztype = dns_zone_slave;
 	else if (strcasecmp(str, "stub") == 0)
 		ztype = dns_zone_stub;
+	else if (strcasecmp(str, "static-stub") == 0)
+		ztype = dns_zone_staticstub;
 	else
 		INSIST(0);
 	return (ztype);

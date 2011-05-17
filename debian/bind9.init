@@ -92,6 +92,9 @@ case "$1" in
 	    sig=0
 	    n=1
 	    while kill -$sig $pid 2>/dev/null; do
+		if [ $n -eq 1 ]; then
+		    echo "waiting for pid $pid to die"
+		fi
 		if [ $n -eq 11 ]; then
 		    echo "giving up on pid $pid with kill -0; trying -9"
 		    sig=9
@@ -100,7 +103,6 @@ case "$1" in
 		    echo "giving up on pid $pid"
 		    break
 		fi
-		echo "waiting for pid $pid to die"
 		n=$(($n+1))
 		sleep 1
 	    done

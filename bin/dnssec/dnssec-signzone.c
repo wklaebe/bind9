@@ -1,5 +1,5 @@
 /*
- * Portions Copyright (C) 2004-2010  Internet Systems Consortium, Inc. ("ISC")
+ * Portions Copyright (C) 2004-2011  Internet Systems Consortium, Inc. ("ISC")
  * Portions Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -29,7 +29,7 @@
  * IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dnssec-signzone.c,v 1.258.4.4 2010-06-03 23:49:23 tbox Exp $ */
+/* $Id: dnssec-signzone.c,v 1.258.4.9 2011-03-22 03:30:33 each Exp $ */
 
 /*! \file */
 
@@ -338,7 +338,7 @@ keythatsigned(dns_rdata_rrsig_t *rrsig) {
 	} else {
 		dns_dnsseckey_create(mctx, &pubkey, &key);
 	}
-	key->force_publish = ISC_TRUE;
+	key->force_publish = ISC_FALSE;
 	key->force_sign = ISC_FALSE;
 	ISC_LIST_APPEND(keylist, key, link);
 
@@ -486,32 +486,32 @@ signset(dns_diff_t *del, dns_diff_t *add, dns_dbnode_t *node, dns_name_t *name,
 			if (!expired)
 				keep = ISC_TRUE;
 		} else if (issigningkey(key)) {
-			if (!expired && setverifies(name, set, key->key,
-						    &sigrdata)) {
+			if (!expired && rrsig.originalttl == set->ttl &&
+			    setverifies(name, set, key->key, &sigrdata)) {
 				vbprintf(2, "\trrsig by %s retained\n", sigstr);
 				keep = ISC_TRUE;
 				wassignedby[key->index] = ISC_TRUE;
 				nowsignedby[key->index] = ISC_TRUE;
 			} else {
 				vbprintf(2, "\trrsig by %s dropped - %s\n",
-					 sigstr,
-					 expired ? "expired" :
-						   "failed to verify");
+					 sigstr, expired ? "expired" :
+					 rrsig.originalttl != set->ttl ?
+					 "ttl change" : "failed to verify");
 				wassignedby[key->index] = ISC_TRUE;
 				resign = ISC_TRUE;
 			}
 		} else if (iszonekey(key)) {
-			if (!expired && setverifies(name, set, key->key,
-						    &sigrdata)) {
+			if (!expired && rrsig.originalttl == set->ttl &&
+			    setverifies(name, set, key->key, &sigrdata)) {
 				vbprintf(2, "\trrsig by %s retained\n", sigstr);
 				keep = ISC_TRUE;
 				wassignedby[key->index] = ISC_TRUE;
 				nowsignedby[key->index] = ISC_TRUE;
 			} else {
 				vbprintf(2, "\trrsig by %s dropped - %s\n",
-					 sigstr,
-					 expired ? "expired" :
-						   "failed to verify");
+					 sigstr, expired ? "expired" :
+					 rrsig.originalttl != set->ttl ?
+					 "ttl change" : "failed to verify");
 				wassignedby[key->index] = ISC_TRUE;
 			}
 		} else if (!expired) {
@@ -522,7 +522,8 @@ signset(dns_diff_t *del, dns_diff_t *add, dns_dbnode_t *node, dns_name_t *name,
 		}
 
 		if (keep) {
-			nowsignedby[key->index] = ISC_TRUE;
+			if (key != NULL)
+				nowsignedby[key->index] = ISC_TRUE;
 			INCSTAT(nretained);
 			if (sigset.ttl != ttl) {
 				vbprintf(2, "\tfixing ttl %s\n", sigstr);
@@ -1387,6 +1388,13 @@ verifyset(dns_rdataset_t *rdataset, dns_name_t *name, dns_dbnode_t *node,
 
 		dns_rdataset_current(&sigrdataset, &rdata);
 		dns_rdata_tostruct(&rdata, &sig, NULL);
+		if (rdataset->ttl != sig.originalttl) {
+			dns_name_format(name, namebuf, sizeof(namebuf));
+			type_format(rdataset->type, typebuf, sizeof(typebuf));
+			fprintf(stderr, "TTL mismatch for %s %s keytag %u\n",
+				namebuf, typebuf, sig.keyid);
+			continue;
+		}
 		if ((set_algorithms[sig.algorithm] != 0) ||
 		    (ksk_algorithms[sig.algorithm] == 0))
 			continue;
@@ -1467,7 +1475,6 @@ verifyzone(void) {
 	isc_boolean_t done = ISC_FALSE;
 	isc_boolean_t first = ISC_TRUE;
 	isc_boolean_t goodksk = ISC_FALSE;
-	isc_boolean_t goodzsk = ISC_FALSE;
 	isc_result_t result;
 	unsigned char revoked_ksk[256];
 	unsigned char revoked_zsk[256];
@@ -1569,7 +1576,6 @@ verifyzone(void) {
 #endif
 			if (zsk_algorithms[dnskey.algorithm] != 255)
 				zsk_algorithms[dnskey.algorithm]++;
-			goodzsk = ISC_TRUE;
 		} else {
 			if (standby_zsk[dnskey.algorithm] != 255)
 				standby_zsk[dnskey.algorithm]++;
@@ -2192,6 +2198,7 @@ addnsec3param(const unsigned char *salt, size_t salt_length,
 	result = dns_rdata_fromstruct(&rdata, gclass,
 				      dns_rdatatype_nsec3param,
 				      &nsec3param, &b);
+	check_result(result, "dns_rdata_fromstruct()");
 	rdatalist.rdclass = rdata.rdclass;
 	rdatalist.type = rdata.type;
 	rdatalist.covers = 0;
@@ -2801,7 +2808,7 @@ loadzonekeys(isc_boolean_t preserve_keys, isc_boolean_t load_public) {
 	}
 	keyttl = rdataset.ttl;
 
-	/* Load keys corresponding to the existing DNSKEY RRset */
+	/* Load keys corresponding to the existing DNSKEY RRset. */
 	result = dns_dnssec_keylistfromrdataset(gorigin, directory, mctx,
 						&rdataset, &keysigs, &soasigs,
 						preserve_keys, load_public,

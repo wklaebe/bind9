@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 #
-# Copyright (C) 2004-2008, 2010  Internet Systems Consortium, Inc. ("ISC")
+# Copyright (C) 2004-2008, 2010, 2011  Internet Systems Consortium, Inc. ("ISC")
 # Copyright (C) 2001  Internet Software Consortium.
 #
 # Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: start.pl,v 1.13.396.3 2010-09-15 12:10:53 marka Exp $
+# $Id: start.pl,v 1.13.396.6 2011-03-05 23:51:38 tbox Exp $
 
 # Framework for starting test servers.
 # Based on the type of server specified, check for port availability, remove
@@ -33,6 +33,8 @@ use Getopt::Long;
 #   test - name of the test directory
 #   server - name of the server directory
 #   options - alternate options for the server
+#             NOTE: options must be specified with '-- "<option list>"',
+#              for instance: start.pl . ns1 -- "-c n.conf -d 43"
 
 my $usage = "usage: $0 [--noclean] test-directory [server-directory [server-options]]";
 my $noclean;
@@ -154,7 +156,11 @@ sub start_server {
 		$pid_file = "lwresd.pid";
 	} elsif ($server =~ /^ans/) {
 		$cleanup_files = "{ans.run}";
-		$command = "$PERL ./ans.pl ";
+                if (-e "$testdir/$server/ans.pl") {
+                        $command = "$PERL ans.pl";
+                } else {
+                        $command = "$PERL $topdir/ans.pl 10.53.0.$'";
+                }
 		if ($options) {
 			$command .= "$options";
 		} else {

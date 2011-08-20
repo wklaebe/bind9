@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Copyright (C) 2009, 2010  Internet Systems Consortium, Inc. ("ISC")
+# Copyright (C) 2009-2011  Internet Systems Consortium, Inc. ("ISC")
 #
 # Permission to use, copy, modify, and/or distribute this software for any
 # purpose with or without fee is hereby granted, provided that the above
@@ -14,7 +14,7 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: tests.sh,v 1.4.6.8 2010-12-15 18:44:16 each Exp $
+# $Id: tests.sh,v 1.4.6.12 2011-03-25 23:54:34 each Exp $
 
 SYSTEMTESTTOP=..
 . $SYSTEMTESTTOP/conf.sh
@@ -37,14 +37,24 @@ i=0
 while [ $i -lt 30 ]
 do
 	ret=0
-	for z in bar example private.secure.example
+	#
+	# Wait for the root DNSKEY RRset to be fully signed.
+	#
+	$DIG $DIGOPTS . @10.53.0.1 dnskey > dig.out.ns1.test$n || ret=1
+	grep "ANSWER: 10," dig.out.ns1.test$n > /dev/null || ret=1
+	for z in .
 	do
-		$DIG $DIGOPTS $z. @10.53.0.2 nsec > dig.out.ns2.test$n || ret=1
+		$DIG $DIGOPTS $z @10.53.0.1 nsec > dig.out.ns1.test$n || ret=1
+		grep "NS SOA" dig.out.ns1.test$n > /dev/null || ret=1
+	done
+	for z in bar. example. private.secure.example.
+	do
+		$DIG $DIGOPTS $z @10.53.0.2 nsec > dig.out.ns2.test$n || ret=1
 		grep "NS SOA" dig.out.ns2.test$n > /dev/null || ret=1
 	done
-	for z in bar example
+	for z in bar. example.
 	do 
-		$DIG $DIGOPTS $z. @10.53.0.3 nsec > dig.out.ns3.test$n || ret=1
+		$DIG $DIGOPTS $z @10.53.0.3 nsec > dig.out.ns3.test$n || ret=1
 		grep "NS SOA" dig.out.ns3.test$n > /dev/null || ret=1
 	done
 	i=`expr $i + 1`
@@ -754,10 +764,62 @@ n=`expr $n + 1`
 if [ $ret != 0 ]; then echo "I:failed"; fi
 status=`expr $status + $ret`
 
-echo "I:waiting for former active key to be removed"
-sleep 10
+echo "I:checking delayed key publication/activation ($n)"
+ret=0
+zsk=`cat delayzsk.key`
+ksk=`cat delayksk.key`
+# publication and activation times should be unset
+$SETTIME -K ns3 -pA -pP $zsk | grep -v UNSET > /dev/null 2>&1 && ret=1
+$SETTIME -K ns3 -pA -pP $ksk | grep -v UNSET > /dev/null 2>&1 && ret=1
+$DIG $DIGOPTS +noall +answer dnskey delay.example. @10.53.0.3 > dig.out.ns3.test$n || ret=1
+# DNSKEY not expected:
+awk 'BEGIN {r=1} $4=="DNSKEY" {r=0} END {exit r}' dig.out.ns3.test$n && ret=1
+n=`expr $n + 1`
+if [ $ret != 0 ]; then echo "I:failed"; fi
+status=`expr $status + $ret`
 
-echo "I:checking key was removed ($n)"
+echo "I:checking scheduled key publication, not activation ($n)"
+ret=0
+$SETTIME -K ns3 -P now+3s -A none $zsk > /dev/null 2>&1
+$SETTIME -K ns3 -P now+3s -A none $ksk > /dev/null 2>&1
+$RNDC -c ../common/rndc.conf -s 10.53.0.3 -p 9953 loadkeys delay.example. 2>&1 | sed 's/^/I:ns2 /'
+
+echo "I:waiting for changes to take effect"
+sleep 5
+
+$DIG $DIGOPTS +noall +answer dnskey delay.example. @10.53.0.3 > dig.out.ns3.test$n || ret=1
+# DNSKEY expected:
+awk 'BEGIN {r=1} $4=="DNSKEY" {r=0} END {exit r}' dig.out.ns3.test$n || ret=1
+# RRSIG not expected:
+awk 'BEGIN {r=1} $4=="RRSIG" {r=0} END {exit r}' dig.out.ns3.test$n && ret=1
+n=`expr $n + 1`
+if [ $ret != 0 ]; then echo "I:failed"; fi
+status=`expr $status + $ret`
+
+echo "I:checking scheduled key activation ($n)"
+ret=0
+$SETTIME -K ns3 -A now+3s $zsk > /dev/null 2>&1
+$SETTIME -K ns3 -A now+3s $ksk > /dev/null 2>&1
+$RNDC -c ../common/rndc.conf -s 10.53.0.3 -p 9953 loadkeys delay.example. 2>&1 | sed 's/^/I:ns2 /'
+
+echo "I:waiting for changes to take effect"
+sleep 5
+
+$DIG $DIGOPTS +noall +answer dnskey delay.example. @10.53.0.3 > dig.out.ns3.1.test$n || ret=1
+# DNSKEY expected:
+awk 'BEGIN {r=1} $4=="DNSKEY" {r=0} END {exit r}' dig.out.ns3.1.test$n || ret=1
+# RRSIG expected:
+awk 'BEGIN {r=1} $4=="RRSIG" {r=0} END {exit r}' dig.out.ns3.1.test$n || ret=1
+$DIG $DIGOPTS +noall +answer a a.delay.example. @10.53.0.3 > dig.out.ns3.2.test$n || ret=1
+# A expected:
+awk 'BEGIN {r=1} $4=="A" {r=0} END {exit r}' dig.out.ns3.2.test$n || ret=1
+# RRSIG expected:
+awk 'BEGIN {r=1} $4=="RRSIG" {r=0} END {exit r}' dig.out.ns3.2.test$n || ret=1
+n=`expr $n + 1`
+if [ $ret != 0 ]; then echo "I:failed"; fi
+status=`expr $status + $ret`
+
+echo "I:checking former active key was removed ($n)"
 ret=0
 $DIG $DIGOPTS +multi dnskey . @10.53.0.1 > dig.out.ns1.test$n || ret=1
 grep '; key id =.*'"$oldid"'$' dig.out.ns1.test$n > /dev/null && ret=1
@@ -778,11 +840,11 @@ echo "I:checking revoked key with duplicate key ID (failure expected) ($n)"
 lret=0
 id=30676
 $DIG $DIGOPTS +multi dnskey bar @10.53.0.2 > dig.out.ns2.test$n || lret=1
-grep '; key id =.*'"$id"'$' dig.out.ns2.test$n || lret=1
+grep '; key id =.*'"$id"'$' dig.out.ns2.test$n > /dev/null || lret=1
 $DIG $DIGOPTS dnskey bar @10.53.0.4 > dig.out.ns4.test$n || lret=1
 grep "flags:.*ad.*QUERY" dig.out.ns4.test$n > /dev/null || lret=1
 n=`expr $n + 1`
-if [ $lret != 0 ]; then echo "I:failed"; fi
+if [ $lret != 0 ]; then echo "I:not yet implemented"; fi
 
 echo "I:exit status: $status"
 

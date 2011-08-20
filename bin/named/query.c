@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: query.c,v 1.353.8.2.2.1 2011-04-27 17:06:27 each Exp $ */
+/* $Id: query.c,v 1.353.8.8 2011-04-27 23:47:01 tbox Exp $ */
 
 /*! \file */
 
@@ -31,9 +31,7 @@
 #include <dns/adb.h>
 #include <dns/byaddr.h>
 #include <dns/db.h>
-#ifdef DLZ
 #include <dns/dlz.h>
-#endif
 #include <dns/dns64.h>
 #include <dns/dnssec.h>
 #include <dns/events.h>
@@ -1025,7 +1023,6 @@ query_getdb(ns_client_t *client, dns_name_t *name, dns_rdatatype_t qtype,
 {
 	isc_result_t result;
 
-#ifdef DLZ
 	isc_result_t tresult;
 	unsigned int namelabels;
 	unsigned int zonelabels;
@@ -1091,16 +1088,10 @@ query_getdb(ns_client_t *client, dns_name_t *name, dns_rdatatype_t qtype,
 			result = tresult;
 		}
 	}
-#else
-	result = query_getzonedb(client, name, qtype, options,
-				 zonep, dbp, versionp);
-#endif
 
 	/* If successful, Transfer ownership of zone. */
 	if (result == ISC_R_SUCCESS) {
-#ifdef DLZ
 		*zonep = zone;
-#endif
 		/*
 		 * If neither attempt above succeeded, return the cache instead
 		 */
@@ -1631,6 +1622,7 @@ query_addadditional2(void *arg, dns_name_t *name, dns_rdatatype_t qtype) {
 	need_addname = ISC_FALSE;
 	zone = NULL;
 	needadditionalcache = ISC_FALSE;
+	POST(needadditionalcache);
 	additionaltype = dns_rdatasetadditional_fromauth;
 	dns_name_init(&cfname, NULL);
 
@@ -4091,7 +4083,7 @@ rpz_find(ns_client_t *client, dns_rdatatype_t qtype, dns_name_t *qnamef,
 			if (qtype == dns_rdatatype_rrsig ||
 			    qtype == dns_rdatatype_sig)
 				result = DNS_R_NXRRSET;
-			else 
+			else
 				result = dns_db_find(*dbp, qnamef, version,
 						     qtype, 0, client->now,
 						     nodep, found, *rdatasetp,
@@ -4298,11 +4290,12 @@ rpz_rewrite(ns_client_t *client, dns_rdatatype_t qtype,
 		 * Check rules for the name if this it the first time,
 		 * i.e. we've not been recursing.
 		 */
-		result = DNS_R_SERVFAIL;
 		st->state &= ~(DNS_RPZ_HAVE_IP | DNS_RPZ_HAVE_NSIPv4 |
 			       DNS_RPZ_HAVE_NSIPv6 | DNS_RPZ_HAD_NSDNAME);
 		result = rpz_rewrite_name(client, qtype, client->query.qname,
 					  DNS_RPZ_TYPE_QNAME, &rdataset);
+		if (result != ISC_R_SUCCESS)
+			goto cleanup;
 		if (st->m.policy != DNS_RPZ_POLICY_MISS)
 			goto cleanup;
 		if ((st->state & (DNS_RPZ_HAVE_NSIPv4 | DNS_RPZ_HAVE_NSIPv6 |
@@ -4408,9 +4401,10 @@ rpz_rewrite(ns_client_t *client, dns_rdatatype_t qtype,
 			    (st->state & DNS_RPZ_HAVE_NSIPv6) != 0 &&
 			    st->m.type != DNS_RPZ_TYPE_NSDNAME) {
 				result = rpz_rewrite_nsip(client,
-							dns_rdatatype_aaaa,
-							&ns.name, &ipdb, version,
-							&rdataset, resuming);
+							  dns_rdatatype_aaaa,
+							  &ns.name, &ipdb,
+							  version, &rdataset,
+							  resuming);
 			}
 			dns_rdata_freestruct(&ns);
 			if (ipdb != NULL)
@@ -4925,12 +4919,14 @@ dns64_aaaaok(ns_client_t *client, dns_rdataset_t *rdataset,
 				break;
 			}
 		}
-		if (i == count)
+		if (i == count && aaaaok != NULL)
 			isc_mem_put(client->mctx, aaaaok,
 				    sizeof(isc_boolean_t) * count);
 		return (ISC_TRUE);
 	}
-	isc_mem_put(client->mctx, aaaaok, sizeof(isc_boolean_t) * count);
+	if (aaaaok != NULL)
+		isc_mem_put(client->mctx, aaaaok,
+			    sizeof(isc_boolean_t) * count);
 	return (ISC_FALSE);
 }
 
@@ -5191,25 +5187,22 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype)
 	}
 
 	is_staticstub_zone = ISC_FALSE;
-	if (is_zone && zone != NULL) {
+	if (is_zone) {
 		authoritative = ISC_TRUE;
-		if (dns_zone_gettype(zone) == dns_zone_staticstub)
+		if (zone != NULL &&
+		    dns_zone_gettype(zone) == dns_zone_staticstub)
 			is_staticstub_zone = ISC_TRUE;
 	}
 
 	if (event == NULL && client->query.restarts == 0) {
 		if (is_zone) {
-#ifdef DLZ
 			if (zone != NULL) {
 				/*
 				 * if is_zone = true, zone = NULL then this is
 				 * a DLZ zone.  Don't attempt to attach zone.
 				 */
-#endif
 				dns_zone_attach(zone, &client->query.authzone);
-#ifdef DLZ
 			}
-#endif
 			dns_db_attach(db, &client->query.authdb);
 		}
 		client->query.authdbset = ISC_TRUE;
@@ -5283,7 +5276,6 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype)
 			dns_name_copy(fname, rpz_st->fname, NULL);
 			rpz_st->q.result = result;
 			client->query.attributes |= NS_QUERYATTR_RECURSING;
-			result = ISC_R_SUCCESS;
 			goto cleanup;
 		default:
 			RECURSE_ERROR(rresult);
@@ -5735,8 +5727,6 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype)
 			goto db_find;
 		}
 
-		result = DNS_R_NXRRSET;
-
 		/*
 		 * Look for a NSEC3 record if we don't have a NSEC record.
 		 */
@@ -5872,9 +5862,7 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype)
 		 * resolver and not have it cached.
 		 */
 		if (qtype == dns_rdatatype_soa &&
-#ifdef DLZ
 		    zone != NULL &&
-#endif
 		    dns_zone_getzeronosoattl(zone))
 			result = query_addsoa(client, db, version, 0,
 					  dns_rdataset_isassociated(rdataset));
@@ -6153,17 +6141,17 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype)
 		}
 		result = dns_name_concatenate(prefix, tname, fname, NULL);
 		dns_message_puttempname(client->message, &tname);
-		if (result != ISC_R_SUCCESS) {
-			if (result == ISC_R_NOSPACE) {
-				/*
-				 * RFC2672, section 4.1, subsection 3c says
-				 * we should return YXDOMAIN if the constructed
-				 * name would be too long.
-				 */
-				client->message->rcode = dns_rcode_yxdomain;
-			}
+
+		/*
+		 * RFC2672, section 4.1, subsection 3c says
+		 * we should return YXDOMAIN if the constructed
+		 * name would be too long.
+		 */
+		if (result == DNS_R_NAMETOOLONG)
+			client->message->rcode = dns_rcode_yxdomain;
+		if (result != ISC_R_SUCCESS)
 			goto cleanup;
-		}
+
 		query_keepname(client, fname, dbuf);
 		/*
 		 * Synthesize a CNAME consisting of
@@ -6634,9 +6622,8 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype)
 					/*
 					 * Add a fake SOA record.
 					 */
-					result = query_addsoa(client, db,
-							      version, 600,
-							      ISC_FALSE);
+					(void)query_addsoa(client, db, version,
+							   600, ISC_FALSE);
 					goto cleanup;
 				}
 #endif

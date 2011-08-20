@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005, 2007, 2008, 2010  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2007, 2008, 2010, 2011  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: ncache.c,v 1.50.124.1.2.1 2011-05-27 00:57:31 each Exp $ */
+/* $Id: ncache.c,v 1.50.124.2 2011-02-28 01:20:02 tbox Exp $ */
 
 /*! \file */
 
@@ -186,7 +186,7 @@ dns_ncache_addoptout(dns_message_t *message, dns_db_t *cache,
 					 */
 					isc_buffer_availableregion(&buffer,
 								   &r);
-					if (r.length < 3)
+					if (r.length < 2)
 						return (ISC_R_NOSPACE);
 					isc_buffer_putuint16(&buffer,
 							     rdataset->type);

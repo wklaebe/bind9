@@ -1,6 +1,6 @@
 #!/bin/sh -e
 #
-# Copyright (C) 2004, 2006-2010  Internet Systems Consortium, Inc. ("ISC")
+# Copyright (C) 2004, 2006-2011  Internet Systems Consortium, Inc. ("ISC")
 # Copyright (C) 2000-2002  Internet Software Consortium.
 #
 # Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: sign.sh,v 1.32.162.3 2011-02-15 22:06:27 marka Exp $
+# $Id: sign.sh,v 1.32.162.7 2011-03-31 15:56:44 each Exp $
 
 SYSTEMTESTTOP=../..
 . $SYSTEMTESTTOP/conf.sh
@@ -315,3 +315,29 @@ kskname=`$KEYGEN -q -3 -r $RANDFILE -fk $zone`
 zskname=`$KEYGEN -q -3 -r $RANDFILE $zone`
 cat $infile $kskname.key $zskname.key >$zonefile
 $SIGNER -P -3 - -r $RANDFILE -o $zone $zonefile > /dev/null 2>&1
+
+#
+# Secure below cname test zone.
+#
+zone=secure.below-cname.example.
+infile=secure.below-cname.example.db.in
+zonefile=secure.below-cname.example.db
+keyname=`$KEYGEN -q -r $RANDFILE -a RSASHA1 -b 1024 -n zone $zone`
+cat $infile $keyname.key >$zonefile
+$SIGNER -P -r $RANDFILE -o $zone $zonefile > /dev/null 2>&1
+
+#
+# Patched TTL test zone.
+#
+zone=ttlpatch.example.
+infile=ttlpatch.example.db.in
+zonefile=ttlpatch.example.db
+signedfile=ttlpatch.example.db.signed
+patchedfile=ttlpatch.example.db.patched
+
+keyname=`$KEYGEN -q -r $RANDFILE -a RSASHA1 -b 768 -n zone $zone`
+cat $infile $keyname.key >$zonefile
+
+$SIGNER -P -r $RANDFILE -f $signedfile -o $zone $zonefile > /dev/null 2>&1
+$CHECKZONE -D -s full $zone $signedfile 2> /dev/null | \
+    awk '{$2 = "3600"; print}' > $patchedfile

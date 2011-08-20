@@ -15,7 +15,7 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: tests.sh,v 1.73.14.3 2011-02-15 22:06:27 marka Exp $
+# $Id: tests.sh,v 1.73.14.10 2011-03-21 20:32:14 marka Exp $
 
 SYSTEMTESTTOP=..
 . $SYSTEMTESTTOP/conf.sh
@@ -959,6 +959,36 @@ n=`expr $n + 1`
 if [ $ret != 0 ]; then echo "I:failed"; fi
 status=`expr $status + $ret`
 
+echo "I:checking that dnsssec-signzone updates originalttl on ttl changes ($n)"
+ret=0
+(
+cd signer
+RANDFILE=../random.data
+zone=example
+key1=`$KEYGEN -q -r $RANDFILE -a RSASHA1 -b 1024 -n zone $zone`
+key2=`$KEYGEN -q -r $RANDFILE -f KSK -a RSASHA1 -b 1024 -n zone $zone`
+cat example.db.in $key1.key $key2.key > example.db
+$SIGNER -o example -f example.db.before example.db > /dev/null 2>&1
+sed 's/60.IN.SOA./50 IN SOA /' example.db.before > example.db.changed
+$SIGNER -o example -f example.db.after example.db.changed > /dev/null 2>&1
+)
+grep "SOA 5 1 50" signer/example.db.after > /dev/null || ret=1
+n=`expr $n + 1`
+if [ $ret != 0 ]; then echo "I:failed"; fi
+status=`expr $status + $ret`
+
+echo "I:checking validated data are not cached longer than originalttl ($n)"
+ret=0
+$DIG $DIGOPTS +ttl +noauth a.ttlpatch.example. @10.53.0.3 a > dig.out.ns3.test$n || ret=1
+$DIG $DIGOPTS +ttl +noauth a.ttlpatch.example. @10.53.0.4 a > dig.out.ns4.test$n || ret=1
+grep "3600.IN" dig.out.ns3.test$n > /dev/null || ret=1
+grep "300.IN" dig.out.ns3.test$n > /dev/null && ret=1
+grep "300.IN" dig.out.ns4.test$n > /dev/null || ret=1
+grep "3600.IN" dig.out.ns4.test$n > /dev/null && ret=1
+n=`expr $n + 1`
+if [ $ret != 0 ]; then echo "I:failed"; fi
+status=`expr $status + $ret`
+
 # Test that "rndc secroots" is able to dump trusted keys
 echo "I:checking rndc secroots ($n)"
 ret=0
@@ -1151,6 +1181,73 @@ $DIG $DIGOPTS +dnssec a auto-nsec3.example. @10.53.0.4 > dig.out.ns4.test$n || r
 grep "NOERROR" dig.out.ns4.test$n > /dev/null || ret=1
 grep "flags:.* ad[ ;]" dig.out.ns4.test$n > /dev/null || ret=1
 grep "IN.NSEC3 .* TYPE65534" dig.out.ns4.test$n > /dev/null || ret=1
+n=`expr $n + 1`
+if [ $ret != 0 ]; then echo "I:failed"; fi
+status=`expr $status + $ret`
+
+echo "I:checking that a insecure zone beneath a cname resolves ($n)"
+ret=0
+$DIG $DIGOPTS soa insecure.below-cname.example. @10.53.0.4 > dig.out.ns4.test$n || ret=1
+grep "NOERROR" dig.out.ns4.test$n > /dev/null || ret=1
+grep "ANSWER: 1," dig.out.ns4.test$n > /dev/null || ret=1
+n=`expr $n + 1`
+if [ $ret != 0 ]; then echo "I:failed"; fi
+status=`expr $status + $ret`
+
+echo "I:checking that a secure zone beneath a cname resolves ($n)"
+ret=0
+$DIG $DIGOPTS soa secure.below-cname.example. @10.53.0.4 > dig.out.ns4.test$n || ret=1
+grep "NOERROR" dig.out.ns4.test$n > /dev/null || ret=1
+grep "ANSWER: 2," dig.out.ns4.test$n > /dev/null || ret=1
+grep "flags:.* ad[ ;]" dig.out.ns4.test$n > /dev/null || ret=1
+n=`expr $n + 1`
+if [ $ret != 0 ]; then echo "I:failed"; fi
+status=`expr $status + $ret`
+
+echo "I:checking dnskey query with no data still gets put in cache ($n)"
+ret=0
+myDIGOPTS="+noadd +nosea +nostat +noquest +nocomm +nocmd -p 5300 @10.53.0.4"
+firstVal=`$DIG $myDIGOPTS insecure.example. dnskey|awk '{ print $2 }'`
+sleep 1
+secondVal=`$DIG $myDIGOPTS insecure.example. dnskey|awk '{ print $2 }'`
+if [ $firstVal -eq $secondVal ]
+then
+	sleep 1
+	thirdVal=`$DIG $myDIGOPTS insecure.example. dnskey|awk '{ print $2 }'`
+	if [ $firstVal -eq $thirdVal ]
+	then
+		echo "I: cannot confirm query answer still in cache"
+		ret=1
+	fi
+fi
+n=`expr $n + 1`
+if [ $ret != 0 ]; then echo "I:failed"; fi
+status=`expr $status + $ret`
+
+echo "I:check that NOTIFY is sent at the end of NSEC3 chain generation ($n)"
+ret=0
+(
+echo zone nsec3chain-test
+echo server 10.53.0.2 5300
+echo update add nsec3chain-test. 0 nsec3param 1 0 1 123456
+echo send
+) | $NSUPDATE
+for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18
+do
+	$DIG $DIGOPTS nsec3param nsec3chain-test @10.53.0.2 > dig.out.ns2.test$n || ret=1
+	if grep "ANSWER: 3," dig.out.ns2.test$n >/dev/null
+	then
+		break;
+	fi
+	echo "I:sleeping ...."
+	sleep 3
+done;
+grep "ANSWER: 3," dig.out.ns2.test$n > /dev/null || ret=1
+if [ $ret != 0 ]; then echo "I:nsec3 chain generation not complete"; fi
+sleep 3
+$DIG $DIGOPTS +noauth +nodnssec soa nsec3chain-test @10.53.0.2 > dig.out.ns2.test$n || ret=1
+$DIG $DIGOPTS +noauth +nodnssec soa nsec3chain-test @10.53.0.3 > dig.out.ns3.test$n || ret=1
+$PERL ../digcomp.pl dig.out.ns2.test$n dig.out.ns3.test$n || ret=1
 n=`expr $n + 1`
 if [ $ret != 0 ]; then echo "I:failed"; fi
 status=`expr $status + $ret`

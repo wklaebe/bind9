@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2008  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2008, 2011  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: xfrin.c,v 1.166.522.2 2011-02-19 01:21:27 each Exp $ */
+/* $Id: xfrin.c,v 1.166.522.4 2011-03-11 06:47:06 marka Exp $ */
 
 /*! \file */
 
@@ -1247,7 +1247,7 @@ xfrin_recv_done(isc_task_t *task, isc_event_t *ev) {
 			result = DNS_R_UNEXPECTEDID;
 		if (xfr->reqtype == dns_rdatatype_axfr ||
 		    xfr->reqtype == dns_rdatatype_soa)
-			FAIL(result);
+			goto failure;
 		xfrin_log(xfr, ISC_LOG_DEBUG(3), "got %s, retrying with AXFR",
 		       isc_result_totext(result));
  try_axfr:
@@ -1283,7 +1283,7 @@ xfrin_recv_done(isc_task_t *task, isc_event_t *ev) {
 	if (result != ISC_R_SUCCESS) {
 		xfrin_log(xfr, ISC_LOG_DEBUG(3), "TSIG check failed: %s",
 		       isc_result_totext(result));
-		FAIL(result);
+		goto failure;
 	}
 
 	for (result = dns_message_firstname(msg, DNS_SECTION_ANSWER);

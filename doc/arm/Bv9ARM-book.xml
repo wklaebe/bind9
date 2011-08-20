@@ -18,7 +18,7 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<!-- File: $Id: Bv9ARM-book.xml,v 1.478.8.2 2011-02-03 07:39:02 marka Exp $ -->
+<!-- File: $Id: Bv9ARM-book.xml,v 1.478.8.6 2011-05-16 04:19:47 marka Exp $ -->
 <book xmlns:xi="http://www.w3.org/2001/XInclude">
   <title>BIND 9 Administrator Reference Manual</title>
 
@@ -5791,12 +5791,15 @@ options {
 		<userinput>any;</userinput>.
 	      </para>
 	      <para>
-		Each <command>dns64</command> supports an optional
-		<command>exclude</command> ACL that selects which
-		IPv6 addresses will be ignored for the purposes
-		of determining whether dns64 is to be applied.
-                Any non-matching address will prevent further
-		DNS64 processing from occurring for this client.
+		Normally, DNS64 won't apply to a domain name that
+		owns one or more AAAA records; these records will
+		simply be returned.  The optional
+		<command>exclude</command> ACL allows specification
+		of a list of IPv6 addresses that will be ignored
+		if they appear in a domain name's AAAA records, and
+		DNS64 will be applied to any A records the domain
+		name owns.  If not defined, <command>exclude</command>
+		defaults to none.
 	      </para>
 	      <para>
 		A optional <command>suffix</command> can also
@@ -5805,6 +5808,21 @@ options {
 		set to <userinput>::</userinput>.  The bits
 		matching the prefix and mapped IPv4 address
 		must be zero.
+	      </para>
+	      <para>
+		If <command>recursive-only</command> is set to
+		<command>yes</command> the DNS64 synthesis will
+		only happen for recursive queries.  The default
+		is <command>no</command>.
+	      </para>
+	      <para>
+		If <command>break-dnssec</command> is set to
+		<command>yes</command> the DNS64 synthesis will
+		happen even if the result, if validated, would
+		cause a DNSSEC validation failure.  If this option
+		is set to <command>no</command> (the default), the DO
+		is set on the incoming query, and there are RRSIGs on
+		the applicable records, then synthesis will not happen.
 	      </para>
 <programlisting>
 	acl rfc1918 { 10/8; 192.168/16; 172.16/12; };
@@ -8618,7 +8636,7 @@ avoid-v6-udp-ports { 40000; range 50000 60000; };
                 <para>
 		  Sets the advertised EDNS UDP buffer size in bytes
                   to control the size of packets received.
-                  Valid values are 1024 to 4096 (values outside this range
+                  Valid values are 512 to 4096 (values outside this range
 		  will be silently adjusted).  The default value
 		  is 4096.  The usual reason for setting
 		  <command>edns-udp-size</command> to a non-default
@@ -11064,7 +11082,12 @@ example.com. NS ns2.example.net.
                     <command>named</command> to load keys from the key
                     repository and schedule key maintenance events to occur
                     in the future, but it does not sign the full zone
-                    immediately.
+                    immediately.  Note: once keys have been loaded for a
+                    zone the first time, the repository will be searched
+                    for changes periodically, regardless of whether
+                    <command>rndc loadkeys</command> is used.  The recheck
+                    interval is hard-coded to
+                    one hour.
                   </para>
                   <para>
                     <command>auto-dnssec create;</command> includes the
@@ -11217,7 +11240,13 @@ example.com. NS ns2.example.net.
 	      The <replaceable>identity</replaceable> field must
 	      contain a fully-qualified domain name.
 	    </para>
-
+	    <para>
+	      For nametypes <varname>krb5-self</varname>,
+	      <varname>ms-self</varname>, <varname>krb5-subdomain</varname>,
+              and <varname>ms-subdomain</varname> the
+	      <replaceable>identity</replaceable> field specifies
+	      the Windows or Kerberos realm of the machine belongs to.
+	    </para>
             <para>
               The <replaceable>nametype</replaceable> field has 13
               values:
@@ -11346,6 +11375,70 @@ example.com. NS ns2.example.net.
 			This rule is similar to <varname>self</varname>
 			except that only subdomains of
 			<varname>self</varname> can be updated.
+		      </para>
+		    </entry>
+		  </row>
+		  <row rowsep="0">
+		    <entry colname="1">
+		      <para>
+			<varname>ms-self</varname>
+		      </para>
+		    </entry> <entry colname="2">
+		      <para>
+			This rule takes a Windows machine principal
+			(machine$@REALM) for machine in REALM and
+			and converts it machine.realm allowing the machine 
+                        to update machine.realm.  The REALM to be matched
+			is specified in the <replacable>identity</replacable>
+			field.
+		      </para>
+		    </entry>
+		  </row>
+		  <row rowsep="0">
+		    <entry colname="1">
+		      <para>
+			<varname>ms-subdomain</varname>
+		      </para>
+		    </entry> <entry colname="2">
+		      <para>
+			This rule takes a Windows machine principal 
+			(machine$@REALM) for machine in REALM and
+			converts it to machine.realm allowing the machine
+			to update subdomains of machine.realm.  The REALM
+			to be matched is specified in the
+			<replacable>identity</replacable> field.
+		      </para>
+		    </entry>
+		  </row>
+		  <row rowsep="0">
+		    <entry colname="1">
+		      <para>
+			<varname>krb5-self</varname>
+		      </para>
+		    </entry> <entry colname="2">
+		      <para>
+			This rule takes a Kerberos machine principal
+			(host/machine@REALM) for machine in REALM and
+			and converts it machine.realm allowing the machine 
+                        to update machine.realm.  The REALM to be matched
+			is specified in the <replacable>identity</replacable>
+			field.
+		      </para>
+		    </entry>
+		  </row>
+		  <row rowsep="0">
+		    <entry colname="1">
+		      <para>
+			<varname>krb5-subdomain</varname>
+		      </para>
+		    </entry> <entry colname="2">
+		      <para>
+			This rule takes a Kerberos machine principal 
+			(host/machine@REALM) for machine in REALM and
+			converts it to machine.realm allowing the machine
+			to update subdomains of machine.realm.  The REALM
+			to be matched is specified in the
+			<replacable>identity</replacable> field.
 		      </para>
 		    </entry>
 		  </row>

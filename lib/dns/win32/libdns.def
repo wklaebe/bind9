@@ -58,6 +58,7 @@ dns_cache_attachdb
 dns_cache_clean
 dns_cache_create
 dns_cache_create2
+dns_cache_create3
 dns_cache_detach
 dns_cache_dump
 dns_cache_flush
@@ -184,7 +185,9 @@ dns_dispatchmgr_setavailports
 dns_dispatchmgr_setblackhole
 dns_dispatchmgr_setblackportlist
 dns_dispatchmgr_setstats
+dns_dlz_writeablezone
 dns_dlzallowzonexfr
+dns_dlzconfigure
 dns_dlzcreate
 dns_dlzdestroy
 dns_dlzfindzone
@@ -205,6 +208,7 @@ dns_dnssec_keyfromrdata
 dns_dnssec_keylistfromrdataset
 dns_dnssec_selfsigns
 dns_dnssec_sign
+dns_dnssec_signs
 dns_dnssec_signmessage
 dns_dnssec_updatekeys
 dns_dnssec_verify
@@ -389,6 +393,7 @@ dns_name_tostring
 dns_name_totext
 dns_name_towire
 dns_ncache_add
+dns_ncache_current
 dns_ncache_getrdataset
 dns_ncache_towire
 dns_nsec3_active
@@ -576,7 +581,6 @@ dns_resolver_createfetch
 dns_resolver_createfetch2
 dns_resolver_destroyfetch
 dns_resolver_detach
-dns_resolver_settimeout
 dns_resolver_disable_algorithm
 dns_resolver_dispatchmgr
 dns_resolver_dispatchv4
@@ -598,6 +602,8 @@ dns_resolver_resetmustbesecure
 dns_resolver_setclientsperquery
 dns_resolver_setlamettl
 dns_resolver_setmustbesecure
+dns_resolver_settimeout
+dns_resolver_settimeout
 dns_resolver_setudpsize
 dns_resolver_setzeronosoattl
 dns_resolver_shutdown
@@ -636,6 +642,7 @@ dns_sdb_unregister
 dns_sdlz_putnamedrr
 dns_sdlz_putrr
 dns_sdlz_putsoa
+dns_sdlz_setdb
 dns_sdlzregister
 dns_sdlzunregister
 dns_secalg_format
@@ -675,7 +682,6 @@ dns_tkey_processgssresponse
 dns_tkey_processquery
 dns_tkeyctx_create
 dns_tkeyctx_destroy
-dns_trust_totext
 dns_tsig_sign
 dns_tsig_verify
 dns_tsigkey_attach
@@ -759,6 +765,7 @@ dns_zone_clearxfracl
 dns_zone_create
 dns_zone_detach
 dns_zone_dialup
+dns_zone_dlzpostload
 dns_zone_dump
 dns_zone_dumptostream
 dns_zone_dumptostream2

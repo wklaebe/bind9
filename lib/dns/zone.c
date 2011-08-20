@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: zone.c,v 1.582.8.16 2011-04-29 21:42:00 each Exp $ */
+/* $Id: zone.c,v 1.582.8.20 2011-05-26 04:25:09 each Exp $ */
 
 /*! \file */
 
@@ -109,12 +109,20 @@
 
 #define NSEC3REMOVE(x) (((x) & DNS_NSEC3FLAG_REMOVE) != 0)
 
+/*%
+ * Key flags
+ */
+#define REVOKE(x) ((dst_key_flags(x) & DNS_KEYFLAG_REVOKE) != 0)
+#define KSK(x) ((dst_key_flags(x) & DNS_KEYFLAG_KSK) != 0)
+#define ALG(x) dst_key_alg(x)
+
 /*
  * Default values.
  */
 #define DNS_DEFAULT_IDLEIN 3600		/*%< 1 hour */
 #define DNS_DEFAULT_IDLEOUT 3600	/*%< 1 hour */
 #define MAX_XFER_TIME (2*3600)		/*%< Documented default is 2 hours */
+#define RESIGN_DELAY 3600		/*%< 1 hour */
 
 #ifndef DNS_MAX_EXPIRE
 #define DNS_MAX_EXPIRE	14515200	/*%< 24 weeks */
@@ -213,6 +221,7 @@ struct dns_zone {
 	isc_uint32_t		expire;
 	isc_uint32_t		minimum;
 	isc_stdtime_t		key_expiry;
+	isc_stdtime_t		log_key_expired_timer;
 	char			*keydirectory;
 
 	isc_uint32_t		maxrefresh;
@@ -660,6 +669,8 @@ static isc_result_t delete_nsec(dns_db_t *db, dns_dbversion_t *ver,
 				dns_dbnode_t *node, dns_name_t *name,
 				dns_diff_t *diff);
 static void zone_rekey(dns_zone_t *zone);
+static isc_boolean_t delsig_ok(dns_rdata_rrsig_t *rrsig_ptr,
+			       dst_key_t **keys, unsigned int nkeys);
 
 #define ENTER zone_debuglog(zone, me, 1, "enter")
 
@@ -805,6 +816,7 @@ dns_zone_create(dns_zone_t **zonep, isc_mem_t *mctx) {
 	zone->timer = NULL;
 	zone->idlein = DNS_DEFAULT_IDLEIN;
 	zone->idleout = DNS_DEFAULT_IDLEOUT;
+	zone->log_key_expired_timer = 0;
 	ISC_LIST_INIT(zone->notifies);
 	isc_sockaddr_any(&zone->notifysrc4);
 	isc_sockaddr_any6(&zone->notifysrc6);
@@ -3582,6 +3594,39 @@ zone_postload(dns_zone_t *zone, dns_db_t *db, isc_time_t loadtime,
 			resume_signingwithkey(zone);
 			resume_addnsec3chain(zone);
 		}
+
+		if (zone->type == dns_zone_master &&
+		    zone_isdynamic(zone) &&
+		    dns_db_issecure(db)) {
+			dns_name_t *name;
+			dns_fixedname_t fixed;
+			dns_rdataset_t next;
+
+			dns_rdataset_init(&next);
+			dns_fixedname_init(&fixed);
+			name = dns_fixedname_name(&fixed);
+
+			result = dns_db_getsigningtime(db, &next, name);
+			if (result == ISC_R_SUCCESS) {
+				isc_stdtime_t timenow;
+				char namebuf[DNS_NAME_FORMATSIZE];
+				char typebuf[DNS_RDATATYPE_FORMATSIZE];
+
+				isc_stdtime_get(&timenow);
+				dns_name_format(name, namebuf, sizeof(namebuf));
+				dns_rdatatype_format(next.covers,
+						     typebuf, sizeof(typebuf));
+				dns_zone_log(zone, ISC_LOG_DEBUG(3),
+					     "next resign: %s/%s in %d seconds",
+					     namebuf, typebuf,
+					     next.resign - timenow);
+				dns_rdataset_disassociate(&next);
+			} else
+				dns_zone_log(zone, ISC_LOG_WARNING,
+					     "signed dynamic zone has no "
+					     "resign event scheduled");
+		}
+
 		zone_settimer(zone, &now);
 	}
 
@@ -4513,13 +4558,38 @@ set_key_expiry_warning(dns_zone_t *zone, isc_stdtime_t when, isc_stdtime_t now)
 }
 
 /*
+ * Helper function to del_sigs(). We don't want to delete RRSIGs that
+ * have no new key.
+ */
+static isc_boolean_t
+delsig_ok(dns_rdata_rrsig_t *rrsig_ptr, dst_key_t **keys, unsigned int nkeys) {
+	unsigned int i = 0;
+
+	for (i = 0; i < nkeys; i++) {
+		if ((rrsig_ptr->algorithm == dst_key_alg(keys[i])) &&
+		    (rrsig_ptr->keyid != dst_key_id(keys[i]))) {
+			if ((dst_key_isprivate(keys[i])) && !KSK(keys[i])) {
+				/*
+				 * Success - found a private key, which
+				 * means it is an active key and thus, it
+				 * is OK to delete the RRSIG
+				 */
+				return (ISC_TRUE);
+			}
+		}
+	}
+
+	return (ISC_FALSE);
+}
+
+/*
  * Delete expired RRsigs and any RRsigs we are about to re-sign.
  * See also update.c:del_keysigs().
  */
 static isc_result_t
 del_sigs(dns_zone_t *zone, dns_db_t *db, dns_dbversion_t *ver, dns_name_t *name,
 	 dns_rdatatype_t type, dns_diff_t *diff, dst_key_t **keys,
-	 unsigned int nkeys, isc_stdtime_t now)
+	 unsigned int nkeys, isc_stdtime_t now, isc_boolean_t incremental)
 {
 	isc_result_t result;
 	dns_dbnode_t *node = NULL;
@@ -4561,13 +4631,54 @@ del_sigs(dns_zone_t *zone, dns_db_t *db, dns_dbversion_t *ver, dns_name_t *name,
 		RUNTIME_CHECK(result == ISC_R_SUCCESS);
 
 		if (type != dns_rdatatype_dnskey) {
-			result = update_one_rr(db, ver, diff,
+			if(delsig_ok(&rrsig, keys, nkeys)) {
+				result = update_one_rr(db, ver, diff,
 					       DNS_DIFFOP_DELRESIGN, name,
 					       rdataset.ttl, &rdata);
-			dns_rdata_reset(&rdata);
-			if (result != ISC_R_SUCCESS)
-				break;
-			continue;
+				if (incremental)
+					dns_db_resigned(db, &rdataset, ver);
+				dns_rdata_reset(&rdata);
+				if (result != ISC_R_SUCCESS)
+					break;
+				continue;
+			} else {
+				/*
+				 * At this point, we've got an RRSIG,
+				 * which is signed by an inactive key.
+				 * An administrator needs to provide a new
+				 * key/alg, but until that time, we want to
+				 * keep the old RRSIG.  Resetting the timer
+				 * here will ensure that we don't
+				 * constantly recheck this expired record.
+				 *
+				 * Note: dns_db_setsigningtime() will
+				 * assert if called after dns_db_resigned().
+				 */
+				if (incremental) {
+					isc_stdtime_t recheck = now +
+						RESIGN_DELAY;
+					dns_db_setsigningtime(db, &rdataset,
+							      recheck);
+				}
+
+				/*
+				 * log the key id and algorithm of
+				 * the inactive key with no replacement
+				 */
+				if((isc_log_getdebuglevel(dns_lctx) > 3) ||
+				   (zone->log_key_expired_timer <= now)) {
+					dns_zone_log(zone, ISC_LOG_WARNING,
+						     "del_sigs(): "
+						     "keyid: %u/algorithm: %u "
+						     "is not active and there "
+						     "is no replacement. "
+						     "Not deleting.",
+						     rrsig.keyid,
+						     rrsig.algorithm);
+					zone->log_key_expired_timer = now +
+									3600;
+				}
+			}
 		}
 
 		/*
@@ -4670,10 +4781,6 @@ add_sigs(dns_db_t *db, dns_dbversion_t *ver, dns_name_t *name,
 		INSIST(!dns_rdataset_isassociated(&rdataset));
 		goto failure;
 	}
-
-#define REVOKE(x) ((dst_key_flags(x) & DNS_KEYFLAG_REVOKE) != 0)
-#define KSK(x) ((dst_key_flags(x) & DNS_KEYFLAG_KSK) != 0)
-#define ALG(x) dst_key_alg(x)
 
 	for (i = 0; i < nkeys; i++) {
 		isc_boolean_t both = ISC_FALSE;
@@ -4813,6 +4920,8 @@ zone_resigninc(dns_zone_t *zone) {
 	while (result == ISC_R_SUCCESS) {
 		resign = rdataset.resign;
 		covers = rdataset.covers;
+		dns_rdataset_disassociate(&rdataset);
+
 		/*
 		 * Stop if we hit the SOA as that means we have walked the
 		 * entire zone.  The SOA record should always be the most
@@ -4820,27 +4929,18 @@ zone_resigninc(dns_zone_t *zone) {
 		 */
 		/* XXXMPA increase number of RRsets signed pre call */
 		if (covers == dns_rdatatype_soa || i++ > zone->signatures ||
-		    resign > stop) {
-			/*
-			 * Ensure that we don't loop resigning the SOA.
-			 */
-			if (covers == dns_rdatatype_soa)
-				dns_db_resigned(db, &rdataset, version);
-			dns_rdataset_disassociate(&rdataset);
+		    resign > stop)
 			break;
-		}
-
-		dns_db_resigned(db, &rdataset, version);
-		dns_rdataset_disassociate(&rdataset);
 
 		result = del_sigs(zone, db, version, name, covers, &sig_diff,
-				  zone_keys, nkeys, now);
+				  zone_keys, nkeys, now, ISC_TRUE);
 		if (result != ISC_R_SUCCESS) {
 			dns_zone_log(zone, ISC_LOG_ERROR,
 				     "zone_resigninc:del_sigs -> %s\n",
 				     dns_result_totext(result));
 			break;
 		}
+
 		result = add_sigs(db, version, name, covers, &sig_diff,
 				  zone_keys, nkeys, zone->mctx, inception,
 				  expire, check_ksk, keyset_kskonly);
@@ -4866,7 +4966,7 @@ zone_resigninc(dns_zone_t *zone) {
 		goto failure;
 
 	result = del_sigs(zone, db, version, &zone->origin, dns_rdatatype_soa,
-			  &sig_diff, zone_keys, nkeys, now);
+			  &sig_diff, zone_keys, nkeys, now, ISC_TRUE);
 	if (result != ISC_R_SUCCESS) {
 		dns_zone_log(zone, ISC_LOG_ERROR,
 			     "zone_resigninc:del_sigs -> %s\n",
@@ -5583,7 +5683,7 @@ update_sigs(dns_diff_t *diff, dns_db_t *db, dns_dbversion_t *version,
 	     tuple = ISC_LIST_HEAD(diff->tuples)) {
 		result = del_sigs(zone, db, version, &tuple->name,
 				  tuple->rdata.type, sig_diff,
-				  zone_keys, nkeys, now);
+				  zone_keys, nkeys, now, ISC_FALSE);
 		if (result != ISC_R_SUCCESS) {
 			dns_zone_log(zone, ISC_LOG_ERROR,
 				     "update_sigs:del_sigs -> %s\n",
@@ -6239,7 +6339,7 @@ zone_nsec3chain(dns_zone_t *zone) {
 		goto done;
 
 	result = del_sigs(zone, db, version, &zone->origin, dns_rdatatype_soa,
-			  &sig_diff, zone_keys, nkeys, now);
+			  &sig_diff, zone_keys, nkeys, now, ISC_FALSE);
 	if (result != ISC_R_SUCCESS) {
 		dns_zone_log(zone, ISC_LOG_ERROR, "zone_nsec3chain:"
 			     "del_sigs -> %s\n", dns_result_totext(result));
@@ -6800,7 +6900,7 @@ zone_sign(dns_zone_t *zone) {
 	commit = ISC_TRUE;
 
 	result = del_sigs(zone, db, version, &zone->origin, dns_rdatatype_soa,
-			  &sig_diff, zone_keys, nkeys, now);
+			  &sig_diff, zone_keys, nkeys, now, ISC_FALSE);
 	if (result != ISC_R_SUCCESS) {
 		dns_zone_log(zone, ISC_LOG_ERROR,
 			     "zone_sign:del_sigs -> %s\n",
@@ -13580,7 +13680,8 @@ rr_exists(dns_db_t *db, dns_dbversion_t *ver, dns_name_t *name,
  */
 static isc_result_t
 add_signing_records(dns_db_t *db, dns_rdatatype_t privatetype,
-		    dns_dbversion_t *ver, dns_diff_t *diff)
+		    dns_dbversion_t *ver, dns_diff_t *diff,
+		    isc_boolean_t sign_all)
 {
 	dns_difftuple_t *tuple, *newtuple = NULL;
 	dns_rdata_dnskey_t dnskey;
@@ -13619,13 +13720,16 @@ add_signing_records(dns_db_t *db, dns_rdatatype_t privatetype,
 		rdata.type = privatetype;
 		rdata.rdclass = tuple->rdata.rdclass;
 
-		CHECK(rr_exists(db, ver, name, &rdata, &flag));
-		if (flag)
-			continue;
-		CHECK(dns_difftuple_create(diff->mctx, DNS_DIFFOP_ADD,
-					   name, 0, &rdata, &newtuple));
-		CHECK(do_one_tuple(&newtuple, db, ver, diff));
-		INSIST(newtuple == NULL);
+		if (sign_all || tuple->op == DNS_DIFFOP_DEL) {
+			CHECK(rr_exists(db, ver, name, &rdata, &flag));
+			if (flag)
+				continue;
+			CHECK(dns_difftuple_create(diff->mctx, DNS_DIFFOP_ADD,
+						   name, 0, &rdata, &newtuple));
+			CHECK(do_one_tuple(&newtuple, db, ver, diff));
+			INSIST(newtuple == NULL);
+		}
+
 		/*
 		 * Remove any record which says this operation has already
 		 * completed.
@@ -13686,7 +13790,7 @@ sign_apex(dns_zone_t *zone, dns_db_t *db, dns_dbversion_t *ver,
 	if (tuple == NULL) {
 		result = del_sigs(zone, db, ver, &zone->origin,
 				  dns_rdatatype_dnskey, sig_diff,
-				  zone_keys, nkeys, now);
+				  zone_keys, nkeys, now, ISC_FALSE);
 		if (result != ISC_R_SUCCESS) {
 			dns_zone_log(zone, ISC_LOG_ERROR,
 				     "sign_apex:del_sigs -> %s\n",
@@ -13862,6 +13966,7 @@ zone_rekey(dns_zone_t *zone) {
 	dns_dnsseckey_t *key;
 	dns_diff_t diff, sig_diff;
 	isc_boolean_t commit = ISC_FALSE, newactive = ISC_FALSE;
+	isc_boolean_t newalg = ISC_FALSE;
 	isc_boolean_t fullsign;
 	dns_ttl_t ttl = 3600;
 	const char *dir;
@@ -13939,52 +14044,11 @@ zone_rekey(dns_zone_t *zone) {
 			goto trylater;
 		}
 
-		/* See if any pre-existing keys have newly become active */
-		for (key = ISC_LIST_HEAD(dnskeys);
-		     key != NULL;
-		     key = ISC_LIST_NEXT(key, link)) {
-			if (key->first_sign) {
-				newactive = ISC_TRUE;
-				break;
-			}
-		}
-
-		if ((newactive || fullsign || !ISC_LIST_EMPTY(diff.tuples)) &&
-		    dnskey_sane(zone, db, ver, &diff)) {
-			CHECK(dns_diff_apply(&diff, db, ver));
-			CHECK(clean_nsec3param(zone, db, ver, &diff));
-			CHECK(add_signing_records(db, zone->privatetype, ver,
-						  &diff));
-			CHECK(increment_soa_serial(db, ver, &diff, mctx));
-			CHECK(add_chains(zone, db, ver, &diff));
-			CHECK(sign_apex(zone, db, ver, &diff, &sig_diff));
-			CHECK(zone_journal(zone, &sig_diff, "zone_rekey"));
-			commit = ISC_TRUE;
-		}
-	}
-
-	dns_db_closeversion(db, &ver, commit);
-
-	if (commit) {
-		isc_time_t timenow;
-		dns_difftuple_t *tuple;
-		isc_boolean_t newkey = ISC_FALSE;
-		isc_boolean_t newalg = ISC_FALSE;
-
-		LOCK_ZONE(zone);
-		DNS_ZONE_SETFLAG(zone, DNS_ZONEFLG_NEEDNOTIFY);
-
-		zone_needdump(zone, DNS_DUMP_DELAY);
-
-		TIME_NOW(&timenow);
-		zone_settimer(zone, &timenow);
-
-		/*
-		 * Has a new key become active?  If so, is it for
-		 * a new algorithm?  In that event, we need to sign the
-		 * zone fully.  If there's a new key, but it's for an
-		 * already-existing algorithm, then the zone signing
-		 * can be handled incrementally.
+		/* See if any pre-existing keys have newly become active;
+		 * also, see if any new key is for a new algorithm, as in that
+		 * event, we need to sign the zone fully.  (If there's a new
+		 * key, but it's for an already-existing algorithm, then
+		 * the zone signing can be handled incrementally.)
 		 */
 		for (key = ISC_LIST_HEAD(dnskeys);
 		     key != NULL;
@@ -13992,7 +14056,8 @@ zone_rekey(dns_zone_t *zone) {
 			if (!key->first_sign)
 				continue;
 
-			newkey = ISC_TRUE;
+			newactive = ISC_TRUE;
+
 			if (!dns_rdataset_isassociated(&keysigs)) {
 				newalg = ISC_TRUE;
 				break;
@@ -14011,6 +14076,35 @@ zone_rekey(dns_zone_t *zone) {
 			}
 		}
 
+		if ((newactive || fullsign || !ISC_LIST_EMPTY(diff.tuples)) &&
+		    dnskey_sane(zone, db, ver, &diff)) {
+			CHECK(dns_diff_apply(&diff, db, ver));
+			CHECK(clean_nsec3param(zone, db, ver, &diff));
+			CHECK(add_signing_records(db, zone->privatetype,
+						  ver, &diff,
+						  ISC_TF(newalg || fullsign)));
+			CHECK(increment_soa_serial(db, ver, &diff, mctx));
+			CHECK(add_chains(zone, db, ver, &diff));
+			CHECK(sign_apex(zone, db, ver, &diff, &sig_diff));
+			CHECK(zone_journal(zone, &sig_diff, "zone_rekey"));
+			commit = ISC_TRUE;
+		}
+	}
+
+	dns_db_closeversion(db, &ver, commit);
+
+	if (commit) {
+		isc_time_t timenow;
+		dns_difftuple_t *tuple;
+
+		LOCK_ZONE(zone);
+		DNS_ZONE_SETFLAG(zone, DNS_ZONEFLG_NEEDNOTIFY);
+
+		zone_needdump(zone, DNS_DUMP_DELAY);
+
+		TIME_NOW(&timenow);
+		zone_settimer(zone, &timenow);
+
 		/* Remove any signatures from removed keys.  */
 		if (!ISC_LIST_EMPTY(rmkeys)) {
 			for (key = ISC_LIST_HEAD(rmkeys);
@@ -14027,7 +14121,6 @@ zone_rekey(dns_zone_t *zone) {
 				}
 			}
 		}
-
 
 		if (fullsign) {
 			/*

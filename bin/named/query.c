@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: query.c,v 1.353.8.8 2011-04-27 23:47:01 tbox Exp $ */
+/* $Id: query.c,v 1.353.8.11 2011-06-09 03:14:03 marka Exp $ */
 
 /*! \file */
 
@@ -635,6 +635,7 @@ query_findversion(ns_client_t *client, dns_db_t *db)
 		dns_db_attach(db, &dbversion->db);
 		dns_db_currentversion(db, &dbversion->version);
 		dbversion->acl_checked = ISC_FALSE;
+		dbversion->queryok = ISC_FALSE;
 		ISC_LIST_APPEND(client->query.activeversions,
 				dbversion, link);
 	}
@@ -766,6 +767,7 @@ query_validatezonedb(ns_client_t *client, dns_name_t *name,
 		dbversion->queryok = ISC_FALSE;
 		return (DNS_R_REFUSED);
 	}
+	dbversion->queryok = ISC_TRUE;
 
  approved:
 	/* Transfer ownership, if necessary. */
@@ -4103,8 +4105,13 @@ rpz_find(ns_client_t *client, dns_rdatatype_t qtype, dns_name_t *qnamef,
 		}
 		break;
 	case DNS_R_DNAME:
-		policy = DNS_RPZ_POLICY_RECORD;
-		break;
+		/*
+		 * DNAME policy RRs have very few if any uses that are not
+		 * better served with simple wildcards.  Making the work would
+		 * require complications to get the number of labels matched
+		 * in the name or the found name itself to the main DNS_R_DNAME
+		 * case in query_find(). So fall through to treat them as NODATA.
+		 */
 	case DNS_R_NXRRSET:
 		policy = DNS_RPZ_POLICY_NODATA;
 		break;
@@ -5314,6 +5321,7 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype)
 				break;
 			case DNS_RPZ_POLICY_RECORD:
 				if (type == dns_rdatatype_any &&
+				    result != DNS_R_CNAME &&
 				    dns_rdataset_isassociated(rdataset))
 					dns_rdataset_disassociate(rdataset);
 				break;

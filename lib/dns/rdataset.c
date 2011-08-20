@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rdataset.c,v 1.86.148.2 2011-03-12 04:59:17 tbox Exp $ */
+/* $Id: rdataset.c,v 1.86.148.4 2011-06-08 23:02:42 each Exp $ */
 
 /*! \file */
 
@@ -33,6 +33,26 @@
 #include <dns/rdata.h>
 #include <dns/rdataset.h>
 #include <dns/compress.h>
+
+static const char *trustnames[] = {
+	"none",
+	"pending-additional",
+	"pending-answer",
+	"additional",
+	"glue",
+	"answer",
+	"authauthority",
+	"authanswer",
+	"secure",
+	"local" /* aka ultimate */
+};
+
+const char *
+dns_trust_totext(dns_trust_t trust) {
+	if (trust >= sizeof(trustnames)/sizeof(*trustnames))
+		return ("bad");
+	return (trustnames[trust]);
+}
 
 void
 dns_rdataset_init(dns_rdataset_t *rdataset) {
@@ -324,7 +344,7 @@ towiresorted(dns_rdataset_t *rdataset, const dns_name_t *owner_name,
 		count = 1;
 		result = dns_rdataset_first(rdataset);
 		INSIST(result == ISC_R_NOMORE);
-	} else if (rdataset->type == 0) {
+	} else if ((rdataset->attributes & DNS_RDATASETATTR_NEGATIVE) != 0) {
 		/*
 		 * This is a negative caching rdataset.
 		 */

@@ -1,3 +1,50 @@
+	--- 9.8.1b2 released ---
+
+3126.	[security]	Using DNAME record to generate replacements caused
+			RPZ to exit with a assertion failure. [RT #23766]
+
+3125.	[security]	Using wildcard CNAME records as a replacement with
+			RPZ caused named to exit with a assertion failure.
+			[RT #24715]
+
+3124.	[bug]		Use an rdataset attribute flag to indicate
+			negative-cache records rather than using rrtype 0;
+			this will prevent problems when that rrtype is
+			used in actual DNS packets. [RT #24777]
+
+3123.	[security]	Change #2912 exposed a latent flaw in
+			dns_rdataset_totext() that could cause named to
+			crash with an assertion failure. [RT #24777]
+
+3122.	[cleanup]	dnssec-settime: corrected usage message. [RT #24664]
+
+3121.   [security]      An authoritative name server sending a negative
+                        response containing a very large RRset could
+                        trigger an off-by-one error in the ncache code
+                        and crash named. [RT #24650]
+
+3120.	[bug]		Named could fail to validate zones listed in a DLV
+			that validated insecure without using DLV and had
+			DS records in the parent zone. [RT #24631]
+
+3119.	[bug]		When rolling to a new DNSSEC key, a private-type
+			record could be created and never marked complete.
+			[RT #23253]
+
+3118.	[bug]		nsupdate could dump core on shutdown when using
+			SIG(0) keys. [RT #24604]
+
+3117.	[cleanup]	Remove doc and parser references to the
+			never-implemented 'auto-dnssec create' option.
+			[RT #24533]
+
+3115.	[bug]		Named could fail to return requested data when
+			following a CNAME that points into the same zone.
+			[RT #24455]
+
+3113.	[doc]		Document the relationship between serial-query-rate
+			and NOTIFY messages.
+
 	--- 9.8.1b1 released ---
 
 3112.	[doc]		Add missing descriptions of the update policy name

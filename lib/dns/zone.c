@@ -15,12 +15,13 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: zone.c,v 1.540.2.58 2011-05-26 23:10:13 each Exp $ */
+/* $Id: zone.c,v 1.540.2.63 2011-07-21 06:24:27 marka Exp $ */
 
 /*! \file */
 
 #include <config.h>
 #include <errno.h>
+#include <stdlib.h>
 
 #include <isc/file.h>
 #include <isc/mutex.h>
@@ -4544,21 +4545,30 @@ static isc_boolean_t
 delsig_ok(dns_rdata_rrsig_t *rrsig_ptr, dst_key_t **keys, unsigned int nkeys) {
 	unsigned int i = 0;
 
+	/*
+	 * It's okay to delete a signature if there is an active ZSK
+	 * with the same algorithm
+	 */
 	for (i = 0; i < nkeys; i++) {
-		if ((rrsig_ptr->algorithm == dst_key_alg(keys[i])) &&
-		    (rrsig_ptr->keyid != dst_key_id(keys[i]))) {
-			if ((dst_key_isprivate(keys[i])) && !KSK(keys[i])) {
-				/*
-				 * Success - found a private key, which
-				 * means it is an active key and thus, it
-				 * is OK to delete the RRSIG
-				 */
-				return (ISC_TRUE);
-			}
-		}
+		if (rrsig_ptr->algorithm == dst_key_alg(keys[i]) &&
+		    (dst_key_isprivate(keys[i])) && !KSK(keys[i]))
+			return (ISC_TRUE);
 	}
 
-	return (ISC_FALSE);
+	/*
+	 * Failing that, it is *not* okay to delete a signature
+	 * if the associated public key is still in the DNSKEY RRset
+	 */
+	for (i = 0; i < nkeys; i++) {
+		if ((rrsig_ptr->algorithm == dst_key_alg(keys[i])) &&
+		    (rrsig_ptr->keyid == dst_key_id(keys[i])))
+			return (ISC_FALSE);
+	}
+
+	/*
+	 * But if the key is gone, then go ahead.
+	 */
+	return (ISC_TRUE);
 }
 
 /*
@@ -4576,7 +4586,7 @@ del_sigs(dns_zone_t *zone, dns_db_t *db, dns_dbversion_t *ver, dns_name_t *name,
 	dns_rdata_t rdata = DNS_RDATA_INIT;
 	unsigned int i;
 	dns_rdata_rrsig_t rrsig;
-	isc_boolean_t found;
+	isc_boolean_t found, changed;
 	isc_stdtime_t warn = 0, maybe = 0;
 
 	dns_rdataset_init(&rdataset);
@@ -4602,6 +4612,7 @@ del_sigs(dns_zone_t *zone, dns_db_t *db, dns_dbversion_t *ver, dns_name_t *name,
 		goto failure;
 	}
 
+	changed = ISC_FALSE;
 	for (result = dns_rdataset_first(&rdataset);
 	     result == ISC_R_SUCCESS;
 	     result = dns_rdataset_next(&rdataset)) {
@@ -4610,54 +4621,57 @@ del_sigs(dns_zone_t *zone, dns_db_t *db, dns_dbversion_t *ver, dns_name_t *name,
 		RUNTIME_CHECK(result == ISC_R_SUCCESS);
 
 		if (type != dns_rdatatype_dnskey) {
-			if(delsig_ok(&rrsig, keys, nkeys)) {
+			if (delsig_ok(&rrsig, keys, nkeys)) {
 				result = update_one_rr(db, ver, diff,
 					       DNS_DIFFOP_DELRESIGN, name,
 					       rdataset.ttl, &rdata);
 				if (incremental)
-					dns_db_resigned(db, &rdataset, ver);
+					changed = ISC_TRUE;
 				dns_rdata_reset(&rdata);
 				if (result != ISC_R_SUCCESS)
 					break;
-				continue;
 			} else {
 				/*
 				 * At this point, we've got an RRSIG,
 				 * which is signed by an inactive key.
 				 * An administrator needs to provide a new
 				 * key/alg, but until that time, we want to
-				 * keep the old RRSIG.  Resetting the timer
-				 * here will ensure that we don't
-				 * constantly recheck this expired record.
-				 *
-				 * Note: dns_db_setsigningtime() will
-				 * assert if called after dns_db_resigned().
+				 * keep the old RRSIG.  Marking the key as
+				 * offline will prevent us spinning waiting
+				 * for the private part.
 				 */
 				if (incremental) {
-					isc_stdtime_t recheck = now +
-						RESIGN_DELAY;
-					dns_db_setsigningtime(db, &rdataset,
-							      recheck);
+					result = offline(db, ver, diff, name,
+							 rdataset.ttl, &rdata);
+					changed = ISC_TRUE;
+					if (result != ISC_R_SUCCESS)
+						break;
 				}
 
 				/*
-				 * log the key id and algorithm of
+				 * Log the key id and algorithm of
 				 * the inactive key with no replacement
 				 */
-				if((isc_log_getdebuglevel(dns_lctx) > 3) ||
-				   (zone->log_key_expired_timer <= now)) {
+				if (zone->log_key_expired_timer <= now) {
+					char origin[DNS_NAME_FORMATSIZE];
+					char algbuf[DNS_NAME_FORMATSIZE];
+					dns_name_format(&zone->origin, origin,
+							sizeof(origin));
+					dns_secalg_format(rrsig.algorithm,
+							  algbuf,
+							  sizeof(algbuf));
 					dns_zone_log(zone, ISC_LOG_WARNING,
-						     "del_sigs(): "
-						     "keyid: %u/algorithm: %u "
-						     "is not active and there "
-						     "is no replacement. "
-						     "Not deleting.",
-						     rrsig.keyid,
-						     rrsig.algorithm);
+						     "Key %s/%s/%d "
+						     "missing or inactive "
+						     "and has no replacement: "
+						     "retaining signatures.",
+						     origin, algbuf,
+						     rrsig.keyid);
 					zone->log_key_expired_timer = now +
 									3600;
 				}
 			}
+			continue;
 		}
 
 		/*
@@ -4700,6 +4714,7 @@ del_sigs(dns_zone_t *zone, dns_db_t *db, dns_dbversion_t *ver, dns_name_t *name,
 				break;
 			}
 		}
+
 		/*
 		 * If there is not a matching DNSKEY then
 		 * delete the RRSIG.
@@ -4712,6 +4727,10 @@ del_sigs(dns_zone_t *zone, dns_db_t *db, dns_dbversion_t *ver, dns_name_t *name,
 		if (result != ISC_R_SUCCESS)
 			break;
 	}
+
+	if (changed && (rdataset.attributes & DNS_RDATASETATTR_RESIGN) != 0)
+		dns_db_resigned(db, &rdataset, ver);
+
 	dns_rdataset_disassociate(&rdataset);
 	if (result == ISC_R_NOMORE)
 		result = ISC_R_SUCCESS;
@@ -4953,6 +4972,13 @@ zone_resigninc(dns_zone_t *zone) {
 		goto failure;
 	}
 
+	/*
+	 * Did we change anything in the zone?
+	 */
+	if (ISC_LIST_EMPTY(sig_diff.tuples))
+		goto failure;
+
+	/* Increment SOA serial if we have made changes */
 	result = increment_soa_serial(db, version, &sig_diff, zone->mctx);
 	if (result != ISC_R_SUCCESS) {
 		dns_zone_log(zone, ISC_LOG_ERROR,
@@ -9407,7 +9433,7 @@ refresh_callback(isc_task_t *task, isc_event_t *event) {
 					goto tcp_transfer;
 				}
 				dns_zone_log(zone, ISC_LOG_DEBUG(1),
-					     "refresh: skipped tcp fallback"
+					     "refresh: skipped tcp fallback "
 					     "as master %s (source %s) is "
 					     "unreachable (cached)",
 					      master, source);
@@ -12396,6 +12422,28 @@ dns_zone_first(dns_zonemgr_t *zmgr, dns_zone_t **first) {
 		return (ISC_R_SUCCESS);
 }
 
+/*
+ * Size of the zone task table.  For best results, this should be a
+ * prime number, approximately 1% of the maximum number of authoritative
+ * zones expected to be served by this server.
+ */
+#define DEFAULT_ZONE_TASKS 101
+static int
+calculate_zone_tasks(void) {
+	int ntasks = DEFAULT_ZONE_TASKS;
+
+#ifdef HAVE_GETENV
+	char *env = getenv("BIND9_ZONE_TASKS_HINT");
+	if (env != NULL)
+		ntasks = atoi(env);
+
+	if (ntasks < DEFAULT_ZONE_TASKS)
+		ntasks = DEFAULT_ZONE_TASKS;
+#endif
+
+	return (ntasks);
+}
+
 /***
  ***	Zone manager.
  ***/
@@ -12408,6 +12456,7 @@ dns_zonemgr_create(isc_mem_t *mctx, isc_taskmgr_t *taskmgr,
 	dns_zonemgr_t *zmgr;
 	isc_result_t result;
 	isc_interval_t interval;
+	int zone_tasks = calculate_zone_tasks();
 
 	zmgr = isc_mem_get(mctx, sizeof(*zmgr));
 	if (zmgr == NULL)
@@ -12433,10 +12482,13 @@ dns_zonemgr_create(isc_mem_t *mctx, isc_taskmgr_t *taskmgr,
 	zmgr->transfersperns = 2;
 
 	/* Create the zone task pool. */
-	result = isc_taskpool_create(taskmgr, mctx,
-				     8 /* XXX */, 2, &zmgr->zonetasks);
+	result = isc_taskpool_create(taskmgr, mctx, zone_tasks, 2,
+				     &zmgr->zonetasks);
 	if (result != ISC_R_SUCCESS)
 		goto free_rwlock;
+
+	isc_log_write(dns_lctx, DNS_LOGCATEGORY_GENERAL, DNS_LOGMODULE_ZONE,
+		ISC_LOG_NOTICE, "Using %d tasks for zone loading", zone_tasks);
 
 	/* Create a single task for queueing of SOA queries. */
 	result = isc_task_create(taskmgr, 1, &zmgr->task);

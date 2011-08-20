@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: namedconf.c,v 1.113.4.12 2011-03-12 04:58:31 tbox Exp $ */
+/* $Id: namedconf.c,v 1.113.4.14 2011-05-23 20:55:24 each Exp $ */
 
 /*! \file */
 
@@ -542,8 +542,7 @@ static cfg_type_t cfg_type_bracketed_sockaddrlist = {
 	&cfg_rep_list, &cfg_type_sockaddr
 };
 
-static const char *autodnssec_enums[] = { "allow", "maintain", "create",
-					  "off", NULL };
+static const char *autodnssec_enums[] = { "allow", "maintain", "off", NULL };
 static cfg_type_t cfg_type_autodnssec = {
 	"autodnssec", cfg_parse_enum, cfg_print_ustring, cfg_doc_enum,
 	&cfg_rep_string, &autodnssec_enums
@@ -966,6 +965,24 @@ static cfg_type_t cfg_type_masterformat = {
  * dnssec-lookaside
  */
 
+static void
+print_lookaside(cfg_printer_t *pctx, const cfg_obj_t *obj)
+{
+	const cfg_obj_t *domain = obj->value.tuple[0];
+
+	if (domain->value.string.length == 4 &&
+	    strncmp(domain->value.string.base, "auto", 4) == 0)
+		cfg_print_cstr(pctx, "auto");
+	else
+		cfg_print_tuple(pctx, obj);
+}
+
+static void
+doc_lookaside(cfg_printer_t *pctx, const cfg_type_t *type) {
+	UNUSED(type);
+	cfg_print_cstr(pctx, "( <string> trust-anchor <string> | auto )");
+}
+
 static keyword_type_t trustanchor_kw = { "trust-anchor", &cfg_type_astring };
 
 static cfg_type_t cfg_type_optional_trustanchor = {
@@ -980,7 +997,7 @@ static cfg_tuplefielddef_t lookaside_fields[] = {
 };
 
 static cfg_type_t cfg_type_lookaside = {
-	"lookaside", cfg_parse_tuple, cfg_print_tuple, cfg_doc_tuple,
+	"lookaside", cfg_parse_tuple, print_lookaside, doc_lookaside,
 	&cfg_rep_tuple, lookaside_fields
 };
 

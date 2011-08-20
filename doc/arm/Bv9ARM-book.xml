@@ -18,7 +18,7 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<!-- File: $Id: Bv9ARM-book.xml,v 1.450.4.17 2011-03-09 00:51:40 ebersman Exp $ -->
+<!-- File: $Id: Bv9ARM-book.xml,v 1.450.4.22 2011-05-23 20:55:23 each Exp $ -->
 <book xmlns:xi="http://www.w3.org/2001/XInclude">
   <title>BIND 9 Administrator Reference Manual</title>
 
@@ -1188,11 +1188,11 @@ zone "eng.example.com" {
                       </para>
                       <para>
                         This command requires that the
-                        <command>auto-dnssec</command> zone option to be set
-                        to <literal>allow</literal>,
-                        <literal>maintain</literal>, or
-                        <literal>create</literal>,  and also requires
-                        the zone to be configured to allow dynamic DNS.
+                        <command>auto-dnssec</command> zone option be set
+                        to <literal>allow</literal> or
+                        <literal>maintain</literal>,
+                        and also requires the zone to be configured to
+                        allow dynamic DNS.
                         See <xref linkend="dynamic_update_policies"/> for
                         more details.
                       </para>
@@ -1217,10 +1217,10 @@ zone "eng.example.com" {
                       </para>
                       <para>
                         This command requires that the
-                        <command>auto-dnssec</command> zone option to
-                        be set to <literal>maintain</literal> or
-                        <literal>create</literal>, and also requires
-                        the zone to be configured to allow dynamic DNS.
+                        <command>auto-dnssec</command> zone option
+                        be set to <literal>maintain</literal>,
+                        and also requires the zone to be configured to
+                        allow dynamic DNS.
                         See <xref linkend="dynamic_update_policies"/> for
                         more details.
                       </para>
@@ -6599,17 +6599,6 @@ options {
 		</para>
 	      </listitem>
 	    </varlistentry>
-	    <varlistentry>
-	      <term><command>check-mx</command></term>
-	      <listitem>
-		<para>
-		  Check whether the MX record appears to refer to a IP address.
-		  The default is to <command>warn</command>.  Other possible
-		  values are <command>fail</command> and
-		  <command>ignore</command>.
-		</para>
-	      </listitem>
-	    </varlistentry>
 
             <varlistentry>
               <term><command>check-wildcard</command></term>
@@ -7453,22 +7442,27 @@ avoid-v6-udp-ports {};
 
             <varlistentry>
               <term><command>serial-query-rate</command></term>
-              <listitem>
-                <para>
-                  Slave servers will periodically query master servers
-                  to find out if zone serial numbers have changed. Each such
-                  query uses
-                  a minute amount of the slave server's network bandwidth.  To
-                  limit the
-                  amount of bandwidth used, BIND 9 limits the rate at which
-                  queries are
-                  sent.  The value of the <command>serial-query-rate</command> option,
-                  an integer, is the maximum number of queries sent per
-                  second.
-                  The default is 20.
-                </para>
-              </listitem>
-            </varlistentry>
+	      <listitem>
+		<para>
+		  Slave servers will periodically query master
+		  servers to find out if zone serial numbers have
+		  changed. Each such query uses a minute amount of
+		  the slave server's network bandwidth.  To limit
+		  the amount of bandwidth used, BIND 9 limits the
+		  rate at which queries are sent.  The value of the
+		  <command>serial-query-rate</command> option, an
+		  integer, is the maximum number of queries sent
+		  per second.  The default is 20.
+		</para>
+		<para>
+		  In addition to controlling the rate SOA refresh
+		  queries are issued at
+		  <command>serial-query-rate</command> also controls
+		  the rate at which NOTIFY messages are sent from
+		  both master and slave zones.
+		</para>
+	      </listitem>
+	    </varlistentry>
 
             <varlistentry>
               <term><command>serial-queries</command></term>
@@ -8614,6 +8608,10 @@ avoid-v6-udp-ports { 40000; range 50000 60000; };
                   The delay, in seconds, between sending sets of notify
                   messages for a zone.  The default is five (5) seconds.
                 </para>
+                <para>
+		  The overall rate that NOTIFY messages are sent for all
+		  zones is controlled by <command>serial-query-rate</command>.
+		</para>
               </listitem>
             </varlistentry>
 	  </variablelist>
@@ -9729,7 +9727,7 @@ view "external" {
     <optional> min-retry-time <replaceable>number</replaceable> ; </optional>
     <optional> max-retry-time <replaceable>number</replaceable> ; </optional>
     <optional> key-directory <replaceable>path_name</replaceable>; </optional>
-    <optional> auto-dnssec <constant>allow</constant>|<constant>maintain</constant>|<constant>create</constant>|<constant>off</constant>; </optional>
+    <optional> auto-dnssec <constant>allow</constant>|<constant>maintain</constant>|<constant>off</constant>; </optional>
     <optional> zero-no-soa-ttl <replaceable>yes_or_no</replaceable> ; </optional>
 };
 
@@ -9741,6 +9739,7 @@ zone <replaceable>zone_name</replaceable> <optional><replaceable>class</replacea
     <optional> allow-transfer { <replaceable>address_match_list</replaceable> }; </optional>
     <optional> allow-update-forwarding { <replaceable>address_match_list</replaceable> }; </optional>
     <optional> update-check-ksk <replaceable>yes_or_no</replaceable>; </optional>
+    <optional> dnssec-update-mode ( <replaceable>maintain</replaceable> | <replaceable>no-resign</replaceable> ); </optional>
     <optional> dnssec-dnskey-kskonly <replaceable>yes_or_no</replaceable>; </optional>
     <optional> dnssec-secure-to-insecure <replaceable>yes_or_no</replaceable> ; </optional>
     <optional> try-tcp-refresh <replaceable>yes_or_no</replaceable>; </optional>
@@ -10651,7 +10650,7 @@ zone <replaceable>zone_name</replaceable> <optional><replaceable>class</replacea
                   <para>
                     Zones configured for dynamic DNS may also use this
                     option to allow varying levels of automatic DNSSEC key
-                    management. There are four possible settings:
+                    management. There are three possible settings:
                   </para>
                   <para>
                     <command>auto-dnssec allow;</command> permits
@@ -10675,7 +10674,12 @@ zone <replaceable>zone_name</replaceable> <optional><replaceable>class</replacea
                     <command>named</command> to load keys from the key
                     repository and schedule key maintenance events to occur
                     in the future, but it does not sign the full zone
-                    immediately.
+                    immediately.  Note: once keys have been loaded for a
+                    zone the first time, the repository will be searched
+                    for changes periodically, regardless of whether
+                    <command>rndc loadkeys</command> is used.  The recheck
+                    interval is hard-coded to
+                    one hour.
                   </para>
                   <para>
                     <command>auto-dnssec create;</command> includes the
@@ -10828,7 +10832,13 @@ zone <replaceable>zone_name</replaceable> <optional><replaceable>class</replacea
 	      The <replaceable>identity</replaceable> field must
 	      contain a fully-qualified domain name.
 	    </para>
-
+	    <para>
+	      For nametypes <varname>krb5-self</varname>,
+	      <varname>ms-self</varname>, <varname>krb5-subdomain</varname>,
+              and <varname>ms-subdomain</varname> the
+	      <replaceable>identity</replaceable> field specifies
+	      the Windows or Kerberos realm of the machine belongs to.
+	    </para>
             <para>
               The <replaceable>nametype</replaceable> field has 13
               values:
@@ -10957,6 +10967,70 @@ zone <replaceable>zone_name</replaceable> <optional><replaceable>class</replacea
 			This rule is similar to <varname>self</varname>
 			except that only subdomains of
 			<varname>self</varname> can be updated.
+		      </para>
+		    </entry>
+		  </row>
+		  <row rowsep="0">
+		    <entry colname="1">
+		      <para>
+			<varname>ms-self</varname>
+		      </para>
+		    </entry> <entry colname="2">
+		      <para>
+			This rule takes a Windows machine principal
+			(machine$@REALM) for machine in REALM and
+			and converts it machine.realm allowing the machine 
+                        to update machine.realm.  The REALM to be matched
+			is specified in the <replacable>identity</replacable>
+			field.
+		      </para>
+		    </entry>
+		  </row>
+		  <row rowsep="0">
+		    <entry colname="1">
+		      <para>
+			<varname>ms-subdomain</varname>
+		      </para>
+		    </entry> <entry colname="2">
+		      <para>
+			This rule takes a Windows machine principal 
+			(machine$@REALM) for machine in REALM and
+			converts it to machine.realm allowing the machine
+			to update subdomains of machine.realm.  The REALM
+			to be matched is specified in the
+			<replacable>identity</replacable> field.
+		      </para>
+		    </entry>
+		  </row>
+		  <row rowsep="0">
+		    <entry colname="1">
+		      <para>
+			<varname>krb5-self</varname>
+		      </para>
+		    </entry> <entry colname="2">
+		      <para>
+			This rule takes a Kerberos machine principal
+			(host/machine@REALM) for machine in REALM and
+			and converts it machine.realm allowing the machine 
+                        to update machine.realm.  The REALM to be matched
+			is specified in the <replacable>identity</replacable>
+			field.
+		      </para>
+		    </entry>
+		  </row>
+		  <row rowsep="0">
+		    <entry colname="1">
+		      <para>
+			<varname>krb5-subdomain</varname>
+		      </para>
+		    </entry> <entry colname="2">
+		      <para>
+			This rule takes a Kerberos machine principal 
+			(host/machine@REALM) for machine in REALM and
+			converts it to machine.realm allowing the machine
+			to update subdomains of machine.realm.  The REALM
+			to be matched is specified in the
+			<replacable>identity</replacable> field.
 		      </para>
 		    </entry>
 		  </row>

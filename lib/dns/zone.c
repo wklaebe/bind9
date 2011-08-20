@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: zone.c,v 1.582.8.24 2011-07-08 23:47:15 tbox Exp $ */
+/* $Id: zone.c,v 1.582.8.26 2011-08-09 02:34:24 marka Exp $ */
 
 /*! \file */
 
@@ -3477,7 +3477,8 @@ zone_postload(dns_zone_t *zone, dns_db_t *db, isc_time_t loadtime,
 				dns_zone_log(zone, ISC_LOG_ERROR,
 					     "zone serial (%u/%u) has gone "
 					     "backwards", serial, oldserial);
-			else if (serial == oldserial && !hasinclude)
+			else if (serial == oldserial && !hasinclude &&
+				 strcmp(zone->db_argv[0], "_builtin") != 0)
 				dns_zone_log(zone, ISC_LOG_ERROR,
 					     "zone serial (%u) unchanged. "
 					     "zone may fail to transfer "
@@ -9453,7 +9454,7 @@ refresh_callback(isc_task_t *task, isc_event_t *event) {
 					goto tcp_transfer;
 				}
 				dns_zone_log(zone, ISC_LOG_DEBUG(1),
-					     "refresh: skipped tcp fallback"
+					     "refresh: skipped tcp fallback "
 					     "as master %s (source %s) is "
 					     "unreachable (cached)",
 					      master, source);

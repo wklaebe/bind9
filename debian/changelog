@@ -1,3 +1,12 @@
+bind9 (1:9.7.3.dfsg-1ubuntu2.1) natty-security; urgency=low
+
+  * SECURITY UPDATE: denial of service via off-by-one
+    - lib/dns/ncache.c: correctly validate length.
+    - Patch backported from 9.7.3-P1.
+    - CVE-2011-1910
+
+ -- Marc Deslauriers <marc.deslauriers@ubuntu.com>  Fri, 27 May 2011 12:50:40 -0400
+
 bind9 (1:9.7.3.dfsg-1ubuntu2) natty; urgency=low
 
   * debian/rules, configure, contrib/dlz/config.dlz.in: use

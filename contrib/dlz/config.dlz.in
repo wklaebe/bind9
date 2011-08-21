@@ -271,7 +271,7 @@ case "$use_dlz_bdb" in
 			# Look for libname other than libdb.so.
 			# Order is important (sigh).
 
-			bdb_libnames="db42 db-4.2 db41 db-4.1 db"
+			bdb_libnames="db-4.6 db42 db-4.2 db41 db-4.1 db"
 			for d in $bdb_libnames
 			do
 				if test -f "$dd/lib/lib${d}.so"

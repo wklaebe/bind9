@@ -218,6 +218,9 @@ count_acl_elements(const cfg_obj_t *caml, const cfg_obj_t *cctx,
 		} else if (cfg_obj_isstring(ce)) {
 			const char *name = cfg_obj_asstring(ce);
 			if (strcasecmp(name, "localhost") == 0 ||
+#ifdef SUPPORT_GEOIP
+			    strncasecmp(name, "country_", 8) == 0 ||
+#endif
 			    strcasecmp(name, "localnets") == 0) {
 				n++;
 			} else if (strcasecmp(name, "any") != 0 &&
@@ -412,6 +415,14 @@ nested_acl:
 					de->negative = !neg;
 				} else
 					continue;
+#ifdef SUPPORT_GEOIP
+			} else if ((0 == (strncmp("country_", name, 8))) && (10 == strlen(name))) {
+				/* It is a country code */
+				de->type = dns_aclelementtype_ipcountry;
+				de->country[0] = name[8];
+				de->country[1] = name[9];
+				de->country[2] = '\0';
+#endif
 			} else if (strcasecmp(name, "localhost") == 0) {
 				de->type = dns_aclelementtype_localhost;
 				de->negative = neg;

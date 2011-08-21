@@ -4,6 +4,49 @@ bind9 (1:9.7.4.dfsg-0) unstable; urgency=low
 
  -- LaMont Jones <lamont@debian.org>  Sun, 21 Aug 2011 04:43:16 -0600
 
+bind9 (1:9.7.3.dfsg-1ubuntu4) oneiric; urgency=low
+
+  * debian/apparmor-profile: Allow /var/run and /run. (LP: #810270)
+
+ -- Martin Pitt <martin.pitt@ubuntu.com>  Thu, 14 Jul 2011 15:15:45 +0200
+
+bind9 (1:9.7.3.dfsg-1ubuntu3) oneiric; urgency=low
+
+  * SECURITY UPDATE: denial of service via specially crafted packet
+    - lib/dns/include/dns/rdataset.h, lib/dns/{masterdump,message,ncache,
+      nsec3,rbtdb,rdataset,resolver,validator}.c: Use an rdataset attribute
+      flag to indicate negative-cache records rather than using rrtype 0.
+    - Patch backported from 9.7.3-P3.
+    - CVE-2011-2464
+
+ -- Marc Deslauriers <marc.deslauriers@ubuntu.com>  Tue, 05 Jul 2011 08:33:30 -0400
+
+bind9 (1:9.7.3.dfsg-1ubuntu2.1) natty-security; urgency=low
+
+  * SECURITY UPDATE: denial of service via off-by-one
+    - lib/dns/ncache.c: correctly validate length.
+    - Patch backported from 9.7.3-P1.
+    - CVE-2011-1910
+
+ -- Marc Deslauriers <marc.deslauriers@ubuntu.com>  Fri, 27 May 2011 12:50:40 -0400
+
+bind9 (1:9.7.3.dfsg-1ubuntu2) natty; urgency=low
+
+  * debian/rules, configure, contrib/dlz/config.dlz.in: use
+    DEB_HOST_MULTIARCH so we can find multiarch libraries and fix FTBFS.
+    (LP: #745642)
+
+ -- Marc Deslauriers <marc.deslauriers@ubuntu.com>  Wed, 30 Mar 2011 10:19:37 -0400
+
+bind9 (1:9.7.3.dfsg-1ubuntu1) natty; urgency=low
+
+  * debian/bind9-default.md5sum:
+    - updated to reflect the default md5sum in maverick and natty, this
+      avoids a bogus /etc/default/bind9.dpkg-dist file
+      (LP: #556332)
+
+ -- Michael Vogt <michael.vogt@ubuntu.com>  Tue, 29 Mar 2011 10:13:11 +0200
+
 bind9 (1:9.7.3.dfsg-1) unstable; urgency=low
 
   [Peter Palfrader]

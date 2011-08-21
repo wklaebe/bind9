@@ -1,7 +1,8 @@
 Source: bind9
 Section: net
 Priority: optional
-Maintainer: LaMont Jones <lamont@debian.org>
+Maintainer: Ubuntu Developers <ubuntu-devel-discuss@lists.ubuntu.com>
+XSBC-Original-Maintainer: LaMont Jones <lamont@debian.org>
 Uploaders: Bdale Garbee <bdale@gag.com>
 Build-Depends: libkrb5-dev, debhelper (>= 5), libssl-dev, libtool, bison, libdb-dev (>>4.6), libldap2-dev, libxml2-dev, libcap2-dev [!kfreebsd-i386 !kfreebsd-amd64 !hurd-i386], hardening-wrapper, libgeoip-dev (>= 1.4.6.dfsg-5), dpkg-dev (>= 1.15.5)
 Build-Conflicts: libdb4.2-dev
@@ -171,4 +172,3 @@ Description: Lightweight Resolver Daemon
  the BIND 9 lightweight resolver library.  It is essentially a stripped-
  down, caching-only name server that answers queries using the BIND 9
  lightweight resolver protocol rather than the DNS protocol.
-

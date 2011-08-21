@@ -10,6 +10,12 @@ bind9 (1:9.8.0.dfsg.P1-0) unstable; urgency=low
 
  -- LaMont Jones <lamont@debian.org>  Fri, 13 May 2011 03:46:22 -0600
 
+bind9 (1:9.7.4.dfsg-0) unstable; urgency=low
+
+  * New upstream
+
+ -- LaMont Jones <lamont@debian.org>  Sun, 21 Aug 2011 04:43:16 -0600
+
 bind9 (1:9.7.3.dfsg-1) unstable; urgency=low
 
   [Peter Palfrader]

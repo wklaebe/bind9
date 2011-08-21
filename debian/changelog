@@ -1,3 +1,12 @@
+bind9 (1:9.7.3.dfsg-1ubuntu1) natty; urgency=low
+
+  * debian/bind9-default.md5sum:
+    - updated to reflect the default md5sum in maverick and natty, this
+      avoids a bogus /etc/default/bind9.dpkg-dist file
+      (LP: #556332)
+
+ -- Michael Vogt <michael.vogt@ubuntu.com>  Tue, 29 Mar 2011 10:13:11 +0200
+
 bind9 (1:9.7.3.dfsg-1) unstable; urgency=low
 
   [Peter Palfrader]

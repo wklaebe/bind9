@@ -11,6 +11,8 @@ DEB_BUILD_ARCH := $(shell dpkg --print-architecture)
 endif
 export arch = $(DEB_HOST_ARCH)
 
+DEB_HOST_MULTIARCH := $(shell dpkg-architecture -qDEB_HOST_MULTIARCH)
+
 ifneq (,$(findstring debug,$(DEB_BUILD_OPTIONS)))
 DEBUG = -g
 endif

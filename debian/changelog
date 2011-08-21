@@ -1,3 +1,9 @@
+bind9 (1:9.7.3.dfsg-1ubuntu4) oneiric; urgency=low
+
+  * debian/apparmor-profile: Allow /var/run and /run. (LP: #810270)
+
+ -- Martin Pitt <martin.pitt@ubuntu.com>  Thu, 14 Jul 2011 15:15:45 +0200
+
 bind9 (1:9.7.3.dfsg-1ubuntu3) oneiric; urgency=low
 
   * SECURITY UPDATE: denial of service via specially crafted packet

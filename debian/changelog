@@ -1,3 +1,11 @@
+bind9 (1:9.7.3.dfsg-1ubuntu2) natty; urgency=low
+
+  * debian/rules, configure, contrib/dlz/config.dlz.in: use
+    DEB_HOST_MULTIARCH so we can find multiarch libraries and fix FTBFS.
+    (LP: #745642)
+
+ -- Marc Deslauriers <marc.deslauriers@ubuntu.com>  Wed, 30 Mar 2011 10:19:37 -0400
+
 bind9 (1:9.7.3.dfsg-1ubuntu1) natty; urgency=low
 
   * debian/bind9-default.md5sum:

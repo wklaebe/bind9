@@ -42,21 +42,5 @@ n=`expr $n + 1`
 if [ $ret != 0 ]; then echo "I:failed"; fi
 status=`expr $status + $ret`
 
-echo "I:checking that SOA reference by DLV in a DRUZ with DS validates as secure ($n)"
-ret=0
-$DIG $DIGOPTS child1.druz soa @10.53.0.5 > dig.out.ns5.test$n || ret=1
-grep "flags:.*ad.*QUERY" dig.out.ns5.test$n > /dev/null || ret=1
-n=`expr $n + 1`
-if [ $ret != 0 ]; then echo "I:failed"; fi
-status=`expr $status + $ret`
-
-echo "I:checking that child SOA reference by DLV in a DRUZ with DS validates as secure ($n)"
-ret=0
-$DIG $DIGOPTS grand.child1.druz soa @10.53.0.5 > dig.out.ns5.test$n || ret=1
-grep "flags:.*ad.*QUERY" dig.out.ns5.test$n > /dev/null || ret=1
-n=`expr $n + 1`
-if [ $ret != 0 ]; then echo "I:failed"; fi
-status=`expr $status + $ret`
-
 echo "I:exit status: $status"
 exit $status

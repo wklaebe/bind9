@@ -1,3 +1,14 @@
+bind9 (1:9.7.3.dfsg-1ubuntu2.2) natty-security; urgency=low
+
+  * SECURITY UPDATE: denial of service via specially crafted packet
+    - lib/dns/include/dns/rdataset.h, lib/dns/{masterdump,message,ncache,
+      nsec3,rbtdb,rdataset,resolver,validator}.c: Use an rdataset attribute
+      flag to indicate negative-cache records rather than using rrtype 0.
+    - Patch backported from 9.7.3-P3.
+    - CVE-2011-2464
+
+ -- Marc Deslauriers <marc.deslauriers@ubuntu.com>  Tue, 05 Jul 2011 08:33:30 -0400
+
 bind9 (1:9.7.3.dfsg-1ubuntu2.1) natty-security; urgency=low
 
   * SECURITY UPDATE: denial of service via off-by-one

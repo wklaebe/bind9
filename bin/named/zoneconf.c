@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: zoneconf.c,v 1.170.14.4 2011-05-23 20:56:10 each Exp $ */
+/* $Id: zoneconf.c,v 1.178 2011-07-01 02:25:47 marka Exp $ */
 
 /*% */
 
@@ -975,7 +975,8 @@ ns_zone_configure(const cfg_obj_t *config, const cfg_obj_t *vconfig,
 	 * to primary masters (type "master") and slaves
 	 * acting as masters (type "slave"), but not to stubs.
 	 */
-	if (ztype != dns_zone_stub && ztype != dns_zone_staticstub) {
+	if (ztype != dns_zone_stub && ztype != dns_zone_staticstub &&
+	    ztype != dns_zone_redirect) {
 		obj = NULL;
 		result = ns_config_get(maps, "notify", &obj);
 		INSIST(result == ISC_R_SUCCESS && obj != NULL);
@@ -998,17 +999,18 @@ ns_zone_configure(const cfg_obj_t *config, const cfg_obj_t *vconfig,
 		obj = NULL;
 		result = ns_config_get(maps, "also-notify", &obj);
 		if (result == ISC_R_SUCCESS) {
-			isc_sockaddr_t *addrs = NULL;
 			isc_uint32_t addrcount;
-			result = ns_config_getiplist(config, obj, 0, mctx,
-						     &addrs, &addrcount);
-			if (result != ISC_R_SUCCESS)
-				return (result);
-			result = dns_zone_setalsonotify(zone, addrs,
-							addrcount);
-			ns_config_putiplist(mctx, &addrs, addrcount);
-			if (result != ISC_R_SUCCESS)
-				return (result);
+			addrs = NULL;
+			keynames = NULL;
+			RETERR(ns_config_getipandkeylist(config, obj, mctx,
+							 &addrs, &keynames,
+							 &addrcount));
+			result = dns_zone_setalsonotifywithkeys(zone, addrs,
+								keynames,
+								addrcount);
+			ns_config_putipandkeylist(mctx, &addrs, &keynames,
+						  addrcount);
+			RETERR(result);
 		} else
 			RETERR(dns_zone_setalsonotify(zone, NULL, 0));
 
@@ -1048,7 +1050,7 @@ ns_zone_configure(const cfg_obj_t *config, const cfg_obj_t *vconfig,
 		dns_zone_setidleout(zone, cfg_obj_asuint32(obj) * 60);
 
 		obj = NULL;
-		result =  ns_config_get(maps, "max-journal-size", &obj);
+		result = ns_config_get(maps, "max-journal-size", &obj);
 		INSIST(result == ISC_R_SUCCESS && obj != NULL);
 		dns_zone_setjournalsize(zone, -1);
 		if (cfg_obj_isstring(obj)) {
@@ -1121,6 +1123,32 @@ ns_zone_configure(const cfg_obj_t *config, const cfg_obj_t *vconfig,
 		INSIST(result == ISC_R_SUCCESS && obj != NULL);
 		dns_zone_setoption(zone, DNS_ZONEOPT_NSEC3TESTZONE,
 				   cfg_obj_asboolean(obj));
+	} else if (ztype == dns_zone_redirect) {
+		dns_zone_setnotifytype(zone, dns_notifytype_no);
+
+		obj = NULL;
+		result = ns_config_get(maps, "max-journal-size", &obj);
+		INSIST(result == ISC_R_SUCCESS && obj != NULL);
+		dns_zone_setjournalsize(zone, -1);
+		if (cfg_obj_isstring(obj)) {
+			const char *str = cfg_obj_asstring(obj);
+			INSIST(strcasecmp(str, "unlimited") == 0);
+			journal_size = ISC_UINT32_MAX / 2;
+		} else {
+			isc_resourcevalue_t value;
+			value = cfg_obj_asuint64(obj);
+			if (value > ISC_UINT32_MAX / 2) {
+				cfg_obj_log(obj, ns_g_lctx,
+					    ISC_LOG_ERROR,
+					    "'max-journal-size "
+					    "%" ISC_PRINT_QUADFORMAT "d' "
+					    "is too large",
+					    value);
+				RETERR(ISC_R_RANGE);
+			}
+			journal_size = (isc_uint32_t)value;
+		}
+		dns_zone_setjournalsize(zone, journal_size);
 	}
 
 	/*
@@ -1202,6 +1230,12 @@ ns_zone_configure(const cfg_obj_t *config, const cfg_obj_t *vconfig,
 		INSIST(result == ISC_R_SUCCESS && obj != NULL);
 		dns_zone_setoption(zone, DNS_ZONEOPT_DNSKEYKSKONLY,
 				   cfg_obj_asboolean(obj));
+
+		obj = NULL;
+		result = ns_config_get(maps, "dnssec-loadkeys-interval", &obj);
+		INSIST(result == ISC_R_SUCCESS && obj != NULL);
+		RETERR(dns_zone_setrefreshkeyinterval(zone,
+						      cfg_obj_asuint32(obj)));
 	} else if (ztype == dns_zone_slave) {
 		RETERR(configure_zone_acl(zconfig, vconfig, config,
 					  allow_update_forwarding, ac, zone,
@@ -1310,6 +1344,29 @@ ns_zone_configure(const cfg_obj_t *config, const cfg_obj_t *vconfig,
 			dns_zone_setkeyopt(zone, DNS_ZONEKEY_ALLOW, allow);
 			dns_zone_setkeyopt(zone, DNS_ZONEKEY_MAINTAIN, maint);
 		}
+
+		obj = NULL;
+		result = cfg_map_get(zoptions, "dnssec-update-mode", &obj);
+		if (result == ISC_R_SUCCESS) {
+			const char *arg = cfg_obj_asstring(obj);
+			if (strcasecmp(arg, "no-resign") == 0)
+				dns_zone_setkeyopt(zone, DNS_ZONEKEY_NORESIGN,
+						   ISC_TRUE);
+			else if (strcasecmp(arg, "maintain") == 0)
+				;
+			else
+				INSIST(0);
+		}
+
+		obj = NULL;
+		result = ns_config_get(maps, "serial-update-method", &obj);
+		INSIST(result == ISC_R_SUCCESS && obj != NULL);
+		if (strcasecmp(cfg_obj_asstring(obj), "unixtime") == 0)
+			dns_zone_setserialupdatemethod(zone,
+						    dns_updatemethod_unixtime);
+		else
+			dns_zone_setserialupdatemethod(zone,
+						  dns_updatemethod_increment);
 	}
 
 	/*
@@ -1318,6 +1375,7 @@ ns_zone_configure(const cfg_obj_t *config, const cfg_obj_t *vconfig,
 	switch (ztype) {
 	case dns_zone_slave:
 	case dns_zone_stub:
+	case dns_zone_redirect:
 		count = 0;
 		obj = NULL;
 		(void)cfg_map_get(zoptions, "masters", &obj);

@@ -14,7 +14,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dnstest.c,v 1.2.2.4 2011-07-08 22:57:25 smann Exp $ */
+/* $Id: dnstest.c,v 1.4 2011-07-06 01:36:32 each Exp $ */
 
 /*! \file */
 

@@ -175,6 +175,7 @@ dns_dispatch_detach
 dns_dispatch_getlocaladdress
 dns_dispatch_getsocket
 dns_dispatch_getudp
+dns_dispatch_getudp_dup
 dns_dispatch_importrecv
 dns_dispatch_removeresponse
 dns_dispatch_starttcp
@@ -208,8 +209,8 @@ dns_dnssec_keyfromrdata
 dns_dnssec_keylistfromrdataset
 dns_dnssec_selfsigns
 dns_dnssec_sign
-dns_dnssec_signs
 dns_dnssec_signmessage
+dns_dnssec_signs
 dns_dnssec_updatekeys
 dns_dnssec_verify
 dns_dnssec_verify2
@@ -295,6 +296,7 @@ dns_master_loadstreaminc
 dns_master_questiontotext
 dns_master_rdatasettotext
 dns_master_stylecreate
+dns_master_stylecreate2
 dns_master_styledestroy
 dns_message_addname
 dns_message_checksig
@@ -590,7 +592,6 @@ dns_resolver_freeze
 dns_resolver_getbadcache
 dns_resolver_getlamettl
 dns_resolver_getoptions
-dns_resolver_gettimeout
 dns_resolver_getudpsize
 dns_resolver_getzeronosoattl
 dns_resolver_logfetch
@@ -602,7 +603,6 @@ dns_resolver_resetmustbesecure
 dns_resolver_setclientsperquery
 dns_resolver_setlamettl
 dns_resolver_setmustbesecure
-dns_resolver_settimeout
 dns_resolver_settimeout
 dns_resolver_setudpsize
 dns_resolver_setzeronosoattl
@@ -699,6 +699,7 @@ dns_tsigrcode_fromtext
 dns_tsigrcode_totext
 dns_ttl_fromtext
 dns_ttl_totext
+dns_update_soaserial
 dns_validator_cancel
 dns_validator_create
 dns_validator_destroy
@@ -720,6 +721,7 @@ dns_view_flushanddetach
 dns_view_flushcache
 dns_view_flushcache2
 dns_view_flushname
+dns_view_flushnode
 dns_view_freeze
 dns_view_freezezones
 dns_view_getdynamickeyring
@@ -802,6 +804,7 @@ dns_zone_getqueryacl
 dns_zone_getrequeststats
 dns_zone_getserial
 dns_zone_getserial2
+dns_zone_getserialupdatemethod
 dns_zone_getsigresigninginterval
 dns_zone_getsigvalidityinterval
 dns_zone_getssutable
@@ -817,6 +820,7 @@ dns_zone_getxfrsource6
 dns_zone_getzeronosoattl
 dns_zone_iattach
 dns_zone_idetach
+dns_zone_isdynamic
 dns_zone_isforced
 dns_zone_load
 dns_zone_loadandthaw
@@ -835,6 +839,7 @@ dns_zone_replacedb
 dns_zone_setacache
 dns_zone_setadded
 dns_zone_setalsonotify
+dns_zone_setalsonotifywithkeys
 dns_zone_setaltxfrsource4
 dns_zone_setaltxfrsource6
 dns_zone_setcheckmx
@@ -875,7 +880,9 @@ dns_zone_setorigin
 dns_zone_setprivatetype
 dns_zone_setqueryacl
 dns_zone_setqueryonacl
+dns_zone_setrefreshkeyinterval
 dns_zone_setrequeststats
+dns_zone_setserialupdatemethod
 dns_zone_setsignatures
 dns_zone_setsigresigninginterval
 dns_zone_setsigvalidityinterval
@@ -950,6 +957,7 @@ dst_key_generate
 dst_key_generate2
 dst_key_getprivateformat
 dst_key_gettime
+dst_key_getttl
 dst_key_id
 dst_key_isnullkey
 dst_key_isprivate
@@ -964,6 +972,7 @@ dst_key_setbits
 dst_key_setflags
 dst_key_setprivateformat
 dst_key_settime
+dst_key_setttl
 dst_key_sigsize
 dst_key_size
 dst_key_tobuffer

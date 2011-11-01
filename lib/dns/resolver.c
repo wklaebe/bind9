@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: resolver.c,v 1.428.6.7 2011-06-08 23:02:43 each Exp $ */
+/* $Id: resolver.c,v 1.434 2011-06-08 22:13:50 each Exp $ */
 
 /*! \file */
 
@@ -106,7 +106,7 @@
 #endif
 
 #ifndef DEFAULT_QUERY_TIMEOUT
-#define DEFAULT_QUERY_TIMEOUT 30  /* The default time in seconds for the whole query to live. */
+#define DEFAULT_QUERY_TIMEOUT 10  /* The default time in seconds for the whole query to live. */
 #endif
 
 #ifndef MAXIMUM_QUERY_TIMEOUT

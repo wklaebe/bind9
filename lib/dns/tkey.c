@@ -16,7 +16,7 @@
  */
 
 /*
- * $Id: tkey.c,v 1.100.12.1 2011-03-11 06:47:05 marka Exp $
+ * $Id: tkey.c,v 1.101 2011-03-11 06:11:24 marka Exp $
  */
 /*! \file */
 #include <config.h>

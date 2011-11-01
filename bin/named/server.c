@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: server.c,v 1.599.8.12 2011-08-02 04:58:45 each Exp $ */
+/* $Id: server.c,v 1.616 2011-08-02 20:36:11 each Exp $ */
 
 /*! \file */
 
@@ -3353,6 +3353,37 @@ configure_zone(const cfg_obj_t *config, const cfg_obj_t *zconfig,
 	}
 
 	/*
+	 * Redirect zones only require minimal configuration.
+	 */
+	if (strcasecmp(ztypestr, "redirect") == 0) {
+		if (view->redirect != NULL) {
+			cfg_obj_log(zconfig, ns_g_lctx, ISC_LOG_ERROR,
+				    "redirect zone already exists");
+			result = ISC_R_EXISTS;
+			goto cleanup;
+		}
+		result = dns_viewlist_find(&ns_g_server->viewlist, view->name,
+					   view->rdclass, &pview);
+		if (result != ISC_R_NOTFOUND && result != ISC_R_SUCCESS)
+			goto cleanup;
+		if (pview != NULL && pview->redirect != NULL) {
+			dns_zone_attach(pview->redirect, &zone);
+			dns_zone_setview(zone, view);
+		} else {
+			CHECK(dns_zone_create(&zone, mctx));
+			CHECK(dns_zone_setorigin(zone, origin));
+			dns_zone_setview(zone, view);
+			CHECK(dns_zonemgr_managezone(ns_g_server->zonemgr,
+						     zone));
+			dns_zone_setstats(zone, ns_g_server->zonestats);
+		}
+		CHECK(ns_zone_configure(config, vconfig, zconfig, aclconf,
+					zone));
+		dns_zone_attach(zone, &view->redirect);
+		goto cleanup;
+	}
+
+	/*
 	 * Check for duplicates in the new zone table.
 	 */
 	result = dns_view_findzone(view, origin, &dupzone);
@@ -3377,9 +3408,8 @@ configure_zone(const cfg_obj_t *config, const cfg_obj_t *zconfig,
 	 *     options (e.g., an existing master zone cannot
 	 *     be reused if the options specify a slave zone)
 	 */
-	result = dns_viewlist_find(&ns_g_server->viewlist,
-				   view->name, view->rdclass,
-				   &pview);
+	result = dns_viewlist_find(&ns_g_server->viewlist, view->name,
+				   view->rdclass, &pview);
 	if (result != ISC_R_NOTFOUND && result != ISC_R_SUCCESS)
 		goto cleanup;
 	if (pview != NULL)
@@ -3934,6 +3964,9 @@ removed(dns_zone_t *zone, void *uap) {
 		break;
 	case dns_zone_stub:
 		type = "stub";
+		break;
+	case dns_zone_redirect:
+		type = "redirect";
 		break;
 	default:
 		type = "other";
@@ -5176,6 +5209,8 @@ load_zones(ns_server_t *server, isc_boolean_t stop) {
 		CHECK(dns_view_load(view, stop));
 		if (view->managed_keys != NULL)
 			CHECK(dns_zone_load(view->managed_keys));
+		if (view->redirect != NULL)
+			CHECK(dns_zone_load(view->redirect));
 	}
 
 	/*
@@ -5209,6 +5244,8 @@ load_new_zones(ns_server_t *server, isc_boolean_t stop) {
 		/* Load managed-keys data */
 		if (view->managed_keys != NULL)
 			CHECK(dns_zone_loadnew(view->managed_keys));
+		if (view->redirect != NULL)
+			CHECK(dns_zone_loadnew(view->redirect));
 	}
 
 	/*
@@ -6714,7 +6751,7 @@ ns_server_flushcache(ns_server_t *server, char *args) {
 }
 
 isc_result_t
-ns_server_flushname(ns_server_t *server, char *args) {
+ns_server_flushnode(ns_server_t *server, char *args, isc_boolean_t tree) {
 	char *ptr, *target, *viewname;
 	dns_view_t *view;
 	isc_boolean_t flushed;
@@ -6761,13 +6798,15 @@ ns_server_flushname(ns_server_t *server, char *args) {
 		 * if some of the views share a single cache.  But since the
 		 * operation is lightweight we prefer simplicity here.
 		 */
-		result = dns_view_flushname(view, name);
+		result = dns_view_flushnode(view, name, tree);
 		if (result != ISC_R_SUCCESS) {
 			flushed = ISC_FALSE;
 			isc_log_write(ns_g_lctx, NS_LOGCATEGORY_GENERAL,
 				      NS_LOGMODULE_SERVER, ISC_LOG_ERROR,
-				      "flushing name '%s' in cache view '%s' "
-				      "failed: %s", target, view->name,
+				      "flushing %s '%s' in cache view '%s' "
+				      "failed: %s",
+				      tree ? "tree" : "name",
+				      target, view->name,
 				      isc_result_totext(result));
 		}
 	}
@@ -6775,21 +6814,26 @@ ns_server_flushname(ns_server_t *server, char *args) {
 		if (viewname != NULL)
 			isc_log_write(ns_g_lctx, NS_LOGCATEGORY_GENERAL,
 				      NS_LOGMODULE_SERVER, ISC_LOG_INFO,
-				      "flushing name '%s' in cache view '%s' "
-				      "succeeded", target, viewname);
+				      "flushing %s '%s' in cache view '%s' "
+				      "succeeded",
+				      tree ? "tree" : "name",
+				      target, viewname);
 		else
 			isc_log_write(ns_g_lctx, NS_LOGCATEGORY_GENERAL,
 				      NS_LOGMODULE_SERVER, ISC_LOG_INFO,
-				      "flushing name '%s' in all cache views "
-				      "succeeded", target);
+				      "flushing %s '%s' in all cache views "
+				      "succeeded",
+				      tree ? "tree" : "name",
+				      target);
 		result = ISC_R_SUCCESS;
 	} else {
 		if (!found)
 			isc_log_write(ns_g_lctx, NS_LOGCATEGORY_GENERAL,
 				      NS_LOGMODULE_SERVER, ISC_LOG_ERROR,
-				      "flushing name '%s' in cache view '%s' "
-				      "failed: view not found", target,
-				      viewname);
+				      "flushing %s '%s' in cache view '%s' "
+				      "failed: view not found",
+				      tree ? "tree" : "name",
+				      target, viewname);
 		result = ISC_R_FAILURE;
 	}
 	isc_task_endexclusive(server->task);
@@ -7115,6 +7159,106 @@ ns_server_rekey(ns_server_t *server, char *args) {
 }
 
 /*
+ * Act on a "sync" command from the command channel.
+*/
+static isc_result_t
+synczone(dns_zone_t *zone, void *uap) {
+	isc_boolean_t cleanup = *(isc_boolean_t *)uap;
+	isc_result_t result;
+	char *journal;
+
+	result = dns_zone_flush(zone);
+	if (result != ISC_R_SUCCESS)
+		cleanup = ISC_FALSE;
+	if (cleanup) {
+		journal = dns_zone_getjournal(zone);
+		if (journal != NULL)
+			(void)isc_file_remove(journal);
+	}
+	return (result);
+}
+
+isc_result_t
+ns_server_sync(ns_server_t *server, char *args, isc_buffer_t *text) {
+	isc_result_t result, tresult;
+	dns_view_t *view;
+	dns_zone_t *zone = NULL;
+	char classstr[DNS_RDATACLASS_FORMATSIZE];
+	char zonename[DNS_NAME_FORMATSIZE];
+	const char *vname, *sep, *msg = NULL;
+	isc_boolean_t cleanup = ISC_FALSE;
+	char arg[8];
+	int n;
+
+	/* Did the user specify -clean? */
+	n = sscanf(args, "%*s %7s", arg);
+	if (n > 0 && strcmp(arg, "-clean") == 0) {
+		cleanup = ISC_TRUE;
+
+		/* shift so that zone_from_args() won't be confused */
+		(void) next_token(&args, " \t");
+	}
+
+	result = zone_from_args(server, args, &zone, NULL);
+	if (result != ISC_R_SUCCESS)
+		return (result);
+
+	if (zone == NULL) {
+		result = isc_task_beginexclusive(server->task);
+		RUNTIME_CHECK(result == ISC_R_SUCCESS);
+		tresult = ISC_R_SUCCESS;
+		for (view = ISC_LIST_HEAD(server->viewlist);
+		     view != NULL;
+		     view = ISC_LIST_NEXT(view, link)) {
+			result = dns_zt_apply(view->zonetable, ISC_FALSE,
+					      synczone, &cleanup);
+			if (result != ISC_R_SUCCESS &&
+			    tresult == ISC_R_SUCCESS)
+				tresult = result;
+		}
+		isc_task_endexclusive(server->task);
+		isc_log_write(ns_g_lctx, NS_LOGCATEGORY_GENERAL,
+			      NS_LOGMODULE_SERVER, ISC_LOG_INFO,
+			      "dumping all zones%s: %s",
+			      cleanup ? ", removing journal files" : "",
+			      isc_result_totext(result));
+		return (tresult);
+	}
+
+	result = isc_task_beginexclusive(server->task);
+	RUNTIME_CHECK(result == ISC_R_SUCCESS);
+	result = synczone(zone, &cleanup);
+	isc_task_endexclusive(server->task);
+
+	if (msg != NULL && strlen(msg) < isc_buffer_availablelength(text))
+		isc_buffer_putmem(text, (const unsigned char *)msg,
+				  strlen(msg) + 1);
+
+	view = dns_zone_getview(zone);
+	if (strcmp(view->name, "_default") == 0 ||
+	    strcmp(view->name, "_bind") == 0)
+	{
+		vname = "";
+		sep = "";
+	} else {
+		vname = view->name;
+		sep = " ";
+	}
+	dns_rdataclass_format(dns_zone_getclass(zone), classstr,
+			      sizeof(classstr));
+	dns_name_format(dns_zone_getorigin(zone),
+			zonename, sizeof(zonename));
+	isc_log_write(ns_g_lctx, NS_LOGCATEGORY_GENERAL,
+		      NS_LOGMODULE_SERVER, ISC_LOG_INFO,
+		      "sync: dumping zone '%s/%s'%s%s%s: %s",
+		      zonename, classstr, sep, vname,
+		      cleanup ? ", removing journal file" : "",
+		      isc_result_totext(result));
+	dns_zone_detach(&zone);
+	return (result);
+}
+
+/*
  * Act on a "freeze" or "thaw" command from the command channel.
  */
 isc_result_t
@@ -7127,7 +7271,6 @@ ns_server_freeze(ns_server_t *server, isc_boolean_t freeze, char *args,
 	char classstr[DNS_RDATACLASS_FORMATSIZE];
 	char zonename[DNS_NAME_FORMATSIZE];
 	dns_view_t *view;
-	char *journal;
 	const char *vname, *sep;
 	isc_boolean_t frozen;
 	const char *msg = NULL;
@@ -7161,6 +7304,11 @@ ns_server_freeze(ns_server_t *server, isc_boolean_t freeze, char *args,
 		return (DNS_R_NOTMASTER);
 	}
 
+	if (freeze && !dns_zone_isdynamic(zone, ISC_TRUE)) {
+		dns_zone_detach(&zone);
+		return (DNS_R_NOTDYNAMIC);
+	}
+
 	result = isc_task_beginexclusive(server->task);
 	RUNTIME_CHECK(result == ISC_R_SUCCESS);
 	frozen = dns_zone_getupdatedisabled(zone);
@@ -7176,11 +7324,6 @@ ns_server_freeze(ns_server_t *server, isc_boolean_t freeze, char *args,
 			if (result != ISC_R_SUCCESS)
 				msg = "Flushing the zone updates to "
 				      "disk failed.";
-		}
-		if (result == ISC_R_SUCCESS) {
-			journal = dns_zone_getjournal(zone);
-			if (journal != NULL)
-				(void)isc_file_remove(journal);
 		}
 		if (result == ISC_R_SUCCESS)
 			dns_zone_setupdatedisabled(zone, freeze);

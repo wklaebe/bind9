@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2009  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2009, 2011  Internet Systems Consortium, Inc. ("ISC")
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -14,7 +14,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: private.c,v 1.3 2009-10-09 23:48:09 tbox Exp $ */
+/* $Id: private.c,v 1.6 2011-06-10 01:51:09 each Exp $ */
 
 #include "config.h"
 
@@ -44,6 +44,7 @@
 
 #define REMOVE(x) (((x) & DNS_NSEC3FLAG_REMOVE) != 0)
 #define CREATE(x) (((x) & DNS_NSEC3FLAG_CREATE) != 0)
+#define INITIAL(x) (((x) & DNS_NSEC3FLAG_INITIAL) != 0)
 #define NONSEC(x) (((x) & DNS_NSEC3FLAG_NONSEC) != 0)
 
 #define CHECK(x) do {					\
@@ -149,7 +150,7 @@ dns_private_chains(dns_db_t *db, dns_dbversion_t *ver,
 	}
 
 	/*
-	 * Look to see if we also need to be creating a NSEC3 chains.
+	 * Look to see if we also need to be creating a NSEC3 chain.
 	 */
 	if (dns_rdataset_isassociated(&nsecset)) {
 		if (build_nsec != NULL)

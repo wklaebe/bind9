@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2010  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2011  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: server.h,v 1.110 2010-08-16 23:46:52 tbox Exp $ */
+/* $Id: server.h,v 1.113 2011-08-02 20:36:12 each Exp $ */
 
 #ifndef NAMED_SERVER_H
 #define NAMED_SERVER_H 1
@@ -264,10 +264,12 @@ isc_result_t
 ns_server_flushcache(ns_server_t *server, char *args);
 
 /*%
- * Flush a particular name from the server's cache(s)
+ * Flush a particular name from the server's cache.  If 'tree' is false,
+ * also flush the name from the ADB and badcache.  If 'tree' is true, also
+ * flush all the names under the specified name.
  */
 isc_result_t
-ns_server_flushname(ns_server_t *server, char *args);
+ns_server_flushnode(ns_server_t *server, char *args, isc_boolean_t tree);
 
 /*%
  * Report the server's status.
@@ -293,6 +295,12 @@ ns_server_tsigdelete(ns_server_t *server, char *command, isc_buffer_t *text);
 isc_result_t
 ns_server_freeze(ns_server_t *server, isc_boolean_t freeze, char *args,
 		 isc_buffer_t *text);
+
+/*%
+ * Dump zone updates to disk, optionally removing the journal file
+ */
+isc_result_t
+ns_server_sync(ns_server_t *server, char *args, isc_buffer_t *text);
 
 /*%
  * Update a zone's DNSKEY set from the key repository.  If

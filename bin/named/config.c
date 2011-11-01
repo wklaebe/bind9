@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: config.c,v 1.113.16.2 2011-02-28 01:19:58 tbox Exp $ */
+/* $Id: config.c,v 1.119 2011-07-01 02:25:47 marka Exp $ */
 
 /*! \file */
 
@@ -209,7 +209,10 @@ options {\n\
 	check-srv-cname warn;\n\
 	zero-no-soa-ttl yes;\n\
 	update-check-ksk yes;\n\
+	serial-update-method increment;\n\
+	dnssec-update-mode maintain;\n\
 	dnssec-dnskey-kskonly no;\n\
+	dnssec-loadkeys-interval 60;\n\
 	try-tcp-refresh yes; /* BIND 8 compat */\n\
 };\n\
 "
@@ -377,6 +380,8 @@ ns_config_getzonetype(const cfg_obj_t *zonetypeobj) {
 		ztype = dns_zone_stub;
 	else if (strcasecmp(str, "static-stub") == 0)
 		ztype = dns_zone_staticstub;
+	else if (strcasecmp(str, "redirect") == 0)
+		ztype = dns_zone_redirect;
 	else
 		INSIST(0);
 	return (ztype);

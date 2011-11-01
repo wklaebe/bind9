@@ -15,7 +15,7 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: start.pl,v 1.16.54.6 2011-05-05 22:58:59 smann Exp $
+# $Id: start.pl,v 1.24 2011-05-05 23:15:56 smann Exp $
 
 # Framework for starting test servers.
 # Based on the type of server specified, check for port availability, remove
@@ -201,7 +201,7 @@ sub start_server {
 
 	# start the server
 	my $child = `$command`;
-	chomp($child);
+	$child =~ s/\s+$//g;
 
 	# wait up to 14 seconds for the server to start and to write the
 	# pid file otherwise kill this server and any others that have

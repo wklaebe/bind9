@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: controlconf.c,v 1.60.544.2 2011-03-12 04:59:14 tbox Exp $ */
+/* $Id: controlconf.c,v 1.62 2011-03-12 04:59:46 tbox Exp $ */
 
 /*! \file */
 

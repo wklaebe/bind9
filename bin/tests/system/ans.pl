@@ -14,7 +14,7 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: ans.pl,v 1.2.2.4 2011-03-18 04:40:30 each Exp $
+# $Id: ans.pl,v 1.4 2011-03-18 04:41:15 each Exp $
 
 #
 # This is the name server from hell.  It provides canned

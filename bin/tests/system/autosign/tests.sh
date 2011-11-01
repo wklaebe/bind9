@@ -14,7 +14,7 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: tests.sh,v 1.12.18.16 2011-07-26 04:41:48 marka Exp $
+# $Id: tests.sh,v 1.34 2011-07-26 04:42:20 marka Exp $
 
 SYSTEMTESTTOP=..
 . $SYSTEMTESTTOP/conf.sh
@@ -96,9 +96,11 @@ status=`expr $status + $ret`
 
 echo "I:checking NSEC->NSEC3 conversion prerequisites ($n)"
 ret=0
-# this command should result in an empty file:
-$DIG $DIGOPTS +noall +answer nsec3.example. nsec3param @10.53.0.3 > dig.out.ns3.test$n || ret=1
-grep "NSEC3PARAM" dig.out.ns3.test$n > /dev/null && ret=1
+# these commands should result in an empty file:
+$DIG $DIGOPTS +noall +answer nsec3.example. nsec3param @10.53.0.3 > dig.out.ns3.1.test$n || ret=1
+grep "NSEC3PARAM" dig.out.ns3.1.test$n > /dev/null && ret=1
+$DIG $DIGOPTS +noall +answer autonsec3.example. nsec3param @10.53.0.3 > dig.out.ns3.2.test$n || ret=1
+grep "NSEC3PARAM" dig.out.ns3.2.test$n > /dev/null && ret=1
 n=`expr $n + 1`
 if [ $ret != 0 ]; then echo "I:failed"; fi
 status=`expr $status + $ret`
@@ -123,6 +125,9 @@ send
 zone nsec3.example.
 update add nsec3.example. 3600 NSEC3PARAM 1 0 10 BEEF
 send
+zone autonsec3.example.
+update add autonsec3.example. 3600 NSEC3PARAM 1 1 10 BEEF
+send
 zone nsec3.optout.example.
 update add nsec3.optout.example. 3600 NSEC3PARAM 1 0 10 BEEF
 send
@@ -141,6 +146,21 @@ zone nsec.example.
 update add nsec.example. 3600 NSEC3PARAM 1 0 10 BEEF
 send
 END
+
+echo "I:checking for nsec3param in unsigned zone ($n)"
+ret=0
+$DIG $DIGOPTS +noall +answer autonsec3.example. nsec3param @10.53.0.3 > dig.out.ns3.test$n || ret=1
+grep "NSEC3PARAM" dig.out.ns3.test$n > /dev/null && ret=1
+n=`expr $n + 1`
+if [ $ret != 0 ]; then echo "I:failed"; fi
+status=`expr $status + $ret`
+
+echo "I:signing preset nsec3 zone"
+zsk=`cat autozsk.key`
+ksk=`cat autoksk.key`
+$SETTIME -K ns3 -P now -A now $zsk > /dev/null 2>&1
+$SETTIME -K ns3 -P now -A now $ksk > /dev/null 2>&1
+$RNDC -c ../common/rndc.conf -s 10.53.0.3 -p 9953 loadkeys autonsec3.example. 2>&1 | sed 's/^/I:ns3 /'
 
 echo "I:waiting for changes to take effect"
 sleep 3
@@ -181,8 +201,6 @@ loglines=`grep "Key inaczsk.example/NSEC3RSASHA1/$missing .* retaining signature
 if [ $ret != 0 ]; then echo "I:failed"; fi
 status=`expr $status + $ret`
 
-# This test is above the rndc freeze/thaw calls because the apex node
-# will be resigned on thaw, increasing the serial number again.
 echo "I:checking serial is not incremented when signatures are unchanged ($n)"
 ret=0
 newserial=`$DIG $DIGOPTS +short soa nozsk.example @10.53.0.3 | awk '$0 !~ /SOA/ {print $3}'`
@@ -192,15 +210,12 @@ newserial=`$DIG $DIGOPTS +short soa inaczsk.example @10.53.0.3 | awk '$0 !~ /SOA
 if [ $ret != 0 ]; then echo "I:failed"; fi
 status=`expr $status + $ret`
 
-# Send rndc freeze command to ns1, ns2 and ns3, to force the dynamically
+# Send rndc sync command to ns1, ns2 and ns3, to force the dynamically
 # signed zones to be dumped to their zone files
 echo "I:dumping zone files"
-$RNDC -c ../common/rndc.conf -s 10.53.0.1 -p 9953 freeze 2>&1 | sed 's/^/I:ns1 /'
-$RNDC -c ../common/rndc.conf -s 10.53.0.1 -p 9953 thaw 2>&1 | sed 's/^/I:ns1 /'
-$RNDC -c ../common/rndc.conf -s 10.53.0.2 -p 9953 freeze 2>&1 | sed 's/^/I:ns2 /'
-$RNDC -c ../common/rndc.conf -s 10.53.0.2 -p 9953 thaw 2>&1 | sed 's/^/I:ns2 /'
-$RNDC -c ../common/rndc.conf -s 10.53.0.3 -p 9953 freeze 2>&1 | sed 's/^/I:ns3 /'
-$RNDC -c ../common/rndc.conf -s 10.53.0.3 -p 9953 thaw 2>&1 | sed 's/^/I:ns3 /'
+$RNDC -c ../common/rndc.conf -s 10.53.0.1 -p 9953 sync 2>&1 | sed 's/^/I:ns1 /'
+$RNDC -c ../common/rndc.conf -s 10.53.0.2 -p 9953 sync 2>&1 | sed 's/^/I:ns2 /'
+$RNDC -c ../common/rndc.conf -s 10.53.0.3 -p 9953 sync 2>&1 | sed 's/^/I:ns3 /'
 
 echo "I:checking expired signatures were updated ($n)"
 ret=0
@@ -225,6 +240,20 @@ n=`expr $n + 1`
 if [ $ret != 0 ]; then echo "I:failed"; fi
 status=`expr $status + $ret`
 
+echo "I:checking direct NSEC3 autosigning succeeded ($n)"
+ret=0
+$DIG $DIGOPTS +noall +answer autonsec3.example. nsec3param @10.53.0.3 > dig.out.ns3.ok.test$n || ret=1
+[ -s  dig.out.ns3.ok.test$n ] || ret=1
+grep "NSEC3PARAM" dig.out.ns3.ok.test$n > /dev/null || ret=1
+$DIG $DIGOPTS +noauth q.autonsec3.example. @10.53.0.3 a > dig.out.ns3.test$n || ret=1
+$DIG $DIGOPTS +noauth q.autonsec3.example. @10.53.0.4 a > dig.out.ns4.test$n || ret=1
+$PERL ../digcomp.pl dig.out.ns3.test$n dig.out.ns4.test$n || ret=1
+grep "flags:.*ad.*QUERY" dig.out.ns4.test$n > /dev/null || ret=1
+grep "status: NXDOMAIN" dig.out.ns4.test$n > /dev/null || ret=1
+n=`expr $n + 1`
+if [ $ret != 0 ]; then echo "I:failed"; fi
+status=`expr $status + $ret`
+
 echo "I:checking NSEC->NSEC3 conversion failed with NSEC-only key ($n)"
 ret=0
 grep "failed: REFUSED" nsupdate.out > /dev/null || ret=1
@@ -242,6 +271,42 @@ $DIG $DIGOPTS +noauth q.nsec3-to-nsec.example. @10.53.0.4 a > dig.out.ns4.test$n
 $PERL ../digcomp.pl dig.out.ns3.test$n dig.out.ns4.test$n || ret=1
 grep "flags:.*ad.*QUERY" dig.out.ns4.test$n > /dev/null || ret=1
 grep "status: NXDOMAIN" dig.out.ns4.test$n > /dev/null || ret=1
+n=`expr $n + 1`
+if [ $ret != 0 ]; then echo "I:failed"; fi
+status=`expr $status + $ret`
+
+echo "I:checking TTLs of imported DNSKEYs (no default) ($n)"
+ret=0
+$DIG $DIGOPTS +tcp +noall +answer dnskey ttl1.example. @10.53.0.3 > dig.out.ns3.test$n || ret=1
+[ -s dig.out.ns3.test$n ] || ret=1
+awk 'BEGIN {r=0} $2 != 300 {r=1; print "I:found TTL " $2} END {exit r}' dig.out.ns3.test$n || ret=1
+n=`expr $n + 1`
+if [ $ret != 0 ]; then echo "I:failed"; fi
+status=`expr $status + $ret`
+
+echo "I:checking TTLs of imported DNSKEYs (with default) ($n)"
+ret=0
+$DIG $DIGOPTS +tcp +noall +answer dnskey ttl2.example. @10.53.0.3 > dig.out.ns3.test$n || ret=1
+[ -s dig.out.ns3.test$n ] || ret=1
+awk 'BEGIN {r=0} $2 != 60 {r=1; print "I:found TTL " $2} END {exit r}' dig.out.ns3.test$n || ret=1
+n=`expr $n + 1`
+if [ $ret != 0 ]; then echo "I:failed"; fi
+status=`expr $status + $ret`
+
+echo "I:checking TTLs of imported DNSKEYs (mismatched) ($n)"
+ret=0
+$DIG $DIGOPTS +tcp +noall +answer dnskey ttl3.example. @10.53.0.3 > dig.out.ns3.test$n || ret=1
+[ -s dig.out.ns3.test$n ] || ret=1
+awk 'BEGIN {r=0} $2 != 30 {r=1; print "I:found TTL " $2} END {exit r}' dig.out.ns3.test$n || ret=1
+n=`expr $n + 1`
+if [ $ret != 0 ]; then echo "I:failed"; fi
+status=`expr $status + $ret`
+
+echo "I:checking TTLs of imported DNSKEYs (existing RRset) ($n)"
+ret=0
+$DIG $DIGOPTS +tcp +noall +answer dnskey ttl4.example. @10.53.0.3 > dig.out.ns3.test$n || ret=1
+[ -s dig.out.ns3.test$n ] || ret=1
+awk 'BEGIN {r=0} $2 != 30 {r=1; print "I:found TTL " $2} END {exit r}' dig.out.ns3.test$n || ret=1
 n=`expr $n + 1`
 if [ $ret != 0 ]; then echo "I:failed"; fi
 status=`expr $status + $ret`
@@ -716,13 +781,13 @@ send
 END
 sleep 2
 $DIG $DIGOPTS axfr secure-to-insecure.example @10.53.0.3 > dig.out.ns3.test$n || ret=1
-egrep 'RRSIG' dig.out.ns3.test$n > /dev/null && ret=1
-egrep '(DNSKEY|NSEC)' dig.out.ns3.test$n > /dev/null && ret=1
+egrep '(RRSIG|DNSKEY|NSEC)' dig.out.ns3.test$n > /dev/null && ret=1
 n=`expr $n + 1`
 if [ $ret != 0 ]; then echo "I:failed"; fi
 status=`expr $status + $ret`
 
 echo "I:checking secure-to-insecure transition, scheduled ($n)"
+ret=0
 file="ns3/`cat del1.key`.key"
 $SETTIME -I now -D now $file > /dev/null
 file="ns3/`cat del2.key`.key"
@@ -730,8 +795,7 @@ $SETTIME -I now -D now $file > /dev/null
 $RNDC -c ../common/rndc.conf -s 10.53.0.3 -p 9953 sign secure-to-insecure2.example. 2>&1 | sed 's/^/I:ns3 /'
 sleep 2
 $DIG $DIGOPTS axfr secure-to-insecure2.example @10.53.0.3 > dig.out.ns3.test$n || ret=1
-egrep 'RRSIG' dig.out.ns3.test$n > /dev/null && ret=1
-egrep '(DNSKEY|NSEC3)' dig.out.ns3.test$n > /dev/null && ret=1
+egrep '(RRSIG|DNSKEY|NSEC3)' dig.out.ns3.test$n > /dev/null && ret=1
 n=`expr $n + 1`
 if [ $ret != 0 ]; then echo "I:failed"; fi
 status=`expr $status + $ret`
@@ -961,8 +1025,8 @@ if [ $ret != 0 ]; then echo "I:failed"; fi
 status=`expr $status + $ret`
 
 # this confirms that key events are never scheduled more than
-# a given number of seconds into the future, and that the last
-# event scheduled is precisely that far in the future.
+# 'dnssec-loadkeys-interval' minutes in the future, and that the 
+# last event scheduled is precisely that far in the future.
 check_interval () {
         awk '/next key event/ {print $2 ":" $9}' $1/named.run |
 	sed 's/\.//g' |
@@ -990,12 +1054,21 @@ check_interval () {
 echo "I:checking automatic key reloading interval ($n)"
 ret=0
 check_interval ns1 3600 || ret=1
-check_interval ns2 3600 || ret=1
-check_interval ns3 3600 || ret=1
+check_interval ns2 1800 || ret=1
+check_interval ns3 600 || ret=1
+n=`expr $n + 1`
+if [ $ret != 0 ]; then echo "I:failed"; fi
+status=`expr $status + $ret`
+
+echo "I:checking for key reloading loops ($n)"
+ret=0
+# every key event should schedule a successor, so these should be equal
+rekey_calls=`grep "reconfiguring zone keys" ns*/named.run | wc -l`
+rekey_events=`grep "next key event" ns*/named.run | wc -l`
+[ "$rekey_calls" = "$rekey_events" ] || ret=1
 n=`expr $n + 1`
 if [ $ret != 0 ]; then echo "I:failed"; fi
 status=`expr $status + $ret`
 
 echo "I:exit status: $status"
-
 exit $status

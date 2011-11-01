@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2009  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2009, 2011  Internet Systems Consortium, Inc. ("ISC")
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -14,7 +14,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: socket_api.c,v 1.5 2009-10-01 01:30:01 sar Exp $ */
+/* $Id: socket_api.c,v 1.8 2011-08-24 23:17:52 marka Exp $ */
 
 #include <config.h>
 
@@ -213,4 +213,19 @@ isc_socket_fdwatchpoke(isc_socket_t *sock, int flags)
 	REQUIRE(ISCAPI_SOCKET_VALID(sock));
 
 	return(sock->methods->fdwatchpoke(sock, flags));
+}
+
+isc_result_t
+isc_socket_dup(isc_socket_t *sock, isc_socket_t **socketp) {
+	REQUIRE(ISCAPI_SOCKET_VALID(sock));
+	REQUIRE(socketp != NULL && *socketp == NULL);
+
+	return(sock->methods->dup(sock, socketp));
+}
+
+int
+isc_socket_getfd(isc_socket_t *sock) {
+	REQUIRE(ISCAPI_SOCKET_VALID(sock));
+
+	return(sock->methods->getfd(sock));
 }

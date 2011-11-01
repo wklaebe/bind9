@@ -50,7 +50,7 @@
  * USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dlz.h,v 1.12.14.2 2011-03-17 23:47:06 tbox Exp $ */
+/* $Id: dlz.h,v 1.14 2011-03-17 23:47:30 tbox Exp $ */
 
 /*! \file dns/dlz.h */
 

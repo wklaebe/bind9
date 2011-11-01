@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2007, 2011  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1998-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rdata_test.c,v 1.48 2007-06-19 23:46:59 tbox Exp $ */
+/* $Id: rdata_test.c,v 1.51 2011-08-16 03:00:02 marka Exp $ */
 
 #include <config.h>
 
@@ -185,8 +185,8 @@ viastruct(dns_rdata_t *rdata, isc_mem_t *mctx,
 		break;
 	}
 	case dns_rdatatype_naptr: {
-		dns_rdata_in_naptr_t in_naptr;
-		result = dns_rdata_tostruct(rdata, sp = &in_naptr, NULL);
+		dns_rdata_naptr_t naptr;
+		result = dns_rdata_tostruct(rdata, sp = &naptr, NULL);
 		break;
 	}
 	case dns_rdatatype_ns: {
@@ -277,6 +277,11 @@ viastruct(dns_rdata_t *rdata, isc_mem_t *mctx,
 	case dns_rdatatype_unspec: {
 		dns_rdata_unspec_t unspec;
 		result = dns_rdata_tostruct(rdata, sp = &unspec, NULL);
+		break;
+	}
+	case dns_rdatatype_uri: {
+		dns_rdata_uri_t uri;
+		result = dns_rdata_tostruct(rdata, sp = &uri, NULL);
 		break;
 	}
 	case dns_rdatatype_wks: {
@@ -447,8 +452,8 @@ viastruct(dns_rdata_t *rdata, isc_mem_t *mctx,
 		break;
 	}
 	case dns_rdatatype_naptr: {
-		dns_rdata_in_naptr_t in_naptr;
-		result = dns_rdata_tostruct(rdata, sp = &in_naptr, mctx);
+		dns_rdata_naptr_t naptr;
+		result = dns_rdata_tostruct(rdata, sp = &naptr, mctx);
 		break;
 	}
 	case dns_rdatatype_ns: {
@@ -539,6 +544,11 @@ viastruct(dns_rdata_t *rdata, isc_mem_t *mctx,
 	case dns_rdatatype_unspec: {
 		dns_rdata_unspec_t unspec;
 		result = dns_rdata_tostruct(rdata, sp = &unspec, mctx);
+		break;
+	}
+	case dns_rdatatype_uri: {
+		dns_rdata_uri_t uri;
+		result = dns_rdata_tostruct(rdata, sp = &uri, mctx);
 		break;
 	}
 	case dns_rdatatype_wks: {
@@ -738,8 +748,8 @@ viastruct(dns_rdata_t *rdata, isc_mem_t *mctx,
 		break;
 	}
 	case dns_rdatatype_naptr: {
-		dns_rdata_in_naptr_t in_naptr;
-		result = dns_rdata_fromstruct(rdata2, rdc, rdt, &in_naptr, b);
+		dns_rdata_naptr_t naptr;
+		result = dns_rdata_fromstruct(rdata2, rdc, rdt, &naptr, b);
 		break;
 	}
 	case dns_rdatatype_ns: {
@@ -831,6 +841,11 @@ viastruct(dns_rdata_t *rdata, isc_mem_t *mctx,
 	case dns_rdatatype_unspec: {
 		dns_rdata_unspec_t unspec;
 		result = dns_rdata_fromstruct(rdata2, rdc, rdt, &unspec, b);
+		break;
+	}
+	case dns_rdatatype_uri: {
+		dns_rdata_uri_t uri;
+		result = dns_rdata_fromstruct(rdata2, rdc, rdt, &uri, b);
 		break;
 	}
 	case dns_rdatatype_wks: {

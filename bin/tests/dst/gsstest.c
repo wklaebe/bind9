@@ -14,7 +14,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: gsstest.c,v 1.14.12.2 2011-03-28 05:14:18 marka Exp $ */
+/* $Id: gsstest.c,v 1.16 2011-03-28 05:14:51 marka Exp $ */
 
 #include <config.h>
 

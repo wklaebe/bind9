@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2009  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2009, 2011  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1998-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: socket.h,v 1.94 2009-10-01 01:30:01 sar Exp $ */
+/* $Id: socket.h,v 1.98 2011-08-24 23:17:52 marka Exp $ */
 
 #ifndef ISC_SOCKET_H
 #define ISC_SOCKET_H 1
@@ -296,6 +296,9 @@ typedef struct isc_socketmethods {
 	isc_sockettype_t (*gettype)(isc_socket_t *sock);
 	void		(*ipv6only)(isc_socket_t *sock, isc_boolean_t yes);
 	isc_result_t    (*fdwatchpoke)(isc_socket_t *sock, int flags);
+	isc_result_t		(*dup)(isc_socket_t *socket,
+				  isc_socket_t **socketp);
+	int 		(*getfd)(isc_socket_t *socket);
 } isc_socketmethods_t;
 
 /*%
@@ -447,6 +450,12 @@ isc_socket_create(isc_socketmgr_t *manager,
  *\li	#ISC_R_NOMEMORY
  *\li	#ISC_R_NORESOURCES
  *\li	#ISC_R_UNEXPECTED
+ */
+
+isc_result_t
+isc_socket_dup(isc_socket_t *sock0, isc_socket_t **socketp);
+/*%<
+ * Duplicate an existing socket, reusing its file descriptor.
  */
 
 void
@@ -1100,6 +1109,11 @@ const char *isc_socket_getname(isc_socket_t *socket);
 void *isc_socket_gettag(isc_socket_t *socket);
 /*%<
  * Get the tag associated with a socket, if any.
+ */
+
+int isc_socket_getfd(isc_socket_t *socket);
+/*%<
+ * Get the file descriptor associated with a socket
  */
 
 void

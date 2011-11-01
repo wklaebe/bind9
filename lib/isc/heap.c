@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: heap.c,v 1.39.150.2 2011-03-03 23:47:09 tbox Exp $ */
+/* $Id: heap.c,v 1.41 2011-03-03 23:47:32 tbox Exp $ */
 
 /*! \file
  * Heap implementation of priority queues adapted from the following:

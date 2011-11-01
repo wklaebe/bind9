@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: cache.h,v 1.28.428.2 2011-03-03 23:47:09 tbox Exp $ */
+/* $Id: cache.h,v 1.32 2011-08-02 23:47:52 tbox Exp $ */
 
 #ifndef DNS_CACHE_H
 #define DNS_CACHE_H 1
@@ -280,9 +280,27 @@ dns_cache_flush(dns_cache_t *cache);
  */
 
 isc_result_t
+dns_cache_flushnode(dns_cache_t *cache, dns_name_t *name,
+		    isc_boolean_t tree);
+/*
+ * Flush a given name from the cache.  If 'tree' is true, then
+ * also flush all names under 'name'.
+ *
+ * Requires:
+ *\li	'cache' to be valid.
+ *\li	'name' to be valid.
+ *
+ * Returns:
+ *\li	#ISC_R_SUCCESS
+ *\li	#ISC_R_NOMEMORY
+ *\li	other error returns.
+ */
+
+isc_result_t
 dns_cache_flushname(dns_cache_t *cache, dns_name_t *name);
 /*
- * Flushes a given name from the cache.
+ * Flush a given name from the cache.  Equivalent to
+ * dns_cache_flushpartial(cache, name, ISC_FALSE).
  *
  * Requires:
  *\li	'cache' to be valid.

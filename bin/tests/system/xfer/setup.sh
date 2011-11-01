@@ -15,7 +15,7 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: setup.sh,v 1.5.814.3 2011-03-11 00:47:27 marka Exp $
+# $Id: setup.sh,v 1.8 2011-03-11 00:43:53 marka Exp $
 
 sh clean.sh
 

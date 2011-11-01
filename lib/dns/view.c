@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: view.c,v 1.181 2011-08-02 20:36:12 each Exp $ */
+/* $Id: view.c,v 1.184 2011-09-06 22:29:33 smann Exp $ */
 
 /*! \file */
 
@@ -181,7 +181,6 @@ dns_view_create(isc_mem_t *mctx, dns_rdataclass_t rdclass,
 	view->answeracl_exclude = NULL;
 	view->denyanswernames = NULL;
 	view->answernames_exclude = NULL;
-	view->requestixfr = ISC_TRUE;
 	view->provideixfr = ISC_TRUE;
 	view->maxcachettl = 7 * 24 * 3600;
 	view->maxncachettl = 3 * 3600;
@@ -1418,6 +1417,7 @@ isc_result_t
 dns_view_load(dns_view_t *view, isc_boolean_t stop) {
 
 	REQUIRE(DNS_VIEW_VALID(view));
+	REQUIRE(view->zonetable != NULL);
 
 	return (dns_zt_load(view->zonetable, stop));
 }
@@ -1426,9 +1426,20 @@ isc_result_t
 dns_view_loadnew(dns_view_t *view, isc_boolean_t stop) {
 
 	REQUIRE(DNS_VIEW_VALID(view));
+	REQUIRE(view->zonetable != NULL);
 
 	return (dns_zt_loadnew(view->zonetable, stop));
 }
+
+isc_result_t
+dns_view_asyncload(dns_view_t *view, dns_zt_allloaded_t callback, void *arg) {
+	REQUIRE(DNS_VIEW_VALID(view));
+	REQUIRE(view->zonetable != NULL);
+
+	return (dns_zt_asyncload(view->zonetable, callback, arg));
+}
+
+
 #endif /* BIND9 */
 
 isc_result_t
@@ -1728,6 +1739,9 @@ isc_result_t
 dns_view_issecuredomain(dns_view_t *view, dns_name_t *name,
 			 isc_boolean_t *secure_domain) {
 	REQUIRE(DNS_VIEW_VALID(view));
+
+	if (view->secroots_priv == NULL)
+		return (ISC_R_NOTFOUND);
 	return (dns_keytable_issecuredomain(view->secroots_priv, name,
 					    secure_domain));
 }

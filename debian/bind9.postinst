@@ -32,6 +32,25 @@ if [ "$1" = configure ]; then
         config="/etc/default/bind9.dpkg-dist"
     fi
 
+    
+    UPDATE_OPTS="n"
+    if [ -f /etc/bind/named.conf.options ]; then
+	case $(md5sum /etc/bind/named.conf.options | sed 's/ .*$//') in
+	    d6b678ac90fd6ab163d74dfe5d68c2c9)	UPDATE_OPTS=y;;	 # 9.4.2ish
+	    0367900f381d5c83cf34009440f3d211)	UPDATE_OPTS=y;;	 # 9.6 and later
+	    56919cbc0d819c9a303a8bdeb306b5f1)	UPDATE_OPTS=ok;; # 9.8
+	esac
+    fi
+    case $UPDATE_OPTS in
+	y)
+	    cp /usr/share/bind9/${NOPTS##*/} ${NOPTS}
+	    chown 644 ${NOPTS}
+	    ;;
+	n)
+	    echo NOT updating named.conf.options to include DNSSEC enablement
+	    ;;
+    esac
+
     localconf=""
     if [ ! -f $config ]; then
 	CONF=/etc/bind/named.conf

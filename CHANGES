@@ -1,3 +1,59 @@
+	--- 9.9.0a3 released ---
+
+3170.	[func]		RPZ update:
+			- fix precedence among competing rules
+			- improve ARM text including documenting rule precedence
+			- try to rewrite CNAME chains until first hit
+			- new "rpz" logging channel
+
+3169.	[func]		Catch db/version mis-matches when call dns_db_*().
+			[RT #26017]
+
+3168.	[bug]		Nxdomain redirection could trigger an assert with
+			a ANY query. [RT #26017]
+
+3167.	[bug]		Negative answers from forwarders were not being
+			correctly tagged making them appear to not be cached.
+			[RT #25380]
+
+3166.	[bug]		Upgrading a zone to support inline-signing failed.
+			[RT #26014]
+
+3165.	[bug]		dnssec-signzone could generate new signatures when
+			resigning, even when valid signatures were already
+			present. [RT #26025]
+
+3164.	[func]		Enable DLZ modules to retrieve client information,
+			so that responses can be changed depending on the
+			source address of the query. [RT #25768]
+
+3163.	[bug]		Use finer-grained locking in client.c to address
+			concurrency problems with large numbers of threads.
+			[RT #26044]
+
+3162.	[test]		start.pl: modified to allow for "named.args" in
+			ns*/ subdirectory to override stock arguments to
+			named. Largely from RT#26044, but no separate ticket.
+
+3161.	[bug]		zone.c:del_sigs failed to always reset rdata leading
+			assertion failures. [RT #25880]
+
+3160.	[bug]		When printing out a NSEC3 record in multiline form
+			the newline was not being printed causing type codes
+			to be run together. [RT #25873]
+			
+3159.	[bug]		On some platforms, named could assert on startup
+			when running in a chrooted environment without
+			/proc. [RT #25863]
+
+3158.	[bug]		Recursive servers would prefer a particular UDP
+			socket instead of using all available sockets.
+			[RT #26038]
+
+3157.	[tuning]	Reduce the time spent in "rndc reconfig" by parsing
+			the config file before pausing the server. [RT #21373]
+
+3156.	[placeholder]
 
 	--- 9.9.0a2 released ---
 

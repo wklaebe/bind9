@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2009  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2009, 2011  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: client.h,v 1.91 2009-10-26 23:14:53 each Exp $ */
+/* $Id: client.h,v 1.94 2011-10-11 23:46:44 tbox Exp $ */
 
 #ifndef NAMED_CLIENT_H
 #define NAMED_CLIENT_H 1
@@ -66,7 +66,9 @@
 #include <isc/magic.h>
 #include <isc/stdtime.h>
 #include <isc/quota.h>
+#include <isc/queue.h>
 
+#include <dns/db.h>
 #include <dns/fixedname.h>
 #include <dns/name.h>
 #include <dns/rdataclass.h>
@@ -80,8 +82,6 @@
 /***
  *** Types
  ***/
-
-typedef ISC_LIST(ns_client_t) client_list_t;
 
 /*% nameserver client structure */
 struct ns_client {
@@ -152,12 +152,14 @@ struct ns_client {
 		isc_stdtime_t		time;
 		dns_messageid_t		id;
 	} formerrcache;
+
 	ISC_LINK(ns_client_t)	link;
-	/*%
-	 * The list 'link' is part of, or NULL if not on any list.
-	 */
-	client_list_t		*list;
+	ISC_LINK(ns_client_t)	rlink;
+	ISC_QLINK(ns_client_t)	ilink;
 };
+
+typedef ISC_QUEUE(ns_client_t) client_queue_t;
+typedef ISC_LIST(ns_client_t) client_list_t;
 
 #define NS_CLIENT_MAGIC			ISC_MAGIC('N','S','C','c')
 #define NS_CLIENT_VALID(c)		ISC_MAGIC_VALID(c, NS_CLIENT_MAGIC)
@@ -374,5 +376,8 @@ ns_client_isself(dns_view_t *myview, dns_tsigkey_t *mykey,
 /*%
  * Isself callback.
  */
+
+isc_result_t
+ns_client_sourceip(dns_clientinfo_t *ci, isc_sockaddr_t **addrp);
 
 #endif /* NAMED_CLIENT_H */

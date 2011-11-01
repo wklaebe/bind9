@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2007  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2007, 2011  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000, 2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: pgsqldb.c,v 1.15 2007-06-19 23:47:07 tbox Exp $ */
+/* $Id: pgsqldb.c,v 1.17 2011-10-11 23:46:45 tbox Exp $ */
 
 #include <config.h>
 
@@ -43,7 +43,7 @@
  * connection to the database per zone, which is inefficient.  It also may
  * not handle quoting correctly.
  *
- * The table must contain the fields "name", "rdtype", and "rdata", and 
+ * The table must contain the fields "name", "rdtype", and "rdata", and
  * is expected to contain a properly constructed zone.  The program "zonetodb"
  * creates such a table.
  */
@@ -111,9 +111,16 @@ maybe_reconnect(struct dbinfo *dbi) {
  * Queries are converted into SQL queries and issued synchronously.  Errors
  * are handled really badly.
  */
+#ifdef DNS_CLIENTINFO_VERSION
+static isc_result_t
+pgsqldb_lookup(const char *zone, const char *name, void *dbdata,
+	       dns_sdblookup_t *lookup, dns_clientinfomethods_t *methods,
+	       dns_clientinfo_t *clientinfo)
+#else
 static isc_result_t
 pgsqldb_lookup(const char *zone, const char *name, void *dbdata,
 	       dns_sdblookup_t *lookup)
+#endif /* DNS_CLIENTINFO_VERSION */
 {
 	isc_result_t result;
 	struct dbinfo *dbi = dbdata;
@@ -123,6 +130,10 @@ pgsqldb_lookup(const char *zone, const char *name, void *dbdata,
 	int i;
 
 	UNUSED(zone);
+#ifdef DNS_CLIENTINFO_VERSION
+	UNUSED(methods);
+	UNUSED(clientinfo);
+#endif /* DNS_CLIENTINFO_VERSION */
 
 	canonname = isc_mem_get(ns_g_mctx, strlen(name) * 2 + 1);
 	if (canonname == NULL)

@@ -1,3 +1,22 @@
+bind9 (1:9.8.1.dfsg-1) unstable; urgency=low
+
+  [Internet Software Consortium, Inc]
+
+  * New upstream release
+
+  [LaMont Jones]
+
+  * cleanup the messages around killing named
+  * enable dnssec validation: deliver named.conf.options outside of
+    conffiledom, and update if able, complain and do not update if not
+    Closes: #516979
+
+  [Jay Ford]
+
+  * Fix "waiting for pid $pid to die" loop to not be infinite.  Closes: #570852
+
+ -- LaMont Jones <lamont@debian.org>  Tue, 01 Nov 2011 16:39:19 -0600
+
 bind9 (1:9.8.0.dfsg.P1-0) unstable; urgency=low
 
   [Internet Software Consortium, Inc]

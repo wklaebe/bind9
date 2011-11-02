@@ -146,7 +146,7 @@ if [ "$1" = configure ]; then
         apparmor_parser -r "$APP_PROFILE" || true
     fi
 
-    if /bin/pidof /usr/sbin/named >/dev/null 2>&1; then
+    if pidof /usr/sbin/named >/dev/null 2>&1; then
 	invoke-rc.d bind9 restart
     else
     	invoke-rc.d bind9 start

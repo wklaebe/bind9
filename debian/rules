@@ -109,6 +109,7 @@ install: build
 	install -c -o bin -g bin -m 644 debian/bind9-default.md5sum debian/bind9/usr/share/bind9/
 	cp doc/arm/*.html debian/bind9-doc/usr/share/doc/bind9-doc/arm
 	install -m 644 -o root -g root debian/apparmor-profile ${ETCAPP}/usr.sbin.named
+	rmdir -f debian/bind9/var/run/named debian/lwresd/var/run/named
 
 	install debian/ip-up.d debian/bind9/etc/ppp/ip-up.d/bind9
 	install debian/ip-down.d debian/bind9/etc/ppp/ip-down.d/bind9

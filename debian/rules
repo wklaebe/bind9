@@ -45,12 +45,6 @@ configure-stamp:
 		--with-openssl=/usr \
 		--with-gssapi=/usr \
 		--with-gnu-ld \
-		--with-dlz-postgres=no \
-		--with-dlz-mysql=no \
-		--with-dlz-bdb=yes \
-		--with-dlz-filesystem=yes \
-		--with-dlz-ldap=yes \
-		--with-dlz-stub=yes \
 		--with-geoip=/usr \
 		--enable-ipv6 \
 		$(EXTRA_FEATURES)

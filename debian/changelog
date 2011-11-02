@@ -10,6 +10,8 @@ bind9 (1:9.8.1.dfsg-1) unstable; urgency=low
   * enable dnssec validation: deliver named.conf.options outside of
     conffiledom, and update if able, complain and do not update if not
     Closes: #516979
+  * typo in min-ncache-ttl processing
+  * disable dlz until we get a patch to make it build again
 
   [Jay Ford]
 

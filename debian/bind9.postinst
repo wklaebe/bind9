@@ -45,6 +45,7 @@ if [ "$1" = configure ]; then
 	fi
 	case $UPDATE_OPTS in
 	    y)
+		echo Updating named.conf.options to include DNSSEC enablement
 		cp /usr/share/bind9/named.conf.options /etc/bind/named.conf.options
 		chown 644 /etc/bind/named.conf.options
 		;;

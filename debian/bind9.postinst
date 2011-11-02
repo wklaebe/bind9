@@ -33,23 +33,26 @@ if [ "$1" = configure ]; then
     fi
 
     
-    UPDATE_OPTS="n"
-    if [ -f /etc/bind/named.conf.options ]; then
-	case $(md5sum /etc/bind/named.conf.options | sed 's/ .*$//') in
-	    d6b678ac90fd6ab163d74dfe5d68c2c9)	UPDATE_OPTS=y;;	 # 9.4.2ish
-	    0367900f381d5c83cf34009440f3d211)	UPDATE_OPTS=y;;	 # 9.6 and later
-	    56919cbc0d819c9a303a8bdeb306b5f1)	UPDATE_OPTS=ok;; # 9.8
+    # if we are upgrading from pre-9.8, think about dnssec
+    if [ -z "$lastversion" ] || dpkg --compare-versions "$lastversion" lt 1:9.8.1.dfsg-1 ; then
+	UPDATE_OPTS="n"
+	if [ -f /etc/bind/named.conf.options ]; then
+	    case $(md5sum /etc/bind/named.conf.options | sed 's/ .*$//') in
+		d6b678ac90fd6ab163d74dfe5d68c2c9)	UPDATE_OPTS=y;;	 # 9.4.2ish
+		0367900f381d5c83cf34009440f3d211)	UPDATE_OPTS=y;;	 # 9.6 and later
+		56919cbc0d819c9a303a8bdeb306b5f1)	UPDATE_OPTS=ok;; # 9.8
+	    esac
+	fi
+	case $UPDATE_OPTS in
+	    y)
+		cp /usr/share/bind9/named.conf.options /etc/bind/named.conf.options
+		chown 644 /etc/bind/named.conf.options
+		;;
+	    n)
+		echo NOT updating named.conf.options to include DNSSEC enablement
+		;;
 	esac
     fi
-    case $UPDATE_OPTS in
-	y)
-	    cp /usr/share/bind9/named.conf.options /etc/bind/named.conf.options
-	    chown 644 /etc/bind/named.conf.options
-	    ;;
-	n)
-	    echo NOT updating named.conf.options to include DNSSEC enablement
-	    ;;
-    esac
 
     localconf=""
     if [ ! -f $config ]; then

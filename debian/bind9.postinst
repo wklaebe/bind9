@@ -138,10 +138,10 @@ if [ "$1" = configure ]; then
 	[ -n "$localconf" ] || chown bind /etc/bind/rndc.key
 	chgrp bind /etc/bind
 	chmod g+s /etc/bind
-	chgrp bind /etc/bind/rndc.key /var/run/named /var/cache/bind
+	chgrp bind /etc/bind/rndc.key /var/cache/bind
 	chgrp bind /etc/bind/named.conf* || true
 	chmod g+r /etc/bind/rndc.key /etc/bind/named.conf* || true
-	chmod g+rwx /var/run/named /var/cache/bind
+	chmod g+rwx /var/cache/bind
     fi
 
     # Reload AppArmor profile

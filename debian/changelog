@@ -1,3 +1,10 @@
+bind9 (1:9.8.1.dfsg-2) unstable; urgency=low
+
+  * add a readme entry for DNSSEC-by-default
+  * Failed to install due to chgrp on non-existant directory.  Closes: #647598
+
+ -- LaMont Jones <lamont@debian.org>  Sun, 06 Nov 2011 14:03:16 -0700
+
 bind9 (1:9.8.1.dfsg-1) unstable; urgency=low
 
   [Internet Software Consortium, Inc]

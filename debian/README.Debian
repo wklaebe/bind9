@@ -1,3 +1,12 @@
+DNSSEC validation turned on by default as of BIND 9.8.1
+-------------------------------------------------------
+As of version 9.8.1.dfsg-1, BIND ships with DNSSEC validation turned on
+by default.  As the keys get changed over time, this means that a fresh
+install of BIND will require that the admin manually upgrade bind.keys
+to account for the change, before BIND will be able to resolve hosts in
+DNSSEC validated zones.
+
+
 Upgrading from BIND 8.X:
 -----------------------
 

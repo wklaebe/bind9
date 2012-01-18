@@ -16,7 +16,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: config.h.in,v 1.149 2011-10-25 21:22:09 marka Exp $ */
+/* $Id: config.h.in,v 1.152 2011-12-20 00:49:49 marka Exp $ */
 
 /*! \file */
 
@@ -279,6 +279,9 @@ int sigwait(const unsigned int *set, int *sig);
 
 /* Define if your OpenSSL version supports GOST. */
 #undef HAVE_OPENSSL_GOST
+
+/* Define to 1 if you have the `readline' function. */
+#undef HAVE_READLINE
 
 /* Define to 1 if you have the <regex.h> header file. */
 #undef HAVE_REGEX_H

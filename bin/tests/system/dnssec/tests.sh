@@ -15,7 +15,7 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: tests.sh,v 1.104 2011-11-07 23:16:31 each Exp $
+# $Id: tests.sh,v 1.107 2011-12-22 12:01:43 marka Exp $
 
 SYSTEMTESTTOP=..
 . $SYSTEMTESTTOP/conf.sh
@@ -55,6 +55,24 @@ checkprivate () {
         echo "I:failed"
     }
     return $ret
+}
+
+# check that a zone file is raw format, version 0
+israw0 () {
+    cat $1 | perl -e 'binmode STDIN;
+		      read(STDIN, $input, 8);
+                      ($style, $version) = unpack("NN", $input);
+                      exit 1 if ($style != 2 || $version != 0);'
+    return $?
+}
+
+# check that a zone file is raw format, version 1
+israw1 () {
+    cat $1 | perl -e 'binmode STDIN;
+		      read(STDIN, $input, 8);
+                      ($style, $version) = unpack("NN", $input);
+                      exit 1 if ($style != 2 || $version != 1);'
+    return $?
 }
 
 # Check the example. domain
@@ -1109,11 +1127,17 @@ echo "I:checking dnssec-signzone output format ($n)"
 ret=0
 (
 cd signer
-$SIGNER -O full -f - -Sxt -o example example.db > signer.out.3 2>&1
-$SIGNER -O text -f - -Sxt -o example example.db > signer.out.4 2>&1
+$SIGNER -O full -f - -Sxt -o example example.db > signer.out.3 2> /dev/null
+$SIGNER -O text -f - -Sxt -o example example.db > signer.out.4 2> /dev/null
+$SIGNER -O raw -f signer.out.5 -Sxt -o example example.db > /dev/null 2>&1
+$SIGNER -O raw=0 -f signer.out.6 -Sxt -o example example.db > /dev/null 2>&1
+$SIGNER -O raw -f - -Sxt -o example example.db > signer.out.7 2> /dev/null
 ) || ret=1
 awk '/IN *SOA/ {if (NF != 11) exit(1)}' signer/signer.out.3 || ret=1
 awk '/IN *SOA/ {if (NF != 7) exit(1)}' signer/signer.out.4 || ret=1
+israw1 signer/signer.out.5 || ret=1
+israw0 signer/signer.out.6 || ret=1
+israw1 signer/signer.out.7 || ret=1
 if [ $ret != 0 ]; then echo "I:failed"; fi
 status=`expr $status + $ret`
 
@@ -1359,6 +1383,86 @@ checkprivate update-nsec3.example 10.53.0.3 || ret=1
 checkprivate auto-nsec3.example 10.53.0.3 || ret=1
 checkprivate expiring.example 10.53.0.3 || ret=1
 checkprivate auto-nsec.example 10.53.0.3 || ret=1
+n=`expr $n + 1`
+if [ $ret != 0 ]; then echo "I:failed"; fi
+status=`expr $status + $ret`
+
+echo "I:check that 'rndc signing' without arguments is handled ($n)"
+ret=0
+$RNDC -c ../common/rndc.conf -s 10.53.0.3 -p 9953 signing > /dev/null 2>&1 && ret=1
+$RNDC -c ../common/rndc.conf -s 10.53.0.3 -p 9953 status > /dev/null || ret=1
+n=`expr $n + 1`
+if [ $ret != 0 ]; then echo "I:failed"; fi
+status=`expr $status + $ret`
+
+echo "I:check that 'rndc signing -list' without zone is handled ($n)"
+ret=0
+$RNDC -c ../common/rndc.conf -s 10.53.0.3 -p 9953 signing -list > /dev/null 2>&1 && ret=1
+$RNDC -c ../common/rndc.conf -s 10.53.0.3 -p 9953 status > /dev/null || ret=1
+n=`expr $n + 1`
+if [ $ret != 0 ]; then echo "I:failed"; fi
+status=`expr $status + $ret`
+
+echo "I:check that 'rndc signing -clear' without additional arguments is handled ($n)"
+ret=0
+$RNDC -c ../common/rndc.conf -s 10.53.0.3 -p 9953 signing -clear > /dev/null 2>&1 && ret=1
+$RNDC -c ../common/rndc.conf -s 10.53.0.3 -p 9953 status > /dev/null || ret=1
+n=`expr $n + 1`
+if [ $ret != 0 ]; then echo "I:failed"; fi
+status=`expr $status + $ret`
+
+echo "I:check that 'rndc signing -clear all' without zone is handled ($n)"
+ret=0
+$RNDC -c ../common/rndc.conf -s 10.53.0.3 -p 9953 signing -clear all > /dev/null 2>&1 && ret=1
+$RNDC -c ../common/rndc.conf -s 10.53.0.3 -p 9953 status > /dev/null || ret=1
+n=`expr $n + 1`
+if [ $ret != 0 ]; then echo "I:failed"; fi
+status=`expr $status + $ret`
+
+echo "I:check that 'rndc signing -nsec3param' without additional arguments is handled ($n)"
+ret=0
+$RNDC -c ../common/rndc.conf -s 10.53.0.3 -p 9953 signing -nsec3param > /dev/null 2>&1 && ret=1
+$RNDC -c ../common/rndc.conf -s 10.53.0.3 -p 9953 status > /dev/null || ret=1
+n=`expr $n + 1`
+if [ $ret != 0 ]; then echo "I:failed"; fi
+status=`expr $status + $ret`
+
+echo "I:check that 'rndc signing -nsec3param none' without zone is handled ($n)"
+ret=0
+$RNDC -c ../common/rndc.conf -s 10.53.0.3 -p 9953 signing -nsec3param none > /dev/null 2>&1 && ret=1
+$RNDC -c ../common/rndc.conf -s 10.53.0.3 -p 9953 status > /dev/null || ret=1
+n=`expr $n + 1`
+if [ $ret != 0 ]; then echo "I:failed"; fi
+status=`expr $status + $ret`
+
+echo "I:check that 'rndc signing -nsec3param 1' without additional arguments is handled ($n)"
+ret=0
+$RNDC -c ../common/rndc.conf -s 10.53.0.3 -p 9953 signing -nsec3param 1 > /dev/null 2>&1 && ret=1
+$RNDC -c ../common/rndc.conf -s 10.53.0.3 -p 9953 status > /dev/null || ret=1
+n=`expr $n + 1`
+if [ $ret != 0 ]; then echo "I:failed"; fi
+status=`expr $status + $ret`
+
+echo "I:check that 'rndc signing -nsec3param 1 0' without additional arguments is handled ($n)"
+ret=0
+$RNDC -c ../common/rndc.conf -s 10.53.0.3 -p 9953 signing -nsec3param 1 0 > /dev/null 2>&1 && ret=1
+$RNDC -c ../common/rndc.conf -s 10.53.0.3 -p 9953 status > /dev/null || ret=1
+n=`expr $n + 1`
+if [ $ret != 0 ]; then echo "I:failed"; fi
+status=`expr $status + $ret`
+
+echo "I:check that 'rndc signing -nsec3param 1 0 0' without additional arguments is handled ($n)"
+ret=0
+$RNDC -c ../common/rndc.conf -s 10.53.0.3 -p 9953 signing -nsec3param 1 0 0 > /dev/null 2>&1 && ret=1
+$RNDC -c ../common/rndc.conf -s 10.53.0.3 -p 9953 status > /dev/null || ret=1
+n=`expr $n + 1`
+if [ $ret != 0 ]; then echo "I:failed"; fi
+status=`expr $status + $ret`
+
+echo "I:check that 'rndc signing -nsec3param 1 0 0 -' without zone is handled ($n)"
+ret=0
+$RNDC -c ../common/rndc.conf -s 10.53.0.3 -p 9953 signing -nsec3param 1 0 0 - > /dev/null 2>&1 && ret=1
+$RNDC -c ../common/rndc.conf -s 10.53.0.3 -p 9953 status > /dev/null || ret=1
 n=`expr $n + 1`
 if [ $ret != 0 ]; then echo "I:failed"; fi
 status=`expr $status + $ret`

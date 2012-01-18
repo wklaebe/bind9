@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/perl -w
 #
 # Copyright (C) 2011  Internet Systems Consortium, Inc. ("ISC")
 #
@@ -14,10 +14,18 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: clean.sh,v 1.3 2011-10-27 23:46:30 tbox Exp $
+# $Id: mkraw.pl,v 1.2 2011-12-08 16:07:22 each Exp $
 
+# Convert a hexdump to binary format.
 #
-# Clean up after zone transfer tests.
+# To convert binary data to the input format for this command,
+# use the following:
 #
+# perl -e 'while (read(STDIN, my $byte, 1)) {
+#              print unpack("H2", $byte);
+#          }
+#          print "\n";' < file > file.in
 
-exit
+use strict;
+chomp(my $line = <STDIN>);
+print pack("H*", $line);

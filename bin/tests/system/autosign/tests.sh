@@ -14,7 +14,7 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: tests.sh,v 1.37 2011-10-28 06:20:05 each Exp $
+# $Id: tests.sh,v 1.42 2011-12-22 11:57:30 marka Exp $
 
 SYSTEMTESTTOP=..
 . $SYSTEMTESTTOP/conf.sh
@@ -1027,7 +1027,7 @@ case $sleep in
 esac
 ret=0
 $DIG $DIGOPTS +multi dnskey . @10.53.0.1 > dig.out.ns1.test$n || ret=1
-grep '; key id =.*'"$oldid"'$' dig.out.ns1.test$n > /dev/null && ret=1
+grep '; key id = '"$oldid"'$' dig.out.ns1.test$n > /dev/null && ret=1
 n=`expr $n + 1`
 if [ $ret != 0 ]; then echo "I:failed"; fi
 status=`expr $status + $ret`
@@ -1045,7 +1045,7 @@ echo "I:checking revoked key with duplicate key ID (failure expected) ($n)"
 lret=0
 id=30676
 $DIG $DIGOPTS +multi dnskey bar @10.53.0.2 > dig.out.ns2.test$n || lret=1
-grep '; key id =.*'"$id"'$' dig.out.ns2.test$n > /dev/null || lret=1
+grep '; key id = '"$id"'$' dig.out.ns2.test$n > /dev/null || lret=1
 $DIG $DIGOPTS dnskey bar @10.53.0.4 > dig.out.ns4.test$n || lret=1
 grep "flags:.*ad.*QUERY" dig.out.ns4.test$n > /dev/null || lret=1
 n=`expr $n + 1`
@@ -1062,15 +1062,15 @@ status=`expr $status + $ret`
 
 # this confirms that key events are never scheduled more than
 # 'dnssec-loadkeys-interval' minutes in the future, and that the 
-# last event scheduled is precisely that far in the future.
+# event scheduled is within 10 seconds of expected interval.
 check_interval () {
         awk '/next key event/ {print $2 ":" $9}' $1/named.run |
 	sed 's/\.//g' |
             awk -F: '
                      {
                        x = ($6+ $5*60000 + $4*3600000) - ($3+ $2*60000 + $1*3600000);
-		       # abs(x) < 500 ms treat as 'now'
-		       if (x < 500 && x > -500)
+		       # abs(x) < 1000 ms treat as 'now'
+		       if (x < 1000 && x > -1000)
                          x = 0;
 		       # convert to seconds
 		       x = x/1000;
@@ -1083,7 +1083,7 @@ check_interval () {
                        if (int(x) > int(interval))
                          exit (1);
                      }
-                     END { if (int(x) != int(interval)) exit(1) }' interval=$2
+                     END { if (int(x) > int(interval) || int(x) < int(interval-10)) exit(1) }' interval=$2
         return $?
 }
 
@@ -1102,6 +1102,15 @@ ret=0
 rekey_calls=`grep "reconfiguring zone keys" ns*/named.run | wc -l`
 rekey_events=`grep "next key event" ns*/named.run | wc -l`
 [ "$rekey_calls" = "$rekey_events" ] || ret=1
+n=`expr $n + 1`
+if [ $ret != 0 ]; then echo "I:failed"; fi
+status=`expr $status + $ret`
+
+echo "I:forcing full sign with unreadable keys ($n)"
+chmod 0 ns1/K.+*+*.{key,private}
+$RNDC -c ../common/rndc.conf -s 10.53.0.1 -p 9953 sign . 2>&1 | sed 's/^/I:ns1 /'
+$DIG $DIGOPTS . @10.53.0.1 dnskey > dig.out.ns1.test$n || ret=1
+grep "status: NOERROR" dig.out.ns1.test$n > /dev/null || ret=1
 n=`expr $n + 1`
 if [ $ret != 0 ]; then echo "I:failed"; fi
 status=`expr $status + $ret`

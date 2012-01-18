@@ -29,7 +29,7 @@
  * IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dnssec-signzone.c,v 1.282 2011-11-07 23:46:50 tbox Exp $ */
+/* $Id: dnssec-signzone.c,v 1.285 2011-12-22 07:32:39 each Exp $ */
 
 /*! \file */
 
@@ -139,6 +139,8 @@ static char *tempfile = NULL;
 static const dns_master_style_t *masterstyle;
 static dns_masterformat_t inputformat = dns_masterformat_text;
 static dns_masterformat_t outputformat = dns_masterformat_text;
+static isc_uint32_t rawversion = 1, serialnum = 0;
+static isc_boolean_t snset = ISC_FALSE;
 static unsigned int nsigned = 0, nretained = 0, ndropped = 0;
 static unsigned int nverified = 0, nverifyfailed = 0;
 static const char *directory = NULL, *dsdir = NULL;
@@ -3469,7 +3471,7 @@ main(int argc, char *argv[]) {
 	isc_boolean_t set_iter = ISC_FALSE;
 
 #define CMDLINE_FLAGS \
-	"3:AaCc:Dd:E:e:f:FghH:i:I:j:K:k:l:m:n:N:o:O:PpRr:s:ST:tuUv:X:xz"
+	"3:AaCc:Dd:E:e:f:FghH:i:I:j:K:k:L:l:m:n:N:o:O:PpRr:s:ST:tuUv:X:xz"
 
 	/*
 	 * Process memory debugging argument first.
@@ -3617,6 +3619,17 @@ main(int argc, char *argv[]) {
 			if (ndskeys == MAXDSKEYS)
 				fatal("too many key-signing keys specified");
 			dskeyfile[ndskeys++] = isc_commandline_argument;
+			break;
+
+		case 'L':
+			snset = ISC_TRUE;
+			endp = NULL;
+			serialnum = strtol(isc_commandline_argument, &endp, 0);
+			if (*endp != '\0') {
+				fprintf(stderr, "source serial number "
+						"must be numeric");
+				exit(1);
+			}
 			break;
 
 		case 'l':
@@ -3808,18 +3821,35 @@ main(int argc, char *argv[]) {
 			inputformat = dns_masterformat_text;
 		else if (strcasecmp(inputformatstr, "raw") == 0)
 			inputformat = dns_masterformat_raw;
-		else
-			fatal("unknown file format: %s\n", inputformatstr);
+		else if (strncasecmp(inputformatstr, "raw=", 4) == 0) {
+			inputformat = dns_masterformat_raw;
+			fprintf(stderr,
+				"WARNING: input format version ignored\n");
+		} else
+			fatal("unknown file format: %s", inputformatstr);
+
 	}
 
 	if (outputformatstr != NULL) {
-		if (strcasecmp(outputformatstr, "text") == 0)
+		if (strcasecmp(outputformatstr, "text") == 0) {
 			outputformat = dns_masterformat_text;
-		else if (strcasecmp(outputformatstr, "raw") == 0)
-			outputformat = dns_masterformat_raw;
-		else if (strcasecmp(outputformatstr, "full") == 0) {
+		} else if (strcasecmp(outputformatstr, "full") == 0) {
 			outputformat = dns_masterformat_text;
 			masterstyle = &dns_master_style_full;
+		} else if (strcasecmp(outputformatstr, "raw") == 0) {
+			outputformat = dns_masterformat_raw;
+		} else if (strncasecmp(outputformatstr, "raw=", 4) == 0) {
+			char *end;
+			outputformat = dns_masterformat_raw;
+
+			outputformat = dns_masterformat_raw;
+			rawversion = strtol(outputformatstr + 4, &end, 10);
+			if (end == outputformatstr + 4 || *end != '\0' ||
+			    rawversion > 1U) {
+				fprintf(stderr,
+					"unknown raw format version\n");
+				exit(1);
+			}
 		} else
 			fatal("unknown file format: %s\n", outputformatstr);
 	}
@@ -4054,11 +4084,19 @@ main(int argc, char *argv[]) {
 	TIME_NOW(&sign_finish);
 	verifyzone();
 
-	if (outputformat != dns_masterformat_text) {
-		result = dns_master_dumptostream2(mctx, gdb, gversion,
+	if (outputformat == dns_masterformat_raw) {
+		dns_masterrawheader_t header;
+		dns_master_initrawheader(&header);
+		if (rawversion == 0U)
+			header.flags = DNS_MASTERRAW_COMPAT;
+		else if (snset) {
+			header.flags = DNS_MASTERRAW_SOURCESERIALSET;
+			header.sourceserial = serialnum;
+		}
+		result = dns_master_dumptostream3(mctx, gdb, gversion,
 						  masterstyle, outputformat,
-						  fp);
-		check_result(result, "dns_master_dumptostream2");
+						  &header, fp);
+		check_result(result, "dns_master_dumptostream3");
 	}
 
 	DESTROYLOCK(&namelock);

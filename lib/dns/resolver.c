@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: resolver.c,v 1.437 2011-10-27 23:46:31 tbox Exp $ */
+/* $Id: resolver.c,v 1.442 2011-11-16 22:18:52 marka Exp $ */
 
 /*! \file */
 
@@ -453,7 +453,7 @@ static isc_result_t ncache_adderesult(dns_message_t *message,
 				      dns_rdataset_t *ardataset,
 				      isc_result_t *eresultp);
 static void validated(isc_task_t *task, isc_event_t *event);
-static void maybe_destroy(fetchctx_t *fctx);
+static void maybe_destroy(fetchctx_t *fctx, isc_boolean_t locked);
 static void add_bad(fetchctx_t *fctx, dns_adbaddrinfo_t *addrinfo,
 		    isc_result_t reason, badnstype_t badtype);
 
@@ -747,7 +747,7 @@ resquery_destroy(resquery_t **queryp) {
 
 	query->fctx->nqueries--;
 	if (SHUTTINGDOWN(query->fctx))
-		maybe_destroy(query->fctx);     /* Locks bucket. */
+		maybe_destroy(query->fctx, ISC_FALSE);     /* Locks bucket. */
 	query->magic = 0;
 	isc_mem_put(query->mctx, query, sizeof(*query));
 	*queryp = NULL;
@@ -1564,9 +1564,11 @@ fctx_query(fetchctx_t *fctx, dns_adbaddrinfo_t *addrinfo,
 		dns_dispatch_detach(&query->dispatch);
 
  cleanup_query:
-	query->magic = 0;
-	isc_mem_put(res->buckets[fctx->bucketnum].mctx,
-		    query, sizeof(*query));
+	if (query->connects == 0) {
+		query->magic = 0;
+		isc_mem_put(res->buckets[fctx->bucketnum].mctx,
+			    query, sizeof(*query));
+	}
 
  stop_idle_timer:
 	RUNTIME_CHECK(fctx_stopidletimer(fctx) == ISC_R_SUCCESS);
@@ -1684,6 +1686,7 @@ resquery_send(resquery_t *query) {
 	dns_compress_t cctx;
 	isc_boolean_t cleanup_cctx = ISC_FALSE;
 	isc_boolean_t secure_domain;
+	isc_boolean_t connecting = ISC_FALSE;
 	unsigned int edns_fetchopt_flag;
 	isc_stdtime_t now;
 
@@ -1843,6 +1846,7 @@ resquery_send(resquery_t *query) {
 		     fctx->timeouts > MAX_EDNS0_TIMEOUTS) &&
 		    (query->options & DNS_FETCHOPT_NOEDNS0) == 0) {
 			query->options |= DNS_FETCHOPT_NOEDNS0;
+			query->options |= DNS_FETCHOPT_CACHENOEDNS;
 			fctx->reason = "disabling EDNS";
 		} else if ((triededns(fctx, &query->addrinfo->sockaddr) ||
 			    fctx->timeouts >= 1) &&
@@ -1914,21 +1918,18 @@ resquery_send(resquery_t *query) {
 		goto cleanup_message;
 	}
 
-	if ((query->options & DNS_FETCHOPT_NOEDNS0) == 0)
+	if ((query->options & DNS_FETCHOPT_NOEDNS0) == 0) {
 		add_triededns(fctx, &query->addrinfo->sockaddr);
 
-	if ((query->options & DNS_FETCHOPT_EDNS512) != 0)
-		add_triededns512(fctx, &query->addrinfo->sockaddr);
+		if ((query->options & DNS_FETCHOPT_EDNS512) != 0)
+			add_triededns512(fctx, &query->addrinfo->sockaddr);
+	}
 
 	/*
-	 * Clear CD if EDNS is not in use and set NOEDNS0 in adb.
+	 * Clear CD if EDNS is not in use.
 	 */
-	if ((query->options & DNS_FETCHOPT_NOEDNS0) != 0) {
+	if ((query->options & DNS_FETCHOPT_NOEDNS0) != 0)
 		fctx->qmessage->flags &= ~DNS_MESSAGEFLAG_CD;
-		dns_adb_changeflags(fctx->adb, query->addrinfo,
-				    DNS_FETCHOPT_NOEDNS0,
-				    DNS_FETCHOPT_NOEDNS0);
-	}
 
 	/*
 	 * Add TSIG record tailored to the current recipient.
@@ -1996,6 +1997,7 @@ resquery_send(resquery_t *query) {
 						    query);
 			if (result != ISC_R_SUCCESS)
 				goto cleanup_message;
+			connecting = ISC_TRUE;
 			query->connects++;
 		}
 	}
@@ -2007,8 +2009,19 @@ resquery_send(resquery_t *query) {
 	 */
 	result = isc_socket_sendto(socket, &r, task, resquery_senddone,
 				   query, address, NULL);
-	if (result != ISC_R_SUCCESS)
+	if (result != ISC_R_SUCCESS) {
+		if (connecting) {
+			/*
+			 * This query is still connecting.
+			 * Mark it as canceled so that it will just be
+			 * cleaned up when the connected event is received.
+			 * Keep fctx around until the event is processed.
+			 */
+			query->fctx->nqueries++;
+			query->attributes |= RESQUERY_ATTR_CANCELED;
+		}
 		goto cleanup_message;
+	}
 
 	query->sends++;
 
@@ -3905,7 +3918,7 @@ clone_results(fetchctx_t *fctx) {
  *      '*fctx' is shutting down.
  */
 static void
-maybe_destroy(fetchctx_t *fctx) {
+maybe_destroy(fetchctx_t *fctx, isc_boolean_t locked) {
 	unsigned int bucketnum;
 	isc_boolean_t bucket_empty = ISC_FALSE;
 	dns_resolver_t *res = fctx->res;
@@ -3923,10 +3936,12 @@ maybe_destroy(fetchctx_t *fctx) {
 	}
 
 	bucketnum = fctx->bucketnum;
-	LOCK(&res->buckets[bucketnum].lock);
+	if (!locked)
+		LOCK(&res->buckets[bucketnum].lock);
 	if (fctx->references == 0 && ISC_LIST_EMPTY(fctx->validators))
 		bucket_empty = fctx_destroy(fctx);
-	UNLOCK(&res->buckets[bucketnum].lock);
+	if (!locked)
+		UNLOCK(&res->buckets[bucketnum].lock);
 
 	if (bucket_empty)
 		empty_bucket(res);
@@ -3971,6 +3986,8 @@ validated(isc_task_t *task, isc_event_t *event) {
 
 	FCTXTRACE("received validation completion event");
 
+	LOCK(&fctx->res->buckets[fctx->bucketnum].lock);
+
 	ISC_LIST_UNLINK(fctx->validators, vevent->validator, link);
 	fctx->validator = NULL;
 
@@ -3992,11 +4009,10 @@ validated(isc_task_t *task, isc_event_t *event) {
 	 * so, destroy the fctx.
 	 */
 	if (SHUTTINGDOWN(fctx) && !sentresponse) {
-		maybe_destroy(fctx);    /* Locks bucket. */
+		maybe_destroy(fctx, ISC_TRUE);
+		UNLOCK(&fctx->res->buckets[fctx->bucketnum].lock);
 		goto cleanup_event;
 	}
-
-	LOCK(&fctx->res->buckets[fctx->bucketnum].lock);
 
 	isc_stdtime_get(&now);
 
@@ -4210,7 +4226,7 @@ validated(isc_task_t *task, isc_event_t *event) {
 		dns_db_detachnode(fctx->cache, &node);
 		UNLOCK(&fctx->res->buckets[fctx->bucketnum].lock);
 		if (SHUTTINGDOWN(fctx))
-			maybe_destroy(fctx);    /* Locks bucket. */
+			maybe_destroy(fctx, ISC_FALSE);    /* Locks bucket. */
 		goto cleanup_event;
 	}
 
@@ -4301,7 +4317,6 @@ validated(isc_task_t *task, isc_event_t *event) {
 		dns_db_detachnode(fctx->cache, &node);
 
 	UNLOCK(&fctx->res->buckets[fctx->bucketnum].lock);
-
 	fctx_done(fctx, result, __LINE__); /* Locks bucket. */
 
  cleanup_event:
@@ -6565,6 +6580,25 @@ resquery_response(isc_task_t *task, isc_event_t *event) {
 			}
 		}
 		goto done;
+#if 0
+	} else if ((query->options & DNS_FETCHOPT_NOEDNS0) != 0 &&
+		   (query->options & DNS_FETCHOPT_CACHENOEDNS) != 0 &&
+		   triededns512(fctx, &query->addrinfo->sockaddr)) {
+		char addrbuf[ISC_SOCKADDR_FORMATSIZE];
+		isc_sockaddr_format(&query->addrinfo->sockaddr, addrbuf,
+		sizeof(addrbuf));
+		/*
+		 * We had a successful response to a DNS_FETCHOPT_NOEDNS0
+		 * query.
+		 */
+		 isc_log_write(dns_lctx, DNS_LOGCATEGORY_EDNS_DISABLED,
+			       DNS_LOGMODULE_RESOLVER, ISC_LOG_INFO,
+			       "%s: setting NOEDNS flag in adb cache for '%s'",
+			       fctx->info, addrbuf);
+		dns_adb_changeflags(fctx->adb, query->addrinfo,
+				    DNS_FETCHOPT_NOEDNS0,
+				    DNS_FETCHOPT_NOEDNS0);
+#endif
 	}
 
 	message = fctx->rmessage;
@@ -6708,6 +6742,10 @@ resquery_response(isc_task_t *task, isc_event_t *event) {
 		char addrbuf[ISC_SOCKADDR_FORMATSIZE];
 		isc_sockaddr_format(&query->addrinfo->sockaddr, addrbuf,
 				    sizeof(addrbuf));
+		isc_log_write(dns_lctx, DNS_LOGCATEGORY_EDNS_DISABLED,
+			      DNS_LOGMODULE_RESOLVER, ISC_LOG_INFO,
+			      "%s: changed rcode: setting NOEDNS flag in "
+			      "adb cache for '%s'", fctx->info, addrbuf);
 		dns_adb_changeflags(fctx->adb, query->addrinfo,
 				    DNS_FETCHOPT_NOEDNS0,
 				    DNS_FETCHOPT_NOEDNS0);

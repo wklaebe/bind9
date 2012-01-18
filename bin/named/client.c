@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: client.c,v 1.281 2011-10-25 16:21:21 each Exp $ */
+/* $Id: client.c,v 1.284 2011-11-09 22:05:09 each Exp $ */
 
 #include <config.h>
 
@@ -240,8 +240,8 @@ ns_client_recursing(ns_client_t *client) {
 	REQUIRE(client->state == NS_CLIENTSTATE_WORKING);
 
 	LOCK(&client->manager->reclock);
-	ISC_LIST_APPEND(client->manager->recursing, client, rlink);
 	client->state = NS_CLIENTSTATE_RECURSING;
+	ISC_LIST_APPEND(client->manager->recursing, client, rlink);
 	UNLOCK(&client->manager->reclock);
 }
 
@@ -349,10 +349,16 @@ exit_check(ns_client_t *client) {
 		 * I/O cancel is complete.  Burn down all state
 		 * related to the current request.  Ensure that
 		 * the client is no longer on the recursing list.
+		 *
+		 * We need to check whether the client is still linked,
+		 * because it may already have been removed from the
+		 * recursing list by ns_client_killoldestquery()
 		 */
 		if (client->state == NS_CLIENTSTATE_RECURSING) {
 			LOCK(&manager->reclock);
-			ISC_LIST_UNLINK(manager->recursing, client, rlink);
+			if (ISC_LINK_LINKED(client, rlink))
+				ISC_LIST_UNLINK(manager->recursing,
+						client, rlink);
 			UNLOCK(&manager->reclock);
 		}
 		ns_client_endrequest(client);
@@ -494,9 +500,9 @@ exit_check(ns_client_t *client) {
 		 * that has been done, lest the manager decide to reactivate
 		 * the dying client inbetween.
 		 */
+		client->state = NS_CLIENTSTATE_INACTIVE;
 		if (!ns_g_clienttest)
 			ISC_QUEUE_PUSH(manager->inactive, client, ilink);
-		client->state = NS_CLIENTSTATE_INACTIVE;
 		INSIST(client->recursionquota == NULL);
 
 		if (client->state == client->newstate) {
@@ -2689,10 +2695,11 @@ ns_client_logv(ns_client_t *client, isc_logcategory_t *category,
 {
 	char msgbuf[2048];
 	char peerbuf[ISC_SOCKADDR_FORMATSIZE];
-	char signerbuf[DNS_NAME_FORMATSIZE];
+	char signerbuf[DNS_NAME_FORMATSIZE], qnamebuf[DNS_NAME_FORMATSIZE];
 	const char *viewname = "";
-	const char *sep1 = "", *sep2 = "";
-	const char *signer = "";
+	const char *sep1 = "", *sep2 = "", *sep3 = "", *sep4 = "";
+	const char *signer = "", *qname = "";
+	dns_name_t *q = NULL;
 
 	vsnprintf(msgbuf, sizeof(msgbuf), fmt, ap);
 
@@ -2704,15 +2711,25 @@ ns_client_logv(ns_client_t *client, isc_logcategory_t *category,
 		signer = signerbuf;
 	}
 
+	q = client->query.origqname != NULL
+		? client->query.origqname : client->query.qname;
+	if (q != NULL) {
+		dns_name_format(q, qnamebuf, sizeof(qnamebuf));
+		sep2 = " (";
+		sep3 = ")";
+		qname = qnamebuf;
+	}
+
 	if (client->view != NULL && strcmp(client->view->name, "_bind") != 0 &&
 	    strcmp(client->view->name, "_default") != 0) {
-		sep2 = ": view ";
+		sep4 = ": view ";
 		viewname = client->view->name;
 	}
 
 	isc_log_write(ns_g_lctx, category, module, level,
-		      "client %s%s%s%s%s: %s",
-		      peerbuf, sep1, signer, sep2, viewname, msgbuf);
+		      "client %s%s%s%s%s%s%s%s: %s",
+		      peerbuf, sep1, signer, sep2, qname, sep3,
+		      sep4, viewname, msgbuf);
 }
 
 void
@@ -2797,6 +2814,8 @@ ns_client_dumprecursing(FILE *f, ns_clientmgr_t *manager) {
 	LOCK(&manager->reclock);
 	client = ISC_LIST_HEAD(manager->recursing);
 	while (client != NULL) {
+		INSIST(client->state == NS_CLIENTSTATE_RECURSING);
+
 		ns_client_name(client, peerbuf, sizeof(peerbuf));
 		if (client->view != NULL &&
 		    strcmp(client->view->name, "_bind") != 0 &&
@@ -2809,6 +2828,7 @@ ns_client_dumprecursing(FILE *f, ns_clientmgr_t *manager) {
 		}
 
 		LOCK(&client->query.fetchlock);
+		INSIST(client->query.qname != NULL);
 		dns_name_format(client->query.qname, namebuf, sizeof(namebuf));
 		if (client->query.qname != client->query.origqname &&
 		    client->query.origqname != NULL) {
@@ -2836,7 +2856,7 @@ ns_client_dumprecursing(FILE *f, ns_clientmgr_t *manager) {
 			"requesttime %d\n", peerbuf, sep, name,
 			client->message->id, namebuf, typebuf, classbuf,
 			origfor, original, client->requesttime);
-		client = ISC_LIST_NEXT(client, link);
+		client = ISC_LIST_NEXT(client, rlink);
 	}
 	UNLOCK(&manager->reclock);
 }

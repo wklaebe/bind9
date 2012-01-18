@@ -1,3 +1,104 @@
+	--- 9.9.0b2 released ---
+
+3220.	[bug]		Change #3186 was incomplete; dns_db_rpz_findips()
+                        could fail to set the database version correctly,
+                        causing an assertion failure. [RT #26180]
+
+3219.	[bug]		Disable NOEDNS caching following a timeout.
+
+3218.	[security]	Cache lookup could return RRSIG data associated with
+			nonexistent records, leading to an assertion
+			failure. [RT #26590]
+
+3217.	[cleanup]	Fix build problem with --disable-static. [RT #26476]
+
+3216.	[bug]		resolver.c:validated() was not thread-safe. [RT #26478]
+
+3215.	[bug]		'rndc recursing' could cause a core dump. [RT #26495]
+
+3214.	[func]		Add 'named -U' option to set the number of UDP
+			listener threads per interface. [RT #26485]
+			
+3213.	[doc]		Clarify ixfr-from-differences behavior. [RT #25188]
+
+3212.	[bug]		rbtdb.c: failed to remove a node from the deadnodes list
+			prior to adding a reference to it leading a possible
+			assertion failure. [RT #23219]
+
+3211.	[func]		dnssec-signzone: "-f -" prints to stdout; "-O full"
+			option prints in single-line-per-record format.
+			[RT #20287]
+
+3210.	[bug]		Canceling the oldest query due to recursive-client
+			overload could trigger an assertion failure. [RT #26463]
+
+3209.	[func]		Add "dnssec-lookaside 'no'".  [RT #24858]
+
+3208.	[bug]		'dig -y' handle unknown tsig alorithm better.
+			[RT #25522]
+
+3207.	[contrib]	Fixed build error in Berkeley DB DLZ module. [RT #26444]
+
+3206.	[cleanup]	Add ISC information to log at start time. [RT #25484]
+
+3205.	[func]		Upgrade dig's defaults to better reflect modern
+			nameserver behaviour.  Enable "dig +adflag" and
+			"dig +edns=0" by default.  Enable "+dnssec" when
+			running "dig +trace". [RT #23497]
+
+3204.	[bug]		When a master server that has been marked as
+			unreachable sends a NOTIFY, mark it reachable
+			again. [RT #25960]
+
+3203.	[bug]		Increase log level to 'info' for validation failures
+			from expired or not-yet-valid RRSIGs. [RT #21796]
+
+3202.	[bug]		NOEDNS caching on timeout was too agressive.
+			[RT #26416]
+
+3201.	[func]		'rndc querylog' can now be given an on/off parameter
+			instead of only being used as a toggle. [RT #18351]
+
+3200.	[doc]		Some rndc functions were undocumented or were
+			missing from 'rndc -h' output. [RT #25555]
+
+3199.	[func]		When logging client information, include the name
+			being queried. [RT #25944]
+
+3198.	[doc]		Clarified that dnssec-settime can alter keyfile
+			permissions. [RT #24866]
+
+3197.	[bug]		Don't try to log the filename and line number when 
+			the config parser can't open a file. [RT #22263]
+
+3196.   [bug]           nsupdate: return nonzero exit code when target zone
+                        doesn't exist. [RT #25783]
+
+3195.	[cleanup]	Silence "file not found" warnings when loading
+			managed-keys zone. [RT #26340]
+
+3194.	[doc]		Updated RFC references in the 'empty-zones-enable'
+			documentation. [RT #25203]
+
+3193.	[cleanup]	Changed MAXZONEKEYS to DNS_MAXZONEKEYS, moved to
+			dnssec.h. [RT #26415]
+
+3192.	[bug]		A query structure could be used after being freed.
+			[RT #22208]
+
+3191.	[bug]		Print NULL records using "unknown" format. [RT #26392]
+
+3190.	[bug]		Underflow in error handling in isc_mutexblock_init.
+			[RT #26397]
+
+3189.	[test]		Added a summary report after system tests. [RT #25517]
+			
+3188.	[bug]		zone.c:zone_refreshkeys() could fail to detach
+			references correctly when errors occurred, causing
+			a hang on shutdown. [RT #26372]
+
+3187.	[port]		win32: support for Visual Studio 2008.	[RT #26356]
+
 	--- 9.9.0b1 released ---
 
 3186.	[bug]		Version/db mis-match in rpz code. [RT #26180]
@@ -48,7 +149,7 @@
 			responses. [RT #26200]
 
 3174.	[bug]		Always compute to revoked key tag from scratch.
-			[RT #24711]
+			[RT #26186]
 
 3173.	[port]		Correctly validate root DS responses. [RT #25726]
 
@@ -70,7 +171,7 @@
 			    "PASSTHRU" and add "DELETED" override (NO-OP is
 			    still recognized)
 
-3169.	[func]		Catch db/version mis-matches when call dns_db_*().
+3169.	[func]		Catch db/version mis-matches when calling dns_db_*().
 			[RT #26017]
 
 3168.	[bug]		Nxdomain redirection could trigger an assert with

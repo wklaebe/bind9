@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: server.c,v 1.625 2011-10-28 12:08:04 tbox Exp $ */
+/* $Id: server.c,v 1.630 2011-11-09 18:44:03 each Exp $ */
 
 /*! \file */
 
@@ -2604,14 +2604,19 @@ configure_view(dns_view_t *view, cfg_obj_t *config, cfg_obj_t *vconfig,
 	if (result == ISC_R_SUCCESS) {
 		/* If set to "auto", use the version from the defaults */
 		const cfg_obj_t *dlvobj;
+		const char *dom;
 		dlvobj = cfg_listelt_value(cfg_list_first(obj));
-		if (!strcmp(cfg_obj_asstring(cfg_tuple_get(dlvobj, "domain")),
-			    "auto") &&
-		    cfg_obj_isvoid(cfg_tuple_get(dlvobj, "trust-anchor"))) {
-			auto_dlv = ISC_TRUE;
-			obj = NULL;
-			result = cfg_map_get(ns_g_defaults,
-					     "dnssec-lookaside", &obj);
+		dom = cfg_obj_asstring(cfg_tuple_get(dlvobj, "domain"));
+		if (cfg_obj_isvoid(cfg_tuple_get(dlvobj, "trust-anchor"))) {
+			/* If "no", skip; if "auto", use global default */
+			if (!strcasecmp(dom, "no"))
+				result = ISC_R_NOTFOUND;
+			else if (!strcasecmp(dom, "auto")) {
+				auto_dlv = ISC_TRUE;
+				obj = NULL;
+				result = cfg_map_get(ns_g_defaults,
+						     "dnssec-lookaside", &obj);
+			}
 		}
 	}
 
@@ -2850,7 +2855,8 @@ configure_view(dns_view_t *view, cfg_obj_t *config, cfg_obj_t *vconfig,
 			CHECK(dns_zone_create(&zone, mctx));
 			CHECK(dns_zone_setorigin(zone, name));
 			dns_zone_setview(zone, view);
-			CHECK(dns_zonemgr_managezone(ns_g_server->zonemgr, zone));
+			CHECK(dns_zonemgr_managezone(ns_g_server->zonemgr,
+						     zone));
 			dns_zone_setclass(zone, view->rdclass);
 			dns_zone_settype(zone, dns_zone_master);
 			dns_zone_setstats(zone, ns_g_server->zonestats);
@@ -6134,8 +6140,28 @@ ns_server_refreshcommand(ns_server_t *server, char *args, isc_buffer_t *text) {
 }
 
 isc_result_t
-ns_server_togglequerylog(ns_server_t *server) {
-	server->log_queries = server->log_queries ? ISC_FALSE : ISC_TRUE;
+ns_server_togglequerylog(ns_server_t *server, char *args) {
+	isc_boolean_t value;
+	char *ptr;
+
+	/* Skip the command name. */
+	ptr = next_token(&args, " \t");
+	if (ptr == NULL)
+		return (ISC_R_UNEXPECTEDEND);
+	ptr = next_token(&args, " \t");
+	if (ptr == NULL)
+		value = server->log_queries ? ISC_FALSE : ISC_TRUE;
+	else if (strcasecmp(ptr, "yes") == 0 || strcasecmp(ptr, "on") == 0)
+		value = ISC_TRUE;
+	else if (strcasecmp(ptr, "no") == 0 || strcasecmp(ptr, "off") == 0)
+		value = ISC_FALSE;
+	else
+		return (ISC_R_NOTFOUND);
+
+	if (server->log_queries == value)
+		return (ISC_R_SUCCESS);
+
+	server->log_queries = value;
 
 	isc_log_write(ns_g_lctx, NS_LOGCATEGORY_GENERAL,
 		      NS_LOGMODULE_SERVER, ISC_LOG_INFO,
@@ -6956,6 +6982,7 @@ ns_server_status(ns_server_t *server, isc_buffer_t *text) {
 #ifdef ISC_PLATFORM_USETHREADS
 		     "CPUs found: %u\n"
 		     "worker threads: %u\n"
+		     "UDP listeners per interface: %u\n"
 #endif
 		     "number of zones: %u\n"
 		     "debug level: %d\n"
@@ -6968,7 +6995,7 @@ ns_server_status(ns_server_t *server, isc_buffer_t *text) {
 		     "server is up and running",
 		     ns_g_version, ob, alt, cb,
 #ifdef ISC_PLATFORM_USETHREADS
-		     ns_g_cpus_detected, ns_g_cpus,
+		     ns_g_cpus_detected, ns_g_cpus, ns_g_udpdisp,
 #endif
 		     zonecount, ns_g_debuglevel, xferrunning, xferdeferred,
 		     soaqueries, server->log_queries ? "ON" : "OFF",
@@ -7938,7 +7965,7 @@ ns_server_signing(ns_server_t *server, char *args, isc_buffer_t *text) {
 			isc_buffer_putuint8(text, 0);
 		} else
 			CHECK(result);
-	} else {
+	} else if (list) {
 		privatetype = dns_zone_getprivatetype(zone);
 		origin = dns_zone_getorigin(zone);
 		CHECK(dns_zone_getdb(zone, &db));

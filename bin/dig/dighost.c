@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dighost.c,v 1.340 2011-03-11 06:11:20 marka Exp $ */
+/* $Id: dighost.c,v 1.342 2011-11-06 23:18:07 marka Exp $ */
 
 /*! \file
  *  \note
@@ -66,6 +66,7 @@
 #include <dns/tsig.h>
 
 #include <dst/dst.h>
+#include <dst/result.h>
 
 #include <isc/app.h>
 #include <isc/base64.h>
@@ -924,6 +925,11 @@ setup_text_key(void) {
 		goto failure;
 
 	secretsize = isc_buffer_usedlength(&secretbuf);
+
+	if (hmacname == NULL) {
+		result = DST_R_UNSUPPORTEDALG;
+		goto failure;
+	}
 
 	result = dns_name_fromtext(&keyname, namebuf, dns_rootname, 0, namebuf);
 	if (result != ISC_R_SUCCESS)
@@ -1838,11 +1844,9 @@ followup_lookup(dns_message_t *msg, dig_query_t *query, dns_section_t section)
  * Return ISC_TRUE iff there was another searchlist entry.
  */
 static isc_boolean_t
-next_origin(dns_message_t *msg, dig_query_t *query) {
+next_origin(dig_query_t *query) {
 	dig_lookup_t *lookup;
 	dig_searchlist_t *search;
-
-	UNUSED(msg);
 
 	INSIST(!free_now);
 
@@ -3360,7 +3364,7 @@ recv_done(isc_task_t *task, isc_event_t *event) {
 	if (!l->doing_xfr || l->xfr_q == query) {
 		if (msg->rcode != dns_rcode_noerror &&
 		    (l->origin != NULL || l->need_search)) {
-			if (!next_origin(msg, query) || showsearch) {
+			if (!next_origin(query) || showsearch) {
 				printmessage(query, msg, ISC_TRUE);
 				received(b->used, &sevent->address, query);
 			}

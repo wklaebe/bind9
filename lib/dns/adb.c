@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: adb.c,v 1.254.14.4 2011-03-13 03:36:47 marka Exp $ */
+/* $Id: adb.c,v 1.254.14.11 2011-12-05 17:25:04 each Exp $ */
 
 /*! \file
  *
@@ -254,6 +254,7 @@ struct dns_adbentry {
 
 	ISC_LIST(dns_adblameinfo_t)     lameinfo;
 	ISC_LINK(dns_adbentry_t)        plink;
+
 };
 
 /*

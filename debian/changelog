@@ -5,6 +5,16 @@ bind9 (1:9.8.1.dfsg-2) unstable; urgency=low
 
  -- LaMont Jones <lamont@debian.org>  Sun, 06 Nov 2011 14:03:16 -0700
 
+bind9 (1:9.8.1.dfsg-1.1) unstable; urgency=low
+
+  * Non-maintainer upload.
+  * Fix pending l10n issues. Debconf translations:
+    - Danish (Joe Hansen).  Closes: #619302
+    - Korean (강민지).  Closes: #632006, #632016
+    - Serbian (FULL NAME).  Closes: #634886
+
+ -- Christian Perrier <bubulle@debian.org>  Sat, 03 Dec 2011 17:22:12 +0100
+
 bind9 (1:9.8.1.dfsg-1) unstable; urgency=low
 
   [Internet Software Consortium, Inc]

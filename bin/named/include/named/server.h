@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: server.h,v 1.113 2011-08-02 20:36:12 each Exp $ */
+/* $Id: server.h,v 1.115 2011-10-28 06:20:04 each Exp $ */
 
 #ifndef NAMED_SERVER_H
 #define NAMED_SERVER_H 1
@@ -342,4 +342,9 @@ ns_server_add_zone(ns_server_t *server, char *args);
 isc_result_t
 ns_server_del_zone(ns_server_t *server, char *args);
 
+/*%
+ * Lists the status of the signing records for a given zone.
+ */
+isc_result_t
+ns_server_signing(ns_server_t *server, char *args, isc_buffer_t *text);
 #endif /* NAMED_SERVER_H */

@@ -1,3 +1,63 @@
+	--- 9.9.0b1 released ---
+
+3186.	[bug]		Version/db mis-match in rpz code. [RT #26180]
+
+3185.	[func]		New 'rndc signing' option for auto-dnssec zones:
+			 - 'rndc signing -list' displays the current
+			   state of signing operations
+			 - 'rndc signing -clear' clears the signing state
+		  	   records for keys that have fully signed the zone
+			 - 'rndc signing -nsec3param' sets the NSEC3
+			   parameters for the zone
+			The 'rndc keydone' syntax is removed. [RT #23729]
+
+3184.	[bug]		named had excessive cpu usage when a redirect zone was
+			configured. [RT #26013]
+
+3183.	[bug]		Added RTLD_GLOBAL flag to dlopen call. [RT #26301]
+
+3182.   [bug]		Auth servers behind firewalls which block packets
+			greater than 512 bytes may cause other servers to
+			perform poorly. Now, adb retains edns information
+			and caches noedns servers. [RT #23392/24964]
+
+3181.	[func]		Inline-signing is now supported for master zones.
+			[RT #26224]
+
+3180.	[func]		Local copies of slave zones are now saved in raw
+			format by default, to improve startup performance.
+			'masterfile-format text;' can be used to override
+			the default, if desired. [RT #25867]
+
+3179.	[port]		kfreebsd: build issues. [RT #26273]
+
+3178.	[bug]		A race condition introduced by change #3163 could
+			cause an assertion failure on shutdown. [RT #26271]
+
+3177.	[func]		'rndc keydone', remove the indicator record that
+			named has finished signing the zone with the
+			corresponding key.  [RT #26206]
+
+3176.	[doc]		Corrected example code and added a README to the
+			sample external DLZ module in contrib/dlz/example.
+			[RT #26215]
+
+3175.   [bug]           Fix how DNSSEC positive wildcard responses from a
+			NSEC3 signed zone are validated.  Stop sending a
+			unnecessary NSEC3 record when generating such
+			responses. [RT #26200]
+
+3174.	[bug]		Always compute to revoked key tag from scratch.
+			[RT #24711]
+
+3173.	[port]		Correctly validate root DS responses. [RT #25726]
+
+3172.	[port]		darwin 10.* and freebsd [89] are now built threaded by
+			default.
+
+3171.	[bug]		Exclusively lock the task when adding a zone using
+			'rndc addzone'.  [RT #25600]
+
 	--- 9.9.0a3 released ---
 
 3170.	[func]		RPZ update:
@@ -5,6 +65,10 @@
 			- improve ARM text including documenting rule precedence
 			- try to rewrite CNAME chains until first hit
 			- new "rpz" logging channel
+			- RDATA for CNAME rules can include wildcards
+			- replace "NO-OP" named.conf policy override with
+			    "PASSTHRU" and add "DELETED" override (NO-OP is
+			    still recognized)
 
 3169.	[func]		Catch db/version mis-matches when call dns_db_*().
 			[RT #26017]

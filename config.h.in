@@ -16,7 +16,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: config.h.in,v 1.147 2011-07-28 13:33:09 tbox Exp $ */
+/* $Id: config.h.in,v 1.149 2011-10-25 21:22:09 marka Exp $ */
 
 /*! \file */
 

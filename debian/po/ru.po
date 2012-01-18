@@ -11,11 +11,13 @@ msgstr ""
 "PO-Revision-Date: 2008-06-14 11:08+0400\n"
 "Last-Translator: Yuri Kozlov <kozlov.y@gmail.com>\n"
 "Language-Team: Russian <debian-l10n-russian@lists.debian.org>\n"
+"Language: ru\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "X-Generator: KBabel 1.11.4\n"
-"Plural-Forms:  nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2);\n"
+"Plural-Forms:  nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && n"
+"%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2);\n"
 
 #. Type: string
 #. Description
@@ -30,9 +32,9 @@ msgid ""
 "The default is to run the BIND9 daemon (named) under the 'bind' user "
 "account. To use a different account, please enter the appropriate username."
 msgstr ""
-"По умолчанию, служба BIND9 (файл named) запускается с правами учётной "
-"записи 'bind'. Если вы хотите использовать другую учётную запись, то "
-"введите это имя здесь."
+"По умолчанию, служба BIND9 (файл named) запускается с правами учётной записи "
+"'bind'. Если вы хотите использовать другую учётную запись, то введите это "
+"имя здесь."
 
 #. Type: string
 #. Description
@@ -64,6 +66,5 @@ msgid ""
 "daemon (named) rather than what the current connection recommends, when this "
 "machine moves around."
 msgstr ""
-"Укажите, хотите ли вы, чтобы определитель имён машины использовал "
-"локальную службу BIND9 (named), а не настройки имеющегося подключения."
-
+"Укажите, хотите ли вы, чтобы определитель имён машины использовал локальную "
+"службу BIND9 (named), а не настройки имеющегося подключения."

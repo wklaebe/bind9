@@ -1,3 +1,9 @@
+bind9 (1:9.8.1.dfsg.P1-2) unstable; urgency=low
+
+  * Deliver named.conf.options on fresh install.  Closes: #657042  LP: #920202
+
+ -- LaMont Jones <lamont@debian.org>  Wed, 25 Jan 2012 03:55:21 -0700
+
 bind9 (1:9.8.1.dfsg.P1-1) unstable; urgency=low
 
   [Internet Software Consortium, Inc]

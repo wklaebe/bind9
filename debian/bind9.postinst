@@ -23,6 +23,10 @@ if [ "$1" = configure ]; then
 	rndc-confgen -r /dev/urandom -a
     fi
 
+    # no sumfile means you get the default
+    [ -f /usr/share/bind9/bind9-default.md5sum ] || 
+        echo "2cfcfb7bf1b99c7930fd475907e38be7  /etc/default/bind9" > /usr/share/bind9/bind9-default.md5sum
+
     if [ -f /etc/default/bind9 ] && \
        [ "$(cat /usr/share/bind9/bind9-default.md5sum)" = "$(md5sum /etc/default/bind9)" ]; then
         config="/etc/default/bind9"

@@ -106,7 +106,6 @@ install: build
 	install -c -o bin -g bin -m 440 debian/named.conf.default-zones ${ETCBIND}
 	install -c -o bin -g bin -m 440 bind.keys ${ETCBIND}
 	install -c -o bin -g bin -m 440 debian/named.conf.options debian/bind9/usr/share/bind9/
-	install -c -o bin -g bin -m 644 debian/bind9-default.md5sum debian/bind9/usr/share/bind9/
 	cp doc/arm/*.html debian/bind9-doc/usr/share/doc/bind9-doc/arm
 	install -m 644 -o root -g root debian/apparmor-profile ${ETCAPP}/usr.sbin.named
 	rmdir debian/bind9/var/run/named debian/lwresd/var/run/named || true

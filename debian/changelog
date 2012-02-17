@@ -1,3 +1,28 @@
+bind9 (1:9.8.1.dfsg.P1-3) unstable; urgency=low
+
+  [Zlatan Todoric]
+
+  * fixed Serbian latin translation of debconf template.  Closes: #634951
+
+  [Peter Eisentraut]
+
+  * Add support for "status" action to lwresd init script.  Closes: #651540
+
+  [Bjørn Steensrud]
+
+  * NB Translations.  Closes: #654454
+
+  [LaMont Jones]
+
+  * Default to run_resolvconf=false.  LP: #933723
+  * Deliver named.conf.options on fresh install.  Closes: #657042  LP: #920202
+  * Do not deliver /usr/share/bind9/bind9-default.md5sum in the bind9 deb. 
+    Closes: #620007  LP: #681536
+  * Deliver and use /etc/apparmor.d/local/usr.sbin.named for local overrides.
+    LP: #929563
+
+ -- LaMont Jones <lamont@debian.org>  Fri, 17 Feb 2012 14:40:29 -0800
+
 bind9 (1:9.8.1.dfsg.P1-2) unstable; urgency=low
 
   * Deliver named.conf.options on fresh install.  Closes: #657042  LP: #920202

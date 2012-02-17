@@ -14,7 +14,7 @@ _Description: Other startup options for named:
 
 Template: bind9/run-resolvconf
 Type: boolean
-Default: true
+Default: false
 _Description: Should resolv.conf settings be overridden?
  Please choose whether the resolver should be forced to use the
  local BIND9 daemon (named) rather than what the current connection

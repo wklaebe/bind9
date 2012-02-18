@@ -22,5 +22,3 @@ ns		A	10.53.0.1
 ;
 utld		NS	ns.utld
 ns.utld		A	10.53.0.2
-druz		NS	ns.druz
-ns.druz		A	10.53.0.2

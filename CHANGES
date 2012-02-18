@@ -1,3 +1,47 @@
+	--- 9.9.0rc3 released ---
+
+3285.	[bug]		val-frdataset was incorrectly disassociated in
+			proveunsecure after calling startfinddlvsep.
+			[RT #27928]
+
+3284.	[bug]		Address race conditions with the handling of
+			rbtnode.deadlink. [RT #27738]
+
+3283.	[bug]		Raw zones with with more than 512 records in a RRset
+			failed to load. [RT #27863]
+
+3282.	[bug]		Restrict the TTL of NS RRset to no more than that
+			of the old NS RRset when replacing it.
+			[RT #27792] [RT #27884]
+
+3281.	[bug]		SOA refresh queries could be treated as cancelled
+			despite succeeding over the loopback interface.
+			[RT #27782]
+
+3280.	[bug]		Potential double free of a rdataset on out of memory
+			with DNS64. [RT #27762]
+
+3279.	[bug]		Hold a internal reference to the zone while performing
+			a asynchronous load.  Address potential memory leak
+			if the asynchronous is cancelled. [RT #27750]
+
+3278.	[bug]		Make sure automatic key maintenance is started
+			when "auto-dnssec maintain" is turned on during
+			"rndc reconfig". [RT #26805]
+
+3277.	[bug]		win32: isc_socket_dup is not implemented. [RT #27696]
+
+3276.	[bug]		win32: ns_os_openfile failed to return NULL on
+			safe_open failure. [RT #27696]
+
+3275.	[bug]		Corrected rndc -h output; the 'rndc sync -clean'
+			option had been misspelled as '-clear'.  (To avoid
+			future confusion, both options now work.) [RT #27173]
+
+3271.	[port]		darwin: mksymtbl is not always stable, loop several
+			times before giving up.  mksymtbl was using non
+			portable perl to covert 64 bit hex strings. [RT #27653]
+
 	--- 9.9.0rc2 released ---
 
 3270.	[bug]		"rndc reload" didn't reuse existing zones correctly

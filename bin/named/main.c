@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2011  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2012  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: main.c,v 1.185 2011-11-09 18:44:03 each Exp $ */
+/* $Id: main.c,v 1.185.64.2 2012-02-06 23:46:22 tbox Exp $ */
 
 /*! \file */
 
@@ -590,8 +590,12 @@ create_managers(void) {
 #else
 	ns_g_cpus = 1;
 #endif
+#ifdef WIN32
+	ns_g_udpdisp = 1;
+#else
 	if (ns_g_udpdisp == 0 || ns_g_udpdisp > ns_g_cpus)
 		ns_g_udpdisp = ns_g_cpus;
+#endif
 	isc_log_write(ns_g_lctx, NS_LOGCATEGORY_GENERAL, NS_LOGMODULE_SERVER,
 		      ISC_LOG_INFO, "using %u UDP listener%s per interface",
 		      ns_g_udpdisp, ns_g_udpdisp == 1 ? "" : "s");

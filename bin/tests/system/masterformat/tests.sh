@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Copyright (C) 2005, 2007, 2011  Internet Systems Consortium, Inc. ("ISC")
+# Copyright (C) 2005, 2007, 2011, 2012  Internet Systems Consortium, Inc. ("ISC")
 #
 # Permission to use, copy, modify, and/or distribute this software for any
 # purpose with or without fee is hereby granted, provided that the above
@@ -14,7 +14,7 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: tests.sh,v 1.10 2011-12-22 11:56:07 marka Exp $
+# $Id: tests.sh,v 1.10.20.4 2012-02-15 01:22:47 marka Exp $
 
 SYSTEMTESTTOP=..
 . $SYSTEMTESTTOP/conf.sh
@@ -86,7 +86,11 @@ ret=0
 status=`expr $status + $ret`
 
 echo "I:waiting for transfers to complete"
-sleep 1
+for i in 0 1 2 3 4 5 6 7 8 9
+do
+	test -f ns2/transfer.db.raw -a -f ns2/transfer.db.txt && break
+	sleep 1
+done
 
 echo "I:checking that slave was saved in raw format by default"
 ret=0
@@ -108,6 +112,21 @@ do
     [ "`rawversion ns2/formerly-text.db`" = 1 ] || ret=1
     [ $ret -eq 0 ] && break
     sleep 1
+done
+[ $ret -eq 0 ] || echo "I:failed"
+status=`expr $status + $ret`
+
+echo "I:checking that large rdatasets loaded"
+for i in 0 1 2 3 4 5 6 7 8 9
+do
+ret=0
+for a in a b c
+do
+	$DIG +tcp txt ${a}.large @10.53.0.2 -p 5300 > dig.out
+	grep "status: NOERROR" dig.out > /dev/null || ret=1
+done
+[ $ret -eq 0 ] && break
+sleep 1
 done
 [ $ret -eq 0 ] || echo "I:failed"
 status=`expr $status + $ret`

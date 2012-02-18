@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2011  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2012  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: server.c,v 1.634 2011-12-22 12:58:13 marka Exp $ */
+/* $Id: server.c,v 1.638.4.1 2012-01-31 01:11:54 each Exp $ */
 
 /*! \file */
 
@@ -3406,6 +3406,7 @@ configure_zone(const cfg_obj_t *config, const cfg_obj_t *zconfig,
 		result = dns_view_findzone(pview, origin, &zone);
 	if (result != ISC_R_NOTFOUND && result != ISC_R_SUCCESS)
 		goto cleanup;
+
 	if (zone != NULL && !ns_zone_reusable(zone, zconfig))
 		dns_zone_detach(&zone);
 
@@ -3472,10 +3473,8 @@ configure_zone(const cfg_obj_t *config, const cfg_obj_t *zconfig,
 			dns_zone_setview(raw, view);
 			if (view->acache != NULL)
 				dns_zone_setacache(raw, view->acache);
-			CHECK(dns_zonemgr_managezone(ns_g_server->zonemgr,
-						 raw));
 			dns_zone_setstats(raw, ns_g_server->zonestats);
-			dns_zone_link(zone, raw);
+			CHECK(dns_zone_link(zone, raw));
 		}
 	}
 
@@ -7256,7 +7255,14 @@ static isc_result_t
 synczone(dns_zone_t *zone, void *uap) {
 	isc_boolean_t cleanup = *(isc_boolean_t *)uap;
 	isc_result_t result;
+	dns_zone_t *raw = NULL;
 	char *journal;
+
+	dns_zone_getraw(zone, &raw);
+	if (raw != NULL) {
+		synczone(raw, uap);
+		dns_zone_detach(&raw);
+	}
 
 	result = dns_zone_flush(zone);
 	if (result != ISC_R_SUCCESS)
@@ -7266,6 +7272,7 @@ synczone(dns_zone_t *zone, void *uap) {
 		if (journal != NULL)
 			(void)isc_file_remove(journal);
 	}
+
 	return (result);
 }
 
@@ -7950,20 +7957,14 @@ ns_server_signing(ns_server_t *server, char *args, isc_buffer_t *text) {
 		CHECK(ISC_R_UNEXPECTEDEND);
 
 	if (clear) {
-		result = dns_zone_keydone(zone, keystr);
-		if (result == ISC_R_SUCCESS) {
-			isc_buffer_putstr(text, "request queued");
-			isc_buffer_putuint8(text, 0);
-		} else
-			CHECK(result);
+		CHECK(dns_zone_keydone(zone, keystr));
+		isc_buffer_putstr(text, "request queued");
+		isc_buffer_putuint8(text, 0);
 	} else if (chain) {
-		result = dns_zone_setnsec3param(zone, hash, flags, iter,
-						saltlen, salt, ISC_TRUE);
-		if (result == ISC_R_SUCCESS) {
-			isc_buffer_putstr(text, "request queued");
-			isc_buffer_putuint8(text, 0);
-		} else
-			CHECK(result);
+		CHECK(dns_zone_setnsec3param(zone, hash, flags, iter,
+						saltlen, salt, ISC_TRUE));
+		isc_buffer_putstr(text, "request queued");
+		isc_buffer_putuint8(text, 0);
 	} else if (list) {
 		privatetype = dns_zone_getprivatetype(zone);
 		origin = dns_zone_getorigin(zone);

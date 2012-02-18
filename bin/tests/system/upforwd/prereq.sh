@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Copyright (C) 2006-2008, 2011  Internet Systems Consortium, Inc. ("ISC")
+# Copyright (C) 2012  Internet Systems Consortium, Inc. ("ISC")
 #
 # Permission to use, copy, modify, and/or distribute this software for any
 # purpose with or without fee is hereby granted, provided that the above
@@ -14,11 +14,12 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: clean.sh,v 1.10 2011-12-23 23:47:13 tbox Exp $
+# $Id: prereq.sh,v 1.3 2012-01-23 23:46:48 tbox Exp $
 
-rm -f dig.out.test*
-rm -f dig.out.cyclic dig.out.fixed dig.out.random
-rm -f dig.out.0 dig.out.1 dig.out.2 dig.out.3
-rm -f ns2/root.bk
-rm -f ns?/named.run ns?/named.core
-rm -f */named.memstats
+if $PERL -e 'use Net::DNS;' 2>/dev/null
+then
+    :
+else
+    echo "I:This test requires the Net::DNS library." >&2
+    exit 1
+fi

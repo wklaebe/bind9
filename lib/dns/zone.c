@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2011  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2012  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: zone.c,v 1.658 2011-12-22 07:32:41 each Exp $ */
+/* $Id: zone.c,v 1.667.2.1 2012-01-31 01:11:55 each Exp $ */
 
 /*! \file */
 
@@ -76,6 +76,7 @@
 #include <dns/soa.h>
 #include <dns/ssu.h>
 #include <dns/stats.h>
+#include <dns/time.h>
 #include <dns/tsig.h>
 #include <dns/update.h>
 #include <dns/xfrin.h>
@@ -655,7 +656,7 @@ static void zone_name_tostr(dns_zone_t *zone, char *buf, size_t length);
 static void zone_rdclass_tostr(dns_zone_t *zone, char *buf, size_t length);
 static void zone_viewname_tostr(dns_zone_t *zone, char *buf, size_t length);
 static isc_result_t zone_send_secureserial(dns_zone_t *zone,
-					   isc_boolean_t locked,
+					   isc_boolean_t secure_locked,
 					   isc_uint32_t serial);
 
 #if 0
@@ -1491,14 +1492,19 @@ zone_load(dns_zone_t *zone, unsigned int flags) {
 
 	REQUIRE(DNS_ZONE_VALID(zone));
 
-	LOCK_ZONE(zone);
-	TIME_NOW(&now);
-
 	if (inline_secure(zone)) {
 		result = zone_load(zone->raw, flags);
 		if (result != ISC_R_SUCCESS)
-			goto cleanup;
+			return(result);
 	}
+
+	/*
+	 * Lock hierachy zmgr, raw, zone.
+	 */
+	if (inline_secure(zone))
+		LOCK_ZONE(zone->raw);
+	LOCK_ZONE(zone);
+	TIME_NOW(&now);
 
 	INSIST(zone->type != dns_zone_none);
 
@@ -1652,6 +1658,8 @@ zone_load(dns_zone_t *zone, unsigned int flags) {
 
  cleanup:
 	UNLOCK_ZONE(zone);
+	if (inline_secure(zone))
+		UNLOCK_ZONE(zone->raw);
 	if (db != NULL)
 		dns_db_detach(&db);
 	return (result);
@@ -1795,9 +1803,9 @@ get_master_options(dns_zone_t *zone) {
 		options |= DNS_MASTER_CHECKMXFAIL;
 	if (DNS_ZONE_OPTION(zone, DNS_ZONEOPT_CHECKWILDCARD))
 		options |= DNS_MASTER_CHECKWILDCARD;
-	if (zone->type == dns_zone_master &&
+	if (inline_secure(zone) || (zone->type == dns_zone_master &&
 	    ((zone->update_acl != NULL && !dns_acl_isnone(zone->update_acl)) ||
-	      zone->ssutable != NULL))
+	      zone->ssutable != NULL)))
 		options |= DNS_MASTER_RESIGN;
 	return (options);
 }
@@ -3561,7 +3569,6 @@ maybe_send_secure(dns_zone_t *zone) {
 	 * loaded, we set a flag so that it will send the necessary
 	 * information when it has finished loading.
 	 */
-	LOCK_ZONE(zone->raw);
 	if (zone->raw->db != NULL) {
 		if (zone->db != NULL) {
 			isc_uint32_t serial;
@@ -3569,15 +3576,12 @@ maybe_send_secure(dns_zone_t *zone) {
 						  NULL, NULL, &serial, NULL,
 						  NULL, NULL, NULL, NULL);
 			if (result == ISC_R_SUCCESS)
-				zone_send_secureserial(zone->raw, ISC_TRUE,
-						       serial);
+				zone_send_secureserial(zone->raw, ISC_TRUE, serial);
 		} else
 			zone_send_securedb(zone->raw, ISC_TRUE, zone->raw->db);
-	
+
 	} else
 		DNS_ZONE_SETFLAG(zone->raw, DNS_ZONEFLG_SENDSECURE);
-
-	UNLOCK_ZONE(zone->raw);
 }
 
 static isc_boolean_t
@@ -3764,9 +3768,7 @@ zone_postload(dns_zone_t *zone, dns_db_t *db, isc_time_t loadtime,
 		}
 	}
 
-	zone->loadtime = loadtime;
-
-	dns_zone_log(zone, ISC_LOG_DEBUG(1), "loaded");
+	dns_zone_log(zone, ISC_LOG_DEBUG(1), "loaded; checking validity");
 
 	/*
 	 * Master / Slave / Stub zones require both NS and SOA records at
@@ -4029,6 +4031,7 @@ zone_postload(dns_zone_t *zone, dns_db_t *db, isc_time_t loadtime,
 		dns_zone_log(zone, ISC_LOG_INFO, "loaded serial %u%s", serial,
 			     dns_db_issecure(db) ? " (DNSSEC signed)" : "");
 
+	zone->loadtime = loadtime;
 	DNS_ZONE_CLRFLAG(zone, DNS_ZONEFLG_LOADPENDING);
 	return (result);
 
@@ -4048,8 +4051,11 @@ zone_postload(dns_zone_t *zone, dns_db_t *db, isc_time_t loadtime,
 			zone_settimer(zone, &now);
 		result = ISC_R_SUCCESS;
 	} else if (zone->type == dns_zone_master ||
-		   zone->type == dns_zone_redirect)
-		dns_zone_log(zone, ISC_LOG_ERROR, "not loaded due to errors.");
+		   zone->type == dns_zone_redirect) {
+		if (!(inline_secure(zone) && result == ISC_R_FILENOTFOUND))
+			dns_zone_log(zone, ISC_LOG_ERROR,
+				     "not loaded due to errors.");
+	}
 
 	return (result);
 }
@@ -5074,7 +5080,7 @@ del_sigs(dns_zone_t *zone, dns_db_t *db, dns_dbversion_t *ver, dns_name_t *name,
 	unsigned int i;
 	dns_rdata_rrsig_t rrsig;
 	isc_boolean_t found, changed;
-	isc_stdtime_t warn = 0, maybe = 0;
+	isc_int64_t warn = 0, maybe = 0;
 
 	dns_rdataset_init(&rdataset);
 
@@ -5176,21 +5182,20 @@ del_sigs(dns_zone_t *zone, dns_db_t *db, dns_dbversion_t *ver, dns_name_t *name,
 				 * iff there is a new offline signature.
 				 */
 				if (!dst_key_isprivate(keys[i])) {
-					if (warn != 0 &&
-					    warn > rrsig.timeexpire)
-						warn = rrsig.timeexpire;
+					isc_int64_t timeexpire =
+					   dns_time64_from32(rrsig.timeexpire);
+					if (warn != 0 && warn > timeexpire)
+						warn = timeexpire;
 					if (rdata.flags & DNS_RDATA_OFFLINE) {
 						if (maybe == 0 ||
-						    maybe > rrsig.timeexpire)
-							maybe =
-							     rrsig.timeexpire;
+						    maybe > timeexpire)
+							maybe = timeexpire;
 						break;
 					}
 					if (warn == 0)
 						warn = maybe;
-					if (warn == 0 ||
-					    warn > rrsig.timeexpire)
-						warn = rrsig.timeexpire;
+					if (warn == 0 || warn > timeexpire)
+						warn = timeexpire;
 					result = offline(db, ver, diff, name,
 							 rdataset.ttl, &rdata);
 					break;
@@ -5221,8 +5226,18 @@ del_sigs(dns_zone_t *zone, dns_db_t *db, dns_dbversion_t *ver, dns_name_t *name,
 	dns_rdataset_disassociate(&rdataset);
 	if (result == ISC_R_NOMORE)
 		result = ISC_R_SUCCESS;
-	if (warn != 0)
-		set_key_expiry_warning(zone, warn, now);
+	if (warn > 0) {
+#if defined(STDTIME_ON_32BITS)
+		isc_stdtime_t stdwarn = (isc_stdtime_t)warn;
+		if (warn == stdwarn)
+#endif
+			set_key_expiry_warning(zone, (isc_stdtime_t)warn, now);
+#if defined(STDTIME_ON_32BITS)
+		else
+			dns_zone_log(zone, ISC_LOG_ERROR,
+				     "key expiry warning time out of range");
+#endif
+	}
  failure:
 	if (node != NULL)
 		dns_db_detachnode(db, &node);
@@ -12188,45 +12203,45 @@ sync_secure_journal(dns_zone_t *zone, dns_journal_t *journal,
 		    isc_uint32_t start, isc_uint32_t end,
 		    dns_difftuple_t **soatuplep, dns_diff_t *diff)
 {
- 	isc_result_t result;
- 	dns_difftuple_t *tuple = NULL;
+	isc_result_t result;
+	dns_difftuple_t *tuple = NULL;
 	dns_diffop_t op = DNS_DIFFOP_ADD;
 	int n_soa = 0;
 
 	REQUIRE(soatuplep != NULL);
 
- 	if (start == end)
+	if (start == end)
 		return (DNS_R_UNCHANGED);
 
 	CHECK(dns_journal_iter_init(journal, start, end));
 	for (result = dns_journal_first_rr(journal);
- 	     result == ISC_R_SUCCESS;
+	     result == ISC_R_SUCCESS;
 	     result = dns_journal_next_rr(journal))
 	{
- 		dns_name_t *name = NULL;
- 		isc_uint32_t ttl;
- 		dns_rdata_t *rdata = NULL;
+		dns_name_t *name = NULL;
+		isc_uint32_t ttl;
+		dns_rdata_t *rdata = NULL;
 		dns_journal_current_rr(journal, &name, &ttl, &rdata);
- 
- 		if (rdata->type == dns_rdatatype_soa) {
- 			n_soa++;
- 			if (n_soa == 2) {
- 				/*
+
+		if (rdata->type == dns_rdatatype_soa) {
+			n_soa++;
+			if (n_soa == 2) {
+				/*
 				 * Save the latest raw SOA record.
- 				 */
- 				if (*soatuplep != NULL)
- 					dns_difftuple_free(soatuplep);
+				 */
+				if (*soatuplep != NULL)
+					dns_difftuple_free(soatuplep);
 				CHECK(dns_difftuple_create(diff->mctx,
- 							   DNS_DIFFOP_ADD,
- 							   name, ttl, rdata,
- 							   soatuplep));
- 			}
- 			if (n_soa == 3)
- 				n_soa = 1;
+							   DNS_DIFFOP_ADD,
+							   name, ttl, rdata,
+							   soatuplep));
+			}
+			if (n_soa == 3)
+				n_soa = 1;
 			continue;
 		}
 
- 		/* Sanity. */
+		/* Sanity. */
 		if (n_soa == 0) {
 			dns_zone_log(zone->raw, ISC_LOG_ERROR,
 				     "corrupt journal file: '%s'\n",
@@ -12251,8 +12266,8 @@ sync_secure_journal(dns_zone_t *zone, dns_journal_t *journal,
 					   &tuple));
 		dns_diff_appendminimal(diff, &tuple);
 	}
- 	if (result == ISC_R_NOMORE)
- 		result = ISC_R_SUCCESS;
+	if (result == ISC_R_NOMORE)
+		result = ISC_R_SUCCESS;
 
  failure:
 	return(result);
@@ -12457,7 +12472,7 @@ receive_secure_serial(isc_task_t *task, isc_event_t *event) {
 
 static isc_result_t
 zone_send_secureserial(dns_zone_t *zone, isc_boolean_t locked,
-		      isc_uint32_t serial)
+		       isc_uint32_t serial)
 {
 	isc_event_t *e;
 	dns_zone_t *dummy = NULL;
@@ -12474,6 +12489,7 @@ zone_send_secureserial(dns_zone_t *zone, isc_boolean_t locked,
 	else
 		dns_zone_iattach(zone->secure, &dummy);
 	isc_task_send(zone->secure->task, &e);
+
 	DNS_ZONE_CLRFLAG(zone, DNS_ZONEFLG_SENDSECURE);
 	return (ISC_R_SUCCESS);
 }
@@ -12561,11 +12577,18 @@ receive_secure_db(isc_task_t *task, isc_event_t *event) {
 	}
 
 	dns_db_closeversion(db, &version, ISC_TRUE);
+	/*
+	 * Lock hierachy zmgr, raw, zone.
+	 */
+	if (inline_secure(zone))
+		LOCK_ZONE(zone->raw);
 	LOCK_ZONE(zone);
 	DNS_ZONE_SETFLAG(zone, DNS_ZONEFLG_NEEDNOTIFY);
 	result = zone_postload(zone, db, loadtime, ISC_R_SUCCESS);
 	zone_needdump(zone, 0); /* XXXMPA */
 	UNLOCK_ZONE(zone);
+	if (inline_secure(zone))
+		UNLOCK_ZONE(zone->raw);
 
  failure:
 	if (result != ISC_R_SUCCESS)
@@ -13088,6 +13111,11 @@ zone_loaddone(void *arg, isc_result_t result) {
 	    (result == ISC_R_SUCCESS || result == DNS_R_SEENINCLUDE))
 		result = tresult;
 
+	/*
+	 * Lock hierachy zmgr, raw, zone.
+	 */
+	if (inline_secure(zone))
+		LOCK_ZONE(zone->raw);
 	LOCK_ZONE(load->zone);
 	(void)zone_postload(load->zone, load->db, load->loadtime, result);
 	zonemgr_putio(&load->zone->readio);
@@ -13101,6 +13129,8 @@ zone_loaddone(void *arg, isc_result_t result) {
 		zone->update_disabled = ISC_FALSE;
 	DNS_ZONE_CLRFLAG(load->zone, DNS_ZONEFLG_THAW);
 	UNLOCK_ZONE(load->zone);
+	if (inline_secure(zone))
+		UNLOCK_ZONE(zone->raw);
 
 	load->magic = 0;
 	dns_db_detach(&load->db);
@@ -13876,7 +13906,7 @@ dns_zonemgr_setsize(dns_zonemgr_t *zmgr, int num_zones) {
 		zmgr->zonetasks = pool;
 
 	pool = NULL;
-	if (zmgr->loadtasks  == NULL)
+	if (zmgr->loadtasks == NULL)
 		result = isc_taskpool_create(zmgr->taskmgr, zmgr->mctx,
 					     ntasks, 2, &pool);
 	else
@@ -15632,9 +15662,16 @@ dns_zone_dlzpostload(dns_zone_t *zone, dns_db_t *db)
 	isc_result_t result;
 	TIME_NOW(&loadtime);
 
+	/*
+	 * Lock hierachy zmgr, raw, zone.
+	 */
+	if (inline_secure(zone))
+		LOCK_ZONE(zone->raw);
 	LOCK_ZONE(zone);
 	result = zone_postload(zone, db, loadtime, ISC_R_SUCCESS);
 	UNLOCK_ZONE(zone);
+	if (inline_secure(zone))
+		UNLOCK_ZONE(zone->raw);
 	return result;
 }
 
@@ -15675,22 +15712,63 @@ dns_zone_getserialupdatemethod(dns_zone_t *zone) {
 	return(zone->updatemethod);
 }
 
-void
+/*
+ * Lock hierachy zmgr, raw, zone.
+ */
+isc_result_t
 dns_zone_link(dns_zone_t *zone, dns_zone_t *raw) {
+	isc_result_t result;
+	dns_zonemgr_t *zmgr;
+
 	REQUIRE(DNS_ZONE_VALID(zone));
+	REQUIRE(zone->zmgr != NULL);
+	REQUIRE(zone->task != NULL);
+	REQUIRE(zone->loadtask != NULL);
+	REQUIRE(zone->raw == NULL);
+
 	REQUIRE(DNS_ZONE_VALID(raw));
+	REQUIRE(raw->zmgr == NULL);
+	REQUIRE(raw->task == NULL);
+	REQUIRE(raw->loadtask == NULL);
+	REQUIRE(raw->secure == NULL);
 
-	LOCK(&zone->lock);
-	if (zone->raw != NULL)
-		dns_zone_detach(&zone->raw);
-	dns_zone_attach(raw, &zone->raw);
-	UNLOCK(&zone->lock);
+	zmgr = zone->zmgr;
+	RWLOCK(&zmgr->rwlock, isc_rwlocktype_write);
+	LOCK_ZONE(raw);
+	LOCK_ZONE(zone);
 
-	LOCK(&raw->lock);
-	if (raw->secure != NULL)
-		dns_zone_idetach(&raw->secure);
-	dns_zone_iattach(zone, &raw->secure);
-	UNLOCK(&raw->lock);
+	result = isc_timer_create(zmgr->timermgr, isc_timertype_inactive,
+				  NULL, NULL, zone->task, zone_timer, raw,
+				  &raw->timer);
+	if (result != ISC_R_SUCCESS)
+		goto unlock;
+
+	/*
+	 * The timer "holds" a iref.
+	 */
+	raw->irefs++;
+	INSIST(raw->irefs != 0);
+
+
+	/* dns_zone_attach(raw, &zone->raw); */
+	isc_refcount_increment(&raw->erefs, NULL);
+	zone->raw = raw;
+
+	/* dns_zone_iattach(zone,  &raw->secure); */
+	zone_iattach(zone, &raw->secure);
+
+	isc_task_attach(zone->task, &raw->task);
+	isc_task_attach(zone->loadtask, &raw->loadtask);
+
+	ISC_LIST_APPEND(zmgr->zones, raw, link);
+	raw->zmgr = zmgr;
+	zmgr->refs++;
+
+ unlock:
+	UNLOCK_ZONE(zone);
+	UNLOCK_ZONE(raw);
+	RWUNLOCK(&zmgr->rwlock, isc_rwlocktype_write);
+	return (result);
 }
 
 void
@@ -15874,14 +15952,11 @@ dns_zone_keydone(dns_zone_t *zone, const char *keystr) {
 		else
 			CHECK(ISC_R_FAILURE);
 
-		DE_CONST(algstr, r.base);
-		r.length = strlen(algstr);
-		result = dns_secalg_fromtext(&alg, (isc_textregion_t *) &r);
-
-		if (result != ISC_R_SUCCESS) {
-			n = sscanf(algstr, "%hhd", &alg);
-			if (n == 0)
-				CHECK(result);
+		n = sscanf(algstr, "%hhd", &alg);
+		if (n == 0) {
+			DE_CONST(algstr, r.base);
+			r.length = strlen(algstr);
+			CHECK(dns_secalg_fromtext(&alg, &r));
 		}
 
 		/* construct a private-type rdata */

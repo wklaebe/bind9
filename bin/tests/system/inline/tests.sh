@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Copyright (C) 2011  Internet Systems Consortium, Inc. ("ISC")
+# Copyright (C) 2011, 2012  Internet Systems Consortium, Inc. ("ISC")
 #
 # Permission to use, copy, modify, and/or distribute this software for any
 # purpose with or without fee is hereby granted, provided that the above
@@ -14,7 +14,7 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: tests.sh,v 1.11 2011-12-22 07:32:40 each Exp $
+# $Id: tests.sh,v 1.16.12.1 2012-01-31 01:11:54 each Exp $
 
 SYSTEMTESTTOP=..
 . $SYSTEMTESTTOP/conf.sh
@@ -37,6 +37,15 @@ do
 	if [ $ret = 0 ]; then break; fi
 	sleep 1
 done
+if [ $ret != 0 ]; then echo "I:failed"; fi
+status=`expr $status + $ret`
+
+n=`expr $n + 1`
+echo "I:checking expired signatures are updated on load ($n)"
+ret=0
+$DIG $DIGOPTS @10.53.0.3 -p 5300 +noall +answer +dnssec expired SOA > dig.out.ns3.test$n
+expiry=`awk '$4 == "RRSIG" { print $9 }' dig.out.ns3.test$n`
+[ "$expiry" = "20110101000000" ] && ret=1
 if [ $ret != 0 ]; then echo "I:failed"; fi
 status=`expr $status + $ret`
 
@@ -310,10 +319,8 @@ status=`expr $status + $ret`
 n=`expr $n + 1`
 echo "I:check adding of record to unsigned master ($n)"
 ret=0
-sleep 1
 cp ns3/master2.db.in ns3/master.db
 $RNDC -c ../common/rndc.conf -s 10.53.0.3 -p 9953 reload master || ret=1
-
 for i in 1 2 3 4 5 6 7 8 9
 do
 	ans=0
@@ -324,7 +331,35 @@ do
 	sleep 1
 done
 [ $ans = 0 ] || ret=1
+if [ $ret != 0 ]; then echo "I:failed"; fi
+status=`expr $status + $ret`
 
+n=`expr $n + 1`
+echo "I:check adding record fails when SOA serial not changed ($n)"
+ret=0
+echo "c A 10.0.0.3" >> ns3/master.db
+$RNDC -c ../common/rndc.conf -s 10.53.0.3 -p 9953 reload || ret=1
+sleep 1
+$DIG $DIGOPTS @10.53.0.3 -p 5300 c.master A > dig.out.ns3.test$n
+grep "NXDOMAIN" dig.out.ns3.test$n > /dev/null || ret=1
+if [ $ret != 0 ]; then echo "I:failed"; fi
+status=`expr $status + $ret`
+
+n=`expr $n + 1`
+echo "I:check adding record works after updating SOA serial ($n)"
+ret=0
+cp ns3/master3.db.in ns3/master.db
+$RNDC -c ../common/rndc.conf -s 10.53.0.3 -p 9953 reload master || ret=1
+for i in 1 2 3 4 5 6 7 8 9
+do
+	ans=0
+	$DIG $DIGOPTS @10.53.0.3 -p 5300 c.master A > dig.out.ns3.test$n
+	grep "10.0.0.3" dig.out.ns3.test$n > /dev/null || ans=1
+	grep "ANSWER: 2," dig.out.ns3.test$n > /dev/null || ans=1
+	[ $ans = 1 ] || break
+	sleep 1
+done
+[ $ans = 0 ] || ret=1
 if [ $ret != 0 ]; then echo "I:failed"; fi
 status=`expr $status + $ret`
 
@@ -635,6 +670,26 @@ do
     test $ret = 0 && break
     sleep 1
 done
+if [ $ret != 0 ]; then echo "I:failed"; fi
+status=`expr $status + $ret`
+
+n=`expr $n + 1`
+echo "I:check rndc reload allows reuse of inline-signing zones ($n)"
+ret=0
+{ $RNDC -c ../common/rndc.conf -s 10.53.0.3 -p 9953 reload 2>&1 || ret=1 ; } |
+sed 's/^/I:ns3 /'
+grep "not reusable" ns3/named.run > /dev/null 2>&1 && ret=1
+if [ $ret != 0 ]; then echo "I:failed"; fi
+status=`expr $status + $ret`
+
+n=`expr $n + 1`
+echo "I:check rndc sync removes both signed and unsigned journals ($n)"
+ret=0
+[ -f ns3/dynamic.db.jnl ] || ret=1
+[ -f ns3/dynamic.db.signed.jnl ] || ret=1
+$RNDC -c ../common/rndc.conf -s 10.53.0.3 -p 9953 sync -clean dynamic 2>&1 || ret=1
+[ -f ns3/dynamic.db.jnl ] && ret=1
+[ -f ns3/dynamic.db.signed.jnl ] && ret=1
 if [ $ret != 0 ]; then echo "I:failed"; fi
 status=`expr $status + $ret`
 

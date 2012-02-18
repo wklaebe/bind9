@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005, 2007, 2009-2011  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2007, 2009-2012  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2001-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: builtin.c,v 1.22 2011-10-11 02:39:03 marka Exp $ */
+/* $Id: builtin.c,v 1.26 2012-01-21 19:44:18 each Exp $ */
 
 /*! \file
  * \brief
@@ -303,8 +303,10 @@ do_authors_lookup(dns_sdblookup_t *lookup) {
 	const char **p;
 	static const char *authors[] = {
 		"Mark Andrews",
+		"Curtis Blackburn",
 		"James Brister",
 		"Ben Cottrell",
+		"John H. DuBois III",
 		"Francis Dupont",
 		"Michael Graff",
 		"Andreas Gustafsson",
@@ -312,6 +314,7 @@ do_authors_lookup(dns_sdblookup_t *lookup) {
 		"Evan Hunt",
 		"JINMEI Tatuya",
 		"David Lawrence",
+		"Scott Mann",
 		"Danny Mayer",
 		"Damien Neil",
 		"Matt Nelson",

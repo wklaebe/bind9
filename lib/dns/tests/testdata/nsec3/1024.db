@@ -1,4 +1,4 @@
-; Copyright (C) 2011, 2012  Internet Systems Consortium, Inc. ("ISC")
+; Copyright (C) 2012  Internet Systems Consortium, Inc. ("ISC")
 ;
 ; Permission to use, copy, modify, and/or distribute this software for any
 ; purpose with or without fee is hereby granted, provided that the above
@@ -12,29 +12,10 @@
 ; OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 ; PERFORMANCE OF THIS SOFTWARE.
 
-; $Id: root.db,v 1.6 2012-01-07 23:46:53 tbox Exp $
+; $Id: 1024.db,v 1.3 2012-01-27 23:46:58 tbox Exp $
 
-$TTL	120
-@		SOA	ns. hostmaster.ns. ( 1 3600 1200 604800 60 )
-@		NS	ns.
-ns.		A	10.53.0.1
-.		A	10.53.0.1
-
-; rewrite responses from this zone
-tld2.		NS	ns.tld2.
-ns.tld2.	A	10.53.0.2
-ns2.tld2.	A	10.53.0.2
-
-; rewrite responses from this zone unless dnssec requested
-signed-tld2.		NS	ns.signed-tld2.
-ns.signed-tld2.		A	10.53.0.2
-ns2.signed-tld2.	A	10.53.0.2
-
-; requests come from here
-tld3.		NS	ns.tld3.
-ns.tld3.	A	10.53.0.3
-
-; rewrite responses from this zone
-tld4.		NS	ns.tld4.
-ns.tld4.	A	10.53.0.4
-ns2.tld4.	A	10.53.0.4
+$TTL 0
+test. SOA . . 0 0 0 0 0
+test. NS .
+; 1024 bit key.
+test. IN DNSKEY 256 3 5 AwEAAd5oKx06HRE6NRrTDz49lljdRmxgp/4YB/cyMkpwUMkaLhDNCfTq hql84ab2LRbtUWLHFXGWENvxPGQzVHeleXu+3ThNfFOwIaySedxHmLGT lTtBRDhPc8iSb+2IYDemmA+ut8kwHhCVz/tDMbD/dgAswdOtmXCpQyJk Q1HqY3Xj

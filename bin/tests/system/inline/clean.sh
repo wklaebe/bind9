@@ -1,4 +1,4 @@
-# Copyright (C) 2011  Internet Systems Consortium, Inc. ("ISC")
+# Copyright (C) 2011, 2012  Internet Systems Consortium, Inc. ("ISC")
 #
 # Permission to use, copy, modify, and/or distribute this software for any
 # purpose with or without fee is hereby granted, provided that the above
@@ -12,7 +12,7 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: clean.sh,v 1.8 2011-12-22 07:32:40 each Exp $
+# $Id: clean.sh,v 1.12 2012-01-17 08:26:03 marka Exp $
 
 rm -f */named.memstats
 rm -f */named.run
@@ -45,6 +45,10 @@ rm -f ns3/updated.db
 rm -f ns3/updated.db.jnl
 rm -f ns3/updated.db.signed
 rm -f ns3/updated.db.signed.jnl
+rm -f ns3/expired.db
+rm -f ns3/expired.db.jnl
+rm -f ns3/expired.db.signed
+rm -f ns3/expired.db.signed.jnl
 rm -f ns4/K*
 rm -f ns4/noixfr.db
 rm -f ns4/noixfr.db.jnl

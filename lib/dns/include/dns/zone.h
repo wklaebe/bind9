@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2011  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2012  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: zone.h,v 1.199 2011-12-22 07:32:41 each Exp $ */
+/* $Id: zone.h,v 1.201 2012-01-25 23:46:49 tbox Exp $ */
 
 #ifndef DNS_ZONE_H
 #define DNS_ZONE_H 1
@@ -2007,7 +2007,7 @@ dns_zone_getserialupdatemethod(dns_zone_t *zone);
  * \li	'zone' to be valid.
  */
 
-void
+isc_result_t
 dns_zone_link(dns_zone_t *zone, dns_zone_t *raw);
 
 void

@@ -12,11 +12,11 @@
 ; OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 ; PERFORMANCE OF THIS SOFTWARE.
 
-; $Id: master2.db.in,v 1.4 2012-01-16 23:46:46 tbox Exp $
+; $Id: master3.db.in,v 1.1.4.2 2012-01-31 01:12:29 each Exp $
 
 $TTL 300	; 5 minutes
 @			IN SOA	ns3 . (
-				2000042408 ; serial
+				2000042409 ; serial
 				20         ; refresh (20 seconds)
 				20         ; retry (20 seconds)
 				1814400    ; expire (3 weeks)
@@ -28,6 +28,7 @@ ns3			A	10.53.0.3
 
 a			A	10.0.0.1
 b			A	10.0.0.2
+c			A	10.0.0.3
 d			A	10.0.0.4
 e			A	10.0.0.5
 

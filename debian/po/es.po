@@ -18,8 +18,8 @@
 # - La guía de traducción de po's de debconf:
 # /usr/share/doc/po-debconf/README-trans
 # o http://www.debian.org/intl/l10n/po-debconf/README-trans
-# 
-# 
+#
+#
 msgid ""
 msgstr ""
 "Project-Id-Version: bind9_1:9.5.0.dfsg-3\n"
@@ -28,6 +28,7 @@ msgstr ""
 "PO-Revision-Date: 2008-07-08 20:18-0300\n"
 "Last-Translator: Ignacio Mondino <ignacio.mondino@gmail.com>\n"
 "Language-Team: Debian Spanish team <debian-l10n-spanish@lists.debian.org>\n"
+"Language: \n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
@@ -80,6 +81,6 @@ msgid ""
 "daemon (named) rather than what the current connection recommends, when this "
 "machine moves around."
 msgstr ""
-"Indique si se debería forzar al cliente a utilizar el demonio BIND9 («named») "
-"local en lugar de lo que la conexión actual recomiende, cuando este equipo "
-"este en movimiento."
+"Indique si se debería forzar al cliente a utilizar el demonio BIND9 "
+"(«named») local en lugar de lo que la conexión actual recomiende, cuando "
+"este equipo este en movimiento."

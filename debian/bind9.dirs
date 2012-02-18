@@ -1,5 +1,6 @@
 etc/ufw/applications.d
 etc/apparmor.d/force-complain
+etc/apparmor.d/local
 etc/bind
 usr/bin
 usr/sbin

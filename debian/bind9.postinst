@@ -23,6 +23,10 @@ if [ "$1" = configure ]; then
 	rndc-confgen -r /dev/urandom -a
     fi
 
+    # no sumfile means you get the default
+    [ -f /usr/share/bind9/bind9-default.md5sum ] || 
+        echo "2cfcfb7bf1b99c7930fd475907e38be7  /etc/default/bind9" > /usr/share/bind9/bind9-default.md5sum
+
     if [ -f /etc/default/bind9 ] && \
        [ "$(cat /usr/share/bind9/bind9-default.md5sum)" = "$(md5sum /etc/default/bind9)" ]; then
         config="/etc/default/bind9"
@@ -33,7 +37,7 @@ if [ "$1" = configure ]; then
     fi
 
     
-    # if we are upgrading from pre-9.8, think about dnssec
+    # On a fresh install, or if we are upgrading from pre-9.8, think about dnssec
     if [ -z "$lastversion" ] || dpkg --compare-versions "$lastversion" lt 1:9.8.1.dfsg-1 ; then
 	UPDATE_OPTS="n"
 	if [ -f /etc/bind/named.conf.options ]; then
@@ -42,17 +46,20 @@ if [ "$1" = configure ]; then
 		0367900f381d5c83cf34009440f3d211)	UPDATE_OPTS=y;;	 # 9.6 and later
 		56919cbc0d819c9a303a8bdeb306b5f1)	UPDATE_OPTS=ok;; # 9.8
 	    esac
+	    case $UPDATE_OPTS in
+		y)
+		    echo Updating named.conf.options to include DNSSEC enablement
+		    cp /usr/share/bind9/named.conf.options /etc/bind/named.conf.options
+		    chown 644 /etc/bind/named.conf.options
+		    ;;
+		n)
+		    echo NOT updating named.conf.options to include DNSSEC enablement
+		    ;;
+	    esac
+	else
+	    cp /usr/share/bind9/named.conf.options /etc/bind/named.conf.options
+	    chown 644 /etc/bind/named.conf.options
 	fi
-	case $UPDATE_OPTS in
-	    y)
-		echo Updating named.conf.options to include DNSSEC enablement
-		cp /usr/share/bind9/named.conf.options /etc/bind/named.conf.options
-		chown 644 /etc/bind/named.conf.options
-		;;
-	    n)
-		echo NOT updating named.conf.options to include DNSSEC enablement
-		;;
-	esac
     fi
 
     localconf=""
@@ -138,10 +145,10 @@ if [ "$1" = configure ]; then
 	[ -n "$localconf" ] || chown bind /etc/bind/rndc.key
 	chgrp bind /etc/bind
 	chmod g+s /etc/bind
-	chgrp bind /etc/bind/rndc.key /var/run/named /var/cache/bind
+	chgrp bind /etc/bind/rndc.key /var/cache/bind
 	chgrp bind /etc/bind/named.conf* || true
 	chmod g+r /etc/bind/rndc.key /etc/bind/named.conf* || true
-	chmod g+rwx /var/run/named /var/cache/bind
+	chmod g+rwx /var/cache/bind
     fi
 
     # Reload AppArmor profile

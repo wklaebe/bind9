@@ -11,7 +11,7 @@ XS-Vcs-Git: git://git.debian.org/~lamont/bind9.git
 
 Package: bind9
 Architecture: any
-Depends: ${shlibs:Depends}, ${misc:Depends}, debconf | debconf-2.0, netbase, adduser, libdns81 (=${binary:Version}), libisccfg82 (=${binary:Version}), libisc83 (=${binary:Version}), libisccc80 (=${binary:Version}), lsb-base (>= 3.2-14), bind9utils (=${binary:Version}), liblwres80 (=${binary:Version}), libbind9-80 (=${binary:Version}), net-tools
+Depends: ${shlibs:Depends}, ${misc:Depends}, debconf | debconf-2.0, netbase, adduser, libdns93 (=${binary:Version}), libisccfg90 (=${binary:Version}), libisc90 (=${binary:Version}), libisccc90 (=${binary:Version}), lsb-base (>= 3.2-14), bind9utils (=${binary:Version}), liblwres90 (=${binary:Version}), libbind9-90 (=${binary:Version}), net-tools
 Conflicts: bind, apparmor-profiles (<< 2.1+1075-0ubuntu4)
 Replaces: bind, dnsutils (<< 1:9.1.0-3), apparmor-profiles (<< 2.1+1075-0ubuntu4)
 Suggests: dnsutils, bind9-doc, resolvconf, ufw
@@ -47,7 +47,7 @@ Description: Transitional package
 Package: bind9-host
 Priority: standard
 Architecture: any
-Depends: ${shlibs:Depends}, ${misc:Depends}, libdns81 (=${binary:Version}), libisccfg82 (=${binary:Version}), libisc83 (=${binary:Version}), liblwres80 (=${binary:Version}), libbind9-80 (=${binary:Version})
+Depends: ${shlibs:Depends}, ${misc:Depends}, libdns93 (=${binary:Version}), libisccfg90 (=${binary:Version}), libisc90 (=${binary:Version}), liblwres90 (=${binary:Version}), libbind9-90 (=${binary:Version})
 Conflicts: host (<<1:9.7.0), dnsutils (<< 1:9.0.0)
 Replaces: dnsutils (<< 1:9.0.0), host (<< 1:9.7.0)
 Provides: host
@@ -60,40 +60,40 @@ Section: libdevel
 Architecture: any
 Conflicts: bind-dev
 Replaces: bind-dev
-Depends: ${shlibs:Depends}, ${misc:Depends}, libdns81 (=${binary:Version}), libisccfg82 (=${binary:Version}), libisc83 (=${binary:Version}), liblwres80 (=${binary:Version}), libbind9-80 (=${binary:Version})
+Depends: ${shlibs:Depends}, ${misc:Depends}, libdns93 (=${binary:Version}), libisccfg90 (=${binary:Version}), libisc90 (=${binary:Version}), liblwres90 (=${binary:Version}), libbind9-90 (=${binary:Version})
 Description: Static Libraries and Headers used by BIND
  This package delivers archive-style libraries, header files, and API man
  pages for libbind, libdns, libisc, and liblwres.  These are only needed 
  if you want to compile other packages that need more nameserver API than the 
  resolver code provided in libc.
 
-Package: libbind9-80
+Package: libbind9-90
 Section: libs
 Priority: standard
 Architecture: any
 Conflicts: libbind0, libbind9-41
 Replaces: libbind0
-Depends: ${shlibs:Depends}, ${misc:Depends}, libdns81, libisccfg82, libisc83
+Depends: ${shlibs:Depends}, ${misc:Depends}, libdns93, libisccfg90, libisc90
 Description: BIND9 Shared Library used by BIND
  ${Description}
  .
  This package delivers the libbind9 shared library used by BIND's daemons and
  clients.
 
-Package: libdns81
+Package: libdns93
 Section: libs
 Priority: standard
 Architecture: any
 Conflicts: libbind0, libbind9-41
 Replaces: libbind0
-Depends: ${shlibs:Depends}, ${misc:Depends}, libisc83
+Depends: ${shlibs:Depends}, ${misc:Depends}, libisc90
 Description: DNS Shared Library used by BIND
  ${Description}
  .
  This package delivers the libdns shared library used by BIND's daemons and
  clients.
 
-Package: libisc83
+Package: libisc90
 Section: libs
 Priority: standard
 Architecture: any
@@ -106,7 +106,7 @@ Description: ISC Shared Library used by BIND
  This package delivers the libisc shared library used by BIND's daemons and
  clients.
 
-Package: liblwres80
+Package: liblwres90
 Section: libs
 Priority: standard
 Architecture: any
@@ -119,24 +119,24 @@ Description: Lightweight Resolver Library used by BIND
  This package delivers the liblwres shared library used by BIND's daemons
  and clients.
 
-Package: libisccc80
+Package: libisccc90
 Section: libs
 Architecture: any
 Conflicts: libbind0, libbind9-41
 Replaces: libbind0
-Depends: ${shlibs:Depends}, ${misc:Depends}, libisc83
+Depends: ${shlibs:Depends}, ${misc:Depends}, libisc90
 Description: Command Channel Library used by BIND
  ${Description}
  .
  This package delivers the libisccc shared library used by BIND's daemons
  and clients, particularly rndc.
 
-Package: libisccfg82
+Package: libisccfg90
 Section: libs
 Architecture: any
 Conflicts: libbind0, libbind9-41
 Replaces: libbind0
-Depends: ${shlibs:Depends}, ${misc:Depends}, libdns81, libisccc80, libisc83
+Depends: ${shlibs:Depends}, ${misc:Depends}, libdns93, libisccc90, libisc90
 Description: Config File Handling Library used by BIND
  ${Description}
  .
@@ -147,7 +147,7 @@ Description: Config File Handling Library used by BIND
 Package: dnsutils
 Priority: standard
 Architecture: any
-Depends: ${shlibs:Depends}, ${misc:Depends}, bind9-host | host, libdns81 (=${binary:Version}), libisccfg82 (=${binary:Version}), libisc83 (=${binary:Version}), liblwres80 (=${binary:Version}), libbind9-80 (=${binary:Version})
+Depends: ${shlibs:Depends}, ${misc:Depends}, bind9-host | host, libdns93 (=${binary:Version}), libisccfg90 (=${binary:Version}), libisc90 (=${binary:Version}), liblwres90 (=${binary:Version}), libbind9-90 (=${binary:Version})
 Suggests: rblcheck
 Conflicts: netstd (<< 2.00)
 Replaces: bind, bind9 (<< 1:9.1.0-3)
@@ -163,7 +163,7 @@ Description: Clients provided with BIND
 
 Package: lwresd
 Architecture: any
-Depends: ${shlibs:Depends}, ${misc:Depends}, adduser, libdns81 (=${binary:Version}), libisccfg82 (=${binary:Version}), libisccc80 (=${binary:Version}), libisc83 (=${binary:Version}), liblwres80 (=${binary:Version}), libbind9-80 (=${binary:Version})
+Depends: ${shlibs:Depends}, ${misc:Depends}, adduser, libdns93 (=${binary:Version}), libisccfg90 (=${binary:Version}), libisccc90 (=${binary:Version}), libisc90 (=${binary:Version}), liblwres90 (=${binary:Version}), libbind9-90 (=${binary:Version})
 Recommends: libnss-lwres
 Suggests: bind9utils
 Description: Lightweight Resolver Daemon

@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Copyright (C) 2004, 2007, 2011  Internet Systems Consortium, Inc. ("ISC")
+# Copyright (C) 2004, 2007, 2011, 2012  Internet Systems Consortium, Inc. ("ISC")
 # Copyright (C) 2000, 2001  Internet Software Consortium.
 #
 # Permission to use, copy, modify, and/or distribute this software for any
@@ -15,13 +15,13 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: clean.sh,v 1.17 2011-12-01 00:53:58 marka Exp $
+# $Id: clean.sh,v 1.17.44.2 2012-02-22 23:47:08 tbox Exp $
 
 #
 # Clean up after zone transfer tests.
 #
 
-rm -f dig.out.ns1 dig.out.ns2 dig.out.ns3
+rm -f dig.out.ns1 dig.out.ns2 dig.out.ns3 dig.out.ns4
 rm -f dig.out.ns5 dig.out.ns6 dig.out.ns7
 rm -f axfr.out
 rm -f ns1/slave.db

@@ -1,3 +1,16 @@
+bind9 (1:9.8.1.dfsg.P1-4) unstable; urgency=low
+
+  [Christoph Egger]
+
+  * define _GNU_SOURCE on kfreebsd et al.  Closes: #658201
+
+  [LaMont Jones]
+
+  * chmod typo in postinst.  LP: #980798
+  * Correctly order debhelper bits in postrm.  Closes: #661040
+
+ -- LaMont Jones <lamont@debian.org>  Fri, 13 Apr 2012 12:09:24 -0600
+
 bind9 (1:9.8.1.dfsg.P1-3) unstable; urgency=low
 
   [Zlatan Todoric]

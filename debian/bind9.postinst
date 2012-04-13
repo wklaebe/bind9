@@ -50,7 +50,7 @@ if [ "$1" = configure ]; then
 		y)
 		    echo Updating named.conf.options to include DNSSEC enablement
 		    cp /usr/share/bind9/named.conf.options /etc/bind/named.conf.options
-		    chown 644 /etc/bind/named.conf.options
+		    chmod 644 /etc/bind/named.conf.options
 		    ;;
 		n)
 		    echo NOT updating named.conf.options to include DNSSEC enablement
@@ -58,7 +58,7 @@ if [ "$1" = configure ]; then
 	    esac
 	else
 	    cp /usr/share/bind9/named.conf.options /etc/bind/named.conf.options
-	    chown 644 /etc/bind/named.conf.options
+	    chmod 644 /etc/bind/named.conf.options
 	fi
     fi
 

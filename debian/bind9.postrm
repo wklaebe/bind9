@@ -1,5 +1,7 @@
 #!/bin/sh
 
+#DEBHELPER#
+
 if [ "$1" = "purge" ]; then
 	rm -f /etc/bind/rndc.key /etc/default/bind9
 	rmdir /etc/bind >/dev/null 2>&1 || true
@@ -11,5 +13,3 @@ if [ "$1" = "purge" ]; then
 	    deluser  --quiet bind > /dev/null || true
 	fi
 fi
-
-#DEBHELPER#

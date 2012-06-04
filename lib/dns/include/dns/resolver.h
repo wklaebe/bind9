@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: resolver.h,v 1.72 2011-12-05 17:10:51 each Exp $ */
+/* $Id: resolver.h,v 1.72 2011/12/05 17:10:51 each Exp $ */
 
 #ifndef DNS_RESOLVER_H
 #define DNS_RESOLVER_H 1

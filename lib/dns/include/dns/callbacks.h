@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: callbacks.h,v 1.26 2011-12-09 23:47:05 tbox Exp $ */
+/* $Id: callbacks.h,v 1.26 2011/12/09 23:47:05 tbox Exp $ */
 
 #ifndef DNS_CALLBACKS_H
 #define DNS_CALLBACKS_H 1

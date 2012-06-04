@@ -12,7 +12,7 @@
 ; OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 ; PERFORMANCE OF THIS SOFTWARE.
 
-; $Id: bits.db.in,v 1.2 2011-08-30 23:46:52 tbox Exp $
+; $Id: bits.db.in,v 1.2 2011/08/30 23:46:52 tbox Exp $
 
 $TTL 300	; 5 minutes
 @			IN SOA	ns2 . (

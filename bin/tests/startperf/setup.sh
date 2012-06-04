@@ -14,7 +14,7 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: setup.sh,v 1.4 2011-09-02 21:15:35 each Exp $
+# $Id: setup.sh,v 1.4 2011/09/02 21:15:35 each Exp $
 
 usage () {
     echo "Usage: $0 [-s] <number of zones> [<records per zone>]"

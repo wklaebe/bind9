@@ -14,7 +14,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: update.h,v 1.5 2011-08-30 23:46:53 tbox Exp $ */
+/* $Id: update.h,v 1.5 2011/08/30 23:46:53 tbox Exp $ */
 
 #ifndef DNS_UPDATE_H
 #define DNS_UPDATE_H 1

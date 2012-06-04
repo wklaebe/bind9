@@ -14,7 +14,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: clientinfo.c,v 1.3 2011-10-11 00:25:12 marka Exp $ */
+/* $Id: clientinfo.c,v 1.3 2011/10/11 00:25:12 marka Exp $ */
 
 /*! \file */
 

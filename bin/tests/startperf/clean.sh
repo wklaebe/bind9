@@ -14,7 +14,7 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: clean.sh,v 1.3 2011-09-02 23:46:31 tbox Exp $
+# $Id: clean.sh,v 1.3 2011/09/02 23:46:31 tbox Exp $
 
 rm -rf zones
 rm -f named.conf

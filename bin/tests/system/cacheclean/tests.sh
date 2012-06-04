@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Copyright (C) 2004, 2007, 2011  Internet Systems Consortium, Inc. ("ISC")
+# Copyright (C) 2004, 2007, 2011, 2012  Internet Systems Consortium, Inc. ("ISC")
 # Copyright (C) 2001  Internet Software Consortium.
 #
 # Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: tests.sh,v 1.10 2011-09-01 05:28:14 marka Exp $
+# $Id: tests.sh,v 1.10 2011/09/01 05:28:14 marka Exp $
 
 SYSTEMTESTTOP=..
 . $SYSTEMTESTTOP/conf.sh
@@ -32,7 +32,7 @@ load_cache () {
         $RNDC $RNDCOPTS flush
 
 	# load the positive cache entries
-	$DIG $DIGOPTS -f - << EOF > /dev/null 2>1
+	$DIG $DIGOPTS -f - << EOF > /dev/null 2>&1
 txt top1.flushtest.example
 txt second1.top1.flushtest.example
 txt third1.second1.top1.flushtest.example

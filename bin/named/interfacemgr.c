@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: interfacemgr.c,v 1.101 2011-11-09 18:44:03 each Exp $ */
+/* $Id: interfacemgr.c,v 1.101 2011/11/09 18:44:03 each Exp $ */
 
 /*! \file */
 

@@ -14,7 +14,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: filter-aaaa.c,v 1.4 2011-07-28 23:47:58 tbox Exp $ */
+/* $Id: filter-aaaa.c,v 1.4 2011/07/28 23:47:58 tbox Exp $ */
 
 #include <config.h>
 #include <isc/util.h>

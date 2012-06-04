@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: db.c,v 1.99 2011-10-13 01:32:33 vjs Exp $ */
+/* $Id: db.c,v 1.99 2011/10/13 01:32:33 vjs Exp $ */
 
 /*! \file */
 

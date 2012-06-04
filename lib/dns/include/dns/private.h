@@ -14,7 +14,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: private.h,v 1.5 2011-10-28 12:20:31 tbox Exp $ */
+/* $Id: private.h,v 1.5 2011/10/28 12:20:31 tbox Exp $ */
 
 #include <isc/lang.h>
 #include <isc/types.h>

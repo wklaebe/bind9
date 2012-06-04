@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: journal.c,v 1.120 2011-12-22 07:32:41 each Exp $ */
+/* $Id: journal.c,v 1.120 2011/12/22 07:32:41 each Exp $ */
 
 #include <config.h>
 

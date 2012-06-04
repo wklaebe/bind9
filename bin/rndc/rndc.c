@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rndc.c,v 1.131.20.3 2011-11-03 22:06:31 each Exp $ */
+/* $Id: rndc.c,v 1.131.20.3 2011/11/03 22:06:31 each Exp $ */
 
 /*! \file */
 

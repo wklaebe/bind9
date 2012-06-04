@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rdata_test.c,v 1.48.814.2 2011-08-28 23:45:47 tbox Exp $ */
+/* $Id: rdata_test.c,v 1.48.814.2 2011/08/28 23:45:47 tbox Exp $ */
 
 #include <config.h>
 

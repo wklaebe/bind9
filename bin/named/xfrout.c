@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: xfrout.c,v 1.139.16.4 2011-12-01 01:00:50 marka Exp $ */
+/* $Id: xfrout.c,v 1.139.16.4 2011/12/01 01:00:50 marka Exp $ */
 
 #include <config.h>
 

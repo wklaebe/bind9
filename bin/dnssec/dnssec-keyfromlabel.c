@@ -14,7 +14,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dnssec-keyfromlabel.c,v 1.32.14.4 2011-11-30 00:51:38 marka Exp $ */
+/* $Id: dnssec-keyfromlabel.c,v 1.32.14.4 2011/11/30 00:51:38 marka Exp $ */
 
 /*! \file */
 

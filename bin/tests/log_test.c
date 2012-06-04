@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: log_test.c,v 1.28.8.1 2011-08-28 23:48:26 marka Exp $ */
+/* $Id: log_test.c,v 1.28.8.1 2011/08/28 23:48:26 marka Exp $ */
 
 /* Principal Authors: DCL */
 

@@ -15,7 +15,7 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: conf.sh.in,v 1.59.8.9 2011-12-05 16:58:07 each Exp $
+# $Id: conf.sh.in,v 1.59.8.9 2011/12/05 16:58:07 each Exp $
 
 #
 # Common configuration data for system tests, to be sourced into

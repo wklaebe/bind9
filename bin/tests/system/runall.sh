@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Copyright (C) 2004, 2007, 2010, 2011  Internet Systems Consortium, Inc. ("ISC")
+# Copyright (C) 2004, 2007, 2010-2012  Internet Systems Consortium, Inc. ("ISC")
 # Copyright (C) 2000, 2001  Internet Software Consortium.
 #
 # Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: runall.sh,v 1.10.148.2 2011-11-01 23:46:34 tbox Exp $
+# $Id$
 
 #
 # Run all the system tests.
@@ -47,5 +47,6 @@ EOF
 
 echo "I:System test result summary:"
 grep '^R:' systests.output | sort | uniq -c | sed -e 's/^/I:   /' -e 's/R://'
+grep '^R:FAIL' systests.output > /dev/null && status=1
 
 exit $status

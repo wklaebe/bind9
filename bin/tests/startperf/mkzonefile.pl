@@ -14,7 +14,7 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: mkzonefile.pl,v 1.2 2011-09-02 21:15:35 each Exp $
+# $Id: mkzonefile.pl,v 1.2 2011/09/02 21:15:35 each Exp $
 use strict;
 
 die "Usage: makenames.pl zonename num_records" if (@ARGV != 2);

@@ -15,7 +15,7 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: setup.pl,v 1.16 2011-10-26 23:46:15 tbox Exp $
+# $Id: setup.pl,v 1.16 2011/10/26 23:46:15 tbox Exp $
 
 #
 # Set up test data for zone transfer quota tests.

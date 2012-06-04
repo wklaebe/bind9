@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2011  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2012  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -16,7 +16,7 @@
  */
 
 /*
- * $Id: dnssec.c,v 1.126 2011-12-07 22:36:25 marka Exp $
+ * $Id$
  */
 
 /*! \file */
@@ -1254,7 +1254,7 @@ dns_dnssec_findmatchingkeys(dns_name_t *origin, const char *directory,
 	isc_dir_init(&dir);
 
 	isc_buffer_init(&b, namebuf, sizeof(namebuf) - 1);
-	RETERR(dns_name_totext(origin, ISC_FALSE, &b));
+	RETERR(dns_name_tofilenametext(origin, ISC_FALSE, &b));
 	len = isc_buffer_usedlength(&b);
 	namebuf[len] = '\0';
 

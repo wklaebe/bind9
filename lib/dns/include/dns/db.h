@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: db.h,v 1.107 2011-10-13 01:32:34 vjs Exp $ */
+/* $Id: db.h,v 1.107 2011/10/13 01:32:34 vjs Exp $ */
 
 #ifndef DNS_DB_H
 #define DNS_DB_H 1

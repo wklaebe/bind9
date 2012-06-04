@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2007, 2009, 2011  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2007, 2009, 2011, 2012  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000, 2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: sdb.h,v 1.25 2011-10-11 23:46:45 tbox Exp $ */
+/* $Id: sdb.h,v 1.25 2011/10/11 23:46:45 tbox Exp $ */
 
 #ifndef DNS_SDB_H
 #define DNS_SDB_H 1
@@ -62,6 +62,11 @@ typedef isc_result_t
 		       dns_sdblookup_t *lookup,
 		       dns_clientinfomethods_t *methods,
 		       dns_clientinfo_t *clientinfo);
+typedef isc_result_t
+(*dns_sdblookup2func_t)(const dns_name_t *zone, const dns_name_t *name,
+			void *dbdata, dns_sdblookup_t *lookup,
+			dns_clientinfomethods_t *methods,
+			dns_clientinfo_t *clientinfo);
 
 typedef isc_result_t
 (*dns_sdbauthorityfunc_t)(const char *zone, void *dbdata, dns_sdblookup_t *);
@@ -84,6 +89,7 @@ typedef struct dns_sdbmethods {
 	dns_sdballnodesfunc_t	allnodes;
 	dns_sdbcreatefunc_t	create;
 	dns_sdbdestroyfunc_t	destroy;
+	dns_sdblookup2func_t	lookup2;
 } dns_sdbmethods_t;
 
 /***
@@ -95,6 +101,7 @@ ISC_LANG_BEGINDECLS
 #define DNS_SDBFLAG_RELATIVEOWNER 0x00000001U
 #define DNS_SDBFLAG_RELATIVERDATA 0x00000002U
 #define DNS_SDBFLAG_THREADSAFE 0x00000004U
+#define DNS_SDBFLAG_DNS64 0x00000008U
 
 isc_result_t
 dns_sdb_register(const char *drivername, const dns_sdbmethods_t *methods,

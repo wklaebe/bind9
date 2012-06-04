@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dighost.c,v 1.345 2011-12-07 17:23:28 each Exp $ */
+/* $Id: dighost.c,v 1.345 2011/12/07 17:23:28 each Exp $ */
 
 /*! \file
  *  \note

@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: events.h,v 1.61 2011-10-28 06:20:06 each Exp $ */
+/* $Id: events.h,v 1.61 2011/10/28 06:20:06 each Exp $ */
 
 #ifndef DNS_EVENTS_H
 #define DNS_EVENTS_H 1

@@ -29,7 +29,7 @@
  * IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dnssec-keygen.c,v 1.120 2011-11-30 00:48:51 marka Exp $ */
+/* $Id: dnssec-keygen.c,v 1.120 2011/11/30 00:48:51 marka Exp $ */
 
 /*! \file */
 

@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: pgsqldb.c,v 1.17 2011-10-11 23:46:45 tbox Exp $ */
+/* $Id: pgsqldb.c,v 1.17 2011/10/11 23:46:45 tbox Exp $ */
 
 #include <config.h>
 

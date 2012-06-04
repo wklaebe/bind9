@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: acl.h,v 1.35 2011-06-17 23:47:49 tbox Exp $ */
+/* $Id: acl.h,v 1.35 2011/06/17 23:47:49 tbox Exp $ */
 
 #ifndef DNS_ACL_H
 #define DNS_ACL_H 1

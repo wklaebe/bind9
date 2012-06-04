@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: db_test.c,v 1.70 2011-08-29 23:46:44 tbox Exp $ */
+/* $Id: db_test.c,v 1.70 2011/08/29 23:46:44 tbox Exp $ */
 
 /*! \file
  * \author

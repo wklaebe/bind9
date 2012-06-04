@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2011, 2012  Internet Systems Consortium, Inc. ("ISC")
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -14,7 +14,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rpz.h,v 1.5 2011-10-28 11:46:50 marka Exp $ */
+/* $Id: rpz.h,v 1.5 2011/10/28 11:46:50 marka Exp $ */
 
 #ifndef DNS_RPZ_H
 #define DNS_RPZ_H 1
@@ -193,6 +193,8 @@ dns_rpz_cidr_find(dns_rpz_cidr_t *cidr, const isc_netaddr_t *netaddr,
 
 dns_rpz_policy_t
 dns_rpz_decode_cname(dns_rdataset_t *, dns_name_t *selfname);
+
+ISC_LANG_ENDDECLS
 
 #endif /* DNS_RPZ_H */
 

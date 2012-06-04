@@ -12,7 +12,7 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: clean.sh,v 1.6 2012-01-07 23:46:53 tbox Exp $
+# $Id: clean.sh,v 1.6 2012/01/07 23:46:53 tbox Exp $
 
 
 # Clean up after rpz tests.

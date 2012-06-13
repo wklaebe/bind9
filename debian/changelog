@@ -1,3 +1,11 @@
+bind9 (1:9.9.1.dfsg.P1-1) unstable; urgency=low
+
+  [LaMont Jones]
+
+  * New upstream 9.9.1-P1
+
+ -- LaMont Jones <lamont@debian.org>  Wed, 13 Jun 2012 08:22:15 -0600
+
 bind9 (1:9.9.0.dfsg-1) unstable; urgency=low
 
   [Internet Software Consortium, Inc]

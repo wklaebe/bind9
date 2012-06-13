@@ -46,6 +46,7 @@ configure-stamp:
 		--with-gssapi=/usr \
 		--with-gnu-ld \
 		--with-geoip=/usr \
+		--with-atf=no \
 		--enable-ipv6 \
 		$(EXTRA_FEATURES)
 

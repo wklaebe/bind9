@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Copyright (C) 2004, 2007-2011  Internet Systems Consortium, Inc. ("ISC")
+# Copyright (C) 2004, 2007-2012  Internet Systems Consortium, Inc. ("ISC")
 # Copyright (C) 2000-2002  Internet Software Consortium.
 #
 # Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: clean.sh,v 1.33.14.4 2011-02-28 14:25:16 fdupont Exp $
+# $Id: clean.sh,v 1.33.14.6 2012/02/22 23:46:35 tbox Exp $
 
 rm -f */K* */keyset-* */dsset-* */dlvset-* */signedkey-* */*.signed
 rm -f */trusted.conf */managed.conf */tmp* */*.jnl */*.bk
@@ -26,6 +26,7 @@ rm -f ns3/rsasha256.example.db ns3/rsasha512.example.db
 rm -f ns2/private.secure.example.db
 rm -f ns2/badparam.db ns2/badparam.db.bad
 rm -f ns2/single-nsec3.db
+rm -f ns2/nsec3chain-test.db
 rm -f */example.bk
 rm -f dig.out.*
 rm -f random.data
@@ -47,9 +48,13 @@ rm -f signer/example.db
 rm -f ns2/algroll.db
 rm -f ns3/kskonly.example.db
 rm -f ns4/named.conf
+rm -f ns4/managed-keys.bind*
 rm -f ns3/auto-nsec.example.db ns3/auto-nsec3.example.db
 rm -f ns3/secure.below-cname.example.db
 rm -f signer/example.db.after signer/example.db.before
 rm -f signer/example.db.changed
 rm -f ns3/ttlpatch.example.db ns3/ttlpatch.example.db.signed
 rm -f ns3/ttlpatch.example.db.patched
+rm -f ns3/lower.example.db ns3/upper.example.db ns3/upper.example.db.lower
+rm -f ns3/expiring.example.db
+

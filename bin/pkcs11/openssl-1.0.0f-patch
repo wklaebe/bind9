@@ -1,19 +1,19 @@
 Index: openssl/Configure
-diff -u openssl/Configure:1.1.3.1 openssl/Configure:1.7
---- openssl/Configure:1.1.3.1	Mon Feb 16 08:44:22 2009
-+++ openssl/Configure	Mon Oct  5 13:16:50 2009
-@@ -12,7 +12,7 @@
+diff -u openssl/Configure:1.9.2.1 openssl/Configure:1.10
+--- openssl/Configure:1.9.2.1	Sun Jan 15 16:09:40 2012
++++ openssl/Configure	Sun Jan 15 16:30:04 2012
+@@ -10,7 +10,7 @@
  
  # see INSTALL for instructions.
  
--my $usage="Usage: Configure [no-<cipher> ...] [enable-<cipher> ...] [experimental-<cipher> ...] [-Dxxx] [-lxxx] [-Lxxx] [-fxxx] [-Kxxx] [no-hw-xxx|no-hw] [[no-]threads] [[no-]shared] [[no-]zlib|zlib-dynamic] [enable-montasm] [no-asm] [no-dso] [no-krb5] [386] [--prefix=DIR] [--openssldir=OPENSSLDIR] [--with-xxx[=vvv]] [--test-sanity] os/compiler[:flags]\n";
-+my $usage="Usage: Configure --pk11-libname=PK11_LIB_LOCATION --pk11-flavor=FLAVOR [no-<cipher> ...] [enable-<cipher> ...] [experimental-<cipher> ...] [-Dxxx] [-lxxx] [-Lxxx] [-fxxx] [-Kxxx] [no-hw-xxx|no-hw] [[no-]threads] [[no-]shared] [[no-]zlib|zlib-dynamic] [enable-montasm] [no-asm] [no-dso] [no-krb5] [386] [--prefix=DIR] [--openssldir=OPENSSLDIR] [--with-xxx[=vvv]] [--test-sanity] os/compiler[:flags]\n";
+-my $usage="Usage: Configure [no-<cipher> ...] [enable-<cipher> ...] [experimental-<cipher> ...] [-Dxxx] [-lxxx] [-Lxxx] [-fxxx] [-Kxxx] [no-hw-xxx|no-hw] [[no-]threads] [[no-]shared] [[no-]zlib|zlib-dynamic] [no-asm] [no-dso] [no-krb5] [386] [--prefix=DIR] [--openssldir=OPENSSLDIR] [--with-xxx[=vvv]] [--test-sanity] os/compiler[:flags]\n";
++my $usage="Usage: Configure --pk11-libname=PK11_LIB_LOCATION --pk11-flavor=FLAVOR [no-<cipher> ...] [enable-<cipher> ...] [experimental-<cipher> ...] [-Dxxx] [-lxxx] [-Lxxx] [-fxxx] [-Kxxx] [no-hw-xxx|no-hw] [[no-]threads] [[no-]shared] [[no-]zlib|zlib-dynamic] [no-asm] [no-dso] [no-krb5] [386] [--prefix=DIR] [--openssldir=OPENSSLDIR] [--with-xxx[=vvv]] [--test-sanity] os/compiler[:flags]\n";
  
  # Options:
  #
-@@ -21,6 +21,12 @@
- # --prefix      prefix for the OpenSSL include, lib and bin directories
- #               (Default: the OPENSSLDIR directory)
+@@ -23,6 +23,12 @@
+ #               default).  This needn't be set in advance, you can
+ #               just as well use "make INSTALL_PREFIX=/whatever install".
  #
 +# --pk11-libname  PKCS#11 library name.
 +#               (No default)
@@ -21,46 +21,46 @@ diff -u openssl/Configure:1.1.3.1 openssl/Configure:1.7
 +# --pk11-flavor either crypto-accelerator or sign-only
 +#               (No default)
 +#
- # --install_prefix  Additional prefix for package builders (empty by
- #               default).  This needn't be set in advance, you can
- #               just as well use "make INSTALL_PREFIX=/whatever install".
-@@ -329,7 +335,7 @@
- "linux-ppc",	"gcc:-DB_ENDIAN -DTERMIO -O3 -Wall::-D_REENTRANT::-ldl:BN_LLONG RC4_CHAR RC4_CHUNK DES_RISC1 DES_UNROLL::linux_ppc32.o::::::::::dlfcn:linux-shared:-fPIC::.so.\$(SHLIB_MAJOR).\$(SHLIB_MINOR)",
+ # --with-krb5-dir  Declare where Kerberos 5 lives.  The libraries are expected
+ #		to live in the subdirectory lib/ and the header files in
+ #		include/.  A value is required.
+@@ -343,7 +349,7 @@
+ "linux-armv4",	"gcc:-DTERMIO -O3 -Wall::-D_REENTRANT::-ldl:BN_LLONG RC4_CHAR RC4_CHUNK DES_INT DES_UNROLL BF_PTR:${armv4_asm}:dlfcn:linux-shared:-fPIC::.so.\$(SHLIB_MAJOR).\$(SHLIB_MINOR)",
  #### IA-32 targets...
  "linux-ia32-icc",	"icc:-DL_ENDIAN -DTERMIO -O2 -no_cpprt::-D_REENTRANT::-ldl:BN_LLONG ${x86_gcc_des} ${x86_gcc_opts}:${x86_elf_asm}:dlfcn:linux-shared:-KPIC::.so.\$(SHLIB_MAJOR).\$(SHLIB_MINOR)",
 -"linux-elf",	"gcc:-DL_ENDIAN -DTERMIO -O3 -fomit-frame-pointer -Wall::-D_REENTRANT::-ldl:BN_LLONG ${x86_gcc_des} ${x86_gcc_opts}:${x86_elf_asm}:dlfcn:linux-shared:-fPIC::.so.\$(SHLIB_MAJOR).\$(SHLIB_MINOR)",
 +"linux-elf",	"gcc:-DL_ENDIAN -DTERMIO -O3 -fomit-frame-pointer -Wall::-D_REENTRANT -pthread::-ldl:BN_LLONG ${x86_gcc_des} ${x86_gcc_opts}:${x86_elf_asm}:dlfcn:linux-shared:-fPIC::.so.\$(SHLIB_MAJOR).\$(SHLIB_MINOR)",
- "linux-aout",	"gcc:-DL_ENDIAN -DTERMIO -O3 -fomit-frame-pointer -march=i486 -Wall::(unknown):::BN_LLONG ${x86_gcc_des} ${x86_gcc_opts}:${x86_out_asm}",
+ "linux-aout",	"gcc:-DL_ENDIAN -DTERMIO -O3 -fomit-frame-pointer -march=i486 -Wall::(unknown):::BN_LLONG ${x86_gcc_des} ${x86_gcc_opts}:${x86_asm}:a.out",
  ####
  "linux-generic64","gcc:-DTERMIO -O3 -Wall::-D_REENTRANT::-ldl:SIXTY_FOUR_BIT_LONG RC4_CHAR RC4_CHUNK DES_INT DES_UNROLL BF_PTR:${no_asm}:dlfcn:linux-shared:-fPIC::.so.\$(SHLIB_MAJOR).\$(SHLIB_MINOR)",
-@@ -337,7 +343,7 @@
- "linux-ia64",	"gcc:-DL_ENDIAN -DTERMIO -O3 -Wall::-D_REENTRANT::-ldl:SIXTY_FOUR_BIT_LONG RC4_CHUNK:${ia64_asm}:dlfcn:linux-shared:-fPIC::.so.\$(SHLIB_MAJOR).\$(SHLIB_MINOR)",
- "linux-ia64-ecc","ecc:-DL_ENDIAN -DTERMIO -O2 -Wall -no_cpprt::-D_REENTRANT::-ldl:SIXTY_FOUR_BIT_LONG RC4_CHUNK:${ia64_asm}:dlfcn:linux-shared:-fPIC::.so.\$(SHLIB_MAJOR).\$(SHLIB_MINOR)",
- "linux-ia64-icc","icc:-DL_ENDIAN -DTERMIO -O2 -Wall -no_cpprt::-D_REENTRANT::-ldl:SIXTY_FOUR_BIT_LONG RC4_CHUNK:${ia64_asm}:dlfcn:linux-shared:-fPIC::.so.\$(SHLIB_MAJOR).\$(SHLIB_MINOR)",
--"linux-x86_64",	"gcc:-m64 -DL_ENDIAN -DTERMIO -O3 -Wall -DMD32_REG_T=int::-D_REENTRANT::-ldl:SIXTY_FOUR_BIT_LONG RC4_CHUNK BF_PTR2 DES_INT DES_UNROLL:${x86_64_asm}:dlfcn:linux-shared:-fPIC:-m64:.so.\$(SHLIB_MAJOR).\$(SHLIB_MINOR)",
-+"linux-x86_64",	"gcc:-m64 -DL_ENDIAN -DTERMIO -O3 -Wall -DMD32_REG_T=int::-D_REENTRANT -pthread::-ldl:SIXTY_FOUR_BIT_LONG RC4_CHUNK BF_PTR2 DES_INT DES_UNROLL:${x86_64_asm}:dlfcn:linux-shared:-fPIC:-m64:.so.\$(SHLIB_MAJOR).\$(SHLIB_MINOR)",
+@@ -351,7 +357,7 @@
+ "linux-ia64",	"gcc:-DL_ENDIAN -DTERMIO -O3 -Wall::-D_REENTRANT::-ldl:SIXTY_FOUR_BIT_LONG RC4_CHUNK DES_UNROLL DES_INT:${ia64_asm}:dlfcn:linux-shared:-fPIC::.so.\$(SHLIB_MAJOR).\$(SHLIB_MINOR)",
+ "linux-ia64-ecc","ecc:-DL_ENDIAN -DTERMIO -O2 -Wall -no_cpprt::-D_REENTRANT::-ldl:SIXTY_FOUR_BIT_LONG RC4_CHUNK DES_INT:${ia64_asm}:dlfcn:linux-shared:-fPIC::.so.\$(SHLIB_MAJOR).\$(SHLIB_MINOR)",
+ "linux-ia64-icc","icc:-DL_ENDIAN -DTERMIO -O2 -Wall -no_cpprt::-D_REENTRANT::-ldl:SIXTY_FOUR_BIT_LONG RC4_CHUNK DES_RISC1 DES_INT:${ia64_asm}:dlfcn:linux-shared:-fPIC::.so.\$(SHLIB_MAJOR).\$(SHLIB_MINOR)",
+-"linux-x86_64",	"gcc:-m64 -DL_ENDIAN -DTERMIO -O3 -Wall -DMD32_REG_T=int::-D_REENTRANT::-ldl:SIXTY_FOUR_BIT_LONG RC4_CHUNK DES_INT DES_UNROLL:${x86_64_asm}:elf:dlfcn:linux-shared:-fPIC:-m64:.so.\$(SHLIB_MAJOR).\$(SHLIB_MINOR):::64",
++"linux-x86_64",	"gcc:-m64 -DL_ENDIAN -DTERMIO -O3 -Wall -DMD32_REG_T=int::-D_REENTRANT -pthread::-ldl:SIXTY_FOUR_BIT_LONG RC4_CHUNK DES_INT DES_UNROLL:${x86_64_asm}:elf:dlfcn:linux-shared:-fPIC:-m64:.so.\$(SHLIB_MAJOR).\$(SHLIB_MINOR):::64",
+ "linux-s390x",	"gcc:-m64 -DB_ENDIAN -DTERMIO -O3 -Wall::-D_REENTRANT::-ldl:SIXTY_FOUR_BIT_LONG RC4_CHAR RC4_CHUNK DES_INT DES_UNROLL:${s390x_asm}:dlfcn:linux-shared:-fPIC:-m64:.so.\$(SHLIB_MAJOR).\$(SHLIB_MINOR):::64",
  #### SPARC Linux setups
  # Ray Miller <ray.miller@computing-services.oxford.ac.uk> has patiently
- # assisted with debugging of following two configs.
-@@ -580,6 +586,10 @@
- my $idx_ranlib = $idx++;
+@@ -622,6 +628,10 @@
  my $idx_arflags = $idx++;
+ my $idx_multilib = $idx++;
  
 +# PKCS#11 engine patch
 +my $pk11_libname="";
 +my $pk11_flavor="";
 +
  my $prefix="";
+ my $libdir="";
  my $openssldir="";
- my $exe_ext="";
-@@ -812,6 +822,14 @@
+@@ -824,6 +834,14 @@
  				{
  				$flags.=$_." ";
  				}
-+                        elsif (/^--pk11-libname=(.*)$/)
-+                                {
-+                                $pk11_libname=$1;
-+                                }
++			elsif (/^--pk11-libname=(.*)$/)
++				{
++				$pk11_libname=$1;
++				}
 +			elsif (/^--pk11-flavor=(.*)$/)
 +				{
 +				$pk11_flavor=$1;
@@ -68,7 +68,7 @@ diff -u openssl/Configure:1.1.3.1 openssl/Configure:1.7
  			elsif (/^--prefix=(.*)$/)
  				{
  				$prefix=$1;
-@@ -943,6 +961,22 @@
+@@ -961,6 +979,22 @@
  	exit 0;
  }
  
@@ -91,8 +91,8 @@ diff -u openssl/Configure:1.1.3.1 openssl/Configure:1.7
  if ($target =~ m/^CygWin32(-.*)$/) {
  	$target = "Cygwin".$1;
  }
-@@ -1057,6 +1091,25 @@
- 	print "\n";
+@@ -1036,6 +1070,25 @@
+ 	$exp_cflags .= " -DOPENSSL_EXPERIMENTAL_$ALGO";
  	}
  
 +if ($pk11_flavor eq "crypto-accelerator")
@@ -116,8 +116,8 @@ diff -u openssl/Configure:1.1.3.1 openssl/Configure:1.7
 +
  my $IsMK1MF=scalar grep /^$target$/,@MK1MF_Builds;
  
- $IsMK1MF=1 if ($target eq "mingw" && $^O ne "cygwin" && !is_msys());
-@@ -1103,6 +1156,8 @@
+ $exe_ext=".exe" if ($target eq "Cygwin" || $target eq "DJGPP" || $target =~ /^mingw/);
+@@ -1123,6 +1176,8 @@
  if ($flags ne "")	{ $cflags="$flags$cflags"; }
  else			{ $no_user_cflags=1;       }
  
@@ -126,7 +126,7 @@ diff -u openssl/Configure:1.1.3.1 openssl/Configure:1.7
  # Kerberos settings.  The flavor must be provided from outside, either through
  # the script "config" or manually.
  if (!$no_krb5)
-@@ -1456,6 +1511,7 @@
+@@ -1492,6 +1547,7 @@
  	s/^VERSION=.*/VERSION=$version/;
  	s/^MAJOR=.*/MAJOR=$major/;
  	s/^MINOR=.*/MINOR=$minor/;
@@ -135,9 +135,9 @@ diff -u openssl/Configure:1.1.3.1 openssl/Configure:1.7
  	s/^SHLIB_VERSION_HISTORY=.*/SHLIB_VERSION_HISTORY=$shlib_version_history/;
  	s/^SHLIB_MAJOR=.*/SHLIB_MAJOR=$shlib_major/;
 Index: openssl/Makefile.org
-diff -u openssl/Makefile.org:1.1.3.1 openssl/Makefile.org:1.3
---- openssl/Makefile.org:1.1.3.1	Tue Mar  3 22:40:29 2009
-+++ openssl/Makefile.org	Fri Sep  4 10:43:21 2009
+diff -u openssl/Makefile.org:1.5.2.1 openssl/Makefile.org:1.5
+--- openssl/Makefile.org:1.5.2.1	Sun Jan 15 16:09:41 2012
++++ openssl/Makefile.org	Mon Jun 13 17:13:25 2011
 @@ -26,6 +26,9 @@
  INSTALL_PREFIX=
  INSTALLTOP=/usr/local/ssl
@@ -149,12 +149,14 @@ diff -u openssl/Makefile.org:1.1.3.1 openssl/Makefile.org:1.3
  OPENSSLDIR=/usr/local/ssl
  
 Index: openssl/README.pkcs11
-diff -u /dev/null openssl/README.pkcs11:1.6
---- /dev/null	Thu Dec 24 13:00:42 2009
-+++ openssl/README.pkcs11	Mon Oct  5 13:16:50 2009
-@@ -0,0 +1,247 @@
+diff -u /dev/null openssl/README.pkcs11:1.7
+--- /dev/null	Mon Jan 16 18:54:22 2012
++++ openssl/README.pkcs11	Mon Jun 13 18:27:17 2011
+@@ -0,0 +1,261 @@
 +ISC modified
 +============
++
++The previous key naming scheme was kept for backward compatibility.
 +
 +The PKCS#11 engine exists in two flavors, crypto-accelerator and
 +sign-only. The first one is from the Solaris patch and uses the
@@ -170,10 +172,10 @@ diff -u /dev/null openssl/README.pkcs11:1.6
 +Note it is mandatory to set a pk11-flavor (and only one) in
 +config/Configure.
 +
-+PKCS#11 engine support for OpenSSL 0.9.8j
++PKCS#11 engine support for OpenSSL 0.9.8l
 +=========================================
 +
-+[March 11, 2009]
++[Nov 19, 2009]
 +
 +Contents:
 +
@@ -187,19 +189,19 @@ diff -u /dev/null openssl/README.pkcs11:1.6
 +
 +This patch containing code available in OpenSolaris adds support for PKCS#11
 +engine into OpenSSL and implements PKCS#11 v2.20. It is to be applied against
-+OpenSSL 0.9.8j source code distribution as shipped by OpenSSL.Org. Your system
++OpenSSL 0.9.8l source code distribution as shipped by OpenSSL.Org. Your system
 +must provide PKCS#11 backend otherwise the patch is useless. You provide the
 +PKCS#11 library name during the build configuration phase, see below.
 +
 +Patch can be applied like this:
 +
 +	# NOTE: use gtar if on Solaris
-+	tar xfzv openssl-0.9.8j.tar.gz
++	tar xfzv openssl-0.9.8l.tar.gz
 +	# now download the patch to the current directory
 +	# ...
-+	cd openssl-0.9.8j
++	cd openssl-0.9.8l
 +	# NOTE: must use gpatch if on Solaris (is part of the system)
-+	patch -p1 < path-to/pkcs11_engine-0.9.8j.patch.2009-03-11
++	patch -p1 < path-to/pkcs11_engine-0.9.8l.patch.2009-11-19
 +
 +It is designed to support pure acceleration for RSA, DSA, DH and all the
 +symetric ciphers and message digest algorithms that PKCS#11 and OpenSSL share
@@ -218,14 +220,6 @@ diff -u /dev/null openssl/README.pkcs11:1.6
 +see OpenSSH source code (cipher.c) to get the idea how to do that. SunSSH is an
 +example of code that uses the PKCS#11 engine and deals with the fork-safety
 +problem (see engine.c and packet.c files if interested).
-+
-++------------------------------------------------------------------------------+
-+| NOTE: this patch version does NOT contain experimental code for accessing    |
-+| RSA keys stored in PKCS#11 key stores by reference. Some problems were found |
-+| (thanks to all who wrote me!) and due to my ENOTIME problem I may address    |
-+| those issues in a future version of the patch that will have that code back, |
-+| hopefully fixed.                                                             | 
-++------------------------------------------------------------------------------+
 +
 +You must provide the location of PKCS#11 library in your system to the
 +configure script. You will be instructed to do that when you try to run the
@@ -247,13 +241,13 @@ diff -u /dev/null openssl/README.pkcs11:1.6
 +output. If you see no PKCS#11 engine support check that the built openssl binary
 +and the PKCS#11 library from --pk11-libname don't conflict on 32/64 bits.
 +
-+This patch was tested on Solaris against PKCS#11 engine available from Solaris
-+Cryptographic Framework (Solaris 10 and OpenSolaris) and also on Linux using
-+PKCS#11 libraries from openCryptoki project (see openCryptoki website
-+http://sourceforge.net/projects/opencryptoki for more information). Some Linux
-+distributions even ship those libraries with the system. The patch should work
-+on any system that is supported by OpenSSL itself and has functional PKCS#11
-+library.
++The patch, during various phases of development, was tested on Solaris against
++PKCS#11 engine available from Solaris Cryptographic Framework (Solaris 10 and
++OpenSolaris) and also on Linux using PKCS#11 libraries from openCryptoki project
++(see openCryptoki website http://sourceforge.net/projects/opencryptoki for more
++information). Some Linux distributions even ship those libraries with the
++system. The patch should work on any system that is supported by OpenSSL itself
++and has functional PKCS#11 library.
 +
 +The patch contains "RSA Security Inc. PKCS #11 Cryptographic Token Interface
 +(Cryptoki)" - files cryptoki.h, pkcs11.h, pkcs11f.h and pkcs11t.h which are
@@ -265,6 +259,16 @@ diff -u /dev/null openssl/README.pkcs11:1.6
 +
 +Revisions of the patch for 0.9.8 branch
 +=======================================
++
++2009-11-19
++- adjusted for OpenSSL version 0.9.8l
++
++- bugs and RFEs:
++
++	6479874 OpenSSL should support RSA key by reference/hardware keystores
++	6896677 PKCS#11 engine's hw_pk11_err.h needs to be split
++	6732677 make check to trigger Solaris specific code automatic in the
++		PKCS#11 engine
 +
 +2009-03-11
 +- adjusted for OpenSSL version 0.9.8j 
@@ -376,6 +380,8 @@ diff -u /dev/null openssl/README.pkcs11:1.6
 +../libcrypto.a(hw_pk11.o): In function `pk11_library_init':
 +hw_pk11.c:(.text+0x20f5): undefined reference to `pthread_atfork'
 +
++Answer:
++
 +	- don't use "no-threads" when configuring
 +	- if you didn't then OpenSSL failed to create a threaded library by
 +	  default. You may manually edit Configure and try again. Look for the
@@ -391,6 +397,14 @@ diff -u /dev/null openssl/README.pkcs11:1.6
 +
 +....-O3 -fomit-frame-pointer -Wall::-D_REENTRANT -pthread::-ldl:.....
 +
++(2) I'm using MinGW/MSYS environment and get undeclared reference error for
++pthread_atfork() function when trying to build OpenSSL with the patch.
++
++Answer:
++
++	Sorry, pthread_atfork() is not implemented in the current pthread-win32
++	(as of Nov 2009). You can not use the patch there.
++
 +
 +Feedback
 +========
@@ -401,10 +415,10 @@ diff -u /dev/null openssl/README.pkcs11:1.6
 +Latest version should be always available on http://blogs.sun.com/janp.
 +
 Index: openssl/crypto/opensslconf.h
-diff -u openssl/crypto/opensslconf.h:1.1.3.1 openssl/crypto/opensslconf.h:1.5
---- openssl/crypto/opensslconf.h:1.1.3.1	Wed Mar 25 13:11:43 2009
-+++ openssl/crypto/opensslconf.h	Fri Sep  4 10:43:21 2009
-@@ -38,6 +38,9 @@
+diff -u openssl/crypto/opensslconf.h:1.6.2.1 openssl/crypto/opensslconf.h:1.6
+--- openssl/crypto/opensslconf.h:1.6.2.1	Sun Jan 15 16:09:43 2012
++++ openssl/crypto/opensslconf.h	Mon Jun 13 17:13:28 2011
+@@ -29,6 +29,9 @@
  
  #endif /* OPENSSL_DOING_MAKEDEPEND */
  
@@ -414,7 +428,7 @@ diff -u openssl/crypto/opensslconf.h:1.1.3.1 openssl/crypto/opensslconf.h:1.5
  #ifndef OPENSSL_NO_DYNAMIC_ENGINE
  # define OPENSSL_NO_DYNAMIC_ENGINE
  #endif
-@@ -79,6 +82,8 @@
+@@ -61,6 +64,8 @@
  # endif
  #endif
  
@@ -422,8 +436,8 @@ diff -u openssl/crypto/opensslconf.h:1.1.3.1 openssl/crypto/opensslconf.h:1.5
 +
  /* crypto/opensslconf.h.in */
  
- #ifdef OPENSSL_DOING_MAKEDEPEND
-@@ -140,7 +145,7 @@
+ /* Generate 80386 code? */
+@@ -107,7 +112,7 @@
   * This enables code handling data aligned at natural CPU word
   * boundary. See crypto/rc4/rc4_enc.c for further details.
   */
@@ -432,7 +446,7 @@ diff -u openssl/crypto/opensslconf.h:1.1.3.1 openssl/crypto/opensslconf.h:1.5
  #endif
  #endif
  
-@@ -148,7 +153,7 @@
+@@ -115,7 +120,7 @@
  /* If this is set to 'unsigned int' on a DEC Alpha, this gives about a
   * %20 speed up (longs are 8 bytes, int's are 4). */
  #ifndef DES_LONG
@@ -441,19 +455,19 @@ diff -u openssl/crypto/opensslconf.h:1.1.3.1 openssl/crypto/opensslconf.h:1.5
  #endif
  #endif
  
-@@ -162,9 +167,9 @@
- /* The prime number generation stuff may not work when
-  * EIGHT_BIT but I don't care since I've only used this mode
-  * for debuging the bignum libraries */
+@@ -126,9 +131,9 @@
+ /* Should we define BN_DIV2W here? */
+ 
+ /* Only one for the following should be defined */
 -#undef SIXTY_FOUR_BIT_LONG
 +#define SIXTY_FOUR_BIT_LONG
  #undef SIXTY_FOUR_BIT
 -#define THIRTY_TWO_BIT
 +#undef THIRTY_TWO_BIT
- #undef SIXTEEN_BIT
- #undef EIGHT_BIT
  #endif
-@@ -178,7 +183,7 @@
+ 
+ #if defined(HEADER_RC4_LOCL_H) && !defined(CONFIG_HEADER_RC4_LOCL_H)
+@@ -140,7 +145,7 @@
  
  #if defined(HEADER_BF_LOCL_H) && !defined(CONFIG_HEADER_BF_LOCL_H)
  #define CONFIG_HEADER_BF_LOCL_H
@@ -462,7 +476,7 @@ diff -u openssl/crypto/opensslconf.h:1.1.3.1 openssl/crypto/opensslconf.h:1.5
  #endif /* HEADER_BF_LOCL_H */
  
  #if defined(HEADER_DES_LOCL_H) && !defined(CONFIG_HEADER_DES_LOCL_H)
-@@ -208,7 +213,7 @@
+@@ -170,7 +175,7 @@
  /* Unroll the inner loop, this sometimes helps, sometimes hinders.
   * Very mucy CPU dependant */
  #ifndef DES_UNROLL
@@ -472,10 +486,10 @@ diff -u openssl/crypto/opensslconf.h:1.1.3.1 openssl/crypto/opensslconf.h:1.5
  
  /* These default values were supplied by
 Index: openssl/crypto/bio/bss_file.c
-diff -u openssl/crypto/bio/bss_file.c:1.1.3.1 openssl/crypto/bio/bss_file.c:1.4
---- openssl/crypto/bio/bss_file.c:1.1.3.1	Tue Dec 30 13:30:55 2008
-+++ openssl/crypto/bio/bss_file.c	Fri Nov 27 12:32:32 2009
-@@ -125,7 +125,7 @@
+diff -u openssl/crypto/bio/bss_file.c:1.6.2.1 openssl/crypto/bio/bss_file.c:1.6
+--- openssl/crypto/bio/bss_file.c:1.6.2.1	Sun Jan 15 16:09:44 2012
++++ openssl/crypto/bio/bss_file.c	Mon Jun 13 17:13:31 2011
+@@ -168,7 +168,7 @@
  		{
  		SYSerr(SYS_F_FOPEN,get_last_sys_error());
  		ERR_add_error_data(5,"fopen('",filename,"','",mode,"')");
@@ -485,132 +499,113 @@ diff -u openssl/crypto/bio/bss_file.c:1.1.3.1 openssl/crypto/bio/bss_file.c:1.4
  		else
  			BIOerr(BIO_F_BIO_NEW_FILE,ERR_R_SYS_LIB);
 Index: openssl/crypto/engine/Makefile
-diff -u openssl/crypto/engine/Makefile:1.1.3.1 openssl/crypto/engine/Makefile:1.5
---- openssl/crypto/engine/Makefile:1.1.3.1	Wed Sep 17 17:10:59 2008
-+++ openssl/crypto/engine/Makefile	Mon Oct  5 13:16:50 2009
+diff -u openssl/crypto/engine/Makefile:1.8.2.1 openssl/crypto/engine/Makefile:1.8
+--- openssl/crypto/engine/Makefile:1.8.2.1	Sun Jan 15 16:09:46 2012
++++ openssl/crypto/engine/Makefile	Tue Jun 14 21:51:32 2011
 @@ -21,12 +21,14 @@
  	eng_table.c eng_pkey.c eng_fat.c eng_all.c \
  	tb_rsa.c tb_dsa.c tb_ecdsa.c tb_dh.c tb_ecdh.c tb_rand.c tb_store.c \
- 	tb_cipher.c tb_digest.c \
--	eng_openssl.c eng_cnf.c eng_dyn.c eng_cryptodev.c eng_padlock.c
-+	eng_openssl.c eng_cnf.c eng_dyn.c eng_cryptodev.c eng_padlock.c \
+ 	tb_cipher.c tb_digest.c tb_pkmeth.c tb_asnmth.c \
+-	eng_openssl.c eng_cnf.c eng_dyn.c eng_cryptodev.c
++	eng_openssl.c eng_cnf.c eng_dyn.c eng_cryptodev.c \
 +	hw_pk11.c hw_pk11_pub.c hw_pk11so.c hw_pk11so_pub.c
  LIBOBJ= eng_err.o eng_lib.o eng_list.o eng_init.o eng_ctrl.o \
  	eng_table.o eng_pkey.o eng_fat.o eng_all.o \
  	tb_rsa.o tb_dsa.o tb_ecdsa.o tb_dh.o tb_ecdh.o tb_rand.o tb_store.o \
- 	tb_cipher.o tb_digest.o \
--	eng_openssl.o eng_cnf.o eng_dyn.o eng_cryptodev.o eng_padlock.o
-+	eng_openssl.o eng_cnf.o eng_dyn.o eng_cryptodev.o eng_padlock.o \
+ 	tb_cipher.o tb_digest.o tb_pkmeth.o tb_asnmth.o \
+-	eng_openssl.o eng_cnf.o eng_dyn.o eng_cryptodev.o
++	eng_openssl.o eng_cnf.o eng_dyn.o eng_cryptodev.o \
 +	hw_pk11.o hw_pk11_pub.o hw_pk11so.o hw_pk11so_pub.o
  
  SRC= $(LIBSRC)
  
-@@ -286,6 +288,102 @@
+@@ -264,6 +266,83 @@
  eng_table.o: ../../include/openssl/symhacks.h ../../include/openssl/x509.h
  eng_table.o: ../../include/openssl/x509_vfy.h ../cryptlib.h eng_int.h
  eng_table.o: eng_table.c
-+hw_pk11.o: ../../include/openssl/e_os2.h ../../include/openssl/opensslconf.h
-+hw_pk11.o: ../../include/openssl/engine.h ../../include/openssl/ossl_typ.h
-+hw_pk11.o: ../../include/openssl/bn.h ../../include/openssl/rsa.h
++hw_pk11.o: ../../e_os.h ../../include/openssl/aes.h
 +hw_pk11.o: ../../include/openssl/asn1.h ../../include/openssl/bio.h
-+hw_pk11.o: ../../include/openssl/crypto.h ../../include/openssl/stack.h
-+hw_pk11.o: ../../include/openssl/safestack.h ../../include/openssl/opensslv.h
-+hw_pk11.o: ../../include/openssl/symhacks.h ../../include/openssl/dsa.h
-+hw_pk11.o: ../../include/openssl/dh.h ../../include/openssl/rand.h
-+hw_pk11.o: ../../include/openssl/ui.h ../../include/openssl/err.h
-+hw_pk11.o: ../../include/openssl/lhash.h ../../include/openssl/dso.h
-+hw_pk11.o: ../../include/openssl/pem.h ../../include/openssl/evp.h
-+hw_pk11.o: ../../include/openssl/md2.h ../../include/openssl/md4.h
-+hw_pk11.o: ../../include/openssl/md5.h ../../include/openssl/sha.h
-+hw_pk11.o: ../../include/openssl/ripemd.h ../../include/openssl/des.h
-+hw_pk11.o: ../../include/openssl/des_old.h ../../include/openssl/ui_compat.h
-+hw_pk11.o: ../../include/openssl/rc4.h ../../include/openssl/rc2.h
-+hw_pk11.o: ../../crypto/rc5/rc5.h ../../include/openssl/blowfish.h
-+hw_pk11.o: ../../include/openssl/cast.h ../../include/openssl/idea.h
-+hw_pk11.o: ../../crypto/mdc2/mdc2.h ../../include/openssl/aes.h
-+hw_pk11.o: ../../include/openssl/objects.h ../../include/openssl/obj_mac.h
-+hw_pk11.o: ../../include/openssl/x509.h ../../include/openssl/buffer.h
-+hw_pk11.o: ../../include/openssl/x509_vfy.h ../../include/openssl/pkcs7.h
-+hw_pk11.o: ../../include/openssl/pem2.h ../cryptlib.h
-+hw_pk11.o: ../../e_os.h hw_pk11_err.c hw_pk11_err.h hw_pk11.c
-+hw_pk11_pub.o: ../../include/openssl/e_os2.h ../../include/openssl/opensslconf.h
-+hw_pk11_pub.o: ../../include/openssl/engine.h ../../include/openssl/ossl_typ.h
-+hw_pk11_pub.o: ../../include/openssl/bn.h ../../include/openssl/rsa.h
-+hw_pk11_pub.o: ../../include/openssl/asn1.h ../../include/openssl/bio.h
-+hw_pk11_pub.o: ../../include/openssl/crypto.h ../../include/openssl/stack.h
-+hw_pk11_pub.o: ../../include/openssl/safestack.h ../../include/openssl/opensslv.h
-+hw_pk11_pub.o: ../../include/openssl/symhacks.h ../../include/openssl/dsa.h
-+hw_pk11_pub.o: ../../include/openssl/dh.h ../../include/openssl/rand.h
-+hw_pk11_pub.o: ../../include/openssl/ui.h ../../include/openssl/err.h
-+hw_pk11_pub.o: ../../include/openssl/lhash.h ../../include/openssl/dso.h
-+hw_pk11_pub.o: ../../include/openssl/pem.h ../../include/openssl/evp.h
-+hw_pk11_pub.o: ../../include/openssl/md2.h ../../include/openssl/md4.h
-+hw_pk11_pub.o: ../../include/openssl/md5.h ../../include/openssl/sha.h
-+hw_pk11_pub.o: ../../include/openssl/ripemd.h ../../include/openssl/des.h
-+hw_pk11_pub.o: ../../include/openssl/des_old.h ../../include/openssl/ui_compat.h
-+hw_pk11_pub.o: ../../include/openssl/rc4.h ../../include/openssl/rc2.h
-+hw_pk11_pub.o: ../../crypto/rc5/rc5.h ../../include/openssl/blowfish.h
-+hw_pk11_pub.o: ../../include/openssl/cast.h ../../include/openssl/idea.h
-+hw_pk11_pub.o: ../../crypto/mdc2/mdc2.h ../../include/openssl/aes.h
-+hw_pk11_pub.o: ../../include/openssl/objects.h ../../include/openssl/obj_mac.h
-+hw_pk11_pub.o: ../../include/openssl/x509.h ../../include/openssl/buffer.h
-+hw_pk11_pub.o: ../../include/openssl/x509_vfy.h ../../include/openssl/pkcs7.h
-+hw_pk11_pub.o: ../../include/openssl/pem2.h ../cryptlib.h
-+hw_pk11_pub.o: ../../e_os.h hw_pk11_err.c hw_pk11_err.h hw_pk11_pub.c
-+hw_pk11so.o: ../../include/openssl/e_os2.h ../../include/openssl/opensslconf.h
-+hw_pk11so.o: ../../include/openssl/engine.h ../../include/openssl/ossl_typ.h
-+hw_pk11so.o: ../../include/openssl/bn.h ../../include/openssl/rsa.h
-+hw_pk11so.o: ../../include/openssl/asn1.h ../../include/openssl/bio.h
-+hw_pk11so.o: ../../include/openssl/crypto.h ../../include/openssl/stack.h
-+hw_pk11so.o: ../../include/openssl/safestack.h ../../include/openssl/opensslv.h
-+hw_pk11so.o: ../../include/openssl/symhacks.h ../../include/openssl/dsa.h
-+hw_pk11so.o: ../../include/openssl/dh.h ../../include/openssl/rand.h
-+hw_pk11so.o: ../../include/openssl/ui.h ../../include/openssl/err.h
-+hw_pk11so.o: ../../include/openssl/lhash.h ../../include/openssl/dso.h
-+hw_pk11so.o: ../../include/openssl/pem.h ../../include/openssl/evp.h
-+hw_pk11so.o: ../../include/openssl/md2.h ../../include/openssl/md4.h
-+hw_pk11so.o: ../../include/openssl/md5.h ../../include/openssl/sha.h
-+hw_pk11so.o: ../../include/openssl/ripemd.h ../../include/openssl/des.h
-+hw_pk11so.o: ../../include/openssl/des_old.h ../../include/openssl/ui_compat.h
-+hw_pk11so.o: ../../include/openssl/rc4.h ../../include/openssl/rc2.h
-+hw_pk11so.o: ../../crypto/rc5/rc5.h ../../include/openssl/blowfish.h
-+hw_pk11so.o: ../../include/openssl/cast.h ../../include/openssl/idea.h
-+hw_pk11so.o: ../../crypto/mdc2/mdc2.h ../../include/openssl/aes.h
-+hw_pk11so.o: ../../include/openssl/objects.h ../../include/openssl/obj_mac.h
-+hw_pk11so.o: ../../include/openssl/x509.h ../../include/openssl/buffer.h
-+hw_pk11so.o: ../../include/openssl/x509_vfy.h ../../include/openssl/pkcs7.h
-+hw_pk11so.o: ../../include/openssl/pem2.h ../cryptlib.h
-+hw_pk11so.o: ../../e_os.h hw_pk11_err.c hw_pk11_err.h hw_pk11so.c
-+hw_pk11so_pub.o: ../../include/openssl/e_os2.h ../../include/openssl/opensslconf.h
-+hw_pk11so_pub.o: ../../include/openssl/engine.h ../../include/openssl/ossl_typ.h
-+hw_pk11so_pub.o: ../../include/openssl/bn.h ../../include/openssl/rsa.h
-+hw_pk11so_pub.o: ../../include/openssl/asn1.h ../../include/openssl/bio.h
-+hw_pk11so_pub.o: ../../include/openssl/crypto.h ../../include/openssl/stack.h
-+hw_pk11so_pub.o: ../../include/openssl/safestack.h ../../include/openssl/opensslv.h
-+hw_pk11so_pub.o: ../../include/openssl/symhacks.h ../../include/openssl/dsa.h
-+hw_pk11so_pub.o: ../../include/openssl/dh.h ../../include/openssl/rand.h
-+hw_pk11so_pub.o: ../../include/openssl/ui.h ../../include/openssl/err.h
-+hw_pk11so_pub.o: ../../include/openssl/lhash.h ../../include/openssl/dso.h
-+hw_pk11so_pub.o: ../../include/openssl/pem.h ../../include/openssl/evp.h
-+hw_pk11so_pub.o: ../../include/openssl/md2.h ../../include/openssl/md4.h
-+hw_pk11so_pub.o: ../../include/openssl/md5.h ../../include/openssl/sha.h
-+hw_pk11so_pub.o: ../../include/openssl/ripemd.h ../../include/openssl/des.h
-+hw_pk11so_pub.o: ../../include/openssl/des_old.h ../../include/openssl/ui_compat.h
-+hw_pk11so_pub.o: ../../include/openssl/rc4.h ../../include/openssl/rc2.h
-+hw_pk11so_pub.o: ../../crypto/rc5/rc5.h ../../include/openssl/blowfish.h
-+hw_pk11so_pub.o: ../../include/openssl/cast.h ../../include/openssl/idea.h
-+hw_pk11so_pub.o: ../../crypto/mdc2/mdc2.h ../../include/openssl/aes.h
-+hw_pk11so_pub.o: ../../include/openssl/objects.h ../../include/openssl/obj_mac.h
-+hw_pk11so_pub.o: ../../include/openssl/x509.h ../../include/openssl/buffer.h
-+hw_pk11so_pub.o: ../../include/openssl/x509_vfy.h ../../include/openssl/pkcs7.h
-+hw_pk11so_pub.o: ../../include/openssl/pem2.h ../cryptlib.h
-+hw_pk11so_pub.o: ../../e_os.h hw_pk11_err.c hw_pk11_err.h hw_pk11so_pub.c
- tb_cipher.o: ../../e_os.h ../../include/openssl/asn1.h
- tb_cipher.o: ../../include/openssl/bio.h ../../include/openssl/buffer.h
- tb_cipher.o: ../../include/openssl/crypto.h ../../include/openssl/e_os2.h
++hw_pk11.o: ../../include/openssl/bn.h ../../include/openssl/buffer.h
++hw_pk11.o: ../../include/openssl/crypto.h ../../include/openssl/dh.h
++hw_pk11.o: ../../include/openssl/dsa.h ../../include/openssl/dso.h
++hw_pk11.o: ../../include/openssl/e_os2.h ../../include/openssl/ec.h
++hw_pk11.o: ../../include/openssl/ecdh.h ../../include/openssl/ecdsa.h
++hw_pk11.o: ../../include/openssl/engine.h ../../include/openssl/err.h
++hw_pk11.o: ../../include/openssl/evp.h ../../include/openssl/lhash.h
++hw_pk11.o: ../../include/openssl/md5.h ../../include/openssl/obj_mac.h
++hw_pk11.o: ../../include/openssl/objects.h ../../include/openssl/opensslconf.h
++hw_pk11.o: ../../include/openssl/opensslv.h ../../include/openssl/ossl_typ.h
++hw_pk11.o: ../../include/openssl/pem.h ../../include/openssl/pem2.h
++hw_pk11.o: ../../include/openssl/pkcs7.h ../../include/openssl/rand.h
++hw_pk11.o: ../../include/openssl/rsa.h ../../include/openssl/safestack.h
++hw_pk11.o: ../../include/openssl/sha.h ../../include/openssl/stack.h
++hw_pk11.o: ../../include/openssl/symhacks.h ../../include/openssl/x509.h
++hw_pk11.o: ../../include/openssl/x509_vfy.h ../cryptlib.h cryptoki.h hw_pk11.c
++hw_pk11.o: hw_pk11_err.c hw_pk11_err.h hw_pk11ca.h pkcs11.h pkcs11f.h pkcs11t.h
++hw_pk11_pub.o: ../../e_os.h ../../include/openssl/asn1.h
++hw_pk11_pub.o: ../../include/openssl/bio.h ../../include/openssl/bn.h
++hw_pk11_pub.o: ../../include/openssl/buffer.h ../../include/openssl/crypto.h
++hw_pk11_pub.o: ../../include/openssl/dh.h ../../include/openssl/dsa.h
++hw_pk11_pub.o: ../../include/openssl/dso.h ../../include/openssl/e_os2.h
++hw_pk11_pub.o: ../../include/openssl/ec.h ../../include/openssl/ecdh.h
++hw_pk11_pub.o: ../../include/openssl/ecdsa.h ../../include/openssl/engine.h
++hw_pk11_pub.o: ../../include/openssl/err.h ../../include/openssl/evp.h
++hw_pk11_pub.o: ../../include/openssl/lhash.h ../../include/openssl/obj_mac.h
++hw_pk11_pub.o: ../../include/openssl/objects.h
++hw_pk11_pub.o: ../../include/openssl/opensslconf.h
++hw_pk11_pub.o: ../../include/openssl/opensslv.h
++hw_pk11_pub.o: ../../include/openssl/ossl_typ.h ../../include/openssl/pem.h
++hw_pk11_pub.o: ../../include/openssl/pem2.h ../../include/openssl/pkcs7.h
++hw_pk11_pub.o: ../../include/openssl/rand.h ../../include/openssl/rsa.h
++hw_pk11_pub.o: ../../include/openssl/safestack.h ../../include/openssl/sha.h
++hw_pk11_pub.o: ../../include/openssl/stack.h ../../include/openssl/symhacks.h
++hw_pk11_pub.o: ../../include/openssl/x509.h ../../include/openssl/x509_vfy.h
++hw_pk11_pub.o: ../cryptlib.h cryptoki.h hw_pk11_err.h hw_pk11_pub.c hw_pk11ca.h
++hw_pk11_pub.o: pkcs11.h pkcs11f.h pkcs11t.h
++hw_pk11so.o: ../../e_os.h ../../include/openssl/asn1.h
++hw_pk11so.o: ../../include/openssl/bio.h ../../include/openssl/bn.h
++hw_pk11so.o: ../../include/openssl/buffer.h ../../include/openssl/crypto.h
++hw_pk11so.o: ../../include/openssl/dso.h ../../include/openssl/e_os2.h
++hw_pk11so.o: ../../include/openssl/ec.h ../../include/openssl/ecdh.h
++hw_pk11so.o: ../../include/openssl/ecdsa.h ../../include/openssl/engine.h
++hw_pk11so.o: ../../include/openssl/err.h ../../include/openssl/evp.h
++hw_pk11so.o: ../../include/openssl/lhash.h ../../include/openssl/md5.h
++hw_pk11so.o: ../../include/openssl/obj_mac.h ../../include/openssl/objects.h
++hw_pk11so.o: ../../include/openssl/opensslconf.h
++hw_pk11so.o: ../../include/openssl/opensslv.h ../../include/openssl/ossl_typ.h
++hw_pk11so.o: ../../include/openssl/pem.h ../../include/openssl/pem2.h
++hw_pk11so.o: ../../include/openssl/pkcs7.h ../../include/openssl/rand.h
++hw_pk11so.o: ../../include/openssl/rsa.h ../../include/openssl/safestack.h
++hw_pk11so.o: ../../include/openssl/sha.h ../../include/openssl/stack.h
++hw_pk11so.o: ../../include/openssl/symhacks.h ../../include/openssl/x509.h
++hw_pk11so.o: ../../include/openssl/x509_vfy.h ../cryptlib.h cryptoki.h
++hw_pk11so.o: hw_pk11_err.c hw_pk11_err.h hw_pk11so.c hw_pk11so.h pkcs11.h
++hw_pk11so.o: pkcs11f.h pkcs11t.h
++hw_pk11so_pub.o: ../../e_os.h ../../include/openssl/asn1.h
++hw_pk11so_pub.o: ../../include/openssl/bio.h ../../include/openssl/bn.h
++hw_pk11so_pub.o: ../../include/openssl/buffer.h ../../include/openssl/crypto.h
++hw_pk11so_pub.o: ../../include/openssl/dso.h ../../include/openssl/e_os2.h
++hw_pk11so_pub.o: ../../include/openssl/ec.h ../../include/openssl/ecdh.h
++hw_pk11so_pub.o: ../../include/openssl/ecdsa.h ../../include/openssl/engine.h
++hw_pk11so_pub.o: ../../include/openssl/err.h ../../include/openssl/evp.h
++hw_pk11so_pub.o: ../../include/openssl/lhash.h ../../include/openssl/obj_mac.h
++hw_pk11so_pub.o: ../../include/openssl/objects.h
++hw_pk11so_pub.o: ../../include/openssl/opensslconf.h
++hw_pk11so_pub.o: ../../include/openssl/opensslv.h
++hw_pk11so_pub.o: ../../include/openssl/ossl_typ.h ../../include/openssl/pem.h
++hw_pk11so_pub.o: ../../include/openssl/pem2.h ../../include/openssl/pkcs7.h
++hw_pk11so_pub.o: ../../include/openssl/rand.h ../../include/openssl/rsa.h
++hw_pk11so_pub.o: ../../include/openssl/safestack.h ../../include/openssl/sha.h
++hw_pk11so_pub.o: ../../include/openssl/stack.h ../../include/openssl/symhacks.h
++hw_pk11so_pub.o: ../../include/openssl/x509.h ../../include/openssl/x509_vfy.h
++hw_pk11so_pub.o: ../cryptlib.h cryptoki.h hw_pk11_err.h hw_pk11so.h
++hw_pk11so_pub.o: hw_pk11so_pub.c pkcs11.h pkcs11f.h pkcs11t.h
+ tb_asnmth.o: ../../e_os.h ../../include/openssl/asn1.h
+ tb_asnmth.o: ../../include/openssl/bio.h ../../include/openssl/buffer.h
+ tb_asnmth.o: ../../include/openssl/crypto.h ../../include/openssl/e_os2.h
 Index: openssl/crypto/engine/cryptoki.h
 diff -u /dev/null openssl/crypto/engine/cryptoki.h:1.4
---- /dev/null	Thu Dec 24 13:00:45 2009
+--- /dev/null	Mon Jan 16 18:54:23 2012
 +++ openssl/crypto/engine/cryptoki.h	Thu Dec 18 00:14:12 2008
 @@ -0,0 +1,103 @@
 +/*
@@ -717,10 +712,10 @@ diff -u /dev/null openssl/crypto/engine/cryptoki.h:1.4
 +
 +#endif	/* _CRYPTOKI_H */
 Index: openssl/crypto/engine/eng_all.c
-diff -u openssl/crypto/engine/eng_all.c:1.1.3.1 openssl/crypto/engine/eng_all.c:1.3
---- openssl/crypto/engine/eng_all.c:1.1.3.1	Wed Jun  4 18:01:39 2008
-+++ openssl/crypto/engine/eng_all.c	Mon Oct  5 13:16:50 2009
-@@ -110,6 +110,14 @@
+diff -u openssl/crypto/engine/eng_all.c:1.5.2.1 openssl/crypto/engine/eng_all.c:1.5
+--- openssl/crypto/engine/eng_all.c:1.5.2.1	Sun Jan 15 16:09:46 2012
++++ openssl/crypto/engine/eng_all.c	Mon Jun 13 17:13:35 2011
+@@ -111,6 +111,14 @@
  #if defined(OPENSSL_SYS_WIN32) && !defined(OPENSSL_NO_CAPIENG)
  	ENGINE_load_capi();
  #endif
@@ -735,46 +730,30 @@ diff -u openssl/crypto/engine/eng_all.c:1.1.3.1 openssl/crypto/engine/eng_all.c:
  #endif
  	}
  
-Index: openssl/crypto/engine/eng_list.c
-diff -u openssl/crypto/engine/eng_list.c:1.1.3.1 openssl/crypto/engine/eng_list.c:1.2
---- openssl/crypto/engine/eng_list.c:1.1.3.1	Sat Aug  6 10:34:35 2005
-+++ openssl/crypto/engine/eng_list.c	Mon Oct  5 13:16:50 2009
-@@ -408,7 +408,11 @@
- 				!ENGINE_ctrl_cmd_string(iterator, "DIR_ADD",
- 					load_dir, 0) ||
- 				!ENGINE_ctrl_cmd_string(iterator, "LOAD", NULL, 0))
-+			{
-+				if (iterator)
-+					ENGINE_free(iterator);
- 				goto notfound;
-+			}
- 		return iterator;
- 		}
- notfound:
 Index: openssl/crypto/engine/engine.h
-diff -u openssl/crypto/engine/engine.h:1.1.3.1 openssl/crypto/engine/engine.h:1.3
---- openssl/crypto/engine/engine.h:1.1.3.1	Wed Jun  4 18:01:40 2008
-+++ openssl/crypto/engine/engine.h	Mon Oct  5 13:16:50 2009
-@@ -337,6 +337,12 @@
+diff -u openssl/crypto/engine/engine.h:1.5.2.1 openssl/crypto/engine/engine.h:1.5
+--- openssl/crypto/engine/engine.h:1.5.2.1	Sun Jan 15 16:09:46 2012
++++ openssl/crypto/engine/engine.h	Mon Jun 13 17:13:36 2011
+@@ -336,6 +336,12 @@
  void ENGINE_load_ubsec(void);
- #endif
- void ENGINE_load_cryptodev(void);
+ void ENGINE_load_padlock(void);
+ void ENGINE_load_capi(void);
 +#ifndef OPENSSL_NO_HW_PKCS11CA
 +void ENGINE_load_pk11ca(void);
 +#endif
 +#ifndef OPENSSL_NO_HW_PKCS11SO
 +void ENGINE_load_pk11so(void);
 +#endif
- void ENGINE_load_padlock(void);
- void ENGINE_load_builtin_engines(void);
- #ifndef OPENSSL_NO_CAPIENG
+ #ifndef OPENSSL_NO_GMP
+ void ENGINE_load_gmp(void);
+ #endif
 Index: openssl/crypto/engine/hw_pk11.c
-diff -u /dev/null openssl/crypto/engine/hw_pk11.c:1.26
---- /dev/null	Thu Dec 24 13:00:45 2009
-+++ openssl/crypto/engine/hw_pk11.c	Mon Oct  5 13:16:50 2009
-@@ -0,0 +1,3927 @@
+diff -u /dev/null openssl/crypto/engine/hw_pk11.c:1.30
+--- /dev/null	Mon Jan 16 18:54:23 2012
++++ openssl/crypto/engine/hw_pk11.c	Thu Jun 16 12:31:53 2011
+@@ -0,0 +1,4057 @@
 +/*
-+ * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
++ * Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
 + * Use is subject to license terms.
 + */
 +
@@ -904,7 +883,7 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11.c:1.26
 + * Solaris specific code. See comment at check_hw_mechanisms() for more
 + * information.
 + */
-+#if defined (__SVR4) && defined (__sun)
++#if defined(__SVR4) && defined(__sun)
 +#undef	SOLARIS_HW_SLOT_SELECTION
 +#endif
 +
@@ -939,6 +918,15 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11.c:1.26
 +static int NID_aes_256_ctr = NID_undef;
 +#endif	/* SOLARIS_AES_CTR */
 +
++/*
++ * We use this lock to prevent multiple C_Login()s, guard getpassphrase(),
++ * uri_struct manipulation, and static token info. All of that is used by the
++ * RSA keys by reference feature.
++ */
++#ifndef NOPTHREADS
++pthread_mutex_t *token_lock;
++#endif
++
 +#ifdef	SOLARIS_HW_SLOT_SELECTION
 +/*
 + * Tables for symmetric ciphers and digest mechs found in the pkcs11_kernel
@@ -950,6 +938,12 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11.c:1.26
 +
 +/* PKCS#11 session caches and their locks for all operation types */
 +static PK11_CACHE session_cache[OP_MAX];
++
++/*
++ * We cache the flags so that we do not have to run C_GetTokenInfo() again when
++ * logging into the token.
++ */
++CK_FLAGS pubkey_token_flags;
 +
 +/*
 + * As stated in v2.20, 11.7 Object Management Function, in section for
@@ -1028,8 +1022,8 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11.c:1.26
 +static int pk11_free_session_list(PK11_OPTYPE optype);
 +static int pk11_setup_session(PK11_SESSION *sp, PK11_OPTYPE optype);
 +static int pk11_destroy_cipher_key_objects(PK11_SESSION *session);
-+static int pk11_destroy_object(CK_SESSION_HANDLE session,
-+	CK_OBJECT_HANDLE oh);
++static int pk11_destroy_object(CK_SESSION_HANDLE session, CK_OBJECT_HANDLE oh,
++	CK_BBOOL persistent);
 +static const char *get_PK11_LIBNAME(void);
 +static void free_PK11_LIBNAME(void);
 +static long set_PK11_LIBNAME(const char *name);
@@ -1045,8 +1039,13 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11.c:1.26
 +static int pk11_cipher_init(EVP_CIPHER_CTX *ctx, const unsigned char *key,
 +	const unsigned char *iv, int enc);
 +static int pk11_cipher_final(PK11_SESSION *sp);
++#if OPENSSL_VERSION_NUMBER < 0x10000000L
 +static int pk11_cipher_do_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
 +	const unsigned char *in, unsigned int inl);
++#else
++static int pk11_cipher_do_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
++	const unsigned char *in, size_t inl);
++#endif
 +static int pk11_cipher_cleanup(EVP_CIPHER_CTX *ctx);
 +static int pk11_engine_ciphers(ENGINE *e, const EVP_CIPHER **cipher,
 +	const int **nids, int nid);
@@ -1119,23 +1118,15 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11.c:1.26
 +	PK11_DIGEST_MAX
 +};
 +
-+#define	TRY_OBJ_DESTROY(sess_hdl, obj_hdl, retval, uselock, alg_type)	\
++#define	TRY_OBJ_DESTROY(sp, obj_hdl, retval, uselock, alg_type, priv)	\
 +	{								\
 +	if (uselock)							\
 +		LOCK_OBJSTORE(alg_type);				\
 +	if (pk11_active_delete(obj_hdl, alg_type) == 1)			\
 +		{							\
-+		retval = pk11_destroy_object(sess_hdl, obj_hdl);	\
++		  retval = pk11_destroy_object(sp->session, obj_hdl,	\
++		  priv ? sp->priv_persistent : sp->pub_persistent);	\
 +		}							\
-+	if (uselock)							\
-+		UNLOCK_OBJSTORE(alg_type);				\
-+	}
-+
-+#define	TRY_OBJ_DELETE(sess_hdl, obj_hdl, retval, uselock, alg_type)	\
-+	{								\
-+	if (uselock)							\
-+		LOCK_OBJSTORE(alg_type);				\
-+	(void) pk11_active_delete(obj_hdl, alg_type);			\
 +	if (uselock)							\
 +		UNLOCK_OBJSTORE(alg_type);				\
 +	}
@@ -1614,14 +1605,16 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11.c:1.26
 +static const char PK11_GET_FUNCTION_LIST[] = "C_GetFunctionList";
 +
 +/*
-+ * These is the static string constant for the DSO file name and the function
-+ * symbol names to bind to.
++ * This is a static string constant for the DSO file name and the function
++ * symbol names to bind to. We set it in the Configure script based on whether
++ * this is 32 or 64 bit build.
 + */
 +static const char def_PK11_LIBNAME[] = PK11_LIB_LOCATION;
 +
 +static CK_BBOOL true = TRUE;
 +static CK_BBOOL false = FALSE;
-+static CK_SLOT_ID pubkey_SLOTID = 0;
++/* Needed in hw_pk11_pub.c as well so that's why it is not static. */
++CK_SLOT_ID pubkey_SLOTID = 0;
 +static CK_SLOT_ID rand_SLOTID = 0;
 +static CK_SLOT_ID SLOTID = 0;
 +char *pk11_pin = NULL;
@@ -1636,6 +1629,10 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11.c:1.26
 +	{
 +#ifndef NOPTHREADS
 +	int type;
++
++	if ((token_lock = OPENSSL_malloc(sizeof (pthread_mutex_t))) == NULL)
++		goto malloc_err;
++	(void) pthread_mutex_init(token_lock, NULL);
 +
 +#ifndef OPENSSL_NO_RSA
 +	find_lock[OP_RSA] = OPENSSL_malloc(sizeof (pthread_mutex_t));
@@ -1928,6 +1925,7 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11.c:1.26
 +	LOCK_OBJSTORE(OP_RSA);
 +	LOCK_OBJSTORE(OP_DSA);
 +	LOCK_OBJSTORE(OP_DH);
++	(void) pthread_mutex_lock(token_lock);
 +	for (i = 0; i < OP_MAX; i++)
 +		{
 +		(void) pthread_mutex_lock(session_cache[i].lock);
@@ -1951,6 +1949,7 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11.c:1.26
 +	UNLOCK_OBJSTORE(OP_DH);
 +	UNLOCK_OBJSTORE(OP_DSA);
 +	UNLOCK_OBJSTORE(OP_RSA);
++	(void) pthread_mutex_unlock(token_lock);
 +#endif
 +	}
 +
@@ -1973,6 +1972,7 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11.c:1.26
 +	UNLOCK_OBJSTORE(OP_DH);
 +	UNLOCK_OBJSTORE(OP_DSA);
 +	UNLOCK_OBJSTORE(OP_RSA);
++	(void) pthread_mutex_unlock(token_lock);
 +#endif
 +	}
 +
@@ -1981,6 +1981,16 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11.c:1.26
 +{
 +	return (pk11_library_init(e));
 +}
++
++static CK_C_INITIALIZE_ARGS pk11_init_args =
++	{
++	NULL_PTR,		/* CreateMutex */
++	NULL_PTR,		/* DestroyMutex */
++	NULL_PTR,		/* LockMutex */
++	NULL_PTR,		/* UnlockMutex */
++	CKF_OS_LOCKING_OK,	/* flags */
++	NULL_PTR,		/* pReserved */
++	};
 +
 +/*
 + * Initialization function. Sets up various PKCS#11 library components.
@@ -2003,15 +2013,17 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11.c:1.26
 +#endif
 +
 +	/*
-+	 * pk11_library_initialized is set to 0 in pk11_finish() which is called
-+	 * from ENGINE_finish(). However, if there is still at least one
-+	 * existing functional reference to the engine (see engine(3) for more
-+	 * information), pk11_finish() is skipped. For example, this can happen
-+	 * if an application forgets to clear one cipher context. In case of a
-+	 * fork() when the application is finishing the engine so that it can be
-+	 * reinitialized in the child, forgotten functional reference causes
-+	 * pk11_library_initialized to stay 1. In that case we need the PID
-+	 * check so that we properly initialize the engine again.
++	 * pk11_library_initialized is set to 0 in pk11_finish() which
++	 * is called from ENGINE_finish(). However, if there is still
++	 * at least one existing functional reference to the engine
++	 * (see engine(3) for more information), pk11_finish() is
++	 * skipped. For example, this can happen if an application
++	 * forgets to clear one cipher context. In case of a fork()
++	 * when the application is finishing the engine so that it can
++	 * be reinitialized in the child, forgotten functional
++	 * reference causes pk11_library_initialized to stay 1. In
++	 * that case we need the PID check so that we properly
++	 * initialize the engine again.
 +	 */
 +	if (pk11_library_initialized)
 +		{
@@ -2078,7 +2090,7 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11.c:1.26
 +	(void) sigaction(SIGTERM, NULL, &sigterm_act);
 +	(void) sigaction(SIGHUP, NULL, &sighup_act);
 +#endif
-+	rv = pFuncList->C_Initialize(NULL_PTR);
++	rv = pFuncList->C_Initialize((CK_VOID_PTR)&pk11_init_args);
 +#ifndef OPENSSL_SYS_WIN32
 +	(void) sigaction(SIGINT, &sigint_act, NULL);
 +	(void) sigaction(SIGTERM, &sigterm_act, NULL);
@@ -2382,6 +2394,16 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11.c:1.26
 +				BN_free(sp->opdata_rsa_e_num);
 +				sp->opdata_rsa_e_num = NULL;
 +				}
++			if (sp->opdata_rsa_pn_num != NULL)
++				{
++				BN_free(sp->opdata_rsa_pn_num);
++				sp->opdata_rsa_pn_num = NULL;
++				}
++			if (sp->opdata_rsa_pe_num != NULL)
++				{
++				BN_free(sp->opdata_rsa_pe_num);
++				sp->opdata_rsa_pe_num = NULL;
++				}
 +			if (sp->opdata_rsa_d_num != NULL)
 +				{
 +				BN_free(sp->opdata_rsa_d_num);
@@ -2430,6 +2452,8 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11.c:1.26
 +#ifndef NOPTHREADS
 +	pthread_mutex_t *freelist_lock = NULL;
 +#endif
++	static pid_t pid = 0;
++	pid_t new_pid;
 +	CK_RV rv;
 +
 +	switch (optype)
@@ -2454,6 +2478,15 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11.c:1.26
 +#else
 +	CRYPTO_w_lock(CRYPTO_LOCK_PK11_ENGINE);
 +#endif
++
++	/*
++	 * Will use it to find out if we forked. We cannot use the PID field in
++	 * the session structure because we could get a newly allocated session
++	 * here, with no PID information.
++	 */
++	if (pid == 0)
++		pid = getpid();
++
 +	freelist = session_cache[optype].head;
 +	sp = freelist;
 +
@@ -2471,17 +2504,33 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11.c:1.26
 +			goto err;
 +			}
 +		(void) memset(sp, 0, sizeof (PK11_SESSION));
++
++		/*
++		 * It is a new session so it will look like a cache miss to the
++		 * code below. So, we must not try to to destroy its members so
++		 * mark them as unused.
++		 */
++		sp->opdata_rsa_priv_key = CK_INVALID_HANDLE;
++		sp->opdata_rsa_pub_key = CK_INVALID_HANDLE;
 +		}
 +	else
 +		{
 +		freelist = sp->next;
 +		}
 +
-+	if (sp->pid != 0 && sp->pid != getpid())
++	/*
++	 * Check whether we have forked. In that case, we must get rid of all
++	 * inherited sessions and start allocating new ones.
++	 */
++	if (pid != (new_pid = getpid()))
 +		{
++		pid = new_pid;
++
 +		/*
 +		 * We are a new process and thus need to free any inherited
-+		 * PK11_SESSION objects.
++		 * PK11_SESSION objects aside from the first session (sp) which
++		 * is the only PK11_SESSION structure we will reuse (for the
++		 * head of the list).
 +		 */
 +		while ((sp1 = freelist) != NULL)
 +			{
@@ -2499,7 +2548,7 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11.c:1.26
 +		pk11_free_active_list(optype);
 +
 +		/* Initialize the process */
-+		rv = pFuncList->C_Initialize(NULL_PTR);
++		rv = pFuncList->C_Initialize((CK_VOID_PTR)&pk11_init_args);
 +		if ((rv != CKR_OK) && (rv != CKR_CRYPTOKI_ALREADY_INITIALIZED))
 +			{
 +			PK11err_add_data(PK11_F_GET_SESSION, PK11_R_INITIALIZE,
@@ -2535,13 +2584,28 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11.c:1.26
 +			goto err;
 +			}
 +
-+		/* It is an inherited session and needs re-initialization. */
++		/*
++		 * It is an inherited session from our parent so it needs
++		 * re-initialization.
++		 */
 +		if (pk11_setup_session(sp, optype) == 0)
 +			{
 +			OPENSSL_free(sp);
 +			sp = NULL;
++			goto err;
++			}
++		if (pk11_token_relogin(sp->session) == 0) 
++			{
++			/*
++			 * We will keep the session in the cache list and let
++			 * the caller cope with the situation.
++			 */
++			freelist = sp;
++			sp = NULL;
++			goto err;
 +			}
 +		}
++
 +	if (sp->pid == 0)
 +		{
 +		/* It is a new session and needs initialization. */
@@ -2577,6 +2641,11 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11.c:1.26
 +#endif
 +	PK11_SESSION *freelist;
 +
++	/*
++	 * If this is a session from the parent it will be taken care of and
++	 * freed in pk11_get_session() as part of the post-fork clean up the
++	 * next time we will ask for a new session.
++	 */
 +	if (sp == NULL || sp->pid != getpid())
 +		return;
 +
@@ -2710,7 +2779,8 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11.c:1.26
 +	}
 +
 +
-+static int pk11_setup_session(PK11_SESSION *sp, PK11_OPTYPE optype)
++static int
++pk11_setup_session(PK11_SESSION *sp, PK11_OPTYPE optype)
 +	{
 +	CK_RV rv;
 +	CK_SLOT_ID myslot;
@@ -2771,6 +2841,8 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11.c:1.26
 +			sp->opdata_rsa_n_num = NULL;
 +			sp->opdata_rsa_e_num = NULL;
 +			sp->opdata_rsa_priv = NULL;
++			sp->opdata_rsa_pn_num = NULL;
++			sp->opdata_rsa_pe_num = NULL;
 +			sp->opdata_rsa_d_num = NULL;
 +			break;
 +#endif	/* OPENSSL_NO_RSA */
@@ -2799,6 +2871,12 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11.c:1.26
 +			break;
 +		}
 +
++	/*
++	 * We always initialize the session as containing a non-persistent
++	 * object. The key load functions set it to persistent if that is so.
++	 */
++	sp->pub_persistent = CK_FALSE;
++	sp->priv_persistent = CK_FALSE;
 +	return (1);
 +	}
 +
@@ -2811,8 +2889,8 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11.c:1.26
 +
 +	if (sp->opdata_rsa_pub_key != CK_INVALID_HANDLE)
 +		{
-+		TRY_OBJ_DESTROY(sp->session, sp->opdata_rsa_pub_key,
-+		    ret, uselock, OP_RSA);
++		TRY_OBJ_DESTROY(sp, sp->opdata_rsa_pub_key,
++		    ret, uselock, OP_RSA, CK_FALSE);
 +		sp->opdata_rsa_pub_key = CK_INVALID_HANDLE;
 +		sp->opdata_rsa_pub = NULL;
 +		if (sp->opdata_rsa_n_num != NULL)
@@ -2838,24 +2916,30 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11.c:1.26
 +
 +	if (sp->opdata_rsa_priv_key != CK_INVALID_HANDLE)
 +		{
-+		if ((sp->opdata_rsa_priv->flags & RSA_FLAG_EXT_PKEY) != 0)
-+			{
-+			TRY_OBJ_DELETE(sp->session,
-+				       sp->opdata_rsa_priv_key,
-+				       ret, uselock, OP_RSA);
-+			}
-+		else
-+			{
-+			TRY_OBJ_DESTROY(sp->session,
-+					sp->opdata_rsa_priv_key,
-+					ret, uselock, OP_RSA);
-+			}
++		TRY_OBJ_DESTROY(sp, sp->opdata_rsa_priv_key,
++		    ret, uselock, OP_RSA, CK_TRUE);
 +		sp->opdata_rsa_priv_key = CK_INVALID_HANDLE;
 +		sp->opdata_rsa_priv = NULL;
 +		if (sp->opdata_rsa_d_num != NULL)
 +			{
 +			BN_free(sp->opdata_rsa_d_num);
 +			sp->opdata_rsa_d_num = NULL;
++			}
++
++		/*
++		 * For the RSA key by reference code, public components 'n'/'e'
++		 * are the key components we use to check for the cache hit. We
++		 * must free those as well.
++		 */
++		if (sp->opdata_rsa_pn_num != NULL)
++			{
++			BN_free(sp->opdata_rsa_pn_num);
++			sp->opdata_rsa_pn_num = NULL;
++			}
++		if (sp->opdata_rsa_pe_num != NULL)
++			{
++			BN_free(sp->opdata_rsa_pe_num);
++			sp->opdata_rsa_pe_num = NULL;
 +			}
 +		}
 +
@@ -2931,8 +3015,8 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11.c:1.26
 +
 +	if (sp->opdata_dsa_pub_key != CK_INVALID_HANDLE)
 +		{
-+		TRY_OBJ_DESTROY(sp->session, sp->opdata_dsa_pub_key,
-+		    ret, uselock, OP_DSA);
++		TRY_OBJ_DESTROY(sp, sp->opdata_dsa_pub_key,
++		    ret, uselock, OP_DSA, CK_FALSE);
 +		sp->opdata_dsa_pub_key = CK_INVALID_HANDLE;
 +		sp->opdata_dsa_pub = NULL;
 +		if (sp->opdata_dsa_pub_num != NULL)
@@ -2953,8 +3037,8 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11.c:1.26
 +
 +	if (sp->opdata_dsa_priv_key != CK_INVALID_HANDLE)
 +		{
-+		TRY_OBJ_DESTROY(sp->session, sp->opdata_dsa_priv_key,
-+		    ret, uselock, OP_DSA);
++		TRY_OBJ_DESTROY(sp, sp->opdata_dsa_priv_key,
++		    ret, uselock, OP_DSA, CK_TRUE);
 +		sp->opdata_dsa_priv_key = CK_INVALID_HANDLE;
 +		sp->opdata_dsa_priv = NULL;
 +		if (sp->opdata_dsa_priv_num != NULL)
@@ -3036,8 +3120,8 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11.c:1.26
 +
 +	if (sp->opdata_dh_key != CK_INVALID_HANDLE)
 +		{
-+		TRY_OBJ_DESTROY(sp->session, sp->opdata_dh_key,
-+		    ret, uselock, OP_DH);
++		TRY_OBJ_DESTROY(sp, sp->opdata_dh_key,
++		    ret, uselock, OP_DH, CK_TRUE);
 +		sp->opdata_dh_key = CK_INVALID_HANDLE;
 +		sp->opdata_dh = NULL;
 +		if (sp->opdata_dh_priv_num != NULL)
@@ -3104,9 +3188,20 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11.c:1.26
 +	}
 +#endif	/* OPENSSL_NO_DH */
 +
-+static int pk11_destroy_object(CK_SESSION_HANDLE session, CK_OBJECT_HANDLE oh)
++static int
++pk11_destroy_object(CK_SESSION_HANDLE session, CK_OBJECT_HANDLE oh,
++	CK_BBOOL persistent)
 +	{
 +	CK_RV rv;
++
++	/*
++	 * We never try to destroy persistent objects which are the objects
++	 * stored in the keystore. Also, we always use read-only sessions so
++	 * C_DestroyObject() would be returning CKR_SESSION_READ_ONLY here.
++	 */
++	if (persistent == CK_TRUE)
++		return (1);
++
 +	rv = pFuncList->C_DestroyObject(session, oh);
 +	if (rv != CKR_OK)
 +		{
@@ -3363,9 +3458,15 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11.c:1.26
 + * An engine interface function. The calling function allocates sufficient
 + * memory for the output buffer "out" to hold the results.
 + */
++#if OPENSSL_VERSION_NUMBER < 0x10000000L
 +static int
 +pk11_cipher_do_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
 +	const unsigned char *in, unsigned int inl)
++#else
++static int
++pk11_cipher_do_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
++	const unsigned char *in, size_t inl)
++#endif
 +	{
 +	PK11_CIPHER_STATE *state = (PK11_CIPHER_STATE *) ctx->cipher_data;
 +	PK11_SESSION *sp;
@@ -3885,10 +3986,10 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11.c:1.26
 +			{
 +			/*
 +			 * The secret key object is created in the
-+			 * global_session. See pk11_get_cipher_key
++			 * global_session. See pk11_get_cipher_key().
 +			 */
 +			if (pk11_destroy_object(global_session,
-+				sp->opdata_cipher_key) == 0)
++				sp->opdata_cipher_key, CK_FALSE) == 0)
 +				goto err;
 +			sp->opdata_cipher_key = CK_INVALID_HANDLE;
 +			}
@@ -3970,7 +4071,7 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11.c:1.26
 +		*any_slot_found = 0;
 +
 +	/* Get slot list for memory allocation */
-+	rv = pFuncList->C_GetSlotList(0, NULL_PTR, &ulSlotCount);
++	rv = pFuncList->C_GetSlotList(CK_FALSE, NULL_PTR, &ulSlotCount);
 +
 +	if (rv != CKR_OK)
 +		{
@@ -3996,7 +4097,7 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11.c:1.26
 +		}
 +
 +	/* Get the slot list for processing */
-+	rv = pFuncList->C_GetSlotList(0, pSlotList, &ulSlotCount);
++	rv = pFuncList->C_GetSlotList(CK_FALSE, pSlotList, &ulSlotCount);
 +	if (rv != CKR_OK)
 +		{
 +		PK11err_add_data(PK11_F_CHOOSE_SLOT, PK11_R_GETSLOTLIST, rv);
@@ -4140,6 +4241,12 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11.c:1.26
 +			pk11_have_dsa = slot_has_dsa;
 +			pk11_have_dh = slot_has_dh;
 +			found_candidate_slot = CK_TRUE;
++			/*
++			 * Cache the flags for later use. We might
++			 * need those if RSA keys by reference feature
++			 * is used.
++			 */
++			pubkey_token_flags = token_info.flags;
 +#ifdef	DEBUG_SLOT_SELECTION
 +			fprintf(stderr,
 +			    "%s: setting found_candidate_slot to CK_TRUE\n",
@@ -4147,6 +4254,8 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11.c:1.26
 +			fprintf(stderr,
 +			    "%s: best so far slot: %d\n", PK11_DBG,
 +			    best_slot_sofar);
++			fprintf(stderr, "%s: pubkey flags changed to "
++			    "%lu.\n", PK11_DBG, pubkey_token_flags);
 +			}
 +		else
 +			{
@@ -4158,7 +4267,7 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11.c:1.26
 +#endif	/* DEBUG_SLOT_SELECTION */
 +		} /* for */
 +
-+	if (found_candidate_slot)
++	if (found_candidate_slot == CK_TRUE)
 +		{
 +		pubkey_SLOTID = best_slot_sofar;
 +		}
@@ -4536,7 +4645,7 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11.c:1.26
 +		goto err;
 +		}
 +
-+	rv = pflist->C_Initialize(NULL_PTR);
++	rv = pflist->C_Initialize((CK_VOID_PTR)&pk11_init_args);
 +	if ((rv != CKR_OK) && (rv != CKR_CRYPTOKI_ALREADY_INITIALIZED))
 +		{
 +		PK11err_add_data(PK11_F_CHECK_HW_MECHANISMS,
@@ -4701,12 +4810,12 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11.c:1.26
 +#endif	/* OPENSSL_NO_HW_PK11 */
 +#endif	/* OPENSSL_NO_HW */
 Index: openssl/crypto/engine/hw_pk11_err.c
-diff -u /dev/null openssl/crypto/engine/hw_pk11_err.c:1.4
---- /dev/null	Thu Dec 24 13:00:45 2009
-+++ openssl/crypto/engine/hw_pk11_err.c	Wed Dec 17 16:14:26 2008
-@@ -0,0 +1,259 @@
+diff -u /dev/null openssl/crypto/engine/hw_pk11_err.c:1.5
+--- /dev/null	Mon Jan 16 18:54:23 2012
++++ openssl/crypto/engine/hw_pk11_err.c	Tue Jun 14 00:43:26 2011
+@@ -0,0 +1,288 @@
 +/*
-+ * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
++ * Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
 + * Use is subject to license terms.
 + */
 +
@@ -4838,6 +4947,16 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11_err.c:1.4
 +{ ERR_PACK(0, PK11_F_CHECK_HW_MECHANISMS, 0),	"PK11_CHECK_HW_MECHANISMS"},
 +{ ERR_PACK(0, PK11_F_INIT_SYMMETRIC, 0),	"PK11_INIT_SYMMETRIC"},
 +{ ERR_PACK(0, PK11_F_ADD_AES_CTR_NIDS, 0),	"PK11_ADD_AES_CTR_NIDS"},
++{ ERR_PACK(0, PK11_F_INIT_ALL_LOCKS, 0),	"PK11_INIT_ALL_LOCKS"},
++{ ERR_PACK(0, PK11_F_RETURN_SESSION, 0),	"PK11_RETURN_SESSION"},
++{ ERR_PACK(0, PK11_F_GET_PIN, 0),		"PK11_GET_PIN"},
++{ ERR_PACK(0, PK11_F_FIND_ONE_OBJECT, 0),	"PK11_FIND_ONE_OBJECT"},
++{ ERR_PACK(0, PK11_F_CHECK_TOKEN_ATTRS, 0),	"PK11_CHECK_TOKEN_ATTRS"},
++{ ERR_PACK(0, PK11_F_CACHE_PIN, 0),		"PK11_CACHE_PIN"},
++{ ERR_PACK(0, PK11_F_MLOCK_PIN_IN_MEMORY, 0),	"PK11_MLOCK_PIN_IN_MEMORY"},
++{ ERR_PACK(0, PK11_F_TOKEN_LOGIN, 0),		"PK11_TOKEN_LOGIN"},
++{ ERR_PACK(0, PK11_F_TOKEN_RELOGIN, 0),		"PK11_TOKEN_RELOGIN"},
++{ ERR_PACK(0, PK11_F_RUN_ASKPASS, 0),		"PK11_F_RUN_ASKPASS"},
 +{ 0, NULL}
 +};
 +
@@ -4904,13 +5023,32 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11_err.c:1.4
 +{ PK11_R_DERIVEKEY,			"C_DeriveKey failed"},
 +{ PK11_R_GET_OPERATION_STATE,		"C_GetOperationState failed"},
 +{ PK11_R_SET_OPERATION_STATE,		"C_SetOperationState failed"},
-+{ PK11_R_INVALID_PIN,			"invalid PIN"},
-+{ PK11_R_TOO_MANY_OBJECTS,		"too many objects"},
-+{ PK11_R_OBJECT_NOT_FOUND,		"object not found"},
 +{ PK11_R_INVALID_HANDLE,		"invalid PKCS#11 object handle"},
 +{ PK11_R_KEY_OR_IV_LEN_PROBLEM,		"IV or key length incorrect"},
 +{ PK11_R_INVALID_OPERATION_TYPE,	"invalid operation type"},
 +{ PK11_R_ADD_NID_FAILED,		"failed to add NID" },
++{ PK11_R_ATFORK_FAILED,			"atfork() failed" },
++{ PK11_R_TOKEN_LOGIN_FAILED,		"C_Login() failed on token" },
++{ PK11_R_MORE_THAN_ONE_OBJECT_FOUND,	"more than one object found" },
++{ PK11_R_INVALID_PKCS11_URI,		"pkcs11 URI provided is invalid" },
++{ PK11_R_COULD_NOT_READ_PIN,		"could not read PIN from terminal" },
++{ PK11_R_PIN_NOT_READ_FROM_COMMAND,	"PIN not read from external command" },
++{ PK11_R_COULD_NOT_OPEN_COMMAND,	"could not popen() dialog command" },
++{ PK11_R_PIPE_FAILED,			"pipe() failed" },
++{ PK11_R_BAD_PASSPHRASE_SPEC,		"bad passphrasedialog specification" },
++{ PK11_R_TOKEN_NOT_INITIALIZED,		"token not initialized" },
++{ PK11_R_TOKEN_PIN_NOT_SET,		"token PIN required but not set" },
++{ PK11_R_TOKEN_PIN_NOT_PROVIDED,	"token PIN required but not provided" },
++{ PK11_R_MISSING_OBJECT_LABEL,		"missing mandatory 'object' keyword" },
++{ PK11_R_TOKEN_ATTRS_DO_NOT_MATCH,	"token attrs provided do not match" },
++{ PK11_R_PRIV_KEY_NOT_FOUND,		"private key not found in keystore" },
++{ PK11_R_NO_OBJECT_FOUND,		"specified object not found" },
++{ PK11_R_PIN_CACHING_POLICY_INVALID,	"PIN set but caching policy invalid" },
++{ PK11_R_SYSCONF_FAILED,		"sysconf() failed" },
++{ PK11_R_MMAP_FAILED,			"mmap() failed" },
++{ PK11_R_PRIV_PROC_LOCK_MEMORY_MISSING,	"PROC_LOCK_MEMORY privilege missing" },
++{ PK11_R_MLOCK_FAILED,			"mlock() failed" },
++{ PK11_R_FORK_FAILED,			"fork() failed" },
 +{ 0,	NULL}
 +};
 +#endif	/* OPENSSL_NO_ERR */
@@ -4965,16 +5103,15 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11_err.c:1.4
 +	ERR_add_error_data(2, "PK11 CK_RV=0X", tmp_buf);
 +}
 Index: openssl/crypto/engine/hw_pk11_err.h
-diff -u /dev/null openssl/crypto/engine/hw_pk11_err.h:1.9
---- /dev/null	Thu Dec 24 13:00:45 2009
-+++ openssl/crypto/engine/hw_pk11_err.h	Wed Dec 17 15:01:45 2008
-@@ -0,0 +1,402 @@
+diff -u /dev/null openssl/crypto/engine/hw_pk11_err.h:1.12
+--- /dev/null	Mon Jan 16 18:54:23 2012
++++ openssl/crypto/engine/hw_pk11_err.h	Tue Jun 14 21:51:32 2011
+@@ -0,0 +1,440 @@
 +/*
-+ * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
++ * Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
 + * Use is subject to license terms.
 + */
 +
-+/* crypto/engine/hw_pk11_err.h */
 +/*
 + * This product includes software developed by the OpenSSL Project for
 + * use in the OpenSSL Toolkit (http://www.openssl.org/).
@@ -5048,41 +5185,41 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11_err.h:1.9
 +
 +/* Function codes. */
 +
-+#define	PK11_F_INIT 				100
++#define	PK11_F_INIT				100
 +#define	PK11_F_FINISH				101
-+#define	PK11_F_DESTROY 				102
-+#define	PK11_F_CTRL 				103
-+#define	PK11_F_RSA_INIT 			104
-+#define	PK11_F_RSA_FINISH 			105
-+#define	PK11_F_GET_PUB_RSA_KEY 			106
-+#define	PK11_F_GET_PRIV_RSA_KEY 		107
-+#define	PK11_F_RSA_GEN_KEY 			108
-+#define	PK11_F_RSA_PUB_ENC 			109
-+#define	PK11_F_RSA_PRIV_ENC 			110
-+#define	PK11_F_RSA_PUB_DEC 			111
-+#define	PK11_F_RSA_PRIV_DEC 			112
-+#define	PK11_F_RSA_SIGN 			113
-+#define	PK11_F_RSA_VERIFY 			114
-+#define	PK11_F_RAND_ADD 			115
-+#define	PK11_F_RAND_BYTES 			116
-+#define	PK11_F_GET_SESSION 			117
-+#define	PK11_F_FREE_SESSION 			118
-+#define	PK11_F_LOAD_PUBKEY 			119
-+#define	PK11_F_LOAD_PRIVKEY 			120
-+#define	PK11_F_RSA_PUB_ENC_LOW 			121
-+#define	PK11_F_RSA_PRIV_ENC_LOW 		122
-+#define	PK11_F_RSA_PUB_DEC_LOW 			123
-+#define	PK11_F_RSA_PRIV_DEC_LOW 		124
++#define	PK11_F_DESTROY				102
++#define	PK11_F_CTRL				103
++#define	PK11_F_RSA_INIT				104
++#define	PK11_F_RSA_FINISH			105
++#define	PK11_F_GET_PUB_RSA_KEY			106
++#define	PK11_F_GET_PRIV_RSA_KEY			107
++#define	PK11_F_RSA_GEN_KEY			108
++#define	PK11_F_RSA_PUB_ENC			109
++#define	PK11_F_RSA_PRIV_ENC			110
++#define	PK11_F_RSA_PUB_DEC			111
++#define	PK11_F_RSA_PRIV_DEC			112
++#define	PK11_F_RSA_SIGN				113
++#define	PK11_F_RSA_VERIFY			114
++#define	PK11_F_RAND_ADD				115
++#define	PK11_F_RAND_BYTES			116
++#define	PK11_F_GET_SESSION			117
++#define	PK11_F_FREE_SESSION			118
++#define	PK11_F_LOAD_PUBKEY			119
++#define	PK11_F_LOAD_PRIVKEY			120
++#define	PK11_F_RSA_PUB_ENC_LOW			121
++#define	PK11_F_RSA_PRIV_ENC_LOW			122
++#define	PK11_F_RSA_PUB_DEC_LOW			123
++#define	PK11_F_RSA_PRIV_DEC_LOW			124
 +#define	PK11_F_DSA_SIGN				125
 +#define	PK11_F_DSA_VERIFY			126
 +#define	PK11_F_DSA_INIT				127
 +#define	PK11_F_DSA_FINISH			128
-+#define	PK11_F_GET_PUB_DSA_KEY 			129
-+#define	PK11_F_GET_PRIV_DSA_KEY 		130
-+#define	PK11_F_DH_INIT 				131
-+#define	PK11_F_DH_FINISH 			132
-+#define	PK11_F_MOD_EXP_DH 			133
-+#define	PK11_F_GET_DH_KEY 			134
++#define	PK11_F_GET_PUB_DSA_KEY			129
++#define	PK11_F_GET_PRIV_DSA_KEY			130
++#define	PK11_F_DH_INIT				131
++#define	PK11_F_DH_FINISH			132
++#define	PK11_F_MOD_EXP_DH			133
++#define	PK11_F_GET_DH_KEY			134
 +#define	PK11_F_FREE_ALL_SESSIONS		135
 +#define	PK11_F_SETUP_SESSION			136
 +#define	PK11_F_DESTROY_OBJECT			137
@@ -5094,11 +5231,11 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11_err.h:1.9
 +#define	PK11_F_DIGEST_FINAL			143
 +#define	PK11_F_CHOOSE_SLOT			144
 +#define	PK11_F_CIPHER_FINAL			145
-+#define	PK11_F_LIBRARY_INIT 			146
-+#define	PK11_F_LOAD 				147
++#define	PK11_F_LIBRARY_INIT			146
++#define	PK11_F_LOAD				147
 +#define	PK11_F_DH_GEN_KEY			148
-+#define	PK11_F_DH_COMP_KEY 			149
-+#define	PK11_F_DIGEST_COPY 			150
++#define	PK11_F_DH_COMP_KEY			149
++#define	PK11_F_DIGEST_COPY			150
 +#define	PK11_F_CIPHER_CLEANUP			151
 +#define	PK11_F_ACTIVE_ADD			152
 +#define	PK11_F_ACTIVE_DELETE			153
@@ -5107,6 +5244,14 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11_err.h:1.9
 +#define	PK11_F_ADD_AES_CTR_NIDS			156
 +#define	PK11_F_INIT_ALL_LOCKS			157
 +#define	PK11_F_RETURN_SESSION			158
++#define	PK11_F_GET_PIN				159
++#define	PK11_F_FIND_ONE_OBJECT			160
++#define	PK11_F_CHECK_TOKEN_ATTRS		161
++#define	PK11_F_CACHE_PIN			162
++#define	PK11_F_MLOCK_PIN_IN_MEMORY		163
++#define	PK11_F_TOKEN_LOGIN			164
++#define	PK11_F_TOKEN_RELOGIN			165
++#define	PK11_F_RUN_ASKPASS			166
 +
 +/* Reason codes. */
 +#define	PK11_R_ALREADY_LOADED 			100
@@ -5175,9 +5320,28 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11_err.h:1.9
 +#define	PK11_R_INVALID_OPERATION_TYPE		164
 +#define	PK11_R_ADD_NID_FAILED			165
 +#define	PK11_R_ATFORK_FAILED			166
-+#define	PK11_R_INVALID_PIN			167
-+#define	PK11_R_TOO_MANY_OBJECTS			168
-+#define	PK11_R_OBJECT_NOT_FOUND			169
++
++#define	PK11_R_TOKEN_LOGIN_FAILED		167
++#define	PK11_R_MORE_THAN_ONE_OBJECT_FOUND	168
++#define	PK11_R_INVALID_PKCS11_URI		169
++#define	PK11_R_COULD_NOT_READ_PIN		170
++#define	PK11_R_COULD_NOT_OPEN_COMMAND		171
++#define	PK11_R_PIPE_FAILED			172
++#define	PK11_R_PIN_NOT_READ_FROM_COMMAND	173
++#define	PK11_R_BAD_PASSPHRASE_SPEC		174
++#define	PK11_R_TOKEN_NOT_INITIALIZED		175
++#define	PK11_R_TOKEN_PIN_NOT_SET		176
++#define	PK11_R_TOKEN_PIN_NOT_PROVIDED		177
++#define	PK11_R_MISSING_OBJECT_LABEL		178
++#define	PK11_R_TOKEN_ATTRS_DO_NOT_MATCH		179
++#define	PK11_R_PRIV_KEY_NOT_FOUND		180
++#define	PK11_R_NO_OBJECT_FOUND			181
++#define	PK11_R_PIN_CACHING_POLICY_INVALID	182
++#define	PK11_R_SYSCONF_FAILED			183
++#define	PK11_R_MMAP_FAILED			183
++#define	PK11_R_PRIV_PROC_LOCK_MEMORY_MISSING	184
++#define	PK11_R_MLOCK_FAILED			185
++#define	PK11_R_FORK_FAILED			186
 +
 +/* max byte length of a symetric key we support */
 +#define	PK11_KEY_LEN_MAX			32
@@ -5212,6 +5376,8 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11_err.h:1.9
 +	struct PK11_st_SESSION	*next;
 +	CK_SESSION_HANDLE	session;	/* PK11 session handle */
 +	pid_t			pid;		/* Current process ID */
++	CK_BBOOL		pub_persistent;	/* is pub key in keystore? */
++	CK_BBOOL		priv_persistent;/* is priv key in keystore? */
 +	union
 +		{
 +#ifndef OPENSSL_NO_RSA
@@ -5223,6 +5389,8 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11_err.h:1.9
 +			BIGNUM			*rsa_n_num; /* pub modulus */
 +			BIGNUM			*rsa_e_num; /* pub exponent */
 +			RSA			*rsa_priv; /* priv key addr */
++			BIGNUM			*rsa_pn_num; /* pub modulus */
++			BIGNUM			*rsa_pe_num; /* pub exponent */
 +			BIGNUM			*rsa_d_num; /* priv exponent */
 +			} u_RSA;
 +#endif /* OPENSSL_NO_RSA */
@@ -5261,6 +5429,8 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11_err.h:1.9
 +#define	opdata_rsa_priv		opdata_u.u_RSA.rsa_priv
 +#define	opdata_rsa_n_num	opdata_u.u_RSA.rsa_n_num
 +#define	opdata_rsa_e_num	opdata_u.u_RSA.rsa_e_num
++#define	opdata_rsa_pn_num	opdata_u.u_RSA.rsa_pn_num
++#define	opdata_rsa_pe_num	opdata_u.u_RSA.rsa_pe_num
 +#define	opdata_rsa_d_num	opdata_u.u_RSA.rsa_d_num
 +#define	opdata_dsa_pub_key	opdata_u.u_DSA.dsa_pub_key
 +#define	opdata_dsa_priv_key	opdata_u.u_DSA.dsa_priv_key
@@ -5330,6 +5500,11 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11_err.h:1.9
 +extern pthread_mutex_t *find_lock[];
 +#endif
 +extern PK11_active *active_list[];
++/*
++ * These variables are specific for the RSA keys by reference code. See
++ * hw_pk11_pub.c for explanation.
++ */
++extern CK_FLAGS pubkey_token_flags;
 +
 +#ifndef NOPTHREADS
 +#define	LOCK_OBJSTORE(alg_type)	\
@@ -5345,6 +5520,7 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11_err.h:1.9
 +
 +extern PK11_SESSION *pk11_get_session(PK11_OPTYPE optype);
 +extern void pk11_return_session(PK11_SESSION *sp, PK11_OPTYPE optype);
++extern int pk11_token_relogin(CK_SESSION_HANDLE session);
 +
 +#ifndef OPENSSL_NO_RSA
 +extern int pk11_destroy_rsa_key_objects(PK11_SESSION *session);
@@ -5372,12 +5548,12 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11_err.h:1.9
 +
 +#endif /* HW_PK11_ERR_H */
 Index: openssl/crypto/engine/hw_pk11_pub.c
-diff -u /dev/null openssl/crypto/engine/hw_pk11_pub.c:1.32
---- /dev/null	Thu Dec 24 13:00:45 2009
-+++ openssl/crypto/engine/hw_pk11_pub.c	Mon Oct  5 13:16:55 2009
-@@ -0,0 +1,3140 @@
+diff -u /dev/null openssl/crypto/engine/hw_pk11_pub.c:1.37
+--- /dev/null	Mon Jan 16 18:54:23 2012
++++ openssl/crypto/engine/hw_pk11_pub.c	Fri Jun 17 07:55:25 2011
+@@ -0,0 +1,3530 @@
 +/*
-+ * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
++ * Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
 + * Use is subject to license terms.
 + */
 +
@@ -5508,6 +5684,12 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11_pub.c:1.32
 +#include "hw_pk11ca.h"
 +#include "hw_pk11_err.h"
 +
++static CK_BBOOL pk11_login_done = CK_FALSE;
++extern CK_SLOT_ID pubkey_SLOTID;
++#ifndef NOPTHREADS
++extern pthread_mutex_t *token_lock;
++#endif
++
 +#if !(defined(HAVE_GETPASSPHRASE) || (defined (__SVR4) && defined (__sun)))
 +#define getpassphrase(x)	getpass(x)
 +#endif
@@ -5526,10 +5708,16 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11_pub.c:1.32
 +static int pk11_RSA_finish(RSA *rsa);
 +static int pk11_RSA_sign(int type, const unsigned char *m, unsigned int m_len,
 +	unsigned char *sigret, unsigned int *siglen, const RSA *rsa);
++#if OPENSSL_VERSION_NUMBER < 0x10000000L
 +static int pk11_RSA_verify(int dtype, const unsigned char *m,
 +	unsigned int m_len, unsigned char *sigbuf, unsigned int siglen,
 +	const RSA *rsa);
-+EVP_PKEY *pk11_load_privkey(ENGINE*, const char *pubkey_file,
++#else
++static int pk11_RSA_verify(int dtype, const unsigned char *m,
++	unsigned int m_len, const unsigned char *sigbuf, unsigned int siglen,
++	const RSA *rsa);
++#endif
++EVP_PKEY *pk11_load_privkey(ENGINE*, const char *privkey_file,
 +	UI_METHOD *ui_method, void *callback_data);
 +EVP_PKEY *pk11_load_pubkey(ENGINE*, const char *pubkey_file,
 +	UI_METHOD *ui_method, void *callback_data);
@@ -5546,7 +5734,8 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11_pub.c:1.32
 +static CK_OBJECT_HANDLE pk11_get_public_rsa_key(RSA* rsa, RSA** key_ptr,
 +	BIGNUM **rsa_n_num, BIGNUM **rsa_e_num, CK_SESSION_HANDLE session);
 +static CK_OBJECT_HANDLE pk11_get_private_rsa_key(RSA* rsa, RSA** key_ptr,
-+	BIGNUM **rsa_d_num, CK_SESSION_HANDLE session);
++	BIGNUM **rsa_d_num, BIGNUM **rsa_n_num, BIGNUM **rsa_e_num,
++	CK_SESSION_HANDLE session);
 +
 +static int check_new_rsa_key_pub(PK11_SESSION *sp, const RSA *rsa);
 +static int check_new_rsa_key_priv(PK11_SESSION *sp, const RSA *rsa);
@@ -5584,9 +5773,14 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11_pub.c:1.32
 +static int check_new_dh_key(PK11_SESSION *sp, DH *dh);
 +#endif
 +
++static int find_one_object(PK11_OPTYPE op, CK_SESSION_HANDLE s,
++	CK_ATTRIBUTE_PTR ptempl, CK_ULONG nattr, CK_OBJECT_HANDLE_PTR pkey);
 +static int init_template_value(BIGNUM *bn, CK_VOID_PTR *pValue,
 +	CK_ULONG *ulValueLen);
 +static void attr_to_BN(CK_ATTRIBUTE_PTR attr, CK_BYTE attr_data[], BIGNUM **bn);
++
++static int pk11_token_login(CK_SESSION_HANDLE session, CK_BBOOL *login_done,
++	CK_BBOOL is_private);
 +
 +/* Read mode string to be used for fopen() */
 +#if SOLARIS_OPENSSL
@@ -6201,9 +6395,12 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11_pub.c:1.32
 +
 +	h_priv_key = sp->opdata_rsa_priv_key;
 +	if (h_priv_key == CK_INVALID_HANDLE)
++		{
 +		h_priv_key = sp->opdata_rsa_priv_key =
 +			pk11_get_private_rsa_key(rsa, &sp->opdata_rsa_priv,
-+			    &sp->opdata_rsa_d_num, sp->session);
++			    &sp->opdata_rsa_d_num, &sp->opdata_rsa_pn_num,
++			    &sp->opdata_rsa_pe_num, sp->session);
++		}
 +
 +	if (h_priv_key != CK_INVALID_HANDLE)
 +		{
@@ -6262,7 +6459,8 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11_pub.c:1.32
 +	if (h_priv_key == CK_INVALID_HANDLE)
 +		h_priv_key = sp->opdata_rsa_priv_key =
 +			pk11_get_private_rsa_key(rsa, &sp->opdata_rsa_priv,
-+			    &sp->opdata_rsa_d_num, sp->session);
++			    &sp->opdata_rsa_d_num, &sp->opdata_rsa_pn_num,
++			    &sp->opdata_rsa_pe_num, sp->session);
 +
 +	if (h_priv_key != CK_INVALID_HANDLE)
 +		{
@@ -6471,8 +6669,9 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11_pub.c:1.32
 +	if (h_priv_key == CK_INVALID_HANDLE)
 +		h_priv_key = sp->opdata_rsa_priv_key =
 +			pk11_get_private_rsa_key((RSA *)rsa,
-+			    &sp->opdata_rsa_priv,
-+			    &sp->opdata_rsa_d_num, sp->session);
++			    &sp->opdata_rsa_priv, &sp->opdata_rsa_d_num,
++			    &sp->opdata_rsa_pn_num, &sp->opdata_rsa_pe_num,
++			    sp->session);
 +
 +	if (h_priv_key != CK_INVALID_HANDLE)
 +		{
@@ -6508,9 +6707,15 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11_pub.c:1.32
 +	return (ret);
 +	}
 +
++#if OPENSSL_VERSION_NUMBER < 0x10000000L
 +static int pk11_RSA_verify(int type, const unsigned char *m,
 +	unsigned int m_len, unsigned char *sigbuf, unsigned int siglen,
 +	const RSA *rsa)
++#else
++static int pk11_RSA_verify(int type, const unsigned char *m,
++	unsigned int m_len, const unsigned char *sigbuf, unsigned int siglen,
++	const RSA *rsa)
++#endif
 +	{
 +	X509_SIG sig;
 +	ASN1_TYPE parameter;
@@ -6605,8 +6810,8 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11_pub.c:1.32
 +			    rv);
 +			goto err;
 +			}
-+		rv = pFuncList->C_Verify(sp->session, s, i, sigbuf,
-+			(CK_ULONG)siglen);
++		rv = pFuncList->C_Verify(sp->session, s, i,
++			(CK_BYTE_PTR)sigbuf, (CK_ULONG)siglen);
 +
 +		if (rv != CKR_OK)
 +			{
@@ -6629,7 +6834,12 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11_pub.c:1.32
 +
 +static int hndidx_rsa = -1;
 +
-+/* load RSA private key from a file */
++#define	MAXATTR	1024
++
++/*
++ * Load RSA private key from a file or get its PKCS#11 handle if stored in the
++ * PKCS#11 token.
++ */
 +/* ARGSUSED */
 +EVP_PKEY *pk11_load_privkey(ENGINE *e, const char *privkey_file,
 +	UI_METHOD *ui_method, void *callback_data)
@@ -6637,16 +6847,15 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11_pub.c:1.32
 +	EVP_PKEY *pkey = NULL;
 +	FILE *privkey;
 +	CK_OBJECT_HANDLE  h_priv_key = CK_INVALID_HANDLE;
-+	RSA *rsa;
++	RSA *rsa = NULL;
 +	PK11_SESSION *sp;
-+	/* everything else below needed for key by reference extension */
++	/* Anything else below is needed for the key by reference extension. */
 +	CK_RV rv;
-+	CK_ULONG objcnt = 0;
 +	CK_BBOOL is_token = TRUE;
-+	CK_BYTE attr_data[2][1024];
++	CK_BBOOL rollback = FALSE;
++	CK_BYTE attr_data[2][MAXATTR];
 +	CK_OBJECT_CLASS key_class = CKO_PRIVATE_KEY;
 +	CK_OBJECT_HANDLE ks_key = CK_INVALID_HANDLE;	/* key in keystore */
-+	extern char *pk11_pin;
 +
 +	/* we look for private keys only */
 +	CK_ATTRIBUTE search_templ[] =
@@ -6656,11 +6865,15 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11_pub.c:1.32
 +		{CKA_LABEL, NULL, 0}
 +		};
 +
-+	/* these attributes are needed to initialize OpenSSL RSA structure */
++	/*
++	 * These public attributes are needed to initialize the OpenSSL RSA
++	 * structure with something we can use to look up the key. Note that we
++	 * never ask for private components.
++	 */
 +	CK_ATTRIBUTE get_templ[] =
 +		{
-+		{CKA_MODULUS, (void *)attr_data[0], 1024},	    /* n */
-+		{CKA_PUBLIC_EXPONENT, (void *)attr_data[1], 1024},  /* e */
++		{CKA_MODULUS, (void *)attr_data[0], MAXATTR},		/* n */
++		{CKA_PUBLIC_EXPONENT, (void *)attr_data[1], MAXATTR},	/* e */
 +		};
 +
 +	if ((sp = pk11_get_session(OP_RSA)) == NULL)
@@ -6674,86 +6887,48 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11_pub.c:1.32
 +		search_templ[2].pValue = strstr(privkey_file, ":") + 1;
 +		search_templ[2].ulValueLen = strlen(search_templ[2].pValue);
 +
-+		if (pk11_pin == NULL)
-+			{
-+			pk11_pin = BUF_strdup(getpassphrase("Enter PIN: "));
-+
-+			if (pk11_pin == NULL)
-+				{
-+				PK11err(PK11_F_LOAD_PRIVKEY, PK11_R_MALLOC_FAILURE);
-+				goto err;
-+				}
-+			}
-+		if ((rv = pFuncList->C_Login(sp->session, CKU_USER, (CK_UTF8CHAR*)pk11_pin,
-+		    strlen(pk11_pin))) != CKR_OK && rv != CKR_USER_ALREADY_LOGGED_IN)
-+			{
-+			PK11err_add_data(PK11_F_LOAD_PRIVKEY,
-+					 PK11_R_INVALID_PIN, rv);
++		if (pk11_token_login(sp->session, &pk11_login_done,
++		    CK_TRUE) == 0)
 +			goto err;
-+			}
 +
-+		LOCK_OBJSTORE(OP_RSA);
-+		if ((rv = pFuncList->C_FindObjectsInit(sp->session,
-+		    search_templ, 3)) != CKR_OK)
-+			{
-+			UNLOCK_OBJSTORE(OP_RSA);
-+			PK11err_add_data(PK11_F_LOAD_PRIVKEY,
-+					 PK11_R_FINDOBJECTSINIT, rv);
++		/*
++		 * Now let's try to find the key in the token. It is a failure
++		 * if we can't find it.
++		 */
++		if (find_one_object(OP_RSA, sp->session, search_templ, 3,
++		    &ks_key) == 0)
 +			goto err;
-+			}
-+
-+		rv = pFuncList->C_FindObjects(sp->session, &ks_key, 1, &objcnt);
-+		if (rv != CKR_OK)
-+			{
-+			UNLOCK_OBJSTORE(OP_RSA);
-+			PK11err_add_data(PK11_F_LOAD_PRIVKEY,
-+					 PK11_R_FINDOBJECTS, rv);
-+			goto err;
-+			}
-+
-+		if (objcnt > 1)
-+			{
-+			UNLOCK_OBJSTORE(OP_RSA);
-+			PK11err(PK11_F_LOAD_PRIVKEY, PK11_R_TOO_MANY_OBJECTS);
-+			goto err;
-+			}
-+
-+		if (objcnt != 1)
-+			{
-+			UNLOCK_OBJSTORE(OP_RSA);
-+			PK11err(PK11_F_LOAD_PRIVKEY, PK11_R_OBJECT_NOT_FOUND);
-+			goto err;
-+			}
-+
-+		(void) pFuncList->C_FindObjectsFinal(sp->session);
-+		UNLOCK_OBJSTORE(OP_RSA);
 +
 +		if (hndidx_rsa == -1)
 +			hndidx_rsa = RSA_get_ex_new_index(0,
 +				        "pkcs11 RSA HSM key handle",
 +					NULL, NULL, NULL);
 +
-+		pkey = EVP_PKEY_new();
-+		if (pkey == NULL)
-+			goto err;
++		/*
++		 * We might have a cache hit which we could confirm
++		 * according to the 'n'/'e' params, RSA public pointer
++		 * as NULL, and non-NULL RSA private pointer. However,
++		 * it is easier just to recreate everything. We expect
++		 * the keys to be loaded once and used many times. We
++		 * do not check the return value because even in case
++		 * of failure the sp structure will have both key
++		 * pointer and object handle cleaned and
++		 * pk11_destroy_object() reports the failure to the
++		 * OpenSSL error message buffer.
++		 */
++		(void) pk11_destroy_rsa_object_priv(sp, TRUE);
 +
-+		rsa = RSA_new_method(e);
-+		if (rsa == NULL) {
-+			EVP_PKEY_free(pkey);
-+			pkey = NULL;
-+			goto err;
-+		}
-+		EVP_PKEY_assign_RSA(pkey, rsa);
++		sp->opdata_rsa_priv_key = ks_key;
++		/* This object shall not be deleted on a cache miss. */
++		sp->priv_persistent = CK_TRUE;
 +
-+		if ((rv = pFuncList->C_GetAttributeValue(sp->session, ks_key,
-+		    get_templ, 2)) != CKR_OK)
-+			{
-+			PK11err_add_data(PK11_F_LOAD_PRIVKEY,
-+					 PK11_R_GETATTRIBUTVALUE, rv);
-+			EVP_PKEY_free(pkey);
-+			pkey = NULL;
++		/*
++		 * Cache the RSA private structure pointer. We do not
++		 * use it now for key-by-ref keys but let's do it for
++		 * consistency reasons.
++		 */
++		if ((rsa = sp->opdata_rsa_priv = RSA_new_method(e)) == NULL)
 +			goto err;
-+			}
 +
 +		/*
 +		 * Now we have to initialize an OpenSSL RSA structure,
@@ -6761,12 +6936,42 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11_pub.c:1.32
 +		 */
 +		rsa->flags = RSA_FLAG_SIGN_VER | RSA_FLAG_EXT_PKEY;
 +		RSA_set_ex_data(rsa, hndidx_rsa, (void *) ks_key);
-+		(void) check_new_rsa_key_priv(sp, rsa);
-+		sp->opdata_rsa_priv = rsa;
-+		sp->opdata_rsa_priv_key = ks_key;
 +
++		if ((rv = pFuncList->C_GetAttributeValue(sp->session, ks_key,
++		    get_templ, 2)) != CKR_OK)
++			{
++			PK11err_add_data(PK11_F_LOAD_PRIVKEY,
++					 PK11_R_GETATTRIBUTVALUE, rv);
++			goto err;
++			}
++
++		/*
++		 * We do not use pk11_get_private_rsa_key() here so we
++		 * must take care of handle management ourselves.
++		 */
++		KEY_HANDLE_REFHOLD(ks_key, OP_RSA, FALSE, rollback, err);
++
++		/*
++		 * Those are the sensitive components we do not want to export
++		 * from the token at all: rsa->(d|p|q|dmp1|dmq1|iqmp).
++		 */
 +		attr_to_BN(&get_templ[0], attr_data[0], &rsa->n);
 +		attr_to_BN(&get_templ[1], attr_data[1], &rsa->e);
++		/*
++		 * Must have 'n'/'e' components in the session structure as
++		 * well. They serve as a public look-up key for the private key
++		 * in the keystore.
++		 */
++		attr_to_BN(&get_templ[0], attr_data[0],
++			&sp->opdata_rsa_pn_num);
++		attr_to_BN(&get_templ[1], attr_data[1],
++			&sp->opdata_rsa_pe_num);
++
++		if ((pkey = EVP_PKEY_new()) == NULL)
++			goto err;
++
++		if (EVP_PKEY_assign_RSA(pkey, rsa) == 0)
++			goto err;
 +		}
 +	else if ((privkey = fopen(privkey_file, read_mode_flags)) != NULL)
 +		{
@@ -6777,32 +6982,47 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11_pub.c:1.32
 +			rsa = EVP_PKEY_get1_RSA(pkey);
 +			if (rsa != NULL)
 +				{
++				/*
++				 * This will always destroy the RSA
++				 * object since we have a new RSA
++				 * structure here.
++				 */
 +				(void) check_new_rsa_key_priv(sp, rsa);
++				sp->priv_persistent = CK_FALSE;
 +
 +				h_priv_key = sp->opdata_rsa_priv_key =
 +				    pk11_get_private_rsa_key(rsa,
-+				    &sp->opdata_rsa_priv, &sp->opdata_rsa_d_num,
-+				    sp->session);
++				    &sp->opdata_rsa_priv,
++				    &sp->opdata_rsa_d_num,
++				    &sp->opdata_rsa_pn_num,
++				    &sp->opdata_rsa_pe_num, sp->session);
 +				if (h_priv_key == CK_INVALID_HANDLE)
-+					{
-+					EVP_PKEY_free(pkey);
-+					pkey = NULL;
-+					}
++					goto err;
 +				}
 +			else
-+				{
-+				EVP_PKEY_free(pkey);
-+				pkey = NULL;
-+				}
++				goto err;
 +			}
 +		}
 +
++	pk11_return_session(sp, OP_RSA);
++	return (pkey);
 +err:
 +	pk11_return_session(sp, OP_RSA);
++	if (rsa != NULL)
++		RSA_free(rsa);
++	if (pkey != NULL)
++		{
++		EVP_PKEY_free(pkey);
++		pkey = NULL;
++		}
++	rollback = rollback;
 +	return (pkey);
 +	}
 +
-+/* load RSA public key from a file */
++/*
++ * Load RSA public key from a file or get its PKCS#11 handle if stored in the
++ * PKCS#11 token.
++ */
 +/* ARGSUSED */
 +EVP_PKEY *pk11_load_pubkey(ENGINE *e, const char *pubkey_file,
 +	UI_METHOD *ui_method, void *callback_data)
@@ -6810,16 +7030,14 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11_pub.c:1.32
 +	EVP_PKEY *pkey = NULL;
 +	FILE *pubkey;
 +	CK_OBJECT_HANDLE h_pub_key = CK_INVALID_HANDLE;
-+	RSA *rsa;
++	RSA *rsa = NULL;
 +	PK11_SESSION *sp;
-+	/* everything else below needed for key by reference extension */
++	/* Anything else below is needed for the key by reference extension. */
 +	CK_RV rv;
-+	CK_ULONG objcnt = 0;
 +	CK_BBOOL is_token = TRUE;
-+	CK_BYTE attr_data[2][1024];
++	CK_BYTE attr_data[2][MAXATTR];
 +	CK_OBJECT_CLASS key_class = CKO_PUBLIC_KEY;
 +	CK_OBJECT_HANDLE ks_key = CK_INVALID_HANDLE;	/* key in keystore */
-+	extern char *pk11_pin;
 +
 +	/* we look for public keys only */
 +	CK_ATTRIBUTE search_templ[] =
@@ -6829,11 +7047,14 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11_pub.c:1.32
 +		{CKA_LABEL, NULL, 0}
 +		};
 +
-+	/* these attributes are needed to initialize OpenSSL RSA structure */
++	/*
++	 * These public attributes are needed to initialize OpenSSL RSA
++	 * structure with something we can use to look up the key.
++	 */
 +	CK_ATTRIBUTE get_templ[] =
 +		{
-+		{CKA_MODULUS, (void *)attr_data[0], 1024},	    /* n */
-+		{CKA_PUBLIC_EXPONENT, (void *)attr_data[1], 1024},  /* e */
++		{CKA_MODULUS, (void *)attr_data[0], MAXATTR},		/* n */
++		{CKA_PUBLIC_EXPONENT, (void *)attr_data[1], MAXATTR},	/* e */
 +		};
 +
 +	if ((sp = pk11_get_session(OP_RSA)) == NULL)
@@ -6847,92 +7068,75 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11_pub.c:1.32
 +		search_templ[2].pValue = strstr(pubkey_file, ":") + 1;
 +		search_templ[2].ulValueLen = strlen(search_templ[2].pValue);
 +
-+#define ALLWAYS_LOGIN
-+#ifdef ALLWAYS_LOGIN
-+		if (pk11_pin == NULL)
-+			{
-+			pk11_pin = BUF_strdup(getpassphrase("Enter PIN: "));
-+
-+			if (pk11_pin == NULL)
-+				{
-+				PK11err(PK11_F_LOAD_PUBKEY, PK11_R_MALLOC_FAILURE);
-+				goto err;
-+				}
-+			}
-+		if ((rv = pFuncList->C_Login(sp->session, CKU_USER, (CK_UTF8CHAR*)pk11_pin,
-+		    strlen(pk11_pin))) != CKR_OK && rv != CKR_USER_ALREADY_LOGGED_IN)
-+			{
-+			PK11err_add_data(PK11_F_LOAD_PUBKEY,
-+					 PK11_R_INVALID_PIN, rv);
++		if (pk11_token_login(sp->session, &pk11_login_done,
++		    CK_FALSE) == 0)
 +			goto err;
-+			}
-+#endif
 +
-+		LOCK_OBJSTORE(OP_RSA);
-+		if (pFuncList->C_FindObjectsInit(sp->session, search_templ, 3) != CKR_OK)
-+			{
-+			UNLOCK_OBJSTORE(OP_RSA);
-+			PK11err_add_data(PK11_F_LOAD_PUBKEY,
-+					 PK11_R_FINDOBJECTSINIT, rv);
++		/*
++		 * Now let's try to find the key in the token. It is a failure
++		 * if we can't find it.
++		 */
++		if (find_one_object(OP_RSA, sp->session, search_templ, 3,
++		    &ks_key) == 0)
 +			goto err;
-+			}
-+		rv = pFuncList->C_FindObjects(sp->session, &ks_key, 1, &objcnt);
-+		if (rv != CKR_OK)
-+			{
-+			UNLOCK_OBJSTORE(OP_RSA);
-+			PK11err_add_data(PK11_F_LOAD_PUBKEY,
-+					 PK11_R_FINDOBJECTS, rv);
-+			goto err;
-+			}
 +
-+		if (objcnt > 1)
-+			{
-+			UNLOCK_OBJSTORE(OP_RSA);
-+			PK11err(PK11_F_LOAD_PUBKEY, PK11_R_TOO_MANY_OBJECTS);
-+			goto err;
-+			}
-+
-+		if (objcnt != 1)
-+			{
-+			UNLOCK_OBJSTORE(OP_RSA);
-+			PK11err(PK11_F_LOAD_PUBKEY, PK11_R_OBJECT_NOT_FOUND);
-+			goto err;
-+			}
-+
-+		(void) pFuncList->C_FindObjectsFinal(sp->session);
-+		UNLOCK_OBJSTORE(OP_RSA);
++		/*
++		 * We load a new public key so we will create a new RSA
++		 * structure. No cache hit is possible.
++		 */
++		(void) pk11_destroy_rsa_object_pub(sp, TRUE);
 +
 +		sp->opdata_rsa_pub_key = ks_key;
-+		pkey = EVP_PKEY_new();
-+		if (pkey == NULL)
-+			goto err;
++		/* This object shall not be deleted on a cache miss. */
++		sp->pub_persistent = CK_TRUE;
 +
-+		rsa = RSA_new_method(e);
-+		if (rsa == NULL) {
-+			EVP_PKEY_free(pkey);
-+			pkey = NULL;
++		/*
++		 * Cache the RSA public structure pointer.
++		 */
++		if ((rsa = sp->opdata_rsa_pub = RSA_new_method(e)) == NULL)
 +			goto err;
-+		}
-+		EVP_PKEY_assign_RSA(pkey, rsa);
-+
-+		if (pFuncList->C_GetAttributeValue(sp->session, ks_key,
-+		    get_templ, 2) != CKR_OK)
-+			{
-+			PK11err_add_data(PK11_F_LOAD_PUBKEY,
-+					 PK11_R_GETATTRIBUTVALUE, rv);
-+			goto err;
-+			}
 +
 +		/*
 +		 * Now we have to initialize an OpenSSL RSA structure,
 +		 * everything else is 0 or NULL.
 +		 */
 +		rsa->flags = RSA_FLAG_SIGN_VER;
-+		(void) check_new_rsa_key_pub(sp, rsa);
-+		sp->opdata_rsa_pub = rsa;
++
++		if ((rv = pFuncList->C_GetAttributeValue(sp->session, ks_key,
++		    get_templ, 2)) != CKR_OK)
++			{
++			PK11err_add_data(PK11_F_LOAD_PUBKEY,
++					 PK11_R_GETATTRIBUTVALUE, rv);
++			goto err;
++			}
 +
 +		attr_to_BN(&get_templ[0], attr_data[0], &rsa->n);
 +		attr_to_BN(&get_templ[1], attr_data[1], &rsa->e);
++
++		if ((pkey = EVP_PKEY_new()) == NULL)
++			goto err;
++
++		if (EVP_PKEY_assign_RSA(pkey, rsa) == 0)
++			goto err;
++
++		/*
++		 * Create a session object from it so that when calling
++		 * pk11_get_public_rsa_key() the next time, we can find it. The
++		 * reason why we do that is that we cannot tell from the RSA
++		 * structure (OpenSSL RSA structure does not have any room for
++		 * additional data used by the engine, for example) if it bears
++		 * a public key stored in the keystore or not so it's better if
++		 * we always have a session key. Note that this is different
++		 * from what we do for the private keystore objects but in that
++		 * case, we can tell from the RSA structure that the keystore
++		 * object is in play - the 'd' component is NULL in that case.
++		 */
++		h_pub_key = sp->opdata_rsa_pub_key =
++		    pk11_get_public_rsa_key(rsa,
++		    &sp->opdata_rsa_pub, &sp->opdata_rsa_n_num,
++		    &sp->opdata_rsa_e_num, sp->session);
++		if (h_pub_key == CK_INVALID_HANDLE)
++			goto err;
 +		}
 +	else if ((pubkey = fopen(pubkey_file, read_mode_flags)) != NULL)
 +		{
@@ -6943,28 +7147,37 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11_pub.c:1.32
 +			rsa = EVP_PKEY_get1_RSA(pkey);
 +			if (rsa != NULL)
 +				{
++				/*
++				 * This will always destroy the RSA
++				 * object since we have a new RSA
++				 * structure here.
++				 */
 +				(void) check_new_rsa_key_pub(sp, rsa);
++				sp->pub_persistent = CK_FALSE;
 +
 +				h_pub_key = sp->opdata_rsa_pub_key =
 +				    pk11_get_public_rsa_key(rsa,
 +				    &sp->opdata_rsa_pub, &sp->opdata_rsa_n_num,
 +				    &sp->opdata_rsa_e_num, sp->session);
 +				if (h_pub_key == CK_INVALID_HANDLE)
-+					{
-+					EVP_PKEY_free(pkey);
-+					pkey = NULL;
-+					}
++					goto err;
 +				}
 +			else
-+				{
-+				EVP_PKEY_free(pkey);
-+				pkey = NULL;
-+				}
++				goto err;
 +			}
 +		}
 +
++	pk11_return_session(sp, OP_RSA);
++	return (pkey);
 +err:
 +	pk11_return_session(sp, OP_RSA);
++	if (rsa != NULL)
++		RSA_free(rsa);
++	if (pkey != NULL)
++		{
++		EVP_PKEY_free(pkey);
++		pkey = NULL;
++		}
 +	return (pkey);
 +	}
 +
@@ -7025,13 +7238,14 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11_pub.c:1.32
 +
 +	/* see find_lock array definition for more info on object locking */
 +	LOCK_OBJSTORE(OP_RSA);
++
 +	rv = pFuncList->C_FindObjectsInit(session, a_key_template,
 +		ul_key_attr_count);
 +
 +	if (rv != CKR_OK)
 +		{
-+		PK11err_add_data(PK11_F_GET_PUB_RSA_KEY, PK11_R_FINDOBJECTSINIT,
-+		    rv);
++		PK11err_add_data(PK11_F_GET_PUB_RSA_KEY,
++		    PK11_R_FINDOBJECTSINIT, rv);
 +		goto err;
 +		}
 +
@@ -7118,8 +7332,9 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11_pub.c:1.32
 + * Create a private key object in the session from a given rsa structure.
 + * The *rsa_d_num pointer is non-NULL for RSA private keys.
 + */
-+static CK_OBJECT_HANDLE pk11_get_private_rsa_key(RSA *rsa,
-+    RSA **key_ptr, BIGNUM **rsa_d_num, CK_SESSION_HANDLE session)
++static CK_OBJECT_HANDLE
++pk11_get_private_rsa_key(RSA *rsa, RSA **key_ptr, BIGNUM **rsa_d_num,
++    BIGNUM **rsa_n_num, BIGNUM **rsa_e_num, CK_SESSION_HANDLE session)
 +	{
 +	CK_RV rv;
 +	CK_OBJECT_HANDLE h_key = CK_INVALID_HANDLE;
@@ -7146,7 +7361,7 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11_pub.c:1.32
 +		{CKA_PRIME_2, (void *)NULL, 0},
 +		{CKA_EXPONENT_1, (void *)NULL, 0},
 +		{CKA_EXPONENT_2, (void *)NULL, 0},
-+		{CKA_COEFFICIENT, (void *)NULL, 0}
++		{CKA_COEFFICIENT, (void *)NULL, 0},
 +		};
 +
 +	if ((rsa->flags & RSA_FLAG_EXT_PKEY) != 0) {
@@ -7182,6 +7397,23 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11_pub.c:1.32
 +
 +	/* see find_lock array definition for more info on object locking */
 +	LOCK_OBJSTORE(OP_RSA);
++
++	/*
++	 * We are getting the private key but the private 'd'
++	 * component is NULL.  That means this is key by reference RSA
++	 * key. In that case, we can use only public components for
++	 * searching for the private key handle.
++	 */
++	if (rsa->d == NULL)
++		{
++		ul_key_attr_count = 8;
++		/*
++		 * We will perform the search in the token, not in the existing
++		 * session keys.
++		 */
++		a_key_template[2].pValue = &true;
++		}
++
 +	rv = pFuncList->C_FindObjectsInit(session, a_key_template,
 +		ul_key_attr_count);
 +
@@ -7212,6 +7444,21 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11_pub.c:1.32
 +
 +	if (found == 0)
 +		{
++		/*
++		 * We have an RSA structure with 'n'/'e' components
++		 * only so we tried to find the private key in the
++		 * keystore. If it was really a token key we have a
++		 * problem. Note that for other key types we just
++		 * create a new session key using the private
++		 * components from the RSA structure.
++		 */
++		if (rsa->d == NULL)
++			{
++			PK11err(PK11_F_GET_PRIV_RSA_KEY,
++			    PK11_R_PRIV_KEY_NOT_FOUND);
++			goto err;
++			}
++
 +		rv = pFuncList->C_CreateObject(session,
 +			a_key_template, ul_key_attr_count, &h_key);
 +		if (rv != CKR_OK)
@@ -7225,15 +7472,35 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11_pub.c:1.32
 +set:
 +	if (rsa_d_num != NULL)
 +		{
-+		if (rsa->d == NULL)
-+			*rsa_d_num = NULL;
-+		else if ((*rsa_d_num = BN_dup(rsa->d)) == NULL)
++		/*
++		 * When RSA keys by reference code is used, we never
++		 * extract private components from the keystore. In
++		 * that case 'd' was set to NULL and we expect the
++		 * application to properly cope with that. It is
++		 * documented in openssl(5). In general, if keys by
++		 * reference are used we expect it to be used
++		 * exclusively using the high level API and then there
++		 * is no problem. If the application expects the
++		 * private components to be read from the keystore
++		 * then that is not a supported way of usage.
++		 */
++		if (rsa->d != NULL && (*rsa_d_num = BN_dup(rsa->d)) == NULL)
 +			{
 +			PK11err(PK11_F_GET_PRIV_RSA_KEY, PK11_R_MALLOC_FAILURE);
 +			rollback = TRUE;
 +			goto err;
 +			}
++		else
++			*rsa_d_num = NULL;
 +		}
++
++	/*
++	 * For the key by reference code, we need public components as well
++	 * since 'd' component is always NULL. For that reason, we always cache
++	 * 'n'/'e' components as well.
++	 */
++	*rsa_n_num = BN_dup(rsa->n);
++	*rsa_e_num = BN_dup(rsa->e);
 +
 +	/* LINTED: E_CONSTANT_CONDITION */
 +	KEY_HANDLE_REFHOLD(h_key, OP_RSA, FALSE, rollback, err);
@@ -7258,7 +7525,7 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11_pub.c:1.32
 +malloc_err:
 +	/*
 +	 * 6 to 13 entries in the key template are key components.
-+	 * They need to be freed apon exit or error.
++	 * They need to be freed upon exit or error.
 +	 */
 +	for (i = 6; i <= 13; i++)
 +		{
@@ -7285,10 +7552,17 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11_pub.c:1.32
 +	 * check for cache hit stronger. Only public components of RSA
 +	 * key matter here so it is sufficient to compare them with values
 +	 * cached in PK11_SESSION structure.
++	 *
++	 * We must check the handle as well since with key by reference, public
++	 * components 'n'/'e' are cached in private keys as well. That means we
++	 * could have a cache hit in a private key when looking for a public
++	 * key. That would not work, you cannot have one PKCS#11 object for
++	 * both data signing and verifying.
 +	 */
 +	if ((sp->opdata_rsa_pub != rsa) ||
 +	    (BN_cmp(sp->opdata_rsa_n_num, rsa->n) != 0) ||
-+	    (BN_cmp(sp->opdata_rsa_e_num, rsa->e) != 0))
++	    (BN_cmp(sp->opdata_rsa_e_num, rsa->e) != 0) ||
++	    (sp->opdata_rsa_priv_key != CK_INVALID_HANDLE))
 +		{
 +		/*
 +		 * We do not check the return value because even in case of
@@ -7309,14 +7583,21 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11_pub.c:1.32
 +static int check_new_rsa_key_priv(PK11_SESSION *sp, const RSA *rsa)
 +	{
 +	/*
-+	 * Provide protection against RSA structure reuse by making the
-+	 * check for cache hit stronger. Comparing private exponent of RSA
-+	 * key with value cached in PK11_SESSION structure should
-+	 * be sufficient.
++	 * Provide protection against RSA structure reuse by making
++	 * the check for cache hit stronger. Comparing public exponent
++	 * of RSA key with value cached in PK11_SESSION structure
++	 * should be sufficient. Note that we want to compare the
++	 * public component since with the keys by reference
++	 * mechanism, private components are not in the RSA
++	 * structure. Also, see check_new_rsa_key_pub() about why we
++	 * compare the handle as well.
 +	 */
 +	if ((sp->opdata_rsa_priv != rsa) ||
-+	    (BN_cmp(sp->opdata_rsa_d_num, rsa->d) != 0) ||
-+	    ((rsa->flags & RSA_FLAG_EXT_PKEY) != 0))
++	    (BN_cmp(sp->opdata_rsa_pn_num, rsa->n) != 0) ||
++	    (BN_cmp(sp->opdata_rsa_pe_num, rsa->e) != 0) ||
++	    (sp->opdata_rsa_pn_num == NULL) ||
++	    (sp->opdata_rsa_pe_num == NULL) ||
++	    (sp->opdata_rsa_pub_key != CK_INVALID_HANDLE))
 +		{
 +		/*
 +		 * We do not check the return value because even in case of
@@ -7599,8 +7880,8 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11_pub.c:1.32
 +
 +	if (rv != CKR_OK)
 +		{
-+		PK11err_add_data(PK11_F_GET_PUB_DSA_KEY, PK11_R_FINDOBJECTSINIT,
-+		    rv);
++		PK11err_add_data(PK11_F_GET_PUB_DSA_KEY,
++		    PK11_R_FINDOBJECTSINIT, rv);
 +		goto err;
 +		}
 +
@@ -8457,11 +8738,20 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11_pub.c:1.32
 + * Local function to simplify key template population
 + * Return 0 -- error, 1 -- no error
 + */
-+static int init_template_value(BIGNUM *bn, CK_VOID_PTR *p_value,
++static int
++init_template_value(BIGNUM *bn, CK_VOID_PTR *p_value,
 +	CK_ULONG *ul_value_len)
 +	{
-+	CK_ULONG len = BN_num_bytes(bn);
-+	if (len == 0)
++	CK_ULONG len = 0;
++
++	/*
++	 * This function can be used on non-initialized BIGNUMs. It is
++	 * easier to check that here than individually in the callers.
++	 */
++	if (bn != NULL)
++		len = BN_num_bytes(bn);
++
++	if (bn == NULL || len == 0)
 +		return (1);
 +
 +	*ul_value_len = len;
@@ -8474,13 +8764,289 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11_pub.c:1.32
 +	return (1);
 +	}
 +
-+static void attr_to_BN(CK_ATTRIBUTE_PTR attr, CK_BYTE attr_data[], BIGNUM **bn)
++static void
++attr_to_BN(CK_ATTRIBUTE_PTR attr, CK_BYTE attr_data[], BIGNUM **bn)
 +	{
 +	if (attr->ulValueLen > 0)
-+		{
 +		*bn = BN_bin2bn(attr_data, attr->ulValueLen, NULL);
-+		}
 +	}
++
++/*
++ * Find one object in the token. It is an error if we can not find the
++ * object or if we find more objects based on the template we got.
++ *
++ * Returns:
++ *	1 OK
++ *	0 no object or more than 1 object found
++ */
++static int
++find_one_object(PK11_OPTYPE op, CK_SESSION_HANDLE s,
++    CK_ATTRIBUTE_PTR ptempl, CK_ULONG nattr, CK_OBJECT_HANDLE_PTR pkey)
++	{
++	CK_RV rv;
++	CK_ULONG objcnt;
++
++	LOCK_OBJSTORE(op);
++	if ((rv = pFuncList->C_FindObjectsInit(s, ptempl, nattr)) != CKR_OK)
++		{
++		PK11err_add_data(PK11_F_FIND_ONE_OBJECT,
++		    PK11_R_FINDOBJECTSINIT, rv);
++		goto err;
++		}
++
++	rv = pFuncList->C_FindObjects(s, pkey, 1, &objcnt);
++	if (rv != CKR_OK)
++		{
++		PK11err_add_data(PK11_F_FIND_ONE_OBJECT, PK11_R_FINDOBJECTS,
++		    rv);
++		goto err;
++		}
++
++	if (objcnt > 1)
++		{
++		PK11err(PK11_F_FIND_ONE_OBJECT,
++		    PK11_R_MORE_THAN_ONE_OBJECT_FOUND);
++		goto err;
++		}
++	else if (objcnt == 0)
++		{
++		PK11err(PK11_F_FIND_ONE_OBJECT, PK11_R_NO_OBJECT_FOUND);
++		goto err;
++		}
++
++	(void) pFuncList->C_FindObjectsFinal(s);
++	UNLOCK_OBJSTORE(op);
++	return (1);
++err:
++	UNLOCK_OBJSTORE(op);
++	return (0);
++	}
++
++/* from uri stuff */
++
++extern char *pk11_pin;
++
++static int pk11_get_pin(void);
++
++static int
++pk11_get_pin(void)
++{
++	char *pin;
++
++	/* The getpassphrase() function is not MT safe. */
++#ifndef NOPTHREADS
++	(void) pthread_mutex_lock(token_lock);
++#else
++	CRYPTO_w_lock(CRYPTO_LOCK_PK11_ENGINE);
++#endif
++	pin = getpassphrase("Enter PIN: ");
++	if (pin == NULL)
++		{
++		PK11err(PK11_F_GET_PIN, PK11_R_COULD_NOT_READ_PIN);
++#ifndef NOPTHREADS
++		(void) pthread_mutex_unlock(token_lock);
++#else
++		CRYPTO_w_unlock(CRYPTO_LOCK_PK11_ENGINE);
++#endif
++		goto err;
++		}
++	pk11_pin = BUF_strdup(pin);
++	if (pk11_pin == NULL)
++		{
++		PK11err(PK11_F_LOAD_PRIVKEY, PK11_R_MALLOC_FAILURE);
++#ifndef NOPTHREADS
++		(void) pthread_mutex_unlock(token_lock);
++#else
++		CRYPTO_w_unlock(CRYPTO_LOCK_PK11_ENGINE);
++#endif
++		goto err;
++		}
++	memset(pin, 0, strlen(pin));
++#ifndef NOPTHREADS
++	(void) pthread_mutex_unlock(token_lock);
++#else
++	CRYPTO_w_unlock(CRYPTO_LOCK_PK11_ENGINE);
++#endif
++	return (1);
++err:
++	return (0);
++	}
++
++/*
++ * Log in to the keystore if we are supposed to do that at all. Take care of
++ * reading and caching the PIN etc. Log in only once even when called from
++ * multiple threads.
++ *
++ * Returns:
++ *	1 on success
++ *	0 on failure
++ */
++static int
++pk11_token_login(CK_SESSION_HANDLE session, CK_BBOOL *login_done,
++    CK_BBOOL is_private)
++	{
++	CK_RV rv;
++
++#if 0
++	/* doesn't work on the AEP Keyper??? */
++	if ((pubkey_token_flags & CKF_TOKEN_INITIALIZED) == 0)
++		{
++		PK11err(PK11_F_TOKEN_LOGIN,
++		    PK11_R_TOKEN_NOT_INITIALIZED);
++		goto err;
++		}
++#endif
++
++	/*
++	 * If login is required or needed but the PIN has not been
++	 * even initialized we can bail out right now. Note that we
++	 * are supposed to always log in if we are going to access
++	 * private keys. However, we may need to log in even for
++	 * accessing public keys in case that the CKF_LOGIN_REQUIRED
++	 * flag is set.
++	 */
++	if (((pubkey_token_flags & CKF_LOGIN_REQUIRED) ||
++	     (is_private == CK_TRUE)) &&
++	    (~pubkey_token_flags & CKF_USER_PIN_INITIALIZED))
++		{
++		PK11err(PK11_F_TOKEN_LOGIN, PK11_R_TOKEN_PIN_NOT_SET);
++		goto err;
++		}
++
++	/*
++	 * Note on locking: it is possible that more than one thread
++	 * gets into pk11_get_pin() so we must deal with that. We
++	 * cannot avoid it since we cannot guard fork() in there with
++	 * a lock because we could end up in a dead lock in the
++	 * child. Why? Remember we are in a multithreaded environment
++	 * so we must lock all mutexes in the prefork function to
++	 * avoid a situation in which a thread that did not call
++	 * fork() held a lock, making future unlocking impossible. We
++	 * lock right before C_Login().
++	 */
++	if ((pubkey_token_flags & CKF_LOGIN_REQUIRED) ||
++	    (is_private == CK_TRUE))
++		{
++		if (*login_done == CK_FALSE)
++			{
++			if ((pk11_pin == NULL) && (pk11_get_pin() == 0))
++				{
++				PK11err(PK11_F_TOKEN_LOGIN,
++				    PK11_R_TOKEN_PIN_NOT_PROVIDED);
++				goto err;
++				}
++			}
++
++		/*
++		 * Note that what we are logging into is the keystore from
++		 * pubkey_SLOTID because we work with OP_RSA session type here.
++		 * That also means that we can work with only one keystore in
++		 * the engine.
++		 *
++		 * We must make sure we do not try to login more than once.
++		 * Also, see the comment above on locking strategy.
++		 */
++
++#ifndef NOPTHREADS
++		(void) pthread_mutex_lock(token_lock);
++#else
++		(void) pthread_mutex_lock(freelist_lock);
++#endif
++		if (*login_done == CK_FALSE)
++			{
++			if ((rv = pFuncList->C_Login(session,
++			    CKU_USER, (CK_UTF8CHAR*)pk11_pin,
++			    strlen(pk11_pin))) != CKR_OK)
++				{
++				PK11err_add_data(PK11_F_TOKEN_LOGIN,
++				    PK11_R_TOKEN_LOGIN_FAILED, rv);
++				goto err_locked;
++				}
++
++			*login_done = CK_TRUE;
++
++			}
++#ifndef NOPTHREADS
++		(void) pthread_mutex_unlock(token_lock);
++#else
++		CRYPTO_w_unlock(CRYPTO_LOCK_PK11_ENGINE);
++#endif
++		}
++	else
++		{
++			/*
++			 * If token does not require login we take it as the
++			 * login was done.
++			 */
++			*login_done = CK_TRUE;
++		}
++
++	return (1);
++
++err_locked:
++	if (pk11_pin) {
++		memset(pk11_pin, 0, strlen(pk11_pin));
++		OPENSSL_free((void*)pk11_pin);
++	}
++	pk11_pin = NULL;
++#ifndef NOPTHREADS
++	(void) pthread_mutex_unlock(token_lock);
++#else
++	CRYPTO_w_unlock(CRYPTO_LOCK_PK11_ENGINE);
++#endif
++err:
++	return (0);
++	}
++
++/*
++ * Log in to the keystore in the child if we were logged in in the
++ * parent. There are similarities in the code with pk11_token_login()
++ * but still it is quite different so we need a separate function for
++ * this.
++ *
++ * Note that this function is called under the locked session mutex when fork is
++ * detected. That means that C_Login() will be called from the child just once.
++ *
++ * Returns:
++ *	1 on success
++ *	0 on failure
++ */
++int
++pk11_token_relogin(CK_SESSION_HANDLE session)
++	{
++	CK_RV rv;
++
++	if ((pk11_pin == NULL) && (pk11_get_pin() == 0))
++		goto err;
++
++#ifndef NOPTHREADS
++	(void) pthread_mutex_lock(token_lock);
++#else
++	(void) pthread_mutex_lock(freelist_lock);
++#endif
++	if ((rv = pFuncList->C_Login(session, CKU_USER,
++	    (CK_UTF8CHAR_PTR)pk11_pin, strlen(pk11_pin))) != CKR_OK)
++		{
++		PK11err_add_data(PK11_F_TOKEN_RELOGIN,
++		    PK11_R_TOKEN_LOGIN_FAILED, rv);
++#ifndef NOPTHREADS
++		(void) pthread_mutex_unlock(token_lock);
++#else
++		CRYPTO_w_unlock(CRYPTO_LOCK_PK11_ENGINE);
++#endif
++		goto err;
++		}
++#ifndef NOPTHREADS
++	(void) pthread_mutex_unlock(token_lock);
++#else
++	CRYPTO_w_unlock(CRYPTO_LOCK_PK11_ENGINE);
++#endif
++
++	return (1);
++err:
++	return (0);
++	}
++
 +#ifdef	OPENSSL_SYS_WIN32
 +char *getpassphrase(const char *prompt)
 +	{
@@ -8517,14 +9083,17 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11_pub.c:1.32
 +#endif	/* OPENSSL_NO_HW_PK11 */
 +#endif	/* OPENSSL_NO_HW */
 Index: openssl/crypto/engine/hw_pk11ca.h
-diff -u /dev/null openssl/crypto/engine/hw_pk11ca.h:1.2
---- /dev/null	Thu Dec 24 13:00:45 2009
-+++ openssl/crypto/engine/hw_pk11ca.h	Mon Oct  5 13:17:03 2009
-@@ -0,0 +1,28 @@
+diff -u /dev/null openssl/crypto/engine/hw_pk11ca.h:1.4
+--- /dev/null	Mon Jan 16 18:54:23 2012
++++ openssl/crypto/engine/hw_pk11ca.h	Wed Jun 15 21:12:20 2011
+@@ -0,0 +1,32 @@
 +/* Redefine all pk11/PK11 external symbols to pk11ca/PK11CA */
 +
++#define token_lock			pk11ca_token_lock
 +#define find_lock			pk11ca_find_lock
 +#define active_list			pk11ca_active_list
++#define pubkey_token_flags		pk11ca_pubkey_token_flags
++#define pubkey_SLOTID			pk11ca_pubkey_SLOTID
 +#define ERR_pk11_error			ERR_pk11ca_error
 +#define PK11err_add_data		PK11CAerr_add_data
 +#define pk11_get_session		pk11ca_get_session
@@ -8546,16 +9115,17 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11ca.h:1.2
 +#define pk11_destroy_dh_key_objects	pk11ca_destroy_dh_key_objects
 +#define pk11_destroy_dh_object		pk11ca_destroy_dh_object
 +#define PK11_DH				PK11CA_DH
++#define pk11_token_relogin		pk11ca_token_relogin
 +#define pFuncList			pk11ca_pFuncList
 +#define pk11_pin			pk11ca_pin
 +#define ENGINE_load_pk11		ENGINE_load_pk11ca
 Index: openssl/crypto/engine/hw_pk11so.c
-diff -u /dev/null openssl/crypto/engine/hw_pk11so.c:1.2
---- /dev/null	Thu Dec 24 13:00:46 2009
-+++ openssl/crypto/engine/hw_pk11so.c	Mon Oct  5 13:17:03 2009
-@@ -0,0 +1,1618 @@
+diff -u /dev/null openssl/crypto/engine/hw_pk11so.c:1.7
+--- /dev/null	Mon Jan 16 18:54:23 2012
++++ openssl/crypto/engine/hw_pk11so.c	Thu Jun 16 12:31:53 2011
+@@ -0,0 +1,1745 @@
 +/*
-+ * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
++ * Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
 + * Use is subject to license terms.
 + */
 +
@@ -8698,8 +9268,23 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11so.c:1.2
 +#include "hw_pk11so.h"
 +#include "hw_pk11_err.c"
 +
++/*
++ * We use this lock to prevent multiple C_Login()s, guard getpassphrase(),
++ * uri_struct manipulation, and static token info. All of that is used by the
++ * RSA keys by reference feature.
++ */
++#ifndef NOPTHREADS
++pthread_mutex_t *token_lock;
++#endif
++
 +/* PKCS#11 session caches and their locks for all operation types */
 +static PK11_CACHE session_cache[OP_MAX];
++
++/*
++ * We cache the flags so that we do not have to run C_GetTokenInfo() again when
++ * logging into the token.
++ */
++CK_FLAGS pubkey_token_flags;
 +
 +/*
 + * As stated in v2.20, 11.7 Object Management Function, in section for
@@ -8766,8 +9351,8 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11so.c:1.2
 +static int pk11_free_all_sessions(void);
 +static int pk11_free_session_list(PK11_OPTYPE optype);
 +static int pk11_setup_session(PK11_SESSION *sp, PK11_OPTYPE optype);
-+static int pk11_destroy_object(CK_SESSION_HANDLE session,
-+	CK_OBJECT_HANDLE oh);
++static int pk11_destroy_object(CK_SESSION_HANDLE session, CK_OBJECT_HANDLE oh,
++	CK_BBOOL persistent);
 +static const char *get_PK11_LIBNAME(void);
 +static void free_PK11_LIBNAME(void);
 +static long set_PK11_LIBNAME(const char *name);
@@ -8777,23 +9362,15 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11so.c:1.2
 +static int pk11_init_all_locks(void);
 +static void pk11_free_all_locks(void);
 +
-+#define	TRY_OBJ_DESTROY(sess_hdl, obj_hdl, retval, uselock, alg_type)	\
++#define	TRY_OBJ_DESTROY(sp, obj_hdl, retval, uselock, alg_type, priv)	\
 +	{								\
 +	if (uselock)							\
 +		LOCK_OBJSTORE(alg_type);				\
 +	if (pk11_active_delete(obj_hdl, alg_type) == 1)			\
 +		{							\
-+		retval = pk11_destroy_object(sess_hdl, obj_hdl);	\
++		  retval = pk11_destroy_object(sp->session, obj_hdl,	\
++		  priv ? sp->priv_persistent : sp->pub_persistent);	\
 +		}							\
-+	if (uselock)							\
-+		UNLOCK_OBJSTORE(alg_type);				\
-+	}
-+
-+#define	TRY_OBJ_DELETE(sess_hdl, obj_hdl, retval, uselock, alg_type)	\
-+	{								\
-+	if (uselock)							\
-+		LOCK_OBJSTORE(alg_type);				\
-+	(void) pk11_active_delete(obj_hdl, alg_type);			\
 +	if (uselock)							\
 +		UNLOCK_OBJSTORE(alg_type);				\
 +	}
@@ -8854,12 +9431,14 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11so.c:1.2
 +static const char PK11_GET_FUNCTION_LIST[] = "C_GetFunctionList";
 +
 +/*
-+ * These is the static string constant for the DSO file name and the function
-+ * symbol names to bind to.
++ * This is a static string constant for the DSO file name and the function
++ * symbol names to bind to. We set it in the Configure script based on whether
++ * this is 32 or 64 bit build.
 + */
 +static const char def_PK11_LIBNAME[] = PK11_LIB_LOCATION;
 +
-+static CK_SLOT_ID pubkey_SLOTID = 0;
++/* Needed in hw_pk11_pub.c as well so that's why it is not static. */
++CK_SLOT_ID pubkey_SLOTID = 0;
 +static CK_SLOT_ID rand_SLOTID = 0;
 +static CK_SLOT_ID SLOTID = 0;
 +char *pk11_pin = NULL;
@@ -8874,6 +9453,10 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11so.c:1.2
 +	{
 +#ifndef NOPTHREADS
 +	int type;
++
++	if ((token_lock = OPENSSL_malloc(sizeof (pthread_mutex_t))) == NULL)
++		goto malloc_err;
++	(void) pthread_mutex_init(token_lock, NULL);
 +
 +	find_lock[OP_RSA] = OPENSSL_malloc(sizeof (pthread_mutex_t));
 +	if (find_lock[OP_RSA] == NULL)
@@ -9090,6 +9673,7 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11so.c:1.2
 +		return;
 +
 +	LOCK_OBJSTORE(OP_RSA);
++	(void) pthread_mutex_lock(token_lock);
 +	for (i = 0; i < OP_MAX; i++)
 +		{
 +		(void) pthread_mutex_lock(session_cache[i].lock);
@@ -9111,6 +9695,7 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11so.c:1.2
 +		(void) pthread_mutex_unlock(session_cache[i].lock);
 +		}
 +	UNLOCK_OBJSTORE(OP_RSA);
++	(void) pthread_mutex_unlock(token_lock);
 +#endif
 +	}
 +
@@ -9131,6 +9716,7 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11so.c:1.2
 +		(void) pthread_mutex_unlock(session_cache[i].lock);
 +		}
 +	UNLOCK_OBJSTORE(OP_RSA);
++	(void) pthread_mutex_unlock(token_lock);
 +#endif
 +	}
 +
@@ -9139,6 +9725,16 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11so.c:1.2
 +{
 +	return (pk11_library_init(e));
 +}
++
++static CK_C_INITIALIZE_ARGS pk11_init_args =
++	{
++	NULL_PTR,		/* CreateMutex */
++	NULL_PTR,		/* DestroyMutex */
++	NULL_PTR,		/* LockMutex */
++	NULL_PTR,		/* UnlockMutex */
++	CKF_OS_LOCKING_OK,	/* flags */
++	NULL_PTR,		/* pReserved */
++	};
 +
 +/*
 + * Initialization function. Sets up various PKCS#11 library components.
@@ -9160,15 +9756,17 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11so.c:1.2
 +#endif
 +
 +	/*
-+	 * pk11_library_initialized is set to 0 in pk11_finish() which is called
-+	 * from ENGINE_finish(). However, if there is still at least one
-+	 * existing functional reference to the engine (see engine(3) for more
-+	 * information), pk11_finish() is skipped. For example, this can happen
-+	 * if an application forgets to clear one cipher context. In case of a
-+	 * fork() when the application is finishing the engine so that it can be
-+	 * reinitialized in the child, forgotten functional reference causes
-+	 * pk11_library_initialized to stay 1. In that case we need the PID
-+	 * check so that we properly initialize the engine again.
++	 * pk11_library_initialized is set to 0 in pk11_finish() which
++	 * is called from ENGINE_finish(). However, if there is still
++	 * at least one existing functional reference to the engine
++	 * (see engine(3) for more information), pk11_finish() is
++	 * skipped. For example, this can happen if an application
++	 * forgets to clear one cipher context. In case of a fork()
++	 * when the application is finishing the engine so that it can
++	 * be reinitialized in the child, forgotten functional
++	 * reference causes pk11_library_initialized to stay 1. In
++	 * that case we need the PID check so that we properly
++	 * initialize the engine again.
 +	 */
 +	if (pk11_library_initialized)
 +		{
@@ -9221,7 +9819,7 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11so.c:1.2
 +	(void) sigaction(SIGTERM, NULL, &sigterm_act);
 +	(void) sigaction(SIGHUP, NULL, &sighup_act);
 +#endif
-+	rv = pFuncList->C_Initialize(NULL_PTR);
++	rv = pFuncList->C_Initialize((CK_VOID_PTR)&pk11_init_args);
 +#ifndef OPENSSL_SYS_WIN32
 +	(void) sigaction(SIGINT, &sigint_act, NULL);
 +	(void) sigaction(SIGTERM, &sigterm_act, NULL);
@@ -9510,6 +10108,16 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11so.c:1.2
 +				BN_free(sp->opdata_rsa_e_num);
 +				sp->opdata_rsa_e_num = NULL;
 +				}
++			if (sp->opdata_rsa_pn_num != NULL)
++				{
++				BN_free(sp->opdata_rsa_pn_num);
++				sp->opdata_rsa_pn_num = NULL;
++				}
++			if (sp->opdata_rsa_pe_num != NULL)
++				{
++				BN_free(sp->opdata_rsa_pe_num);
++				sp->opdata_rsa_pe_num = NULL;
++				}
 +			if (sp->opdata_rsa_d_num != NULL)
 +				{
 +				BN_free(sp->opdata_rsa_d_num);
@@ -9534,6 +10142,8 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11so.c:1.2
 +#ifndef NOPTHREADS
 +	pthread_mutex_t *freelist_lock = NULL;
 +#endif
++	static pid_t pid = 0;
++	pid_t new_pid;
 +	CK_RV rv;
 +
 +	switch (optype)
@@ -9558,6 +10168,15 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11so.c:1.2
 +#else
 +	CRYPTO_w_lock(CRYPTO_LOCK_PK11_ENGINE);
 +#endif
++
++	/*
++	 * Will use it to find out if we forked. We cannot use the PID field in
++	 * the session structure because we could get a newly allocated session
++	 * here, with no PID information.
++	 */
++	if (pid == 0)
++		pid = getpid();
++
 +	freelist = session_cache[optype].head;
 +	sp = freelist;
 +
@@ -9575,17 +10194,33 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11so.c:1.2
 +			goto err;
 +			}
 +		(void) memset(sp, 0, sizeof (PK11_SESSION));
++
++		/*
++		 * It is a new session so it will look like a cache miss to the
++		 * code below. So, we must not try to to destroy its members so
++		 * mark them as unused.
++		 */
++		sp->opdata_rsa_priv_key = CK_INVALID_HANDLE;
++		sp->opdata_rsa_pub_key = CK_INVALID_HANDLE;
 +		}
 +	else
 +		{
 +		freelist = sp->next;
 +		}
 +
-+	if (sp->pid != 0 && sp->pid != getpid())
++	/*
++	 * Check whether we have forked. In that case, we must get rid of all
++	 * inherited sessions and start allocating new ones.
++	 */
++	if (pid != (new_pid = getpid()))
 +		{
++		pid = new_pid;
++
 +		/*
 +		 * We are a new process and thus need to free any inherited
-+		 * PK11_SESSION objects.
++		 * PK11_SESSION objects aside from the first session (sp) which
++		 * is the only PK11_SESSION structure we will reuse (for the
++		 * head of the list).
 +		 */
 +		while ((sp1 = freelist) != NULL)
 +			{
@@ -9603,7 +10238,7 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11so.c:1.2
 +		pk11_free_active_list(optype);
 +
 +		/* Initialize the process */
-+		rv = pFuncList->C_Initialize(NULL_PTR);
++		rv = pFuncList->C_Initialize((CK_VOID_PTR)&pk11_init_args);
 +		if ((rv != CKR_OK) && (rv != CKR_CRYPTOKI_ALREADY_INITIALIZED))
 +			{
 +			PK11err_add_data(PK11_F_GET_SESSION, PK11_R_INITIALIZE,
@@ -9635,13 +10270,28 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11so.c:1.2
 +			goto err;
 +			}
 +
-+		/* It is an inherited session and needs re-initialization. */
++		/*
++		 * It is an inherited session from our parent so it needs
++		 * re-initialization.
++		 */
 +		if (pk11_setup_session(sp, optype) == 0)
 +			{
 +			OPENSSL_free(sp);
 +			sp = NULL;
++			goto err;
++			}
++		if (pk11_token_relogin(sp->session) == 0) 
++			{
++			/*
++			 * We will keep the session in the cache list and let
++			 * the caller cope with the situation.
++			 */
++			freelist = sp;
++			sp = NULL;
++			goto err;
 +			}
 +		}
++
 +	if (sp->pid == 0)
 +		{
 +		/* It is a new session and needs initialization. */
@@ -9677,6 +10327,11 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11so.c:1.2
 +#endif
 +	PK11_SESSION *freelist;
 +
++	/*
++	 * If this is a session from the parent it will be taken care of and
++	 * freed in pk11_get_session() as part of the post-fork clean up the
++	 * next time we will ask for a new session.
++	 */
 +	if (sp == NULL || sp->pid != getpid())
 +		return;
 +
@@ -9801,7 +10456,8 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11so.c:1.2
 +	}
 +
 +
-+static int pk11_setup_session(PK11_SESSION *sp, PK11_OPTYPE optype)
++static int
++pk11_setup_session(PK11_SESSION *sp, PK11_OPTYPE optype)
 +	{
 +	CK_RV rv;
 +	CK_SLOT_ID myslot;
@@ -9854,9 +10510,17 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11so.c:1.2
 +		sp->opdata_rsa_n_num = NULL;
 +		sp->opdata_rsa_e_num = NULL;
 +		sp->opdata_rsa_priv = NULL;
++		sp->opdata_rsa_pn_num = NULL;
++		sp->opdata_rsa_pe_num = NULL;
 +		sp->opdata_rsa_d_num = NULL;
 +		}
 +
++	/*
++	 * We always initialize the session as containing a non-persistent
++	 * object. The key load functions set it to persistent if that is so.
++	 */
++	sp->pub_persistent = CK_FALSE;
++	sp->priv_persistent = CK_FALSE;
 +	return (1);
 +	}
 +
@@ -9868,8 +10532,8 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11so.c:1.2
 +
 +	if (sp->opdata_rsa_pub_key != CK_INVALID_HANDLE)
 +		{
-+		TRY_OBJ_DESTROY(sp->session, sp->opdata_rsa_pub_key,
-+		    ret, uselock, OP_RSA);
++		TRY_OBJ_DESTROY(sp, sp->opdata_rsa_pub_key,
++		    ret, uselock, OP_RSA, CK_FALSE);
 +		sp->opdata_rsa_pub_key = CK_INVALID_HANDLE;
 +		sp->opdata_rsa_pub = NULL;
 +		if (sp->opdata_rsa_n_num != NULL)
@@ -9895,15 +10559,30 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11so.c:1.2
 +
 +	if (sp->opdata_rsa_priv_key != CK_INVALID_HANDLE)
 +		{
-+		TRY_OBJ_DELETE(sp->session,
-+			       sp->opdata_rsa_priv_key,
-+			       ret, uselock, OP_RSA);
++		TRY_OBJ_DESTROY(sp, sp->opdata_rsa_priv_key,
++		    ret, uselock, OP_RSA, CK_TRUE);
 +		sp->opdata_rsa_priv_key = CK_INVALID_HANDLE;
 +		sp->opdata_rsa_priv = NULL;
 +		if (sp->opdata_rsa_d_num != NULL)
 +			{
 +			BN_free(sp->opdata_rsa_d_num);
 +			sp->opdata_rsa_d_num = NULL;
++			}
++
++		/*
++		 * For the RSA key by reference code, public components 'n'/'e'
++		 * are the key components we use to check for the cache hit. We
++		 * must free those as well.
++		 */
++		if (sp->opdata_rsa_pn_num != NULL)
++			{
++			BN_free(sp->opdata_rsa_pn_num);
++			sp->opdata_rsa_pn_num = NULL;
++			}
++		if (sp->opdata_rsa_pe_num != NULL)
++			{
++			BN_free(sp->opdata_rsa_pe_num);
++			sp->opdata_rsa_pe_num = NULL;
 +			}
 +		}
 +
@@ -9969,9 +10648,20 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11so.c:1.2
 +	return (ret);
 +	}
 +
-+static int pk11_destroy_object(CK_SESSION_HANDLE session, CK_OBJECT_HANDLE oh)
++static int
++pk11_destroy_object(CK_SESSION_HANDLE session, CK_OBJECT_HANDLE oh,
++	CK_BBOOL persistent)
 +	{
 +	CK_RV rv;
++
++	/*
++	 * We never try to destroy persistent objects which are the objects
++	 * stored in the keystore. Also, we always use read-only sessions so
++	 * C_DestroyObject() would be returning CKR_SESSION_READ_ONLY here.
++	 */
++	if (persistent == CK_TRUE)
++		return (1);
++
 +	rv = pFuncList->C_DestroyObject(session, oh);
 +	if (rv != CKR_OK)
 +		{
@@ -9987,7 +10677,6 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11so.c:1.2
 +/*
 + * Public key mechanisms optionally supported
 + *
-+ * CKM_RSA_X_509
 + * CKM_RSA_PKCS
 + *
 + * The first slot that supports at least one of those mechanisms is chosen as a
@@ -10017,7 +10706,7 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11so.c:1.2
 +		*any_slot_found = 0;
 +
 +	/* Get slot list for memory allocation */
-+	rv = pFuncList->C_GetSlotList(0, NULL_PTR, &ulSlotCount);
++	rv = pFuncList->C_GetSlotList(CK_FALSE, NULL_PTR, &ulSlotCount);
 +
 +	if (rv != CKR_OK)
 +		{
@@ -10043,7 +10732,7 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11so.c:1.2
 +		}
 +
 +	/* Get the slot list for processing */
-+	rv = pFuncList->C_GetSlotList(0, pSlotList, &ulSlotCount);
++	rv = pFuncList->C_GetSlotList(CK_FALSE, pSlotList, &ulSlotCount);
 +	if (rv != CKR_OK)
 +		{
 +		PK11err_add_data(PK11_F_CHOOSE_SLOT, PK11_R_GETSLOTLIST, rv);
@@ -10125,6 +10814,12 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11so.c:1.2
 +			best_slot_sofar = current_slot;
 +			pk11_have_rsa = slot_has_rsa;
 +			found_candidate_slot = CK_TRUE;
++			/*
++			 * Cache the flags for later use. We might
++			 * need those if RSA keys by reference feature
++			 * is used.
++			 */
++			pubkey_token_flags = token_info.flags;
 +#ifdef	DEBUG_SLOT_SELECTION
 +			fprintf(stderr,
 +			    "%s: setting found_candidate_slot to CK_TRUE\n",
@@ -10132,6 +10827,8 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11so.c:1.2
 +			fprintf(stderr,
 +			    "%s: best so far slot: %d\n", PK11_DBG,
 +			    best_slot_sofar);
++			fprintf(stderr, "%s: pubkey flags changed to "
++			    "%lu.\n", PK11_DBG, pubkey_token_flags);
 +			}
 +		else
 +			{
@@ -10143,7 +10840,7 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11so.c:1.2
 +#endif	/* DEBUG_SLOT_SELECTION */
 +		} /* for */
 +
-+	if (found_candidate_slot)
++	if (found_candidate_slot == CK_TRUE)
 +		{
 +		pubkey_SLOTID = best_slot_sofar;
 +		}
@@ -10173,14 +10870,17 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11so.c:1.2
 +#endif	/* OPENSSL_NO_HW_PK11 */
 +#endif	/* OPENSSL_NO_HW */
 Index: openssl/crypto/engine/hw_pk11so.h
-diff -u /dev/null openssl/crypto/engine/hw_pk11so.h:1.2
---- /dev/null	Thu Dec 24 13:00:46 2009
-+++ openssl/crypto/engine/hw_pk11so.h	Mon Oct  5 13:17:03 2009
-@@ -0,0 +1,28 @@
+diff -u /dev/null openssl/crypto/engine/hw_pk11so.h:1.4
+--- /dev/null	Mon Jan 16 18:54:23 2012
++++ openssl/crypto/engine/hw_pk11so.h	Wed Jun 15 21:12:20 2011
+@@ -0,0 +1,32 @@
 +/* Redefine all pk11/PK11 external symbols to pk11so/PK11SO */
 +
++#define token_lock			pk11so_token_lock
 +#define find_lock			pk11so_find_lock
 +#define active_list			pk11so_active_list
++#define pubkey_token_flags		pk11so_pubkey_token_flags
++#define pubkey_SLOTID			pk11so_pubkey_SLOTID
 +#define ERR_pk11_error			ERR_pk11so_error
 +#define PK11err_add_data		PK11SOerr_add_data
 +#define pk11_get_session		pk11so_get_session
@@ -10202,16 +10902,17 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11so.h:1.2
 +#define pk11_destroy_dh_key_objects	pk11so_destroy_dh_key_objects
 +#define pk11_destroy_dh_object		pk11so_destroy_dh_object
 +#define PK11_DH				PK11SO_DH
++#define pk11_token_relogin		pk11so_token_relogin
 +#define pFuncList			pk11so_pFuncList
 +#define pk11_pin			pk11so_pin
 +#define ENGINE_load_pk11		ENGINE_load_pk11so
 Index: openssl/crypto/engine/hw_pk11so_pub.c
-diff -u /dev/null openssl/crypto/engine/hw_pk11so_pub.c:1.2
---- /dev/null	Thu Dec 24 13:00:46 2009
-+++ openssl/crypto/engine/hw_pk11so_pub.c	Mon Oct  5 13:17:03 2009
-@@ -0,0 +1,899 @@
+diff -u /dev/null openssl/crypto/engine/hw_pk11so_pub.c:1.7
+--- /dev/null	Mon Jan 16 18:54:23 2012
++++ openssl/crypto/engine/hw_pk11so_pub.c	Fri Jun 17 07:55:25 2011
+@@ -0,0 +1,1622 @@
 +/*
-+ * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
++ * Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
 + * Use is subject to license terms.
 + */
 +
@@ -10328,13 +11029,6 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11so_pub.c:1.2
 +#ifndef OPENSSL_NO_HW_PK11
 +#ifndef OPENSSL_NO_HW_PK11SO
 +
-+#ifndef OPENSSL_NO_DSA
-+#define OPENSSL_NO_DSA
-+#endif
-+#ifndef OPENSSL_NO_DH
-+#define OPENSSL_NO_DH
-+#endif
-+
 +#ifdef OPENSSL_SYS_WIN32
 +#pragma pack(push, cryptoki, 1)
 +#include "cryptoki.h"
@@ -10347,6 +11041,12 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11so_pub.c:1.2
 +#include "hw_pk11so.h"
 +#include "hw_pk11_err.h"
 +
++static CK_BBOOL pk11_login_done = CK_FALSE;
++extern CK_SLOT_ID pubkey_SLOTID;
++#ifndef NOPTHREADS
++extern pthread_mutex_t *token_lock;
++#endif
++
 +#if !(defined(HAVE_GETPASSPHRASE) || (defined (__SVR4) && defined (__sun)))
 +#define getpassphrase(x)	getpass(x)
 +#endif
@@ -10354,18 +11054,28 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11so_pub.c:1.2
 +/* RSA stuff */
 +static int pk11_RSA_sign(int type, const unsigned char *m, unsigned int m_len,
 +	unsigned char *sigret, unsigned int *siglen, const RSA *rsa);
-+EVP_PKEY *pk11_load_privkey(ENGINE*, const char *pubkey_file,
++EVP_PKEY *pk11_load_privkey(ENGINE*, const char *privkey_file,
 +	UI_METHOD *ui_method, void *callback_data);
 +EVP_PKEY *pk11_load_pubkey(ENGINE*, const char *pubkey_file,
 +	UI_METHOD *ui_method, void *callback_data);
 +
++static CK_OBJECT_HANDLE pk11_get_public_rsa_key(RSA* rsa, RSA** key_ptr,
++	BIGNUM **rsa_n_num, BIGNUM **rsa_e_num, CK_SESSION_HANDLE session);
 +static CK_OBJECT_HANDLE pk11_get_private_rsa_key(RSA* rsa, RSA** key_ptr,
-+	BIGNUM **rsa_d_num, CK_SESSION_HANDLE session);
++	BIGNUM **rsa_d_num, BIGNUM **rsa_n_num, BIGNUM **rsa_e_num,
++	CK_SESSION_HANDLE session);
 +
 +static int check_new_rsa_key_pub(PK11_SESSION *sp, const RSA *rsa);
 +static int check_new_rsa_key_priv(PK11_SESSION *sp, const RSA *rsa);
 +
++static int find_one_object(PK11_OPTYPE op, CK_SESSION_HANDLE s,
++	CK_ATTRIBUTE_PTR ptempl, CK_ULONG nattr, CK_OBJECT_HANDLE_PTR pkey);
++static int init_template_value(BIGNUM *bn, CK_VOID_PTR *pValue,
++	CK_ULONG *ulValueLen);
 +static void attr_to_BN(CK_ATTRIBUTE_PTR attr, CK_BYTE attr_data[], BIGNUM **bn);
++
++static int pk11_token_login(CK_SESSION_HANDLE session, CK_BBOOL *login_done,
++	CK_BBOOL is_private);
 +
 +/* Read mode string to be used for fopen() */
 +#if SOLARIS_OPENSSL
@@ -10565,6 +11275,9 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11so_pub.c:1.2
 +/* Size of an SSL signature: MD5+SHA1 */
 +#define	SSL_SIG_LENGTH		36
 +
++static CK_BBOOL true = TRUE;
++static CK_BBOOL false = FALSE;
++
 +/*
 + * Standard engine interface function. Majority codes here are from
 + * rsa/rsa_sign.c. We replaced the decrypt function call by C_Sign of PKCS#11.
@@ -10655,8 +11368,9 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11so_pub.c:1.2
 +	if (h_priv_key == CK_INVALID_HANDLE)
 +		h_priv_key = sp->opdata_rsa_priv_key =
 +			pk11_get_private_rsa_key((RSA *)rsa,
-+			    &sp->opdata_rsa_priv,
-+			    &sp->opdata_rsa_d_num, sp->session);
++			    &sp->opdata_rsa_priv, &sp->opdata_rsa_d_num,
++			    &sp->opdata_rsa_pn_num, &sp->opdata_rsa_pe_num,
++			    sp->session);
 +
 +	if (h_priv_key != CK_INVALID_HANDLE)
 +		{
@@ -10694,23 +11408,28 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11so_pub.c:1.2
 +
 +static int hndidx_rsa = -1;
 +
-+/* load RSA private key from a file */
++#define	MAXATTR	1024
++
++/*
++ * Load RSA private key from a file or get its PKCS#11 handle if stored in the
++ * PKCS#11 token.
++ */
 +/* ARGSUSED */
 +EVP_PKEY *pk11_load_privkey(ENGINE *e, const char *privkey_file,
 +	UI_METHOD *ui_method, void *callback_data)
 +	{
 +	EVP_PKEY *pkey = NULL;
 +	FILE *privkey;
-+	RSA *rsa;
-+	PK11_SESSION *sp = NULL;
-+	/* everything else below needed for key by reference extension */
++	CK_OBJECT_HANDLE  h_priv_key = CK_INVALID_HANDLE;
++	RSA *rsa = NULL;
++	PK11_SESSION *sp;
++	/* Anything else below is needed for the key by reference extension. */
 +	CK_RV rv;
-+	CK_ULONG objcnt = 0;
 +	CK_BBOOL is_token = TRUE;
-+	CK_BYTE attr_data[2][1024];
++	CK_BBOOL rollback = FALSE;
++	CK_BYTE attr_data[2][MAXATTR];
 +	CK_OBJECT_CLASS key_class = CKO_PRIVATE_KEY;
 +	CK_OBJECT_HANDLE ks_key = CK_INVALID_HANDLE;	/* key in keystore */
-+	extern char *pk11_pin;
 +
 +	/* we look for private keys only */
 +	CK_ATTRIBUTE search_templ[] =
@@ -10720,144 +11439,179 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11so_pub.c:1.2
 +		{CKA_LABEL, NULL, 0}
 +		};
 +
-+	/* these attributes are needed to initialize OpenSSL RSA structure */
++	/*
++	 * These public attributes are needed to initialize the OpenSSL RSA
++	 * structure with something we can use to look up the key. Note that we
++	 * never ask for private components.
++	 */
 +	CK_ATTRIBUTE get_templ[] =
 +		{
-+		{CKA_MODULUS, (void *)attr_data[0], 1024},	    /* n */
-+		{CKA_PUBLIC_EXPONENT, (void *)attr_data[1], 1024},  /* e */
++		{CKA_MODULUS, (void *)attr_data[0], MAXATTR},		/* n */
++		{CKA_PUBLIC_EXPONENT, (void *)attr_data[1], MAXATTR},	/* e */
 +		};
++
++	if ((sp = pk11_get_session(OP_RSA)) == NULL)
++		return (NULL);
 +
 +	/*
 +	 * Use simple scheme "pkcs11:<KEY_LABEL>" for now.
 +	 */
 +	if (strstr(privkey_file, "pkcs11:") == privkey_file)
 +		{
-+		if ((sp = pk11_get_session(OP_RSA)) == NULL)
-+			return (NULL);
-+
 +		search_templ[2].pValue = strstr(privkey_file, ":") + 1;
 +		search_templ[2].ulValueLen = strlen(search_templ[2].pValue);
 +
-+		if (pk11_pin == NULL)
-+			{
-+			pk11_pin = BUF_strdup(getpassphrase("Enter PIN: "));
-+
-+			if (pk11_pin == NULL)
-+				{
-+				PK11err(PK11_F_LOAD_PRIVKEY, PK11_R_MALLOC_FAILURE);
-+				goto err;
-+				}
-+			}
-+		if ((rv = pFuncList->C_Login(sp->session, CKU_USER, (CK_UTF8CHAR*)pk11_pin,
-+		    strlen(pk11_pin))) != CKR_OK && rv != CKR_USER_ALREADY_LOGGED_IN)
-+			{
-+			PK11err_add_data(PK11_F_LOAD_PRIVKEY,
-+					 PK11_R_INVALID_PIN, rv);
++		if (pk11_token_login(sp->session, &pk11_login_done,
++		    CK_TRUE) == 0)
 +			goto err;
-+			}
 +
-+		LOCK_OBJSTORE(OP_RSA);
-+		if ((rv = pFuncList->C_FindObjectsInit(sp->session,
-+		    search_templ, 3)) != CKR_OK)
-+			{
-+			UNLOCK_OBJSTORE(OP_RSA);
-+			PK11err_add_data(PK11_F_LOAD_PRIVKEY,
-+					 PK11_R_FINDOBJECTSINIT, rv);
++		/*
++		 * Now let's try to find the key in the token. It is a failure
++		 * if we can't find it.
++		 */
++		if (find_one_object(OP_RSA, sp->session, search_templ, 3,
++		    &ks_key) == 0)
 +			goto err;
-+			}
-+
-+		rv = pFuncList->C_FindObjects(sp->session, &ks_key, 1, &objcnt);
-+		if (rv != CKR_OK)
-+			{
-+			UNLOCK_OBJSTORE(OP_RSA);
-+			PK11err_add_data(PK11_F_LOAD_PRIVKEY,
-+					 PK11_R_FINDOBJECTS, rv);
-+			goto err;
-+			}
-+
-+		if (objcnt > 1)
-+			{
-+			UNLOCK_OBJSTORE(OP_RSA);
-+			PK11err(PK11_F_LOAD_PRIVKEY, PK11_R_TOO_MANY_OBJECTS);
-+			goto err;
-+			}
-+
-+		if (objcnt != 1)
-+			{
-+			UNLOCK_OBJSTORE(OP_RSA);
-+			PK11err(PK11_F_LOAD_PRIVKEY, PK11_R_OBJECT_NOT_FOUND);
-+			goto err;
-+			}
-+
-+		(void) pFuncList->C_FindObjectsFinal(sp->session);
-+		UNLOCK_OBJSTORE(OP_RSA);
 +
 +		if (hndidx_rsa == -1)
 +			hndidx_rsa = RSA_get_ex_new_index(0,
 +				        "pkcs11 RSA HSM key handle",
 +					NULL, NULL, NULL);
 +
-+		pkey = EVP_PKEY_new();
-+		if (pkey == NULL)
++		/*
++		 * We might have a cache hit which we could confirm
++		 * according to the 'n'/'e' params, RSA public pointer
++		 * as NULL, and non-NULL RSA private pointer. However,
++		 * it is easier just to recreate everything. We expect
++		 * the keys to be loaded once and used many times. We
++		 * do not check the return value because even in case
++		 * of failure the sp structure will have both key
++		 * pointer and object handle cleaned and
++		 * pk11_destroy_object() reports the failure to the
++		 * OpenSSL error message buffer.
++		 */
++		(void) pk11_destroy_rsa_object_priv(sp, TRUE);
++
++		sp->opdata_rsa_priv_key = ks_key;
++		/* This object shall not be deleted on a cache miss. */
++		sp->priv_persistent = CK_TRUE;
++
++		/*
++		 * Cache the RSA private structure pointer. We do not
++		 * use it now for key-by-ref keys but let's do it for
++		 * consistency reasons.
++		 */
++		if ((rsa = sp->opdata_rsa_priv = RSA_new_method(e)) == NULL)
 +			goto err;
 +
-+		rsa = RSA_new_method(e);
-+		if (rsa == NULL) {
-+			EVP_PKEY_free(pkey);
-+			pkey = NULL;
-+			goto err;
-+		}
-+		EVP_PKEY_assign_RSA(pkey, rsa);
++		/*
++		 * Now we have to initialize an OpenSSL RSA structure,
++		 * everything else is 0 or NULL.
++		 */
++		rsa->flags = RSA_FLAG_SIGN_VER | RSA_FLAG_EXT_PKEY;
++		RSA_set_ex_data(rsa, hndidx_rsa, (void *) ks_key);
 +
 +		if ((rv = pFuncList->C_GetAttributeValue(sp->session, ks_key,
 +		    get_templ, 2)) != CKR_OK)
 +			{
 +			PK11err_add_data(PK11_F_LOAD_PRIVKEY,
 +					 PK11_R_GETATTRIBUTVALUE, rv);
-+			EVP_PKEY_free(pkey);
-+			pkey = NULL;
 +			goto err;
 +			}
 +
-+		/* Note: these flags are critical! */
-+		rsa->flags = RSA_FLAG_SIGN_VER | RSA_FLAG_EXT_PKEY;
-+		RSA_set_ex_data(rsa, hndidx_rsa, (void *) ks_key);
-+		(void) check_new_rsa_key_priv(sp, rsa);
-+		sp->opdata_rsa_priv = rsa;
-+		sp->opdata_rsa_priv_key = ks_key;
++		/*
++		 * We do not use pk11_get_private_rsa_key() here so we
++		 * must take care of handle management ourselves.
++		 */
++		KEY_HANDLE_REFHOLD(ks_key, OP_RSA, FALSE, rollback, err);
 +
++		/*
++		 * Those are the sensitive components we do not want to export
++		 * from the token at all: rsa->(d|p|q|dmp1|dmq1|iqmp).
++		 */
 +		attr_to_BN(&get_templ[0], attr_data[0], &rsa->n);
 +		attr_to_BN(&get_templ[1], attr_data[1], &rsa->e);
++		/*
++		 * Must have 'n'/'e' components in the session structure as
++		 * well. They serve as a public look-up key for the private key
++		 * in the keystore.
++		 */
++		attr_to_BN(&get_templ[0], attr_data[0],
++			&sp->opdata_rsa_pn_num);
++		attr_to_BN(&get_templ[1], attr_data[1],
++			&sp->opdata_rsa_pe_num);
++
++		if ((pkey = EVP_PKEY_new()) == NULL)
++			goto err;
++
++		if (EVP_PKEY_assign_RSA(pkey, rsa) == 0)
++			goto err;
 +		}
 +	else if ((privkey = fopen(privkey_file, read_mode_flags)) != NULL)
 +		{
 +		pkey = PEM_read_PrivateKey(privkey, NULL, NULL, NULL);
 +		(void) fclose(privkey);
++		if (pkey != NULL)
++			{
++			rsa = EVP_PKEY_get1_RSA(pkey);
++			if (rsa != NULL)
++				{
++				/*
++				 * This will always destroy the RSA
++				 * object since we have a new RSA
++				 * structure here.
++				 */
++				(void) check_new_rsa_key_priv(sp, rsa);
++				sp->priv_persistent = CK_FALSE;
++
++				h_priv_key = sp->opdata_rsa_priv_key =
++				    pk11_get_private_rsa_key(rsa,
++				    &sp->opdata_rsa_priv,
++				    &sp->opdata_rsa_d_num,
++				    &sp->opdata_rsa_pn_num,
++				    &sp->opdata_rsa_pe_num, sp->session);
++				if (h_priv_key == CK_INVALID_HANDLE)
++					goto err;
++				}
++			else
++				goto err;
++			}
 +		}
 +
++	pk11_return_session(sp, OP_RSA);
++	return (pkey);
 +err:
-+	if (sp != NULL)
-+		pk11_return_session(sp, OP_RSA);
++	pk11_return_session(sp, OP_RSA);
++	if (rsa != NULL)
++		RSA_free(rsa);
++	if (pkey != NULL)
++		{
++		EVP_PKEY_free(pkey);
++		pkey = NULL;
++		}
++	rollback = rollback;
 +	return (pkey);
 +	}
 +
-+/* load RSA public key from a file */
++/*
++ * Load RSA public key from a file or get its PKCS#11 handle if stored in the
++ * PKCS#11 token.
++ */
 +/* ARGSUSED */
 +EVP_PKEY *pk11_load_pubkey(ENGINE *e, const char *pubkey_file,
 +	UI_METHOD *ui_method, void *callback_data)
 +	{
 +	EVP_PKEY *pkey = NULL;
 +	FILE *pubkey;
-+	RSA *rsa;
-+	PK11_SESSION *sp = NULL;
-+	/* everything else below needed for key by reference extension */
++	CK_OBJECT_HANDLE h_pub_key = CK_INVALID_HANDLE;
++	RSA *rsa = NULL;
++	PK11_SESSION *sp;
++	/* Anything else below is needed for the key by reference extension. */
 +	CK_RV rv;
-+	CK_ULONG objcnt = 0;
 +	CK_BBOOL is_token = TRUE;
-+	CK_BYTE attr_data[2][1024];
++	CK_BYTE attr_data[2][MAXATTR];
 +	CK_OBJECT_CLASS key_class = CKO_PUBLIC_KEY;
 +	CK_OBJECT_HANDLE ks_key = CK_INVALID_HANDLE;	/* key in keystore */
-+	extern char *pk11_pin;
 +
 +	/* we look for public keys only */
 +	CK_ATTRIBUTE search_templ[] =
@@ -10867,146 +11621,497 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11so_pub.c:1.2
 +		{CKA_LABEL, NULL, 0}
 +		};
 +
-+	/* these attributes are needed to initialize OpenSSL RSA structure */
++	/*
++	 * These public attributes are needed to initialize OpenSSL RSA
++	 * structure with something we can use to look up the key.
++	 */
 +	CK_ATTRIBUTE get_templ[] =
 +		{
-+		{CKA_MODULUS, (void *)attr_data[0], 1024},	    /* n */
-+		{CKA_PUBLIC_EXPONENT, (void *)attr_data[1], 1024},  /* e */
++		{CKA_MODULUS, (void *)attr_data[0], MAXATTR},		/* n */
++		{CKA_PUBLIC_EXPONENT, (void *)attr_data[1], MAXATTR},	/* e */
 +		};
++
++	if ((sp = pk11_get_session(OP_RSA)) == NULL)
++		return (NULL);
 +
 +	/*
 +	 * Use simple scheme "pkcs11:<KEY_LABEL>" for now.
 +	 */
 +	if (strstr(pubkey_file, "pkcs11:") == pubkey_file)
 +		{
-+		if ((sp = pk11_get_session(OP_RSA)) == NULL)
-+			return (NULL);
-+
 +		search_templ[2].pValue = strstr(pubkey_file, ":") + 1;
 +		search_templ[2].ulValueLen = strlen(search_templ[2].pValue);
 +
-+#define ALLWAYS_LOGIN
-+#ifdef ALLWAYS_LOGIN
-+		if (pk11_pin == NULL)
-+			{
-+			pk11_pin = BUF_strdup(getpassphrase("Enter PIN: "));
-+
-+			if (pk11_pin == NULL)
-+				{
-+				PK11err(PK11_F_LOAD_PUBKEY, PK11_R_MALLOC_FAILURE);
-+				goto err;
-+				}
-+			}
-+		if ((rv = pFuncList->C_Login(sp->session, CKU_USER, (CK_UTF8CHAR*)pk11_pin,
-+		    strlen(pk11_pin))) != CKR_OK && rv != CKR_USER_ALREADY_LOGGED_IN)
-+			{
-+			PK11err_add_data(PK11_F_LOAD_PUBKEY,
-+					 PK11_R_INVALID_PIN, rv);
++		if (pk11_token_login(sp->session, &pk11_login_done,
++		    CK_FALSE) == 0)
 +			goto err;
-+			}
-+#endif
 +
-+		LOCK_OBJSTORE(OP_RSA);
-+		if (pFuncList->C_FindObjectsInit(sp->session, search_templ, 3) != CKR_OK)
-+			{
-+			UNLOCK_OBJSTORE(OP_RSA);
-+			PK11err_add_data(PK11_F_LOAD_PUBKEY,
-+					 PK11_R_FINDOBJECTSINIT, rv);
++		/*
++		 * Now let's try to find the key in the token. It is a failure
++		 * if we can't find it.
++		 */
++		if (find_one_object(OP_RSA, sp->session, search_templ, 3,
++		    &ks_key) == 0)
 +			goto err;
-+			}
-+		rv = pFuncList->C_FindObjects(sp->session, &ks_key, 1, &objcnt);
-+		if (rv != CKR_OK)
-+			{
-+			UNLOCK_OBJSTORE(OP_RSA);
-+			PK11err_add_data(PK11_F_LOAD_PUBKEY,
-+					 PK11_R_FINDOBJECTS, rv);
-+			goto err;
-+			}
 +
-+		if (objcnt > 1)
-+			{
-+			UNLOCK_OBJSTORE(OP_RSA);
-+			PK11err(PK11_F_LOAD_PUBKEY, PK11_R_TOO_MANY_OBJECTS);
-+			goto err;
-+			}
-+
-+		if (objcnt != 1)
-+			{
-+			UNLOCK_OBJSTORE(OP_RSA);
-+			PK11err(PK11_F_LOAD_PUBKEY, PK11_R_OBJECT_NOT_FOUND);
-+			goto err;
-+			}
-+
-+		(void) pFuncList->C_FindObjectsFinal(sp->session);
-+		UNLOCK_OBJSTORE(OP_RSA);
++		/*
++		 * We load a new public key so we will create a new RSA
++		 * structure. No cache hit is possible.
++		 */
++		(void) pk11_destroy_rsa_object_pub(sp, TRUE);
 +
 +		sp->opdata_rsa_pub_key = ks_key;
-+		pkey = EVP_PKEY_new();
-+		if (pkey == NULL)
++		/* This object shall not be deleted on a cache miss. */
++		sp->pub_persistent = CK_TRUE;
++
++		/*
++		 * Cache the RSA public structure pointer.
++		 */
++		if ((rsa = sp->opdata_rsa_pub = RSA_new_method(e)) == NULL)
 +			goto err;
 +
-+		rsa = RSA_new_method(e);
-+		if (rsa == NULL) {
-+			EVP_PKEY_free(pkey);
-+			pkey = NULL;
-+			goto err;
-+		}
-+		EVP_PKEY_assign_RSA(pkey, rsa);
++		/*
++		 * Now we have to initialize an OpenSSL RSA structure,
++		 * everything else is 0 or NULL.
++		 */
++		rsa->flags = RSA_FLAG_SIGN_VER;
 +
-+		if (pFuncList->C_GetAttributeValue(sp->session, ks_key,
-+		    get_templ, 2) != CKR_OK)
++		if ((rv = pFuncList->C_GetAttributeValue(sp->session, ks_key,
++		    get_templ, 2)) != CKR_OK)
 +			{
 +			PK11err_add_data(PK11_F_LOAD_PUBKEY,
 +					 PK11_R_GETATTRIBUTVALUE, rv);
 +			goto err;
 +			}
 +
-+		(void) check_new_rsa_key_pub(sp, rsa);
-+		sp->opdata_rsa_pub = rsa;
-+
 +		attr_to_BN(&get_templ[0], attr_data[0], &rsa->n);
 +		attr_to_BN(&get_templ[1], attr_data[1], &rsa->e);
++
++		if ((pkey = EVP_PKEY_new()) == NULL)
++			goto err;
++
++		if (EVP_PKEY_assign_RSA(pkey, rsa) == 0)
++			goto err;
++
++		/*
++		 * Create a session object from it so that when calling
++		 * pk11_get_public_rsa_key() the next time, we can find it. The
++		 * reason why we do that is that we cannot tell from the RSA
++		 * structure (OpenSSL RSA structure does not have any room for
++		 * additional data used by the engine, for example) if it bears
++		 * a public key stored in the keystore or not so it's better if
++		 * we always have a session key. Note that this is different
++		 * from what we do for the private keystore objects but in that
++		 * case, we can tell from the RSA structure that the keystore
++		 * object is in play - the 'd' component is NULL in that case.
++		 */
++		h_pub_key = sp->opdata_rsa_pub_key =
++		    pk11_get_public_rsa_key(rsa,
++		    &sp->opdata_rsa_pub, &sp->opdata_rsa_n_num,
++		    &sp->opdata_rsa_e_num, sp->session);
++		if (h_pub_key == CK_INVALID_HANDLE)
++			goto err;
 +		}
 +	else if ((pubkey = fopen(pubkey_file, read_mode_flags)) != NULL)
 +		{
 +		pkey = PEM_read_PUBKEY(pubkey, NULL, NULL, NULL);
 +		(void) fclose(pubkey);
++		if (pkey != NULL)
++			{
++			rsa = EVP_PKEY_get1_RSA(pkey);
++			if (rsa != NULL)
++				{
++				/*
++				 * This will always destroy the RSA
++				 * object since we have a new RSA
++				 * structure here.
++				 */
++				(void) check_new_rsa_key_pub(sp, rsa);
++				sp->pub_persistent = CK_FALSE;
++
++				h_pub_key = sp->opdata_rsa_pub_key =
++				    pk11_get_public_rsa_key(rsa,
++				    &sp->opdata_rsa_pub, &sp->opdata_rsa_n_num,
++				    &sp->opdata_rsa_e_num, sp->session);
++				if (h_pub_key == CK_INVALID_HANDLE)
++					goto err;
++				}
++			else
++				goto err;
++			}
 +		}
 +
-+err:
-+	if (sp != NULL)
-+		pk11_return_session(sp, OP_RSA);
++	pk11_return_session(sp, OP_RSA);
 +	return (pkey);
++err:
++	pk11_return_session(sp, OP_RSA);
++	if (rsa != NULL)
++		RSA_free(rsa);
++	if (pkey != NULL)
++		{
++		EVP_PKEY_free(pkey);
++		pkey = NULL;
++		}
++	return (pkey);
++	}
++
++/*
++ * Create a public key object in a session from a given rsa structure.
++ * The *rsa_n_num and *rsa_e_num pointers are non-NULL for RSA public keys.
++ */
++static CK_OBJECT_HANDLE pk11_get_public_rsa_key(RSA *rsa,
++    RSA **key_ptr, BIGNUM **rsa_n_num, BIGNUM **rsa_e_num,
++    CK_SESSION_HANDLE session)
++	{
++	CK_RV rv;
++	CK_OBJECT_HANDLE h_key = CK_INVALID_HANDLE;
++	CK_ULONG found;
++	CK_OBJECT_CLASS o_key = CKO_PUBLIC_KEY;
++	CK_KEY_TYPE k_type = CKK_RSA;
++	CK_ULONG ul_key_attr_count = 8;
++	CK_BBOOL rollback = FALSE;
++
++	CK_ATTRIBUTE  a_key_template[] =
++		{
++		{CKA_CLASS, (void *) NULL, sizeof (CK_OBJECT_CLASS)},
++		{CKA_KEY_TYPE, (void *) NULL, sizeof (CK_KEY_TYPE)},
++		{CKA_TOKEN, &false, sizeof (true)},
++		{CKA_ENCRYPT, &true, sizeof (true)},
++		{CKA_VERIFY, &true, sizeof (true)},
++		{CKA_VERIFY_RECOVER, &true, sizeof (true)},
++		{CKA_MODULUS, (void *)NULL, 0},
++		{CKA_PUBLIC_EXPONENT, (void *)NULL, 0}
++		};
++
++	int i;
++
++	a_key_template[0].pValue = &o_key;
++	a_key_template[1].pValue = &k_type;
++
++	a_key_template[6].ulValueLen = BN_num_bytes(rsa->n);
++	a_key_template[6].pValue = (CK_VOID_PTR)OPENSSL_malloc(
++		(size_t)a_key_template[6].ulValueLen);
++	if (a_key_template[6].pValue == NULL)
++		{
++		PK11err(PK11_F_GET_PUB_RSA_KEY, PK11_R_MALLOC_FAILURE);
++		goto malloc_err;
++		}
++
++	BN_bn2bin(rsa->n, a_key_template[6].pValue);
++
++	a_key_template[7].ulValueLen = BN_num_bytes(rsa->e);
++	a_key_template[7].pValue = (CK_VOID_PTR)OPENSSL_malloc(
++		(size_t)a_key_template[7].ulValueLen);
++	if (a_key_template[7].pValue == NULL)
++		{
++		PK11err(PK11_F_GET_PUB_RSA_KEY, PK11_R_MALLOC_FAILURE);
++		goto malloc_err;
++		}
++
++	BN_bn2bin(rsa->e, a_key_template[7].pValue);
++
++	/* see find_lock array definition for more info on object locking */
++	LOCK_OBJSTORE(OP_RSA);
++
++	rv = pFuncList->C_FindObjectsInit(session, a_key_template,
++		ul_key_attr_count);
++
++	if (rv != CKR_OK)
++		{
++		PK11err_add_data(PK11_F_GET_PUB_RSA_KEY,
++		    PK11_R_FINDOBJECTSINIT, rv);
++		goto err;
++		}
++
++	rv = pFuncList->C_FindObjects(session, &h_key, 1, &found);
++
++	if (rv != CKR_OK)
++		{
++		PK11err_add_data(PK11_F_GET_PUB_RSA_KEY,
++		    PK11_R_FINDOBJECTS, rv);
++		goto err;
++		}
++
++	rv = pFuncList->C_FindObjectsFinal(session);
++
++	if (rv != CKR_OK)
++		{
++		PK11err_add_data(PK11_F_GET_PUB_RSA_KEY,
++		    PK11_R_FINDOBJECTSFINAL, rv);
++		goto err;
++		}
++
++	if (found == 0)
++		{
++		rv = pFuncList->C_CreateObject(session,
++			a_key_template, ul_key_attr_count, &h_key);
++		if (rv != CKR_OK)
++			{
++			PK11err_add_data(PK11_F_GET_PUB_RSA_KEY,
++			    PK11_R_CREATEOBJECT, rv);
++			goto err;
++			}
++		}
++
++	if (rsa_n_num != NULL)
++		if ((*rsa_n_num = BN_dup(rsa->n)) == NULL)
++			{
++			PK11err(PK11_F_GET_PUB_RSA_KEY, PK11_R_MALLOC_FAILURE);
++			rollback = TRUE;
++			goto err;
++			}
++	if (rsa_e_num != NULL)
++		if ((*rsa_e_num = BN_dup(rsa->e)) == NULL)
++			{
++			PK11err(PK11_F_GET_PUB_RSA_KEY, PK11_R_MALLOC_FAILURE);
++			BN_free(*rsa_n_num);
++			*rsa_n_num = NULL;
++			rollback = TRUE;
++			goto err;
++			}
++
++	/* LINTED: E_CONSTANT_CONDITION */
++	KEY_HANDLE_REFHOLD(h_key, OP_RSA, FALSE, rollback, err);
++	if (key_ptr != NULL)
++		*key_ptr = rsa;
++
++err:
++	if (rollback)
++		{
++		/*
++		 * We do not care about the return value from C_DestroyObject()
++		 * since we are doing rollback.
++		 */
++		if (found == 0)
++			(void) pFuncList->C_DestroyObject(session, h_key);
++		h_key = CK_INVALID_HANDLE;
++		}
++
++	UNLOCK_OBJSTORE(OP_RSA);
++
++malloc_err:
++	for (i = 6; i <= 7; i++)
++		{
++		if (a_key_template[i].pValue != NULL)
++			{
++			OPENSSL_free(a_key_template[i].pValue);
++			a_key_template[i].pValue = NULL;
++			}
++		}
++
++	return (h_key);
 +	}
 +
 +/*
 + * Create a private key object in the session from a given rsa structure.
 + * The *rsa_d_num pointer is non-NULL for RSA private keys.
 + */
-+static CK_OBJECT_HANDLE pk11_get_private_rsa_key(RSA *rsa,
-+    RSA **key_ptr, BIGNUM **rsa_d_num, CK_SESSION_HANDLE session)
++static CK_OBJECT_HANDLE
++pk11_get_private_rsa_key(RSA *rsa, RSA **key_ptr, BIGNUM **rsa_d_num,
++    BIGNUM **rsa_n_num, BIGNUM **rsa_e_num, CK_SESSION_HANDLE session)
 +	{
++	CK_RV rv;
 +	CK_OBJECT_HANDLE h_key = CK_INVALID_HANDLE;
++	int i;
++	CK_ULONG found;
++	CK_OBJECT_CLASS o_key = CKO_PRIVATE_KEY;
++	CK_KEY_TYPE k_type = CKK_RSA;
++	CK_ULONG ul_key_attr_count = 14;
++	CK_BBOOL rollback = FALSE;
 +
-+	if ((rsa->flags & RSA_FLAG_EXT_PKEY) == 0) {
-+		PK11err(PK11_F_GET_PRIV_RSA_KEY, PK11_R_INCONSISTENT_KEY);
-+		return (h_key);
++	/* Both CKA_TOKEN and CKA_SENSITIVE have to be FALSE for session keys */
++	CK_ATTRIBUTE  a_key_template[] =
++		{
++		{CKA_CLASS, (void *) NULL, sizeof (CK_OBJECT_CLASS)},
++		{CKA_KEY_TYPE, (void *) NULL, sizeof (CK_KEY_TYPE)},
++		{CKA_TOKEN, &false, sizeof (true)},
++		{CKA_SENSITIVE, &false, sizeof (true)},
++		{CKA_DECRYPT, &true, sizeof (true)},
++		{CKA_SIGN, &true, sizeof (true)},
++		{CKA_MODULUS, (void *)NULL, 0},
++		{CKA_PUBLIC_EXPONENT, (void *)NULL, 0},
++		{CKA_PRIVATE_EXPONENT, (void *)NULL, 0},
++		{CKA_PRIME_1, (void *)NULL, 0},
++		{CKA_PRIME_2, (void *)NULL, 0},
++		{CKA_EXPONENT_1, (void *)NULL, 0},
++		{CKA_EXPONENT_2, (void *)NULL, 0},
++		{CKA_COEFFICIENT, (void *)NULL, 0},
++		};
++
++	if ((rsa->flags & RSA_FLAG_EXT_PKEY) != 0) {
++		h_key = (CK_OBJECT_HANDLE)RSA_get_ex_data(rsa, hndidx_rsa);
++		LOCK_OBJSTORE(OP_RSA);
++		goto set;
 +	}
 +	
-+	h_key = (CK_OBJECT_HANDLE)RSA_get_ex_data(rsa, hndidx_rsa);
-+	(void) pk11_active_add(h_key, OP_RSA);
-+	if (key_ptr != NULL)
-+		*key_ptr = rsa;
-+	if (rsa_d_num != NULL)
++	a_key_template[0].pValue = &o_key;
++	a_key_template[1].pValue = &k_type;
++
++	/* Put the private key components into the template */
++	if (init_template_value(rsa->n, &a_key_template[6].pValue,
++		&a_key_template[6].ulValueLen) == 0 ||
++	    init_template_value(rsa->e, &a_key_template[7].pValue,
++		&a_key_template[7].ulValueLen) == 0 ||
++	    init_template_value(rsa->d, &a_key_template[8].pValue,
++		&a_key_template[8].ulValueLen) == 0 ||
++	    init_template_value(rsa->p, &a_key_template[9].pValue,
++		&a_key_template[9].ulValueLen) == 0 ||
++	    init_template_value(rsa->q, &a_key_template[10].pValue,
++		&a_key_template[10].ulValueLen) == 0 ||
++	    init_template_value(rsa->dmp1, &a_key_template[11].pValue,
++		&a_key_template[11].ulValueLen) == 0 ||
++	    init_template_value(rsa->dmq1, &a_key_template[12].pValue,
++		&a_key_template[12].ulValueLen) == 0 ||
++	    init_template_value(rsa->iqmp, &a_key_template[13].pValue,
++		&a_key_template[13].ulValueLen) == 0)
 +		{
++		PK11err(PK11_F_GET_PRIV_RSA_KEY, PK11_R_MALLOC_FAILURE);
++		goto malloc_err;
++		}
++
++	/* see find_lock array definition for more info on object locking */
++	LOCK_OBJSTORE(OP_RSA);
++
++	/*
++	 * We are getting the private key but the private 'd'
++	 * component is NULL.  That means this is key by reference RSA
++	 * key. In that case, we can use only public components for
++	 * searching for the private key handle.
++	 */
++	if (rsa->d == NULL)
++		{
++		ul_key_attr_count = 8;
++		/*
++		 * We will perform the search in the token, not in the existing
++		 * session keys.
++		 */
++		a_key_template[2].pValue = &true;
++		}
++
++	rv = pFuncList->C_FindObjectsInit(session, a_key_template,
++		ul_key_attr_count);
++
++	if (rv != CKR_OK)
++		{
++		PK11err_add_data(PK11_F_GET_PRIV_RSA_KEY,
++		    PK11_R_FINDOBJECTSINIT, rv);
++		goto err;
++		}
++
++	rv = pFuncList->C_FindObjects(session, &h_key, 1, &found);
++
++	if (rv != CKR_OK)
++		{
++		PK11err_add_data(PK11_F_GET_PRIV_RSA_KEY,
++		    PK11_R_FINDOBJECTS, rv);
++		goto err;
++		}
++
++	rv = pFuncList->C_FindObjectsFinal(session);
++
++	if (rv != CKR_OK)
++		{
++		PK11err_add_data(PK11_F_GET_PRIV_RSA_KEY,
++		    PK11_R_FINDOBJECTSFINAL, rv);
++		goto err;
++		}
++
++	if (found == 0)
++		{
++		/*
++		 * We have an RSA structure with 'n'/'e' components
++		 * only so we tried to find the private key in the
++		 * keystore. If it was really a token key we have a
++		 * problem. Note that for other key types we just
++		 * create a new session key using the private
++		 * components from the RSA structure.
++		 */
 +		if (rsa->d == NULL)
-+			*rsa_d_num = NULL;
-+		else if ((*rsa_d_num = BN_dup(rsa->d)) == NULL)
 +			{
-+			PK11err(PK11_F_GET_PRIV_RSA_KEY, PK11_R_MALLOC_FAILURE);
-+			return (h_key);
++			PK11err(PK11_F_GET_PRIV_RSA_KEY,
++			    PK11_R_PRIV_KEY_NOT_FOUND);
++			goto err;
++			}
++
++		rv = pFuncList->C_CreateObject(session,
++			a_key_template, ul_key_attr_count, &h_key);
++		if (rv != CKR_OK)
++			{
++			PK11err_add_data(PK11_F_GET_PRIV_RSA_KEY,
++				PK11_R_CREATEOBJECT, rv);
++			goto err;
 +			}
 +		}
++
++set:
++	if (rsa_d_num != NULL)
++		{
++		/*
++		 * When RSA keys by reference code is used, we never
++		 * extract private components from the keystore. In
++		 * that case 'd' was set to NULL and we expect the
++		 * application to properly cope with that. It is
++		 * documented in openssl(5). In general, if keys by
++		 * reference are used we expect it to be used
++		 * exclusively using the high level API and then there
++		 * is no problem. If the application expects the
++		 * private components to be read from the keystore
++		 * then that is not a supported way of usage.
++		 */
++		if (rsa->d != NULL && (*rsa_d_num = BN_dup(rsa->d)) == NULL)
++			{
++			PK11err(PK11_F_GET_PRIV_RSA_KEY, PK11_R_MALLOC_FAILURE);
++			rollback = TRUE;
++			goto err;
++			}
++		else
++			*rsa_d_num = NULL;
++		}
++
++	/*
++	 * For the key by reference code, we need public components as well
++	 * since 'd' component is always NULL. For that reason, we always cache
++	 * 'n'/'e' components as well.
++	 */
++	*rsa_n_num = BN_dup(rsa->n);
++	*rsa_e_num = BN_dup(rsa->e);
++
++	/* LINTED: E_CONSTANT_CONDITION */
++	KEY_HANDLE_REFHOLD(h_key, OP_RSA, FALSE, rollback, err);
++	if (key_ptr != NULL)
++		*key_ptr = rsa;
++
++err:
++	if (rollback)
++		{
++		/*
++		 * We do not care about the return value from C_DestroyObject()
++		 * since we are doing rollback.
++		 */
++		if (found == 0 &&
++		    (rsa->flags & RSA_FLAG_EXT_PKEY) == 0)
++			(void) pFuncList->C_DestroyObject(session, h_key);
++		h_key = CK_INVALID_HANDLE;
++		}
++
++	UNLOCK_OBJSTORE(OP_RSA);
++
++malloc_err:
++	/*
++	 * 6 to 13 entries in the key template are key components.
++	 * They need to be freed upon exit or error.
++	 */
++	for (i = 6; i <= 13; i++)
++		{
++		if (a_key_template[i].pValue != NULL)
++			{
++			(void) memset(a_key_template[i].pValue, 0,
++				a_key_template[i].ulValueLen);
++			OPENSSL_free(a_key_template[i].pValue);
++			a_key_template[i].pValue = NULL;
++			}
++		}
++
 +	return (h_key);
 +	}
 +
@@ -11021,10 +12126,17 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11so_pub.c:1.2
 +	 * check for cache hit stronger. Only public components of RSA
 +	 * key matter here so it is sufficient to compare them with values
 +	 * cached in PK11_SESSION structure.
++	 *
++	 * We must check the handle as well since with key by reference, public
++	 * components 'n'/'e' are cached in private keys as well. That means we
++	 * could have a cache hit in a private key when looking for a public
++	 * key. That would not work, you cannot have one PKCS#11 object for
++	 * both data signing and verifying.
 +	 */
 +	if ((sp->opdata_rsa_pub != rsa) ||
 +	    (BN_cmp(sp->opdata_rsa_n_num, rsa->n) != 0) ||
-+	    (BN_cmp(sp->opdata_rsa_e_num, rsa->e) != 0))
++	    (BN_cmp(sp->opdata_rsa_e_num, rsa->e) != 0) ||
++	    (sp->opdata_rsa_priv_key != CK_INVALID_HANDLE))
 +		{
 +		/*
 +		 * We do not check the return value because even in case of
@@ -11045,14 +12157,21 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11so_pub.c:1.2
 +static int check_new_rsa_key_priv(PK11_SESSION *sp, const RSA *rsa)
 +	{
 +	/*
-+	 * Provide protection against RSA structure reuse by making the
-+	 * check for cache hit stronger. Comparing private exponent of RSA
-+	 * key with value cached in PK11_SESSION structure should
-+	 * be sufficient.
++	 * Provide protection against RSA structure reuse by making
++	 * the check for cache hit stronger. Comparing public exponent
++	 * of RSA key with value cached in PK11_SESSION structure
++	 * should be sufficient. Note that we want to compare the
++	 * public component since with the keys by reference
++	 * mechanism, private components are not in the RSA
++	 * structure. Also, see check_new_rsa_key_pub() about why we
++	 * compare the handle as well.
 +	 */
 +	if ((sp->opdata_rsa_priv != rsa) ||
-+	    (BN_cmp(sp->opdata_rsa_d_num, rsa->d) != 0) ||
-+	    ((rsa->flags & RSA_FLAG_EXT_PKEY) != 0))
++	    (BN_cmp(sp->opdata_rsa_pn_num, rsa->n) != 0) ||
++	    (BN_cmp(sp->opdata_rsa_pe_num, rsa->e) != 0) ||
++	    (sp->opdata_rsa_pn_num == NULL) ||
++	    (sp->opdata_rsa_pe_num == NULL) ||
++	    (sp->opdata_rsa_pub_key != CK_INVALID_HANDLE))
 +		{
 +		/*
 +		 * We do not check the return value because even in case of
@@ -11066,12 +12185,317 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11so_pub.c:1.2
 +	return (1);
 +	}
 +
-+static void attr_to_BN(CK_ATTRIBUTE_PTR attr, CK_BYTE attr_data[], BIGNUM **bn)
++/*
++ * Local function to simplify key template population
++ * Return 0 -- error, 1 -- no error
++ */
++static int
++init_template_value(BIGNUM *bn, CK_VOID_PTR *p_value,
++	CK_ULONG *ul_value_len)
++	{
++	CK_ULONG len = 0;
++
++	/*
++	 * This function can be used on non-initialized BIGNUMs. It is
++	 * easier to check that here than individually in the callers.
++	 */
++	if (bn != NULL)
++		len = BN_num_bytes(bn);
++
++	if (bn == NULL || len == 0)
++		return (1);
++
++	*ul_value_len = len;
++	*p_value = (CK_VOID_PTR)OPENSSL_malloc((size_t)*ul_value_len);
++	if (*p_value == NULL)
++		return (0);
++
++	BN_bn2bin(bn, *p_value);
++
++	return (1);
++	}
++
++static void
++attr_to_BN(CK_ATTRIBUTE_PTR attr, CK_BYTE attr_data[], BIGNUM **bn)
 +	{
 +	if (attr->ulValueLen > 0)
-+		{
 +		*bn = BN_bin2bn(attr_data, attr->ulValueLen, NULL);
++	}
++
++/*
++ * Find one object in the token. It is an error if we can not find the
++ * object or if we find more objects based on the template we got.
++ *
++ * Returns:
++ *	1 OK
++ *	0 no object or more than 1 object found
++ */
++static int
++find_one_object(PK11_OPTYPE op, CK_SESSION_HANDLE s,
++    CK_ATTRIBUTE_PTR ptempl, CK_ULONG nattr, CK_OBJECT_HANDLE_PTR pkey)
++	{
++	CK_RV rv;
++	CK_ULONG objcnt;
++
++	LOCK_OBJSTORE(op);
++	if ((rv = pFuncList->C_FindObjectsInit(s, ptempl, nattr)) != CKR_OK)
++		{
++		PK11err_add_data(PK11_F_FIND_ONE_OBJECT,
++		    PK11_R_FINDOBJECTSINIT, rv);
++		goto err;
 +		}
++
++	rv = pFuncList->C_FindObjects(s, pkey, 1, &objcnt);
++	if (rv != CKR_OK)
++		{
++		PK11err_add_data(PK11_F_FIND_ONE_OBJECT, PK11_R_FINDOBJECTS,
++		    rv);
++		goto err;
++		}
++
++	if (objcnt > 1)
++		{
++		PK11err(PK11_F_FIND_ONE_OBJECT,
++		    PK11_R_MORE_THAN_ONE_OBJECT_FOUND);
++		goto err;
++		}
++	else if (objcnt == 0)
++		{
++		PK11err(PK11_F_FIND_ONE_OBJECT, PK11_R_NO_OBJECT_FOUND);
++		goto err;
++		}
++
++	(void) pFuncList->C_FindObjectsFinal(s);
++	UNLOCK_OBJSTORE(op);
++	return (1);
++err:
++	UNLOCK_OBJSTORE(op);
++	return (0);
++	}
++
++/* from uri stuff */
++
++extern char *pk11_pin;
++
++static int pk11_get_pin(void);
++
++static int
++pk11_get_pin(void)
++{
++	char *pin;
++
++	/* The getpassphrase() function is not MT safe. */
++#ifndef NOPTHREADS
++	(void) pthread_mutex_lock(token_lock);
++#else
++	CRYPTO_w_lock(CRYPTO_LOCK_PK11_ENGINE);
++#endif
++	pin = getpassphrase("Enter PIN: ");
++	if (pin == NULL)
++		{
++		PK11err(PK11_F_GET_PIN, PK11_R_COULD_NOT_READ_PIN);
++#ifndef NOPTHREADS
++		(void) pthread_mutex_unlock(token_lock);
++#else
++		CRYPTO_w_unlock(CRYPTO_LOCK_PK11_ENGINE);
++#endif
++		goto err;
++		}
++	pk11_pin = BUF_strdup(pin);
++	if (pk11_pin == NULL)
++		{
++		PK11err(PK11_F_LOAD_PRIVKEY, PK11_R_MALLOC_FAILURE);
++#ifndef NOPTHREADS
++		(void) pthread_mutex_unlock(token_lock);
++#else
++		CRYPTO_w_unlock(CRYPTO_LOCK_PK11_ENGINE);
++#endif
++		goto err;
++		}
++	memset(pin, 0, strlen(pin));
++#ifndef NOPTHREADS
++	(void) pthread_mutex_unlock(token_lock);
++#else
++	CRYPTO_w_unlock(CRYPTO_LOCK_PK11_ENGINE);
++#endif
++	return (1);
++err:
++	return (0);
++	}
++
++/*
++ * Log in to the keystore if we are supposed to do that at all. Take care of
++ * reading and caching the PIN etc. Log in only once even when called from
++ * multiple threads.
++ *
++ * Returns:
++ *	1 on success
++ *	0 on failure
++ */
++static int
++pk11_token_login(CK_SESSION_HANDLE session, CK_BBOOL *login_done,
++    CK_BBOOL is_private)
++	{
++	CK_RV rv;
++
++#if 0
++	/* doesn't work on the AEP Keyper??? */
++	if ((pubkey_token_flags & CKF_TOKEN_INITIALIZED) == 0)
++		{
++		PK11err(PK11_F_TOKEN_LOGIN,
++		    PK11_R_TOKEN_NOT_INITIALIZED);
++		goto err;
++		}
++#endif
++
++	/*
++	 * If login is required or needed but the PIN has not been
++	 * even initialized we can bail out right now. Note that we
++	 * are supposed to always log in if we are going to access
++	 * private keys. However, we may need to log in even for
++	 * accessing public keys in case that the CKF_LOGIN_REQUIRED
++	 * flag is set.
++	 */
++	if (((pubkey_token_flags & CKF_LOGIN_REQUIRED) ||
++	     (is_private == CK_TRUE)) &&
++	    (~pubkey_token_flags & CKF_USER_PIN_INITIALIZED))
++		{
++		PK11err(PK11_F_TOKEN_LOGIN, PK11_R_TOKEN_PIN_NOT_SET);
++		goto err;
++		}
++
++	/*
++	 * Note on locking: it is possible that more than one thread
++	 * gets into pk11_get_pin() so we must deal with that. We
++	 * cannot avoid it since we cannot guard fork() in there with
++	 * a lock because we could end up in a dead lock in the
++	 * child. Why? Remember we are in a multithreaded environment
++	 * so we must lock all mutexes in the prefork function to
++	 * avoid a situation in which a thread that did not call
++	 * fork() held a lock, making future unlocking impossible. We
++	 * lock right before C_Login().
++	 */
++	if ((pubkey_token_flags & CKF_LOGIN_REQUIRED) ||
++	    (is_private == CK_TRUE))
++		{
++		if (*login_done == CK_FALSE)
++			{
++			if ((pk11_pin == NULL) && (pk11_get_pin() == 0))
++				{
++				PK11err(PK11_F_TOKEN_LOGIN,
++				    PK11_R_TOKEN_PIN_NOT_PROVIDED);
++				goto err;
++				}
++			}
++
++		/*
++		 * Note that what we are logging into is the keystore from
++		 * pubkey_SLOTID because we work with OP_RSA session type here.
++		 * That also means that we can work with only one keystore in
++		 * the engine.
++		 *
++		 * We must make sure we do not try to login more than once.
++		 * Also, see the comment above on locking strategy.
++		 */
++
++#ifndef NOPTHREADS
++		(void) pthread_mutex_lock(token_lock);
++#else
++		(void) pthread_mutex_lock(freelist_lock);
++#endif
++		if (*login_done == CK_FALSE)
++			{
++			if ((rv = pFuncList->C_Login(session,
++			    CKU_USER, (CK_UTF8CHAR*)pk11_pin,
++			    strlen(pk11_pin))) != CKR_OK)
++				{
++				PK11err_add_data(PK11_F_TOKEN_LOGIN,
++				    PK11_R_TOKEN_LOGIN_FAILED, rv);
++				goto err_locked;
++				}
++
++			*login_done = CK_TRUE;
++
++			}
++#ifndef NOPTHREADS
++		(void) pthread_mutex_unlock(token_lock);
++#else
++		CRYPTO_w_unlock(CRYPTO_LOCK_PK11_ENGINE);
++#endif
++		}
++	else
++		{
++			/*
++			 * If token does not require login we take it as the
++			 * login was done.
++			 */
++			*login_done = CK_TRUE;
++		}
++
++	return (1);
++
++err_locked:
++	if (pk11_pin) {
++		memset(pk11_pin, 0, strlen(pk11_pin));
++		OPENSSL_free((void*)pk11_pin);
++	}
++	pk11_pin = NULL;
++#ifndef NOPTHREADS
++	(void) pthread_mutex_unlock(token_lock);
++#else
++	CRYPTO_w_unlock(CRYPTO_LOCK_PK11_ENGINE);
++#endif
++err:
++	return (0);
++	}
++
++/*
++ * Log in to the keystore in the child if we were logged in in the
++ * parent. There are similarities in the code with pk11_token_login()
++ * but still it is quite different so we need a separate function for
++ * this.
++ *
++ * Note that this function is called under the locked session mutex when fork is
++ * detected. That means that C_Login() will be called from the child just once.
++ *
++ * Returns:
++ *	1 on success
++ *	0 on failure
++ */
++int
++pk11_token_relogin(CK_SESSION_HANDLE session)
++	{
++	CK_RV rv;
++
++	if ((pk11_pin == NULL) && (pk11_get_pin() == 0))
++		goto err;
++
++#ifndef NOPTHREADS
++	(void) pthread_mutex_lock(token_lock);
++#else
++	(void) pthread_mutex_lock(freelist_lock);
++#endif
++	if ((rv = pFuncList->C_Login(session, CKU_USER,
++	    (CK_UTF8CHAR_PTR)pk11_pin, strlen(pk11_pin))) != CKR_OK)
++		{
++		PK11err_add_data(PK11_F_TOKEN_RELOGIN,
++		    PK11_R_TOKEN_LOGIN_FAILED, rv);
++#ifndef NOPTHREADS
++		(void) pthread_mutex_unlock(token_lock);
++#else
++		CRYPTO_w_unlock(CRYPTO_LOCK_PK11_ENGINE);
++#endif
++		goto err;
++		}
++#ifndef NOPTHREADS
++	(void) pthread_mutex_unlock(token_lock);
++#else
++	CRYPTO_w_unlock(CRYPTO_LOCK_PK11_ENGINE);
++#endif
++
++	return (1);
++err:
++	return (0);
 +	}
 +
 +#ifdef	OPENSSL_SYS_WIN32
@@ -11111,11 +12535,11 @@ diff -u /dev/null openssl/crypto/engine/hw_pk11so_pub.c:1.2
 +#endif	/* OPENSSL_NO_HW */
 Index: openssl/crypto/engine/pkcs11.h
 diff -u /dev/null openssl/crypto/engine/pkcs11.h:1.1.1.1
---- /dev/null	Thu Dec 24 13:00:46 2009
+--- /dev/null	Mon Jan 16 18:54:23 2012
 +++ openssl/crypto/engine/pkcs11.h	Wed Oct 24 23:27:09 2007
 @@ -0,0 +1,299 @@
 +/* pkcs11.h include file for PKCS #11. */
-+/* $Revision: 1.2 $ */
++/* $Revision: 1.2.2.2 $ */
 +
 +/* License to copy and use this software is granted provided that it is
 + * identified as "RSA Security Inc. PKCS #11 Cryptographic Token Interface
@@ -11415,11 +12839,11 @@ diff -u /dev/null openssl/crypto/engine/pkcs11.h:1.1.1.1
 +#endif
 Index: openssl/crypto/engine/pkcs11f.h
 diff -u /dev/null openssl/crypto/engine/pkcs11f.h:1.1.1.1
---- /dev/null	Thu Dec 24 13:00:46 2009
+--- /dev/null	Mon Jan 16 18:54:23 2012
 +++ openssl/crypto/engine/pkcs11f.h	Wed Oct 24 23:27:09 2007
 @@ -0,0 +1,912 @@
 +/* pkcs11f.h include file for PKCS #11. */
-+/* $Revision: 1.2 $ */
++/* $Revision: 1.2.2.2 $ */
 +
 +/* License to copy and use this software is granted provided that it is
 + * identified as "RSA Security Inc. PKCS #11 Cryptographic Token Interface
@@ -12332,11 +13756,11 @@ diff -u /dev/null openssl/crypto/engine/pkcs11f.h:1.1.1.1
 +#endif
 Index: openssl/crypto/engine/pkcs11t.h
 diff -u /dev/null openssl/crypto/engine/pkcs11t.h:1.2
---- /dev/null	Thu Dec 24 13:00:46 2009
+--- /dev/null	Mon Jan 16 18:54:23 2012
 +++ openssl/crypto/engine/pkcs11t.h	Sat Aug 30 11:58:07 2008
 @@ -0,0 +1,1885 @@
 +/* pkcs11t.h include file for PKCS #11. */
-+/* $Revision: 1.2 $ */
++/* $Revision: 1.2.2.2 $ */
 +
 +/* License to copy and use this software is granted provided that it is
 + * identified as "RSA Security Inc. PKCS #11 Cryptographic Token Interface
@@ -14220,21 +15644,61 @@ diff -u /dev/null openssl/crypto/engine/pkcs11t.h:1.2
 +typedef CK_ARIA_CBC_ENCRYPT_DATA_PARAMS CK_PTR CK_ARIA_CBC_ENCRYPT_DATA_PARAMS_PTR;
 +
 +#endif
+Index: openssl/test/clean_test.com
+diff -u openssl/test/clean_test.com:1.1.2.1 openssl/test/clean_test.com:removed
+--- openssl/test/clean_test.com:1.1.2.1	Sun Jan 15 16:09:50 2012
++++ openssl/test/clean_test.com	Mon Jan 16 18:54:23 2012
+@@ -1,35 +0,0 @@
+-$!
+-$! Delete various test results files.
+-$!
+-$ def_orig = f$environment( "default")
+-$ proc = f$environment( "procedure")
+-$ proc_dev_dir = f$parse( "A.;", proc) - "A.;"
+-$!
+-$ on control_c then goto tidy
+-$ on error then goto tidy
+-$!
+-$ set default 'proc_dev_dir'
+-$!
+-$ files := *.cms;*, *.srl;*, *.ss;*, -
+-   cms.err;*, cms.out;*, newreq.pem;*, -
+-   p.txt-zlib-cipher;*, -
+-   smtst.txt;*, testkey.pem;*, testreq.pem;*, -
+-   test_*.err;*, test_*.out;*, -
+-   .rnd;*
+-$!
+-$ delim = ","
+-$ i = 0
+-$ loop:
+-$    file = f$edit( f$element( i, delim, files), "trim")
+-$    if (file .eqs. delim) then goto loop_end
+-$    if (f$search( file) .nes. "") then -
+-      delete 'p1' 'file'
+-$    i = i+ 1
+-$ goto loop
+-$ loop_end:
+-$!
+-$ tidy:
+-$ 
+-$ if (f$type( def_orig) .nes. "") then -
+-   set default 'def_orig'
+-$!
 Index: openssl/util/libeay.num
-diff -u openssl/util/libeay.num:1.1.3.1 openssl/util/libeay.num:1.6
---- openssl/util/libeay.num:1.1.3.1	Mon Feb  2 00:27:56 2009
-+++ openssl/util/libeay.num	Mon Oct  5 13:17:03 2009
-@@ -3725,3 +3725,5 @@
- JPAKE_STEP3A_init                       4111	EXIST::FUNCTION:JPAKE
- ERR_load_JPAKE_strings                  4112	EXIST::FUNCTION:JPAKE
- JPAKE_STEP2_init                        4113	EXIST::FUNCTION:JPAKE
-+ENGINE_load_pk11ca                      4114	EXIST::FUNCTION:HW_PKCS11CA,ENGINE
-+ENGINE_load_pk11so                      4114	EXIST::FUNCTION:HW_PKCS11SO,ENGINE
+diff -u openssl/util/libeay.num:1.8.2.1 openssl/util/libeay.num:1.9
+--- openssl/util/libeay.num:1.8.2.1	Sun Jan 15 16:09:52 2012
++++ openssl/util/libeay.num	Sun Jan 15 16:30:10 2012
+@@ -4194,3 +4194,5 @@
+ OPENSSL_strncasecmp                     4566	EXIST::FUNCTION:
+ OPENSSL_gmtime                          4567	EXIST::FUNCTION:
+ OPENSSL_gmtime_adj                      4568	EXIST::FUNCTION:
++ENGINE_load_pk11ca                      4569	EXIST::FUNCTION:HW_PKCS11CA,ENGINE
++ENGINE_load_pk11so                      4569	EXIST::FUNCTION:HW_PKCS11SO,ENGINE
 Index: openssl/util/mk1mf.pl
-diff -u openssl/util/mk1mf.pl:1.1.3.1 openssl/util/mk1mf.pl:1.7
---- openssl/util/mk1mf.pl:1.1.3.1	Tue Dec  2 23:50:21 2008
-+++ openssl/util/mk1mf.pl	Mon Oct  5 13:17:05 2009
-@@ -87,6 +87,8 @@
+diff -u openssl/util/mk1mf.pl:1.9.2.1 openssl/util/mk1mf.pl:1.9
+--- openssl/util/mk1mf.pl:1.9.2.1	Sun Jan 15 16:09:52 2012
++++ openssl/util/mk1mf.pl	Mon Jun 13 17:13:56 2011
+@@ -109,6 +109,8 @@
  	no-ecdh					- No ECDH
  	no-engine				- No engine
  	no-hw					- No hw
@@ -14243,27 +15707,27 @@ diff -u openssl/util/mk1mf.pl:1.1.3.1 openssl/util/mk1mf.pl:1.7
  	nasm 					- Use NASM for x86 asm
  	nw-nasm					- Use NASM x86 asm for NetWare
  	nw-mwasm				- Use Metrowerks x86 asm for NetWare
-@@ -242,6 +244,8 @@
- $cflags.=" -DOPENSSL_NO_ECDH" if $no_ecdh;
+@@ -270,6 +272,8 @@
+ $cflags.=" -DOPENSSL_NO_GOST" if $no_gost;
  $cflags.=" -DOPENSSL_NO_ENGINE"   if $no_engine;
  $cflags.=" -DOPENSSL_NO_HW"   if $no_hw;
 +$cflags.=" -DOPENSSL_NO_HW_PKCS11CA"   if $no_hw_pkcs11ca;
 +$cflags.=" -DOPENSSL_NO_HW_PKCS11SO"   if $no_hw_pkcs11so;
- $cflags.=" -DOPENSSL_FIPS"    if $fips;
+ $cflags.=" -DOPENSSL_NO_JPAKE"    if $no_jpake;
  $cflags.= " -DZLIB" if $zlib_opt;
  $cflags.= " -DZLIB_SHARED" if $zlib_opt == 2;
-@@ -322,6 +326,9 @@
- 	if ($key eq "ZLIB_INCLUDE")
- 		{ $cflags .= " $val" if $val ne "";}
+@@ -335,6 +339,9 @@
+ 		$dir=$val;
+ 		}
  
 +	if ($key eq "PK11_LIB_LOCATION")
 +		{ $cflags .= " -D$key=\\\"$val\\\"" if $val ne "";}
 +
- 	if ($key eq "LIBZLIB")
- 		{ $zlib_lib = "$val" if $val ne "";}
+ 	if ($key eq "KRB5_INCLUDES")
+ 		{ $cflags .= " $val";}
  
-@@ -1300,6 +1307,8 @@
- 		"no-ecdh" => \$no_ecdh,
+@@ -1067,6 +1074,8 @@
+ 		"no-gost" => \$no_gost,
  		"no-engine" => \$no_engine,
  		"no-hw" => \$no_hw,
 +		"no-hw-pkcs11ca" => \$no_hw_pkcs11ca,
@@ -14272,28 +15736,28 @@ diff -u openssl/util/mk1mf.pl:1.1.3.1 openssl/util/mk1mf.pl:1.7
  			[\$no_rc2, \$no_idea, \$no_des, \$no_bf, \$no_cast,
  			  \$no_md2, \$no_sha, \$no_mdc2, \$no_dsa, \$no_dh,
 Index: openssl/util/mkdef.pl
-diff -u openssl/util/mkdef.pl:1.1.3.1 openssl/util/mkdef.pl:1.5
---- openssl/util/mkdef.pl:1.1.3.1	Mon Nov 24 16:14:15 2008
-+++ openssl/util/mkdef.pl	Mon Oct  5 13:17:05 2009
-@@ -93,7 +93,7 @@
+diff -u openssl/util/mkdef.pl:1.7.2.1 openssl/util/mkdef.pl:1.8
+--- openssl/util/mkdef.pl:1.7.2.1	Sun Jan 15 16:09:52 2012
++++ openssl/util/mkdef.pl	Sun Jan 15 16:30:10 2012
+@@ -94,7 +94,7 @@
  			 # External "algorithms"
  			 "FP_API", "STDIO", "SOCK", "KRB5", "DGRAM",
  			 # Engines
 -			 "STATIC_ENGINE", "ENGINE", "HW", "GMP",
 +			 "STATIC_ENGINE", "ENGINE", "HW", "GMP", "HW_PKCS11CA", "HW_PKCS11SO",
- 			 # RFC3779 support 
+ 			 # RFC3779
  			 "RFC3779",
- 			 # TLS extension support
-@@ -122,6 +122,7 @@
+ 			 # TLS
+@@ -125,6 +125,7 @@
  my $no_md2; my $no_md4; my $no_md5; my $no_sha; my $no_ripemd; my $no_mdc2;
  my $no_rsa; my $no_dsa; my $no_dh; my $no_hmac=0; my $no_aes; my $no_krb5;
- my $no_ec; my $no_ecdsa; my $no_ecdh; my $no_engine; my $no_hw; my $no_camellia;
+ my $no_ec; my $no_ecdsa; my $no_ecdh; my $no_engine; my $no_hw;
 +my $no_pkcs11ca; my $no_pkcs11so;
- my $no_seed;
- my $no_fp_api; my $no_static_engine; my $no_gmp; my $no_deprecated;
- my $no_rfc3779; my $no_tlsext; my $no_cms; my $no_capieng; my $no_jpake;
-@@ -214,6 +215,8 @@
- 	elsif (/^no-cms$/)	{ $no_cms=1; }
+ my $no_fp_api; my $no_static_engine=1; my $no_gmp; my $no_deprecated;
+ my $no_rfc3779; my $no_psk; my $no_tlsext; my $no_cms; my $no_capieng;
+ my $no_jpake; my $no_ssl2;
+@@ -218,6 +219,8 @@
+ 	elsif (/^no-ssl2$/)	{ $no_ssl2=1; }
  	elsif (/^no-capieng$/)	{ $no_capieng=1; }
  	elsif (/^no-jpake$/)	{ $no_jpake=1; }
 +	elsif (/^no-hw-pkcs11ca$/) { $no_pkcs11ca=1; }
@@ -14301,7 +15765,7 @@ diff -u openssl/util/mkdef.pl:1.1.3.1 openssl/util/mkdef.pl:1.5
  	}
  
  
-@@ -1138,6 +1141,8 @@
+@@ -1165,6 +1168,8 @@
  			if ($keyword eq "KRB5" && $no_krb5) { return 0; }
  			if ($keyword eq "ENGINE" && $no_engine) { return 0; }
  			if ($keyword eq "HW" && $no_hw) { return 0; }
@@ -14311,15 +15775,15 @@ diff -u openssl/util/mkdef.pl:1.1.3.1 openssl/util/mkdef.pl:1.5
  			if ($keyword eq "STATIC_ENGINE" && $no_static_engine) { return 0; }
  			if ($keyword eq "GMP" && $no_gmp) { return 0; }
 Index: openssl/util/pl/VC-32.pl
-diff -u openssl/util/pl/VC-32.pl:1.1.3.1 openssl/util/pl/VC-32.pl:1.5
---- openssl/util/pl/VC-32.pl:1.1.3.1	Mon Mar  9 12:14:08 2009
-+++ openssl/util/pl/VC-32.pl	Fri Sep  4 10:43:23 2009
-@@ -113,7 +113,7 @@
-     my $f = $shlib || $fips ?' /MD':' /MT';
+diff -u openssl/util/pl/VC-32.pl:1.7.2.1 openssl/util/pl/VC-32.pl:1.7
+--- openssl/util/pl/VC-32.pl:1.7.2.1	Sun Jan 15 16:09:52 2012
++++ openssl/util/pl/VC-32.pl	Mon Jun 13 17:13:57 2011
+@@ -36,7 +36,7 @@
+     my $f = $shlib?' /MD':' /MT';
      $lib_cflag='/Zl' if (!$shlib);	# remove /DEFAULTLIBs from static lib
-     $opt_cflags=$f.' /Ox /O2 /Ob2';
+     $opt_cflags=$f.' /Ox';
 -    $dbg_cflags=$f.'d /Od -DDEBUG -D_DEBUG';
 +    $dbg_cflags=$f.'d /Od /Zi -DDEBUG -D_DEBUG';
      $lflags="/nologo /subsystem:console /opt:ref";
-     }
- $mlflags='';
+ 
+     *::perlasm_compile_target = sub {

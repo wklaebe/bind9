@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2011, 2012  Internet Systems Consortium, Inc. ("ISC")
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -14,7 +14,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: master_test.c,v 1.2.2.4 2011-07-08 22:57:25 smann Exp $ */
+/* $Id$ */
 
 /*! \file */
 
@@ -27,8 +27,10 @@
 #include <dns/cache.h>
 #include <dns/callbacks.h>
 #include <dns/master.h>
+#include <dns/masterdump.h>
 #include <dns/name.h>
 #include <dns/rdata.h>
+#include <dns/rdatalist.h>
 #include <dns/rdataset.h>
 
 #include "dnstest.h"
@@ -38,7 +40,7 @@
  */
 
 #define	BUFLEN		255
-#define	BIGBUFLEN	(64 * 1024)
+#define	BIGBUFLEN	(70 * 1024)
 #define TEST_ORIGIN	"test"
 
 static isc_result_t
@@ -104,12 +106,12 @@ test_master(const char *testfile) {
  */
 
 /* Successful load test */
-ATF_TC(master_load);
-ATF_TC_HEAD(master_load, tc) {
+ATF_TC(load);
+ATF_TC_HEAD(load, tc) {
 	atf_tc_set_md_var(tc, "descr", "dns_master_loadfile() loads a "
 				       "valid master file and returns success");
 }
-ATF_TC_BODY(master_load, tc) {
+ATF_TC_BODY(load, tc) {
 	isc_result_t result;
 
 	UNUSED(tc);
@@ -125,13 +127,13 @@ ATF_TC_BODY(master_load, tc) {
 
 
 /* Unepxected end of file test */
-ATF_TC(master_unexpected);
-ATF_TC_HEAD(master_unexpected, tc) {
+ATF_TC(unexpected);
+ATF_TC_HEAD(unexpected, tc) {
 	atf_tc_set_md_var(tc, "descr", "dns_master_loadfile() returns "
 				       "DNS_R_UNEXPECTED when file ends "
 				       "too soon");
 }
-ATF_TC_BODY(master_unexpected, tc) {
+ATF_TC_BODY(unexpected, tc) {
 	isc_result_t result;
 
 	UNUSED(tc);
@@ -147,13 +149,13 @@ ATF_TC_BODY(master_unexpected, tc) {
 
 
 /* No owner test */
-ATF_TC(master_noowner);
-ATF_TC_HEAD(master_noowner, tc) {
+ATF_TC(noowner);
+ATF_TC_HEAD(noowner, tc) {
 	atf_tc_set_md_var(tc, "descr", "dns_master_loadfile() accepts broken "
 				       "zones with no TTL for first record "
 				       "if it is an SOA");
 }
-ATF_TC_BODY(master_noowner, tc) {
+ATF_TC_BODY(noowner, tc) {
 	isc_result_t result;
 
 	UNUSED(tc);
@@ -169,14 +171,14 @@ ATF_TC_BODY(master_noowner, tc) {
 
 
 /* No TTL test */
-ATF_TC(master_nottl);
-ATF_TC_HEAD(master_nottl, tc) {
+ATF_TC(nottl);
+ATF_TC_HEAD(nottl, tc) {
 	atf_tc_set_md_var(tc, "descr", "dns_master_loadfile() returns "
 				       "DNS_R_NOOWNER when no owner name "
 				       "is specified");
 }
 
-ATF_TC_BODY(master_nottl, tc) {
+ATF_TC_BODY(nottl, tc) {
 	isc_result_t result;
 
 	UNUSED(tc);
@@ -192,13 +194,13 @@ ATF_TC_BODY(master_nottl, tc) {
 
 
 /* Bad class test */
-ATF_TC(master_badclass);
-ATF_TC_HEAD(master_badclass, tc) {
+ATF_TC(badclass);
+ATF_TC_HEAD(badclass, tc) {
 	atf_tc_set_md_var(tc, "descr", "dns_master_loadfile() returns "
 				       "DNS_R_BADCLASS when record class "
 				       "doesn't match zone class");
 }
-ATF_TC_BODY(master_badclass, tc) {
+ATF_TC_BODY(badclass, tc) {
 	isc_result_t result;
 
 	UNUSED(tc);
@@ -212,13 +214,54 @@ ATF_TC_BODY(master_badclass, tc) {
 	dns_test_end();
 }
 
+/* Too big rdata test */
+ATF_TC(toobig);
+ATF_TC_HEAD(toobig, tc) {
+	atf_tc_set_md_var(tc, "descr", "dns_master_loadfile() returns "
+				       "ISC_R_NOSPACE when record is too big");
+}
+ATF_TC_BODY(toobig, tc) {
+	isc_result_t result;
+
+	UNUSED(tc);
+
+	result = dns_test_begin(NULL, ISC_FALSE);
+	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+
+	result = test_master("testdata/master/master15.data");
+	ATF_REQUIRE_EQ(result, ISC_R_NOSPACE);
+
+	dns_test_end();
+}
+
+/* Maximum rdata test */
+ATF_TC(maxrdata);
+ATF_TC_HEAD(maxrdata, tc) {
+	atf_tc_set_md_var(tc, "descr", "dns_master_loadfile() returns "
+				       "ISC_R_SUCCESS when record is maximum "
+				       "size");
+}
+ATF_TC_BODY(maxrdata, tc) {
+	isc_result_t result;
+
+	UNUSED(tc);
+
+	result = dns_test_begin(NULL, ISC_FALSE);
+	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+
+	result = test_master("testdata/master/master16.data");
+	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+
+	dns_test_end();
+}
+
 /* DNSKEY test */
-ATF_TC(master_dnskey);
-ATF_TC_HEAD(master_dnskey, tc) {
+ATF_TC(dnskey);
+ATF_TC_HEAD(dnskey, tc) {
 	atf_tc_set_md_var(tc, "descr", "dns_master_loadfile() understands "
 				       "DNSKEY with key material");
 }
-ATF_TC_BODY(master_dnskey, tc) {
+ATF_TC_BODY(dnskey, tc) {
 	isc_result_t result;
 
 	UNUSED(tc);
@@ -234,12 +277,12 @@ ATF_TC_BODY(master_dnskey, tc) {
 
 
 /* DNSKEY with no key material test */
-ATF_TC(master_dnsnokey);
-ATF_TC_HEAD(master_dnsnokey, tc) {
+ATF_TC(dnsnokey);
+ATF_TC_HEAD(dnsnokey, tc) {
 	atf_tc_set_md_var(tc, "descr", "dns_master_loadfile() understands "
 				       "DNSKEY with no key material");
 }
-ATF_TC_BODY(master_dnsnokey, tc) {
+ATF_TC_BODY(dnsnokey, tc) {
 	isc_result_t result;
 
 	UNUSED(tc);
@@ -254,12 +297,12 @@ ATF_TC_BODY(master_dnsnokey, tc) {
 }
 
 /* Include test */
-ATF_TC(master_include);
-ATF_TC_HEAD(master_include, tc) {
+ATF_TC(include);
+ATF_TC_HEAD(include, tc) {
 	atf_tc_set_md_var(tc, "descr", "dns_master_loadfile() understands "
 				       "$INCLUDE");
 }
-ATF_TC_BODY(master_include, tc) {
+ATF_TC_BODY(include, tc) {
 	isc_result_t result;
 
 	UNUSED(tc);
@@ -274,12 +317,12 @@ ATF_TC_BODY(master_include, tc) {
 }
 
 /* Include failure test */
-ATF_TC(master_includefail);
-ATF_TC_HEAD(master_includefail, tc) {
+ATF_TC(includefail);
+ATF_TC_HEAD(includefail, tc) {
 	atf_tc_set_md_var(tc, "descr", "dns_master_loadfile() understands "
 				       "$INCLUDE failures");
 }
-ATF_TC_BODY(master_includefail, tc) {
+ATF_TC_BODY(includefail, tc) {
 	isc_result_t result;
 
 	UNUSED(tc);
@@ -295,12 +338,12 @@ ATF_TC_BODY(master_includefail, tc) {
 
 
 /* Non-empty blank lines test */
-ATF_TC(master_blanklines);
-ATF_TC_HEAD(master_blanklines, tc) {
+ATF_TC(blanklines);
+ATF_TC_HEAD(blanklines, tc) {
 	atf_tc_set_md_var(tc, "descr", "dns_master_loadfile() handles "
 				       "non-empty blank lines");
 }
-ATF_TC_BODY(master_blanklines, tc) {
+ATF_TC_BODY(blanklines, tc) {
 	isc_result_t result;
 
 	UNUSED(tc);
@@ -315,12 +358,12 @@ ATF_TC_BODY(master_blanklines, tc) {
 }
 
 /* SOA leading zeroes test */
-ATF_TC(master_leadingzero);
-ATF_TC_HEAD(master_leadingzero, tc) {
+ATF_TC(leadingzero);
+ATF_TC_HEAD(leadingzero, tc) {
 	atf_tc_set_md_var(tc, "descr", "dns_master_loadfile() allows "
 				       "leading zeroes in SOA");
 }
-ATF_TC_BODY(master_leadingzero, tc) {
+ATF_TC_BODY(leadingzero, tc) {
 	isc_result_t result;
 
 	UNUSED(tc);
@@ -334,21 +377,68 @@ ATF_TC_BODY(master_leadingzero, tc) {
 	dns_test_end();
 }
 
+ATF_TC(totext);
+ATF_TC_HEAD(totext, tc) {
+	atf_tc_set_md_var(tc, "descr", "masterfile totext tests");
+}
+ATF_TC_BODY(totext, tc) {
+	isc_result_t result;
+	dns_rdataset_t rdataset;
+	dns_rdatalist_t rdatalist;
+	isc_buffer_t target;
+	unsigned char buf[BIGBUFLEN];
+
+	UNUSED(tc);
+
+	result = dns_test_begin(NULL, ISC_FALSE);
+	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+
+	/* First, test with an empty rdataset */
+	rdatalist.rdclass = dns_rdataclass_in;
+	rdatalist.type = dns_rdatatype_none;
+	rdatalist.covers = dns_rdatatype_none;
+	rdatalist.ttl = 0;
+	ISC_LIST_INIT(rdatalist.rdata);
+	ISC_LINK_INIT(&rdatalist, link);
+
+	dns_rdataset_init(&rdataset);
+	result = dns_rdatalist_tordataset(&rdatalist, &rdataset);
+	ATF_CHECK_EQ(result, ISC_R_SUCCESS);
+
+	isc_buffer_init(&target, buf, BIGBUFLEN);
+	result = dns_master_rdatasettotext(dns_rootname,
+					   &rdataset, &dns_master_style_debug,
+					   &target);
+	ATF_CHECK_EQ(result, ISC_R_SUCCESS);
+	ATF_CHECK_EQ(isc_buffer_usedlength(&target), 0);
+
+	/*
+	 * XXX: We will also need to add tests for dumping various
+	 * rdata types, classes, etc, and comparing the results against
+	 * known-good output.
+	 */
+
+	dns_test_end();
+}
+
 /*
  * Main
  */
 ATF_TP_ADD_TCS(tp) {
-	ATF_TP_ADD_TC(tp, master_load);
-	ATF_TP_ADD_TC(tp, master_unexpected);
-	ATF_TP_ADD_TC(tp, master_noowner);
-	ATF_TP_ADD_TC(tp, master_nottl);
-	ATF_TP_ADD_TC(tp, master_badclass);
-	ATF_TP_ADD_TC(tp, master_dnskey);
-	ATF_TP_ADD_TC(tp, master_dnsnokey);
-	ATF_TP_ADD_TC(tp, master_include);
-	ATF_TP_ADD_TC(tp, master_includefail);
-	ATF_TP_ADD_TC(tp, master_blanklines);
-	ATF_TP_ADD_TC(tp, master_leadingzero);
+	ATF_TP_ADD_TC(tp, load);
+	ATF_TP_ADD_TC(tp, unexpected);
+	ATF_TP_ADD_TC(tp, noowner);
+	ATF_TP_ADD_TC(tp, nottl);
+	ATF_TP_ADD_TC(tp, badclass);
+	ATF_TP_ADD_TC(tp, dnskey);
+	ATF_TP_ADD_TC(tp, dnsnokey);
+	ATF_TP_ADD_TC(tp, include);
+	ATF_TP_ADD_TC(tp, includefail);
+	ATF_TP_ADD_TC(tp, blanklines);
+	ATF_TP_ADD_TC(tp, leadingzero);
+	ATF_TP_ADD_TC(tp, totext);
+	ATF_TP_ADD_TC(tp, toobig);
+	ATF_TP_ADD_TC(tp, maxrdata);
 
 	return (atf_no_error());
 }

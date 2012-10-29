@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Copyright (C) 2004, 2007, 2009-2011  Internet Systems Consortium, Inc. ("ISC")
+# Copyright (C) 2004, 2007, 2009-2012  Internet Systems Consortium, Inc. ("ISC")
 # Copyright (C) 2000, 2001  Internet Software Consortium.
 #
 # Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: tests.sh,v 1.32.24.7 2011-06-21 22:14:54 each Exp $
+# $Id$
 
 SYSTEMTESTTOP=..
 . $SYSTEMTESTTOP/conf.sh
@@ -426,6 +426,29 @@ grep TYPE65534 dig.out.ns3.$n > /dev/null && ret=1
 if test $ret -ne 0
 then
 echo "I:failed"; status=1
+fi
+
+n=`expr $n + 1`
+ret=0
+echo "I:check command list ($n)"
+(
+while read cmd 
+do
+    echo "$cmd" | $NSUPDATE  > /dev/null 2>&1
+    if test $? -gt 1 ; then
+	echo "I: failed ($cmd)"
+	ret=1
+    fi
+    echo "$cmd " | $NSUPDATE  > /dev/null 2>&1
+    if test $? -gt 1 ; then
+	echo "I: failed ($cmd)"
+	ret=1
+    fi
+done
+exit $ret
+) < commandlist || ret=1
+if [ $ret -ne 0 ]; then
+    status=1
 fi
 
 echo "I:exit status: $status"

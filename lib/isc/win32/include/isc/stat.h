@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2007, 2009  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2007, 2009, 2012  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000, 2001, 2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,12 +15,17 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: stat.h,v 1.9 2009-10-01 23:48:08 tbox Exp $ */
+/* $Id: stat.h,v 1.9 2009/10/01 23:48:08 tbox Exp $ */
 
 #ifndef ISC_STAT_H
 #define ISC_STAT_H 1
 
 #include <sys/stat.h>
+
+/*
+ * Windows doesn't typedef this.
+ */
+typedef unsigned short mode_t;
 
 /* open() under unix allows setting of read/write permissions
  * at the owner, group and other levels.  These don't exist in NT

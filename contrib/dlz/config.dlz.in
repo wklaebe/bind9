@@ -250,7 +250,7 @@ case "$use_dlz_bdb" in
 			# Check other locations for includes.
 			# Order is important (sigh).
 
-			bdb_incdirs="/ /db42/ /db41/ /db4/ /db/"
+			bdb_incdirs="/ /db48/ /db47/ /db46/ /db45/ /db44/ /db43/ /db42/ /db41/ /db4/ /db/"
 			for d in $bdb_incdirs
 			do
 				if test -f "$dd/include${d}db.h"

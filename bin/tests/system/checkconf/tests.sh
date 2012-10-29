@@ -1,4 +1,4 @@
-# Copyright (C) 2005, 2007, 2010, 2011  Internet Systems Consortium, Inc. ("ISC")
+# Copyright (C) 2005, 2007, 2010-2012  Internet Systems Consortium, Inc. ("ISC")
 #
 # Permission to use, copy, modify, and/or distribute this software for any
 # purpose with or without fee is hereby granted, provided that the above
@@ -12,7 +12,7 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: tests.sh,v 1.5.114.2 2011-05-07 23:47:05 tbox Exp $
+# $Id: tests.sh,v 1.5.114.3 2011/11/07 00:31:48 marka Exp $
 
 SYSTEMTESTTOP=..
 . $SYSTEMTESTTOP/conf.sh
@@ -37,16 +37,62 @@ status=`expr $status + $ret`
 echo "I: checking that named-checkconf handles a known bad config"
 ret=0
 $CHECKCONF bad.conf > /dev/null 2>&1 && ret=1
-if [ $ret != 0 ]; then echo "I:failed"; fi
+if [ $? != 1 ]; then echo "I:failed"; ret=1; fi
+status=`expr $status + $ret`
+
+echo "I: checking that named-checkconf handles a known bad tsig secret"
+ret=0
+$CHECKCONF badtsig.conf > /dev/null 2>&1
+if [ $? != 1 ]; then echo "I:failed"; ret=1; fi
 status=`expr $status + $ret`
 
 echo "I: checking named-checkconf dnssec warnings"
 ret=0
 $CHECKCONF dnssec.1 2>&1 | grep 'validation yes.*enable no' > /dev/null || ret=1
+$CHECKCONF dnssec.2 2>&1 | grep 'auto-dnssec may only be ' > /dev/null || ret=1
 $CHECKCONF dnssec.2 2>&1 | grep 'validation auto.*enable no' > /dev/null || ret=1
 $CHECKCONF dnssec.2 2>&1 | grep 'validation yes.*enable no' > /dev/null || ret=1
 # this one should have no warnings
 $CHECKCONF dnssec.3 2>&1 | grep '.*' && ret=1
+if [ $ret != 0 ]; then echo "I:failed"; fi
+status=`expr $status + $ret`
+
+echo "I: range checking fields that do not allow zero"
+ret=0
+for field in max-retry-time min-retry-time max-refresh-time min-refresh-time; do
+    cat > badzero.conf << EOF
+options {
+    $field 0;
+};
+EOF
+    $CHECKCONF badzero.conf > /dev/null 2>&1
+    [ $? -eq 1 ] || { echo "I: options $field failed" ; ret=1; }
+    cat > badzero.conf << EOF
+view dummy {
+    $field 0;
+};
+EOF
+    $CHECKCONF badzero.conf > /dev/null 2>&1
+    [ $? -eq 1 ] || { echo "I: view $field failed" ; ret=1; }
+    cat > badzero.conf << EOF
+options {
+    $field 0;
+};
+view dummy {
+};
+EOF
+    $CHECKCONF badzero.conf > /dev/null 2>&1
+    [ $? -eq 1 ] || { echo "I: options + view $field failed" ; ret=1; }
+    cat > badzero.conf << EOF
+zone dummy {
+    type slave;
+    masters { 0.0.0.0; };
+    $field 0;
+};
+EOF
+    $CHECKCONF badzero.conf > /dev/null 2>&1
+    [ $? -eq 1 ] || { echo "I: zone $field failed" ; ret=1; }
+done
 if [ $ret != 0 ]; then echo "I:failed"; fi
 status=`expr $status + $ret`
 

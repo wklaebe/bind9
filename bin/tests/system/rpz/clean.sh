@@ -1,4 +1,4 @@
-# Copyright (C) 2011  Internet Systems Consortium, Inc. ("ISC")
+# Copyright (C) 2011, 2012  Internet Systems Consortium, Inc. ("ISC")
 #
 # Permission to use, copy, modify, and/or distribute this software for any
 # purpose with or without fee is hereby granted, provided that the above
@@ -12,11 +12,13 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: clean.sh,v 1.3 2011-01-13 04:59:24 tbox Exp $
+# $Id$
 
 
 # Clean up after rpz tests.
 
-rm -f dig.out* nsupdate.tmp
-rm -f  */named.memstats */named.run */session.key
-rm -f ns3/bl*.db */*.jnl
+rm -f proto.*  dsset-* random.data trusted.conf dig.out* nsupdate.tmp ns*/*tmp
+rm -f ns*/*.key ns*/*.private ns2/tld2s.db
+rm -f ns3/bl*.db ns*/*switch ns5/requests ns5/example.db ns5/bl.db ns5/*.perf
+rm -f */named.memstats */named.run */named.rpz */session.key
+rm -f */*.jnl */*.core */*.pid

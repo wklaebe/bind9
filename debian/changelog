@@ -1,3 +1,16 @@
+bind9 (1:9.8.1.dfsg.P1-4.3) unstable; urgency=medium
+
+  [ Philipp Kern ]
+  * Non-maintainer upload.
+
+  [ Marc Deslauriers ]
+  * SECURITY UPDATE: denial of service via specific combinations of RDATA
+    - bin/named/query.c: fix logic
+    - Patch backported from 9.8.3-P4
+    - CVE-2012-5166
+
+ -- Philipp Kern <pkern@debian.org>  Sun, 28 Oct 2012 20:28:11 +0100
+
 bind9 (1:9.8.1.dfsg.P1-4.2) unstable; urgency=high
 
   * Non-maintainer upload by the Security Team.

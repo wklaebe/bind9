@@ -35,6 +35,21 @@ bind9 (1:9.9.0.dfsg~rc4-1) unstable; urgency=low
 
  -- LaMont Jones <lamont@debian.org>  Fri, 17 Feb 2012 17:51:39 -0700
 
+bind9 (1:9.8.4.dfsg-1) unstable; urgency=low
+
+  [Matthew Grant]
+
+  * Turn off dlopen as it was causing test compile failures.
+  * Add missing library .postrm files for debhelper
+
+  [LaMont Jones]
+
+  * New upstream version
+  * soname fixup
+  * Ack NMUs
+
+ -- LaMont Jones <lamont@debian.org>  Mon, 29 Oct 2012 08:37:49 -0600
+
 bind9 (1:9.8.1.dfsg.P1-4.3) unstable; urgency=medium
 
   [ Philipp Kern ]

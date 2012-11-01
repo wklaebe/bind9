@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2006, 2007, 2009  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2006, 2007, 2009, 2012  Internet Systems Consortium, Inc. ("ISC")
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -85,7 +85,7 @@ isc_atomic_cmpxchg(isc_int32_t *p, isc_int32_t cmpval, isc_int32_t val)
 	isc_int32_t ret;
 
 	__asm__ volatile(
-		"mov ar.ccv=%2;"
+		"mov ar.ccv=%2;;"
 		"cmpxchg4.acq %0=%4,%3,ar.ccv"
 		: "=r" (ret), "=m" (*p)
 		: "r" (cmpval), "r" (val), "m" (*p)

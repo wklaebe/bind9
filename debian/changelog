@@ -35,6 +35,44 @@ bind9 (1:9.9.0.dfsg~rc4-1) unstable; urgency=low
 
  -- LaMont Jones <lamont@debian.org>  Fri, 17 Feb 2012 17:51:39 -0700
 
+bind9 (1:9.8.1.dfsg.P1-4.3) unstable; urgency=medium
+
+  [ Philipp Kern ]
+  * Non-maintainer upload.
+
+  [ Marc Deslauriers ]
+  * SECURITY UPDATE: denial of service via specific combinations of RDATA
+    - bin/named/query.c: fix logic
+    - Patch backported from 9.8.3-P4
+    - CVE-2012-5166
+
+ -- Philipp Kern <pkern@debian.org>  Sun, 28 Oct 2012 20:28:11 +0100
+
+bind9 (1:9.8.1.dfsg.P1-4.2) unstable; urgency=high
+
+  * Non-maintainer upload by the Security Team.
+  * Fix denial of service vulnerability triggered
+    through an assert because of using bad cache
+    (CVE-2012-3817; Closes: #683259).
+
+ -- Nico Golde <nion@debian.org>  Mon, 30 Jul 2012 20:56:10 +0200
+
+bind9 (1:9.8.1.dfsg.P1-4.1) unstable; urgency=high
+
+  * Non-maintainer upload by the Security Team.
+  * SECURITY UPDATE: ghost domain names attack
+    - lib/dns/rbtdb.c: Restrict the TTL of NS RRset to no more than that
+      of the old NS RRset when replacing it.
+    - Patch backported from 9.8.2.
+    - CVE-2012-1033
+  * SECURITY UPDATE: denial of service via zero length rdata handling
+    - lib/dns/rdata.c,lib/dns/rdataslab.c: use sentinel pointer for
+      duplicate rdata.
+    - Patch backported from 9.8.3-P1.
+    - CVE-2012-1667
+
+ -- Luk Claes <luk@debian.org>  Wed, 20 Jun 2012 15:26:09 -0400
+
 bind9 (1:9.8.1.dfsg.P1-4) unstable; urgency=low
 
   [Christoph Egger]

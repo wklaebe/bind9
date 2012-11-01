@@ -1330,6 +1330,7 @@ query_addadditional(void *arg, dns_name_t *name, dns_rdatatype_t qtype) {
 	if (dns_rdataset_isassociated(rdataset) &&
 	    !query_isduplicate(client, fname, type, &mname)) {
 		if (mname != NULL) {
+			INSIST(mname != fname);
 			query_releasename(client, &fname);
 			fname = mname;
 		} else
@@ -1399,11 +1400,13 @@ query_addadditional(void *arg, dns_name_t *name, dns_rdatatype_t qtype) {
 #endif
 			if (!query_isduplicate(client, fname,
 					       dns_rdatatype_a, &mname)) {
-				if (mname != NULL) {
-					query_releasename(client, &fname);
-					fname = mname;
-				} else
-					need_addname = ISC_TRUE;
+				if (mname != fname) {
+					if (mname != NULL) {
+						query_releasename(client, &fname);
+						fname = mname;
+					} else
+						need_addname = ISC_TRUE;
+				}
 				ISC_LIST_APPEND(fname->list, rdataset, link);
 				added_something = ISC_TRUE;
 				if (sigrdataset != NULL &&
@@ -1456,11 +1459,13 @@ query_addadditional(void *arg, dns_name_t *name, dns_rdatatype_t qtype) {
 #endif
 			if (!query_isduplicate(client, fname,
 					       dns_rdatatype_aaaa, &mname)) {
-				if (mname != NULL) {
-					query_releasename(client, &fname);
-					fname = mname;
-				} else
-					need_addname = ISC_TRUE;
+				if (mname != fname) {
+					if (mname != NULL) {
+						query_releasename(client, &fname);
+						fname = mname;
+					} else
+						need_addname = ISC_TRUE;
+				}
 				ISC_LIST_APPEND(fname->list, rdataset, link);
 				added_something = ISC_TRUE;
 				if (sigrdataset != NULL &&
@@ -1991,22 +1996,24 @@ query_addadditional2(void *arg, dns_name_t *name, dns_rdatatype_t qtype) {
 		    crdataset->type == dns_rdatatype_aaaa) {
 			if (!query_isduplicate(client, fname, crdataset->type,
 					       &mname)) {
-				if (mname != NULL) {
-					/*
-					 * A different type of this name is
-					 * already stored in the additional
-					 * section.  We'll reuse the name.
-					 * Note that this should happen at most
-					 * once.  Otherwise, fname->link could
-					 * leak below.
-					 */
-					INSIST(mname0 == NULL);
+				if (mname != fname) {
+					if (mname != NULL) {
+						/*
+						 * A different type of this name is
+						 * already stored in the additional
+						 * section.  We'll reuse the name.
+						 * Note that this should happen at most
+						 * once.  Otherwise, fname->link could
+						 * leak below.
+						 */
+						INSIST(mname0 == NULL);
 
-					query_releasename(client, &fname);
-					fname = mname;
-					mname0 = mname;
-				} else
-					need_addname = ISC_TRUE;
+						query_releasename(client, &fname);
+						fname = mname;
+						mname0 = mname;
+					} else
+						need_addname = ISC_TRUE;
+				}
 				ISC_LIST_UNLINK(cfname.list, crdataset, link);
 				ISC_LIST_APPEND(fname->list, crdataset, link);
 				added_something = ISC_TRUE;

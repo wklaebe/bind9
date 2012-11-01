@@ -1,4 +1,4 @@
-bind9 (1:9.9.2.dfsg-1~0) unstable; urgency=low
+bind9 (1:9.9.2.dfsg-1) experimental; urgency=low
 
   [Matthew Grant]
 

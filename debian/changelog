@@ -1,3 +1,11 @@
+bind9 (1:9.9.2.dfsg.P1-1) experimental; urgency=low
+
+  * Named could die on specific queries with dns64 enabled.
+    [Addressed in change #3388 for BIND 9.8.5 and 9.9.3.]
+    CVE-2012-5688  Closes: #695192
+
+ -- LaMont Jones <lamont@debian.org>  Wed, 05 Dec 2012 05:27:18 -0700
+
 bind9 (1:9.9.2.dfsg-1) experimental; urgency=low
 
   [Matthew Grant]

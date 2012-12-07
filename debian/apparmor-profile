@@ -19,7 +19,7 @@
   /etc/bind/** r,
   /var/lib/bind/** rw,
   /var/lib/bind/ rw,
-  /var/cache/bind/** rw,
+  /var/cache/bind/** lrw,
   /var/cache/bind/ rw,
 
   # gssapi

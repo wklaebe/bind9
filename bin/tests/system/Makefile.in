@@ -21,7 +21,7 @@ top_srcdir =	@top_srcdir@
 
 @BIND9_MAKE_INCLUDES@
 
-SUBDIRS =	dlzexternal filter-aaaa lwresd rpz tkey tsiggss
+SUBDIRS =	filter-aaaa lwresd rpz tkey tsiggss
 TARGETS =
 
 @BIND9_MAKE_RULES@

@@ -6,6 +6,27 @@ bind9 (1:9.9.2.dfsg.P1-1) experimental; urgency=low
 
  -- LaMont Jones <lamont@debian.org>  Wed, 05 Dec 2012 05:27:18 -0700
 
+bind9 (1:9.8.4.dfsg.P1-2) unstable; urgency=low
+
+  [Michael Gilbert]
+
+  * Use /var/lib/bind for state file.  Closes: #689332
+
+  [LaMont Jones]
+
+  * Re-enable dlopen, do not build the test that fails.  Closes: #692416
+  * Update db.root with new IP for D.root-servers.net.  Closes: #697352
+
+ -- LaMont Jones <lamont@debian.org>  Mon, 07 Jan 2013 06:50:25 -0700
+
+bind9 (1:9.8.4.dfsg.P1-1) unstable; urgency=low
+
+  * Named could die on specific queries with dns64 enabled.
+    [Addressed in change #3388 for BIND 9.8.5 and 9.9.3.]
+    CVE-2012-5688  Closes: #695192
+
+ -- LaMont Jones <lamont@debian.org>  Wed, 05 Dec 2012 05:22:06 -0700
+
 bind9 (1:9.9.2.dfsg-1) experimental; urgency=low
 
   [Matthew Grant]

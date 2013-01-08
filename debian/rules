@@ -48,7 +48,6 @@ configure-stamp:
 		--with-geoip=/usr \
 		--with-atf=no \
 		--enable-ipv6 \
-		--with-dlopen=no \
 		$(EXTRA_FEATURES)
 
 	touch configure-stamp

@@ -561,7 +561,7 @@ dns_dnssec_verify3(dns_name_t *name, dns_rdataset_t *set, dst_key_t *key,
 		char namebuf[DNS_NAME_FORMATSIZE];
 		dns_name_format(&sig.signer, namebuf, sizeof(namebuf));
 		isc_log_write(dns_lctx, DNS_LOGCATEGORY_GENERAL,
-			      DNS_LOGMODULE_DNSSEC, ISC_LOG_INFO,
+			      DNS_LOGMODULE_DNSSEC, ISC_LOG_DEBUG(1),
 			      "sucessfully validated after lower casing "
 			      "signer '%s'", namebuf);
 		inc_stat(dns_dnssecstats_downcase);

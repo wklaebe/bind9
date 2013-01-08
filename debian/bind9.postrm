@@ -6,6 +6,7 @@ if [ "$1" = "purge" ]; then
 	rm -f /etc/bind/rndc.key /etc/default/bind9
 	rmdir /etc/bind >/dev/null 2>&1 || true
 	rm -f /etc/apparmor.d/force-complain/usr.sbin.named >/dev/null 2>&1 || true
+	rm -f /var/lib/bind/bind9-default.md5sum
 	rmdir /var/lib/bind
 	# delete bind daemon user, if it exists
 	if getent passwd bind > /dev/null ; then

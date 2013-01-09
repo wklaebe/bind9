@@ -1,3 +1,20 @@
+bind9 (1:9.8.4.dfsg.P1-3) unstable; urgency=low
+
+  [Marc Deslauriers]
+
+  * debian/bind9.apport: Add AppArmor info and logs to apport hook.
+
+  [LaMont Jones]
+
+  * Reduce log level for "sucessfully validated after lower casing" dnssec
+    based on mail from Mark Andrews.  Closes: #697681
+  * remove /var/lib/bind/bind9-default.md5sum in postrm
+  * remove /etc/bind/named.conf.options on purge.  Closes: #668801
+  * finish merge of fixes from ubuntu (Marc's change above, changelog
+    entries.)
+
+ -- LaMont Jones <lamont@debian.org>  Wed, 09 Jan 2013 09:47:24 -0700
+
 bind9 (1:9.8.4.dfsg.P1-2) unstable; urgency=low
 
   [Michael Gilbert]

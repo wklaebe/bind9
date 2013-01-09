@@ -14,6 +14,10 @@ bind9 (1:9.9.2.dfsg.P1-2) experimental; urgency=low
   * remove /var/lib/bind/bind9-default.md5sum in postrm
   * remove /etc/bind/named.conf.options on purge.  Closes: #668801
 
+  [Sebastian Wiesinger]
+
+  * Build and deliver dnssec-checkds and dnssec-verify in bind9utils
+
  -- LaMont Jones <lamont@debian.org>  Wed, 09 Jan 2013 10:09:40 -0700
 
 bind9 (1:9.8.4.dfsg.P1-3) unstable; urgency=low

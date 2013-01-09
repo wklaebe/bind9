@@ -1,10 +1,20 @@
-bind9 (1:9.9.2.dfsg.P1-1) experimental; urgency=low
+bind9 (1:9.9.2.dfsg.P1-2) experimental; urgency=low
 
-  * Named could die on specific queries with dns64 enabled.
-    [Addressed in change #3388 for BIND 9.8.5 and 9.9.3.]
-    CVE-2012-5688  Closes: #695192
+  [Michael Gilbert]
 
- -- LaMont Jones <lamont@debian.org>  Wed, 05 Dec 2012 05:27:18 -0700
+  * Use /var/lib/bind for state file.  Closes: #689332
+
+  [LaMont Jones]
+
+  * zone transfers now involve link(), update the apparmor profile
+  * Update db.root with new IP for D.root-servers.net.  Closes: #697352
+  * re-drop dlzexternal test
+  * Reduce log level for "sucessfully validated after lower casing" dnssec
+    based on mail from Mark Andrews.  Closes: #697681
+  * remove /var/lib/bind/bind9-default.md5sum in postrm
+  * remove /etc/bind/named.conf.options on purge.  Closes: #668801
+
+ -- LaMont Jones <lamont@debian.org>  Wed, 09 Jan 2013 10:09:40 -0700
 
 bind9 (1:9.8.4.dfsg.P1-3) unstable; urgency=low
 
@@ -22,6 +32,14 @@ bind9 (1:9.8.4.dfsg.P1-3) unstable; urgency=low
     entries.)
 
  -- LaMont Jones <lamont@debian.org>  Wed, 09 Jan 2013 09:47:24 -0700
+
+bind9 (1:9.9.2.dfsg.P1-1) experimental; urgency=low
+
+  * Named could die on specific queries with dns64 enabled.
+    [Addressed in change #3388 for BIND 9.8.5 and 9.9.3.]
+    CVE-2012-5688  Closes: #695192
+
+ -- LaMont Jones <lamont@debian.org>  Wed, 05 Dec 2012 05:27:18 -0700
 
 bind9 (1:9.8.4.dfsg.P1-2) unstable; urgency=low
 

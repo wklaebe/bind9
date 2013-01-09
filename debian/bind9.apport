@@ -32,3 +32,5 @@ def add_info(report, ui):
 
     # Attaching related packages info
     attach_related_packages(report, ['bind9utils', 'apparmor'])
+
+    attach_mac_events(report, '/usr/sbin/named')

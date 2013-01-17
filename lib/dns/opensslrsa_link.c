@@ -653,8 +653,7 @@ opensslrsa_verify2(dst_context_t *dctx, int maxbits, const isc_region_t *sig) {
 #endif
 #endif
 	if (status != 1)
-		return (dst__openssl_toresult2("RSA_verify",
-					       DST_R_VERIFYFAILURE));
+		return (dst__openssl_toresult(DST_R_VERIFYFAILURE));
 
 	return (ISC_R_SUCCESS);
 }

@@ -293,7 +293,8 @@ configure_alternates(const cfg_obj_t *config, dns_view_t *view,
 static isc_result_t
 configure_zone(const cfg_obj_t *config, const cfg_obj_t *zconfig,
 	       const cfg_obj_t *vconfig, isc_mem_t *mctx, dns_view_t *view,
-	       cfg_aclconfctx_t *aclconf, isc_boolean_t added);
+	       cfg_aclconfctx_t *aclconf, isc_boolean_t added,
+	       isc_boolean_t old_rpz_ok);
 
 static isc_result_t
 add_keydata_zone(dns_view_t *view, const char *directory, isc_mem_t *mctx);
@@ -1432,47 +1433,75 @@ cleanup:
 }
 
 static isc_result_t
-configure_rpz(dns_view_t *view, const cfg_listelt_t *element,
-	      isc_boolean_t recursive_only_def, dns_ttl_t ttl_def)
+configure_rpz_name(dns_view_t *view, const cfg_obj_t *obj, dns_name_t *name,
+		   const char *str, const char *msg)
 {
-	const cfg_obj_t *rpz_obj, *policy_obj, *obj;
-	const char *str;
-	dns_rpz_zone_t *old, *new;
-	dns_zone_t *zone = NULL;
 	isc_result_t result;
 
-	new = isc_mem_get(view->mctx, sizeof(*new));
+	result = dns_name_fromstring(name, str, DNS_NAME_DOWNCASE, view->mctx);
+	if (result != ISC_R_SUCCESS)
+		cfg_obj_log(obj, ns_g_lctx, DNS_RPZ_ERROR_LEVEL,
+			    "invalid %s '%s'", msg, str);
+	return (result);
+}
+
+static isc_result_t
+configure_rpz_name2(dns_view_t *view, const cfg_obj_t *obj, dns_name_t *name,
+		    const char *str, const dns_name_t *origin)
+{
+	isc_result_t result;
+
+	result = dns_name_fromstring2(name, str, origin, DNS_NAME_DOWNCASE,
+				      view->mctx);
+	if (result != ISC_R_SUCCESS)
+		cfg_obj_log(obj, ns_g_lctx, DNS_RPZ_ERROR_LEVEL,
+			    "invalid zone '%s'", str);
+	return (result);
+}
+
+static isc_result_t
+configure_rpz_zone(dns_view_t *view, const cfg_listelt_t *element,
+		   isc_boolean_t recursive_only_def, dns_ttl_t ttl_def)
+{
+	const cfg_obj_t *rpz_obj, *obj;
+	const char *str;
+	dns_rpz_zone_t *new;
+	isc_result_t result;
+	dns_rpz_num_t rpz_num;
+
+	if (view->rpzs->p.cnt >= DNS_RPZ_MAX_ZONES)
+		return (ISC_R_NOMEMORY);
+
+	new = isc_mem_get(view->rpzs->mctx, sizeof(*new));
 	if (new == NULL) {
-		result = ISC_R_NOMEMORY;
-		goto cleanup;
+		cfg_obj_log(rpz_obj, ns_g_lctx, DNS_RPZ_ERROR_LEVEL,
+			    "no memory for response policy zones");
+		return (ISC_R_NOMEMORY);
 	}
 
 	memset(new, 0, sizeof(*new));
+	result = isc_refcount_init(&new->refs, 1);
+	if (result != ISC_R_SUCCESS) {
+		isc_mem_put(view->rpzs->mctx, new, sizeof(*new));
+		return (result);
+	}
 	dns_name_init(&new->origin, NULL);
+	dns_name_init(&new->ip, NULL);
 	dns_name_init(&new->nsdname, NULL);
-	dns_name_init(&new->cname, NULL);
+	dns_name_init(&new->nsip, NULL);
 	dns_name_init(&new->passthru, NULL);
-	ISC_LIST_INITANDAPPEND(view->rpz_zones, new, link);
+	dns_name_init(&new->cname, NULL);
+	new->num = view->rpzs->p.cnt++;
+	view->rpzs->zones[new->num] = new;
 
 	rpz_obj = cfg_listelt_value(element);
-	policy_obj = cfg_tuple_get(rpz_obj, "policy");
-	if (cfg_obj_isvoid(policy_obj)) {
-		new->policy = DNS_RPZ_POLICY_GIVEN;
-	} else {
-		str = cfg_obj_asstring(cfg_tuple_get(policy_obj,
-						     "policy name"));
-		new->policy = dns_rpz_str2policy(str);
-		INSIST(new->policy != DNS_RPZ_POLICY_ERROR);
-	}
 
 	obj = cfg_tuple_get(rpz_obj, "recursive-only");
-	if (cfg_obj_isvoid(obj)) {
-		new->recursive_only = recursive_only_def;
+	if (cfg_obj_isvoid(obj) ? recursive_only_def : cfg_obj_asboolean(obj)) {
+		view->rpzs->p.no_rd_ok &= ~DNS_RPZ_ZBIT(new->num);
 	} else {
-		new->recursive_only = cfg_obj_asboolean(obj);
+		view->rpzs->p.no_rd_ok |= DNS_RPZ_ZBIT(new->num);
 	}
-	if (!new->recursive_only)
-		view->rpz_recursive_only = ISC_FALSE;
 
 	obj = cfg_tuple_get(rpz_obj, "max-policy-ttl");
 	if (cfg_obj_isuint32(obj)) {
@@ -1482,75 +1511,336 @@ configure_rpz(dns_view_t *view, const cfg_listelt_t *element,
 	}
 
 	str = cfg_obj_asstring(cfg_tuple_get(rpz_obj, "zone name"));
-	result = dns_name_fromstring(&new->origin, str, DNS_NAME_DOWNCASE,
-				     view->mctx);
-	if (result != ISC_R_SUCCESS) {
+	result = configure_rpz_name(view, rpz_obj, &new->origin, str, "zone");
+	if (result != ISC_R_SUCCESS)
+		return (result);
+	if (dns_name_equal(&new->origin, dns_rootname)) {
 		cfg_obj_log(rpz_obj, ns_g_lctx, DNS_RPZ_ERROR_LEVEL,
-			    "invalid zone '%s'", str);
-		goto cleanup;
+			    "invalid zone name '%s'", str);
+		return (DNS_R_EMPTYLABEL);
 	}
-
-	result = dns_name_fromstring2(&new->nsdname, DNS_RPZ_NSDNAME_ZONE,
-				      &new->origin, DNS_NAME_DOWNCASE,
-				      view->mctx);
-	if (result != ISC_R_SUCCESS) {
-		cfg_obj_log(rpz_obj, ns_g_lctx, DNS_RPZ_ERROR_LEVEL,
-			    "invalid zone '%s'", str);
-		goto cleanup;
-	}
-
-	result = dns_name_fromstring(&new->passthru, DNS_RPZ_PASSTHRU_ZONE,
-				     DNS_NAME_DOWNCASE, view->mctx);
-	if (result != ISC_R_SUCCESS) {
-		cfg_obj_log(rpz_obj, ns_g_lctx, DNS_RPZ_ERROR_LEVEL,
-			    "invalid zone '%s'", str);
-		goto cleanup;
-	}
-
-	result = dns_view_findzone(view, &new->origin, &zone);
-	if (result != ISC_R_SUCCESS) {
-		cfg_obj_log(rpz_obj, ns_g_lctx, DNS_RPZ_ERROR_LEVEL,
-			    "unknown zone '%s'", str);
-		goto cleanup;
-	}
-	if (dns_zone_gettype(zone) != dns_zone_master &&
-	    dns_zone_gettype(zone) != dns_zone_slave) {
-		cfg_obj_log(rpz_obj, ns_g_lctx, DNS_RPZ_ERROR_LEVEL,
-			     "zone '%s' is neither master nor slave", str);
-		dns_zone_detach(&zone);
-		result = DNS_R_NOTMASTER;
-		goto cleanup;
-	}
-	dns_zone_detach(&zone);
-
-	for (old = ISC_LIST_HEAD(view->rpz_zones);
-	     old != new;
-	     old = ISC_LIST_NEXT(old, link)) {
-		++new->num;
-		if (dns_name_equal(&old->origin, &new->origin)) {
+	for (rpz_num = 0; rpz_num < view->rpzs->p.cnt-1; ++rpz_num) {
+		if (dns_name_equal(&view->rpzs->zones[rpz_num]->origin,
+				   &new->origin)) {
 			cfg_obj_log(rpz_obj, ns_g_lctx, DNS_RPZ_ERROR_LEVEL,
 				    "duplicate '%s'", str);
 			result = DNS_R_DUPLICATE;
-			goto cleanup;
+			return (result);
 		}
 	}
 
-	if (new->policy == DNS_RPZ_POLICY_CNAME) {
-		str = cfg_obj_asstring(cfg_tuple_get(policy_obj, "cname"));
-		result = dns_name_fromstring(&new->cname, str,
-					     DNS_NAME_DOWNCASE, view->mctx);
-		if (result != ISC_R_SUCCESS) {
-			cfg_obj_log(rpz_obj, ns_g_lctx, DNS_RPZ_ERROR_LEVEL,
-				    "invalid cname '%s'", str);
-			goto cleanup;
+	result = configure_rpz_name2(view, rpz_obj, &new->ip,
+				     DNS_RPZ_IP_ZONE, &new->origin);
+	if (result != ISC_R_SUCCESS)
+		return (result);
+
+	result = configure_rpz_name2(view, rpz_obj, &new->nsdname,
+				     DNS_RPZ_NSDNAME_ZONE, &new->origin);
+	if (result != ISC_R_SUCCESS)
+		return (result);
+
+	result = configure_rpz_name2(view, rpz_obj, &new->nsip,
+				     DNS_RPZ_NSIP_ZONE, &new->origin);
+	if (result != ISC_R_SUCCESS)
+		return (result);
+
+	result = configure_rpz_name(view, rpz_obj, &new->passthru,
+				    DNS_RPZ_PASSTHRU_ZONE, "zone");
+	if (result != ISC_R_SUCCESS)
+		return (result);
+
+	obj = cfg_tuple_get(rpz_obj, "policy");
+	if (cfg_obj_isvoid(obj)) {
+		new->policy = DNS_RPZ_POLICY_GIVEN;
+	} else {
+		str = cfg_obj_asstring(cfg_tuple_get(obj, "policy name"));
+		new->policy = dns_rpz_str2policy(str);
+		INSIST(new->policy != DNS_RPZ_POLICY_ERROR);
+		if (new->policy == DNS_RPZ_POLICY_CNAME) {
+			str = cfg_obj_asstring(cfg_tuple_get(obj, "cname"));
+			result = configure_rpz_name(view, rpz_obj, &new->cname,
+						    str, "cname");
+			if (result != ISC_R_SUCCESS)
+				return (result);
 		}
 	}
 
 	return (ISC_R_SUCCESS);
+}
+
+#define CHECK_RRL(obj, cond, pat, val1, val2)				\
+	do {								\
+		if (!(cond)) {						\
+			cfg_obj_log(obj, ns_g_lctx, ISC_LOG_ERROR,	\
+				    pat, val1, val2);			\
+			result = ISC_R_RANGE;				\
+			goto cleanup;					\
+		    }							\
+	} while (0)
+
+static isc_result_t
+configure_rrl(dns_view_t *view, const cfg_obj_t *config, const cfg_obj_t *map) {
+	const cfg_obj_t *obj;
+	dns_rrl_t *rrl;
+	isc_result_t result;
+ 	int min_entries, i, j;
+
+	/*
+	 * Most DNS servers have few clients, but intentinally open
+	 * recursive and authoritative servers often have many.
+	 * So start with a small number of entries unless told otherwise
+	 * to reduce cold-start costs.
+	 */
+	min_entries = 500;
+	obj = NULL;
+	result = cfg_map_get(map, "min-table-size", &obj);
+	if (result == ISC_R_SUCCESS) {
+		min_entries = cfg_obj_asuint32(obj);
+		if (min_entries < 1)
+			min_entries = 1;
+	}
+	result = dns_rrl_init(&rrl, view, min_entries);
+	if (result != ISC_R_SUCCESS)
+		return (result);
+
+	i = ISC_MAX(20000, min_entries);
+	obj = NULL;
+	result = cfg_map_get(map, "max-table-size", &obj);
+	if (result == ISC_R_SUCCESS) {
+		i = cfg_obj_asuint32(obj);
+		CHECK_RRL(obj, i >= min_entries,
+			  "max-table-size %d < min-table-size %d",
+			  i, min_entries);
+	}
+	rrl->max_entries = i;
+
+	i = 0;
+	obj = NULL;
+	result = cfg_map_get(map, "responses-per-second", &obj);
+	if (result == ISC_R_SUCCESS) {
+		i = cfg_obj_asuint32(obj);
+		CHECK_RRL(obj, i <= DNS_RRL_MAX_RATE,
+			  "responses-per-second %d > %d",
+			  i, DNS_RRL_MAX_RATE);
+	}
+	rrl->responses_per_second = i;
+	rrl->scaled_responses_per_second = rrl->responses_per_second;
+
+	/*
+	 * The default error rate is the response rate,
+	 * and so off by default.
+	 */
+	i = rrl->responses_per_second;
+	obj = NULL;
+	result = cfg_map_get(map, "errors-per-second", &obj);
+	if (result == ISC_R_SUCCESS) {
+		i = cfg_obj_asuint32(obj);
+		CHECK_RRL(obj, i <= DNS_RRL_MAX_RATE,
+			  "errors-per-second %d > %d",
+			  i, DNS_RRL_MAX_RATE);
+	}
+	rrl->errors_per_second = i;
+	rrl->scaled_errors_per_second = rrl->errors_per_second;
+	/*
+	 * The default NXDOMAIN rate is the response rate,
+	 * and so off by default.
+	 */
+	i = rrl->responses_per_second;
+	obj = NULL;
+	result = cfg_map_get(map, "nxdomains-per-second", &obj);
+	if (result == ISC_R_SUCCESS) {
+		i = cfg_obj_asuint32(obj);
+		CHECK_RRL(obj, i <= DNS_RRL_MAX_RATE,
+			  "nxdomains-per-second %d > %d",
+			  i, DNS_RRL_MAX_RATE);
+	}
+	rrl->nxdomains_per_second = i;
+	rrl->scaled_nxdomains_per_second = rrl->nxdomains_per_second;
+
+	/*
+	 * The all-per-second rate is off by default.
+	 */
+	i = 0;
+	obj = NULL;
+	result = cfg_map_get(map, "all-per-second", &obj);
+	if (result == ISC_R_SUCCESS) {
+		i = cfg_obj_asuint32(obj);
+		CHECK_RRL(obj, i <= DNS_RRL_MAX_RATE,
+			  "all-per-second %d > %d",
+			  i, DNS_RRL_MAX_RATE);
+		CHECK_RRL(obj, i == 0 || (i >= rrl->responses_per_second*4 &&
+					  i >= rrl->errors_per_second*4 &&
+					  i >= rrl->nxdomains_per_second*4),
+			  "'all-per-second %d' must be"
+			  " at least %d times responses-per-second,"
+			  "errors_per_second, and nxdomains_per_second",
+			  i, 4);
+	}
+	rrl->all_per_second = i;
+	rrl->scaled_all_per_second = rrl->all_per_second;
+
+	i = 2;
+	obj = NULL;
+	result = cfg_map_get(map, "slip", &obj);
+	if (result == ISC_R_SUCCESS) {
+		i = cfg_obj_asuint32(obj);
+		CHECK_RRL(obj, i <= DNS_RRL_MAX_SLIP,
+			  "slip %d > %d", i, DNS_RRL_MAX_SLIP);
+	}
+	rrl->slip = i;
+	rrl->scaled_slip = rrl->slip;
+
+	i = 15;
+	obj = NULL;
+	result = cfg_map_get(map, "window", &obj);
+	if (result == ISC_R_SUCCESS) {
+		i = cfg_obj_asuint32(obj);
+		CHECK_RRL(obj, i >= 1 && i <= DNS_RRL_MAX_WINDOW,
+			  "window %d < 1 or > %d", i, DNS_RRL_MAX_WINDOW);
+	}
+	rrl->window = i;
+
+	i = 0;
+	obj = NULL;
+	result = cfg_map_get(map, "qps-scale", &obj);
+	if (result == ISC_R_SUCCESS) {
+		i = cfg_obj_asuint32(obj);
+		CHECK_RRL(obj, i >= 1, "invalid 'qps-scale %d'%s", i, "");
+	}
+	rrl->qps_scale = i;
+	rrl->qps = 1.0;
+
+	i = 24;
+	obj = NULL;
+	result = cfg_map_get(map, "IPv4-prefix-length", &obj);
+	if (result == ISC_R_SUCCESS) {
+		i = cfg_obj_asuint32(obj);
+		CHECK_RRL(obj, i >= 8 && i <= 32,
+			  "invalid 'IPv4-prefix-length %d'%s", i, "");
+	}
+	rrl->ipv4_prefixlen = i;
+	if (i == 32)
+		rrl->ipv4_mask = 0xffffffff;
+	else
+		rrl->ipv4_mask = htonl(0xffffffff << (32-i));
+
+	i = 56;
+	obj = NULL;
+	result = cfg_map_get(map, "IPv6-prefix-length", &obj);
+	if (result == ISC_R_SUCCESS) {
+		i = cfg_obj_asuint32(obj);
+		CHECK_RRL(obj, i >= 16 && i <= DNS_RRL_MAX_PREFIX,
+			  "IPv6-prefix-length %d < 16 or > %d",
+			  i, DNS_RRL_MAX_PREFIX);
+	}
+	rrl->ipv6_prefixlen = i;
+	for (j = 0; j < 4; ++j) {
+		if (i <= 0) {
+			rrl->ipv6_mask[j] = 0;
+		} else if (i < 32) {
+			rrl->ipv6_mask[j] = htonl(0xffffffff << (32-i));
+		} else {
+			rrl->ipv6_mask[j] = 0xffffffff;
+		}
+		i -= 32;
+	}
+
+	obj = NULL;
+	result = cfg_map_get(map, "exempt-clients", &obj);
+	if (result == ISC_R_SUCCESS) {
+		result = cfg_acl_fromconfig(obj, config, ns_g_lctx,
+					    ns_g_aclconfctx, ns_g_mctx,
+					    0, &rrl->exempt);
+		CHECK_RRL(obj, result == ISC_R_SUCCESS,
+			  "invalid %s%s", "address match list", "");
+	}
+
+	obj = NULL;
+	result = cfg_map_get(map, "log-only", &obj);
+	if (result == ISC_R_SUCCESS && cfg_obj_asboolean(obj))
+		rrl->log_only = ISC_TRUE;
+	else
+		rrl->log_only = ISC_FALSE;
+
+	return (ISC_R_SUCCESS);
 
  cleanup:
-	dns_rpz_view_destroy(view);
+	dns_rrl_view_destroy(view);
 	return (result);
+}
+
+static isc_result_t
+configure_rpz(dns_view_t *view, const cfg_obj_t *rpz_obj,
+	      isc_boolean_t *old_rpz_okp)
+{
+	const cfg_listelt_t *zone_element;
+	const cfg_obj_t *sub_obj;
+	isc_boolean_t recursive_only_def;
+	dns_ttl_t ttl_def;
+	dns_rpz_zones_t *rpzs;
+	dns_view_t *pview;
+	isc_result_t result;
+
+	zone_element = cfg_list_first(cfg_tuple_get(rpz_obj, "zone list"));
+	if (zone_element == NULL)
+		return (ISC_R_SUCCESS);
+
+	result = dns_rpz_new_zones(&view->rpzs, view->mctx);
+	if (result != ISC_R_SUCCESS)
+		return (result);
+	rpzs = view->rpzs;
+
+	sub_obj = cfg_tuple_get(rpz_obj, "recursive-only");
+	if (!cfg_obj_isvoid(sub_obj) &&
+	    !cfg_obj_asboolean(sub_obj))
+		recursive_only_def = ISC_FALSE;
+	else
+		recursive_only_def = ISC_TRUE;
+
+	sub_obj = cfg_tuple_get(rpz_obj, "break-dnssec");
+	if (!cfg_obj_isvoid(sub_obj) &&
+	    cfg_obj_asboolean(sub_obj))
+		rpzs->p.break_dnssec = ISC_TRUE;
+	else
+		rpzs->p.break_dnssec = ISC_FALSE;
+
+	sub_obj = cfg_tuple_get(rpz_obj, "max-policy-ttl");
+	if (cfg_obj_isuint32(sub_obj))
+		ttl_def = cfg_obj_asuint32(sub_obj);
+	else
+		ttl_def = DNS_RPZ_MAX_TTL_DEFAULT;
+
+	sub_obj = cfg_tuple_get(rpz_obj, "min-ns-dots");
+	if (cfg_obj_isuint32(sub_obj))
+		rpzs->p.min_ns_labels = cfg_obj_asuint32(sub_obj) + 1;
+	else
+		rpzs->p.min_ns_labels = 2;
+
+	do {
+		result = configure_rpz_zone(view, zone_element,
+					    recursive_only_def, ttl_def);
+		if (result != ISC_R_SUCCESS)
+			return (result);
+		zone_element = cfg_list_next(zone_element);
+	} while (zone_element != NULL);
+
+	/*
+	 * If this is a reloading and the parameters and list of policy
+	 * zones are unchanged, then use the same policy data.
+	 * Data for individual zones that must be reloaded will be merged.
+	 */
+	result = dns_viewlist_find(&ns_g_server->viewlist,
+				   view->name, view->rdclass, &pview);
+	if (result == ISC_R_SUCCESS) {
+		if (memcmp(&pview->rpzs->p, &rpzs->p, sizeof(rpzs->p)) == 0) {
+			*old_rpz_okp = ISC_TRUE;
+			dns_rpz_detach_rpzs(&view->rpzs);
+			dns_rpz_attach_rpzs(pview->rpzs, &view->rpzs);
+		}
+		dns_view_detach(&pview);
+	}
+
+	return (ISC_R_SUCCESS);
 }
 
 /*
@@ -1619,6 +1909,7 @@ configure_view(dns_view_t *view, cfg_obj_t *config, cfg_obj_t *vconfig,
 	dns_acl_t *clients = NULL, *mapped = NULL, *excluded = NULL;
 	unsigned int query_timeout;
 	struct cfg_context *nzctx;
+	isc_boolean_t old_rpz_ok;
 
 	REQUIRE(DNS_VIEW_VALID(view));
 
@@ -1717,6 +2008,17 @@ configure_view(dns_view_t *view, cfg_obj_t *config, cfg_obj_t *vconfig,
 	}
 
 	/*
+	 * Make the list of response policy zone names for a view that
+	 * is used for real lookups and so cares about hints.
+	 */
+	old_rpz_ok = ISC_FALSE;
+	obj = NULL;
+	if (view->rdclass == dns_rdataclass_in && need_hints &&
+	    ns_config_get(maps, "response-policy", &obj) == ISC_R_SUCCESS) {
+		CHECK(configure_rpz(view, obj, &old_rpz_ok));
+	}
+
+	/*
 	 * Configure the zones.
 	 */
 	zonelist = NULL;
@@ -1734,7 +2036,30 @@ configure_view(dns_view_t *view, cfg_obj_t *config, cfg_obj_t *vconfig,
 	{
 		const cfg_obj_t *zconfig = cfg_listelt_value(element);
 		CHECK(configure_zone(config, zconfig, vconfig, mctx, view,
-				     actx, ISC_FALSE));
+				     actx, ISC_FALSE, old_rpz_ok));
+	}
+
+	/*
+	 * Check that a master or slave zone was found for each
+	 * zone named in the response policy statement.
+	 */
+	if (view->rpzs != NULL) {
+		dns_rpz_num_t n;
+
+		for (n = 0; n < view->rpzs->p.cnt; ++n)
+		{
+			if ((view->rpzs->defined & DNS_RPZ_ZBIT(n)) == 0) {
+				char namebuf[DNS_NAME_FORMATSIZE];
+
+				dns_name_format(&view->rpzs->zones[n]->origin,
+						namebuf, sizeof(namebuf));
+				cfg_obj_log(obj, ns_g_lctx, DNS_RPZ_ERROR_LEVEL,
+					    "'%s' is not a master or slave zone",
+					    namebuf);
+				result = ISC_R_NOTFOUND;
+				goto cleanup;
+			}
+		}
 	}
 
 	/*
@@ -1759,7 +2084,7 @@ configure_view(dns_view_t *view, cfg_obj_t *config, cfg_obj_t *vconfig,
 			const cfg_obj_t *zconfig = cfg_listelt_value(element);
 			CHECK(configure_zone(config, zconfig, vconfig,
 					     mctx, view, actx,
-					     ISC_TRUE));
+					     ISC_TRUE, ISC_FALSE));
 		}
 	}
 
@@ -2912,47 +3237,12 @@ configure_view(dns_view_t *view, cfg_obj_t *config, cfg_obj_t *vconfig,
 		}
 	}
 
-	/*
-	 * Make the list of response policy zone names for views that
-	 * are used for real lookups and so care about hints.
-	 */
 	obj = NULL;
-	if (view->rdclass == dns_rdataclass_in && need_hints &&
-	    ns_config_get(maps, "response-policy", &obj) == ISC_R_SUCCESS) {
-		const cfg_obj_t *recursive_only_obj;
-		const cfg_obj_t *break_dnssec_obj, *ttl_obj;
-		isc_boolean_t recursive_only_def;
-		dns_ttl_t ttl_def;
-
-		recursive_only_obj = cfg_tuple_get(obj, "recursive-only");
-		if (!cfg_obj_isvoid(recursive_only_obj) &&
-		    !cfg_obj_asboolean(recursive_only_obj))
-			recursive_only_def = ISC_FALSE;
-		else
-			recursive_only_def = ISC_TRUE;
-
-		break_dnssec_obj = cfg_tuple_get(obj, "break-dnssec");
-		if (!cfg_obj_isvoid(break_dnssec_obj) &&
-		    cfg_obj_asboolean(break_dnssec_obj))
-			view->rpz_break_dnssec = ISC_TRUE;
-		else
-			view->rpz_break_dnssec = ISC_FALSE;
-
-		ttl_obj = cfg_tuple_get(obj, "max-policy-ttl");
-		if (cfg_obj_isuint32(ttl_obj))
-			ttl_def = cfg_obj_asuint32(ttl_obj);
-		else
-			ttl_def = DNS_RPZ_MAX_TTL_DEFAULT;
-
-		for (element = cfg_list_first(cfg_tuple_get(obj, "zone list"));
-		     element != NULL;
-		     element = cfg_list_next(element)) {
-			result = configure_rpz(view, element,
-					       recursive_only_def, ttl_def);
-			if (result != ISC_R_SUCCESS)
-				goto cleanup;
-			dns_rpz_set_need(ISC_TRUE);
-		}
+	result = ns_config_get(maps, "rate-limit", &obj);
+	if (result == ISC_R_SUCCESS) {
+		result = configure_rrl(view, config, obj);
+		if (result != ISC_R_SUCCESS)
+			goto cleanup;
 	}
 
 	result = ISC_R_SUCCESS;
@@ -3287,7 +3577,8 @@ create_view(const cfg_obj_t *vconfig, dns_viewlist_t *viewlist,
 static isc_result_t
 configure_zone(const cfg_obj_t *config, const cfg_obj_t *zconfig,
 	       const cfg_obj_t *vconfig, isc_mem_t *mctx, dns_view_t *view,
-	       cfg_aclconfctx_t *aclconf, isc_boolean_t added)
+	       cfg_aclconfctx_t *aclconf, isc_boolean_t added,
+	       isc_boolean_t old_rpz_ok)
 {
 	dns_view_t *pview = NULL;	/* Production view */
 	dns_zone_t *zone = NULL;	/* New or reused zone */
@@ -3306,6 +3597,7 @@ configure_zone(const cfg_obj_t *config, const cfg_obj_t *zconfig,
 	const char *zname;
 	dns_rdataclass_t zclass;
 	const char *ztypestr;
+	dns_rpz_num_t rpz_num;
 
 	options = NULL;
 	(void)cfg_map_get(config, "options", &options);
@@ -3435,6 +3727,18 @@ configure_zone(const cfg_obj_t *config, const cfg_obj_t *zconfig,
 	INSIST(dupzone == NULL);
 
 	/*
+	 * Note whether this is a response policy zone and which one if so.
+	 */
+	for (rpz_num = 0; ; ++rpz_num) {
+		if (view->rpzs == NULL || rpz_num >= view->rpzs->p.cnt) {
+			rpz_num = DNS_RPZ_INVALID_NUM;
+			break;
+		}
+		if (dns_name_equal(&view->rpzs->zones[rpz_num]->origin, origin))
+			break;
+	}
+
+	/*
 	 * See if we can reuse an existing zone.  This is
 	 * only possible if all of these are true:
 	 *   - The zone's view exists
@@ -3442,6 +3746,9 @@ configure_zone(const cfg_obj_t *config, const cfg_obj_t *zconfig,
 	 *   - The zone is compatible with the config
 	 *     options (e.g., an existing master zone cannot
 	 *     be reused if the options specify a slave zone)
+	 *   - The zone was not and is still not a response policy zone
+	 *     or the zone is a policy zone with an unchanged number
+	 *     and we are using the old polic zone summary data.
 	 */
 	result = dns_viewlist_find(&ns_g_server->viewlist,
 				   view->name, view->rdclass,
@@ -3453,6 +3760,10 @@ configure_zone(const cfg_obj_t *config, const cfg_obj_t *zconfig,
 	if (result != ISC_R_NOTFOUND && result != ISC_R_SUCCESS)
 		goto cleanup;
 	if (zone != NULL && !ns_zone_reusable(zone, zconfig))
+		dns_zone_detach(&zone);
+
+	if (zone != NULL && (rpz_num != dns_zone_get_rpz_num(zone) ||
+			     (rpz_num != DNS_RPZ_INVALID_NUM && !old_rpz_ok)))
 		dns_zone_detach(&zone);
 
 	if (zone != NULL) {
@@ -3475,6 +3786,19 @@ configure_zone(const cfg_obj_t *config, const cfg_obj_t *zconfig,
 			dns_zone_setacache(zone, view->acache);
 		CHECK(dns_zonemgr_managezone(ns_g_server->zonemgr, zone));
 		dns_zone_setstats(zone, ns_g_server->zonestats);
+	}
+
+	if (rpz_num != DNS_RPZ_INVALID_NUM) {
+		result = dns_zone_rpz_enable(zone, view->rpzs, rpz_num);
+		if (result != ISC_R_SUCCESS) {
+			isc_log_write(ns_g_lctx, NS_LOGCATEGORY_GENERAL,
+				      NS_LOGMODULE_SERVER, ISC_LOG_ERROR,
+				      "zone '%s': incompatible"
+				      " masterfile-format or database"
+				      " for a response policy zone",
+				      zname);
+			goto cleanup;
+		}
 	}
 
 	/*
@@ -7435,7 +7759,8 @@ ns_server_add_zone(ns_server_t *server, char *args) {
 	isc_task_beginexclusive(server->task);
 	dns_view_thaw(view);
 	result = configure_zone(cfg->config, parms, vconfig,
-				server->mctx, view, cfg->actx, ISC_FALSE);
+				server->mctx, view, cfg->actx, ISC_FALSE,
+				ISC_FALSE);
 	dns_view_freeze(view);
 	isc_task_endexclusive(server->task);
 	if (result != ISC_R_SUCCESS)

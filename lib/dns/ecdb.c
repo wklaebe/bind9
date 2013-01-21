@@ -575,8 +575,8 @@ static dns_dbmethods_t ecdb_methods = {
 	NULL,			/* resigned */
 	NULL,			/* isdnssec */
 	NULL,			/* getrrsetstats */
-	NULL,			/* rpz_enabled */
-	NULL			/* rpz_findips */
+ 	NULL,			/* rpz_attach */
+ 	NULL,			/* rpz_ready */
 };
 
 static isc_result_t

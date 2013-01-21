@@ -32,8 +32,6 @@ bind9 (1:9.8.4.dfsg.P1-3) unstable; urgency=low
     based on mail from Mark Andrews.  Closes: #697681
   * remove /var/lib/bind/bind9-default.md5sum in postrm
   * remove /etc/bind/named.conf.options on purge.  Closes: #668801
-  * finish merge of fixes from ubuntu (Marc's change above, changelog
-    entries.)
 
  -- LaMont Jones <lamont@debian.org>  Wed, 09 Jan 2013 09:47:24 -0700
 
@@ -160,33 +158,6 @@ bind9 (1:9.8.1.dfsg.P1-4.3) unstable; urgency=medium
     - CVE-2012-5166
 
  -- Philipp Kern <pkern@debian.org>  Sun, 28 Oct 2012 20:28:11 +0100
-
-bind9 (1:9.8.1.dfsg.P1-4.2ubuntu3) quantal; urgency=low
-
-  * SECURITY UPDATE: denial of service via specific combinations of RDATA
-    - bin/named/query.c: fix logic
-    - Patch backported from 9.8.3-P4
-    - CVE-2012-5166
-
- -- Marc Deslauriers <marc.deslauriers@ubuntu.com>  Fri, 05 Oct 2012 09:41:37 -0400
-
-bind9 (1:9.8.1.dfsg.P1-4.2ubuntu2) quantal-proposed; urgency=low
-
-  * SECURITY UPDATE: denial of service via large crafted resource record
-    - check length in lib/dns/include/dns/rdata.h,
-      lib/dns/{master,rdata,rdataslab}.c. Added tests to
-      lib/dns/tests/Makefile.in, lib/dns/tests/{master,rdata}_test.c,
-      lib/dns/tests/testdata/master/master1{5,6}.data.
-    - Patch backported from 9.8.3-P3
-    - CVE-2012-4244
-
- -- Marc Deslauriers <marc.deslauriers@ubuntu.com>  Wed, 12 Sep 2012 15:57:47 -0400
-
-bind9 (1:9.8.1.dfsg.P1-4.2ubuntu1) quantal-proposed; urgency=low
-
-  * debian/bind9.apport: Add AppArmor info and logs to apport hook.
-
- -- Marc Deslauriers <marc.deslauriers@ubuntu.com>  Mon, 20 Aug 2012 08:48:47 -0400
 
 bind9 (1:9.8.1.dfsg.P1-4.2) unstable; urgency=high
 

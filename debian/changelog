@@ -1,3 +1,17 @@
+bind9 (1:9.8.4.dfsg.P1-5) unstable; urgency=low
+
+  [LaMont Jones]
+
+  * Properly acknowledge 1:9.8.1.dfsg.P1-4.4: [Philipp Kern]
+    - Fix CVE-2012-4244. Thanks to Moritz Mühlenhoff for providing the patch.
+
+  [Paul Vixie]
+
+  * Include rpz/rrl patches from http://www.redbarn.org/dns/ratelimits. 
+    Closes: #698641
+
+ -- LaMont Jones <lamont@debian.org>  Wed, 30 Jan 2013 14:04:35 -0700
+
 bind9 (1:9.8.4.dfsg.P1-4) unstable; urgency=high
 
   * The rest of the dnssec validation logspam removal.  Closes: #697681

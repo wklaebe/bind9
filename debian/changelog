@@ -55,6 +55,14 @@ bind9 (1:9.8.4.dfsg-1) unstable; urgency=low
 
  -- LaMont Jones <lamont@debian.org>  Mon, 29 Oct 2012 08:37:49 -0600
 
+bind9 (1:9.8.1.dfsg.P1-4.4) testing-proposed-updates; urgency=low
+
+  * Non-maintainer upload.
+  * Fix CVE-2012-4244. Thanks to Moritz Mühlenhoff for providing
+    the patch.
+
+ -- Philipp Kern <pkern@debian.org>  Sat, 03 Nov 2012 20:43:43 +0100
+
 bind9 (1:9.8.1.dfsg.P1-4.3) unstable; urgency=medium
 
   [ Philipp Kern ]

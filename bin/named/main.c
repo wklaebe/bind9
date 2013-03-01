@@ -631,14 +631,6 @@ create_managers(void) {
 			      ISC_LOG_INFO, "using up to %u sockets", socks);
 	}
 
-	result = isc_entropy_create(ns_g_mctx, &ns_g_entropy);
-	if (result != ISC_R_SUCCESS) {
-		UNEXPECTED_ERROR(__FILE__, __LINE__,
-				 "isc_entropy_create() failed: %s",
-				 isc_result_totext(result));
-		return (ISC_R_UNEXPECTED);
-	}
-
 	result = isc_hash_create(ns_g_mctx, ns_g_entropy, DNS_NAME_MAXWIRE);
 	if (result != ISC_R_SUCCESS) {
 		UNEXPECTED_ERROR(__FILE__, __LINE__,
@@ -653,10 +645,6 @@ create_managers(void) {
 static void
 destroy_managers(void) {
 	ns_lwresd_shutdown();
-
-	isc_entropy_detach(&ns_g_entropy);
-	if (ns_g_fallbackentropy != NULL)
-		isc_entropy_detach(&ns_g_fallbackentropy);
 
 	/*
 	 * isc_taskmgr_destroy() will block until all tasks have exited,
@@ -757,6 +745,21 @@ setup(void) {
 		}
 	}
 #endif
+
+	result = isc_entropy_create(ns_g_mctx, &ns_g_entropy);
+	if (result != ISC_R_SUCCESS)
+		ns_main_earlyfatal("isc_entropy_create() failed: %s",
+				   isc_result_totext(result));
+
+	/*
+	 * DST may load additional libraries, which must be done before
+	 * chroot
+	 */
+	result = dst_lib_init2(ns_g_mctx, ns_g_entropy,
+			       ns_g_engine, ISC_ENTROPY_GOODONLY);
+	if (result != ISC_R_SUCCESS)
+		ns_main_earlyfatal("dst_lib_init2() failed: %s",
+				   isc_result_totext(result));
 
 #ifdef ISC_PLATFORM_USETHREADS
 	/*
@@ -923,6 +926,12 @@ cleanup(void) {
 	ns_server_destroy(&ns_g_server);
 
 	ns_builtin_deinit();
+
+	dst_lib_destroy();
+
+	isc_entropy_detach(&ns_g_entropy);
+	if (ns_g_fallbackentropy != NULL)
+		isc_entropy_detach(&ns_g_fallbackentropy);
 
 	/*
 	 * Add calls to unregister sdb drivers here.

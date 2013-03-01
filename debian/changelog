@@ -1,3 +1,11 @@
+bind9 (1:9.8.4.dfsg.P1-6) unstable; urgency=low
+
+  [Ben Hutchings]
+
+  * Initialise OpenSSL before calling chroot().  Closes: #696661
+
+ -- LaMont Jones <lamont@debian.org>  Fri, 01 Mar 2013 08:23:27 -0700
+
 bind9 (1:9.8.4.dfsg.P1-5) unstable; urgency=low
 
   [LaMont Jones]

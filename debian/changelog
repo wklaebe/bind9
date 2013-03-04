@@ -20,6 +20,12 @@ bind9 (1:9.9.2.dfsg.P1-2) experimental; urgency=low
 
  -- LaMont Jones <lamont@debian.org>  Wed, 09 Jan 2013 10:09:40 -0700
 
+bind9 (1:9.8.4.dfsg.P1-4) unstable; urgency=high
+
+  * The rest of the dnssec validation logspam removal.  Closes: #697681
+
+ -- LaMont Jones <lamont@debian.org>  Mon, 21 Jan 2013 13:18:53 -0700
+
 bind9 (1:9.8.4.dfsg.P1-3) unstable; urgency=low
 
   [Marc Deslauriers]

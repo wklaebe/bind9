@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2012  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2013  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -56,6 +56,7 @@
 typedef enum {
 	allow_notify,
 	allow_query,
+	allow_query_on,
 	allow_transfer,
 	allow_update,
 	allow_update_forwarding
@@ -103,6 +104,11 @@ configure_zone_acl(const cfg_obj_t *zconfig, const cfg_obj_t *vconfig,
 		if (view != NULL)
 			aclp = &view->queryacl;
 		aclname = "allow-query";
+		break;
+	    case allow_query_on:
+		if (view != NULL)
+			aclp = &view->queryonacl;
+		aclname = "allow-query-on";
 		break;
 	    case allow_transfer:
 		if (view != NULL)
@@ -269,7 +275,7 @@ configure_zone_ssutable(const cfg_obj_t *zconfig, dns_zone_t *zone,
 
 		dns_fixedname_init(&fident);
 		str = cfg_obj_asstring(identity);
-		isc_buffer_init(&b, str, strlen(str));
+		isc_buffer_constinit(&b, str, strlen(str));
 		isc_buffer_add(&b, strlen(str));
 		result = dns_name_fromtext(dns_fixedname_name(&fident), &b,
 					   dns_rootname, 0, NULL);
@@ -292,7 +298,7 @@ configure_zone_ssutable(const cfg_obj_t *zconfig, dns_zone_t *zone,
 			}
 		} else {
 			str = cfg_obj_asstring(dname);
-			isc_buffer_init(&b, str, strlen(str));
+			isc_buffer_constinit(&b, str, strlen(str));
 			isc_buffer_add(&b, strlen(str));
 			result = dns_name_fromtext(dns_fixedname_name(&fname),
 						   &b, dns_rootname, 0, NULL);
@@ -525,7 +531,7 @@ configure_staticstub_servernames(const cfg_obj_t *zconfig, dns_zone_t *zone,
 		dns_fixedname_init(&fixed_name);
 		nsname = dns_fixedname_name(&fixed_name);
 
-		isc_buffer_init(&b, str, strlen(str));
+		isc_buffer_constinit(&b, str, strlen(str));
 		isc_buffer_add(&b, strlen(str));
 		result = dns_name_fromtext(nsname, &b, dns_rootname, 0, NULL);
 		if (result != ISC_R_SUCCESS) {
@@ -818,6 +824,9 @@ ns_zone_configure(const cfg_obj_t *config, const cfg_obj_t *vconfig,
 	isc_boolean_t ixfrdiff;
 	dns_masterformat_t masterformat;
 	isc_stats_t *zoneqrystats;
+#ifdef NEWSTATS
+	dns_stats_t *rcvquerystats;
+#endif
 	isc_boolean_t zonestats_on;
 	int seconds;
 	dns_zone_t *mayberaw = (raw != NULL) ? raw : zone;
@@ -926,7 +935,7 @@ ns_zone_configure(const cfg_obj_t *config, const cfg_obj_t *vconfig,
 			INSIST(0);
 	}
 
-	if (raw != NULL) {
+	if (raw != NULL && filename != NULL) {
 #define SIGNED ".signed"
 		size_t signedlen = strlen(filename) + sizeof(SIGNED);
 		char *signedname;
@@ -967,6 +976,11 @@ ns_zone_configure(const cfg_obj_t *config, const cfg_obj_t *vconfig,
 				  dns_zone_setqueryacl,
 				  dns_zone_clearqueryacl));
 
+	RETERR(configure_zone_acl(zconfig, vconfig, config,
+				  allow_query_on, ac, zone,
+				  dns_zone_setqueryonacl,
+				  dns_zone_clearqueryonacl));
+
 	obj = NULL;
 	result = ns_config_get(maps, "dialup", &obj);
 	INSIST(result == ISC_R_SUCCESS && obj != NULL);
@@ -996,14 +1010,31 @@ ns_zone_configure(const cfg_obj_t *config, const cfg_obj_t *vconfig,
 	result = ns_config_get(maps, "zone-statistics", &obj);
 	INSIST(result == ISC_R_SUCCESS && obj != NULL);
 	zonestats_on = cfg_obj_asboolean(obj);
-	zoneqrystats = NULL;
+
+	zoneqrystats  = NULL;
+#ifdef NEWSTATS
+	rcvquerystats = NULL;
+#endif
 	if (zonestats_on) {
 		RETERR(isc_stats_create(mctx, &zoneqrystats,
 					dns_nsstatscounter_max));
+#ifdef NEWSTATS
+		RETERR(dns_rdatatypestats_create(mctx,
+					&rcvquerystats));
+#endif
 	}
-	dns_zone_setrequeststats(zone, zoneqrystats);
+	dns_zone_setrequeststats(zone,  zoneqrystats );
+#ifdef NEWSTATS
+	dns_zone_setrcvquerystats(zone, rcvquerystats);
+#endif
+
 	if (zoneqrystats != NULL)
 		isc_stats_detach(&zoneqrystats);
+
+#ifdef NEWSTATS
+	if(rcvquerystats != NULL)
+		dns_stats_detach(&rcvquerystats);
+#endif
 
 	/*
 	 * Configure master functionality.  This applies

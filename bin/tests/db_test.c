@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005, 2007-2009, 2011  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2007-2009, 2011, 2012  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -261,7 +261,7 @@ load(const char *filename, const char *origintext, isc_boolean_t cache) {
 	ISC_LINK_INIT(dbi, link);
 
 	len = strlen(origintext);
-	isc_buffer_init(&source, origintext, len);
+	isc_buffer_constinit(&source, origintext, len);
 	isc_buffer_add(&source, len);
 	dns_fixedname_init(&forigin);
 	origin = dns_fixedname_name(&forigin);
@@ -371,6 +371,7 @@ main(int argc, char *argv[]) {
 	dns_trust_t trust = 0;
 	unsigned int addopts;
 	isc_log_t *lctx = NULL;
+	size_t n;
 
 	dns_result_register();
 
@@ -392,7 +393,13 @@ main(int argc, char *argv[]) {
 				       isc_result_totext(result));
 			break;
 		case 'd':
-			strcpy(dbtype, isc_commandline_argument);
+			n = strlcpy(dbtype, isc_commandline_argument,
+				    sizeof(dbtype));
+			if (n >= sizeof(dbtype)) {
+				fprintf(stderr, "bad db type '%s'\n",
+					isc_commandline_argument);
+				exit(1);
+			}
 			break;
 		case 'g':
 			options |= (DNS_DBFIND_GLUEOK|DNS_DBFIND_VALIDATEGLUE);

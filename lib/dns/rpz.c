@@ -191,6 +191,7 @@ dns_rpz_policy2str(dns_rpz_policy_t policy) {
 		break;
 	default:
 		str = "";
+		POST(str);
 		INSIST(0);
 	}
 	return (str);
@@ -508,7 +509,7 @@ ip2name(dns_rpz_cidr_t *cidr, const dns_rpz_cidr_key_t *tgt_ip,
 				while (i < DNS_RPZ_CIDR_WORDS * 2 && w[i] == 0)
 					++i;
 			}
-			if (len > (int)sizeof(str))
+			if (len >= (int)sizeof(str))
 				return (ISC_R_FAILURE);
 		}
 	}

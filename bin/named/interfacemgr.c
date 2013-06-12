@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2009, 2011  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2009, 2011, 2012  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -426,7 +426,7 @@ ns_interface_destroy(ns_interface_t *ifp) {
 
 	ns_interface_shutdown(ifp);
 
-	for (disp = ifp->nudpdispatch; disp >= 0; disp--)
+	for (disp = 0; disp < ifp->nudpdispatch; disp++)
 		if (ifp->udpdispatch[disp] != NULL) {
 			dns_dispatch_changeattributes(ifp->udpdispatch[disp], 0,
 						    DNS_DISPATCHATTR_NOLISTEN);

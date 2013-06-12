@@ -846,10 +846,13 @@ der_get_octet_string(const unsigned char *p, size_t len,
 		     octet_string *data, size_t *size)
 {
 	data->length = len;
-	data->data = malloc(len);
-	if (data->data == NULL && data->length != 0U)
-		return (ENOMEM);
-	memcpy(data->data, p, len);
+	if (len != 0U) {
+		data->data = malloc(len);
+		if (data->data == NULL)
+			return (ENOMEM);
+		memcpy(data->data, p, len);
+	} else
+		data->data = NULL;
 	if (size)
 		*size = len;
 	return (0);
@@ -996,6 +999,9 @@ decode_octet_string(const unsigned char *p, size_t len,
 	size_t l;
 	int e;
 	size_t slen;
+
+	k->data = NULL;
+	k->length = 0;
 
 	e = der_match_tag(p, len, ASN1_C_UNIV, PRIM, UT_OctetString, &l);
 	if (e)
@@ -1547,6 +1553,11 @@ spnego_initial(OM_uint32 *minor_status,
 
 	buf_size = 1024;
 	buf = malloc(buf_size);
+	if (buf == NULL) {
+		*minor_status = ENOMEM;
+		ret = GSS_S_FAILURE;
+		goto end;
+	}
 
 	do {
 		ret = encode_NegTokenInit(buf + buf_size - 1,

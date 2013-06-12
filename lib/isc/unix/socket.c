@@ -572,8 +572,10 @@ static struct {
 		isc__socket_detach,
 		isc__socket_bind,
 		isc__socket_sendto,
+		isc__socket_sendto2,
 		isc__socket_connect,
 		isc__socket_recv,
+		isc__socket_recv2,
 		isc__socket_cancel,
 		isc__socket_getsockname,
 		isc__socket_gettype,
@@ -624,7 +626,7 @@ enum {
 	STATID_SENDFAIL = 8,
 	STATID_RECVFAIL = 9
 };
-static const isc_statscounter_t upd4statsindex[] = {
+static const isc_statscounter_t udp4statsindex[] = {
 	isc_sockstatscounter_udp4open,
 	isc_sockstatscounter_udp4openfail,
 	isc_sockstatscounter_udp4close,
@@ -636,7 +638,7 @@ static const isc_statscounter_t upd4statsindex[] = {
 	isc_sockstatscounter_udp4sendfail,
 	isc_sockstatscounter_udp4recvfail
 };
-static const isc_statscounter_t upd6statsindex[] = {
+static const isc_statscounter_t udp6statsindex[] = {
 	isc_sockstatscounter_udp6open,
 	isc_sockstatscounter_udp6openfail,
 	isc_sockstatscounter_udp6close,
@@ -1203,7 +1205,7 @@ process_cmsg(isc__socket_t *sock, struct msghdr *msg, isc_socketevent_t *dev) {
 	struct in6_pktinfo *pktinfop;
 #endif
 #ifdef SO_TIMESTAMP
-	struct timeval *timevalp;
+	void *timevalp;
 #endif
 #endif
 
@@ -1270,9 +1272,11 @@ process_cmsg(isc__socket_t *sock, struct msghdr *msg, isc_socketevent_t *dev) {
 #ifdef SO_TIMESTAMP
 		if (cmsgp->cmsg_level == SOL_SOCKET
 		    && cmsgp->cmsg_type == SCM_TIMESTAMP) {
-			timevalp = (struct timeval *)CMSG_DATA(cmsgp);
-			dev->timestamp.seconds = timevalp->tv_sec;
-			dev->timestamp.nanoseconds = timevalp->tv_usec * 1000;
+			struct timeval tv;
+			timevalp = CMSG_DATA(cmsgp);
+			memcpy(&tv, timevalp, sizeof(tv));
+			dev->timestamp.seconds = tv.tv_sec;
+			dev->timestamp.nanoseconds = tv.tv_usec * 1000;
 			dev->attributes |= ISC_SOCKEVENTATTR_TIMESTAMP;
 			goto next;
 		}
@@ -2235,6 +2239,31 @@ clear_bsdcompat(void) {
 }
 #endif
 
+static void
+use_min_mtu(isc__socket_t *sock) {
+#if !defined(IPV6_USE_MIN_MTU) && !defined(IPV6_MTU)
+	UNUSED(sock);
+#endif
+#ifdef IPV6_USE_MIN_MTU
+	/* use minimum MTU */
+	if (sock->pf == AF_INET6) {
+		int on = 1;
+		(void)setsockopt(sock->fd, IPPROTO_IPV6, IPV6_USE_MIN_MTU,
+				(void *)&on, sizeof(on));
+	}
+#endif
+#if defined(IPV6_MTU)
+	/*
+	 * Use minimum MTU on IPv6 sockets.
+	 */
+	if (sock->pf == AF_INET6) {
+		int mtu = 1280;
+		(void)setsockopt(sock->fd, IPPROTO_IPV6, IPV6_MTU,
+				 &mtu, sizeof(mtu));
+	}
+#endif
+}
+
 static isc_result_t
 opensocket(isc__socketmgr_t *manager, isc__socket_t *sock,
 	   isc__socket_t *dup_socket)
@@ -2243,7 +2272,7 @@ opensocket(isc__socketmgr_t *manager, isc__socket_t *sock,
 	char strbuf[ISC_STRERRORSIZE];
 	const char *err = "socket";
 	int tries = 0;
-#if defined(USE_CMSG) || defined(SO_BSDCOMPAT)
+#if defined(USE_CMSG) || defined(SO_BSDCOMPAT) || defined(SO_NOSIGPIPE)
 	int on = 1;
 #endif
 #if defined(SO_RCVBUF)
@@ -2391,6 +2420,11 @@ opensocket(isc__socketmgr_t *manager, isc__socket_t *sock,
 	}
 #endif
 
+	/*
+	 * Use minimum mtu if possible.
+	 */
+	use_min_mtu(sock);
+
 #if defined(USE_CMSG) || defined(SO_RCVBUF)
 	if (sock->type == isc_sockettype_udp) {
 
@@ -2455,32 +2489,6 @@ opensocket(isc__socketmgr_t *manager, isc__socket_t *sock,
 		}
 #endif /* IPV6_RECVPKTINFO */
 #endif /* ISC_PLATFORM_HAVEIN6PKTINFO */
-#ifdef IPV6_USE_MIN_MTU        /* RFC 3542, not too common yet*/
-		/* use minimum MTU */
-		if (sock->pf == AF_INET6 &&
-		    setsockopt(sock->fd, IPPROTO_IPV6, IPV6_USE_MIN_MTU,
-			       (void *)&on, sizeof(on)) < 0) {
-			isc__strerror(errno, strbuf, sizeof(strbuf));
-			UNEXPECTED_ERROR(__FILE__, __LINE__,
-					 "setsockopt(%d, IPV6_USE_MIN_MTU) "
-					 "%s: %s", sock->fd,
-					 isc_msgcat_get(isc_msgcat,
-							ISC_MSGSET_GENERAL,
-							ISC_MSG_FAILED,
-							"failed"),
-					 strbuf);
-		}
-#endif
-#if defined(IPV6_MTU)
-		/*
-		 * Use minimum MTU on IPv6 sockets.
-		 */
-		if (sock->pf == AF_INET6) {
-			int mtu = 1280;
-			(void)setsockopt(sock->fd, IPPROTO_IPV6, IPV6_MTU,
-					 &mtu, sizeof(mtu));
-		}
-#endif
 #if defined(IPV6_MTU_DISCOVER) && defined(IPV6_PMTUDISC_DONT)
 		/*
 		 * Turn off Path MTU discovery on IPv6/UDP sockets.
@@ -2571,7 +2579,7 @@ socket_create(isc_socketmgr_t *manager0, int pf, isc_sockettype_t type,
 	switch (sock->type) {
 	case isc_sockettype_udp:
 		sock->statsindex =
-			(pf == AF_INET) ? upd4statsindex : upd6statsindex;
+			(pf == AF_INET) ? udp4statsindex : udp6statsindex;
 		break;
 	case isc_sockettype_tcp:
 		sock->statsindex =
@@ -2621,7 +2629,7 @@ socket_create(isc_socketmgr_t *manager0, int pf, isc_sockettype_t type,
 	UNLOCK(&manager->lock);
 
 	socket_log(sock, NULL, CREATION, isc_msgcat, ISC_MSGSET_SOCKET,
-		   ISC_MSG_CREATED, dup_socket == NULL ? "dupped" : "created");
+		   ISC_MSG_CREATED, dup_socket != NULL ? "dupped" : "created");
 
 	return (ISC_R_SUCCESS);
 }
@@ -3277,6 +3285,11 @@ internal_accept(isc_task_t *me, isc_event_t *ev) {
 		NEWCONNSOCK(dev)->fd = fd;
 		NEWCONNSOCK(dev)->bound = 1;
 		NEWCONNSOCK(dev)->connected = 1;
+
+		/*
+		 * Use minimum mtu if possible.
+		 */
+		use_min_mtu(NEWCONNSOCK(dev));
 
 		/*
 		 * Save away the remote address
@@ -5918,94 +5931,112 @@ _socktype(isc_sockettype_t type)
 		return ("not-initialized");
 }
 
-ISC_SOCKETFUNC_SCOPE void
+#define TRY0(a) do { xmlrc = (a); if (xmlrc < 0) goto error; } while(0)
+ISC_SOCKETFUNC_SCOPE int
 isc_socketmgr_renderxml(isc_socketmgr_t *mgr0, xmlTextWriterPtr writer) {
 	isc__socketmgr_t *mgr = (isc__socketmgr_t *)mgr0;
-	isc__socket_t *sock;
+	isc__socket_t *sock = NULL;
 	char peerbuf[ISC_SOCKADDR_FORMATSIZE];
 	isc_sockaddr_t addr;
 	ISC_SOCKADDR_LEN_T len;
+	int xmlrc;
 
 	LOCK(&mgr->lock);
 
 #ifdef USE_SHARED_MANAGER
-	xmlTextWriterStartElement(writer, ISC_XMLCHAR "references");
-	xmlTextWriterWriteFormatString(writer, "%d", mgr->refs);
-	xmlTextWriterEndElement(writer);
+	TRY0(xmlTextWriterStartElement(writer, ISC_XMLCHAR "references"));
+	TRY0(xmlTextWriterWriteFormatString(writer, "%d", mgr->refs));
+	TRY0(xmlTextWriterEndElement(writer));
 #endif	/* USE_SHARED_MANAGER */
 
-	xmlTextWriterStartElement(writer, ISC_XMLCHAR "sockets");
+	TRY0(xmlTextWriterStartElement(writer, ISC_XMLCHAR "sockets"));
 	sock = ISC_LIST_HEAD(mgr->socklist);
 	while (sock != NULL) {
 		LOCK(&sock->lock);
-		xmlTextWriterStartElement(writer, ISC_XMLCHAR "socket");
+		TRY0(xmlTextWriterStartElement(writer, ISC_XMLCHAR "socket"));
 
-		xmlTextWriterStartElement(writer, ISC_XMLCHAR "id");
-		xmlTextWriterWriteFormatString(writer, "%p", sock);
-		xmlTextWriterEndElement(writer);
+		TRY0(xmlTextWriterStartElement(writer, ISC_XMLCHAR "id"));
+		TRY0(xmlTextWriterWriteFormatString(writer, "%p", sock));
+		TRY0(xmlTextWriterEndElement(writer));
 
 		if (sock->name[0] != 0) {
-			xmlTextWriterStartElement(writer, ISC_XMLCHAR "name");
-			xmlTextWriterWriteFormatString(writer, "%s",
-						       sock->name);
-			xmlTextWriterEndElement(writer); /* name */
+			TRY0(xmlTextWriterStartElement(writer,
+						       ISC_XMLCHAR "name"));
+			TRY0(xmlTextWriterWriteFormatString(writer, "%s",
+							    sock->name));
+			TRY0(xmlTextWriterEndElement(writer)); /* name */
 		}
 
-		xmlTextWriterStartElement(writer, ISC_XMLCHAR "references");
-		xmlTextWriterWriteFormatString(writer, "%d", sock->references);
-		xmlTextWriterEndElement(writer);
+		TRY0(xmlTextWriterStartElement(writer,
+					       ISC_XMLCHAR "references"));
+		TRY0(xmlTextWriterWriteFormatString(writer, "%d",
+						    sock->references));
+		TRY0(xmlTextWriterEndElement(writer));
 
-		xmlTextWriterWriteElement(writer, ISC_XMLCHAR "type",
-					  ISC_XMLCHAR _socktype(sock->type));
+		TRY0(xmlTextWriterWriteElement(writer, ISC_XMLCHAR "type",
+					  ISC_XMLCHAR _socktype(sock->type)));
 
 		if (sock->connected) {
 			isc_sockaddr_format(&sock->peer_address, peerbuf,
 					    sizeof(peerbuf));
-			xmlTextWriterWriteElement(writer,
+			TRY0(xmlTextWriterWriteElement(writer,
 						  ISC_XMLCHAR "peer-address",
-						  ISC_XMLCHAR peerbuf);
+						  ISC_XMLCHAR peerbuf));
 		}
 
 		len = sizeof(addr);
 		if (getsockname(sock->fd, &addr.type.sa, (void *)&len) == 0) {
 			isc_sockaddr_format(&addr, peerbuf, sizeof(peerbuf));
-			xmlTextWriterWriteElement(writer,
+			TRY0(xmlTextWriterWriteElement(writer,
 						  ISC_XMLCHAR "local-address",
-						  ISC_XMLCHAR peerbuf);
+						  ISC_XMLCHAR peerbuf));
 		}
 
-		xmlTextWriterStartElement(writer, ISC_XMLCHAR "states");
+		TRY0(xmlTextWriterStartElement(writer, ISC_XMLCHAR "states"));
 		if (sock->pending_recv)
-			xmlTextWriterWriteElement(writer, ISC_XMLCHAR "state",
-						ISC_XMLCHAR "pending-receive");
+			TRY0(xmlTextWriterWriteElement(writer,
+						ISC_XMLCHAR "state",
+						ISC_XMLCHAR "pending-receive"));
 		if (sock->pending_send)
-			xmlTextWriterWriteElement(writer, ISC_XMLCHAR "state",
-						  ISC_XMLCHAR "pending-send");
+			TRY0(xmlTextWriterWriteElement(writer,
+						  ISC_XMLCHAR "state",
+						  ISC_XMLCHAR "pending-send"));
 		if (sock->pending_accept)
-			xmlTextWriterWriteElement(writer, ISC_XMLCHAR "state",
-						 ISC_XMLCHAR "pending_accept");
+			TRY0(xmlTextWriterWriteElement(writer,
+						 ISC_XMLCHAR "state",
+						 ISC_XMLCHAR "pending_accept"));
 		if (sock->listener)
-			xmlTextWriterWriteElement(writer, ISC_XMLCHAR "state",
-						  ISC_XMLCHAR "listener");
+			TRY0(xmlTextWriterWriteElement(writer,
+						       ISC_XMLCHAR "state",
+						       ISC_XMLCHAR "listener"));
 		if (sock->connected)
-			xmlTextWriterWriteElement(writer, ISC_XMLCHAR "state",
-						  ISC_XMLCHAR "connected");
+			TRY0(xmlTextWriterWriteElement(writer,
+						     ISC_XMLCHAR "state",
+						     ISC_XMLCHAR "connected"));
 		if (sock->connecting)
-			xmlTextWriterWriteElement(writer, ISC_XMLCHAR "state",
-						  ISC_XMLCHAR "connecting");
+			TRY0(xmlTextWriterWriteElement(writer,
+						    ISC_XMLCHAR "state",
+						    ISC_XMLCHAR "connecting"));
 		if (sock->bound)
-			xmlTextWriterWriteElement(writer, ISC_XMLCHAR "state",
-						  ISC_XMLCHAR "bound");
+			TRY0(xmlTextWriterWriteElement(writer,
+						       ISC_XMLCHAR "state",
+						       ISC_XMLCHAR "bound"));
 
-		xmlTextWriterEndElement(writer); /* states */
+		TRY0(xmlTextWriterEndElement(writer)); /* states */
 
-		xmlTextWriterEndElement(writer); /* socket */
+		TRY0(xmlTextWriterEndElement(writer)); /* socket */
 
 		UNLOCK(&sock->lock);
 		sock = ISC_LIST_NEXT(sock, link);
 	}
-	xmlTextWriterEndElement(writer); /* sockets */
+	TRY0(xmlTextWriterEndElement(writer)); /* sockets */
+
+ error:
+	if (sock != NULL)
+		UNLOCK(&sock->lock);
 
 	UNLOCK(&mgr->lock);
+
+	return (xmlrc);
 }
 #endif /* HAVE_LIBXML2 */

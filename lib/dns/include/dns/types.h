@@ -65,6 +65,7 @@ typedef struct dns_decompress			dns_decompress_t;
 typedef struct dns_dispatch			dns_dispatch_t;
 typedef struct dns_dispatchevent		dns_dispatchevent_t;
 typedef struct dns_dispatchlist			dns_dispatchlist_t;
+typedef struct dns_dispatchset			dns_dispatchset_t;
 typedef struct dns_dispatchmgr			dns_dispatchmgr_t;
 typedef struct dns_dispentry			dns_dispentry_t;
 typedef struct dns_dns64			dns_dns64_t;
@@ -390,5 +391,8 @@ typedef isc_boolean_t
 typedef isc_boolean_t
 (*dns_isselffunc_t)(dns_view_t *, dns_tsigkey_t *, isc_sockaddr_t *,
 		    isc_sockaddr_t *, dns_rdataclass_t, void *);
+
+typedef void
+(*dns_nseclog_t)(void *val, int , const char *, ...);
 
 #endif /* DNS_TYPES_H */

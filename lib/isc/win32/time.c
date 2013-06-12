@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2006-2009  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2006-2009, 2012  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1998-2001, 2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -47,15 +47,15 @@
  *** Absolute Times
  ***/
 
-static isc_time_t epoch = { { 0, 0 } };
-LIBISC_EXTERNAL_DATA isc_time_t *isc_time_epoch = &epoch;
+static const isc_time_t epoch = { { 0, 0 } };
+LIBISC_EXTERNAL_DATA const isc_time_t * const isc_time_epoch = &epoch;
 
 /***
  *** Intervals
  ***/
 
-static isc_interval_t zero_interval = { 0 };
-LIBISC_EXTERNAL_DATA isc_interval_t *isc_interval_zero = &zero_interval;
+static const isc_interval_t zero_interval = { 0 };
+LIBISC_EXTERNAL_DATA const isc_interval_t * const isc_interval_zero = &zero_interval;
 
 void
 isc_interval_set(isc_interval_t *i, unsigned int seconds,
@@ -313,7 +313,7 @@ isc_time_formatISO8601(const isc_time_t *t, char *buf, unsigned int len) {
 		GetTimeFormat(LOCALE_NEUTRAL,
 			      TIME_NOTIMEMARKER | TIME_FORCE24HOURFORMAT,
 			      &st, "hh':'mm':'ss", TimeBuf, 50);
-		snprintf(buf, len, "%s%sZ", DateBuf, TimeBuf);
+		snprintf(buf, len, "%sT%sZ", DateBuf, TimeBuf);
 	} else {
 		buf[0] = 0;
 	}

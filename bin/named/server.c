@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2012  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2013  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -252,6 +252,72 @@ const char *empty_zones[] = {
 	"31.172.IN-ADDR.ARPA",
 	"168.192.IN-ADDR.ARPA",
 
+	/* RFC 6598 */
+	"64.100.IN-ADDR.ARPA",
+	"65.100.IN-ADDR.ARPA",
+	"66.100.IN-ADDR.ARPA",
+	"67.100.IN-ADDR.ARPA",
+	"68.100.IN-ADDR.ARPA",
+	"69.100.IN-ADDR.ARPA",
+	"70.100.IN-ADDR.ARPA",
+	"71.100.IN-ADDR.ARPA",
+	"72.100.IN-ADDR.ARPA",
+	"73.100.IN-ADDR.ARPA",
+	"74.100.IN-ADDR.ARPA",
+	"75.100.IN-ADDR.ARPA",
+	"76.100.IN-ADDR.ARPA",
+	"77.100.IN-ADDR.ARPA",
+	"78.100.IN-ADDR.ARPA",
+	"79.100.IN-ADDR.ARPA",
+	"80.100.IN-ADDR.ARPA",
+	"81.100.IN-ADDR.ARPA",
+	"82.100.IN-ADDR.ARPA",
+	"83.100.IN-ADDR.ARPA",
+	"84.100.IN-ADDR.ARPA",
+	"85.100.IN-ADDR.ARPA",
+	"86.100.IN-ADDR.ARPA",
+	"87.100.IN-ADDR.ARPA",
+	"88.100.IN-ADDR.ARPA",
+	"89.100.IN-ADDR.ARPA",
+	"90.100.IN-ADDR.ARPA",
+	"91.100.IN-ADDR.ARPA",
+	"92.100.IN-ADDR.ARPA",
+	"93.100.IN-ADDR.ARPA",
+	"94.100.IN-ADDR.ARPA",
+	"95.100.IN-ADDR.ARPA",
+	"96.100.IN-ADDR.ARPA",
+	"97.100.IN-ADDR.ARPA",
+	"98.100.IN-ADDR.ARPA",
+	"99.100.IN-ADDR.ARPA",
+	"100.100.IN-ADDR.ARPA",
+	"101.100.IN-ADDR.ARPA",
+	"102.100.IN-ADDR.ARPA",
+	"103.100.IN-ADDR.ARPA",
+	"104.100.IN-ADDR.ARPA",
+	"105.100.IN-ADDR.ARPA",
+	"106.100.IN-ADDR.ARPA",
+	"107.100.IN-ADDR.ARPA",
+	"108.100.IN-ADDR.ARPA",
+	"109.100.IN-ADDR.ARPA",
+	"110.100.IN-ADDR.ARPA",
+	"111.100.IN-ADDR.ARPA",
+	"112.100.IN-ADDR.ARPA",
+	"113.100.IN-ADDR.ARPA",
+	"114.100.IN-ADDR.ARPA",
+	"115.100.IN-ADDR.ARPA",
+	"116.100.IN-ADDR.ARPA",
+	"117.100.IN-ADDR.ARPA",
+	"118.100.IN-ADDR.ARPA",
+	"119.100.IN-ADDR.ARPA",
+	"120.100.IN-ADDR.ARPA",
+	"121.100.IN-ADDR.ARPA",
+	"122.100.IN-ADDR.ARPA",
+	"123.100.IN-ADDR.ARPA",
+	"124.100.IN-ADDR.ARPA",
+	"125.100.IN-ADDR.ARPA",
+	"126.100.IN-ADDR.ARPA",
+	"127.100.IN-ADDR.ARPA",
+
 	/* RFC 5735 and RFC 5737 */
 	"0.IN-ADDR.ARPA",	/* THIS NETWORK */
 	"127.IN-ADDR.ARPA",	/* LOOPBACK */
@@ -457,7 +523,7 @@ configure_view_nametable(const cfg_obj_t *vconfig, const cfg_obj_t *config,
 	     element = cfg_list_next(element)) {
 		nameobj = cfg_listelt_value(element);
 		str = cfg_obj_asstring(nameobj);
-		isc_buffer_init(&b, str, strlen(str));
+		isc_buffer_constinit(&b, str, strlen(str));
 		isc_buffer_add(&b, strlen(str));
 		CHECK(dns_name_fromtext(name, &b, dns_rootname, 0, NULL));
 		/*
@@ -574,7 +640,7 @@ dstkey_fromconfig(const cfg_obj_t *vconfig, const cfg_obj_t *key,
 				   keystruct.common.rdtype,
 				   &keystruct, &rrdatabuf));
 	dns_fixedname_init(&fkeyname);
-	isc_buffer_init(&namebuf, keynamestr, strlen(keynamestr));
+	isc_buffer_constinit(&namebuf, keynamestr, strlen(keynamestr));
 	isc_buffer_add(&namebuf, strlen(keynamestr));
 	CHECK(dns_name_fromtext(keyname, &namebuf, dns_rootname, 0, NULL));
 	CHECK(dst_key_fromdns(keyname, viewclass, &rrdatabuf,
@@ -808,7 +874,17 @@ configure_view_dnsseckeys(dns_view_t *view, const cfg_obj_t *vconfig,
 	 */
 	obj = NULL;
 	(void)ns_config_get(maps, "managed-keys-directory", &obj);
-	directory = obj != NULL ? cfg_obj_asstring(obj) : NULL;
+	directory = (obj != NULL ? cfg_obj_asstring(obj) : NULL);
+	if (directory != NULL)
+		result = isc_file_isdirectory(directory);
+	if (result != ISC_R_SUCCESS) {
+		isc_log_write(ns_g_lctx, DNS_LOGCATEGORY_SECURITY,
+			      NS_LOGMODULE_SERVER, ISC_LOG_ERROR,
+			      "invalid managed-keys-directory %s: %s",
+			      directory, isc_result_totext(result));
+		goto cleanup;
+
+	}
 	CHECK(add_keydata_zone(view, directory, ns_g_mctx));
 
   cleanup:
@@ -834,7 +910,7 @@ mustbesecure(const cfg_obj_t *mbs, dns_resolver_t *resolver) {
 	{
 		obj = cfg_listelt_value(element);
 		str = cfg_obj_asstring(cfg_tuple_get(obj, "name"));
-		isc_buffer_init(&b, str, strlen(str));
+		isc_buffer_constinit(&b, str, strlen(str));
 		isc_buffer_add(&b, strlen(str));
 		CHECK(dns_name_fromtext(name, &b, dns_rootname, 0, NULL));
 		value = cfg_obj_asboolean(cfg_tuple_get(obj, "value"));
@@ -987,7 +1063,7 @@ configure_order(dns_order_t *order, const cfg_obj_t *ent) {
 	else
 		str = "*";
 	addroot = ISC_TF(strcmp(str, "*") == 0);
-	isc_buffer_init(&b, str, strlen(str));
+	isc_buffer_constinit(&b, str, strlen(str));
 	isc_buffer_add(&b, strlen(str));
 	dns_fixedname_init(&fixed);
 	result = dns_name_fromtext(dns_fixedname_name(&fixed), &b,
@@ -1173,7 +1249,7 @@ disable_algorithms(const cfg_obj_t *disabled, dns_resolver_t *resolver) {
 	dns_fixedname_init(&fixed);
 	name = dns_fixedname_name(&fixed);
 	str = cfg_obj_asstring(cfg_tuple_get(disabled, "name"));
-	isc_buffer_init(&b, str, strlen(str));
+	isc_buffer_constinit(&b, str, strlen(str));
 	isc_buffer_add(&b, strlen(str));
 	CHECK(dns_name_fromtext(name, &b, dns_rootname, 0, NULL));
 
@@ -1225,7 +1301,7 @@ on_disable_list(const cfg_obj_t *disablelist, dns_name_t *zonename) {
 	{
 		value = cfg_listelt_value(element);
 		str = cfg_obj_asstring(value);
-		isc_buffer_init(&b, str, strlen(str));
+		isc_buffer_constinit(&b, str, strlen(str));
 		isc_buffer_add(&b, strlen(str));
 		result = dns_name_fromtext(name, &b, dns_rootname,
 					   0, NULL);
@@ -1409,7 +1485,7 @@ dns64_reverse(dns_view_t *view, isc_mem_t *mctx, isc_netaddr_t *na,
 		dns64_dbtype[3] = contact;
 	dns_fixedname_init(&fixed);
 	name = dns_fixedname_name(&fixed);
-	isc_buffer_init(&b, reverse, strlen(reverse));
+	isc_buffer_constinit(&b, reverse, strlen(reverse));
 	isc_buffer_add(&b, strlen(reverse));
 	CHECK(dns_name_fromtext(name, &b, dns_rootname, 0, NULL));
 	CHECK(dns_zone_create(&zone, mctx));
@@ -1625,7 +1701,7 @@ configure_view(dns_view_t *view, cfg_obj_t *config, cfg_obj_t *vconfig,
 	ns_cache_t *nsc;
 	isc_boolean_t zero_no_soattl;
 	dns_acl_t *clients = NULL, *mapped = NULL, *excluded = NULL;
-	unsigned int query_timeout;
+	unsigned int query_timeout, ndisp;
 	struct cfg_context *nzctx;
 
 	REQUIRE(DNS_VIEW_VALID(view));
@@ -2152,7 +2228,9 @@ configure_view(dns_view_t *view, cfg_obj_t *config, cfg_obj_t *vconfig,
 		result = ISC_R_UNEXPECTED;
 		goto cleanup;
 	}
-	CHECK(dns_view_createresolver(view, ns_g_taskmgr, 31,
+
+	ndisp = 4 * ISC_MIN(ns_g_udpdisp, MAX_UDP_DISPATCH);
+	CHECK(dns_view_createresolver(view, ns_g_taskmgr, 31, ndisp,
 				      ns_g_socketmgr, ns_g_timermgr,
 				      resopts, ns_g_dispatchmgr,
 				      dispatch4, dispatch6));
@@ -2656,7 +2734,7 @@ configure_view(dns_view_t *view, cfg_obj_t *config, cfg_obj_t *vconfig,
 			obj = cfg_listelt_value(element);
 			str = cfg_obj_asstring(cfg_tuple_get(obj,
 							     "trust-anchor"));
-			isc_buffer_init(&b, str, strlen(str));
+			isc_buffer_constinit(&b, str, strlen(str));
 			isc_buffer_add(&b, strlen(str));
 			dlv = dns_fixedname_name(&view->dlv_fixed);
 			CHECK(dns_name_fromtext(dlv, &b, dns_rootname,
@@ -2709,7 +2787,7 @@ configure_view(dns_view_t *view, cfg_obj_t *config, cfg_obj_t *vconfig,
 			     element = cfg_list_next(element)) {
 				exclude = cfg_listelt_value(element);
 				str = cfg_obj_asstring(exclude);
-				isc_buffer_init(&b, str, strlen(str));
+				isc_buffer_constinit(&b, str, strlen(str));
 				isc_buffer_add(&b, strlen(str));
 				CHECK(dns_name_fromtext(name, &b, dns_rootname,
 							0, NULL));
@@ -2759,7 +2837,7 @@ configure_view(dns_view_t *view, cfg_obj_t *config, cfg_obj_t *vconfig,
 		result = ns_config_get(maps, "empty-server", &obj);
 		if (result == ISC_R_SUCCESS) {
 			str = cfg_obj_asstring(obj);
-			isc_buffer_init(&buffer, str, strlen(str));
+			isc_buffer_constinit(&buffer, str, strlen(str));
 			isc_buffer_add(&buffer, strlen(str));
 			CHECK(dns_name_fromtext(name, &buffer, dns_rootname, 0,
 						NULL));
@@ -2774,7 +2852,7 @@ configure_view(dns_view_t *view, cfg_obj_t *config, cfg_obj_t *vconfig,
 		result = ns_config_get(maps, "empty-contact", &obj);
 		if (result == ISC_R_SUCCESS) {
 			str = cfg_obj_asstring(obj);
-			isc_buffer_init(&buffer, str, strlen(str));
+			isc_buffer_constinit(&buffer, str, strlen(str));
 			isc_buffer_add(&buffer, strlen(str));
 			CHECK(dns_name_fromtext(name, &buffer, dns_rootname, 0,
 						NULL));
@@ -2797,7 +2875,7 @@ configure_view(dns_view_t *view, cfg_obj_t *config, cfg_obj_t *vconfig,
 			dns_forwarders_t *forwarders = NULL;
 			dns_view_t *pview = NULL;
 
-			isc_buffer_init(&buffer, empty, strlen(empty));
+			isc_buffer_constinit(&buffer, empty, strlen(empty));
 			isc_buffer_add(&buffer, strlen(empty));
 			/*
 			 * Look for zone on drop list.
@@ -3024,7 +3102,7 @@ configure_alternates(const cfg_obj_t *config, dns_view_t *view,
 			isc_buffer_t buffer;
 			in_port_t myport = port;
 
-			isc_buffer_init(&buffer, str, strlen(str));
+			isc_buffer_constinit(&buffer, str, strlen(str));
 			isc_buffer_add(&buffer, strlen(str));
 			dns_fixedname_init(&fixed);
 			name = dns_fixedname_name(&fixed);
@@ -3288,7 +3366,7 @@ configure_zone(const cfg_obj_t *config, const cfg_obj_t *zconfig,
 	 * Get the zone origin as a dns_name_t.
 	 */
 	zname = cfg_obj_asstring(cfg_tuple_get(zconfig, "name"));
-	isc_buffer_init(&buffer, zname, strlen(zname));
+	isc_buffer_constinit(&buffer, zname, strlen(zname));
 	isc_buffer_add(&buffer, strlen(zname));
 	dns_fixedname_init(&fixorigin);
 	CHECK(dns_name_fromtext(dns_fixedname_name(&fixorigin),
@@ -4178,7 +4256,7 @@ configure_session_key(const cfg_obj_t **maps, ns_server_t *server,
 	INSIST(result == ISC_R_SUCCESS);
 	keynamestr = cfg_obj_asstring(obj);
 	dns_fixedname_init(&fname);
-	isc_buffer_init(&buffer, keynamestr, strlen(keynamestr));
+	isc_buffer_constinit(&buffer, keynamestr, strlen(keynamestr));
 	isc_buffer_add(&buffer, strlen(keynamestr));
 	keyname = dns_fixedname_name(&fname);
 	result = dns_name_fromtext(keyname, &buffer, dns_rootname, 0, NULL);
@@ -5998,7 +6076,7 @@ zone_from_args(ns_server_t *server, char *args, const char *zonetxt,
 		viewtxt = next_token(&input, " \t");
 	}
 
-	isc_buffer_init(&buf, zonetxt, strlen(zonetxt));
+	isc_buffer_constinit(&buf, zonetxt, strlen(zonetxt));
 	isc_buffer_add(&buf, strlen(zonetxt));
 	dns_fixedname_init(&name);
 	result = dns_name_fromtext(dns_fixedname_name(&name),
@@ -6935,7 +7013,7 @@ ns_server_flushnode(ns_server_t *server, char *args, isc_boolean_t tree) {
 	if (target == NULL)
 		return (ISC_R_UNEXPECTEDEND);
 
-	isc_buffer_init(&b, target, strlen(target));
+	isc_buffer_constinit(&b, target, strlen(target));
 	isc_buffer_add(&b, strlen(target));
 	dns_fixedname_init(&fixed);
 	name = dns_fixedname_name(&fixed);
@@ -7608,7 +7686,7 @@ ns_server_add_zone(ns_server_t *server, char *args) {
 	CHECK(cfg_map_get(config, "addzone", &parms));
 
 	zonename = cfg_obj_asstring(cfg_tuple_get(parms, "name"));
-	isc_buffer_init(&buf, zonename, strlen(zonename));
+	isc_buffer_constinit(&buf, zonename, strlen(zonename));
 	isc_buffer_add(&buf, strlen(zonename));
 	dns_name_init(&dnsname, NULL);
 	isc_buffer_allocate(server->mctx, &nbuf, 256);
@@ -7781,8 +7859,7 @@ ns_server_del_zone(ns_server_t *server, char *args) {
 
 	/* Parse parameters */
 	CHECK(zone_from_args(server, args, NULL, &zone, &zonename, ISC_TRUE));
-	if (result != ISC_R_SUCCESS)
-		return (result);
+
 	if (zone == NULL) {
 		result = ISC_R_UNEXPECTEDEND;
 		goto cleanup;
@@ -7963,7 +8040,7 @@ ns_server_signing(ns_server_t *server, char *args, isc_buffer_t *text) {
 	isc_boolean_t list = ISC_FALSE, clear = ISC_FALSE;
 	isc_boolean_t chain = ISC_FALSE;
 	char keystr[DNS_SECALG_FORMATSIZE + 7];
-	isc_uint8_t hash = 0, flags = 0, iter = 0, saltlen = 0;
+	unsigned short hash = 0, flags = 0, iter = 0, saltlen = 0;
 	unsigned char salt[255];
 	const char *ptr;
 	size_t n;
@@ -8010,10 +8087,12 @@ ns_server_signing(ns_server_t *server, char *args, isc_buffer_t *text) {
 				     hashstr, flagstr, iterstr);
 			if (n == sizeof(nbuf))
 				return (ISC_R_NOSPACE);
-			n = sscanf(nbuf, "%hhd %hhd %hhd",
-				   &hash, &flags, &iter);
-			if (n != 3)
+			n = sscanf(nbuf, "%hu %hu %hu", &hash, &flags, &iter);
+			if (n != 3U)
 				return (ISC_R_BADNUMBER);
+
+			if (hash > 0xffU || flags > 0xffU)
+				return (ISC_R_RANGE);
 
 			ptr = next_token(&args, " \t");
 			if (ptr == NULL)
@@ -8038,8 +8117,10 @@ ns_server_signing(ns_server_t *server, char *args, isc_buffer_t *text) {
 		isc_buffer_putstr(text, "request queued");
 		isc_buffer_putuint8(text, 0);
 	} else if (chain) {
-		CHECK(dns_zone_setnsec3param(zone, hash, flags, iter,
-						saltlen, salt, ISC_TRUE));
+		CHECK(dns_zone_setnsec3param(zone, (isc_uint8_t)hash,
+					     (isc_uint8_t)flags, iter,
+					     (isc_uint8_t)saltlen, salt,
+					     ISC_TRUE));
 		isc_buffer_putstr(text, "request queued");
 		isc_buffer_putuint8(text, 0);
 	} else if (list) {

@@ -61,6 +61,7 @@ cleandir(char *path) {
 	DIR		*dirp;
 	struct dirent	*pe;
 	char		fullname[PATH_MAX + 1];
+	size_t		l;
 
 	dirp = opendir(path);
 	if (dirp == NULL) {
@@ -73,11 +74,16 @@ cleandir(char *path) {
 			continue;
 		if (! strcmp(pe->d_name, ".."))
 			continue;
-		strcpy(fullname, path);
-		strcat(fullname, "/");
-		strcat(fullname, pe->d_name);
-		if (remove(fullname))
-			t_info("remove(%s) failed %d\n", fullname, errno);
+		(void)strlcpy(fullname, path, sizeof(fullname));
+		(void)strlcat(fullname, "/", sizeof(fullname));
+		l = strlcat(fullname, pe->d_name, sizeof(fullname));
+		if (l < sizeof(fullname)) {
+			if (remove(fullname))
+				t_info("remove(%s) failed %d\n", fullname,
+				       errno);
+		} else
+		       t_info("unable to remove '%s/%s': path too long\n",
+			      path, pe->d_name);
 
 	}
 	(void)closedir(dirp);
@@ -98,7 +104,7 @@ use(dst_key_t *key, isc_mem_t *mctx, isc_result_t exp_result, int *nfails) {
 	dst_context_t *ctx = NULL;
 
 	isc_buffer_init(&sigbuf, sig, sizeof(sig));
-	isc_buffer_init(&databuf, data, strlen(data));
+	isc_buffer_constinit(&databuf, data, strlen(data));
 	isc_buffer_add(&databuf, strlen(data));
 	isc_buffer_usedregion(&databuf, &datareg);
 
@@ -460,7 +466,7 @@ t1(void) {
 
 	dns_fixedname_init(&fname);
 	name = dns_fixedname_name(&fname);
-	isc_buffer_init(&b, "test.", 5);
+	isc_buffer_constinit(&b, "test.", 5);
 	isc_buffer_add(&b, 5);
 	isc_result = dns_name_fromtext(name, &b, NULL, 0, NULL);
 	if (isc_result != ISC_R_SUCCESS) {
@@ -482,7 +488,7 @@ t1(void) {
 	io(name, 2, DST_ALG_RSAMD5, DST_TYPE_PRIVATE|DST_TYPE_PUBLIC,
 			mctx, DST_R_NULLKEY, &nfails, &nprobs);
 
-	isc_buffer_init(&b, "dh.", 3);
+	isc_buffer_constinit(&b, "dh.", 3);
 	isc_buffer_add(&b, 3);
 	isc_result = dns_name_fromtext(name, &b, NULL, 0, NULL);
 	if (isc_result != ISC_R_SUCCESS) {
@@ -612,24 +618,26 @@ sig_fromfile(char *path, isc_buffer_t *iscbuf) {
 	char		*p;
 	char		*buf;
 
-	rval = stat(path, &sb);
-	if (rval != 0) {
-		t_info("stat %s failed, errno == %d\n", path, errno);
-		return(1);
-	}
-
-	buf = (char *) malloc((sb.st_size + 1) * sizeof(unsigned char));
-	if (buf == NULL) {
-		t_info("malloc failed, errno == %d\n", errno);
-		return(1);
-	}
-
 	fd = open(path, O_RDONLY);
 	if (fd < 0) {
 		t_info("open failed, errno == %d\n", errno);
-		(void) free(buf);
 		return(1);
 	}
+
+	rval = fstat(fd, &sb);
+	if (rval != 0) {
+		t_info("stat %s failed, errno == %d\n", path, errno);
+		close(fd);
+		return(1);
+	}
+
+	buf = (char *) malloc((sb.st_size + 1) * sizeof(char));
+	if (buf == NULL) {
+		t_info("malloc failed, errno == %d\n", errno);
+		close(fd);
+		return(1);
+	}
+
 
 	len = sb.st_size;
 	p = buf;
@@ -703,25 +711,26 @@ t2_sigchk(char *datapath, char *sigpath, char *keyname,
 	/*
 	 * Read data from file in a form usable by dst_verify.
 	 */
-	rval = stat(datapath, &sb);
-	if (rval != 0) {
-		t_info("t2_sigchk: stat (%s) failed %d\n", datapath, errno);
-		++*nprobs;
-		return;
-	}
-
-	data = (unsigned char *) malloc(sb.st_size * sizeof(char));
-	if (data == NULL) {
-		t_info("t2_sigchk: malloc failed %d\n", errno);
-		++*nprobs;
-		return;
-	}
-
 	fd = open(datapath, O_RDONLY);
 	if (fd < 0) {
 		t_info("t2_sigchk: open failed %d\n", errno);
-		(void) free(data);
 		++*nprobs;
+		return;
+	}
+
+	rval = fstat(fd, &sb);
+	if (rval != 0) {
+		t_info("t2_sigchk: stat (%s) failed %d\n", datapath, errno);
+		++*nprobs;
+		close(fd);
+		return;
+	}
+
+	data = (unsigned char *) malloc(sb.st_size * sizeof(unsigned char));
+	if (data == NULL) {
+		t_info("t2_sigchk: malloc failed %d\n", errno);
+		++*nprobs;
+		close(fd);
 		return;
 	}
 
@@ -741,7 +750,7 @@ t2_sigchk(char *datapath, char *sigpath, char *keyname,
 	 */
 	dns_fixedname_init(&fname);
 	name = dns_fixedname_name(&fname);
-	isc_buffer_init(&b, keyname, strlen(keyname));
+	isc_buffer_constinit(&b, keyname, strlen(keyname));
 	isc_buffer_add(&b, strlen(keyname));
 	isc_result = dns_name_fromtext(name, &b, dns_rootname, 0, NULL);
 	if (isc_result != ISC_R_SUCCESS) {

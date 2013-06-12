@@ -191,6 +191,10 @@ dns_dispatchmgr_setavailports
 dns_dispatchmgr_setblackhole
 dns_dispatchmgr_setblackportlist
 dns_dispatchmgr_setstats
+dns_dispatchset_cancelall
+dns_dispatchset_create
+dns_dispatchset_destroy
+dns_dispatchset_get
 dns_dlz_writeablezone
 dns_dlzallowzonexfr
 dns_dlzconfigure
@@ -786,6 +790,7 @@ dns_zone_checknames
 dns_zone_clearforwardacl
 dns_zone_clearnotifyacl
 dns_zone_clearqueryacl
+dns_zone_clearqueryonacl
 dns_zone_clearupdateacl
 dns_zone_clearxfracl
 dns_zone_create
@@ -826,6 +831,7 @@ dns_zone_getoptions
 dns_zone_getorigin
 dns_zone_getprivatetype
 dns_zone_getqueryacl
+dns_zone_getqueryonacl
 dns_zone_getraw
 dns_zone_getrequeststats
 dns_zone_getserial

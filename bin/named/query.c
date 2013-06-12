@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2012  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2013  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -94,6 +94,10 @@
 /*% Want DNSSEC? */
 #define WANTDNSSEC(c)		(((c)->attributes & \
 				  NS_CLIENTATTR_WANTDNSSEC) != 0)
+/*% Want WANTAD? */
+#define WANTAD(c)		(((c)->attributes & \
+				  NS_CLIENTATTR_WANTAD) != 0)
+
 /*% No authority? */
 #define NOAUTHORITY(c)		(((c)->query.attributes & \
 				  NS_QUERYATTR_NOAUTHORITY) != 0)
@@ -168,39 +172,66 @@ rpz_st_clear(ns_client_t *client);
 static inline void
 inc_stats(ns_client_t *client, isc_statscounter_t counter) {
 	dns_zone_t *zone = client->query.authzone;
+	isc_stats_t *zonestats;
+#ifdef NEWSTATS
+	dns_rdatatype_t qtype;
+	dns_rdataset_t *rdataset;
+	dns_stats_t *querystats = NULL;
+#endif
 
 	isc_stats_increment(ns_g_server->nsstats, counter);
 
-	if (zone != NULL) {
-		isc_stats_t *zonestats = dns_zone_getrequeststats(zone);
-		if (zonestats != NULL)
-			isc_stats_increment(zonestats, counter);
+	if (zone == NULL)
+		return;
+
+	/* Do regular response type stats */
+	zonestats = dns_zone_getrequeststats(zone);
+
+	if (zonestats != NULL)
+		isc_stats_increment(zonestats, counter);
+
+#ifdef NEWSTATS
+	/* Do query type statistics
+	 *
+	 * We only increment per-type if we're using the authoriative
+	 * answer counter, preventing double-counting.
+	 */
+	if (counter == dns_nsstatscounter_authans) {
+		querystats = dns_zone_getrcvquerystats(zone);
+		if (querystats != NULL) {
+			rdataset = ISC_LIST_HEAD(client->query.qname->list);
+			if (rdataset != NULL) {
+				qtype = rdataset->type;
+				dns_rdatatypestats_increment(querystats, qtype);
+			}
+		}
 	}
+#endif
 }
 
 static void
 query_send(ns_client_t *client) {
 	isc_statscounter_t counter;
+
 	if ((client->message->flags & DNS_MESSAGEFLAG_AA) == 0)
 		inc_stats(client, dns_nsstatscounter_nonauthans);
 	else
 		inc_stats(client, dns_nsstatscounter_authans);
+
 	if (client->message->rcode == dns_rcode_noerror) {
-		if (ISC_LIST_EMPTY(client->message->sections[DNS_SECTION_ANSWER])) {
-			if (client->query.isreferral) {
+		dns_section_t answer = DNS_SECTION_ANSWER;
+		if (ISC_LIST_EMPTY(client->message->sections[answer])) {
+			if (client->query.isreferral)
 				counter = dns_nsstatscounter_referral;
-			} else {
+			else
 				counter = dns_nsstatscounter_nxrrset;
-			}
-		} else {
+		} else
 			counter = dns_nsstatscounter_success;
-		}
-	} else if (client->message->rcode == dns_rcode_nxdomain) {
+	} else if (client->message->rcode == dns_rcode_nxdomain)
 		counter = dns_nsstatscounter_nxdomain;
-	} else {
-		/* We end up here in case of YXDOMAIN, and maybe others */
+	else /* We end up here in case of YXDOMAIN, and maybe others */
 		counter = dns_nsstatscounter_failure;
-	}
+
 	inc_stats(client, counter);
 	ns_client_send(client);
 }
@@ -651,7 +682,7 @@ query_validatezonedb(ns_client_t *client, dns_name_t *name,
 		     dns_dbversion_t **versionp)
 {
 	isc_result_t result;
-	dns_acl_t *queryacl;
+	dns_acl_t *queryacl, *queryonacl;
 	ns_dbversion_t *dbversion;
 
 	REQUIRE(zone != NULL);
@@ -761,6 +792,21 @@ query_validatezonedb(ns_client_t *client, dns_name_t *name,
 		 * the NS_QUERYATTR_QUERYOK attribute is now valid.
 		 */
 		client->query.attributes |= NS_QUERYATTR_QUERYOKVALID;
+	}
+
+	/* If and only if we've gotten this far, check allow-query-on too */
+	if (result == ISC_R_SUCCESS) {
+		queryonacl = dns_zone_getqueryonacl(zone);
+		if (queryonacl == NULL)
+			queryonacl = client->view->queryonacl;
+
+		result = ns_client_checkaclsilent(client, NULL,
+						  queryonacl, ISC_TRUE);
+		if ((options & DNS_GETDB_NOLOG) == 0 &&
+		    result != ISC_R_SUCCESS)
+			ns_client_log(client, DNS_LOGCATEGORY_SECURITY,
+				      NS_LOGMODULE_QUERY, ISC_LOG_INFO,
+				      "query-on denied");
 	}
 
 	dbversion->acl_checked = ISC_TRUE;
@@ -3112,6 +3158,14 @@ query_addbestns(ns_client_t *client) {
 		goto cleanup;
 
 	/*
+	 * If the answer is secure only add NS records if they are secure		 * when the client may be looking for AD in the response.
+	 */
+	if (SECURE(client) && (WANTDNSSEC(client) || WANTAD(client)) &&
+	    ((rdataset->trust != dns_trust_secure) ||
+	    (sigrdataset != NULL && sigrdataset->trust != dns_trust_secure)))
+		goto cleanup;
+
+	/*
 	 * If the client doesn't want DNSSEC we can discard the sigrdataset
 	 * now.
 	 */
@@ -4171,6 +4225,8 @@ rpz_find(ns_client_t *client, dns_rdatatype_t qtype, dns_name_t *qnamef,
 	isc_result_t result;
 	dns_clientinfomethods_t cm;
 	dns_clientinfo_t ci;
+
+	REQUIRE(nodep != NULL);
 
 	dns_clientinfomethods_init(&cm, ns_client_sourceip);
 	dns_clientinfo_init(&ci, client);
@@ -5882,6 +5938,7 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype)
 			client->attributes &= ~(NS_CLIENTATTR_WANTDNSSEC |
 						DNS_MESSAGEFLAG_AD);
 			query_putrdataset(client, &sigrdataset);
+			rpz_st->q.is_zone = is_zone;
 			is_zone = ISC_TRUE;
 			rpz_log_rewrite(client, "", rpz_st->m.policy,
 					rpz_st->m.type, rpz_st->qname);
@@ -6260,6 +6317,15 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype)
 			rdataset = NULL;
 			sigrdataset = NULL;
 			type = qtype = dns_rdatatype_a;
+			rpz_st = client->query.rpz_st;
+			if (rpz_st != NULL) {
+				/*
+				 * Arrange for RPZ rewriting of any A records.
+				 */
+				if ((rpz_st->state & DNS_RPZ_REWRITTEN) != 0)
+					is_zone = rpz_st->q.is_zone;
+				rpz_st_clear(client);
+			}
 			dns64 = ISC_TRUE;
 			goto db_find;
 		}
@@ -6288,7 +6354,10 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype)
 				 * closest provable encloser.
 				 */
 				if (dns_rdataset_isassociated(rdataset) &&
-				    !dns_name_equal(qname, found)) {
+				    !dns_name_equal(qname, found) &&
+				    !(ns_g_nonearest &&
+				      qtype != dns_rdatatype_ds))
+				{
 					unsigned int count;
 					unsigned int skip;
 
@@ -6525,6 +6594,15 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype)
 			sigrdataset = NULL;
 			fname = NULL;
 			type = qtype = dns_rdatatype_a;
+			rpz_st = client->query.rpz_st;
+			if (rpz_st != NULL) {
+				/*
+				 * Arrange for RPZ rewriting of any A records.
+				 */
+				if ((rpz_st->state & DNS_RPZ_REWRITTEN) != 0)
+					is_zone = rpz_st->q.is_zone;
+				rpz_st_clear(client);
+			}
 			dns64 = ISC_TRUE;
 			goto db_find;
 		}
@@ -7025,6 +7103,15 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype)
 			rdataset = NULL;
 			sigrdataset = NULL;
 			type = qtype = dns_rdatatype_a;
+			rpz_st = client->query.rpz_st;
+			if (rpz_st != NULL) {
+				/*
+				 * Arrange for RPZ rewriting of any A records.
+				 */
+				if ((rpz_st->state & DNS_RPZ_REWRITTEN) != 0)
+					is_zone = rpz_st->q.is_zone;
+				rpz_st_clear(client);
+			}
 			dns64_exclude = dns64 = ISC_TRUE;
 			goto db_find;
 		}
@@ -7311,7 +7398,6 @@ ns_query_start(ns_client_t *client) {
 	dns_rdatatype_t qtype;
 	unsigned int saved_extflags = client->extflags;
 	unsigned int saved_flags = client->message->flags;
-	isc_boolean_t want_ad;
 
 	CTRACE("ns_query_start");
 
@@ -7407,6 +7493,7 @@ ns_query_start(ns_client_t *client) {
 	INSIST(rdataset != NULL);
 	qtype = rdataset->type;
 	dns_rdatatypestats_increment(ns_g_server->rcvquerystats, qtype);
+
 	if (dns_rdatatype_ismeta(qtype)) {
 		switch (qtype) {
 		case dns_rdatatype_any:
@@ -7473,13 +7560,11 @@ ns_query_start(ns_client_t *client) {
 		client->query.attributes &= ~NS_QUERYATTR_SECURE;
 
 	/*
-	 * Set 'want_ad' if the client has set AD in the query.
+	 * Set NS_CLIENTATTR_WANTDNSSEC if the client has set AD in the query.
 	 * This allows AD to be returned on queries without DO set.
 	 */
 	if ((message->flags & DNS_MESSAGEFLAG_AD) != 0)
-		want_ad = ISC_TRUE;
-	else
-		want_ad = ISC_FALSE;
+		client->attributes |= NS_CLIENTATTR_WANTAD;
 
 	/*
 	 * This is an ordinary query.
@@ -7504,7 +7589,7 @@ ns_query_start(ns_client_t *client) {
 	 * Set AD.  We must clear it if we add non-validated data to a
 	 * response.
 	 */
-	if (WANTDNSSEC(client) || want_ad)
+	if (WANTDNSSEC(client) || WANTAD(client))
 		message->flags |= DNS_MESSAGEFLAG_AD;
 
 	qclient = NULL;

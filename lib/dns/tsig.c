@@ -942,7 +942,8 @@ dns_tsig_sign(dns_message_t *msg) {
 		isc_buffer_t headerbuf;
 		isc_uint16_t digestbits;
 
-		ret = dst_context_create(key->key, mctx, &ctx);
+		ret = dst_context_create2(key->key, mctx,
+					  DNS_LOGCATEGORY_DNSSEC, &ctx);
 		if (ret != ISC_R_SUCCESS)
 			return (ret);
 
@@ -973,6 +974,13 @@ dns_tsig_sign(dns_message_t *msg) {
 			if (ret != ISC_R_SUCCESS)
 				goto cleanup_context;
 		}
+#if defined(__clang__)  && \
+       ( __clang_major__ < 3 || \
+	(__clang_major__ == 3 && __clang_minor__ < 2) || \
+	(__clang_major__ == 4 && __clang_minor__ < 2))
+	/* false positive: http://llvm.org/bugs/show_bug.cgi?id=14461 */
+		else memset(&querytsig, 0, sizeof(querytsig));
+#endif
 
 		/*
 		 * Digest the header.
@@ -1228,6 +1236,13 @@ dns_tsig_verify(isc_buffer_t *source, dns_message_t *msg,
 		if (ret != ISC_R_SUCCESS)
 			return (ret);
 	}
+#if defined(__clang__) && \
+       ( __clang_major__ < 3 || \
+	(__clang_major__ == 3 && __clang_minor__ < 2) || \
+	(__clang_major__ == 4 && __clang_minor__ < 2))
+	/* false positive: http://llvm.org/bugs/show_bug.cgi?id=14461 */
+		else memset(&querytsig, 0, sizeof(querytsig));
+#endif
 
 	/*
 	 * Do the key name and algorithm match that of the query?
@@ -1326,7 +1341,8 @@ dns_tsig_verify(isc_buffer_t *source, dns_message_t *msg,
 		sig_r.base = tsig.signature;
 		sig_r.length = tsig.siglen;
 
-		ret = dst_context_create(key, mctx, &ctx);
+		ret = dst_context_create2(key, mctx,
+					  DNS_LOGCATEGORY_DNSSEC, &ctx);
 		if (ret != ISC_R_SUCCESS)
 			return (ret);
 
@@ -1557,7 +1573,9 @@ tsig_verify_tcp(isc_buffer_t *source, dns_message_t *msg) {
 	key = tsigkey->key;
 
 	if (msg->tsigctx == NULL) {
-		ret = dst_context_create(key, mctx, &msg->tsigctx);
+		ret = dst_context_create2(key, mctx,
+					  DNS_LOGCATEGORY_DNSSEC,
+					  &msg->tsigctx);
 		if (ret != ISC_R_SUCCESS)
 			goto cleanup_querystruct;
 

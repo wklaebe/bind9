@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2012  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2013  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -1701,8 +1701,19 @@ dns_zone_setrequeststats(dns_zone_t *zone, isc_stats_t *stats);
  *\li	stats is a valid statistics.
  */
 
+#ifdef NEWSTATS
+void
+dns_zone_setrcvquerystats(dns_zone_t *zone, dns_stats_t *stats);
+#endif
+
 isc_stats_t *
 dns_zone_getrequeststats(dns_zone_t *zone);
+
+#ifdef NEWSTATS
+dns_stats_t *
+dns_zone_getrcvquerystats(dns_zone_t *zone);
+#endif
+
 /*%<
  * Get the additional statistics for zone, if one is installed.
  *
@@ -2018,7 +2029,7 @@ dns_zone_keydone(dns_zone_t *zone, const char *data);
 
 isc_result_t
 dns_zone_setnsec3param(dns_zone_t *zone, isc_uint8_t hash, isc_uint8_t flags,
-		       isc_uint8_t iter, isc_uint8_t saltlen,
+		       isc_uint16_t iter, isc_uint8_t saltlen,
 		       unsigned char *salt, isc_boolean_t replace);
 /*%
  * Set the NSEC3 parameters for the zone.

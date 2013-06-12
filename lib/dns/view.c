@@ -35,6 +35,7 @@
 #include <dns/adb.h>
 #include <dns/cache.h>
 #include <dns/db.h>
+#include <dns/dispatch.h>
 #include <dns/dlz.h>
 #ifdef BIND9
 #include <dns/dns64.h>
@@ -485,6 +486,10 @@ view_flushanddetach(dns_view_t **viewp, isc_boolean_t flush) {
 		view->flush = ISC_TRUE;
 	isc_refcount_decrement(&view->references, &refs);
 	if (refs == 0) {
+#ifdef BIND9
+		dns_zone_t *mkzone = NULL, *rdzone = NULL;
+#endif
+
 		LOCK(&view->lock);
 		if (!RESSHUTDOWN(view))
 			dns_resolver_shutdown(view->resolver);
@@ -500,18 +505,29 @@ view_flushanddetach(dns_view_t **viewp, isc_boolean_t flush) {
 		else
 			dns_zt_detach(&view->zonetable);
 		if (view->managed_keys != NULL) {
+			mkzone = view->managed_keys;
+			view->managed_keys = NULL;
 			if (view->flush)
-				dns_zone_flush(view->managed_keys);
-			dns_zone_detach(&view->managed_keys);
+				dns_zone_flush(mkzone);
 		}
 		if (view->redirect != NULL) {
+			rdzone = view->redirect;
+			view->redirect = NULL;
 			if (view->flush)
-				dns_zone_flush(view->redirect);
-			dns_zone_detach(&view->redirect);
+				dns_zone_flush(rdzone);
 		}
 #endif
 		done = all_done(view);
 		UNLOCK(&view->lock);
+
+#ifdef BIND9
+		/* Need to detach zones outside view lock */
+		if (mkzone != NULL)
+			dns_zone_detach(&mkzone);
+
+		if (rdzone != NULL)
+			dns_zone_detach(&rdzone);
+#endif
 	}
 
 	*viewp = NULL;
@@ -655,7 +671,8 @@ req_shutdown(isc_task_t *task, isc_event_t *event) {
 
 isc_result_t
 dns_view_createresolver(dns_view_t *view,
-			isc_taskmgr_t *taskmgr, unsigned int ntasks,
+			isc_taskmgr_t *taskmgr,
+			unsigned int ntasks, unsigned int ndisp,
 			isc_socketmgr_t *socketmgr,
 			isc_timermgr_t *timermgr,
 			unsigned int options,
@@ -676,7 +693,7 @@ dns_view_createresolver(dns_view_t *view,
 		return (result);
 	isc_task_setname(view->task, "view", view);
 
-	result = dns_resolver_create(view, taskmgr, ntasks, socketmgr,
+	result = dns_resolver_create(view, taskmgr, ntasks, ndisp, socketmgr,
 				     timermgr, options, dispatchmgr,
 				     dispatchv4, dispatchv6,
 				     &view->resolver);
@@ -708,8 +725,7 @@ dns_view_createresolver(dns_view_t *view,
 	result = dns_requestmgr_create(view->mctx, timermgr, socketmgr,
 				      dns_resolver_taskmgr(view->resolver),
 				      dns_resolver_dispatchmgr(view->resolver),
-				      dns_resolver_dispatchv4(view->resolver),
-				      dns_resolver_dispatchv6(view->resolver),
+				      dispatchv4, dispatchv6,
 				      &view->requestmgr);
 	if (result != ISC_R_SUCCESS) {
 		dns_adb_shutdown(view->adb);

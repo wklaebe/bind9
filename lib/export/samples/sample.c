@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2009  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2009, 2012  Internet Systems Consortium, Inc. ("ISC")
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -196,15 +196,15 @@ addserver(dns_client_t *client, const char *addrstr, const char *namespace) {
 	}
 	INSIST(res->ai_addrlen <= sizeof(sa.type));
 	memcpy(&sa.type, res->ai_addr, res->ai_addrlen);
-	freeaddrinfo(res);
 	sa.length = res->ai_addrlen;
+	freeaddrinfo(res);
 	ISC_LINK_INIT(&sa, link);
 	ISC_LIST_INIT(servers);
 	ISC_LIST_APPEND(servers, &sa, link);
 
 	if (namespace != NULL) {
 		namelen = strlen(namespace);
-		isc_buffer_init(&b, namespace, namelen);
+		isc_buffer_constinit(&b, namespace, namelen);
 		isc_buffer_add(&b, namelen);
 		dns_fixedname_init(&fname);
 		name = dns_fixedname_name(&fname);

@@ -283,12 +283,20 @@ typedef struct isc_socketmethods {
 				  isc_task_t *task, isc_taskaction_t action,
 				  const void *arg, isc_sockaddr_t *address,
 				  struct in6_pktinfo *pktinfo);
+	isc_result_t	(*sendto2)(isc_socket_t *sock, isc_region_t *region,
+				   isc_task_t *task, isc_sockaddr_t *address,
+				   struct in6_pktinfo *pktinfo,
+				   isc_socketevent_t *event,
+				   unsigned int flags);
 	isc_result_t	(*connect)(isc_socket_t *sock, isc_sockaddr_t *addr,
 				   isc_task_t *task, isc_taskaction_t action,
 				   const void *arg);
 	isc_result_t	(*recv)(isc_socket_t *sock, isc_region_t *region,
 				unsigned int minimum, isc_task_t *task,
 				isc_taskaction_t action, const void *arg);
+	isc_result_t	(*recv2)(isc_socket_t *sock, isc_region_t *region,
+				 unsigned int minimum, isc_task_t *task,
+				 isc_socketevent_t *event, unsigned int flags);
 	void		(*cancel)(isc_socket_t *sock, isc_task_t *task,
 				  unsigned int how);
 	isc_result_t	(*getsockname)(isc_socket_t *sock,
@@ -1130,7 +1138,7 @@ isc__socketmgr_maxudp(isc_socketmgr_t *mgr, int maxudp);
 
 #ifdef HAVE_LIBXML2
 
-void
+int
 isc_socketmgr_renderxml(isc_socketmgr_t *mgr, xmlTextWriterPtr writer);
 /*%<
  * Render internal statistics and other state into the XML document.

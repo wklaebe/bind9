@@ -1,3 +1,35 @@
+	--- 9.9.3rc2 released ---
+
+3360.	[bug]		isc-config.sh did not honour includedir and libdir
+			when set via configure. [RT #33345]
+
+3559.	[func]		Check that both forms of Sender Policy Framework
+			records exist or do not exist. [RT #33355]
+
+3558.	[bug]		IXFR of a DLZ stored zone was broken. [RT #33331]
+
+3557.	[bug]		Reloading redirect zones was broken. [RT #33292]
+
+3556.	[maint]		Added AAAA for D.ROOT-SERVERS.NET.
+
+3555.	[bug]		Address theoretical race conditions in acache.c
+			(change #3553 was incomplete). [RT #33252]
+
+3553.	[bug]		Address suspected double free in acache. [RT #33252]
+
+3552.	[bug]		Wrong getopt option string for 'nsupdate -r'.
+			[RT #33280]
+
+3549.	[doc]		Documentation for "request-nsid" was missing.
+			[RT #33153]
+
+3548.	[bug]		The NSID request code in resolver.c was broken
+			resulting in invalid EDNS options being sent.
+			[RT #33153]
+
+3547.	[bug]		Some malformed unknown rdata records were not properly
+			detected and rejected. [RT #33129]
+
 	--- 9.9.3rc1 released ---
 
 3546.	[func]		Add EUI48 and EUI64 types. [RT #33082]
@@ -57,7 +89,7 @@
 			where it should have been.  [RT #32794]
 
 	--- 9.9.3b2 released ---
-	
+
 3517.	[bug]		Reorder destruction to avoid shutdown race. [RT #32777]
 
 3515.	[port]		'%T' is not portable in strftime(). [RT #32763]
@@ -111,11 +143,11 @@
 			syntax now includes a "min-ns-dots" clause, with
 			default 1, to exclude top-level domains from
 			NSIP and NSDNAME checking. --enable-rpz-nsip and
-                        --enable-rpz-nsdname are now the default. [RT #32251]
+			--enable-rpz-nsdname are now the default. [RT #32251]
 
 3493.	[contrib]	Added BDBHPT dynamically-lodable DLZ module,
 			contributed by Mark Goldfinch. [RT #32549]
-			
+
 3492.	[bug]		Fixed a regression in zone loading performance
 			due to lock contention. [RT #30399]
 
@@ -130,7 +162,7 @@
 
 3487.	[bug]		Change 3444 was not complete.  There was a additional
 			place where the NOQNAME proof needed to be saved.
-                        [RT #32629]
+			[RT #32629]
 
 3486.	[bug]		named could crash when using TKEY-negotiated keys
 			that had been deleted and then recreated. [RT #32506]
@@ -166,7 +198,7 @@
 			refreshing after an initial failure. [RT #31276]
 
 	--- 9.9.3b1 released ---
-	
+
 3468.	[security]	RPZ rules to generate A records (but not AAAA records)
 			could trigger an assertion failure when used in
 			conjunction with DNS64 (CVE-2012-5689). [RT #32141]

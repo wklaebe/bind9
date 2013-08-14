@@ -1,3 +1,15 @@
+bind9 (1:9.9.3.dfsg.P2-1~0) experimental; urgency=low
+
+  [Internet Software Consortium, Inc]
+
+  * 9.9.3-P2
+
+  [LaMont Jones]
+
+  * Revert "Include rpz/rrl patches from http://www.redbarn.org/dns/ratelimits" for now
+
+ -- LaMont Jones <lamont@debian.org>  Wed, 14 Aug 2013 06:55:50 -0600
+
 bind9 (1:9.9.2.dfsg.P1-3) experimental; urgency=low
 
   [LaMont Jones]

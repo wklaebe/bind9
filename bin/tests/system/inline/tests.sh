@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Copyright (C) 2011, 2012  Internet Systems Consortium, Inc. ("ISC")
+# Copyright (C) 2011-2013  Internet Systems Consortium, Inc. ("ISC")
 #
 # Permission to use, copy, modify, and/or distribute this software for any
 # purpose with or without fee is hereby granted, provided that the above
@@ -103,6 +103,7 @@ status=`expr $status + $ret`
 n=`expr $n + 1`
 echo "I:checking negative private type response was properly signed ($n)"
 ret=0
+sleep 1
 $DIG $DIGOPTS @10.53.0.6 -p 5300 bits TYPE65534 > dig.out.ns6.test$n
 grep "status: NOERROR" dig.out.ns6.test$n > /dev/null || ret=1
 grep "ANSWER: 0," dig.out.ns6.test$n > /dev/null || ret=1

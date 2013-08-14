@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2007  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2007, 2013  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000, 2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -50,6 +50,7 @@ isc_stdio_close(FILE *f) {
 
 isc_result_t
 isc_stdio_seek(FILE *f, long offset, int whence) {
+	/* based on the fact off_t is typedef to long */
 	int r;
 
 	r = fseek(f, offset, whence);

@@ -1,4 +1,4 @@
-# Copyright (C) 2005, 2007, 2010-2012  Internet Systems Consortium, Inc. ("ISC")
+# Copyright (C) 2005, 2007, 2010-2013  Internet Systems Consortium, Inc. ("ISC")
 #
 # Permission to use, copy, modify, and/or distribute this software for any
 # purpose with or without fee is hereby granted, provided that the above
@@ -100,6 +100,16 @@ n=`$CHECKCONF bad-dnssec.conf 2>&1 | grep "dnssec-dnskey-kskonly.*requires inlin
 n=`$CHECKCONF bad-dnssec.conf 2>&1 | grep "dnssec-loadkeys-interval.*requires inline" | wc -l`
 [ $n -eq 1 ] || ret=1
 n=`$CHECKCONF bad-dnssec.conf 2>&1 | grep "update-check-ksk.*requires inline" | wc -l`
+[ $n -eq 1 ] || ret=1
+if [ $ret != 0 ]; then echo "I:failed"; fi
+status=`expr $status + $ret`
+
+echo "I: check file + inline-signing for slave zones"
+n=`$CHECKCONF inline-no.conf 2>&1 | grep "missing 'file' entry" | wc -l`
+[ $n -eq 0 ] || ret=1
+n=`$CHECKCONF inline-good.conf 2>&1 | grep "missing 'file' entry" | wc -l`
+[ $n -eq 0 ] || ret=1
+n=`$CHECKCONF inline-bad.conf 2>&1 | grep "missing 'file' entry" | wc -l`
 [ $n -eq 1 ] || ret=1
 if [ $ret != 0 ]; then echo "I:failed"; fi
 status=`expr $status + $ret`

@@ -67,6 +67,9 @@ copy ..\bin\dnssec\dnssec-keygen.html ..\Build\Release
 copy ..\bin\dnssec\dnssec-signzone.html ..\Build\Release
 copy ..\bin\dnssec\dnssec-dsfromkey.html ..\Build\Release
 copy ..\bin\dnssec\dnssec-keyfromlabel.html ..\Build\Release
+copy ..\bin\dnssec\dnssec-settime.html ..\Build\Release
+copy ..\bin\dnssec\dnssec-revoke.html ..\Build\Release
+copy ..\bin\dnssec\dnssec-verify.html ..\Build\Release
 copy ..\bin\pkcs11\pkcs11-keygen.html ..\Build\Release
 copy ..\bin\pkcs11\pkcs11-list.html ..\Build\Release
 copy ..\bin\pkcs11\pkcs11-destroy.html ..\Build\Release
@@ -79,16 +82,41 @@ copy ..\doc\misc\migration-4to9 ..\Build\Release
 call SetupLibs.bat
 
 rem
-rem set vcredist here so that it is correctly expanded in the if body 
+rem try to find vcredist_x86.exe upper
 rem
-set vcredist=BootStrapper\Packages\vcredist_x86\vcredist_x86.exe
+if Not Defined VCRedistPath (
+if Exist ..\..\vcredist_x86.exe set VCRedistPath=..\..\vcredist_x86.exe
+)
+
+rem
+rem get vcredist where someone said it should be
+rem
+if Defined VCRedistPath (
+
+if Exist "%VCRedistPath%" (
+
+echo Copying Visual C x86 Redistributable Installer
+
+rem
+rem Use /Y so we always have the current version of the installer.
+rem
+
+copy /Y "%VCRedistPath%" ..\Build\Release\
+copy /Y	"%VCRedistPath%" ..\Build\Debug\
+
+) else (
+
+	echo "**** %VCRedistPath% not found ****"
+
+)
+) else (
 
 if Defined FrameworkSDKDir (
 
 rem
 rem vcredist_x86.exe path relative to FrameworkSDKDir
 rem 
-if Exist "%FrameworkSDKDir%\%vcredist%" (
+if Exist "%FrameworkSDKDir%\BootStrapper\Packages\vcredist_x86\vcredist_x86.exe" (
 
 echo Copying Visual C x86 Redistributable Installer
 
@@ -96,15 +124,21 @@ rem
 rem Use /Y so we allways have the current version of the installer.
 rem
 
-copy /Y "%FrameworkSDKDir%\%vcredist%" ..\Build\Release\
-copy /Y "%FrameworkSDKDir%\%vcredist%" ..\Build\Debug\
+copy /Y "%FrameworkSDKDir%\BootStrapper\Packages\vcredist_x86\vcredist_x86.exe"  ..\Build\Release\
+copy /Y "%FrameworkSDKDir%\BootStrapper\Packages\vcredist_x86\vcredist_x86.exe"  ..\Build\Debug\
 
 ) else (
 	echo "**** %FrameworkSDKDir%\%vcredist% not found ****"
 )
 ) else (
+if NOT Defined FrameworkDir (
 	echo "**** Warning FrameworkSDKDir not defined ****"
 	echo "****         Run vsvars32.bat            ****"
+) else (
+	echo "**** vcredist_x86.exe not found ****"
+	echo "**** please set VCRedistPath ****"
+)
+)
 )
 
 echo Running Message Compiler

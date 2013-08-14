@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2006, 2007  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2006, 2007, 2013  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000, 2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -31,7 +31,9 @@
 /*
  * Define if <netdb.h> does not declare struct addrinfo.
  */
+#if _MSC_VER < 1600
 #define ISC_LWRES_NEEDADDRINFO 1
+#endif
 
 #ifdef ISC_LWRES_NEEDADDRINFO
 struct addrinfo {

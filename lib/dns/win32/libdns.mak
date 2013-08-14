@@ -184,7 +184,6 @@ CLEAN :
 	-@erase "$(INTDIR)\result.obj"
 	-@erase "$(INTDIR)\rootns.obj"
 	-@erase "$(INTDIR)\rpz.obj"
-	-@erase "$(INTDIR)\rrl.obj"
 	-@erase "$(INTDIR)\sdb.obj"
 	-@erase "$(INTDIR)\sdlz.obj"
 	-@erase "$(INTDIR)\soa.obj"
@@ -310,7 +309,6 @@ LINK32_OBJS= \
 	"$(INTDIR)\result.obj" \
 	"$(INTDIR)\rootns.obj" \
 	"$(INTDIR)\rpz.obj" \
-	"$(INTDIR)\rrl.obj" \
 	"$(INTDIR)\rriterator.obj" \
 	"$(INTDIR)\sdb.obj" \
 	"$(INTDIR)\sdlz.obj" \
@@ -507,8 +505,6 @@ CLEAN :
 	-@erase "$(INTDIR)\rootns.sbr"
 	-@erase "$(INTDIR)\rpz.obj"
 	-@erase "$(INTDIR)\rpz.sbr"
-	-@erase "$(INTDIR)\rrl.obj"
-	-@erase "$(INTDIR)\rrl.sbr"
 	-@erase "$(INTDIR)\rriterator.obj"
 	-@erase "$(INTDIR)\rriterator.sbr"
 	-@erase "$(INTDIR)\sdb.obj"
@@ -655,7 +651,6 @@ BSC32_SBRS= \
 	"$(INTDIR)\result.sbr" \
 	"$(INTDIR)\rootns.sbr" \
 	"$(INTDIR)\rpz.sbr" \
-	"$(INTDIR)\rrl.sbr" \
 	"$(INTDIR)\rriterator.sbr" \
 	"$(INTDIR)\sdb.sbr" \
 	"$(INTDIR)\sdlz.sbr" \
@@ -753,7 +748,6 @@ LINK32_OBJS= \
 	"$(INTDIR)\result.obj" \
 	"$(INTDIR)\rootns.obj" \
 	"$(INTDIR)\rpz.obj" \
-	"$(INTDIR)\rrl.obj" \
 	"$(INTDIR)\rriterator.obj" \
 	"$(INTDIR)\sdb.obj" \
 	"$(INTDIR)\sdlz.obj" \
@@ -1727,24 +1721,6 @@ SOURCE=..\rpz.c
 
 
 "$(INTDIR)\rpz.obj"	"$(INTDIR)\rpz.sbr" : $(SOURCE) "$(INTDIR)"
-	$(CPP) $(CPP_PROJ) $(SOURCE)
-
-
-!ENDIF 
-
-SOURCE=..\rrl.c
-
-!IF  "$(CFG)" == "libdns - Win32 Release"
-
-
-"$(INTDIR)\rrl.obj" : $(SOURCE) "$(INTDIR)"
-	$(CPP) $(CPP_PROJ) $(SOURCE)
-
-
-!ELSEIF  "$(CFG)" == "libdns - Win32 Debug"
-
-
-"$(INTDIR)\rrl.obj"	"$(INTDIR)\rrl.sbr" : $(SOURCE) "$(INTDIR)"
 	$(CPP) $(CPP_PROJ) $(SOURCE)
 
 

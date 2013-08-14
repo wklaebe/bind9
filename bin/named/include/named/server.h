@@ -165,12 +165,7 @@ enum {
 	dns_nsstatscounter_updatefail = 34,
 	dns_nsstatscounter_updatebadprereq = 35,
 
-	dns_nsstatscounter_rpz_rewrites = 36,
-
-	dns_nsstatscounter_ratedropped = 37,
-	dns_nsstatscounter_rateslipped = 38,
-
-	dns_nsstatscounter_max = 39
+	dns_nsstatscounter_max = 36
 };
 
 void

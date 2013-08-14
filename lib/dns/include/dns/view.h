@@ -73,7 +73,6 @@
 
 #include <dns/acl.h>
 #include <dns/fixedname.h>
-#include <dns/rrl.h>
 #include <dns/rdatastruct.h>
 #include <dns/rpz.h>
 #include <dns/types.h>
@@ -143,7 +142,6 @@ struct dns_view {
 	dns_rbt_t *			answeracl_exclude;
 	dns_rbt_t *			denyanswernames;
 	dns_rbt_t *			answernames_exclude;
-	dns_rrl_t *			rrl;
 	isc_boolean_t			provideixfr;
 	isc_boolean_t			requestnsid;
 	dns_ttl_t			maxcachettl;
@@ -166,7 +164,9 @@ struct dns_view {
 	dns_acl_t *			v4_aaaa_acl;
 	dns_dns64list_t 		dns64;
 	unsigned int 			dns64cnt;
-	dns_rpz_zones_t			*rpzs;
+	ISC_LIST(dns_rpz_zone_t)	rpz_zones;
+	isc_boolean_t			rpz_recursive_only;
+	isc_boolean_t			rpz_break_dnssec;
 
 	/*
 	 * Configurable data for server use only,

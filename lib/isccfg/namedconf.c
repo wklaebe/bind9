@@ -1030,9 +1030,10 @@ static cfg_type_t cfg_type_masterformat = {
  *  response-policy {
  *	zone <string> [ policy (given|disabled|passthru|
  *					nxdomain|nodata|cname <domain> ) ]
- *		      [ recursive-only yes|no ] [ max-policy-ttl number ] ;
- *  } [ recursive-only yes|no ] [ max-policy-ttl number ] ;
- *	 [ break-dnssec yes|no ] [ min-ns-dots number ] ;
+ *		      [ recursive-only yes|no ]
+ *		      [ max-policy-ttl number ] ;
+ *  } [ recursive-only yes|no ] [ break-dnssec yes|no ]
+ *	[ max-policy-ttl number ] ;
  */
 
 static void
@@ -1234,7 +1235,6 @@ static cfg_tuplefielddef_t rpz_fields[] = {
 	{ "recursive-only", &cfg_type_boolean, 0 },
 	{ "break-dnssec", &cfg_type_boolean, 0 },
 	{ "max-policy-ttl", &cfg_type_uint32, 0 },
-	{ "min-ns-dots", &cfg_type_uint32, 0 },
 	{ NULL, NULL, 0 }
 };
 static cfg_type_t cfg_type_rpz = {
@@ -1242,39 +1242,6 @@ static cfg_type_t cfg_type_rpz = {
 	cfg_print_kv_tuple, cfg_doc_kv_tuple, &cfg_rep_tuple,
 	rpz_fields
 };
-
-
-/*
- * rate-limit
- */
-static cfg_clausedef_t rrl_clauses[] = {
-	{ "responses-per-second", &cfg_type_uint32, 0 },
-	{ "errors-per-second", &cfg_type_uint32, 0 },
-	{ "nxdomains-per-second", &cfg_type_uint32, 0 },
-	{ "responses-per-second", &cfg_type_uint32, 0 },
-	{ "all-per-second", &cfg_type_uint32, 0 },
-	{ "slip", &cfg_type_uint32, 0 },
-	{ "window", &cfg_type_uint32, 0 },
-	{ "log-only", &cfg_type_boolean, 0 },
-	{ "qps-scale", &cfg_type_uint32, 0 },
-	{ "IPv4-prefix-length", &cfg_type_uint32, 0 },
-	{ "IPv6-prefix-length", &cfg_type_uint32, 0 },
-	{ "exempt-clients", &cfg_type_bracketed_aml, 0 },
-	{ "max-table-size", &cfg_type_uint32, 0 },
-	{ "min-table-size", &cfg_type_uint32, 0 },
-	{ NULL, NULL, 0 }
-};
-
-static cfg_clausedef_t *rrl_clausesets[] = {
-	rrl_clauses,
-	NULL
-};
-
-static cfg_type_t cfg_type_rrl = {
-	"rate-limit", cfg_parse_map, cfg_print_map, cfg_doc_map,
-	&cfg_rep_map, rrl_clausesets
-};
-
 
 
 /*%
@@ -1432,7 +1399,6 @@ view_clauses[] = {
 	   CFG_CLAUSEFLAG_NOTCONFIGURED },
 #endif
 	{ "response-policy", &cfg_type_rpz, 0 },
-	{ "rate-limit", &cfg_type_rrl, 0 },
 	{ NULL, NULL, 0 }
 };
 

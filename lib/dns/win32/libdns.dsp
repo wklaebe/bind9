@@ -346,10 +346,6 @@ SOURCE=..\include\dns\rpz.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\include\dns\rrl.h
-# End Source File
-# Begin Source File
-
 SOURCE=..\include\dns\rriterator.h
 # End Source File
 # Begin Source File
@@ -651,10 +647,6 @@ SOURCE=..\rootns.c
 # Begin Source File
 
 SOURCE=..\rpz.c
-# End Source File
-# Begin Source File
-
-SOURCE=..\rrl.c
 # End Source File
 # Begin Source File
 

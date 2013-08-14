@@ -35,7 +35,6 @@
 #include <dns/master.h>
 #include <dns/masterdump.h>
 #include <dns/rdatastruct.h>
-#include <dns/rpz.h>
 #include <dns/types.h>
 #include <dns/zt.h>
 
@@ -2045,16 +2044,6 @@ dns_zone_synckeyzone(dns_zone_t *zone);
  * Force the managed key zone to synchronize, and start the key
  * maintenance timer.
  */
-
-isc_result_t
-dns_zone_rpz_enable(dns_zone_t *zone, dns_rpz_zones_t *rpzs,
-		    dns_rpz_num_t rpz_num);
-/*%
- * Set the response policy associated with a zone.
- */
-
-dns_rpz_num_t
-dns_zone_get_rpz_num(dns_zone_t *zone);
 
 ISC_LANG_ENDDECLS
 

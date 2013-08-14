@@ -2432,6 +2432,18 @@ configure_view(dns_view_t *view, cfg_obj_t *config, cfg_obj_t *vconfig,
 	if (view->maxncachettl > 7 * 24 * 3600)
 		view->maxncachettl = 7 * 24 * 3600;
 
+	obj = NULL;
+	result = ns_config_get(maps, "min-cache-ttl", &obj);
+	INSIST(result == ISC_R_SUCCESS);
+	view->mincachettl = cfg_obj_asuint32(obj);
+
+	obj = NULL;
+	result = ns_config_get(maps, "min-ncache-ttl", &obj);
+	INSIST(result == ISC_R_SUCCESS);
+	view->minncachettl = cfg_obj_asuint32(obj);
+	if (view->minncachettl > 7 * 24 * 3600)
+		view->minncachettl = 7 * 24 * 3600;
+
 	/*
 	 * Configure the view's cache.
 	 *
@@ -3111,30 +3123,6 @@ configure_view(dns_view_t *view, cfg_obj_t *config, cfg_obj_t *vconfig,
 	result = ns_config_get(maps, "dnssec-must-be-secure", &obj);
 	if (result == ISC_R_SUCCESS)
 		CHECK(mustbesecure(obj, view->resolver));
-
-	obj = NULL;
-	result = ns_config_get(maps, "max-cache-ttl", &obj);
-	INSIST(result == ISC_R_SUCCESS);
-	view->maxcachettl = cfg_obj_asuint32(obj);
-
-	obj = NULL;
-	result = ns_config_get(maps, "max-ncache-ttl", &obj);
-	INSIST(result == ISC_R_SUCCESS);
-	view->maxncachettl = cfg_obj_asuint32(obj);
-	if (view->maxncachettl > 7 * 24 * 3600)
-		view->maxncachettl = 7 * 24 * 3600;
-
-	obj = NULL;
-	result = ns_config_get(maps, "min-cache-ttl", &obj);
-	INSIST(result == ISC_R_SUCCESS);
-	view->mincachettl = cfg_obj_asuint32(obj);
-
-	obj = NULL;
-	result = ns_config_get(maps, "min-ncache-ttl", &obj);
-	INSIST(result == ISC_R_SUCCESS);
-	view->minncachettl = cfg_obj_asuint32(obj);
-	if (view->minncachettl > 7 * 24 * 3600)
-		view->minncachettl = 7 * 24 * 3600;
 
 	obj = NULL;
 	result = ns_config_get(maps, "preferred-glue", &obj);

@@ -1054,11 +1054,12 @@ static cfg_type_t cfg_type_masterformat = {
 
 /*%
  *  response-policy {
- *	zone <string> [ policy (given|disabled|passthru|
+ *	zone <string> [ policy (given|disabled|passthru|drop|tcp-only|
  *					nxdomain|nodata|cname <domain> ) ]
  *		      [ recursive-only yes|no ] [ max-policy-ttl number ] ;
  *  } [ recursive-only yes|no ] [ max-policy-ttl number ] ;
- *	 [ break-dnssec yes|no ] [ min-ns-dots number ] ;
+ *	 [ break-dnssec yes|no ] [ min-ns-dots number ]
+ *	 [ qname-wait-recurse yes|no ]
  */
 
 static void
@@ -1083,7 +1084,7 @@ doc_rpz_cname(cfg_printer_t *pctx, const cfg_type_t *type) {
 
 /*
  * Parse
- *	given|disabled|passthru|nxdomain|nodata|cname <domain>
+ *	given|disabled|passthru|drop|tcp-only|nxdomain|nodata|cname <domain>
  */
 static isc_result_t
 cfg_parse_rpz_policy(cfg_parser_t *pctx, const cfg_type_t *type,
@@ -1214,9 +1215,12 @@ static cfg_type_t cfg_type_rpz_zone = {
 	doc_keyvalue, &cfg_rep_string,
 	&zone_kw
 };
+/*
+ * "no-op" is an obsolete equivalent of "passthru".
+ */
 static const char *rpz_policies[] = {
-	"given", "disabled", "passthru", "no-op", "nxdomain", "nodata",
-	"cname", NULL
+	"given", "disabled", "passthru", "no-op", "drop", "tcp-only",
+	"nxdomain", "nodata", "cname", NULL
 };
 static cfg_type_t cfg_type_rpz_policy_name = {
 	"policy name", cfg_parse_enum, cfg_print_ustring,
@@ -1261,6 +1265,7 @@ static cfg_tuplefielddef_t rpz_fields[] = {
 	{ "break-dnssec", &cfg_type_boolean, 0 },
 	{ "max-policy-ttl", &cfg_type_uint32, 0 },
 	{ "min-ns-dots", &cfg_type_uint32, 0 },
+	{ "qname-wait-recurse", &cfg_type_boolean, 0 },
 	{ NULL, NULL, 0 }
 };
 static cfg_type_t cfg_type_rpz = {
@@ -1268,6 +1273,40 @@ static cfg_type_t cfg_type_rpz = {
 	cfg_print_kv_tuple, cfg_doc_kv_tuple, &cfg_rep_tuple,
 	rpz_fields
 };
+
+
+/*
+ * rate-limit
+ */
+static cfg_clausedef_t rrl_clauses[] = {
+	{ "responses-per-second", &cfg_type_uint32, 0 },
+	{ "referrals-per-second", &cfg_type_uint32, 0 },
+	{ "nodata-per-second", &cfg_type_uint32, 0 },
+	{ "nxdomains-per-second", &cfg_type_uint32, 0 },
+	{ "errors-per-second", &cfg_type_uint32, 0 },
+	{ "all-per-second", &cfg_type_uint32, 0 },
+	{ "slip", &cfg_type_uint32, 0 },
+	{ "window", &cfg_type_uint32, 0 },
+	{ "log-only", &cfg_type_boolean, 0 },
+	{ "qps-scale", &cfg_type_uint32, 0 },
+	{ "ipv4-prefix-length", &cfg_type_uint32, 0 },
+	{ "ipv6-prefix-length", &cfg_type_uint32, 0 },
+	{ "exempt-clients", &cfg_type_bracketed_aml, 0 },
+	{ "max-table-size", &cfg_type_uint32, 0 },
+	{ "min-table-size", &cfg_type_uint32, 0 },
+	{ NULL, NULL, 0 }
+};
+
+static cfg_clausedef_t *rrl_clausesets[] = {
+	rrl_clauses,
+	NULL
+};
+
+static cfg_type_t cfg_type_rrl = {
+	"rate-limit", cfg_parse_map, cfg_print_map, cfg_doc_map,
+	&cfg_rep_map, rrl_clausesets
+};
+
 
 
 /*%
@@ -1425,6 +1464,7 @@ view_clauses[] = {
 	   CFG_CLAUSEFLAG_NOTCONFIGURED },
 #endif
 	{ "response-policy", &cfg_type_rpz, 0 },
+	{ "rate-limit", &cfg_type_rrl, 0 },
 	{ NULL, NULL, 0 }
 };
 

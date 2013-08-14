@@ -1,14 +1,23 @@
-bind9 (1:9.9.3.dfsg.P2-1~0) experimental; urgency=low
+bind9 (1:9.9.3.dfsg.P2-1) unstable; urgency=low
+
 
   [Internet Software Consortium, Inc]
 
   * 9.9.3-P2
 
+  [Ben Hutchings]
+
+  * Initialise OpenSSL before calling chroot().  Closes: #696661
+
   [LaMont Jones]
 
-  * Revert "Include rpz/rrl patches from http://www.redbarn.org/dns/ratelimits" for now
+  * soname changes
 
- -- LaMont Jones <lamont@debian.org>  Wed, 14 Aug 2013 06:55:50 -0600
+  [Paul Vixie]
+
+  * Reapply rpz/rrl patches from http://www.redbarn.org/dns/ratelimits
+
+ -- LaMont Jones <lamont@debian.org>  Wed, 14 Aug 2013 10:38:59 -0600
 
 bind9 (1:9.9.2.dfsg.P1-3) experimental; urgency=low
 

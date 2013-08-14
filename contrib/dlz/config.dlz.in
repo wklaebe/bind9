@@ -271,7 +271,7 @@ case "$use_dlz_bdb" in
 			# Look for libname other than libdb.so.
 			# Order is important (sigh).
 
-			bdb_libnames="db48 db-4.8 db47 db-4.7 db46 db-4.6 db45 db-4.5 db44 db-4.4 db43 db-4.3 db42 db-4.2 db41 db-4.1 db"
+			bdb_libnames="db-5.1 db-4.8 db-4.6 db42 db-4.2 db41 db-4.1 db"
 			for d in $bdb_libnames
 			do
 				if test -f "$dd/lib/lib${d}.so"
@@ -279,6 +279,18 @@ case "$use_dlz_bdb" in
 					if test "$dd" != "/usr"
 					then
 						dlz_bdb_libs="-L${dd}/lib "
+					else
+						dlz_bdb_libs=""
+					fi
+					dlz_bdb_libs="${dlz_bdb_libs}-l${d}"
+					break
+				fi
+				# Also try the multiarch path
+				if test -f "$dd/lib/${DEB_HOST_MULTIARCH}/lib${d}.so"
+				then
+					if test "$dd" != "/usr"
+					then
+						dlz_bdb_libs="-L${dd}/lib/${DEB_HOST_MULTIARCH} "
 					else
 						dlz_bdb_libs=""
 					fi

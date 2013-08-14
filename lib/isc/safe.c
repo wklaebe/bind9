@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011-2013  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2013  Internet Systems Consortium, Inc. ("ISC")
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -16,35 +16,27 @@
 
 /* $Id$ */
 
-// NS2
+/*! \file */
 
-include "../../common/rndc.key";
+#include <config.h>
 
-controls { inet 10.53.0.2 port 9953 allow { any; } keys { rndc_key; }; };
+#include <isc/safe.h>
+#include <isc/util.h>
 
-options {
-	query-source address 10.53.0.2;
-	notify-source 10.53.0.2;
-	transfer-source 10.53.0.2;
-	port 5300;
-	pid-file "named.pid";
-	listen-on { 10.53.0.2; };
-	listen-on-v6 { none; };
-	recursion no;
-	notify yes;
-	notify-delay 0;
-	allow-new-zones yes;
-};
+#ifdef _MSC_VER
+#pragma optimize("", off)
+#endif
 
-zone "bits" {
-	type master;
-	file "bits.db";
-	allow-update { any; };
-};
+isc_boolean_t
+isc_safe_memcmp(const void *s1, const void *s2, size_t n) {
+	isc_uint8_t acc = 0;
 
-zone "retransfer" {
-	type master;
-	file "retransfer.db";
-	allow-update { any; };
-	notify no;
-};
+	if (n != 0U) {
+		const isc_uint8_t *p1 = s1, *p2 = s2;
+
+		do {
+			acc |= *p1++ ^ *p2++;
+		} while (--n != 0U);
+	}
+	return (ISC_TF(acc == 0));
+}

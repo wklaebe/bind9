@@ -50,6 +50,7 @@ AC_SUBST(STD_CINCLUDES)
 AC_SUBST(STD_CDEFINES)
 AC_SUBST(STD_CWARNINGS)
 AC_SUBST(CCOPT)
+AC_SUBST(CCNOOPT)
 
 # Warn if the user specified libbind, which is now deprecated
 AC_ARG_ENABLE(libbind, [  --enable-libbind	  deprecated])
@@ -80,6 +81,7 @@ yes)
 		test "${enable_exportlib+set}" = set || enable_exportlib=yes
 		;;
 	esac
+	test "${enable_symtable+set}" = set || enable_symtable=all
 	;;
 esac
 #
@@ -363,6 +365,13 @@ case "$host" in
 	  CPPFLAGS="$CPPFLAGS -D__APPLE_USE_RFC_3542"
 	  ;;
 esac
+
+#
+# CCNOOPT defaults to -O0 on gcc and disables optimization when is last
+#
+if test "X$CCNOOPT" = "X" -a "X$GCC" = "Xyes"; then
+	CCNOOPT="-O0"
+fi
 
 AC_HEADER_STDC
 
@@ -1249,11 +1258,13 @@ then
 		*-freebsd*)
 			CC="$CC -pthread"
 			CCOPT="$CCOPT -pthread"
+			CCNOOPT="$CCNOOPT -pthread"
 			STD_CDEFINES="$STD_CDEFINES -D_THREAD_SAFE"
 			;;
 		*-openbsd*)
 			CC="$CC -pthread"
 			CCOPT="$CCOPT -pthread"
+			CCNOOPT="$CCNOOPT -pthread"
 			;;
 		*-solaris*)
 			LIBS="$LIBS -lthread"
@@ -1267,10 +1278,12 @@ then
 		*-dec-osf*)
 			CC="$CC -pthread"
 			CCOPT="$CCOPT -pthread"
+			CCNOOPT="$CCNOOPT -pthread"
 			;;
 		*-solaris*)
 			CC="$CC -mt"
 			CCOPT="$CCOPT -mt"
+			CCNOOPT="$CCNOOPT -mt"
 			;;
 		*-ibm-aix*)
 			STD_CDEFINES="$STD_CDEFINES -D_THREAD_SAFE"
@@ -1278,10 +1291,12 @@ then
 		*-sco-sysv*uw*|*-*-sysv*UnixWare*)
 			CC="$CC -Kthread"
 			CCOPT="$CCOPT -Kthread"
+			CCNOOPT="$CCNOOPT -Kthread"
 			;;
 		*-*-sysv*OpenUNIX*)
 			CC="$CC -Kpthread"
 			CCOPT="$CCOPT -Kpthread"
+			CCNOOPT="$CCNOOPT -Kpthread"
 			;;
 		esac
 	fi
@@ -1491,6 +1506,7 @@ else
 	*-dec-osf*)
 		CC="$CC -std"
 		CCOPT="$CCOPT -std"
+		CCNOOPT="$CCNOOPT -std"
 		MKDEPCC="$CC"
 		;;
 	*-hp-hpux*)
@@ -1509,6 +1525,7 @@ else
 			;;
 		esac
 		CCOPT="$CCOPT -Ae -z"
+		CCNOOPT="$CCNOOPT -Ae -z"
 		LDFLAGS="-Wl,+vnocompatwarnings $LDFLAGS"
 		MKDEPPROG='cc -Ae -E -Wp,-M >/dev/null 2>>$TMP'
 		;;
@@ -2531,7 +2548,12 @@ AC_ARG_ENABLE(linux-caps,
 	[  --disable-linux-caps	  disable linux capabilities])
 case "$enable_linux_caps" in
 	yes|'')
-		AC_CHECK_HEADERS(linux/capability.h sys/capability.h)
+		AC_CHECK_HEADERS(linux/types.h)
+		AC_CHECK_HEADERS([linux/capability.h sys/capability.h], [], [],
+				 [#ifdef HAVE_LINUX_TYPES_H
+				  #include <linux/types.h>
+				  #endif
+				 ])
 		AC_CHECK_LIB(cap, cap_set_proc)
 		;;
 	no)
@@ -3824,6 +3846,88 @@ yes)
 	make clean
 	;;
 esac
+
+AC_ARG_ENABLE(full-report,
+	[  --enable-full-report	  report values of all configure options])
+echo enable full report set to: $enable_full_report
+
+echo "========================================================================"
+echo "Configuration summary:"
+echo "------------------------------------------------------------------------"
+echo "Optional features enabled:"
+$use_threads && echo "    Multiprocessing support (--enable-threads)"
+
+test "$enable_fixed" = "yes" && \
+    echo "    Fixed RRset order (--enable-fixed-rrset)"
+test "$atf" = "no" || echo "    Automated Testing Framework (--with-atf)"
+test "$enable_filter" = "yes" && \
+    echo "    AAAA filtering (--enable-filter-aaaa)"
+test "$use_gssapi" = "no" || echo "    GSS-API (--with-gssapi)"
+test "$want_backtrace" = "yes" && \
+    echo "    Print backtrace on crash (--enable-backtrace)"
+test "$want_symtable" = "minimal" && \
+    echo "    Use symbol table for backtrace, named only (--enable-symtable)"
+test "$want_symtable" = "yes" -o "$want_symtable" = "all" && \
+    echo "    Use symbol table for backtrace, all binaries (--enable-symtable=all)"
+test "$use_pkcs11" = "no" || echo "    PKCS#11/Cryptoki support (--with-pks11)"
+
+
+# these lines are only printed if run with --enable-full-report 
+if test "$enable_full_report" = "yes"; then
+    test "$enable_ipv6" = "no" -o "$found_ipv6" = "no" || \
+        echo "    IPv6 support (--enable-ipv6)"
+    test "X$USE_OPENSSL" = "X" || \
+            echo "    OpenSSL cryptography/DNSSEC (--with-openssl)"
+    test "$OPENSSL_GOST" != "yes" || \
+            echo "    GOST algorithm support (--with-gost)"
+    test "$OPENSSL_ECDSA" != "yes" || \
+            echo "    ECDSA algorithm support (--with-ecdsa)"
+    test "X$PYTHON" = "X" || echo "    Python tools (--with-python)"
+    test "X$libxml2_libs" = "X" || echo "    XML statistics (--with-libxml2)"
+fi
+
+echo "    Dynamically loadable zone (DLZ) drivers:"
+test "$use_dlz_bdb" = "no" || \
+    echo "        Berkeley DB (--with-dlz-bdb)"
+test "$use_dlz_ldap" = "no" || \
+    echo "        LDAP (--with-dlz-ldap)"
+test "$use_dlz_mysql" = "no" || \
+    echo "        MySQL (--with-dlz-mysql)"
+test "$use_dlz_odbc" = "no" || \
+    echo "        ODBC (--with-dlz-bdb)"
+test "$use_dlz_postgres" = "no" || \
+    echo "        Postgres (--with-dlz-postgres)"
+test "$use_dlz_filesystem" = "no" || \
+    echo "        Filesystem (--with-dlz-filesystem)"
+test "$use_dlz_stub" = "no" || \
+    echo "        Stub (--with-dlz-stub)"
+test "$use_dlz_bdb $use_dlz_ldap $use_dlz_mysql $use_dlz_odbc $use_dlz_postgres $use_dlz_filesystem $use_dlz_stub" = "no no no no no no no" && echo "        None"
+echo
+
+echo "Features disabled or unavailable on this platform:"
+$use_threads || echo "    Multiprocessing support (--enable-threads)"
+test "$enable_fixed" = "yes" || \
+    echo "    Fixed RRset order (--enable-fixed-rrset)"
+test "$atf" = "no" && echo "    Automated Testing Framework (--with-atf)"
+test "$enable_filter" = "yes" || \
+    echo "    AAAA filtering (--enable-filter-aaaa)"
+test "$use_gssapi" = "no" && echo "    GSS-API (--with-gssapi)"
+test "$want_backtrace" = "yes" || \
+    echo "    Print backtrace on crash (--enable-backtrace)"
+test "$use_pkcs11" = "no" && echo "    PKCS#11/Cryptoki support (--with-pks11)"
+
+test "$enable_ipv6" = "no" -o "$found_ipv6" = "no" && \
+        echo "    IPv6 support (--enable-ipv6)"
+test "X$USE_OPENSSL" = "X" && \
+        echo "    OpenSSL cryptography/DNSSEC (--with-openssl)"
+test "X$USE_OPENSSL" != "X" -a "$OPENSSL_GOST" != "yes" && \
+    echo "    GOST algorithm support (--with-gost)"
+test "X$USE_OPENSSL" != "X" -a "$OPENSSL_ECDSA" != "yes" && \
+    echo "    ECDSA algorithm support (--with-ecdsa)"
+test "X$PYTHON" = "X" && echo "    Python tools (--with-python)"
+test "X$libxml2_libs" = "X" && echo "    XML statistics (--with-libxml2)"
+
+echo "========================================================================"
 
 if test "X$USE_OPENSSL" = "X"; then
 cat << \EOF

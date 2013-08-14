@@ -1,3 +1,37 @@
+	--- 9.9.4rc1 released ---
+
+3621.	[security]	Incorrect bounds checking on private type 'keydata'
+			can lead to a remotely triggerable REQUIRE failure
+			(CVE-2013-4854). [RT #34238]
+
+3617.	[bug]		Named was failing to answer queries during
+			"rndc reload" [RT #34098]
+
+3616.	[bug]		Change #3613 was incomplete. [RT #34177]
+
+3615.	[cleanup]	"configure" now finishes by printing a summary
+			of optional BIND features and whether they are
+			active or inactive. ("configure --enable-full-report"
+			increases the verbosity of the summary.) [RT #31777]
+
+3614.	[port]		Check for <linux/types.h>. [RT #34162]
+
+3613.	[bug]		named could crash when deleting inline-signing
+			zones with "rndc delzone". [RT #34066]
+
+3611.	[bug]		Improved resistance to a theoretical authentication
+			attack based on differential timing.  [RT #33939]
+
+3610.	[cleanup]	win32: Some executables had been omitted from the
+			installer. [RT #34116]
+
+3608.	[port]		win32: added todos.pl script to ensure all text files
+			the win32 build depends on are converted to DOS
+			newline format. [RT #22067]
+
+3607.	[bug]		dnssec-keygen had broken 'Invalid keyfile' error
+			message. [RT #34045]
+
 	--- 9.9.4b1 released ---
 
 3605.	[port]		win32: Addressed several compatibility issues
@@ -33,7 +67,7 @@
 3587.	[func]		'named -g' now checks the logging configuration but
 			does not use it. [RT #33473]
 
-3586.	[buf]		Handle errors in xmlDocDumpFormatMemoryEnc. [RT #33706]
+3586.	[bug]		Handle errors in xmlDocDumpFormatMemoryEnc. [RT #33706]
 
 3584.	[security]	Caching data from an incompletely signed zone could
 			trigger an assertion failure in resolver.c [RT #33690]
@@ -87,7 +121,7 @@
 3494.	[func]		DNS RRL: Blunt the impact of DNS reflection and
 			amplification attacks by rate-limiting substantially-
 			identical responses. To enable, use "configure
-                        --enable-rrl". [RT #28130]
+			--enable-rrl". [RT #28130]
 
 	--- 9.9.3 released ---
 

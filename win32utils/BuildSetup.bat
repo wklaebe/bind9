@@ -24,6 +24,9 @@ cd ..
 copy config.h.win32 config.h
 cd win32utils
 
+rem Make sure all the files that need to be in DOS format really are
+perl todos.pl
+
 rem Get and update for the latest build of the openssl and libxml libraries
 perl updateopenssl.pl
 perl updatelibxml2.pl
@@ -53,6 +56,7 @@ copy index.html ..\Build\Release
 copy ..\doc\arm\*.html ..\Build\Release
 copy ..\doc\arm\Bv9ARM.pdf ..\Build\Release
 copy ..\CHANGES ..\Build\Release
+if Exist ..\CHANGES.SE copy ..\CHANGES.SE ..\Build\Release
 copy ..\FAQ ..\Build\Release
 
 echo Copying the standalone manual pages.

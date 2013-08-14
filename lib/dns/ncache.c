@@ -49,7 +49,7 @@
 
 static isc_result_t
 addoptout(dns_message_t *message, dns_db_t *cache, dns_dbnode_t *node,
-	  dns_rdatatype_t covers, isc_stdtime_t now, dns_ttl_t maxttl,
+	  dns_rdatatype_t covers, isc_stdtime_t now, dns_ttl_t minttl, dns_ttl_t maxttl,
 	  isc_boolean_t optout, isc_boolean_t secure,
 	  dns_rdataset_t *addedrdataset);
 

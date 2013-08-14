@@ -4200,7 +4200,7 @@ validated(isc_task_t *task, isc_event_t *event) {
 
 		result = ncache_adderesult(fctx->rmessage, fctx->cache, node,
 					   covers, now, fctx->res->view->minncachettl, ttl, vevent->optout,
-					   ardataset, &eresult);
+					   vevent->secure, ardataset, &eresult);
 		if (result != ISC_R_SUCCESS)
 			goto noanswer_response;
 		goto answer_response;

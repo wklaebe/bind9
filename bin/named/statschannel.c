@@ -206,6 +206,10 @@ init_desc(void) {
 	SET_NSSTATDESC(updatebadprereq,
 		       "updates rejected due to prerequisite failure",
 		       "UpdateBadPrereq");
+	SET_NSSTATDESC(ratedropped, "responses dropped for rate limits",
+		       "RateDropped");
+	SET_NSSTATDESC(rateslipped, "responses truncated for rate limits",
+		       "RateSlipped");
 	SET_NSSTATDESC(rpz_rewrites, "response policy zone rewrites",
 		       "RPZRewrites");
 	INSIST(i == dns_nsstatscounter_max);

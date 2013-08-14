@@ -2081,13 +2081,20 @@ dns_zone_synckeyzone(dns_zone_t *zone);
  */
 
 isc_result_t
-dns_zone_rpz_enable(dns_zone_t *zone);
+dns_zone_rpz_enable(dns_zone_t *zone, dns_rpz_zones_t *rpzs,
+		    dns_rpz_num_t rpz_num);
 /*%
  * Set the response policy associated with a zone.
  */
 
-isc_boolean_t
-dns_zone_get_rpz(dns_zone_t *zone);
+isc_result_t
+dns_zone_rpz_enable_db(dns_zone_t *zone, dns_db_t *db);
+/*%
+ * If a zone is a response policy zone, mark its new database.
+ */
+
+dns_rpz_num_t
+dns_zone_get_rpz_num(dns_zone_t *zone);
 
 void
 dns_zone_setstatlevel(dns_zone_t *zone, dns_zonestat_level_t level);

@@ -346,9 +346,10 @@ struct dns_zone {
 	isc_boolean_t           added;
 
 	/*%
-	 * whether this is a response policy zone
+	 * response policy data to be relayed to the database
 	 */
-	isc_boolean_t           is_rpz;
+	dns_rpz_zones_t		*rpzs;
+	dns_rpz_num_t		rpz_num;
 
 	/*%
 	 * Serial number update method.
@@ -917,7 +918,8 @@ dns_zone_create(dns_zone_t **zonep, isc_mem_t *mctx) {
 	zone->nodes = 100;
 	zone->privatetype = (dns_rdatatype_t)0xffffU;
 	zone->added = ISC_FALSE;
-	zone->is_rpz = ISC_FALSE;
+	zone->rpzs = NULL;
+	zone->rpz_num = DNS_RPZ_INVALID_NUM;
 	ISC_LIST_INIT(zone->forwards);
 	zone->raw = NULL;
 	zone->secure = NULL;
@@ -1021,6 +1023,13 @@ zone_free(dns_zone_t *zone) {
 		zone_detachdb(zone);
 	if (zone->acache != NULL)
 		dns_acache_detach(&zone->acache);
+#ifdef BIND9
+	if (zone->rpzs != NULL) {
+		REQUIRE(zone->rpz_num < zone->rpzs->p.num_zones);
+		dns_rpz_detach_rpzs(&zone->rpzs);
+		zone->rpz_num = DNS_RPZ_INVALID_NUM;
+	}
+#endif
 	zone_freedbargs(zone);
 	RUNTIME_CHECK(dns_zone_setmasterswithkeys(zone, NULL, NULL, 0)
 		      == ISC_R_SUCCESS);
@@ -1513,7 +1522,9 @@ dns_zone_isdynamic(dns_zone_t *zone, isc_boolean_t ignore_freeze) {
  * Set the response policy index and information for a zone.
  */
 isc_result_t
-dns_zone_rpz_enable(dns_zone_t *zone) {
+dns_zone_rpz_enable(dns_zone_t *zone, dns_rpz_zones_t *rpzs,
+		    dns_rpz_num_t rpz_num)
+{
 	/*
 	 * Only RBTDB zones can be used for response policy zones,
 	 * because only they have the code to load the create the summary data.
@@ -1524,14 +1535,26 @@ dns_zone_rpz_enable(dns_zone_t *zone) {
 	    strcmp(zone->db_argv[0], "rbt64") != 0)
 		return (ISC_R_NOTIMPLEMENTED);
 
-	zone->is_rpz = ISC_TRUE;
+	/*
+	 * This must happen only once or be redundant.
+	 */
+	LOCK_ZONE(zone);
+	if (zone->rpzs != NULL) {
+		REQUIRE(zone->rpzs == rpzs && zone->rpz_num == rpz_num);
+	} else {
+		REQUIRE(zone->rpz_num == DNS_RPZ_INVALID_NUM);
+		dns_rpz_attach_rpzs(rpzs, &zone->rpzs);
+		zone->rpz_num = rpz_num;
+	}
+	rpzs->defined |= DNS_RPZ_ZBIT(rpz_num);
+	UNLOCK_ZONE(zone);
 
 	return (ISC_R_SUCCESS);
 }
 
-isc_boolean_t
-dns_zone_get_rpz(dns_zone_t *zone) {
-	return (zone->is_rpz);
+dns_rpz_num_t
+dns_zone_get_rpz_num(dns_zone_t *zone) {
+	return (zone->rpz_num);
 }
 
 static isc_result_t
@@ -1987,13 +2010,9 @@ zone_startload(dns_db_t *db, dns_zone_t *zone, isc_time_t loadtime) {
 	isc_result_t tresult;
 	unsigned int options;
 
-#ifdef BIND9
-	if (zone->is_rpz) {
-		result = dns_db_rpz_enabled(db, NULL);
-		if (result != ISC_R_SUCCESS)
-			return (result);
-	}
-#endif
+	result = dns_zone_rpz_enable_db(zone, db);
+	if (result != ISC_R_SUCCESS)
+		return (result);
 
 	options = get_master_options(zone);
 	if (DNS_ZONE_OPTION(zone, DNS_ZONEOPT_MANYERRORS))
@@ -2067,6 +2086,19 @@ zone_startload(dns_db_t *db, dns_zone_t *zone, isc_time_t loadtime) {
 	isc_mem_detach(&load->mctx);
 	isc_mem_put(zone->mctx, load, sizeof(*load));
 	return (result);
+}
+
+/*
+ * If a zone is a response policy zone, mark its new database.
+ */
+isc_result_t
+dns_zone_rpz_enable_db(dns_zone_t *zone, dns_db_t *db) {
+	if (zone->rpz_num != DNS_RPZ_INVALID_NUM) {
+		REQUIRE(zone->rpzs != NULL);
+		dns_db_rpz_attach(db, zone->rpzs, zone->rpz_num);
+	}
+
+	return (ISC_R_SUCCESS);
 }
 
 static isc_boolean_t
@@ -4120,6 +4152,11 @@ zone_postload(dns_zone_t *zone, dns_db_t *db, isc_time_t loadtime,
 		if (result != ISC_R_SUCCESS)
 			goto cleanup;
 	} else {
+#ifdef BIND9
+		result = dns_db_rpz_ready(db);
+		if (result != ISC_R_SUCCESS)
+			goto cleanup;
+#endif
 		zone_attachdb(zone, db);
 		ZONEDB_UNLOCK(&zone->dblock, isc_rwlocktype_write);
 		DNS_ZONE_SETFLAG(zone,
@@ -13046,6 +13083,12 @@ zone_replacedb(dns_zone_t *zone, dns_db_t *db, isc_boolean_t dump) {
 	 */
 	REQUIRE(DNS_ZONE_VALID(zone));
 	REQUIRE(LOCKED_ZONE(zone));
+
+#ifdef BIND9
+	result = dns_db_rpz_ready(db);
+	if (result != ISC_R_SUCCESS)
+		return (result);
+#endif
 
 	result = zone_get_from_db(zone, db, &nscount, &soacount,
 				  NULL, NULL, NULL, NULL, NULL, NULL);

@@ -4818,6 +4818,32 @@ category notify { null; };
 		    </para>
 		  </entry>
 		</row>
+                <row rowsep="0">
+                  <entry colname="1">
+                    <para><command>rate-limit</command></para>
+                  </entry>
+		  <entry colname="2">
+		    <para>
+		      The start, periodic, and final notices of the
+		      rate limiting of a stream of responses are logged at
+		      <command>info</command> severity in this category.
+		      These messages include a hash value of the domain name
+		      of the response and the name itself,
+		      except when there is insufficient memory to record
+		      the name for the final notice
+		      The final notice is normally delayed until about one
+		      minute after rate limit stops.
+		      A lack of memory can hurry the final notice,
+		      in which case it starts with an asterisk (*).
+		      Various internal events are logged at debug 1 level
+		      and higher.
+		    </para>
+		    <para>
+		      Rate limiting of individual requests
+		      is logged in the <command>query-errors</command> category.
+		    </para>
+		  </entry>
+		</row>
 	      </tbody>
 	    </tgroup>
 	  </informaltable>
@@ -5318,7 +5344,7 @@ badresp:1,adberr:0,findfail:0,valfail:0]
     <optional> match-mapped-addresses <replaceable>yes_or_no</replaceable>; </optional>
     <optional> filter-aaaa-on-v4 ( <replaceable>yes_or_no</replaceable> | <replaceable>break-dnssec</replaceable> ); </optional>
     <optional> filter-aaaa { <replaceable>address_match_list</replaceable> }; </optional>
-    <optional> dns64 <replaceable>IPv6-prefix</replaceable> {
+    <optional> dns64 <replaceable>ipv6-prefix</replaceable> {
 	<optional> clients { <replaceable>address_match_list</replaceable> }; </optional>
 	<optional> mapped { <replaceable>address_match_list</replaceable> }; </optional>
         <optional> exclude { <replaceable>address_match_list</replaceable> }; </optional>
@@ -5351,8 +5377,25 @@ badresp:1,adberr:0,findfail:0,valfail:0]
     <optional> resolver-query-timeout <replaceable>number</replaceable> ; </optional>
     <optional> deny-answer-addresses { <replaceable>address_match_list</replaceable> } <optional> except-from { <replaceable>namelist</replaceable> } </optional>;</optional>
     <optional> deny-answer-aliases { <replaceable>namelist</replaceable> } <optional> except-from { <replaceable>namelist</replaceable> } </optional>;</optional>
+    <optional> rate-limit {
+	<optional> responses-per-second <replaceable>number</replaceable> ; </optional>
+	<optional> referrals-per-second <replaceable>number</replaceable> ; </optional>
+	<optional> nodata-per-second <replaceable>number</replaceable> ; </optional>
+	<optional> nxdomains-per-second <replaceable>number</replaceable> ; </optional>
+	<optional> errors-per-second <replaceable>number</replaceable> ; </optional>
+	<optional> all-per-second <replaceable>number</replaceable> ; </optional>
+	<optional> window <replaceable>number</replaceable> ; </optional>
+	<optional> log-only <replaceable>yes_or_no</replaceable> ; </optional>
+	<optional> qps-scale <replaceable>number</replaceable> ; </optional>
+	<optional> ipv4-prefix-length <replaceable>number</replaceable> ; </optional>
+	<optional> ipv6-prefix-length <replaceable>number</replaceable> ; </optional>
+	<optional> slip <replaceable>number</replaceable> ; </optional>
+	<optional> exempt-clients  { <replaceable>address_match_list</replaceable> } ; </optional>
+	<optional> max-table-size <replaceable>number</replaceable> ; </optional>
+	<optional> min-table-size <replaceable>number</replaceable> ; </optional>
+      } ; </optional>
     <optional> response-policy { <replaceable>zone_name</replaceable>
-	<optional> policy given | disabled | passthru | nxdomain | nodata | cname <replaceable>domain</replaceable> </optional>
+	<optional> policy given | disabled | passthru | drop | nxdomain | nodata | cname <replaceable>domain</replaceable> </optional>
 	<optional> recursive-only <replaceable>yes_or_no</replaceable> </optional> <optional> max-policy-ttl <replaceable>number</replaceable> </optional> ;
     } <optional> recursive-only <replaceable>yes_or_no</replaceable> </optional> <optional> max-policy-ttl <replaceable>number</replaceable> </optional>
 	<optional> break-dnssec <replaceable>yes_or_no</replaceable> </optional> <optional> min-ns-dots <replaceable>number</replaceable> </optional> ; </optional>
@@ -9645,77 +9688,122 @@ deny-answer-aliases { "example.net"; };
 	    Response policy zones are named in the
 	    <command>response-policy</command> option for the view or among the
 	    global options if there is no response-policy option for the view.
-	    RPZs are ordinary DNS zones containing RRsets
+	    Response policy zones are ordinary DNS zones containing RRsets
 	    that can be queried normally if allowed.
 	    It is usually best to restrict those queries with something like
 	    <command>allow-query { localhost; };</command>.
 	  </para>
 
 	  <para>
-	    Four policy triggers are encoded in RPZ records, QNAME, IP, NSIP,
-	    and NSDNAME.
-	    QNAME RPZ records triggered by query names of requests and targets
-	    of CNAME records resolved to generate the response.
-	    The owner name of a QNAME RPZ record is the query name relativized
-	    to the RPZ.
-	  </para>
+	    Five policy triggers can be encoded in RPZ records.
+	    <variablelist>
+	      <varlistentry>
+		<term><command>RPZ-CLIENT-IP</command></term>
+		<listitem>
+		  <para>
+		    IP records are triggered by the IP address of the
+		    DNS client.
+		    Client IP address triggers are encoded in records that have
+		    owner names that are subdomains of
+		    <command>rpz-client-ip</command> relativized to the
+		    policy zone origin name
+		    and encode an address or address block.
+		    IPv4 addresses are represented as
+		    <userinput>prefixlength.B4.B3.B2.B1.rpz-ip</userinput>.
+		    The IPv4 prefix length must be between 1 and 32.
+		    All four bytes, B4, B3, B2, and B1, must be present.
+		    B4 is the decimal value of the least significant byte of the
+		    IPv4 address as in IN-ADDR.ARPA.
+		  </para>
+
+		  <para>
+		    IPv6 addresses are encoded in a format similar
+		    to the standard IPv6 text representation,
+		    <userinput>prefixlength.W8.W7.W6.W5.W4.W3.W2.W1.rpz-ip</userinput>.
+		    Each of W8,...,W1 is a one to four digit hexadecimal number
+		    representing 16 bits of the IPv6 address as in the standard 
+		    text representation of IPv6 addresses,
+		    but reversed as in IN-ADDR.ARPA.
+		    All 8 words must be present except when one set of consecutive
+		    zero words is replaced with <userinput>.zz.</userinput>
+		    analogous to double colons (::) in standard IPv6 text
+		    encodings.
+		    The IPv6 prefix length must be between 64 and 128.
+		  </para>
+		</listitem>
+	      </varlistentry>
+
+	      <varlistentry>
+		<term><command>QNAME</command></term>
+		<listitem>
+		  <para>
+		    QNAME policy records are triggered by query names of
+		    requests and targets of CNAME records resolved to generate
+		    the response.
+		    The owner name of a QNAME policy record is
+		    the query name relativized to the policy zone.
+		  </para>
+		</listitem>
+	      </varlistentry>
+
+	      <varlistentry>
+		<term><command>RPZ-IP</command></term>
+		<listitem>
+		  <para>
+		    IP triggers are IP addresses in an
+		    A or AAAA record in the ANSWER section of a response.
+		    They are encoded like client-IP triggers except as
+		    subdomains of <command>rpz-ip</command>.
+		  </para>
+		</listitem>
+	      </varlistentry>
+
+	      <varlistentry>
+		<term><command>RPZ-NSDNAME</command></term>
+		<listitem>
+		  <para>
+		    NSDNAME triggers match names of authoritative servers
+		    for the query name, a parent of the query name, a CNAME for
+		    query name, or a parent of a CNAME.
+		    They are encoded as subdomains of
+		    <command>rpz-nsdname</command> relativized
+		    to the RPZ origin name.
+		    NSIP triggers match IP addresses in A and
+		    AAAA RRsets for domains that can be checked against NSDNAME
+		    policy records.
+		  </para>
+		</listitem>
+	      </varlistentry>
+
+	      <varlistentry>
+		<term><command>RPZ-NSIP</command></term>
+		<listitem>
+		  <para>
+		    NSIP triggers are encoded like IP triggers except as
+		    subdomains of <command>rpz-nsip</command>.
+		    NSDNAME and NSIP triggers are checked only for names with at
+		    least <command>min-ns-dots</command> dots.
+		    The default value of <command>min-ns-dots</command> is 1 to
+		    exclude top level domains.
+		</para>
+		</listitem>
+	      </varlistentry>
+	    </variablelist>
 
 	  <para>
-	    The second kind of RPZ trigger is an IP address in an A and AAAA
-	    record in the ANSWER section of a response.
-	    IP address triggers are encoded in records that have owner names
-	    that are subdomains of <userinput>rpz-ip</userinput> relativized
-	    to the RPZ origin name and encode an IP address or address block.
-	    IPv4 trigger addresses are represented as
-	    <userinput>prefixlength.B4.B3.B2.B1.rpz-ip</userinput>.
-	    The prefix length must be between 1 and 32.
-	    All four bytes, B4, B3, B2, and B1, must be present.
-	    B4 is the decimal value of the least significant byte of the
-	    IPv4 address as in IN-ADDR.ARPA.
-	    IPv6 addresses are encoded in a format similar to the standard
-	    IPv6 text representation,
-	    <userinput>prefixlength.W8.W7.W6.W5.W4.W3.W2.W1.rpz-ip</userinput>.
-	    Each of W8,...,W1 is a one to four digit hexadecimal number
-	    representing 16 bits of the IPv6 address as in the standard text
-	    representation of IPv6 addresses, but reversed as in IN-ADDR.ARPA.
-	    All 8 words must be present except when consecutive
-	    zero words are replaced with <userinput>.zz.</userinput>
-	    analogous to double colons (::) in standard IPv6 text encodings.
-	    The prefix length must be between 1 and 128.
-	  </para>
-
-	  <para>
-	    NSDNAME triggers match names of authoritative servers
-	    for the query name, a parent of the query name, a CNAME for
-	    query name, or a parent of a CNAME.
-	    They are encoded as subdomains of
-	    <userinput>rpz-nsdomain</userinput> relativized
-	    to the RPZ origin name.
-	    NSIP triggers match IP addresses in A and
-	    AAAA RRsets for domains that can be checked against NSDNAME
-	    policy records.
-	    NSIP triggers are encoded like IP triggers except as subdomains of
-	    <userinput>rpz-nsip</userinput>.
-	    NSDNAME and NSIP triggers are checked only for names with at
-	    least <command>min-ns-dots</command> dots.
-	    The default value of <command>min-ns-dots</command> is 1 to
-	    exclude top level domains.
-	  </para>
-
-	  <para>
-	    The query response is checked against all RPZs, so
-	    two or more policy records can be triggered by a response.
-	    Because DNS responses can be rewritten according to at most one
+	    The query response is checked against all response policy zones,
+	    so two or more policy records can be triggered by a response.
+	    Because DNS responses are rewritten according to at most one
 	    policy record, a single record encoding an action (other than
 	    <command>DISABLED</command> actions) must be chosen.
-	    Triggers or the records that encode them are chosen in
-	    the following order:
+	    Triggers or the records that encode them are chosen for the
+	    rewriting in the following order:
 	    <itemizedlist>
 	      <listitem>Choose the triggered record in the zone that appears
-		first in the response-policy option.
+		first in the <command>response-policy</command> option.
 	      </listitem>
-	      <listitem>Prefer QNAME to IP to NSDNAME to NSIP triggers
-		in a single zone.
+	      <listitem>Prefer CLIENT-IP to QNAME to IP to NSDNAME to NSIP
+		triggers in a single zone.
 	      </listitem>
 	      <listitem>Among NSDNAME triggers, prefer the
 		trigger that matches the smallest name under the DNSSEC ordering.
@@ -9734,83 +9822,168 @@ deny-answer-aliases { "example.net"; };
 	    When the processing of a response is restarted to resolve
 	    DNAME or CNAME records and a policy record set has
 	    not been triggered,
-	    all RPZs are again consulted for the DNAME or CNAME names
-	    and addresses.
+	    all response policy zones are again consulted for the
+	    DNAME or CNAME names and addresses.
 	  </para>
 
 	  <para>
-	    RPZ record sets are sets of any types of DNS record except
-	    DNAME or DNSSEC that encode actions or responses to queries.
-	    <itemizedlist>
-	      <listitem>The <command>NXDOMAIN</command> response is encoded
-		by a CNAME whose target is the root domain (.)
-	      </listitem>
-	      <listitem>A CNAME whose target is the wildcard top-level
-		domain (*.) specifies the <command>NODATA</command> action,
-		which rewrites the response to NODATA or ANCOUNT=1.
-	      </listitem>
-	      <listitem>The <command>Local Data</command> action is
-		represented by a set ordinary DNS records that are used
-		to answer queries.  Queries for record types not the
-		set are answered with NODATA.
+	    RPZ record sets are any types of DNS record except
+	    DNAME or DNSSEC that encode actions or responses to
+	    individual queries.
+	    Any of the policies can be used with any of the triggers.
+	    For example, while the <command>TCP-only</command> policy is
+	    commonly used with <command>client-IP</command> triggers,
+	    it cn be used with any type of trigger to force the use of
+	    TCP for responses with owner names in a zone.
+	    <variablelist>
+	      <varlistentry>
+		<term><command>PASSTHRU</command></term>
+		<listitem>
+		  <para>
+		    The whitelist policy is specified
+		    by a CNAME whose target is <command>rpz-passthru</command>.
+		    It causes the response to not be rewritten
+		    and is most often used to "poke holes" in policies for
+		    CIDR blocks.
+		  </para>
+		</listitem>
+	      </varlistentry>
 
-		A special form of local data is a CNAME whose target is a
-		wildcard such as *.example.com.
-		It is used as if were an ordinary CNAME after the astrisk (*)
-		has been replaced with the query name.
-		The purpose for this special form is query logging in the
-		walled garden's authority DNS server.
-	      </listitem>
-	      <listitem>The <command>PASSTHRU</command> policy is specified
-		by a CNAME whose target is <command>rpz-passthru.</command>
-		It causes the response to not be rewritten
-		and is most often used to "poke holes" in policies for
-		CIDR blocks.
-		(A CNAME whose target is the variable part of its owner name
-		is an obsolete specification of the PASSTHRU policy.)
-	      </listitem>
-	    </itemizedlist>
+	      <varlistentry>
+		<term><command>DROP</command></term>
+		<listitem>
+		  <para>
+		    The blacklist policy is specified
+		    by a CNAME whose target is <command>rpz-drop</command>.
+		    It causes the response to be discarded.
+		    Nothing is sent to the DNS client.
+		  </para>
+		</listitem>
+	      </varlistentry>
+
+	      <varlistentry>
+		<term><command>TCP-Only</command></term>
+		<listitem>
+		  <para>
+		    The "slip" policy is specified
+		    by a CNAME whose target is <command>rpz-tcp-only</command>.
+		    It changes UDP responses to short, truncated DNS responses
+		    that require the DNS client to try again with TCP.
+		    It is used to mitigate distributed DNS reflection attacks.
+		  </para>
+		</listitem>
+	      </varlistentry>
+
+	      <varlistentry>
+		<term><command>NXDOMAIN</command></term>
+		<listitem>
+		  <para>
+		    The domain undefined response is encoded
+		    by a CNAME whose target is the root domain (.)
+		  </para>
+		</listitem>
+	      </varlistentry>
+
+	      <varlistentry>
+		<term><command>NODATA</command></term>
+		<listitem>
+		  <para>
+		    The empty set of resource records is specified by
+		    CNAME whose target is the wildcard top-level
+		    domain (*.).
+		    It rewrites the response to NODATA or ANCOUNT=1.
+		  </listitem>
+		</para>
+	      </varlistentry>
+
+	      <varlistentry>
+		<term><command>Local Data</command></term>
+		<listitem>
+		  <para>
+		    A set of ordinary DNS records can be used to answer queries.
+		    Queries for record types not the set are answered with
+		    NODATA.
+		  </para>
+
+		  <para>
+		    A special form of local data is a CNAME whose target is a
+		    wildcard such as *.example.com.
+		    It is used as if were an ordinary CNAME after the astrisk (*)
+		    has been replaced with the query name.
+		    The purpose for this special form is query logging in the
+		    walled garden's authority DNS server.
+		  </para>
+		</listitem>
+	      </varlistentry>
+	    </variablelist>
 	  </para>
 
 	  <para>
-	    The actions specified in an RPZ can be overridden with a
-	    <command>policy</command> clause in the
+	    All of the actions specified in all of the individual records
+	    in a policy zone
+	    can be overridden with a <command>policy</command> clause in the
 	    <command>response-policy</command> option.
-	    An organization using an RPZ provided by another organization might
-	    use this mechanism to redirect domains to its own walled garden.
-	    <itemizedlist>
-	      <listitem><command>GIVEN</command> says "do not override but
-		perform the action specified in the zone."
-	      </listitem>
-	      <listitem><command>DISABLED</command> causes policy records to do
-		nothing but log what they might have done.
-		The response to the DNS query will be written according to
-		any triggered policy records that are not disabled.
-		Disabled policy zones should appear first,
-		because they will often not be logged
-		if a higher precedence trigger is found first.
-	      </listitem>
-	      <listitem><command>PASSTHRU</command> causes all policy records
-		to act as if they were CNAME records with targets the variable
-		part of their owner name.  They protect the response from
-		being changed.
-	      </listitem>
-	      <listitem><command>NXDOMAIN</command> causes all RPZ records
-		to specify NXDOMAIN policies.
-	      </listitem>
-	      <listitem><command>NODATA</command> overrides with the
-		NODATA policy
-	      </listitem>
-	      <listitem><command>CNAME domain</command> causes all RPZ
-		policy records to act as if they were "cname domain" records.
-	      </listitem>
-	    </itemizedlist>
+	    An organization using a policy zone provided by another
+	    organization might use this mechanism to redirect domains
+	    to its own walled garden.
+	    <variablelist>
+	      <varlistentry>
+		<term><command>GIVEN</command></term>
+		<listitem>
+		  <para>The placeholder policy says "do not override but
+		    perform the action specified in the zone."
+		  </para>
+		</listitem>
+	      </varlistentry>
+
+	      <varlistentry>
+		<term><command>DISABLED</command></term>
+		<listitem>
+		  <para>
+		    The testing override policy causes policy zone records to do
+		    nothing but log what they would have done if the
+		    policy zone were not disabled.
+		    The response to the DNS query will be written (or not)
+		    according to any triggered policy records that are not
+		    disabled.
+		    Disabled policy zones should appear first,
+		    because they will often not be logged
+		    if a higher precedence trigger is found first.
+		  </para>
+		</listitem>
+	      </varlistentry>
+
+	      <varlistentry>
+		<term><command>PASSTHRU</command></term>,
+		<term><command>DROP</command></term>,
+		<term><command>TCP-Only</command></term>,
+		<term><command>NXDOMAIN</command></term>,
+		and
+		<term><command>NODATA</command></term>
+		<listitem>
+		  <para>
+		    override with the corresponding per-record policy.
+		  </listitem>
+		</para>
+	      </varlistentry>
+
+	      <varlistentry>
+		  <term><command>CNAME domain</command></term>
+		  <listitem>
+		    <para>
+		      causes all RPZ policy records to act as if they were
+		      "cname domain" records.
+		    </para>
+		  </listitem>
+		</varlistentry>
+	    </variablelist>
 	  </para>
 
 	  <para>
-	    By default, the actions encoded in an RPZ are applied
-	    only to queries that ask for recursion (RD=1).
-	    That default can be changed for a single RPZ or all RPZs in a view
+	    By default, the actions encoded in a response policy zone
+	    are applied only to queries that ask for recursion (RD=1).
+	    That default can be changed for a single policy zone or
+	    all response policy zones in a view
 	    with a <command>recursive-only no</command> clause.
 	    This feature is useful for serving the same zone files
 	    both inside and outside an RFC 1918 cloud and using RPZ to
@@ -9819,15 +9992,43 @@ deny-answer-aliases { "example.net"; };
 	  </para>
 
 	  <para>
-	    Also by default, RPZ actions are applied only to DNS requests that
-	    either do not request DNSSEC metadata (DO=0) or when no DNSSEC
-	    records are available for request name in the original zone (not
-	    the response policy zone).
-	    This default can be changed for all RPZs in a view with a
-	    <command>break-dnssec yes</command> clause.
-	    In that case, RPZ actions are applied regardless of DNSSEC.
-	    The name of the clause option reflects the fact that results
-	    rewritten by RPZ actions cannot verify.
+            Also by default, RPZ actions are applied only to DNS requests
+            that either do not request DNSSEC metadata (DO=0) or when no
+            DNSSEC records are available for request name in the original
+            zone (not the response policy zone).  This default can be
+            changed for all response policy zones in a view with a
+            <command>break-dnssec yes</command> clause.  In that case, RPZ
+            actions are applied regardless of DNSSEC.  The name of the
+            clause option reflects the fact that results rewritten by RPZ
+            actions cannot verify.
+	  </para>
+
+	  <para>
+            No DNS records are needed for a QNAME or Client-IP trigger.
+	    The name or IP address itself is sufficient,
+	    so in principle the query name need not be recursively resolved.
+	    However, not resolving the requested
+            name can leak the fact that response policy rewriting is in use
+            and that the name is listed in a policy zone to operators of
+            servers for listed names.  To prevent that information leak, by
+            default any recursion needed for a request is done before any
+            policy triggers are considered.  Because listed domains often
+            have slow authoritative servers, this default behavior can cost
+            significant time.
+	    The <command>qname-wait-recurse no</command> option
+            overrides that default behavior when recursion cannot
+            change a non-error response.
+	    The option does not affect QNAME or client-IP triggers
+	    in policy zones listed
+	    after other zones containing IP, NSIP and NSDNAME triggers, because
+            those may depend on the A, AAAA, and NS records that would be
+            found during recursive resolution.  It also does not affect
+            DNSSEC requests (DO=1) unless <command>break-dnssec yes</command>
+            is in use, because the response would depend on whether or not
+            RRSIG records were found during resolution.
+	    The option can cause appear to rewrite error responses
+	    such as SERVFAIL when no recursion is done to discover problems
+	    at the authoritative server.
 	  </para>
 
 	  <para>
@@ -9855,26 +10056,38 @@ deny-answer-aliases { "example.net"; };
 
 ; QNAME policy records.  There are no periods (.) after the owner names.
 nxdomain.domain.com     CNAME   .               ; NXDOMAIN policy
+*.nxdomain.domain.com   CNAME   .               ; NXDOMAIN policy
 nodata.domain.com       CNAME   *.              ; NODATA policy
+*.nodata.domain.com     CNAME   *.              ; NODATA policy
 bad.domain.com          A       10.0.0.1        ; redirect to a walled garden
                         AAAA    2001:2::1
+bzone.domain.com        CNAME   garden.example.com.
 
 ; do not rewrite (PASSTHRU) OK.DOMAIN.COM
 ok.domain.com           CNAME   rpz-passthru.
-
-bzone.domain.com        CNAME   garden.example.com.
 
 ; redirect x.bzone.domain.com to x.bzone.domain.com.garden.example.com
 *.bzone.domain.com      CNAME   *.garden.example.com.
 
 
-; IP policy records that rewrite all answers for 127/8 except 127.0.0.1
+; IP policy records that rewrite all responses containing A records in 127/8
+;       except 127.0.0.1
 8.0.0.0.127.rpz-ip      CNAME   .
 32.1.0.0.127.rpz-ip     CNAME   rpz-passthru.
 
 ; NSDNAME and NSIP policy records
 ns.domain.com.rpz-nsdname   CNAME   .
 48.zz.2.2001.rpz-nsip       CNAME   .
+
+; blacklist and whitelist some DNS clients
+112.zz.2001.rpz-client-ip    CNAME   rpz-drop.
+8.0.0.0.127.rpz-client-ip    CNAME   rpz-drop.
+
+; force some DNS clients and responses in the example.com zone to TCP
+16.0.0.1.10.rpz-client-ip   CNAME   rpz-tcp-only.
+example.com                 CNAME   rpz-tcp-only.
+*.example.com               CNAME   rpz-tcp-only.
+
 </programlisting>
           <para>
             RPZ can affect server performance.
@@ -9897,6 +10110,223 @@ ns.domain.com.rpz-nsdname   CNAME   .
             <command>RPZRewrites</command> statistics.
           </para>
         </sect3>
+
+	<sect3>
+	  <title>Response Rate Limiting</title>
+	  <para>
+	    Excessive almost-identical UDP <emphasis>responses</emphasis>
+	    can be controlled by configuring a
+	    <command>rate-limit</command> clause in an
+	    <command>options</command> or <command>view</command> statement.
+	    This mechanism keeps authoritative BIND 9 from being used
+	    in amplifying reflection denial of service (DoS) attacks.
+	    Short truncated (TC=1) responses can be sent to provide
+	    rate-limited responses to legitimate clients within
+	    a range of forged, attacked IP addresses.
+	    Legitimate clients react to dropped or truncated response
+	    by retrying with UDP or with TCP respectively.
+	  </para>
+
+	  <para>
+	    This mechanism is intended for authoritative DNS servers.
+	    It can be used on recursive servers but can slow
+	    applications such as SMTP servers (mail receivers) and
+	    HTTP clients (web browsers) that repeatedly request the
+	    same domains.
+	    When possible, closing "open" recursive servers is better.
+	  </para>
+
+	  <para>
+	    Response rate limiting uses a "credit" or "token bucket" scheme.
+	    Each combination of identical response and client
+	    has a conceptual account that earns a specified number
+	    of credits every second.
+	    A prospective response debits its account by one.
+	    Responses are dropped or truncated
+	    while the account is negative.
+            Responses are tracked within a rolling window of time
+            which defaults to 15 seconds, but can be configured with
+            the <command>window</command> option to any value from
+            1 to 3600 seconds (1 hour).
+	    The account cannot become more positive than
+	    the per-second limit
+	    or more negative than <command>window</command>
+	    times the per-second limit.
+            When the specified number of credits for a class of
+            responses is set to 0, those responses are not rate limited.
+	  </para>
+
+	  <para>
+	    The notions of "identical response" and "DNS client"
+	    for rate limiting are not simplistic.
+	    All responses to an address block are counted as if to a
+	    single client.
+	    The prefix lengths of addresses blocks are
+	    specified with <command>ipv4-prefix-length</command> (default 24)
+	    and <command>ipv6-prefix-length</command> (default 56).
+	  </para>
+
+	  <para>
+	    All non-empty responses for a valid domain name (qname)
+	    and record type (qtype) are identical and have a limit specified
+	    with <command>responses-per-second</command>
+	    (default 0 or no limit).
+	    All empty (NODATA) responses for a valid domain,
+	    regardless of query type, are identical.
+	    Responses in the NODATA class are limited by
+	    <command>nodata-per-second</command>
+	    (default <command>responses-per-second</command>).
+	    Requests for any and all undefined subdomains of a given
+            valid domain result in NXDOMAIN errors, and are identical
+            regardless of query type.
+	    They are limited by <command>nxdomain-per-second</command>
+	    (default <command>responses-per-second</command>).
+	    This controls some attacks using random names, but
+	    can be relaxed or turned off (set to 0)
+	    on servers that expect many legitimate
+	    NXDOMAIN responses, such as from anti-spam blacklists.
+	    Referrals or delegations to the server of a given
+	    domain are identical and are limited by
+	    <command>referrals-per-second</command>
+	    (default <command>responses-per-second</command>).
+	  </para>
+
+	  <para>
+	    Responses generated from local wildcards are counted and limited
+	    as if they were for the parent domain name.
+	    This controls flooding using random.wild.example.com.
+	  </para>
+
+	  <para>
+            All requests that result in DNS errors other
+	    than NXDOMAIN, such as SERVFAIL and FORMERR, are identical
+            regardless of requested name (qname) or record type (qtype).
+	    This controls attacks using invalid requests or distant,
+	    broken authoritative servers.
+	    By default the limit on errors is the same as the
+	    <command>responses-per-second</command> value,
+	    but it can be set separately with
+	    <command>errors-per-second</command>.
+	  </para>
+
+	  <para>
+	    Many attacks using DNS involve UDP requests with forged source
+	    addresses.
+	    Rate limiting prevents the use of BIND 9 to flood a network
+	    with responses to requests with forged source addresses,
+	    but could let a third party block responses to legitimate requests.
+	    There is a mechanism that can answer some legitimate
+	    requests from a client whose address is being forged in a flood.
+	    Setting <command>slip</command> to 2 (its default) causes every
+	    other UDP request to be answered with a small truncated (TC=1)
+	    response.
+	    The small size and reduced frequency, and so lack of
+	    amplification, of "slipped" responses make them unattractive
+	    for reflection DoS attacks.
+	    <command>slip</command> must be between 0 and 10.
+	    A value of 0 does not "slip";
+	    no truncated responses are sent due to rate limiting.
+	    Some error responses including REFUSED and SERVFAIL
+	    cannot be replaced with truncated responses and are instead
+	    leaked at the <command>slip</command> rate.
+	  </para>
+
+	  <para>
+	    When the approximate query per second rate exceeds
+	    the <command>qps-scale</command> value,
+	    then the <command>responses-per-second</command>,
+	    <command>errors-per-second</command>,
+	    <command>nxdomains-per-second</command> and
+	    <command>all-per-second</command> values are reduced by the
+	    ratio of the current rate to the <command>qps-scale</command> value.
+	    This feature can tighten defenses during attacks.
+	    For example, with
+	    <command>qps-scale 250; responses-per-second 20;</command> and
+	    a total query rate of 1000 queries/second for all queries from
+	    all DNS clients including via TCP,
+	    then the effective responses/second limit changes to
+	    (250/1000)*20 or 5.
+	    Responses sent via TCP are not limited
+	    but are counted to compute the query per second rate.
+	  </para>
+
+	  <para>
+	    Communities of DNS clients can be given their own parameters or no
+	    rate limiting by putting
+	    <command>rate-limit</command> statements in <command>view</command>
+	    statements instead of the global <command>option</command>
+	    statement.
+	    A <command>rate-limit</command> statement in a view replaces,
+	    rather than supplementing, a <command>rate-limit</command>
+	    statement among the main options.
+	    DNS clients within a view can be exempted from rate limits
+	    with the <command>exempt-clients</command> clause.
+	  </para>
+
+	  <para>
+	    UDP responses of all kinds can be limited with the
+	    <command>all-per-second</command> phrase.
+	    This rate limiting is unlike the rate limiting provided by
+	    <command>responses-per-second</command>,
+	    <command>errors-per-second</command>, and
+	    <command>nxdomains-per-second</command> on a DNS server
+	    which are often invisible to the victim of a DNS reflection attack.
+	    Unless the forged requests of the attack are the same as the
+	    legitimate requests of the victim, the victim's requests are
+	    not affected.
+	    Responses affected by an <command>all-per-second</command> limit
+	    are always dropped; the <command>slip</command> value has no
+	    effect.
+	    An <command>all-per-second</command> limit should be
+	    at least 4 times as large as the other limits,
+	    because single DNS clients often send bursts of legitimate
+	    requests.
+	    For example, the receipt of a single mail message can prompt
+	    requests from an SMTP server for NS, PTR, A, and AAAA records
+	    as the incoming SMTP/TCP/IP connection is considered.
+	    The SMTP server can need additional NS, A, AAAA, MX, TXT, and SPF
+	    records as it considers the STMP <command>Mail From</command>
+	    command.
+	    Web browsers often repeatedly resolve the same names that
+	    are repeated in HTML &lt;IMG&gt; tags in a page.
+	    <command>All-per-second</command> is similar to the
+	    rate limiting offered by firewalls but often inferior.
+	    Attacks that justify ignoring the
+	    contents of DNS responses are likely to be attacks on the
+	    DNS server itself.
+	    They usually should be discarded before the DNS server
+	    spends resources make TCP connections or parsing DNS requesets,
+	    but that rate limiting must be done before the
+	    DNS server sees the requests.
+	  </para>
+
+	  <para>
+	    The maximum size of the table used to track requests and
+	    rate limit responses is set with <command>max-table-size</command>.
+	    Each entry in the table is between 40 and 80 bytes.
+	    The table needs approximately as many entries as the number
+	    of requests received per second.
+	    The default is 20,000.
+	    To reduce the cold start of growing the table,
+	    <command>min-table-size</command> (default 500)
+	    can set the minimum table size.
+	    Enable <command>rate-limit</command> category logging to monitor
+	    expansions of the table and inform
+	    choices for the initial and maximum table size.
+	  </para>
+
+	  <para>
+	    Use <command>log-only yes</command> to test rate limiting parameters
+	    without actually dropping any requests.
+	  </para>
+
+	  <para>
+	    Responses dropped by rate limits are included in the
+	    <command>RateDropped</command> and <command>QryDropped</command>
+	    statistics.
+	    Responses that truncated by rate limits are included in
+	    <command>RateSlipped</command> and <command>RespTruncated</command>.
+	</sect3>
       </sect2>
 
       <sect2 id="server_statement_grammar">
@@ -14646,6 +15076,32 @@ HOST-127.EXAMPLE. MX 0 .
 		    <entry colname="3">
 		      <para>
 			Response policy zone rewrites.
+		      </para>
+		    </entry>
+		  </row>
+		  <row rowsep="0">
+		    <entry colname="1">
+		      <para><command>RateDropped</command></para>
+		    </entry>
+		    <entry colname="2">
+		      <para><command></command></para>
+		    </entry>
+		    <entry colname="3">
+		      <para>
+			Responses dropped by rate limits.
+		      </para>
+		    </entry>
+		  </row>
+		  <row rowsep="0">
+		    <entry colname="1">
+		      <para><command>RateSlipped</command></para>
+		    </entry>
+		    <entry colname="2">
+		      <para><command></command></para>
+		    </entry>
+		    <entry colname="3">
+		      <para>
+			Responses truncated by rate limits.
 		      </para>
 		    </entry>
 		  </row>

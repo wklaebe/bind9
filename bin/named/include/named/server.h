@@ -167,7 +167,10 @@ enum {
 
 	dns_nsstatscounter_rpz_rewrites = 36,
 
-	dns_nsstatscounter_max = 37
+	dns_nsstatscounter_ratedropped = 37,
+	dns_nsstatscounter_rateslipped = 38,
+
+	dns_nsstatscounter_max = 39
 };
 
 void

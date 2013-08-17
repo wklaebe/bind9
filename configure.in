@@ -352,7 +352,7 @@ case "$host" in
 	# as it breaks how the two halves (Basic and Advanced) of the IPv6
 	# Socket API were designed to be used but we have to live with it.
 	# Define _GNU_SOURCE to pull in the IPv6 Advanced Socket API.
-	*-linux* | *-kfreebsd*-gnu)
+	*-linux*|*-gnu*)
 		STD_CDEFINES="$STD_CDEFINES -D_GNU_SOURCE"
 		CPPFLAGS="$CPPFLAGS -D_GNU_SOURCE"
 		;;
@@ -1365,7 +1365,7 @@ then
 		# LinuxThreads requires some changes to the way we
 		# deal with signals.
 		#
-		*-linux*)
+		*-linux*|*-kfreebsd*-gnu)
 			AC_DEFINE(HAVE_LINUXTHREADS)
 			;;
 		#

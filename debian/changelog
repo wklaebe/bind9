@@ -1,3 +1,17 @@
+bind9 (1:9.9.3.dfsg.P2-2) unstable; urgency=low
+
+  * ack NMUs of 9.8.4
+    - upstream 9.9.3-P2 fixes: CVE-2013-4854, CVE-2012-5689,
+      CVE-2013-2266
+    - deliver rrl.h
+
+  [LaMont Jones]
+
+  * Use ISC's bin/tests
+  * Diff cleanup and rationalization to 9.9.3 upstream
+
+ -- LaMont Jones <lamont@debian.org>  Sat, 17 Aug 2013 07:09:54 -0600
+
 bind9 (1:9.9.3.dfsg.P2-1) unstable; urgency=low
 
 
@@ -52,6 +66,32 @@ bind9 (1:9.9.2.dfsg.P1-2) experimental; urgency=low
   * Build and deliver dnssec-checkds and dnssec-verify in bind9utils
 
  -- LaMont Jones <lamont@debian.org>  Wed, 09 Jan 2013 10:09:40 -0700
+
+bind9 (1:9.8.4.dfsg.P1-6+nmu3) unstable; urgency=high
+
+  * Non-maintainer upload by the Security Team.
+  * CVE-2013-4854: A specially crafted query that includes malformed rdata can
+    cause named to terminate with an assertion failure while rejecting the
+    malformed query. (Closes: #717936).
+
+ -- Salvatore Bonaccorso <carnil@debian.org>  Sat, 27 Jul 2013 10:24:07 +0200
+
+bind9 (1:9.8.4.dfsg.P1-6+nmu2) unstable; urgency=medium
+
+  * Non-maintainer upload.
+  * Install /usr/include/dns/rrl.h (closes: #699834).
+
+ -- Michael Gilbert <mgilbert@debian.org>  Tue, 16 Apr 2013 01:59:05 +0000
+
+bind9 (1:9.8.4.dfsg.P1-6+nmu1) unstable; urgency=high
+
+  * Non-maintainer upload by the Security Team.
+  * Fix cve-2012-5689: issue in nameservers using DNS64 to perform a AAAA
+    lookup for a record with an A record overwrite rule in a Response Policy
+    Zone (closes: #699145).
+  * Fix cve-2013-2266: issues in regular expression handling (closes: #704174).
+
+ -- Michael Gilbert <mgilbert@debian.org>  Fri, 29 Mar 2013 00:47:25 +0000
 
 bind9 (1:9.8.4.dfsg.P1-6) unstable; urgency=low
 

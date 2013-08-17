@@ -18,4 +18,4 @@
 
 ../../../tools/genrandom 400 random.data
 
-(cd ns3 && sh -e sign.sh)
+(cd ns1 && sh -e sign.sh)

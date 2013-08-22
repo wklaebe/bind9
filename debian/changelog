@@ -1,3 +1,22 @@
+bind9 (1:9.9.3.dfsg.P2-2build1) saucy; urgency=low
+
+  [Marc Deslauriers]
+
+  * 9.9.2.dfsg.P1-2ubuntu1: fixed in 9.9.3b1
+  * 9.9.2.dfsg.P1-2ubuntu3: fixed in 9.9.3-P2
+
+  [Robie Basak]
+
+  * 9.9.2.dfsg.P1-2ubuntu2: fixed in 9.9.3b1
+
+  [LaMont Jones]
+
+  * Merge ubuntu changes, except: autoconf files are generated as part
+    of the source packagee creation, not on the build host.  NAK
+  * That is, the merge consists only of this changelog.
+
+ -- LaMont Jones <lamont@debian.org>  Thu, 22 Aug 2013 10:57:17 -0600
+
 bind9 (1:9.9.3.dfsg.P2-2) unstable; urgency=low
 
   * ack NMUs of 9.8.4
@@ -44,6 +63,33 @@ bind9 (1:9.9.2.dfsg.P1-3) experimental; urgency=low
   * Initialise OpenSSL before calling chroot().  Closes: #696661
 
  -- LaMont Jones <lamont@debian.org>  Mon, 04 Mar 2013 09:30:50 -0700
+
+bind9 (1:9.9.2.dfsg.P1-2ubuntu3) saucy; urgency=low
+
+  * SECURITY UPDATE: denial of service via incorrect bounds checking on
+    private type 'keydata'
+    - lib/dns/rdata/generic/keydata_65533.c: check for correct length.
+    - Patch backported from 9.9.3-P2
+    - CVE-2013-4854
+
+ -- Marc Deslauriers <marc.deslauriers@ubuntu.com>  Sun, 28 Jul 2013 10:13:06 -0400
+
+bind9 (1:9.9.2.dfsg.P1-2ubuntu2) raring; urgency=low
+
+  * configure.in: detect libxml 2.9 as well as 2.[678] (LP: #1164475). 
+  * debian/control: add Build-Depends on dh-autoreconf.
+  * debian/rules: use dh_autoreconf and dh_autoreconf_clean.
+
+ -- Robie Basak <robie.basak@canonical.com>  Wed, 10 Apr 2013 16:50:28 +0000
+
+bind9 (1:9.9.2.dfsg.P1-2ubuntu1) raring; urgency=low
+
+  * SECURITY UPDATE: denial of service via regex syntax checking
+    - configure,configure.in,config.h.in: remove check for regex.h to
+      disable regex syntax checking.
+    - CVE-2013-2266
+
+ -- Marc Deslauriers <marc.deslauriers@ubuntu.com>  Thu, 28 Mar 2013 15:04:57 -0400
 
 bind9 (1:9.9.2.dfsg.P1-2) experimental; urgency=low
 

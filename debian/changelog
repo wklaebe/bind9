@@ -1,3 +1,12 @@
+bind9 (1:9.9.2.dfsg.P1-2ubuntu1) raring; urgency=low
+
+  * SECURITY UPDATE: denial of service via regex syntax checking
+    - configure,configure.in,config.h.in: remove check for regex.h to
+      disable regex syntax checking.
+    - CVE-2013-2266
+
+ -- Marc Deslauriers <marc.deslauriers@ubuntu.com>  Thu, 28 Mar 2013 15:04:57 -0400
+
 bind9 (1:9.9.2.dfsg.P1-2) experimental; urgency=low
 
   [Michael Gilbert]

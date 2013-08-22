@@ -1,3 +1,13 @@
+bind9 (1:9.9.2.dfsg.P1-2ubuntu3) saucy; urgency=low
+
+  * SECURITY UPDATE: denial of service via incorrect bounds checking on
+    private type 'keydata'
+    - lib/dns/rdata/generic/keydata_65533.c: check for correct length.
+    - Patch backported from 9.9.3-P2
+    - CVE-2013-4854
+
+ -- Marc Deslauriers <marc.deslauriers@ubuntu.com>  Sun, 28 Jul 2013 10:13:06 -0400
+
 bind9 (1:9.9.2.dfsg.P1-2ubuntu2) raring; urgency=low
 
   * configure.in: detect libxml 2.9 as well as 2.[678] (LP: #1164475). 

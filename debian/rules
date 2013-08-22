@@ -23,6 +23,11 @@ else
 OPT = -O2
 endif
 
+ifneq (,$(filter parallel=%,$(DEB_BUILD_OPTIONS)))
+NUMJOBS = $(patsubst parallel=%,%,$(filter parallel=%,$(DEB_BUILD_OPTIONS)))
+export MAKEFLAGS += -j$(NUMJOBS)
+endif
+
 export CFLAGS=-fno-strict-aliasing -DDIG_SIGCHASE $(DEBUG) $(OPT)
 
 ifeq ($(DEB_HOST_ARCH_OS),kfreebsd)
@@ -50,13 +55,13 @@ configure-stamp:
 		--enable-ipv6 \
 		$(EXTRA_FEATURES)
 
-	touch configure-stamp
+	touch $@
 
-build: configure-stamp build-stamp
-build-stamp:
+build: build-stamp
+build-stamp: configure-stamp
 	dh_testdir
 	LD_LIBRARY_PATH=$$(pwd)/lib/isc/.libs:$$(pwd)/lib/isccc/.libs:$$(pwd)/isccfg/.libs:$${LD_LIBRARY_PATH} $(MAKE)
-	touch build-stamp
+	touch $@
 
 autofiles:
 	libtoolize --automake --copy --force

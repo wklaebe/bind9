@@ -1,3 +1,11 @@
+bind9 (1:9.9.2.dfsg.P1-2ubuntu2) raring; urgency=low
+
+  * configure.in: detect libxml 2.9 as well as 2.[678] (LP: #1164475). 
+  * debian/control: add Build-Depends on dh-autoreconf.
+  * debian/rules: use dh_autoreconf and dh_autoreconf_clean.
+
+ -- Robie Basak <robie.basak@canonical.com>  Wed, 10 Apr 2013 16:50:28 +0000
+
 bind9 (1:9.9.2.dfsg.P1-2ubuntu1) raring; urgency=low
 
   * SECURITY UPDATE: denial of service via regex syntax checking

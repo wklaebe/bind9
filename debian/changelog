@@ -1,3 +1,16 @@
+bind9 (1:9.9.3.dfsg.P2-3) unstable; urgency=low
+
+  [Michael Stapelberg]
+
+  * add systemd service file.  Closes: #718212
+
+  [LaMont Jones]
+
+  * deliver more dnssec-* tools in bind9utils.  Closes: #713026
+  * support parallel=N DEB_BUILD_OPTIONS, fix -j build
+
+ -- LaMont Jones <lamont@debian.org>  Mon, 26 Aug 2013 18:50:10 -0600
+
 bind9 (1:9.9.3.dfsg.P2-2build1) saucy; urgency=low
 
   [Marc Deslauriers]
@@ -13,7 +26,12 @@ bind9 (1:9.9.3.dfsg.P2-2build1) saucy; urgency=low
 
   * Merge ubuntu changes, except: autoconf files are generated as part
     of the source packagee creation, not on the build host.  NAK
-  * That is, the merge consists only of this changelog.
+  * deliver more dnssec-* tools in bind9utils.  Closes: #713026
+  * support parallel=N DEB_BUILD_OPTIONS, fix -j build
+
+  [Michael Stapelberg]
+
+  * add systemd service file.  Closes: #718212
 
  -- LaMont Jones <lamont@debian.org>  Thu, 22 Aug 2013 10:57:17 -0600
 

@@ -31,7 +31,7 @@ HEADERS =	acl.h adb.h byaddr.h \
 		peer.h portlist.h \
 		rbt.h rcode.h rdata.h rdataclass.h \
 		rdatalist.h rdataset.h rdatasetiter.h rdataslab.h rdatatype.h \
-		request.h resolver.h result.h \
+		request.h resolver.h result.h rrl.h \
 		secalg.h secproto.h soa.h stats.h \
 		tcpmsg.h time.h tsec.h tsig.h ttl.h types.h \
 		validator.h version.h view.h

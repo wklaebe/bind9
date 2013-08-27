@@ -7,9 +7,10 @@ bind9 (1:9.9.3.dfsg.P2-3) unstable; urgency=low
   [LaMont Jones]
 
   * deliver more dnssec-* tools in bind9utils.  Closes: #713026
-  * support parallel=N DEB_BUILD_OPTIONS, fix -j build
+  * support parallel=N DEB_BUILD_OPTIONS, fix -j build. Closes: #713025
+  * deliver rrl.h and stat.h Closes: #692483, #720813
 
- -- LaMont Jones <lamont@debian.org>  Mon, 26 Aug 2013 18:50:10 -0600
+ -- LaMont Jones <lamont@debian.org>  Tue, 27 Aug 2013 10:06:37 -0600
 
 bind9 (1:9.9.3.dfsg.P2-2build1) saucy; urgency=low
 

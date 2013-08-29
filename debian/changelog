@@ -1,3 +1,21 @@
+bind9 (1:9.9.3.dfsg.P2-4) unstable; urgency=low
+
+  [Peter Marschall]
+
+  * If rndc.conf exists, skip creation of rndc.key.  Closes: #620394
+
+  [Al Tarakanoff]
+
+  * properly quote check of pid in bind9 init.d.  LP: #1092243
+
+  [LaMont Jones]
+
+  * include distro and package version in version string
+  * apparmor: allow GeoIP data file access.  LP: #834901
+  * enable filter-aaaa.  Closes: #701704  LP: #1115168
+
+ -- LaMont Jones <lamont@debian.org>  Thu, 29 Aug 2013 16:22:29 -0600
+
 bind9 (1:9.9.3.dfsg.P2-3) unstable; urgency=low
 
   [Michael Stapelberg]

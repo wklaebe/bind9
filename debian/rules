@@ -53,6 +53,7 @@ configure-stamp:
 		--with-geoip=/usr \
 		--with-atf=no \
 		--enable-ipv6 \
+		--enable-filter-aaaa \
 		$(EXTRA_FEATURES)
 
 	touch $@

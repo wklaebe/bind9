@@ -800,7 +800,7 @@ query_validatezonedb(ns_client_t *client, dns_name_t *name,
 		if (queryonacl == NULL)
 			queryonacl = client->view->queryonacl;
 
-		result = ns_client_checkaclsilent(client, NULL,
+		result = ns_client_checkaclsilent(client, &client->destaddr,
 						  queryonacl, ISC_TRUE);
 		if ((options & DNS_GETDB_NOLOG) == 0 &&
 		    result != ISC_R_SUCCESS)
@@ -7155,7 +7155,8 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype)
 					goto addauth;
 				}
 
-				if (dns_db_issecure(db)) {
+				if (qtype == dns_rdatatype_rrsig &&
+				    dns_db_issecure(db)) {
 					char namebuf[DNS_NAME_FORMATSIZE];
 					dns_name_format(client->query.qname,
 							namebuf,

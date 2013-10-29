@@ -25,6 +25,7 @@
 
 static inline isc_result_t
 fromtext_keydata(ARGS_FROMTEXT) {
+	isc_result_t result;
 	isc_token_t token;
 	dns_secalg_t alg;
 	dns_secproto_t proto;
@@ -79,7 +80,15 @@ fromtext_keydata(ARGS_FROMTEXT) {
 	if ((flags & 0xc000) == 0xc000)
 		return (ISC_R_SUCCESS);
 
-	return (isc_base64_tobuffer(lexer, target, -1));
+	result = isc_base64_tobuffer(lexer, target, -1);
+	if (result != ISC_R_SUCCESS)
+		return (result);
+
+	/* Ensure there's at least enough data to compute a key ID for MD5 */
+	if (alg == DST_ALG_RSAMD5 && isc_buffer_usedlength(target) < 19)
+		return (ISC_R_UNEXPECTEDEND);
+
+	return (ISC_R_SUCCESS);
 }
 
 static inline isc_result_t
@@ -185,6 +194,7 @@ totext_keydata(ARGS_TOTEXT) {
 static inline isc_result_t
 fromwire_keydata(ARGS_FROMWIRE) {
 	isc_region_t sr;
+	unsigned char algorithm;
 
 	REQUIRE(type == 65533);
 
@@ -195,6 +205,15 @@ fromwire_keydata(ARGS_FROMWIRE) {
 
 	isc_buffer_activeregion(source, &sr);
 	if (sr.length < 16)
+		return (ISC_R_UNEXPECTEDEND);
+
+	/*
+	 * RSAMD5 computes key ID differently from other
+	 * algorithms: we need to ensure there's enough data
+	 * present for the computation
+	 */
+	algorithm = sr.base[15];
+	if (algorithm == DST_ALG_RSAMD5 && sr.length < 19)
 		return (ISC_R_UNEXPECTEDEND);
 
 	isc_buffer_forward(source, sr.length);

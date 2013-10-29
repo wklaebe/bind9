@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2012  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2013  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -764,6 +764,7 @@ dns_dnssec_findzonekeys2(dns_db_t *db, dns_dbversion_t *ver,
 		 * If a key is marked inactive, skip it
 		 */
 		if (!key_active(keys[count], now)) {
+			dst_key_setinactive(pubkey, ISC_TRUE);
 			dst_key_free(&keys[count]);
 			keys[count] = pubkey;
 			pubkey = NULL;

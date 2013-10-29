@@ -1,3 +1,36 @@
+	--- 9.9.4rc2 released ---
+
+3637.	[bug]		'allow-query-on' was checking the source address
+			rather than the destination address. [RT #34590]
+
+3636.	[bug]		Automatic empty zones now behave better with
+			forward only "zones" beneath them. [RT #34583]
+
+3635.	[bug]		Signatures were not being removed from a zone with
+			only KSK keys for a algorithm. [RT #24439]
+
+3634.	[func]		Report build-id in rndc status. Report build-id
+			when building from a git repository. [RT #20422]
+
+3633.	[cleanup]	Refactor OPT processing in named to make it easier
+			to support new EDNS options. [RT #34414]
+
+3632.	[bug]		Signature from newly inactive keys were not being
+			removed. [RT #32178]
+
+3631.	[bug]		Remove spurious warning about missing signatures when
+			qtype is SIG. [RT #34600]
+
+3630.	[bug]		Ensure correct ID computation for MD5 keys. [RT #33033]
+
+3627.	[bug]		RPZ changes were not effective on slaves. [RT #34450]
+
+3625.	[bug]		Don't send notify messages to machines outside of the
+			test setup.
+
+3623.	[bug]		zone-statistics was only effective in new statistics.
+			[RT #34466]
+
 	--- 9.9.4rc1 released ---
 
 3621.	[security]	Incorrect bounds checking on private type 'keydata'
@@ -70,7 +103,8 @@
 3586.	[bug]		Handle errors in xmlDocDumpFormatMemoryEnc. [RT #33706]
 
 3584.	[security]	Caching data from an incompletely signed zone could
-			trigger an assertion failure in resolver.c [RT #33690]
+			trigger an assertion failure in resolver.c
+			(CVE-2013-3919). [RT #33690]
 
 3583.	[bug]		Address memory leak in GSS-API processing [RT #33574]
 

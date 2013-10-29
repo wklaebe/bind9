@@ -1,4 +1,4 @@
-# Copyright (C) 2011, 2012  Internet Systems Consortium, Inc. ("ISC")
+# Copyright (C) 2011-2013  Internet Systems Consortium, Inc. ("ISC")
 #
 # Permission to use, copy, modify, and/or distribute this software for any
 # purpose with or without fee is hereby granted, provided that the above
@@ -28,6 +28,7 @@ cp ns3/master.db.in ns3/master.db
 cp ns3/master.db.in ns3/dynamic.db
 cp ns3/master.db.in ns3/updated.db
 cp ns3/master.db.in ns3/expired.db
+cp ns3/master.db.in ns3/nsec3.db
 
 touch ns4/trusted.conf
 cp ns4/noixfr.db.in ns4/noixfr.db

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011, 2012  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2011-2013  Internet Systems Consortium, Inc. ("ISC")
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -1211,7 +1211,9 @@ del_keysigs(dns_db_t *db, dns_dbversion_t *ver, dns_name_t *name,
 		for (i = 0; i < nkeys; i++) {
 			if (rrsig.keyid == dst_key_id(keys[i])) {
 				found = ISC_TRUE;
-				if (!dst_key_isprivate(keys[i])) {
+				if (!dst_key_isprivate(keys[i]) &&
+				    !dst_key_inactive(keys[i]))
+				{
 					/*
 					 * The re-signing code in zone.c
 					 * will mark this as offline.

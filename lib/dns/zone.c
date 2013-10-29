@@ -729,8 +729,6 @@ static isc_result_t delete_nsec(dns_db_t *db, dns_dbversion_t *ver,
 				dns_dbnode_t *node, dns_name_t *name,
 				dns_diff_t *diff);
 static void zone_rekey(dns_zone_t *zone);
-static isc_boolean_t delsig_ok(dns_rdata_rrsig_t *rrsig_ptr,
-			       dst_key_t **keys, unsigned int nkeys);
 static isc_result_t zone_send_securedb(dns_zone_t *zone, isc_boolean_t locked,
 				       dns_db_t *db);
 
@@ -1534,6 +1532,18 @@ dns_zone_get_rpz(dns_zone_t *zone) {
 	return (zone->is_rpz);
 }
 
+/*
+ * If a zone is a response policy zone, mark its new database.
+ */
+isc_result_t
+dns_zone_rpz_enable_db(dns_zone_t *zone, dns_db_t *db) {
+#ifdef BIND9
+	if (zone->is_rpz)
+		return (dns_db_rpz_enabled(db, NULL));
+#endif
+	return (ISC_R_SUCCESS);
+}
+
 static isc_result_t
 zone_load(dns_zone_t *zone, unsigned int flags) {
 	isc_result_t result;
@@ -1987,14 +1997,9 @@ zone_startload(dns_db_t *db, dns_zone_t *zone, isc_time_t loadtime) {
 	isc_result_t tresult;
 	unsigned int options;
 
-#ifdef BIND9
-	if (zone->is_rpz) {
-		result = dns_db_rpz_enabled(db, NULL);
-		if (result != ISC_R_SUCCESS)
-			return (result);
-	}
-#endif
-
+	result = dns_zone_rpz_enable_db(zone, db);
+	if (result != ISC_R_SUCCESS)
+		return (result);
 	options = get_master_options(zone);
 	if (DNS_ZONE_OPTION(zone, DNS_ZONEOPT_MANYERRORS))
 		options |= DNS_MASTER_MANYERRORS;
@@ -5271,18 +5276,38 @@ set_key_expiry_warning(dns_zone_t *zone, isc_stdtime_t when, isc_stdtime_t now)
  * have no new key.
  */
 static isc_boolean_t
-delsig_ok(dns_rdata_rrsig_t *rrsig_ptr, dst_key_t **keys, unsigned int nkeys) {
+delsig_ok(dns_rdata_rrsig_t *rrsig_ptr, dst_key_t **keys, unsigned int nkeys,
+	  isc_boolean_t *warn)
+{
 	unsigned int i = 0;
+	isc_boolean_t have_ksk = ISC_FALSE, have_zsk = ISC_FALSE;
+	isc_boolean_t have_pksk = ISC_FALSE, have_pzsk = ISC_FALSE;
+
+	for (i = 0; i < nkeys; i++) {
+		if (rrsig_ptr->algorithm != dst_key_alg(keys[i]))
+			continue;
+		if (dst_key_isprivate(keys[i])) {
+			if (KSK(keys[i]))
+				have_ksk = have_pksk = ISC_TRUE;
+			else
+				have_zsk = have_pzsk = ISC_TRUE;
+		} else {
+			if (KSK(keys[i]))
+				have_ksk = ISC_TRUE;
+			else
+				have_zsk = ISC_TRUE;
+		}
+	}
+
+	if (have_zsk && have_ksk && !have_pzsk)
+		*warn = ISC_TRUE;
 
 	/*
-	 * It's okay to delete a signature if there is an active ZSK
-	 * with the same algorithm
+	 * It's okay to delete a signature if there is an active key
+	 * with the same algorithm to replace it.
 	 */
-	for (i = 0; i < nkeys; i++) {
-		if (rrsig_ptr->algorithm == dst_key_alg(keys[i]) &&
-		    (dst_key_isprivate(keys[i])) && !KSK(keys[i]))
-			return (ISC_TRUE);
-	}
+	if (have_pksk || have_pzsk)
+		return (ISC_TRUE);
 
 	/*
 	 * Failing that, it is *not* okay to delete a signature
@@ -5351,7 +5376,8 @@ del_sigs(dns_zone_t *zone, dns_db_t *db, dns_dbversion_t *ver, dns_name_t *name,
 		RUNTIME_CHECK(result == ISC_R_SUCCESS);
 
 		if (type != dns_rdatatype_dnskey) {
-			if (delsig_ok(&rrsig, keys, nkeys)) {
+			isc_boolean_t warn = ISC_FALSE, deleted = ISC_FALSE;
+			if (delsig_ok(&rrsig, keys, nkeys, &warn)) {
 				result = update_one_rr(db, ver, zonediff->diff,
 					       DNS_DIFFOP_DELRESIGN, name,
 					       rdataset.ttl, &rdata);
@@ -5359,7 +5385,9 @@ del_sigs(dns_zone_t *zone, dns_db_t *db, dns_dbversion_t *ver, dns_name_t *name,
 					changed = ISC_TRUE;
 				if (result != ISC_R_SUCCESS)
 					break;
-			} else {
+				deleted = ISC_TRUE;
+			}
+			if (warn) {
 				/*
 				 * At this point, we've got an RRSIG,
 				 * which is signed by an inactive key.
@@ -5369,7 +5397,7 @@ del_sigs(dns_zone_t *zone, dns_db_t *db, dns_dbversion_t *ver, dns_name_t *name,
 				 * offline will prevent us spinning waiting
 				 * for the private part.
 				 */
-				if (incremental) {
+				if (incremental && !deleted) {
 					result = offline(db, ver, zonediff,
 							 name, rdataset.ttl,
 							 &rdata);
@@ -5417,7 +5445,9 @@ del_sigs(dns_zone_t *zone, dns_db_t *db, dns_dbversion_t *ver, dns_name_t *name,
 				 * We want the earliest offline expire time
 				 * iff there is a new offline signature.
 				 */
-				if (!dst_key_isprivate(keys[i])) {
+				if (!dst_key_inactive(keys[i]) &&
+				    !dst_key_isprivate(keys[i]))
+				{
 					isc_int64_t timeexpire =
 					   dns_time64_from32(rrsig.timeexpire);
 					if (warn != 0 && warn > timeexpire)

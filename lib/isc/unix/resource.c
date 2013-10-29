@@ -29,6 +29,7 @@
 #include <isc/util.h>
 
 #ifdef __linux__
+#include <inttypes.h>
 #include <linux/fs.h>	/* To get the large NR_OPEN. */
 #endif
 

@@ -1084,6 +1084,8 @@ configure_order(dns_order_t *order, const cfg_obj_t *ent) {
 		mode = DNS_RDATASETATTR_FIXEDORDER;
 	else if (!strcasecmp(str, "random"))
 		mode = DNS_RDATASETATTR_RANDOMIZE;
+	else if (!strcasecmp(str, "random_1"))
+		mode = DNS_RDATASETATTR_RANDOMIZE|DNS_RDATASETATTR_SINGLE;
 	else if (!strcasecmp(str, "cyclic"))
 		mode = 0;
 	else
@@ -2527,6 +2529,18 @@ configure_view(dns_view_t *view, cfg_obj_t *config, cfg_obj_t *vconfig,
 	view->maxncachettl = cfg_obj_asuint32(obj);
 	if (view->maxncachettl > 7 * 24 * 3600)
 		view->maxncachettl = 7 * 24 * 3600;
+
+	obj = NULL;
+	result = ns_config_get(maps, "min-cache-ttl", &obj);
+	INSIST(result == ISC_R_SUCCESS);
+	view->mincachettl = cfg_obj_asuint32(obj);
+
+	obj = NULL;
+	result = ns_config_get(maps, "min-ncache-ttl", &obj);
+	INSIST(result == ISC_R_SUCCESS);
+	view->minncachettl = cfg_obj_asuint32(obj);
+	if (view->minncachettl > 7 * 24 * 3600)
+		view->minncachettl = 7 * 24 * 3600;
 
 	/*
 	 * Configure the view's cache.
@@ -6113,10 +6127,6 @@ ns_server_create(isc_mem_t *mctx, ns_server_t **serverp) {
 		   ISC_R_NOMEMORY : ISC_R_SUCCESS,
 		   "allocating reload event");
 
-	CHECKFATAL(dst_lib_init2(ns_g_mctx, ns_g_entropy,
-				 ns_g_engine, ISC_ENTROPY_GOODONLY),
-		   "initializing DST");
-
 	server->tkeyctx = NULL;
 	CHECKFATAL(dns_tkeyctx_create(ns_g_mctx, ns_g_entropy,
 				      &server->tkeyctx),
@@ -6262,8 +6272,6 @@ ns_server_destroy(ns_server_t **serverp) {
 
 	if (server->tkeyctx != NULL)
 		dns_tkeyctx_destroy(&server->tkeyctx);
-
-	dst_lib_destroy();
 
 	isc_event_free(&server->reload_event);
 

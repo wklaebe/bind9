@@ -29,6 +29,9 @@
   # ssl
   /etc/ssl/openssl.cnf r,
 
+  # GeoIP data files for GeoIP ACLs
+  /usr/share/GeoIP/** r,
+
   # dnscvsutil package
   /var/lib/dnscvsutil/compiled/** rw,
 

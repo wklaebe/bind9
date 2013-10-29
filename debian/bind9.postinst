@@ -19,7 +19,7 @@ if [ "$1" = configure ]; then
 	chmod 775 /var/lib/bind
     fi
 
-    if [ ! -s /etc/bind/rndc.key ]; then
+    if [ ! -s /etc/bind/rndc.key ] && [ ! -s /etc/bind/rndc.conf ]; then
 	rndc-confgen -r /dev/urandom -a
     fi
 

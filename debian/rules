@@ -23,6 +23,11 @@ else
 OPT = -O2
 endif
 
+ifneq (,$(filter parallel=%,$(DEB_BUILD_OPTIONS)))
+NUMJOBS = $(patsubst parallel=%,%,$(filter parallel=%,$(DEB_BUILD_OPTIONS)))
+export MAKEFLAGS += -j$(NUMJOBS)
+endif
+
 export CFLAGS=-fno-strict-aliasing -DDIG_SIGCHASE $(DEBUG) $(OPT)
 
 ifeq ($(DEB_HOST_ARCH_OS),kfreebsd)
@@ -48,15 +53,16 @@ configure-stamp:
 		--with-geoip=/usr \
 		--with-atf=no \
 		--enable-ipv6 \
+		--enable-filter-aaaa \
 		$(EXTRA_FEATURES)
 
-	touch configure-stamp
+	touch $@
 
-build: configure-stamp build-stamp
-build-stamp:
+build: build-stamp
+build-stamp: configure-stamp
 	dh_testdir
 	LD_LIBRARY_PATH=$$(pwd)/lib/isc/.libs:$$(pwd)/lib/isccc/.libs:$$(pwd)/isccfg/.libs:$${LD_LIBRARY_PATH} $(MAKE)
-	touch build-stamp
+	touch $@
 
 autofiles:
 	libtoolize --automake --copy --force
@@ -65,6 +71,7 @@ autofiles:
 	autoheader
 	autoconf
 	rm -rf autom4te.cache
+	cp config.guess config.sub contrib/idn/idnkit-1.0-src/
 
 clean:
 	dh_testdir
@@ -146,7 +153,12 @@ binary-arch: build install
 	dh_installdocs -a
 	dh_installexamples -a
 	dh_installmenu -a
+	dh_systemd_enable -pbind9 --no-enable bind9-resolvconf.service
+	dh_systemd_enable -pbind9 bind9.service
+	dh_systemd_enable -plwresd lwresd.service
 	dh_installinit -a --no-start -- defaults 15 85
+	# Ship the extra service file for resolvconf integration manually.
+	cp debian/bind9-resolvconf.service debian/bind9/lib/systemd/system
 	dh_installcron -a
 	dh_installdebconf -pbind9
 	dh_installinfo -a

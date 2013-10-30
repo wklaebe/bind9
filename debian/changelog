@@ -1,8 +1,15 @@
-bind9 (1:9.9.4.dfsg-0.1) experimental; urgency=low
+bind9 (1:9.9.4.dfsg-0.2) experimental; urgency=low
 
   * new upstream version
+  * merge Ubuntu diff.
 
  -- LaMont Jones <lamont@debian.org>  Tue, 29 Oct 2013 15:13:49 -0600
+
+bind9 (1:9.9.3.dfsg.P2-4ubuntu1) saucy; urgency=low
+
+  * Use dh_autotools-dev to update config.{sub,guess} for new ports.
+
+ -- Adam Conrad <adconrad@ubuntu.com>  Mon, 07 Oct 2013 23:09:45 -0600
 
 bind9 (1:9.9.3.dfsg.P2-4) unstable; urgency=low
 

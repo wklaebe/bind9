@@ -1,9 +1,16 @@
-bind9 (1:9.9.4.dfsg-0.2) experimental; urgency=low
+bind9 (1:9.9.4.dfsg-0.3) experimental; urgency=low
 
-  * new upstream version
-  * merge Ubuntu diff.
+  [Internet Software Consortium, Inc]
 
- -- LaMont Jones <lamont@debian.org>  Tue, 29 Oct 2013 15:13:49 -0600
+  * Upstream version 9.9.4
+
+  [LaMont Jones]
+
+  * fix sonames
+  * merge ubuntu change
+  * Deliver dns/rrl.h.  Closes: #724844
+
+ -- LaMont Jones <lamont@debian.org>  Wed, 06 Nov 2013 13:27:37 -0700
 
 bind9 (1:9.9.3.dfsg.P2-4ubuntu1) saucy; urgency=low
 

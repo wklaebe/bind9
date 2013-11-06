@@ -29,7 +29,7 @@ HEADERS =	acl.h adb.h byaddr.h cache.h callbacks.h cert.h compress.h \
 		peer.h portlist.h private.h rbt.h rcode.h \
 		rdata.h rdataclass.h rdatalist.h rdataset.h rdatasetiter.h \
 		rdataslab.h rdatatype.h request.h resolver.h result.h \
-		rootns.h rpz.h sdb.h sdlz.h secalg.h secproto.h soa.h ssu.h \
+		rootns.h rpz.h rrl.h sdb.h sdlz.h secalg.h secproto.h soa.h ssu.h \
 		tcpmsg.h time.h tkey.h tsig.h ttl.h types.h \
 		validator.h version.h view.h xfrin.h zone.h zonekey.h zt.h
 

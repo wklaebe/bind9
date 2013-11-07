@@ -160,7 +160,9 @@ binary-arch: build install
 	dh_systemd_enable -plwresd lwresd.service
 	dh_installinit -a --no-start -- defaults 15 85
 	# Ship the extra service file for resolvconf integration manually.
-	cp debian/bind9-resolvconf.service debian/bind9/lib/systemd/system
+	if [ -d debian/bind9/lib/systemd/system ]; then \
+	  cp debian/bind9-resolvconf.service debian/bind9/lib/systemd/system; \
+	fi
 	dh_installcron -a
 	dh_installdebconf -pbind9
 	dh_installinfo -a

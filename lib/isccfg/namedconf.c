@@ -92,6 +92,7 @@ static cfg_type_t cfg_type_controls;
 static cfg_type_t cfg_type_controls_sockaddr;
 static cfg_type_t cfg_type_destinationlist;
 static cfg_type_t cfg_type_dialuptype;
+static cfg_type_t cfg_type_dynamic_db;
 static cfg_type_t cfg_type_ixfrdifftype;
 static cfg_type_t cfg_type_key;
 static cfg_type_t cfg_type_logfile;
@@ -897,6 +898,7 @@ namedconf_or_view_clauses[] = {
 	{ "zone", &cfg_type_zone, CFG_CLAUSEFLAG_MULTI },
 	/* only 1 DLZ per view allowed */
 	{ "dlz", &cfg_type_dynamically_loadable_zones, 0 },
+	{ "dynamic-db", &cfg_type_dynamic_db, CFG_CLAUSEFLAG_MULTI },
 	{ "server", &cfg_type_server, CFG_CLAUSEFLAG_MULTI },
 	{ "trusted-keys", &cfg_type_dnsseckeys, CFG_CLAUSEFLAG_MULTI },
 	{ "managed-keys", &cfg_type_managedkeys, CFG_CLAUSEFLAG_MULTI },
@@ -2045,6 +2047,40 @@ parse_dialup_type(cfg_parser_t *pctx, const cfg_type_t *type, cfg_obj_t **ret) {
 static cfg_type_t cfg_type_dialuptype = {
 	"dialuptype", parse_dialup_type, cfg_print_ustring, doc_enum_or_other,
 	&cfg_rep_string, dialup_enums
+};
+
+/*
+ * Dynamic database clauses.
+ */
+
+static cfg_clausedef_t
+dynamic_db_clauses[] = {
+	{ "library", &cfg_type_qstring, 0 },
+	{ "arg", &cfg_type_qstring, CFG_CLAUSEFLAG_MULTI },
+	{ NULL, NULL, 0 }
+};
+
+static cfg_clausedef_t *
+dynamic_db_clausesets[] = {
+	dynamic_db_clauses,
+	NULL
+};
+
+static cfg_type_t cfg_type_dynamic_db_opts = {
+	"dynamically_loadable_zones_opts", cfg_parse_map,
+	cfg_print_map, cfg_doc_map, &cfg_rep_map,
+	dynamic_db_clausesets
+};
+
+static cfg_tuplefielddef_t dynamic_db_fields[] = {
+	{ "name", &cfg_type_astring, 0 },
+	{ "options", &cfg_type_dynamic_db_opts, 0 },
+	{ NULL, NULL, 0 }
+};
+
+static cfg_type_t cfg_type_dynamic_db = {
+	"dynamic_db", cfg_parse_tuple, cfg_print_tuple, cfg_doc_tuple,
+	&cfg_rep_tuple, dynamic_db_fields
 };
 
 static const char *notify_enums[] = { "explicit", "master-only", NULL };

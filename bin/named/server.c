@@ -63,6 +63,7 @@
 #include <dns/db.h>
 #include <dns/dispatch.h>
 #include <dns/dlz.h>
+#include <dns/dynamic_db.h>
 #include <dns/dns64.h>
 #include <dns/forward.h>
 #include <dns/journal.h>
@@ -1245,6 +1246,72 @@ configure_peer(const cfg_obj_t *cpeer, isc_mem_t *mctx, dns_peer_t **peerp) {
 }
 
 static isc_result_t
+configure_dynamic_db(const cfg_obj_t *dynamic_db, isc_mem_t *mctx,
+		     const dns_dyndb_arguments_t *dyndb_args)
+{
+	isc_result_t result;
+	const cfg_obj_t *obj;
+	const cfg_obj_t *options;
+	const cfg_listelt_t *element;
+	const char *name;
+	const char *libname;
+	const char **argv = NULL;
+	unsigned int i;
+	unsigned int len;
+
+	/* Get the name of the database. */
+	obj = cfg_tuple_get(dynamic_db, "name");
+	name = cfg_obj_asstring(obj);
+
+	/* Get options. */
+	options = cfg_tuple_get(dynamic_db, "options");
+
+	/* Get library name. */
+	obj = NULL;
+	CHECK(cfg_map_get(options, "library", &obj));
+	libname = cfg_obj_asstring(obj);
+
+	/* Create a list of arguments. */
+	obj = NULL;
+	result = cfg_map_get(options, "arg", &obj);
+	if (result == ISC_R_NOTFOUND)
+		len = 0;
+	else if (result == ISC_R_SUCCESS)
+		len = cfg_list_length(obj, isc_boolean_false);
+	else
+		goto cleanup;
+
+	/* Account for the last terminating NULL. */
+	len++;
+
+	argv = isc_mem_allocate(mctx, len * sizeof(const char *));
+	if (argv == NULL) {
+		result = ISC_R_NOMEMORY;
+		goto cleanup;
+	}
+	for (element = cfg_list_first(obj), i = 0;
+	     element != NULL;
+	     element = cfg_list_next(element), i++)
+	{
+		REQUIRE(i < len);
+
+		obj = cfg_listelt_value(element);
+		argv[i] = cfg_obj_asstring(obj);
+	}
+	REQUIRE(i < len);
+	argv[i] = NULL;
+
+	CHECK(dns_dynamic_db_load(libname, name, mctx, argv, dyndb_args));
+
+cleanup:
+	if (argv != NULL)
+		isc_mem_free(mctx, argv);
+
+	return result;
+}
+
+
+static isc_result_t
 disable_algorithms(const cfg_obj_t *disabled, dns_resolver_t *resolver) {
 	isc_result_t result;
 	const cfg_obj_t *algorithms;
@@ -2060,6 +2127,7 @@ configure_view(dns_view_t *view, cfg_obj_t *config, cfg_obj_t *vconfig,
 	const cfg_obj_t *dlz;
 	unsigned int dlzargc;
 	char **dlzargv;
+	const cfg_obj_t *dynamic_db_list;
 	const cfg_obj_t *disabled;
 	const cfg_obj_t *obj;
 	const cfg_listelt_t *element;
@@ -3263,6 +3331,37 @@ configure_view(dns_view_t *view, cfg_obj_t *config, cfg_obj_t *vconfig,
 		}
 	} else
 		dns_view_setrootdelonly(view, ISC_FALSE);
+
+	/*
+	 * Configure dynamic databases.
+	 */
+	dynamic_db_list = NULL;
+	if (voptions != NULL)
+		(void)cfg_map_get(voptions, "dynamic-db", &dynamic_db_list);
+	else
+		(void)cfg_map_get(config, "dynamic-db", &dynamic_db_list);
+	element = cfg_list_first(dynamic_db_list);
+	if (element != NULL) {
+		dns_dyndb_arguments_t *args;
+
+		args = dns_dyndb_arguments_create(mctx);
+		if (args == NULL) {
+			result = ISC_R_NOMEMORY;
+			goto cleanup;
+		}
+		dns_dyndb_set_view(args, view);
+		dns_dyndb_set_zonemgr(args, ns_g_server->zonemgr);
+		dns_dyndb_set_task(args, ns_g_server->task);
+		dns_dyndb_set_timermgr(args, ns_g_timermgr);
+		while (element != NULL) {
+			obj = cfg_listelt_value(element);
+			CHECK(configure_dynamic_db(obj, mctx, args));
+		
+			element = cfg_list_next(element);
+		}
+
+		dns_dyndb_arguments_destroy(mctx, args);
+	}
 
 	/*
 	 * Setup automatic empty zones.  If recursion is off then
@@ -4918,6 +5017,7 @@ load_configuration(const char *filename, ns_server_t *server,
 		cfg_aclconfctx_detach(&ns_g_aclconfctx);
 	CHECK(cfg_aclconfctx_create(ns_g_mctx, &ns_g_aclconfctx));
 
+	dns_dynamic_db_cleanup(ISC_FALSE);
 	/*
 	 * Parse the global default pseudo-config file.
 	 */
@@ -6046,6 +6146,8 @@ shutdown_server(isc_task_t *task, isc_event_t *event) {
 		else
 			dns_view_detach(&view);
 	}
+
+	dns_dynamic_db_cleanup(ISC_TRUE);
 
 	while ((nsc = ISC_LIST_HEAD(server->cachelist)) != NULL) {
 		ISC_LIST_UNLINK(server->cachelist, nsc, link);

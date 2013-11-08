@@ -24,12 +24,14 @@ top_srcdir =	@top_srcdir@
 HEADERS =	acl.h adb.h byaddr.h cache.h callbacks.h cert.h compress.h \
 		client.h clientinfo.h compress.h \
 		db.h dbiterator.h dbtable.h diff.h dispatch.h \
+		dynamic_db.h \
 		dlz.h dnssec.h ds.h events.h fixedname.h iptable.h journal.h \
 		keyflags.h keytable.h keyvalues.h lib.h log.h \
 		master.h masterdump.h message.h name.h ncache.h nsec.h \
 		peer.h portlist.h private.h rbt.h rcode.h \
 		rdata.h rdataclass.h rdatalist.h rdataset.h rdatasetiter.h \
 		rdataslab.h rdatatype.h request.h resolver.h result.h \
+		rrl.h  tsec.h \
 		rootns.h rpz.h sdb.h sdlz.h secalg.h secproto.h soa.h ssu.h \
 		tcpmsg.h time.h tkey.h tsec.h tsig.h ttl.h types.h \
 		validator.h version.h view.h xfrin.h zone.h zonekey.h zt.h

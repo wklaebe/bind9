@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2007, 2009  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2007, 2009, 2013  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000, 2001, 2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -204,6 +204,8 @@ lookup_done(isc_task_t *task, isc_event_t *event) {
 	lwres_grbnresponse_t *grbn;
 	int i;
 
+	REQUIRE(event != NULL);
+
 	UNUSED(task);
 
 	lwb.base = NULL;
@@ -324,9 +326,6 @@ lookup_done(isc_task_t *task, isc_event_t *event) {
 				 (grbn->nsigs == 1) ? "" : "s");
 	}
 
-	dns_lookup_destroy(&client->lookup);
-	isc_event_free(&event);
-
 	/*
 	 * Render the packet.
 	 */
@@ -362,6 +361,9 @@ lookup_done(isc_task_t *task, isc_event_t *event) {
 
 	NS_LWDCLIENT_SETSEND(client);
 
+	dns_lookup_destroy(&client->lookup);
+	isc_event_free(&event);
+
 	return;
 
  out:
@@ -384,8 +386,7 @@ lookup_done(isc_task_t *task, isc_event_t *event) {
 	if (lwb.base != NULL)
 		lwres_context_freemem(cm->lwctx, lwb.base, lwb.length);
 
-	if (event != NULL)
-		isc_event_free(&event);
+	isc_event_free(&event);
 
 	ns_lwdclient_log(50, "error constructing getrrsetbyname response");
 	ns_lwdclient_errorpktsend(client, LWRES_R_FAILURE);

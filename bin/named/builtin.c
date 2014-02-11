@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005, 2007, 2009-2012  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2007, 2009-2013  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2001-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -276,7 +276,8 @@ dns64_cname(const dns_name_t *zone, const dns_name_t *name,
 		 */
 		return (ISC_R_NOTFOUND);
 	}
-	return (dns_sdb_putrdata(lookup, dns_rdatatype_cname, 600, rdata, len));
+	return (dns_sdb_putrdata(lookup, dns_rdatatype_cname, 600,
+				 rdata, (unsigned int)len));
 }
 
 static isc_result_t

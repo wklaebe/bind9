@@ -23,6 +23,7 @@
 #include <errno.h>
 
 #include <isc/stdio.h>
+#include <isc/util.h>
 
 #include "errno2result.h"
 
@@ -49,14 +50,39 @@ isc_stdio_close(FILE *f) {
 }
 
 isc_result_t
-isc_stdio_seek(FILE *f, long offset, int whence) {
-	/* based on the fact off_t is typedef to long */
+isc_stdio_seek(FILE *f, off_t offset, int whence) {
 	int r;
 
+#ifndef _WIN64
 	r = fseek(f, offset, whence);
+#else
+	r = _fseeki64(f, offset, whence);
+#endif
 	if (r == 0)
 		return (ISC_R_SUCCESS);
 	else
+		return (isc__errno2result(errno));
+}
+
+isc_result_t
+isc_stdio_tell(FILE *f, off_t *offsetp) {
+#ifndef _WIN64
+	long r;
+#else
+	__int64 r;
+#endif
+
+	REQUIRE(offsetp != NULL);
+
+#ifndef _WIN64
+	r = ftell(f);
+#else
+	r = _ftelli64(f);
+#endif
+	if (r >= 0) {
+		*offsetp = r;
+		return (ISC_R_SUCCESS);
+	} else
 		return (isc__errno2result(errno));
 }
 

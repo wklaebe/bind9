@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2007, 2010-2012  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2007, 2010-2013  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1997-2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -123,7 +123,7 @@ isc_heap_destroy(isc_heap_t **heapp) {
 static isc_boolean_t
 resize(isc_heap_t *heap) {
 	void **new_array;
-	size_t new_size;
+	unsigned int new_size;
 
 	REQUIRE(VALID_HEAP(heap));
 

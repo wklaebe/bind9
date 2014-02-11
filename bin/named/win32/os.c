@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005, 2007-2009, 2012  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2007-2009, 2012, 2013  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -293,7 +293,7 @@ isc_result_t
 ns_os_gethostname(char *buf, size_t len) {
 	int n;
 
-	n = gethostname(buf, len);
+	n = gethostname(buf, (int)len);
 	return ((n == 0) ? ISC_R_SUCCESS : ISC_R_FAILURE);
 }
 

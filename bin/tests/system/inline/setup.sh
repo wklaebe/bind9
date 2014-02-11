@@ -12,7 +12,7 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-# $Id$
+# $Id: setup.sh,v 1.11 2012/02/23 06:53:15 marka Exp $
 
 sh clean.sh
 
@@ -29,6 +29,7 @@ cp ns3/master.db.in ns3/dynamic.db
 cp ns3/master.db.in ns3/updated.db
 cp ns3/master.db.in ns3/expired.db
 cp ns3/master.db.in ns3/nsec3.db
+cp ns3/master.db.in ns3/externalkey.db
 
 touch ns4/trusted.conf
 cp ns4/noixfr.db.in ns4/noixfr.db

@@ -973,6 +973,7 @@ ns_client_send(ns_client_t *client) {
 	result = dns_compress_init(&cctx, -1, client->mctx);
 	if (result != ISC_R_SUCCESS)
 		goto done;
+	dns_compress_setsensitive(&cctx, ISC_TRUE);
 	cleanup_cctx = ISC_TRUE;
 
 	result = dns_message_renderbegin(client->message, &cctx, &buffer);
@@ -2734,7 +2735,8 @@ ns_client_checkacl(ns_client_t *client, isc_sockaddr_t *sockaddr,
 static void
 ns_client_name(ns_client_t *client, char *peerbuf, size_t len) {
 	if (client->peeraddr_valid)
-		isc_sockaddr_format(&client->peeraddr, peerbuf, len);
+		isc_sockaddr_format(&client->peeraddr, peerbuf,
+				    (unsigned int)len);
 	else
 		snprintf(peerbuf, len, "@%p", client);
 }

@@ -1,8 +1,145 @@
+	--- 9.9.5b1 released ---
+
+3688.	[bug]		loadnode could return a freed node on out of memory.
+			[RT #35106]
+
+3687.	[bug]		Address null pointer dereference in zone_xfrdone.
+			[RT #35042]
+
+3686.	[func]		"dnssec-signzone -Q" drops signatures from keys
+			that are still published but no longer active.
+			[RT #34990]
+
+3685.	[bug]		"rndc refresh" didn't work correctly with slave
+			zones using inline-signing. [RT #35105]
+
+3683.	[cleanup]	Add a more detailed "not found" message to rndc
+			commands which specify a zone name. [RT #35059]
+
+3682.	[bug]		Correct the behavior of rndc retransfer to allow
+			inline-signing slave zones to retain NSEC3 parameters
+			instead of reverting to NSEC. [RT #34745]
+
+3681.	[port]		Update the Windows build system to support feature
+			selection and WIN64 builds.  This is a work in
+			progress. [RT #34160]
+
+3679.	[bug]		dig could fail to clean up TCP sockets still
+			waiting on connect(). [RT #35074]
+
+3678.	[port]		Update config.guess and config.sub. [RT #35060]
+
+3677.	[bug]		'nsupdate' leaked memory if 'realm' was used multiple
+			times.  [RT #35073]
+
+3676.	[bug]		"named-checkconf -z" now checks zones of type
+			hint and redirect as well as master. [RT #35046]
+
+3675.	[misc]		Provide a place for third parties to add version
+			information for their extensions in the version
+			file by setting the EXTENSIONS variable.
+
+3674.	[bug]		RPZ zeroed ttls if the query type was '*'. [RT #35026]
+
+3672.	[func]		Local address can now be specified when using
+			dns_client API. [RT #34811]
+
+3671.	[bug]		Don't allow dnssec-importkey overwrite a existing
+			non-imported private key.
+
+3670.	[bug]		Address read after free in server side of
+			lwres_getrrsetbyname. [RT #29075]
+
+3669.	[port]		freebsd: --with-gssapi needs -lhx509. [RT #35001]
+
+3668.	[bug]		Fix cast in lex.c which could see 0xff treated as eof.
+			[RT #34993]
+
+3667.	[test]		dig: add support to keep the TCP socket open between
+			successive queries (+[no]keepopen).  [RT #34918]
+
+3665.	[bug]		Failure to release lock on error in receive_secure_db.
+			[RT #34944]
+
+3664.	[bug]		Updated OpenSSL PKCS#11 patches to fix active list
+			locking and other bugs. [RT #34855]
+
+3663.	[bug]		Address bugs in dns_rdata_fromstruct and
+			dns_rdata_tostruct for WKS and ISDN types. [RT #34910]
+
+3662.	[bug]		'host' could die if a UDP query timed out. [RT #34870]
+
+3661.	[bug]		Address lock order reversal deadlock with inline zones.
+			[RT #34856]
+
+3660.	[cleanup]	Changed the name of "isc-config.sh" to "bind9-config".
+			[RT #23825]
+
+3659.	[port]		solaris: don't add explict dependancies/rules for
+			python programs as make won't use the implicit rules.
+			[RT #34835]
+
+3658.	[port]		linux: Address platform specific compilation issue
+			when libcap-devel is installed. [RT #34838]
+
+3657.	[port]		Some readline clones don't accept NULL pointers when
+			calling add_history. [RT #34842]
+
+3656.	[bug]		Treat an all zero netmask as invalid when generating
+			the localnets acl. [RT #34687]
+
+3655.	[cleanup]	Simplify TCP message processing when requesting a
+			zone transfer.  [RT #34825]
+
+3654.	[bug]		Address race condition with manual notify requests.
+			[RT #34806]
+
+3653.	[func]		Create delegations for all "children" of empty zones
+			except "forward first". [RT #34826]
+
+3651.	[tuning]	Adjust when a master server is deemed unreachable.
+			[RT #27075]
+
+3650.	[tuning]	Use separate rate limiting queues for refresh and
+			notify requests. [RT #30589]
+
+3649.	[cleanup]	Include a comment in .nzf files, giving the name of
+			the associated view. [RT #34765]
+
+3648.	[test]		Updated the ATF test framework to version 0.17.
+			[RT #25627]
+
+3647.	[bug]		Address a race condition when shutting down a zone.
+			[RT #34750]
+
+3646.	[bug]		Journal filename string could be set incorrectly,
+			causing garbage in log messages. [RT #34738]
+
+3645.	[protocol]	Use case sensitive compression when responding to
+			queries. [RT #34737]
+
+3644.	[protocol]	Check that EDNS subnet client options are well formed.
+			[RT #34718]
+
+3642.	[func]		Allow externally generated DNSKEY to be imported
+			into the DNSKEY management framework.  A new tool
+			dnssec-importkey is used to do this. [RT #34698]
+
+3641.	[bug]		Handle changes to sig-validity-interval settings
+			better. [RT #34625]
+
+3640.	[bug]		ndots was not being checked when searching.  Only
+			continue searching on NXDOMAIN responses.  Add the
+			ability to specify ndots to nslookup. [RT #34711]
+
+3639.	[bug]		Treat type 65533 (KEYDATA) as opaque except when used
+			in a key zone. [RT #34238]
+
 	--- 9.9.4 released ---
 
 3643.	[doc]		Clarify RRL "slip" documentation.
 
-3638.	[cleanup]	Add the ability to handle ENOPROTOOPT in case it is 
+3638.	[cleanup]	Add the ability to handle ENOPROTOOPT in case it is
 			encountered. [RT #34668]
 
 	--- 9.9.4rc2 released ---
@@ -14,7 +151,7 @@
 			forward only "zones" beneath them. [RT #34583]
 
 3635.	[bug]		Signatures were not being removed from a zone with
-			only KSK keys for a algorithm. [RT #24439]
+			only KSK keys for a algorithm. [RT #34439]
 
 3634.	[func]		Report build-id in rndc status. Report build-id
 			when building from a git repository. [RT #20422]

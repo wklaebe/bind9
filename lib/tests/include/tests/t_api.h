@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2007, 2010  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2007, 2010, 2013  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -25,6 +25,7 @@
 #include <stdio.h>
 
 #include <isc/lang.h>
+#include <isc/platform.h>
 #include <isc/result.h>
 #include <isc/formatcheck.h>
 
@@ -65,10 +66,20 @@ typedef struct {
 	const char	*func_name;
 } testspec_t;
 
-extern	int	T_debug;
+LIBTESTS_EXTERNAL_DATA extern	int	T_debug;
+#ifndef WIN32
 extern	testspec_t T_testlist[];
+#endif
 
 ISC_LANG_BEGINDECLS
+
+#ifdef WIN32
+void
+t_settests(const testspec_t list[]);
+
+int
+t_main(int argc, char **argv);
+#endif
 
 void
 t_assert(const char *component, int anum, int class, const char *what, ...)

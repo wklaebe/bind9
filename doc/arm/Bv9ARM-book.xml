@@ -3794,6 +3794,9 @@ $ORIGIN 0.0.0.0.0.0.0.0.8.b.d.0.1.0.0.2.ip6.arpa.
             then this clause is silently ignored.
           </para>
           <para>
+	    On Windows machines syslog messages are directed to the EventViewer.
+          </para>
+          <para>
             The <command>severity</command> clause works like <command>syslog</command>'s
             "priorities", except that they can also be used if you are writing
             straight to a file rather than using <command>syslog</command>.
@@ -5574,7 +5577,7 @@ options {
                   <command>named</command>.  (A planned third option,
                   <literal>external</literal>, will disable all automatic
                   signing and allow DNSSEC data to be submitted into a zone
-                  via dyanmic update; this is not yet implemented.)
+                  via dynamic update; this is not yet implemented.)
 		</para>
 	    </listitem>
 	  </varlistentry>
@@ -6678,7 +6681,7 @@ options {
                   (see <xref linkend="man.dnssec-keygen"/> and
                   <xref linkend="man.dnssec-settime"/>).  The
                   <command>dnssec-loadkeys-interval</command> option
-                  sets the frequency of autoatic repository checks, in
+                  sets the frequency of automatic repository checks, in
                   minutes.  The default is <literal>60</literal> (1 hour),
                   the minimum is <literal>1</literal> (1 minute), and the
                   maximum is <literal>1440</literal> (24 hours); any higher

@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Copyright (C) 2011, 2012  Internet Systems Consortium, Inc. ("ISC")
+# Copyright (C) 2014  Internet Systems Consortium, Inc. ("ISC")
 #
 # Permission to use, copy, modify, and/or distribute this software for any
 # purpose with or without fee is hereby granted, provided that the above
@@ -14,18 +14,22 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-# $Id$
+SYSTEMTESTTOP=..
+. $SYSTEMTESTTOP/conf.sh
 
-if $PERL -e 'use Net::DNS;' 2>/dev/null
-then
-    if $PERL -e 'use Net::DNS; die if $Net::DNS::VERSION == 0.73;' 2>/dev/null
-    then
-        :
-    else
-        echo "I:Net::DNS version 0.73 has a bug that causes this test to fail: please update." >&2
-        exit 1
-    fi
-else
-    echo "I:This test requires the Net::DNS library." >&2
-    exit 1
-fi
+status=0
+n=0
+
+n=`expr $n + 1`
+echo "I:check that switching to automatic empty zones works ($n)"
+ret=0
+$RNDC -c ../common/rndc.conf -s 10.53.0.1 -p 9953 reload > /dev/null || ret=1
+sleep 5
+cp ns1/named2.conf ns1/named.conf
+$RNDC -c ../common/rndc.conf -s 10.53.0.1 -p 9953 reload > /dev/null || ret=1
+sleep 5
+$DIG +vc version.bind txt ch @10.53.0.1 -p 5300 > /dev/null || ret=1
+if [ $ret != 0 ]; then echo "I:failed"; fi
+status=`expr $status + $ret`
+
+exit $status

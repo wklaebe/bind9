@@ -1,3 +1,45 @@
+	--- 9.9.5rc2 released ---
+
+3710.	[bug]		Address double dns_zone_detach when switching to
+			using automatic empty zones from regular zones.
+			[RT #35177]
+
+3709.	[port]		Use built-in versions of strptime() and timegm()
+			on all platforms to avoid portability issues.
+			[RT #35183]
+
+3708.	[bug]		Address a portentry locking issue in dispatch.c.
+			[RT #35128]
+
+3707.	[bug]		irs_resconf_load now returns ISC_R_FILENOTFOUND
+			on a missing resolv.conf file and initializes the
+			structure as if it had been configured with:
+
+				nameserver ::1
+				nameserver 127.0.0.1
+
+			Note: Callers will need to be updated to treat
+			ISC_R_FILENOTFOUND as a qualified success or else
+			they will leak memory. The following code fragment
+			will work with both old and new versions without
+			changing the behaviour of the existing code.
+
+			resconf = NULL;
+			result = irs_resconf_load(mctx, "/etc/resolv.conf",
+						  &resconf);
+			if (result != ISC_SUCCESS) {
+				if (resconf != NULL)
+					irs_resconf_destroy(&resconf);
+				....
+			}
+
+			[RT #35194]
+
+3706.	[contrib]	queryperf: Fixed a possible integer overflow when
+			printing results. [RT #35182]
+
+3704.	[protocol]	Accept integer timestamps in RRSIG records. [RT #35185]
+
 	--- 9.9.5rc1 released ---
 
 3701.	[func]		named-checkconf can now obscure shared secrets
@@ -28,7 +70,8 @@
 3693.	[security]	memcpy was incorrectly called with overlapping
 			ranges resulting in malformed names being generated
 			on some platforms.  This could cause INSIST failures
-			when serving NSEC3 signed zones.  [RT #35120]
+			when serving NSEC3 signed zones (CVE-2014-0591).
+			[RT #35120]
 
 3692.	[bug]		Two calls to dns_db_getoriginnode were fatal if there
 			was no data at the node. [RT #35080]
@@ -128,8 +171,10 @@
 3657.	[port]		Some readline clones don't accept NULL pointers when
 			calling add_history. [RT #34842]
 
-3656.	[bug]		Treat an all zero netmask as invalid when generating
-			the localnets acl. [RT #34687]
+3656.	[security]	Treat an all zero netmask as invalid when generating
+			the localnets acl. (The prior behavior could
+			allow unexpected matches when using some versions
+			of Winsock: CVE-2013-6320.) [RT #34687]
 
 3655.	[cleanup]	Simplify TCP message processing when requesting a
 			zone transfer.  [RT #34825]

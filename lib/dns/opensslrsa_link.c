@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2009, 2011-2013  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2009, 2011-2014  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -481,7 +481,7 @@ opensslrsa_sign(dst_context_t *dctx, isc_buffer_t *sig) {
 		INSIST(prefixlen + digestlen <= sizeof(digest));
 
 		memmove(digest + prefixlen, digest, digestlen);
-		memcpy(digest, prefix, prefixlen);
+		memmove(digest, prefix, prefixlen);
 		status = RSA_private_encrypt(digestlen + prefixlen,
 					     digest, r.base, rsa,
 					     RSA_PKCS1_PADDING);

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2009, 2011-2013  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2009, 2011-2014  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1998-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -296,7 +296,7 @@ hname_to_tname(char *src, char *target, size_t len) {
 		 */
 		if (srclen >= len)
 			return (1);
-		memcpy(target, src, srclen + 1);
+		memmove(target, src, srclen + 1);
 		return (0);
 	}
 

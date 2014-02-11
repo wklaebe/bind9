@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2007, 2009, 2011-2013  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2007, 2009, 2011-2014  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -98,7 +98,7 @@ fromtext_in_wks(ARGS_FROMTEXT) {
 		RETTOK(DNS_R_BADDOTTEDQUAD);
 	if (region.length < 4)
 		return (ISC_R_NOSPACE);
-	memcpy(region.base, &addr, 4);
+	memmove(region.base, &addr, 4);
 	isc_buffer_add(target, 4);
 
 	/*
@@ -222,7 +222,7 @@ fromwire_in_wks(ARGS_FROMWIRE) {
 	if (tr.length < sr.length)
 		return (ISC_R_NOSPACE);
 
-	memcpy(tr.base, sr.base, sr.length);
+	memmove(tr.base, sr.base, sr.length);
 	isc_buffer_add(target, sr.length);
 	isc_buffer_forward(source, sr.length);
 

@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Copyright (C) 2011, 2012  Internet Systems Consortium, Inc. ("ISC")
+# Copyright (C) 2011-2013  Internet Systems Consortium, Inc. ("ISC")
 #
 # Permission to use, copy, modify, and/or distribute this software for any
 # purpose with or without fee is hereby granted, provided that the above
@@ -17,3 +17,4 @@
 # $Id: clean.sh,v 1.2 2011/05/07 05:55:17 each Exp $
 
 rm -f good.conf.in good.conf.out badzero.conf
+rm -rf test.keydir

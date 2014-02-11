@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2013  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2014  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2002, 2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -370,7 +370,7 @@ parse_updatepolicy(cfg_parser_t *pctx, const cfg_type_t *type,
 			isc_mem_put(pctx->mctx, obj, sizeof(*obj));
 			return (ISC_R_NOMEMORY);
 		}
-		memcpy(obj->value.string.base, "local", 5);
+		memmove(obj->value.string.base, "local", 5);
 		obj->value.string.base[5] = '\0';
 		*ret = obj;
 		return (ISC_R_SUCCESS);
@@ -1709,7 +1709,7 @@ static cfg_type_t cfg_type_dynamically_loadable_zones_opts = {
 static cfg_clausedef_t
 key_clauses[] = {
 	{ "algorithm", &cfg_type_astring, 0 },
-	{ "secret", &cfg_type_astring, 0 },
+	{ "secret", &cfg_type_sstring, 0 },
 	{ NULL, NULL, 0 }
 };
 

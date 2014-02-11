@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 #
-# Copyright (C) 2013  Internet Systems Consortium, Inc. ("ISC")
+# Copyright (C) 2013, 2014  Internet Systems Consortium, Inc. ("ISC")
 #
 # Permission to use, copy, modify, and/or distribute this software for any
 # purpose with or without fee is hereby granted, provided that the above
@@ -332,6 +332,7 @@ my @substdefp = ("ISC_PLATFORM_HAVEATOMICSTORE",
                  "ISC_PLATFORM_HAVECMPXCHG",
                  "ISC_PLATFORM_HAVEXADD",
                  "ISC_PLATFORM_HAVEXADDQ",
+                 "ISC_PLATFORM_NEEDSTRCASESTR",
                  "ISC_PLATFORM_OPENSSLHASH",
                  "ISC_PLATFORM_USEBACKTRACE");
 
@@ -563,7 +564,7 @@ foreach (@ARGV) {
     } elsif (/^disable-(.*)$/i) {
         appargs($_);
         myenable($1, "no");
-    } elsif (/^enable-(.$)$/i) {
+    } elsif (/^enable-(.*)$/i) {
         appargs($_);
         myenable($1, "yes");
     } elsif (/^without-(.*)$/i) {
@@ -1056,6 +1057,9 @@ if ($msc_ver < 1400) {
 if ($msc_ver >= 1700) {
     $configdefp{"ISC_PLATFORM_USEBACKTRACE"} = 1;
 }
+
+# no version of MSVS supports strcasestr() yet
+$configdefp{"ISC_PLATFORM_NEEDSTRCASESTR"} = 1;
 
 # warn when cross compiling
 

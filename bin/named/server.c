@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2013  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2014  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -8609,7 +8609,7 @@ ns_server_signing(ns_server_t *server, char *args, isc_buffer_t *text) {
 		ptr = next_token(&args, " \t");
 		if (ptr == NULL)
 			return (ISC_R_UNEXPECTEDEND);
-		memcpy(keystr, ptr, sizeof(keystr));
+		memmove(keystr, ptr, sizeof(keystr));
 	} else if (strcasecmp(ptr, "-nsec3param") == 0) {
 		const char *hashstr, *flagstr, *iterstr;
 		char nbuf[512];

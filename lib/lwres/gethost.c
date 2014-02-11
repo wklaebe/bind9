@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005, 2007, 2013  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2007, 2013, 2014  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000, 2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -331,7 +331,7 @@ copytobuf(struct hostent *he, struct hostent *hptr, char *buf, int buflen) {
 	 */
 	hptr->h_addr_list = ptr;
 	for (i = 0; he->h_addr_list[i]; i++, ptr++) {
-		memcpy(cp, he->h_addr_list[i], n);
+		memmove(cp, he->h_addr_list[i], n);
 		hptr->h_addr_list[i] = cp;
 		cp += n;
 	}

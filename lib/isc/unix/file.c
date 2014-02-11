@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005, 2007, 2009, 2011-2013  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2007, 2009, 2011-2014  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -489,7 +489,7 @@ isc_file_progname(const char *filename, char *buf, size_t buflen) {
 
 	if (len > buflen)
 		return (ISC_R_NOSPACE);
-	memcpy(buf, base, len);
+	memmove(buf, base, len);
 
 	return (ISC_R_SUCCESS);
 }

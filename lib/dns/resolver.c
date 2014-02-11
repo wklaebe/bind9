@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2013  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2014  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -3615,12 +3615,14 @@ fctx_create(dns_resolver_t *res, dns_name_t *name, dns_rdatatype_t type,
 			 */
 			if (dns_rdatatype_atparent(fctx->type))
 				findoptions |= DNS_DBFIND_NOEXACT;
-			result = dns_view_findzonecut(res->view, name, domain,
-						      0, findoptions, ISC_TRUE,
+			result = dns_view_findzonecut(res->view, fwdname,
+						      domain, 0, findoptions,
+						      ISC_TRUE,
 						      &fctx->nameservers,
 						      NULL);
 			if (result != ISC_R_SUCCESS)
 				goto cleanup_name;
+
 			result = dns_name_dup(domain, mctx, &fctx->domain);
 			if (result != ISC_R_SUCCESS) {
 				dns_rdataset_disassociate(&fctx->nameservers);
@@ -5444,11 +5446,11 @@ is_answeraddress_allowed(dns_view_t *view, dns_name_t *name,
 		dns_rdataset_current(rdataset, &rdata);
 		if (rdataset->type == dns_rdatatype_a) {
 			INSIST(rdata.length == sizeof(ina.s_addr));
-			memcpy(&ina.s_addr, rdata.data, sizeof(ina.s_addr));
+			memmove(&ina.s_addr, rdata.data, sizeof(ina.s_addr));
 			isc_netaddr_fromin(&netaddr, &ina);
 		} else {
 			INSIST(rdata.length == sizeof(in6a.s6_addr));
-			memcpy(in6a.s6_addr, rdata.data, sizeof(in6a.s6_addr));
+			memmove(in6a.s6_addr, rdata.data, sizeof(in6a.s6_addr));
 			isc_netaddr_fromin6(&netaddr, &in6a);
 		}
 
@@ -7312,9 +7314,12 @@ resquery_response(isc_task_t *task, isc_event_t *event) {
 		 * NXDOMAIN, NXRDATASET, or referral.
 		 */
 		result = noanswer_response(fctx, NULL, 0);
-		if (result == DNS_R_CHASEDSSERVERS) {
-		} else if (result == DNS_R_DELEGATION) {
-		force_referral:
+		switch (result) {
+		case ISC_R_SUCCESS:
+		case DNS_R_CHASEDSSERVERS:
+			break;
+		case DNS_R_DELEGATION:
+ force_referral:
 			/*
 			 * We don't have the answer, but we know a better
 			 * place to look.
@@ -7339,7 +7344,8 @@ resquery_response(isc_task_t *task, isc_event_t *event) {
 			fctx->adberr = 0;
 
 			result = ISC_R_SUCCESS;
-		} else if (result != ISC_R_SUCCESS) {
+			break;
+		default:
 			/*
 			 * Something has gone wrong.
 			 */
@@ -8849,7 +8855,7 @@ dns_resolver_disable_algorithm(dns_resolver_t *resolver, dns_name_t *name,
 			}
 			memset(new, 0, len);
 			if (algorithms != NULL)
-				memcpy(new, algorithms, *algorithms);
+				memmove(new, algorithms, *algorithms);
 			new[len-1] |= mask;
 			*new = len;
 			node->data = new;

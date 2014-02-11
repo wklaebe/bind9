@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2013  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2014  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -448,7 +448,7 @@ static isc_result_t
 append(const char *text, int len, char **p, char *end) {
 	if (len > end - *p)
 		return (ISC_R_NOSPACE);
-	memcpy(*p, text, len);
+	memmove(*p, text, len);
 	*p += len;
 	return (ISC_R_SUCCESS);
 }
@@ -2330,6 +2330,7 @@ setup_lookup(dig_lookup_t *lookup) {
 		query->rr_count = 0;
 		query->msg_count = 0;
 		query->byte_count = 0;
+		query->ixfr_axfr = ISC_FALSE;
 		ISC_LIST_INIT(query->recvlist);
 		ISC_LIST_INIT(query->lengthlist);
 		query->sock = NULL;
@@ -2982,6 +2983,9 @@ check_for_more_data(dig_query_t *query, dns_message_t *msg,
 	isc_boolean_t ixfr = query->lookup->rdtype == dns_rdatatype_ixfr;
 	isc_boolean_t axfr = query->lookup->rdtype == dns_rdatatype_axfr;
 
+	if (ixfr)
+		axfr = query->ixfr_axfr;
+
 	debug("check_for_more_data()");
 
 	/*
@@ -3030,7 +3034,7 @@ check_for_more_data(dig_query_t *query, dns_message_t *msg,
 					query->second_rr_rcvd = ISC_TRUE;
 					query->second_rr_serial = 0;
 					debug("got the second rr as nonsoa");
-					axfr = ISC_TRUE;
+					axfr = query->ixfr_axfr = ISC_TRUE;
 					goto next_rdata;
 				}
 
@@ -3941,7 +3945,7 @@ output_filter(isc_buffer_t *buffer, unsigned int used_org,
 	fromlen = isc_buffer_usedlength(buffer) - used_org;
 	if (fromlen >= MAXDLEN)
 		return (ISC_R_SUCCESS);
-	memcpy(tmp1, (char *)isc_buffer_base(buffer) + used_org, fromlen);
+	memmove(tmp1, (char *)isc_buffer_base(buffer) + used_org, fromlen);
 	end_with_dot = (tmp1[fromlen - 1] == '.') ? ISC_TRUE : ISC_FALSE;
 	if (absolute && !end_with_dot) {
 		fromlen++;
@@ -3970,7 +3974,7 @@ output_filter(isc_buffer_t *buffer, unsigned int used_org,
 		return (ISC_R_NOSPACE);
 
 	isc_buffer_subtract(buffer, isc_buffer_usedlength(buffer) - used_org);
-	memcpy(isc_buffer_used(buffer), tmp1, tolen);
+	memmove(isc_buffer_used(buffer), tmp1, tolen);
 	isc_buffer_add(buffer, (unsigned int)tolen);
 
 	return (ISC_R_SUCCESS);
@@ -3990,7 +3994,8 @@ append_textname(char *name, const char *origin, size_t namesize) {
 	if (namelen + 1 + originlen >= namesize)
 		return idn_buffer_overflow;
 
-	name[namelen++] = '.';
+	if (*origin != '.')
+		name[namelen++] = '.';
 	(void)strcpy(name + namelen, origin);
 	return idn_success;
 }

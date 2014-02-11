@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2013  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2014  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -725,7 +725,7 @@ main(int argc, char **argv) {
 
 	result = isc_file_progname(*argv, program, sizeof(program));
 	if (result != ISC_R_SUCCESS)
-		memcpy(program, "rndc", 5);
+		memmove(program, "rndc", 5);
 	progname = program;
 
 	admin_conffile = RNDC_CONFFILE;
@@ -857,7 +857,7 @@ main(int argc, char **argv) {
 	p = args;
 	for (i = 0; i < argc; i++) {
 		size_t len = strlen(argv[i]);
-		memcpy(p, argv[i], len);
+		memmove(p, argv[i], len);
 		p += len;
 		*p++ = ' ';
 	}

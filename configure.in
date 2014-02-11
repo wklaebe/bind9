@@ -1,4 +1,4 @@
-# Copyright (C) 2004-2013  Internet Systems Consortium, Inc. ("ISC")
+# Copyright (C) 2004-2014  Internet Systems Consortium, Inc. ("ISC")
 # Copyright (C) 1998-2003  Internet Software Consortium.
 #
 # Permission to use, copy, modify, and/or distribute this software for any
@@ -2419,6 +2419,10 @@ AC_CHECK_FUNC(strlcat,
 	[ISC_PLATFORM_NEEDSTRLCAT="#define ISC_PLATFORM_NEEDSTRLCAT 1"])
 AC_SUBST(ISC_PLATFORM_NEEDSTRLCAT)
 
+AC_CHECK_FUNC(strcasestr,
+	[ISC_PLATFORM_NEEDSTRCASESTR="#undef ISC_PLATFORM_NEEDSTRCASESTR"],
+	[ISC_PLATFORM_NEEDSTRCASESTR="#define ISC_PLATFORM_NEEDSTRCASESTR 1"])
+AC_SUBST(ISC_PLATFORM_NEEDSTRCASESTR)
 
 AC_SUBST(READLINE_LIB)
 AC_ARG_WITH(readline,

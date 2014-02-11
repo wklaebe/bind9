@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2007, 2011, 2012  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2007, 2011, 2012, 2014  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1998-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -1193,7 +1193,7 @@ main(int argc, char *argv[]) {
 		dns_rdata_init(&last);
 		region.base = malloc(region.length = rdata.length);
 		if (region.base) {
-			memcpy(region.base, rdata.data, rdata.length);
+			memmove(region.base, rdata.data, rdata.length);
 			dns_rdata_fromregion(&last, class, type, &region);
 			lasttype = type;
 			first = 0;

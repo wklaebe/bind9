@@ -1,6 +1,6 @@
 #!/bin/sh -e
 #
-# Copyright (C) 2010-2012  Internet Systems Consortium, Inc. ("ISC")
+# Copyright (C) 2010-2013  Internet Systems Consortium, Inc. ("ISC")
 #
 # Permission to use, copy, modify, and/or distribute this software for any
 # purpose with or without fee is hereby granted, provided that the above
@@ -21,4 +21,5 @@
 cp ns4/tld1.db ns4/tld.db
 cp ns6/to-be-removed.tld.db.in ns6/to-be-removed.tld.db
 cp ns7/server.db.in ns7/server.db
+cp ns7/named1.conf ns7/named.conf
 (cd ns6 && sh keygen.sh)

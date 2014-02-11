@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2013  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2014  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2001-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -25,6 +25,7 @@
 
 #include <isc/base64.h>
 #include <isc/buffer.h>
+#include <isc/file.h>
 #include <isc/log.h>
 #include <isc/mem.h>
 #include <isc/netaddr.h>
@@ -1145,7 +1146,7 @@ validate_masters(const cfg_obj_t *obj, const cfg_obj_t *config,
 				void *ptr;
 
 				DE_CONST(stack, ptr);
-				memcpy(new, stack, oldsize);
+				memmove(new, stack, oldsize);
 				isc_mem_put(mctx, ptr, oldsize);
 			}
 			stack = new;
@@ -1772,6 +1773,35 @@ check_zoneconf(const cfg_obj_t *zconfig, const cfg_obj_t *voptions,
 					    snamestr, znamestr);
 				result = ISC_R_FAILURE;
 			}
+		}
+	}
+
+	/*
+	 * Warn if key-directory doesn't exist
+	 */
+	obj = NULL;
+	tresult = cfg_map_get(zoptions, "key-directory", &obj);
+	if (tresult == ISC_R_SUCCESS) {
+		const char *dir = cfg_obj_asstring(obj);
+		tresult = isc_file_isdirectory(dir);
+		switch (tresult) {
+		case ISC_R_SUCCESS:
+			break;
+		case ISC_R_FILENOTFOUND:
+			cfg_obj_log(obj, logctx, ISC_LOG_WARNING,
+				    "key-directory: '%s' does not exist",
+				    dir);
+			break;
+		case ISC_R_INVALIDFILE:
+			cfg_obj_log(obj, logctx, ISC_LOG_WARNING,
+				    "key-directory: '%s' is not a directory",
+				    dir);
+			break;
+		default:
+			cfg_obj_log(obj, logctx, ISC_LOG_WARNING,
+				    "key-directory: '%s' %s",
+				    dir, isc_result_totext(tresult));
+			result = tresult;
 		}
 	}
 

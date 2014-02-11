@@ -184,6 +184,9 @@ int sigwait(const unsigned int *set, int *sig);
    MSVC and with C++ compilers. */
 #undef FLEXIBLE_ARRAY_MEMBER
 
+/* Defined if GeoIP supports IPv6 lookups */
+#undef GEOIP_V6
+
 /* Define to 1 if you have the `chroot' function. */
 #undef HAVE_CHROOT
 
@@ -438,6 +441,9 @@ int sigwait(const unsigned int *set, int *sig);
 
 /* Define to 1 if you have the ANSI C header files. */
 #undef STDC_HEADERS
+
+/* Define if you want GeoIP support. */
+#undef SUPPORT_GEOIP
 
 /* Define to 1 if you can safely include both <sys/time.h> and <time.h>. */
 #undef TIME_WITH_SYS_TIME

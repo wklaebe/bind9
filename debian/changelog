@@ -1,3 +1,24 @@
+bind9 (1:9.9.5.dfsg-1) experimental; urgency=low
+
+  [Internet Software Consortium, Inc]
+
+  * New upstream version: 9.9.5
+
+  [Martin Nagy]
+
+  * dynamic loading of database backends. See:
+    http://pkgs.fedoraproject.org/cgit/bind.git/tree/bind-96-dyndb.patch. 
+    Closes: #722669
+
+  [LaMont Jones]
+
+  * fix sonames
+  * merge ubuntu changes
+  * Deliver dns/rrl.h.  Closes: #724844
+  * rules tweak to make backports to pre-dh-systemd releases easier
+
+ -- LaMont Jones <lamont@debian.org>  Tue, 11 Feb 2014 09:16:05 -0700
+
 bind9 (1:9.9.4.dfsg-0.3) experimental; urgency=low
 
   [Internet Software Consortium, Inc]

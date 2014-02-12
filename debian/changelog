@@ -2,7 +2,7 @@ bind9 (1:9.9.5.dfsg-1) experimental; urgency=low
 
   [Internet Software Consortium, Inc]
 
-  * New upstream version: 9.9.5
+  * New upstream version: 9.9.5  Closes: #735190
 
   [Martin Nagy]
 

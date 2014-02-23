@@ -38,6 +38,7 @@ configure: configure-stamp
 configure-stamp:
 	dh_testdir
 	dh_autotools-dev_updateconfig
+	dh_autoreconf
 	./configure --prefix=/usr \
 		--mandir=\$${prefix}/share/man \
 		--infodir=\$${prefix}/share/info \
@@ -83,6 +84,7 @@ clean:
 	rm -f debian/substvars lib/bind/include/isc/platform.h
 	rm -f contrib/dlz/bin/dlzbdb/Makefile contrib/dlz/drivers/rules
 	rm -f doc/arm/Bv9ARM.pdf
+	dh_autoreconf_clean
 	dh_autotools-dev_restoreconfig
 	dh_clean
 

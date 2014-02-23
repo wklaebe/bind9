@@ -1,3 +1,20 @@
+bind9 (1:9.9.3.dfsg.P2-4ubuntu3) trusty; urgency=low
+
+  * SECURITY UPDATE: denial of service when processing NSEC3-signed zone
+    queries
+    - debian/patches/CVE-2014-0591.patch: don't call memcpy with
+      overlapping ranges in bin/named/query.c.
+    - patch backported from 9.9.4-P2.
+    - CVE-2014-0591
+
+ -- Marc Deslauriers <marc.deslauriers@ubuntu.com>  Fri, 10 Jan 2014 09:36:55 -0500
+
+bind9 (1:9.9.3.dfsg.P2-4ubuntu2) trusty; urgency=medium
+
+  * Use dh-autoreconf to update libtool and configure for new ports.
+
+ -- Adam Conrad <adconrad@ubuntu.com>  Wed, 18 Dec 2013 04:42:22 -0700
+
 bind9 (1:9.9.3.dfsg.P2-4ubuntu1) saucy; urgency=low
 
   * Use dh_autotools-dev to update config.{sub,guess} for new ports.

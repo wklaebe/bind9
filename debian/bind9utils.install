@@ -12,12 +12,14 @@ usr/sbin/named-checkzone
 usr/sbin/named-compilezone
 usr/sbin/rndc
 usr/sbin/rndc-confgen
+usr/share/man/man8/dnssec-checkds.8
 usr/share/man/man8/dnssec-dsfromkey.8
 usr/share/man/man8/dnssec-keyfromlabel.8
 usr/share/man/man8/dnssec-keygen.8
 usr/share/man/man8/dnssec-revoke.8
 usr/share/man/man8/dnssec-settime.8
 usr/share/man/man8/dnssec-signzone.8
+usr/share/man/man8/dnssec-verify.8
 usr/share/man/man8/named-checkconf.8
 usr/share/man/man8/named-checkzone.8
 usr/share/man/man8/named-compilezone.8

@@ -22,7 +22,7 @@ Description: Internet Domain Name Server
 
 Package: bind9utils
 Architecture: any
-Replaces: bind9 (<= 1:9.5.0~b2-1)
+Replaces: bind9 (<= 1:9.9.5.dfsg-1)
 Depends: ${shlibs:Depends}, ${misc:Depends}, python, python-argparse
 Description: Utilities for BIND
  This package provides various utilities that are useful for maintaining a

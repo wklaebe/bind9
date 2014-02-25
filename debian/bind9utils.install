@@ -1,4 +1,5 @@
 usr/sbin/dnssec-checkds
+usr/sbin/dnssec-coverage
 usr/sbin/dnssec-dsfromkey
 usr/sbin/dnssec-keyfromlabel
 usr/sbin/dnssec-keygen

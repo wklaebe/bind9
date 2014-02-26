@@ -1,3 +1,11 @@
+bind9 (1:9.9.5.dfsg-2) unstable; urgency=low
+
+  * merge in ubuntu 1:9.9.3.dfsg.P2-4ubuntu3
+  * move dnssec-coverage to bind9utils.  Closes: #739994
+  * dnssec-{checkds,verify} manpages in wrong package.  Closes: #739995
+
+ -- LaMont Jones <lamont@debian.org>  Wed, 26 Feb 2014 09:30:31 -0700
+
 bind9 (1:9.9.5.dfsg-1) experimental; urgency=low
 
   [Internet Software Consortium, Inc]

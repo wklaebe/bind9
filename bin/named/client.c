@@ -933,6 +933,11 @@ ns_client_sendraw(ns_client_t *client, dns_message_t *message) {
 		goto done;
 	}
 
+        if (client->view != NULL && client->view->dampening != NULL)
+		dns_dampening_score_size(client->view->dampening,
+					 &client->peeraddr,
+					 client->now, mr->length);
+
 	result = client_allocsendbuf(client, &buffer, NULL, mr->length,
 				     sendbuf, &data);
 	if (result != ISC_R_SUCCESS)

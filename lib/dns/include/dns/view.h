@@ -73,6 +73,7 @@
 
 #include <dns/acl.h>
 #include <dns/clientinfo.h>
+#include <dns/dampening.h>
 #include <dns/fixedname.h>
 #include <dns/rrl.h>
 #include <dns/rdatastruct.h>
@@ -146,6 +147,7 @@ struct dns_view {
 	dns_rbt_t *			denyanswernames;
 	dns_rbt_t *			answernames_exclude;
 	dns_rrl_t *			rrl;
+	dns_dampening_t *		dampening;
 	isc_boolean_t			provideixfr;
 	isc_boolean_t			requestnsid;
 	isc_boolean_t			requestsit;

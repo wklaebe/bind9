@@ -8088,11 +8088,12 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype)
 }
 
 static inline void
-log_query(ns_client_t *client, unsigned int flags, unsigned int extflags) {
+log_query(ns_client_t *client, unsigned int flags, unsigned int extflags, int penalty) {
 	char namebuf[DNS_NAME_FORMATSIZE];
 	char typename[DNS_RDATATYPE_FORMATSIZE];
 	char classname[DNS_RDATACLASS_FORMATSIZE];
 	char onbuf[ISC_NETADDR_FORMATSIZE];
+   	char penbuf[sizeof("65536")+1];
 	dns_rdataset_t *rdataset;
 	int level = ISC_LOG_INFO;
 
@@ -8105,9 +8106,10 @@ log_query(ns_client_t *client, unsigned int flags, unsigned int extflags) {
 	dns_rdataclass_format(rdataset->rdclass, classname, sizeof(classname));
 	dns_rdatatype_format(rdataset->type, typename, sizeof(typename));
 	isc_netaddr_format(&client->destaddr, onbuf, sizeof(onbuf));
+   	snprintf(penbuf, sizeof(penbuf), "%d", penalty);
 
 	ns_client_log(client, NS_LOGCATEGORY_QUERIES, NS_LOGMODULE_QUERY,
-		      level, "query: %s %s %s %s%s%s%s%s%s (%s)", namebuf,
+		      level, "query: %s %s %s %s%s%s%s%s%s (%s) %s", namebuf,
 		      classname, typename, WANTRECURSION(client) ? "+" : "-",
 		      (client->signer != NULL) ? "S": "",
 		      (client->opt != NULL) ? "E" : "",
@@ -8115,7 +8117,8 @@ log_query(ns_client_t *client, unsigned int flags, unsigned int extflags) {
 				 "T" : "",
 		      ((extflags & DNS_MESSAGEEXTFLAG_DO) != 0) ? "D" : "",
 		      ((flags & DNS_MESSAGEFLAG_CD) != 0) ? "C" : "",
-		      onbuf);
+		      onbuf,
+		      penalty < -1 ? "" : penalty < 0 ? "-" : penbuf);
 }
 
 static inline void
@@ -8169,6 +8172,7 @@ ns_query_start(ns_client_t *client) {
 	dns_rdatatype_t qtype;
 	unsigned int saved_extflags = client->extflags;
 	unsigned int saved_flags = client->message->flags;
+	int client_penalty = -2;
 
 	CTRACE("ns_query_start");
 
@@ -8223,6 +8227,22 @@ ns_query_start(ns_client_t *client) {
 	}
 
 	/*
+	 * Dampening for UDP packets only. Early processing to prevent error
+	 * message reflector attacks.
+	 */
+	if ((client->attributes & NS_CLIENTATTR_TCP) == 0 &&
+	    client->view != NULL && client->view->dampening != NULL) {
+	   	if( DNS_DAMPENING_STATE_SUPPRESS ==
+		    dns_dampening_query(client->view->dampening,
+					&client->peeraddr, client->now,
+					&client_penalty) ) {
+		   	inc_stats(client, dns_nsstatscounter_dampened);
+			query_next(client, DNS_R_DROP);
+			return;
+		}
+	}
+
+	/*
 	 * Get the question name.
 	 */
 	result = dns_message_firstname(message, DNS_SECTION_QUESTION);
@@ -8247,7 +8267,7 @@ ns_query_start(ns_client_t *client) {
 	}
 
 	if (ns_g_server->log_queries)
-		log_query(client, saved_flags, saved_extflags);
+		log_query(client, saved_flags, saved_extflags, client_penalty);
 
 	/*
 	 * Check for multiple question queries, since edns1 is dead.
@@ -8264,6 +8284,11 @@ ns_query_start(ns_client_t *client) {
 	INSIST(rdataset != NULL);
 	qtype = rdataset->type;
 	dns_rdatatypestats_increment(ns_g_server->rcvquerystats, qtype);
+
+	if (client->view != NULL && client->view->dampening != NULL)
+		dns_dampening_score_qtype(client->view->dampening,
+					  &client->peeraddr, client->now,
+					  client->message->id, qtype);
 
 	if (dns_rdatatype_ismeta(qtype)) {
 		switch (qtype) {

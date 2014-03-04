@@ -4618,6 +4618,22 @@ badresp:1,adberr:0,findfail:0,valfail:0]
 		    </para>
 		  </entry>
 		</row>
+                <row rowsep="0">
+                  <entry colname="1">
+                    <para><command>dampening</command></para>
+                  </entry>
+		  <entry colname="2">
+		    <para>
+		     The start and periodic notices of a penalty based
+		     suppression of incoming queries are logged at
+		     <command>info</command> severity in this category.
+		     Dampening events for prefixes as well as  
+		     periodic performance data comes into the same severity.
+		     Individual penalty values per query are logged in the
+		     <command>queries</command> category.
+		    </para>
+		  </entry>
+		</row>
 	      </tbody>
 	    </tgroup>
 	  </informaltable>
@@ -4983,6 +4999,27 @@ badresp:1,adberr:0,findfail:0,valfail:0]
 	<optional> break-dnssec <replaceable>yes_or_no</replaceable> ; </optional>
 	<optional> min-ns-dots <replaceable>number</replaceable> ; </optional>
 	<optional> qname-wait-recurse <replaceable>yes_or_no</replaceable> ; </optional>
+    } ; </optional>
+    <optional> dampening {
+	<optional> halflife <replaceable>number</replaceable> ; </optional>
+	<optional> update-delay <replaceable>number</replaceable> ; </optional>
+	<optional> limit-maximum <replaceable>number</replaceable> ; </optional>
+	<optional> limit-enable-dampening <replaceable>number</replaceable> ; </optional>
+	<optional> limit-disable-dampening <replaceable>number</replaceable> ; </optional>
+	<optional> limit-irrelevant <replaceable>number</replaceable> ; </optional>
+	<optional> score-first-query <replaceable>number</replaceable> ; </optional>
+	<optional> score-per-query <replaceable>number</replaceable> ; </optional>
+	<optional> score-qtype-any <replaceable>number</replaceable> ; </optional>
+	<optional> minimum-score-size <replaceable>number</replaceable> ; </optional>
+	<optional> maximum-score-size <replaceable>number</replaceable> ; </optional>
+	<optional> score-size <replaceable>number</replaceable> ; </optional>
+	<optional> score-duplicates <replaceable>number</replaceable> ; </optional>
+	<optional> report-interval <replaceable>number</replaceable> ; </optional>
+	<optional> IPv4-prefix-length <replaceable>number</replaceable> ; </optional>
+	<optional> IPv6-prefix-length <replaceable>number</replaceable> ; </optional>
+	<optional> exempt-clients  { <replaceable>address_match_list</replaceable> } ; </optional>
+	<optional> max-table-size <replaceable>number</replaceable> ; </optional>
+	<optional> min-table-size <replaceable>number</replaceable> ; </optional>
     } ; </optional>
 };
 </programlisting>
@@ -10284,6 +10321,91 @@ rate-limit {
 	    <command>RateSlipped</command> and <command>RespTruncated</command>.
 	  </para>
 	</sect3>
+
+	<sect3 id="dampening">
+	  <title>Dampening</title>
+	  <para>
+	    Spoofed UDP queries are a major security threat especially when
+	    reflected and possibly amplified by DNS servers. Dampening is a
+	    dynamically adapting method for dealing with such kinds of misuse.
+	    So dampening a about spoofing, hence TCP connections are not
+	    affected at all.
+	  </para>
+
+	  <para>
+	    Every piece of a query and its response is associated with
+	    specific penalty points. Those points aggregate over all queries
+	    from netblocks defined by <command>IPv6-prefix-length</command> and
+	    <command>IPv4-prefix-length</command>. Over the time, the penalty
+	    decrease exponentially (determined by <command>halflife</command>).
+	    So each netblock gains a penalty over time characteristics.
+	  </para>
+
+	  <para>
+	    In order to allow local clients, which should be protected by
+	    anti-spoof techniques at the edge of the operated network, to
+	    send any amount of queries without fear the risks of being blocked,
+	    push them into a seperate view with other or no dampening rules or
+	    add them to <command>exempt-clients</command>.
+	  </para>
+
+	  <para>
+	    If the penalty exeeds the <command>limit-enable-dampening</command>,
+	    the netblock gets dampened. No further query processing will occur.
+	    Every further query is dropped silently before inspecting the
+	    content of the query itself. So the penalty value can decrease
+	    slowly, if the sender collect not quickly enough further
+	    <command>score-per-query</command> points. Please note, that
+	    penalty values can't exceed <command>limit-maximum</command>.
+	  </para>
+
+	  <para>
+	    If the penalty drops below <command>limit-disable-dampening</command>,
+	    query processing for the netblock switchs back to normal. If
+	    the penalty drops as low as <command>limit-irrelevant</command>,
+	    the netblock is removed from the statistics. The next query
+	    gains <command>score-first-query</command> for this netblock
+	    and reenteres the collection.
+	  </para>
+
+	  <para>
+	    Comment current attacks gain a huge amplification from ANY query
+	    to DNSSEC signed zones. So each ANY query is charged with
+	    additional <command>score-qtype-any</command> points. Furthermore
+	    current attackers repeat the same packet over and over again, so
+	    keeping the same id in each query. Such repetitions are recognised
+	    and give <command>score-duplicates</command> points times the
+	    repetition of this id.
+	  </para>
+
+	  <para>
+	    Amplification attacks aims to huge answers, so the next penalty
+	    comes from the response size. The penalty increased lineary from
+	    zero for responses up to <command>minimum-score-size</command>
+	    bytes. The maximum penalty of <command>score-size</command> is
+	    reached when the response reaches or exceeds
+	    <command>maximum-score-size</command> bytes.
+	  </para>
+
+	  <para>
+	    In order to minimize expensive calulations for each query, the
+	    penalty decay is delayed by at least
+	    <command>update-delay</command> seconds. The statistics table
+	    has space for <command>min-table-size</command> elements but
+	    might increase to <command>max-table-size</command> elements if
+	    necessary.
+	  </para>
+	  
+	  </para>
+	    In order to compare various storage models, which are activated
+	    at compile time, regular statistics can by extracted by setting
+	    <command>report-interval</command> to the seconds between reports.
+	    Those statistic lines contain the numerical index of the
+	    implementation <command>Stats for #...</command>, the number of
+	    queries processed, dampened, and exempted <command>queries ././.</command>,
+	    and aggregated time spend in the various functions.
+	  <para>
+	</sect3>
       </sect2>
 
       <sect2 id="server_statement_grammar">
@@ -15221,6 +15343,19 @@ HOST-127.EXAMPLE. MX 0 .
 		    <entry colname="3">
 		      <para>
 			Response policy zone rewrites.
+		      </para>
+		    </entry>
+		  </row>
+		  <row rowsep="0">
+		    <entry colname="1">
+		      <para><command>Dampened</command></para>
+		    </entry>
+		    <entry colname="2">
+		      <para><command></command></para>
+		    </entry>
+		    <entry colname="3">
+		      <para>
+			Queries dropped due to dampening
 		      </para>
 		    </entry>
 		  </row>

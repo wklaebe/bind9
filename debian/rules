@@ -57,6 +57,8 @@ configure-stamp:
 		--enable-ipv6 \
 		--enable-rrl \
 		--enable-filter-aaaa \
+		--enable-rrl \
+		--enable-full-report \
 		$(EXTRA_FEATURES)
 
 	touch $@

@@ -1305,6 +1305,43 @@ static cfg_type_t cfg_type_rrl = {
 };
 #endif /* USE_RRL */
 
+/*
+ * dampening
+ */
+
+static cfg_clausedef_t dampening_clauses[] = {
+     { "min-table-size", &cfg_type_uint32, 0 },
+     { "max-table-size", &cfg_type_uint32, 0 },
+     { "halflife", &cfg_type_uint32, 0 },
+     { "update-delay", &cfg_type_uint32, 0 },
+     { "limit-maximum", &cfg_type_uint32, 0 },
+     { "limit-enable-dampening", &cfg_type_uint32, 0 },
+     { "limit-disable-dampening", &cfg_type_uint32, 0 },
+     { "limit-irrelevant", &cfg_type_uint32, 0 },
+     { "score-first-query", &cfg_type_uint32, 0 },
+     { "score-per-query", &cfg_type_uint32, 0 },
+     { "score-qtype-any", &cfg_type_uint32, 0 },
+     { "minimum-score-size", &cfg_type_uint32, 0 },
+     { "maximum-score-size", &cfg_type_uint32, 0 },
+     { "score-size", &cfg_type_uint32, 0 },
+     { "score-duplicates", &cfg_type_uint32, 0 },
+     { "IPv4-prefix-length", &cfg_type_uint32, 0 },
+     { "IPv6-prefix-length", &cfg_type_uint32, 0 },
+     { "report-interval", &cfg_type_uint32, 0 },
+     { "exempt-clients", &cfg_type_bracketed_aml, 0 },
+     { NULL, NULL, 0 }
+};
+
+static cfg_clausedef_t * dampening_clauseset[] = {
+     dampening_clauses,
+     NULL
+};
+
+static cfg_type_t cfg_type_dampening = {
+   "dampening", cfg_parse_map, cfg_print_map, cfg_doc_map,
+     &cfg_rep_map, dampening_clauseset
+};
+
 /*%
  * dnssec-lookaside
  */
@@ -1462,6 +1499,7 @@ view_clauses[] = {
 #ifdef USE_RRL
 	{ "rate-limit", &cfg_type_rrl, 0 },
 #endif /* USE_RRL */
+	{ "dampening", &cfg_type_dampening, 0 },
 	{ NULL, NULL, 0 }
 };
 

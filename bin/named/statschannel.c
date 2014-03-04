@@ -215,6 +215,9 @@ init_desc(void) {
 	SET_NSSTATDESC(rateslipped, "responses truncated for rate limits",
 		       "RateSlipped");
 #endif /* USE_RRL */
+	SET_NSSTATDESC(dampened,
+		       "query dropped due to dampening",
+		       "Dampened");
 	INSIST(i == dns_nsstatscounter_max);
 
 	/* Initialize resolver statistics */

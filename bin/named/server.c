@@ -163,6 +163,16 @@
 			fatal(msg, result);			  \
 	} while (0)						  \
 
+#define CHECKRANGE(obj, cond, pat, val) \
+	do {								\
+		if (!(cond)) {						\
+			cfg_obj_log(obj, ns_g_lctx, ISC_LOG_ERROR,	\
+				    pat, val);				\
+			result = ISC_R_RANGE;				\
+			goto cleanup;					\
+		    }							\
+	} while (0)							\
+
 /*%
  * Maximum ADB size for views that share a cache.  Use this limit to suppress
  * the total of memory footprint, which should be the main reason for sharing
@@ -2115,6 +2125,230 @@ create_empty_zone(dns_zone_t *zone, dns_name_t *name, dns_view_t *view,
 	return (result);
 }
 
+static isc_result_t
+configure_dampening(dns_view_t *view, const cfg_obj_t *config,
+		    const cfg_obj_t *map) {
+	const cfg_obj_t *obj;
+	isc_result_t result;
+   	int min_entries, i;
+
+	min_entries = 500;
+	obj = NULL;
+	result = cfg_map_get(map, "min-table-size", &obj);
+	if (result == ISC_R_SUCCESS) {
+		min_entries = cfg_obj_asuint32(obj);
+	   	CHECKRANGE(obj, 1 < min_entries && min_entries < ISC_UINT16_MAX,
+			   "invalid '{min-table-size %d;}'", min_entries);
+	}
+	result = dns_dampening_init(view, min_entries);
+	if (result != ISC_R_SUCCESS)
+		goto cleanup;
+
+	i = ISC_MAX(min_entries, 1000);
+	obj = NULL;
+	result = cfg_map_get(map, "max-table-size", &obj);
+	if (result == ISC_R_SUCCESS) {
+		i = cfg_obj_asuint32(obj);
+		CHECKRANGE(obj, min_entries <= i && i < ISC_UINT16_MAX,
+			   "invalid '{max-table-size %d;}'", i);
+	}
+	view->dampening->max_entries = i;
+
+   	i = 600;
+	obj = NULL;
+	result = cfg_map_get(map, "halflife", &obj);
+	if (result == ISC_R_SUCCESS) {
+		i = cfg_obj_asuint32(obj);
+		CHECKRANGE(obj, 10 < i,
+			   "invalid '{halflife %d;}'", i);
+	}
+	view->dampening->decay.halflife = i;
+
+   	i = ISC_MAX(1 , view->dampening->decay.halflife / 100);
+	obj = NULL;
+	result = cfg_map_get(map, "update-delay", &obj);
+	if (result == ISC_R_SUCCESS) {
+		i = cfg_obj_asuint32(obj);
+		CHECKRANGE(obj, i <= view->dampening->decay.halflife,
+			   "invalid '{update-delay %d;}'", i);
+	}
+	view->dampening->decay.updatedelay = i;
+
+   	i = 32000;
+	obj = NULL;
+	result = cfg_map_get(map, "limit-maximum", &obj);
+	if (result == ISC_R_SUCCESS) {
+		i = cfg_obj_asuint32(obj);
+		CHECKRANGE(obj, 1000 <= i && i <= ISC_UINT16_MAX,
+			   "invalid '{limit-maximum %d;}'", i);
+	}
+	view->dampening->limit.maximum = i;
+
+   	i = 0.8 * view->dampening->limit.maximum;
+	obj = NULL;
+	result = cfg_map_get(map, "limit-enable-dampening", &obj);
+	if (result == ISC_R_SUCCESS) {
+		i = cfg_obj_asuint32(obj);
+		CHECKRANGE(obj, 0.3 * view->dampening->limit.maximum < i && i < view->dampening->limit.maximum,
+			   "invalid '{limit-enable-dampening %d;}'", i);
+	}
+	view->dampening->limit.enable_dampening = i;
+
+   	i = 0.3 * view->dampening->limit.maximum;
+	obj = NULL;
+	result = cfg_map_get(map, "limit-disable-dampening", &obj);
+	if (result == ISC_R_SUCCESS) {
+		i = cfg_obj_asuint32(obj);
+		CHECKRANGE(obj, 0.1 * view->dampening->limit.maximum < i && i < view->dampening->limit.enable_dampening,
+			   "invalid '{limit-disable-dampening %d;}'", i);
+	}
+	view->dampening->limit.disable_dampening = i;
+
+   	i = 100;
+	obj = NULL;
+	result = cfg_map_get(map, "limit-irrelevant", &obj);
+	if (result == ISC_R_SUCCESS) {
+		i = cfg_obj_asuint32(obj);
+		CHECKRANGE(obj, 100 < i && i < view->dampening->limit.disable_dampening,
+			   "invalid '{limit-irrelevant %d;}'", i);
+	}
+	view->dampening->limit.irrelevant = i;
+
+   	i = 10;
+	obj = NULL;
+	result = cfg_map_get(map, "score-first-query", &obj);
+	if (result == ISC_R_SUCCESS) {
+		i = cfg_obj_asuint32(obj);
+		CHECKRANGE(obj, i < view->dampening->limit.enable_dampening,
+			   "invalid '{score-first-query %d;}'", i);
+	}
+	view->dampening->score.first_query = i;
+
+   	i = 1;
+	obj = NULL;
+	result = cfg_map_get(map, "score-per-query", &obj);
+	if (result == ISC_R_SUCCESS) {
+		i = cfg_obj_asuint32(obj);
+		CHECKRANGE(obj, i < view->dampening->limit.maximum,
+			   "invalid '{score-per-query %d;}'", i);
+	}
+	view->dampening->score.per_query = i;
+
+   	i = 100;
+	obj = NULL;
+	result = cfg_map_get(map, "score-qtype-any", &obj);
+	if (result == ISC_R_SUCCESS) {
+		i = cfg_obj_asuint32(obj);
+		CHECKRANGE(obj, i < view->dampening->limit.maximum,
+			   "invalid '{score-qtype-any %d;}'", i);
+	}
+	view->dampening->score.qtype_any = i;
+
+   	i = 500;
+	obj = NULL;
+	result = cfg_map_get(map, "minimum-score-size", &obj);
+	if (result == ISC_R_SUCCESS) {
+		i = cfg_obj_asuint32(obj);
+		CHECKRANGE(obj, i < ISC_UINT16_MAX / 4,
+			   "invalid '{minimum-score-size %d;}'", i);
+	}
+	view->dampening->score.minimum_size = i;
+
+   	i = ISC_MAX(4000,4*view->dampening->score.minimum_size);
+	obj = NULL;
+	result = cfg_map_get(map, "maximum-score-size", &obj);
+	if (result == ISC_R_SUCCESS) {
+		i = cfg_obj_asuint32(obj);
+		CHECKRANGE(obj, i > view->dampening->score.minimum_size && i <= ISC_UINT16_MAX,
+			   "invalid '{maximum-score-size %d;}'", i);
+	}
+	view->dampening->score.maximum_size = i;
+
+   	i = 100;
+	obj = NULL;
+	result = cfg_map_get(map, "score-size", &obj);
+	if (result == ISC_R_SUCCESS) {
+		i = cfg_obj_asuint32(obj);
+		CHECKRANGE(obj, i < view->dampening->limit.maximum,
+			   "invalid '{score-size %d;}'", i);
+	}
+	view->dampening->score.size_penalty = i;
+
+   	i = 100;
+	obj = NULL;
+	result = cfg_map_get(map, "score-duplicates", &obj);
+	if (result == ISC_R_SUCCESS) {
+		i = cfg_obj_asuint32(obj);
+		CHECKRANGE(obj, i < view->dampening->limit.maximum,
+			   "invalid '{score-duplicates %d;}'", i);
+	}
+	view->dampening->score.duplicates = i;
+
+	i = 24;
+	obj = NULL;
+	result = cfg_map_get(map, "IPv4-prefix-length", &obj);
+	if (result == ISC_R_SUCCESS) {
+		i = cfg_obj_asuint32(obj);
+		CHECKRANGE(obj, i >= 8 && i <= 32,
+			   "invalid '{IPv4-prefix-length %d;}'", i);
+	}
+	view->dampening->prefixlen.ipv4 = i;
+
+	i = 48;
+	obj = NULL;
+	result = cfg_map_get(map, "IPv6-prefix-length", &obj);
+	if (result == ISC_R_SUCCESS) {
+		i = cfg_obj_asuint32(obj);
+		CHECKRANGE(obj, i >= 16 && i <= 128,
+			   "invalid '{IPv6-prefix-length %d;}'", i);
+	}
+	view->dampening->prefixlen.ipv6 = i;
+
+	obj = NULL;
+	result = cfg_map_get(map, "exempt-clients", &obj);
+	if (result == ISC_R_SUCCESS) {
+		result = cfg_acl_fromconfig(obj, config, ns_g_lctx,
+					    ns_g_aclconfctx, ns_g_mctx,
+					    0, &view->dampening->exempt);
+		CHECKRANGE(obj, result == ISC_R_SUCCESS,
+			   "invalid %s", "address_match_list");
+	}
+
+   	i = 0;
+	obj = NULL;
+	result = cfg_map_get(map, "report-interval", &obj);
+	if (result == ISC_R_SUCCESS) {
+		i = cfg_obj_asuint32(obj);
+	}
+	view->dampening->statistics.report_interval = i;
+
+	isc_log_write(ns_g_lctx, NS_LOGCATEGORY_GENERAL,
+		      NS_LOGMODULE_SERVER, ISC_LOG_INFO,
+		      "Dampening configured to max_entries=%d prefixlen{ipv4=%d ipv6=%d} decay{halflife=%d updatedelay=%d} limit{max=%d enable=%d disable=%d irrelevant=%d} score{first=%d each=%d any=%d dup=%d size=%d mins=%d maxs=%d} report=%d",
+		      view->dampening->max_entries,
+		      view->dampening->prefixlen.ipv4,
+		      view->dampening->prefixlen.ipv6,
+		      view->dampening->decay.halflife,
+		      view->dampening->decay.updatedelay,
+		      view->dampening->limit.maximum,
+		      view->dampening->limit.enable_dampening,
+		      view->dampening->limit.disable_dampening,
+		      view->dampening->limit.irrelevant,
+		      view->dampening->score.first_query,
+		      view->dampening->score.per_query,
+		      view->dampening->score.qtype_any,
+		      view->dampening->score.duplicates,
+		      view->dampening->score.size_penalty,
+		      view->dampening->score.minimum_size,
+		      view->dampening->score.maximum_size,
+		      view->dampening->statistics.report_interval
+		      );
+	return (ISC_R_SUCCESS);
+cleanup:
+	dns_dampening_destroy(view);
+	return (result);
+}
+
 /*
  * Configure 'view' according to 'vconfig', taking defaults from 'config'
  * where values are missing in 'vconfig'.
@@ -3530,6 +3764,17 @@ configure_view(dns_view_t *view, cfg_obj_t *config, cfg_obj_t *vconfig,
 			goto cleanup;
 	}
 #endif /* USE_RRL */
+
+	/*
+	 * Activate dampening
+	 */
+	obj = NULL;
+	result = ns_config_get(maps, "dampening", &obj);
+	if (result == ISC_R_SUCCESS) {
+		result = configure_dampening(view, config, obj);
+		if (result != ISC_R_SUCCESS)
+			goto cleanup;
+	}
 
 	result = ISC_R_SUCCESS;
 

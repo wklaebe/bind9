@@ -55,6 +55,8 @@ configure-stamp:
 		--with-atf=no \
 		--enable-ipv6 \
 		--enable-filter-aaaa \
+		--enable-rrl \
+		--enable-full-report \
 		$(EXTRA_FEATURES)
 
 	touch $@

@@ -60,6 +60,7 @@ RRLOBJS =	rrl.@O@
 # Alphabetically
 DNSOBJS =	acache.@O@ acl.@O@ adb.@O@ byaddr.@O@ \
 		cache.@O@ callbacks.@O@ clientinfo.@O@ compress.@O@ \
+		dampening.@O@ \
 		db.@O@ dbiterator.@O@ dbtable.@O@ diff.@O@ dispatch.@O@ \
 		dlz.@O@ dns64.@O@ dnssec.@O@ ds.@O@ forward.@O@ iptable.@O@ \
 		dynamic_db.@O@ journal.@O@ keydata.@O@ keytable.@O@ \
@@ -90,6 +91,7 @@ DSTSRCS =	@DST_EXTRA_SRCS@ @OPENSSLLINKSRCS@ \
 
 DNSSRCS =	acache.c acl.c adb.c byaddr.c \
 		cache.c callbacks.c clientinfo.c compress.c \
+		dampening.c \
 		db.c dbiterator.c dbtable.c diff.c dispatch.c \
 		dlz.c dns64.c dnssec.c ds.c forward.c iptable.c journal.c \
 		dynamic_db.c keydata.c keytable.c lib.c log.c lookup.c \

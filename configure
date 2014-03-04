@@ -824,6 +824,7 @@ OPENSSLGOSTLINKSRCS
 OPENSSLGOSTLINKOBJS
 DST_OPENSSL_INC
 USE_OPENSSL
+GEOIP_LIBS
 LWRES_PLATFORM_NEEDSYSSELECTH
 ISC_PLATFORM_NEEDSYSSELECTH
 ISC_PLATFORM_HAVEDEVPOLL
@@ -961,6 +962,7 @@ with_openssl
 enable_openssl_version_check
 with_ecdsa
 with_gost
+with_geoip
 enable_openssl_hash
 with_pkcs11
 with_gssapi
@@ -1675,6 +1677,7 @@ Optional Packages:
 			  (Required for DNSSEC)
   --with-ecdsa            OpenSSL ECDSA
   --with-gost             OpenSSL GOST
+  --with-geoip=PATH   Specify path for system-supplied GeoIP
   --with-pkcs11=PATH      Build with PKCS11 support yes|no|path
                           (PATH is for the PKCS11 provider)
   --with-gssapi=PATH      Specify path for system-supplied GSSAPI [default=yes]
@@ -12420,7 +12423,7 @@ case "$host" in
 	# as it breaks how the two halves (Basic and Advanced) of the IPv6
 	# Socket API were designed to be used but we have to live with it.
 	# Define _GNU_SOURCE to pull in the IPv6 Advanced Socket API.
-	*-linux* | *-kfreebsd*-gnu)
+	*-linux*|*-gnu*)
 		STD_CDEFINES="$STD_CDEFINES -D_GNU_SOURCE"
 		CPPFLAGS="$CPPFLAGS -D_GNU_SOURCE"
 		;;
@@ -13927,6 +13930,147 @@ $as_echo "#define HAVE_OPENSSL_GOST 1" >>confdefs.h
 esac
 
 #
+# Check for GeoIP - if yes enable it
+#
+
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for GeoIP library" >&5
+$as_echo_n "checking for GeoIP library... " >&6; }
+
+# Check whether --with-geoip was given.
+if test "${with_geoip+set}" = set; then :
+  withval=$with_geoip; use_geoip="$withval"
+else
+  use_geoip="no"
+fi
+
+
+#geoipdirs="/usr/local /usr/pkg /usr/kerberos /usr"
+#
+#if test "$use_geoip" = "yes"
+#then
+#	for d in $geoipdirs
+#	do
+#		if test -f $d/include/include/GeoIP.h -o -f $d/include/GeoIP.h
+#		then
+#			use_geoip=$d
+#			break
+#		fi
+#	done
+#fi
+
+
+$as_echo "#define GEOIP_V6 1" >>confdefs.h
+
+case "$use_geoip" in
+	no)
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: disabled" >&5
+$as_echo "disabled" >&6; }
+		USE_GEOIP=''
+		;;
+#	yes)
+#		AC_MSG_ERROR([--with-geoip must specify a path])
+#		;;
+	*)
+		ac_fn_c_check_header_mongrel "$LINENO" "GeoIP.h" "ac_cv_header_GeoIP_h" "$ac_includes_default"
+if test "x$ac_cv_header_GeoIP_h" = xyes; then :
+
+else
+  as_fn_error $? "GeoIP library header files not found" "$LINENO" 5
+
+fi
+
+
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for GeoIP_open in -lGeoIP" >&5
+$as_echo_n "checking for GeoIP_open in -lGeoIP... " >&6; }
+if ${ac_cv_lib_GeoIP_GeoIP_open+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lGeoIP  $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char GeoIP_open ();
+int
+main ()
+{
+return GeoIP_open ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  ac_cv_lib_GeoIP_GeoIP_open=yes
+else
+  ac_cv_lib_GeoIP_GeoIP_open=no
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_GeoIP_GeoIP_open" >&5
+$as_echo "$ac_cv_lib_GeoIP_GeoIP_open" >&6; }
+if test "x$ac_cv_lib_GeoIP_GeoIP_open" = xyes; then :
+
+
+$as_echo "#define SUPPORT_GEOIP 1" >>confdefs.h
+
+
+else
+
+				as_fn_error $? "GeoIP library header files were found but the library was not found" "$LINENO" 5
+
+fi
+
+		GEOIP_LIBS="-lGeoIP"
+                { $as_echo "$as_me:${as_lineno-$LINENO}: checking for for GeoIP IPv6 support" >&5
+$as_echo_n "checking for for GeoIP IPv6 support... " >&6; }
+                cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+#include <GeoIP.h>
+#include <netinet/in.h>
+
+int
+main ()
+{
+
+
+extern const struct in6_addr in6addr_loopback;
+static GeoIP *geoip = NULL;
+
+const char* value = value = GeoIP_country_name_by_ipnum_v6(geoip, (geoipv6_t)in6addr_loopback);
+
+
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+		GEOIP_V6="#define GEOIP_V6 1"
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+		GEOIP_V6="#undef GEOIP_V6"
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+$as_echo "#define GEOIP_V6 1" >>confdefs.h
+
+		;;
+esac
+
+
+
+#
 # This would include the system openssl path (and linker options to use
 # it as needed) if it is found.
 #
@@ -15275,7 +15419,7 @@ fi
 		# LinuxThreads requires some changes to the way we
 		# deal with signals.
 		#
-		*-linux*)
+		*-linux*|*-kfreebsd*-gnu)
 			$as_echo "#define HAVE_LINUXTHREADS 1" >>confdefs.h
 
 			;;

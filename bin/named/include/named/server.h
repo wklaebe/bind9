@@ -170,10 +170,12 @@ enum {
 #ifdef USE_RRL
 	dns_nsstatscounter_ratedropped = 37,
 	dns_nsstatscounter_rateslipped = 38,
+	dns_nsstatscounter_dampened = 39,
 
-	dns_nsstatscounter_max = 39
+	dns_nsstatscounter_max = 40
 #else /* USE_RRL */
-	dns_nsstatscounter_max = 37
+	dns_nsstatscounter_dampened = 37,
+	dns_nsstatscounter_max = 38
 #endif /* USE_RRL */
 };
 

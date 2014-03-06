@@ -1,3 +1,13 @@
+bind9 (1:9.9.5.dfsg-1+damp) experimental; urgency=low
+
+  [Wilfried Klaebe]
+
+  * applied DNS Dampening patch from Lutz Donnerhacke. See:
+    http://lutz.donnerhacke.de/Blog/DNS-Dampening
+    http://lutz.donnerhacke.de/Blog/DNS-Dampening-unter-der-Lupe
+
+ -- Wilfried Klaebe <w+debian@chaos.in-kiel.de>  Thu, 06 Mar 2014 14:02:05 +0100
+
 bind9 (1:9.9.5.dfsg-1) experimental; urgency=low
 
   [Internet Software Consortium, Inc]

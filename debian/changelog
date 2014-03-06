@@ -1,3 +1,17 @@
+bind9 (1:9.10.0.dfsg~rc2-1+damp-1) experimental; urgency=low
+
+  [Benny Baumann]
+
+  * Rebasing patch for latest Debian release
+
+  [Wilfried Klaebe]
+
+  * applied DNS Dampening patch from Lutz Donnerhacke. See:
+    http://lutz.donnerhacke.de/Blog/DNS-Dampening
+    http://lutz.donnerhacke.de/Blog/DNS-Dampening-unter-der-Lupe
+
+ -- Wilfried Klaebe <w+debian@chaos.in-kiel.de>  Thu, 06 Mar 2014 14:02:05 +0100
+
 bind9 (1:9.10.0.dfsg~rc2-1) experimental; urgency=low
 
   * New upstream version

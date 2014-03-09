@@ -1,3 +1,16 @@
+bind9 (1:9.10.0.dfsg~rc2-1+damp-2) experimental; urgency=low
+
+  [Benny Baumann]
+
+  * Rebasing patch for latest Debian release
+
+  [Wilfried Klaebe]
+
+  * Remove heap implementation from dampening patch;
+    Lutz said it was found to be unstable.
+
+ -- Wilfried Klaebe <w+debian@chaos.in-kiel.de>  Sun, 09 Mar 2014 15:04:00 +0100
+
 bind9 (1:9.10.0.dfsg~rc2-1+damp-1) experimental; urgency=low
 
   [Benny Baumann]

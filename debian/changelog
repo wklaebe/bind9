@@ -1,3 +1,12 @@
+bind9 (1:9.9.5.dfsg-1+damp-heap) experimental; urgency=low
+
+  [Wilfried Klaebe]
+
+  * Remove heap implementation from dampening patch;
+    Lutz said it was found to be unstable.
+
+ -- Wilfried Klaebe <w+debian@chaos.in-kiel.de>  Sun, 09 Mar 2014 15:04:00 +0100
+
 bind9 (1:9.9.5.dfsg-1+damp) experimental; urgency=low
 
   [Wilfried Klaebe]

@@ -1,4 +1,13 @@
-bind9 (1:9.9.5.dfsg-1+damp-heap) experimental; urgency=low
+bind9 (1:9.9.5.dfsg-1+damp1-2) experimental; urgency=low
+
+  [Benny Baumann]
+
+  * Build source package with complete debugging symbols
+    to ease tracking bugs.
+
+ -- Benny Baumann <BenBE@geshi.org>  Mon, 10 Mar 2014 20:36:21 +0100
+
+bind9 (1:9.9.5.dfsg-1+damp1-1) experimental; urgency=low
 
   [Wilfried Klaebe]
 
@@ -7,7 +16,7 @@ bind9 (1:9.9.5.dfsg-1+damp-heap) experimental; urgency=low
 
  -- Wilfried Klaebe <w+debian@chaos.in-kiel.de>  Sun, 09 Mar 2014 15:04:00 +0100
 
-bind9 (1:9.9.5.dfsg-1+damp) experimental; urgency=low
+bind9 (1:9.9.5.dfsg-1+damp1) experimental; urgency=low
 
   [Wilfried Klaebe]
 

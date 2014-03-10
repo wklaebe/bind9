@@ -20,11 +20,30 @@ Description: Internet Domain Name Server
  .
  This package provides the server and related configuration files.
 
+Package: bind9-dbg
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}, debconf | debconf-2.0, netbase, adduser, libdns100 (=${binary:Version}), libisccfg90 (=${binary:Version}), libisc95 (=${binary:Version}), libisccc90 (=${binary:Version}), lsb-base (>= 3.2-14), bind9utils (=${binary:Version}), liblwres90 (=${binary:Version}), libbind9-90 (=${binary:Version}), net-tools
+Conflicts: bind, apparmor-profiles (<< 2.1+1075-0ubuntu4)
+Replaces: bind, dnsutils (<< 1:9.1.0-3), apparmor-profiles (<< 2.1+1075-0ubuntu4), bind9utils (<< 1:9.9.3.dfsg.P2-3)
+Suggests: dnsutils, bind9-doc, resolvconf, ufw
+Description: Internet Domain Name Server (Debug Symbols)
+ ${Description}
+ .
+ This package provides the server and related configuration files.
+
 Package: bind9utils
 Architecture: any
 Replaces: bind9 (<= 1:9.5.0~b2-1)
 Depends: ${shlibs:Depends}, ${misc:Depends}, python, python-argparse
 Description: Utilities for BIND
+ This package provides various utilities that are useful for maintaining a
+ working BIND installation.
+
+Package: bind9utils-dbg
+Architecture: any
+Replaces: bind9 (<= 1:9.5.0~b2-1)
+Depends: ${shlibs:Depends}, ${misc:Depends}, python, python-argparse
+Description: Utilities for BIND (Debug Symbols)
  This package provides various utilities that are useful for maintaining a
  working BIND installation.
 
@@ -44,6 +63,14 @@ Description: Transitional package
  This dummy package is provided for a smooth transition from the previous
  host package.  It may safely be removed after installation.
 
+Package: host-dbg
+Priority: standard
+Architecture: all
+Depends: ${misc:Depends}, bind9-host
+Description: Transitional package (Debug Symbols)
+ This dummy package is provided for a smooth transition from the previous
+ host package.  It may safely be removed after installation.
+
 Package: bind9-host
 Priority: standard
 Architecture: any
@@ -52,6 +79,17 @@ Conflicts: host (<<1:9.7.0), dnsutils (<< 1:9.0.0)
 Replaces: dnsutils (<< 1:9.0.0), host (<< 1:9.7.0)
 Provides: host
 Description: Version of 'host' bundled with BIND 9.X
+ This package provides the 'host' program in the form that is bundled with
+ the BIND 9.X sources.
+
+Package: bind9-host-dbg
+Priority: standard
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}, libdns100 (=${binary:Version}), libisccfg90 (=${binary:Version}), libisc95 (=${binary:Version}), liblwres90 (=${binary:Version}), libbind9-90 (=${binary:Version})
+Conflicts: host (<<1:9.7.0), dnsutils (<< 1:9.0.0)
+Replaces: dnsutils (<< 1:9.0.0), host (<< 1:9.7.0)
+Provides: host
+Description: Version of 'host' bundled with BIND 9.X (Debug Symbols)
  This package provides the 'host' program in the form that is bundled with
  the BIND 9.X sources.
 
@@ -80,6 +118,19 @@ Description: BIND9 Shared Library used by BIND
  This package delivers the libbind9 shared library used by BIND's daemons and
  clients.
 
+Package: libbind9-90-dbg
+Section: libs
+Priority: standard
+Architecture: any
+Conflicts: libbind0, libbind9-41
+Replaces: libbind0
+Depends: ${shlibs:Depends}, ${misc:Depends}, libdns100, libisccfg90, libisc95
+Description: BIND9 Shared Library used by BIND (Debug Symbols)
+ ${Description}
+ .
+ This package delivers the libbind9 shared library used by BIND's daemons and
+ clients.
+
 Package: libdns100
 Section: libs
 Priority: standard
@@ -88,6 +139,19 @@ Conflicts: libbind0, libbind9-41
 Replaces: libbind0
 Depends: ${shlibs:Depends}, ${misc:Depends}, libisc95
 Description: DNS Shared Library used by BIND
+ ${Description}
+ .
+ This package delivers the libdns shared library used by BIND's daemons and
+ clients.
+
+Package: libdns100-dbg
+Section: libs
+Priority: standard
+Architecture: any
+Conflicts: libbind0, libbind9-41
+Replaces: libbind0
+Depends: ${shlibs:Depends}, ${misc:Depends}, libisc95
+Description: DNS Shared Library used by BIND (Debug Symbols)
  ${Description}
  .
  This package delivers the libdns shared library used by BIND's daemons and
@@ -106,6 +170,19 @@ Description: ISC Shared Library used by BIND
  This package delivers the libisc shared library used by BIND's daemons and
  clients.
 
+Package: libisc95-dbg
+Section: libs
+Priority: standard
+Architecture: any
+Conflicts: libbind0, libbind9-41
+Replaces: libbind0
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: ISC Shared Library used by BIND (Debug Symbols)
+ ${Description}
+ .
+ This package delivers the libisc shared library used by BIND's daemons and
+ clients.
+
 Package: liblwres90
 Section: libs
 Priority: standard
@@ -114,6 +191,19 @@ Replaces: libbind0
 Conflicts: libbind0
 Depends: ${shlibs:Depends}, ${misc:Depends}
 Description: Lightweight Resolver Library used by BIND
+ ${Description}
+ .
+ This package delivers the liblwres shared library used by BIND's daemons
+ and clients.
+
+Package: liblwres90-dbg
+Section: libs
+Priority: standard
+Architecture: any
+Replaces: libbind0
+Conflicts: libbind0
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: Lightweight Resolver Library used by BIND (Debug Symbols)
  ${Description}
  .
  This package delivers the liblwres shared library used by BIND's daemons
@@ -131,6 +221,18 @@ Description: Command Channel Library used by BIND
  This package delivers the libisccc shared library used by BIND's daemons
  and clients, particularly rndc.
 
+Package: libisccc90-dbg
+Section: libs
+Architecture: any
+Conflicts: libbind0, libbind9-41
+Replaces: libbind0
+Depends: ${shlibs:Depends}, ${misc:Depends}, libisc95
+Description: Command Channel Library used by BIND (Debug Symbols)
+ ${Description}
+ .
+ This package delivers the libisccc shared library used by BIND's daemons
+ and clients, particularly rndc.
+
 Package: libisccfg90
 Section: libs
 Architecture: any
@@ -138,6 +240,19 @@ Conflicts: libbind0, libbind9-41
 Replaces: libbind0
 Depends: ${shlibs:Depends}, ${misc:Depends}, libdns100, libisccc90, libisc95
 Description: Config File Handling Library used by BIND
+ ${Description}
+ .
+ This package delivers the libisccfg shared library used by BIND's daemons
+ and clients to read and write ISC-style configuration files like named.conf
+ and rndc.conf.
+
+Package: libisccfg90-dbg
+Section: libs
+Architecture: any
+Conflicts: libbind0, libbind9-41
+Replaces: libbind0
+Depends: ${shlibs:Depends}, ${misc:Depends}, libdns100, libisccc90, libisc95
+Description: Config File Handling Library used by BIND (Debug Symbols)
  ${Description}
  .
  This package delivers the libisccfg shared library used by BIND's daemons
@@ -161,12 +276,40 @@ Description: Clients provided with BIND
   - nslookup - the older way to do it
   - nsupdate - perform dynamic updates (See RFC2136)
 
+Package: dnsutils-dbg
+Priority: standard
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}, bind9-host | host, libdns100 (=${binary:Version}), libisccfg90 (=${binary:Version}), libisc95 (=${binary:Version}), liblwres90 (=${binary:Version}), libbind9-90 (=${binary:Version})
+Suggests: rblcheck
+Conflicts: netstd (<< 2.00)
+Replaces: bind, bind9 (<< 1:9.1.0-3)
+Description: Clients provided with BIND (Debug Symbols)
+ ${Description}
+ .
+ This package delivers various client programs related to DNS that are
+ derived from the BIND source tree.
+ .
+  - dig - query the DNS in various ways
+  - nslookup - the older way to do it
+  - nsupdate - perform dynamic updates (See RFC2136)
+
 Package: lwresd
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}, adduser, libdns100 (=${binary:Version}), libisccfg90 (=${binary:Version}), libisccc90 (=${binary:Version}), libisc95 (=${binary:Version}), liblwres90 (=${binary:Version}), libbind9-90 (=${binary:Version})
 Recommends: libnss-lwres
 Suggests: bind9utils
 Description: Lightweight Resolver Daemon
+ lwresd is the daemon providing name lookup services to clients that use
+ the BIND 9 lightweight resolver library.  It is essentially a stripped-
+ down, caching-only name server that answers queries using the BIND 9
+ lightweight resolver protocol rather than the DNS protocol.
+
+Package: lwresd-dbg
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}, adduser, libdns100 (=${binary:Version}), libisccfg90 (=${binary:Version}), libisccc90 (=${binary:Version}), libisc95 (=${binary:Version}), liblwres90 (=${binary:Version}), libbind9-90 (=${binary:Version})
+Recommends: libnss-lwres
+Suggests: bind9utils
+Description: Lightweight Resolver Daemon (Debug Symbols)
  lwresd is the daemon providing name lookup services to clients that use
  the BIND 9 lightweight resolver library.  It is essentially a stripped-
  down, caching-only name server that answers queries using the BIND 9

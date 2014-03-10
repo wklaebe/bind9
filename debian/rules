@@ -55,6 +55,7 @@ configure-stamp:
 		--with-geoip=/usr \
 		--with-atf=no \
 		--enable-ipv6 \
+		--enable-rrl \
 		--enable-filter-aaaa \
 		$(EXTRA_FEATURES)
 

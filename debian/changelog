@@ -1,4 +1,16 @@
+bind9 (1:9.9.5.dfsg-4+damp-3) experimental; urgency=low
+
+  [Benny Baumann]
+
+  * Rebasing patch for latest Debian release
+
+  * Build source package with complete debugging symbols
+    to ease tracking bugs.
+
+ -- Benny Baumann <BenBE@geshi.org>  Mon, 10 Mar 2014 20:36:21 +0100
+
 bind9 (1:9.9.5.dfsg-4+damp-2) experimental; urgency=low
+>>>>>>> Create debug packages for all binary packages
 
   [Benny Baumann]
 

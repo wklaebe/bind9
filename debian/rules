@@ -178,7 +178,18 @@ binary-arch: build install
 	    install -m 644 -D debian/bind9.apport debian/bind9/usr/share/apport/package-hooks/bind9.py; \
 	fi
 	dh_link -a
-	dh_strip -a
+	dh_strip -pbind9 --dbg-package=bind9-dbg --exclude=/etc --exclude=/lib --exclude=/usr/share
+	dh_strip -pbind9utils --dbg-package=bind9utils-dbg
+	dh_strip -phost --dbg-package=host-dbg
+	dh_strip -pbind9-host --dbg-package=bind9-host-dbg
+	dh_strip -plibbind9-90 --dbg-package=libbind9-90-dbg
+	dh_strip -plibdns100 --dbg-package=libdns100-dbg
+	dh_strip -plibisc95 --dbg-package=libisc95-dbg
+	dh_strip -pliblwres90 --dbg-package=liblwres90-dbg
+	dh_strip -plibisccc90 --dbg-package=libisccc90-dbg
+	dh_strip -plibisccfg90 --dbg-package=libisccfg90-dbg
+	dh_strip -pdnsutils --dbg-package=dnsutils-dbg
+	dh_strip -plwresd --dbg-package=lwresd-dbg
 	dh_compress -a
 	dh_fixperms -a
 	dh_makeshlibs -a

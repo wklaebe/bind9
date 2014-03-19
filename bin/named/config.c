@@ -47,11 +47,12 @@
 #include <named/config.h>
 #include <named/globals.h>
 
-#include "bind.keys.h"
+#include <bind.keys.h>
 
 /*% default configuration */
 static char defaultconf[] = "\
 options {\n\
+	automatic-interface-scan yes;\n\
 #	blackhole {none;};\n"
 #ifndef WIN32
 "	coresize default;\n\
@@ -111,6 +112,14 @@ options {\n\
 	use-ixfr true;\n\
 	edns-udp-size 4096;\n\
 	max-udp-size 4096;\n\
+"
+#ifdef ISC_PLATFORM_USESIT
+"\
+	nosit-udp-size 4096;\n\
+	request-sit true;\n\
+"
+#endif
+"\
 	request-nsid false;\n\
 	reserved-sockets 512;\n\
 \n\

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2007, 2009-2013  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2007, 2009-2014  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2001-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -186,6 +186,9 @@ ns_control_docommand(isccc_sexpr_t *message, isc_buffer_t *text) {
 		   command_compare(command, NS_COMMAND_THAW)) {
 		result = ns_server_freeze(ns_g_server, ISC_FALSE, command,
 					  text);
+	} else if (command_compare(command, NS_COMMAND_SCAN)) {
+		result = ISC_R_SUCCESS;
+		ns_server_scan_interfaces(ns_g_server);
 	} else if (command_compare(command, NS_COMMAND_SYNC)) {
 		result = ns_server_sync(ns_g_server, command, text);
 	} else if (command_compare(command, NS_COMMAND_RECURSING)) {

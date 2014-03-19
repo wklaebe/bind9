@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2007, 2009-2012  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2007, 2009-2012, 2014  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2001-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -59,6 +59,7 @@
 #define NS_COMMAND_NULL		"null"
 #define NS_COMMAND_NOTIFY	"notify"
 #define NS_COMMAND_VALIDATION	"validation"
+#define NS_COMMAND_SCAN 	"scan"
 #define NS_COMMAND_SIGN 	"sign"
 #define NS_COMMAND_LOADKEYS 	"loadkeys"
 #define NS_COMMAND_ADDZONE	"addzone"

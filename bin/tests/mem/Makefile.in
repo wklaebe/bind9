@@ -26,17 +26,15 @@ CINCLUDES =	${TEST_INCLUDES} ${ISC_INCLUDES}
 CDEFINES =
 CWARNINGS =
 
-ISCLIBS =	../../../lib/isc/libisc.@A@
-ISCPK11LIBS =	../../../lib/iscpk11/libiscpk11.@A@
+ISCLIBS =	../../../lib/isc/libisc.@A@ @ISC_OPENSSL_LIBS@
 TAPILIBS =	../../../lib/tests/libt_api.@A@
 
 ISCDEPLIBS =	../../../lib/isc/libisc.@A@
-ISCPK11DEPLIBS = ../../../lib/iscpk11/libiscpk11.@A@
 TAPIDEPLIBS =	../../../lib/tests/libt_api.@A@
 
-DEPLIBS =	${TAPIDEPLIBS} ${ISCDEPLIBS} ${ISCPK11DEPLIBS}
+DEPLIBS =	${TAPIDEPLIBS} ${ISCDEPLIBS}
 
-LIBS =		${TAPILIBS} ${ISCLIBS} ${ISCPK11LIBS} @LIBS@
+LIBS =		${TAPILIBS} ${ISCLIBS} @LIBS@
 
 TARGETS =	t_mem@EXEEXT@
 

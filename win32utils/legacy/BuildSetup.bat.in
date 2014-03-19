@@ -72,7 +72,12 @@ copy ..\..\bin\pkcs11\pkcs11-list.html ..\..\Build\Release
 copy ..\..\bin\pkcs11\pkcs11-destroy.html ..\..\Build\Release
 copy ..\..\bin\pkcs11\pkcs11-tokens.html ..\..\Build\Release
 @END PKCS11
+copy ..\..\bin\tools\arpaname.html ..\..\Build\Release
+copy ..\..\bin\tools\genrandom.html ..\..\Build\Release
+copy ..\..\bin\tools\isc-hmac-fixup.html ..\..\Build\Release
+copy ..\..\bin\tools\named-journalprint.html ..\..\Build\Release
 copy ..\..\bin\tools\named-rrchecker.html ..\..\Build\Release
+copy ..\..\bin\tools\nsec3hash.html ..\..\Build\Release
 
 echo Copying the migration notes.
 
@@ -159,12 +164,5 @@ echo Running Message Compiler
 cd ..\..\lib\win32\bindevt
 mc bindevt.mc
 cd ..\..\..\win32utils\legacy
-
-@IF PKCS11
-echo Build libisc.lib import library
-
-cd ..\..\lib\isc\win32
-call mklib.bat Release
-@END PKCS11
 
 rem Done

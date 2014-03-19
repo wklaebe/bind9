@@ -28,6 +28,11 @@
 #include <sys/time.h>
 #include <sys/uio.h>
 
+#if defined(HAVE_LINUX_NETLINK_H) && defined(HAVE_LINUX_RTNETLINK_H)
+#include <linux/netlink.h>
+#include <linux/rtnetlink.h>
+#endif
+
 #include <errno.h>
 #include <fcntl.h>
 #include <stddef.h>
@@ -153,7 +158,11 @@ int isc_dscp_check_value = -1;
  */
 #ifndef ISC_SOCKET_MAXSOCKETS
 #if defined(USE_KQUEUE) || defined(USE_EPOLL) || defined(USE_DEVPOLL)
+#ifdef TUNE_LARGE
+#define ISC_SOCKET_MAXSOCKETS 21000
+#else
 #define ISC_SOCKET_MAXSOCKETS 4096
+#endif /* TUNE_LARGE */
 #elif defined(USE_SELECT)
 #define ISC_SOCKET_MAXSOCKETS FD_SETSIZE
 #endif	/* USE_KQUEUE... */
@@ -215,7 +224,11 @@ typedef enum { poll_idle, poll_active, poll_checking } pollstate_t;
  */
 #if defined(USE_KQUEUE) || defined(USE_EPOLL) || defined(USE_DEVPOLL)
 #ifndef ISC_SOCKET_MAXEVENTS
+#ifdef TUNE_LARGE
+#define ISC_SOCKET_MAXEVENTS	2048
+#else
 #define ISC_SOCKET_MAXEVENTS	64
+#endif /* TUNE_LARGE */
 #endif
 #endif
 
@@ -291,7 +304,11 @@ typedef isc_event_t intev_t;
 /*%
  * The size to raise the receive buffer to (from BIND 8).
  */
+#ifdef TUNE_LARGE
+#define RCVBUFSIZE (16*1024*1024)
+#else
 #define RCVBUFSIZE (32*1024)
+#endif /* TUNE_LARGE */
 
 /*%
  * The number of times a send operation is repeated if the result is EINTR.
@@ -736,6 +753,19 @@ static const isc_statscounter_t fdwatchstatsindex[] = {
 	isc_sockstatscounter_fdwatchsendfail,
 	isc_sockstatscounter_fdwatchrecvfail,
 	-1
+};
+static const isc_statscounter_t rawstatsindex[] = {
+	isc_sockstatscounter_rawopen,
+	isc_sockstatscounter_rawopenfail,
+	isc_sockstatscounter_rawclose,
+	-1,
+	-1,
+	-1,
+	-1,
+	-1,
+	-1,
+	isc_sockstatscounter_rawrecvfail,
+	isc_sockstatscounter_rawactive
 };
 
 #if defined(USE_KQUEUE) || defined(USE_EPOLL) || defined(USE_DEVPOLL) || \
@@ -1884,6 +1914,7 @@ doio_recv(isc__socket_t *sock, isc_socketevent_t *dev) {
 			return (DOIO_EOF);
 		break;
 	case isc_sockettype_udp:
+	case isc_sockettype_raw:
 		break;
 	case isc_sockettype_fdwatch:
 	default:
@@ -2462,6 +2493,44 @@ opensocket(isc__socketmgr_t *manager, isc__socket_t *sock,
 		case isc_sockettype_unix:
 			sock->fd = socket(sock->pf, SOCK_STREAM, 0);
 			break;
+		case isc_sockettype_raw:
+			errno = EPFNOSUPPORT;
+			/*
+			 * PF_ROUTE is a alias for PF_NETLINK on linux.
+			 */
+#if defined(PF_ROUTE)
+			if (sock->fd == -1 && sock->pf == PF_ROUTE) {
+#ifdef NETLINK_ROUTE
+				sock->fd = socket(sock->pf, SOCK_RAW,
+						  NETLINK_ROUTE);
+#else
+				sock->fd = socket(sock->pf, SOCK_RAW, 0);
+#endif
+				if (sock->fd != -1) {
+#ifdef NETLINK_ROUTE
+					struct sockaddr_nl sa;
+					int n;
+
+					/*
+					 * Do an implicit bind.
+					 */
+					memset(&sa, 0, sizeof(sa));
+					sa.nl_family = AF_NETLINK;
+					sa.nl_groups = RTMGRP_IPV4_IFADDR |
+						       RTMGRP_IPV6_IFADDR;
+					n = bind(sock->fd,
+						 (struct sockaddr *) &sa,
+						 sizeof(sa));
+					if (n < 0) {
+						close(sock->fd);
+						sock->fd = -1;
+					}
+#endif
+					sock->bound = 1;
+				}
+			}
+#endif
+			break;
 		case isc_sockettype_fdwatch:
 			/*
 			 * We should not be called for isc_sockettype_fdwatch
@@ -2795,6 +2864,9 @@ socket_create(isc_socketmgr_t *manager0, int pf, isc_sockettype_t type,
 		break;
 	case isc_sockettype_unix:
 		sock->statsindex = unixstatsindex;
+		break;
+	case isc_sockettype_raw:
+		sock->statsindex = rawstatsindex;
 		break;
 	default:
 		INSIST(0);

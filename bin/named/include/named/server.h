@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2013  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2014  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -37,6 +37,7 @@
 #define NS_EVENTCLASS		ISC_EVENTCLASS(0x4E43)
 #define NS_EVENT_RELOAD		(NS_EVENTCLASS + 0)
 #define NS_EVENT_CLIENTCONTROL	(NS_EVENTCLASS + 1)
+#define NS_EVENT_IFSCAN		(NS_EVENTCLASS + 2)
 
 /*%
  * Name server state.  Better here than in lots of separate global variables.
@@ -114,6 +115,8 @@ struct ns_server {
 	dns_name_t		*session_keyname;
 	unsigned int		session_keyalg;
 	isc_uint16_t		session_keybits;
+	isc_boolean_t		interface_auto;
+	unsigned char		secret[33];	/*%< Source Identity Token */
 };
 
 #define NS_SERVER_MAGIC			ISC_MAGIC('S','V','E','R')
@@ -130,7 +133,7 @@ enum {
 	dns_nsstatscounter_tsigin = 4,
 	dns_nsstatscounter_sig0in = 5,
 	dns_nsstatscounter_invalidsig = 6,
-	dns_nsstatscounter_tcp = 7,
+	dns_nsstatscounter_requesttcp = 7,
 
 	dns_nsstatscounter_authrej = 8,
 	dns_nsstatscounter_recurserej = 9,
@@ -174,7 +177,25 @@ enum {
 
 	dns_nsstatscounter_rpz_rewrites = 40,
 
-	dns_nsstatscounter_max = 41
+	dns_nsstatscounter_udp = 41,
+	dns_nsstatscounter_tcp = 42,
+
+	dns_nsstatscounter_nsidopt = 43,
+	dns_nsstatscounter_expireopt = 44,
+	dns_nsstatscounter_otheropt = 45,
+
+#ifdef ISC_PLATFORM_USESIT
+	dns_nsstatscounter_sitopt = 46,
+	dns_nsstatscounter_sitbadsize = 47,
+	dns_nsstatscounter_sitbadtime = 48,
+	dns_nsstatscounter_sitnomatch = 49,
+	dns_nsstatscounter_sitmatch = 50,
+	dns_nsstatscounter_sitnew = 51,
+
+	dns_nsstatscounter_max = 52
+#else
+	dns_nsstatscounter_max = 46
+#endif
 };
 
 void
@@ -198,6 +219,12 @@ ns_server_reloadwanted(ns_server_t *server);
  * may be called asynchronously, from outside the server's task.
  * If a reload is already scheduled or in progress, the call
  * is ignored.
+ */
+
+void
+ns_server_scan_interfaces(ns_server_t *server);
+/*%<
+ * Trigger a interface scan.
  */
 
 void

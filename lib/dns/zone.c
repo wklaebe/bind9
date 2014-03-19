@@ -227,6 +227,7 @@ struct dns_zone {
 	dns_zonetype_t		type;
 	unsigned int		flags;
 	unsigned int		options;
+	unsigned int		options2;
 	unsigned int		db_argc;
 	char			**db_argv;
 	isc_time_t		expiretime;
@@ -395,6 +396,12 @@ struct dns_zone {
 
 	isc_boolean_t		sourceserialset;
 	isc_uint32_t		sourceserial;
+
+	/*%
+	 * maximum zone ttl
+	 */
+	dns_ttl_t		maxttl;
+
 };
 
 typedef struct {
@@ -460,6 +467,7 @@ typedef struct {
 #define DNS_ZONEFLG_SENDSECURE  0x40000000U
 
 #define DNS_ZONE_OPTION(z,o) (((z)->options & (o)) != 0)
+#define DNS_ZONE_OPTION2(z,o) (((z)->options2 & (o)) != 0)
 #define DNS_ZONEKEY_OPTION(z,o) (((z)->keyopts & (o)) != 0)
 
 /* Flags for zone_load() */
@@ -909,6 +917,7 @@ dns_zone_create(dns_zone_t **zonep, isc_mem_t *mctx) {
 	zone->mastersok = NULL;
 	zone->masterscnt = 0;
 	zone->curmaster = 0;
+	zone->maxttl = 0;
 	zone->notify = NULL;
 	zone->notifykeynames = NULL;
 	zone->notifydscp = NULL;
@@ -1088,7 +1097,7 @@ zone_free(dns_zone_t *zone) {
 		isc_stats_detach(&zone->stats);
 	if (zone->requeststats != NULL)
 		isc_stats_detach(&zone->requeststats);
-	if(zone->rcvquerystats != NULL )
+	if (zone->rcvquerystats != NULL)
 		dns_stats_detach(&zone->rcvquerystats);
 	if (zone->db != NULL)
 		zone_detachdb(zone);
@@ -1514,6 +1523,28 @@ dns_zone_getfile(dns_zone_t *zone) {
 	REQUIRE(DNS_ZONE_VALID(zone));
 
 	return (zone->masterfile);
+}
+
+dns_ttl_t
+dns_zone_getmaxttl(dns_zone_t *zone) {
+	REQUIRE(DNS_ZONE_VALID(zone));
+
+	return (zone->maxttl);
+}
+
+void
+dns_zone_setmaxttl(dns_zone_t *zone, dns_ttl_t maxttl) {
+	REQUIRE(DNS_ZONE_VALID(zone));
+
+	LOCK_ZONE(zone);
+	if (maxttl != 0)
+		zone->options2 |= DNS_ZONEOPT2_CHECKTTL;
+	else
+		zone->options2 &= ~DNS_ZONEOPT2_CHECKTTL;
+	zone->maxttl = maxttl;
+	UNLOCK_ZONE(zone);
+
+	return;
 }
 
 static isc_result_t
@@ -2047,6 +2078,8 @@ get_master_options(dns_zone_t *zone) {
 		options |= DNS_MASTER_CHECKMXFAIL;
 	if (DNS_ZONE_OPTION(zone, DNS_ZONEOPT_CHECKWILDCARD))
 		options |= DNS_MASTER_CHECKWILDCARD;
+	if (DNS_ZONE_OPTION2(zone, DNS_ZONEOPT2_CHECKTTL))
+		options |= DNS_MASTER_CHECKTTL;
 	return (options);
 }
 
@@ -2103,7 +2136,7 @@ zone_gotreadhandle(isc_task_t *task, isc_event_t *event) {
 
 	options = get_master_options(load->zone);
 
-	result = dns_master_loadfileinc4(load->zone->masterfile,
+	result = dns_master_loadfileinc5(load->zone->masterfile,
 					 dns_db_origin(load->db),
 					 dns_db_origin(load->db),
 					 load->zone->rdclass, options, 0,
@@ -2112,7 +2145,8 @@ zone_gotreadhandle(isc_task_t *task, isc_event_t *event) {
 					 &load->zone->lctx,
 					 zone_registerinclude,
 					 load->zone, load->zone->mctx,
-					 load->zone->masterformat);
+					 load->zone->masterformat,
+					 load->zone->maxttl);
 	if (result != ISC_R_SUCCESS && result != DNS_R_CONTINUE &&
 	    result != DNS_R_SEENINCLUDE)
 		goto fail;
@@ -2268,13 +2302,14 @@ zone_startload(dns_db_t *db, dns_zone_t *zone, isc_time_t loadtime) {
 			zone_idetach(&callbacks.zone);
 			return (result);
 		}
-		result = dns_master_loadfile4(zone->masterfile,
+		result = dns_master_loadfile5(zone->masterfile,
 					      &zone->origin, &zone->origin,
 					      zone->rdclass, options, 0,
 					      &callbacks,
 					      zone_registerinclude,
 					      zone, zone->mctx,
-					      zone->masterformat);
+					      zone->masterformat,
+					      zone->maxttl);
 		tresult = dns_db_endload(db, &callbacks);
 		if (result == ISC_R_SUCCESS)
 			result = tresult;
@@ -4986,7 +5021,8 @@ dns_zone_setflag(dns_zone_t *zone, unsigned int flags, isc_boolean_t value) {
 }
 
 void
-dns_zone_setoption(dns_zone_t *zone, unsigned int option, isc_boolean_t value)
+dns_zone_setoption(dns_zone_t *zone, unsigned int option,
+		   isc_boolean_t value)
 {
 	REQUIRE(DNS_ZONE_VALID(zone));
 
@@ -4998,12 +5034,32 @@ dns_zone_setoption(dns_zone_t *zone, unsigned int option, isc_boolean_t value)
 	UNLOCK_ZONE(zone);
 }
 
+void
+dns_zone_setoption2(dns_zone_t *zone, unsigned int option,
+		    isc_boolean_t value)
+{
+	REQUIRE(DNS_ZONE_VALID(zone));
+
+	LOCK_ZONE(zone);
+	if (value)
+		zone->options2 |= option;
+	else
+		zone->options2 &= ~option;
+	UNLOCK_ZONE(zone);
+}
+
 unsigned int
 dns_zone_getoptions(dns_zone_t *zone) {
-
 	REQUIRE(DNS_ZONE_VALID(zone));
 
 	return (zone->options);
+}
+
+unsigned int
+dns_zone_getoptions2(dns_zone_t *zone) {
+	REQUIRE(DNS_ZONE_VALID(zone));
+
+	return (zone->options2);
 }
 
 void
@@ -12269,6 +12325,8 @@ dns_zone_notifyreceive(dns_zone_t *zone, isc_sockaddr_t *from,
 	isc_sockaddr_t local, remote;
 	isc_uint32_t serial = 0;
 	isc_boolean_t have_serial = ISC_FALSE;
+	dns_tsigkey_t *tsigkey;
+	dns_name_t *tsig;
 
 	REQUIRE(DNS_ZONE_VALID(zone));
 
@@ -12354,8 +12412,10 @@ dns_zone_notifyreceive(dns_zone_t *zone, isc_sockaddr_t *from,
 	 * Accept notify requests from non masters if they are on
 	 * 'zone->notify_acl'.
 	 */
+	tsigkey = dns_message_gettsigkey(msg);
+	tsig = dns_tsigkey_identity(tsigkey);
 	if (i >= zone->masterscnt && zone->notify_acl != NULL &&
-	    dns_acl_match(&netaddr, NULL, zone->notify_acl,
+	    dns_acl_match(&netaddr, tsig, zone->notify_acl,
 			  &zone->view->aclenv,
 			  &match, NULL) == ISC_R_SUCCESS &&
 	    match > 0)
@@ -13484,7 +13544,6 @@ save_nsec3param(dns_zone_t *zone, nsec3paramlist_t *nsec3list) {
 	isc_result_t result;
 	dns_dbnode_t *node = NULL;
 	dns_rdataset_t rdataset, prdataset;
-	dns_rdata_t rdata_in, prdata_in, prdata_out;
 	dns_dbversion_t *version = NULL;
 	nsec3param_t *nsec3param = NULL;
 	nsec3param_t *nsec3p = NULL;
@@ -13518,8 +13577,10 @@ save_nsec3param(dns_zone_t *zone, nsec3paramlist_t *nsec3list) {
 	     result == ISC_R_SUCCESS;
 	     result = dns_rdataset_next(&rdataset))
 	{
-		dns_rdata_init(&rdata_in);
-		dns_rdataset_current(&rdataset, &rdata_in);
+		dns_rdata_t rdata = DNS_RDATA_INIT;
+		dns_rdata_t private = DNS_RDATA_INIT;
+
+		dns_rdataset_current(&rdataset, &rdata);
 		isc_log_write(dns_lctx, DNS_LOGCATEGORY_GENERAL,
 			      DNS_LOGMODULE_ZONE, ISC_LOG_DEBUG(3),
 			      "looping through nsec3param data");
@@ -13532,11 +13593,10 @@ save_nsec3param(dns_zone_t *zone, nsec3paramlist_t *nsec3list) {
 		 * now transfer the data from the rdata to
 		 * the nsec3param
 		 */
-		dns_rdata_init(&prdata_out);
-		dns_nsec3param_toprivate(&rdata_in, &prdata_out,
+		dns_nsec3param_toprivate(&rdata, &private,
 					 zone->privatetype, nsec3param->data,
 					 sizeof(nsec3param->data));
-		nsec3param->length = prdata_out.length;
+		nsec3param->length = private.length;
 		ISC_LIST_APPEND(*nsec3list, nsec3param, link);
 	}
 
@@ -13556,26 +13616,39 @@ save_nsec3param(dns_zone_t *zone, nsec3paramlist_t *nsec3list) {
 	     result == ISC_R_SUCCESS;
 	     result = dns_rdataset_next(&prdataset))
 	{
-		dns_rdata_init(&prdata_in);
-		dns_rdataset_current(&prdataset, &prdata_in);
+		dns_rdata_t rdata = DNS_RDATA_INIT;
+		dns_rdata_t private = DNS_RDATA_INIT;
+
+		dns_rdataset_current(&prdataset, &private);
 		isc_log_write(dns_lctx, DNS_LOGCATEGORY_GENERAL,
 			      DNS_LOGMODULE_ZONE, ISC_LOG_DEBUG(3),
 			      "looping through nsec3param private data");
 
-		if (!dns_nsec3param_fromprivate(&prdata_in, &prdata_out,
+		/*
+		 * Do we have a valid private record?
+		 */
+		if (!dns_nsec3param_fromprivate(&private, &rdata,
 						buf, sizeof(buf)))
 			continue;
 
-		if ((prdata_out.data[1] & DNS_NSEC3FLAG_REMOVE) !=0) {
-			prdata_out.data[1] = 0;
+		/*
+		 * Remove any NSEC3PARAM records scheduled to be removed.
+		 */
+		if (NSEC3REMOVE(rdata.data[1])) {
+			/*
+			 * Zero out the flags.
+			 */
+			rdata.data[1] = 0;
 
 			for (nsec3p = ISC_LIST_HEAD(*nsec3list);
 			     nsec3p != NULL;
 			     nsec3p = next)
 			{
 				next = ISC_LIST_NEXT(nsec3p, link);
-				if (memcmp(prdata_out.data, nsec3p->data,
-				    sizeof(nsec3p->data)) == 0) {
+
+				if (nsec3p->length == rdata.length + 1 &&
+				    memcmp(rdata.data, nsec3p->data + 1,
+					   nsec3p->length - 1) == 0) {
 					ISC_LIST_UNLINK(*nsec3list,
 							nsec3p, link);
 					isc_mem_put(zone->mctx, nsec3p,
@@ -13590,11 +13663,13 @@ save_nsec3param(dns_zone_t *zone, nsec3paramlist_t *nsec3list) {
 			CHECK(ISC_R_NOMEMORY);
 		ISC_LINK_INIT(nsec3param, link);
 
-		dns_rdata_init(&prdata_out);
-		dns_nsec3param_toprivate(&prdata_in, &prdata_out,
-			zone->privatetype, nsec3param->data,
-			sizeof(nsec3param->data));
-		nsec3param->length = prdata_out.length;
+		/*
+		 * Copy the remaining private records so the nsec/nsec3
+		 * chain gets created.
+		 */
+		INSIST(private.length <= sizeof(nsec3param->data));
+		memmove(nsec3param->data, private.data, private.length);
+		nsec3param->length = private.length;
 		ISC_LIST_APPEND(*nsec3list, nsec3param, link);
 	}
 
@@ -13810,6 +13885,12 @@ receive_secure_db(isc_task_t *task, isc_event_t *event) {
 		dns_zone_log(zone, ISC_LOG_ERROR, "receive_secure_db: %s",
 			     dns_result_totext(result));
 
+	while (!ISC_LIST_EMPTY(nsec3list)) {
+		nsec3param_t *nsec3p;
+		nsec3p = ISC_LIST_HEAD(nsec3list);
+		ISC_LIST_UNLINK(nsec3list, nsec3p, link);
+		isc_mem_put(zone->mctx, nsec3p, sizeof(nsec3param_t));
+	}
 	if (dns_rdataset_isassociated(&rdataset))
 		dns_rdataset_disassociate(&rdataset);
 	if (db != NULL) {

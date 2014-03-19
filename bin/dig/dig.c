@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2013  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2014  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -63,6 +63,9 @@ static char *argv0;
 static int addresscount = 0;
 
 static char domainopt[DNS_NAME_MAXTEXT];
+#ifdef ISC_PLATFORM_USESIT
+static char sitvalue[256];
+#endif
 
 static isc_boolean_t short_form = ISC_FALSE, printcmd = ISC_TRUE,
 	ip6_int = ISC_FALSE, plusquest = ISC_FALSE, pluscomm = ISC_FALSE,
@@ -189,6 +192,7 @@ help(void) {
 "                 +domain=###         (Set default domainname)\n"
 "                 +bufsize=###        (Set EDNS0 Max UDP packet size)\n"
 "                 +ndots=###          (Set NDOTS value)\n"
+"                 +subnet=addr        (Set edns-client-subnet option)\n"
 "                 +[no]edns[=###]     (Set EDNS version) [0]\n"
 "                 +[no]search         (Set whether to use searchlist)\n"
 "                 +[no]showsearch     (Search with intermediate results)\n"
@@ -222,7 +226,11 @@ help(void) {
 "                 +[no]identify       (ID responders in short answers)\n"
 "                 +[no]trace          (Trace delegation down from root [+dnssec])\n"
 "                 +[no]dnssec         (Request DNSSEC records)\n"
+"                 +[no]expire         (Request time to expire)\n"
 "                 +[no]nsid           (Request Name Server ID)\n"
+#ifdef ISC_PLATFORM_USESIT
+"                 +[no]sit            (Request a Source Identity Token)\n"
+#endif
 #ifdef DIG_SIGCHASE
 "                 +[no]sigchase       (Chase DNSSEC signatures)\n"
 "                 +trusted-key=####   (Trusted Key when chasing DNSSEC sigs)\n"
@@ -912,19 +920,29 @@ plus_option(char *option, isc_boolean_t is_batchfile,
 		}
 		break;
 	case 'e':
-		FULLCHECK("edns");
-		if (!state) {
-			lookup->edns = -1;
+		switch (cmd[1]) {
+		case 'd':
+			FULLCHECK("edns");
+			if (!state) {
+				lookup->edns = -1;
+				break;
+			}
+			if (value == NULL) {
+				lookup->edns = 0;
+				break;
+			}
+			result = parse_uint(&num, value, 255, "edns");
+			if (result != ISC_R_SUCCESS)
+				fatal("Couldn't parse edns");
+			lookup->edns = num;
 			break;
-		}
-		if (value == NULL) {
-			lookup->edns = 0;
+		case 'x':
+			FULLCHECK("expire");
+			lookup->expire = state;
 			break;
+		default:
+			goto invalid_option;
 		}
-		result = parse_uint(&num, value, 255, "edns");
-		if (result != ISC_R_SUCCESS)
-			fatal("Couldn't parse edns");
-		lookup->edns = num;
 		break;
 	case 'f': /* fail */
 		FULLCHECK("fail");
@@ -1086,12 +1104,34 @@ plus_option(char *option, isc_boolean_t is_batchfile,
 				goto invalid_option;
 			}
 			break;
+#if defined(DIG_SIGCHASE) || defined(ISC_PLATFORM_USESIT)
+		case 'i':
+			switch (cmd[2]) {
 #ifdef DIG_SIGCHASE
-		case 'i': /* sigchase */
-			FULLCHECK("sigchase");
-			lookup->sigchase = state;
-			if (lookup->sigchase)
-				lookup->dnssec = ISC_TRUE;
+			case 'g': /* sigchase */
+				FULLCHECK("sigchase");
+				lookup->sigchase = state;
+				if (lookup->sigchase)
+					lookup->dnssec = ISC_TRUE;
+				break;
+#endif
+#ifdef ISC_PLATFORM_USESIT
+			case 't': /* sit */
+				FULLCHECK("sit");
+				if (state && lookup->edns == -1)
+					lookup->edns = 0;
+				lookup->sit = state;
+				if (value != NULL) {
+					strncpy(sitvalue, value,
+						sizeof(sitvalue));
+					lookup->sitvalue = sitvalue;
+				} else
+					lookup->sitvalue = NULL;
+				break;
+#endif
+			default:
+				goto invalid_option;
+			}
 			break;
 #endif
 		case 'p': /* split */
@@ -1122,11 +1162,28 @@ plus_option(char *option, isc_boolean_t is_batchfile,
 			if (splitwidth)
 				splitwidth += 3;
 			if (result != ISC_R_SUCCESS)
-				fatal("Couldn't parse retries");
+				fatal("Couldn't parse split");
 			break;
 		case 't': /* stats */
 			FULLCHECK("stats");
 			lookup->stats = state;
+			break;
+		case 'u': /* subnet */
+			FULLCHECK("subnet");
+			if (state && value == NULL)
+				goto need_value;
+			if (!state) {
+				if (lookup->ecs_addr != NULL) {
+					isc_mem_free(mctx, lookup->ecs_addr);
+					lookup->ecs_addr = NULL;
+				}
+				break;
+			}
+			if (lookup->edns == -1)
+				lookup->edns = 0;
+			result = parse_netprefix(&lookup->ecs_addr, value);
+			if (result != ISC_R_SUCCESS)
+				fatal("Couldn't parse client");
 			break;
 		default:
 			goto invalid_option;
@@ -1637,7 +1694,7 @@ parse_args(isc_boolean_t is_batchfile, isc_boolean_t config_only,
 		debug("main parsing %s", rv[0]);
 		if (strncmp(rv[0], "%", 1) == 0)
 			break;
-		if (strncmp(rv[0], "@", 1) == 0) {
+		if (rv[0][0] == '@') {
 			addresscount = getaddresses(lookup, &rv[0][1], NULL);
 		} else if (rv[0][0] == '+') {
 			plus_option(&rv[0][1], is_batchfile,

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2011, 2013  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2011, 2013, 2014  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -197,8 +197,8 @@ linux_setcaps(cap_t caps) {
 #ifdef HAVE_LIBCAP
 #define SET_CAP(flag) \
 	do { \
-		capval = (flag); \
 		cap_flag_value_t curval; \
+		capval = (flag); \
 		err = cap_get_flag(curcaps, capval, CAP_PERMITTED, &curval); \
 		if (err != -1 && curval) { \
 			err = cap_set_flag(caps, CAP_EFFECTIVE, 1, &capval, CAP_SET); \

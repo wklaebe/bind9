@@ -1,6 +1,6 @@
 /* config.h.in.  Generated from configure.in by autoheader.  */
 /*
- * Copyright (C) 2004, 2005, 2007, 2008, 2012  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2007, 2008, 2012, 2014  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -147,6 +147,9 @@ int sigwait(const unsigned int *set, int *sig);
 /* Define if building universal (internal helper macro) */
 #undef AC_APPLE_UNIVERSAL_BUILD
 
+/* Use AES for Source Identity Token generation */
+#undef AES_SIT
+
 /* Define to enable the "filter-aaaa-on-v4" and "filter-aaaa-on-v6" options.
    */
 #undef ALLOW_FILTER_AAAA
@@ -170,6 +173,9 @@ int sigwait(const unsigned int *set, int *sig);
 /* Define to enable rpz-nsip rules. */
 #undef ENABLE_RPZ_NSIP
 
+/* Define to enable 'sit' support. */
+#undef ENABLE_SIT
+
 /* Solaris hack to get select_large_fdset. */
 #undef FD_SETSIZE
 
@@ -181,6 +187,9 @@ int sigwait(const unsigned int *set, int *sig);
    instead. Don't use 'offsetof (struct s, d[0])', as this doesn't work with
    MSVC and with C++ compilers. */
 #undef FLEXIBLE_ARRAY_MEMBER
+
+/* Define to 1 if you have the `AES_encrypt' function. */
+#undef HAVE_AES_ENCRYPT
 
 /* Define to 1 if you have the `chroot' function. */
 #undef HAVE_CHROOT
@@ -287,6 +296,12 @@ int sigwait(const unsigned int *set, int *sig);
 /* Define to 1 if you have the <linux/capability.h> header file. */
 #undef HAVE_LINUX_CAPABILITY_H
 
+/* Define to 1 if you have the <linux/netlink.h> header file. */
+#undef HAVE_LINUX_NETLINK_H
+
+/* Define to 1 if you have the <linux/rtnetlink.h> header file. */
+#undef HAVE_LINUX_RTNETLINK_H
+
 /* Define to 1 if you have the <linux/types.h> header file. */
 #undef HAVE_LINUX_TYPES_H
 
@@ -304,6 +319,9 @@ int sigwait(const unsigned int *set, int *sig);
 
 /* Define to 1 if you have the <net/if6.h> header file. */
 #undef HAVE_NET_IF6_H
+
+/* Define to 1 if you have the <net/route.h> header file. */
+#undef HAVE_NET_ROUTE_H
 
 /* Define if your OpenSSL version supports ECDSA. */
 #undef HAVE_OPENSSL_ECDSA
@@ -383,6 +401,9 @@ int sigwait(const unsigned int *set, int *sig);
 /* Define to 1 if you have the <sys/select.h> header file. */
 #undef HAVE_SYS_SELECT_H
 
+/* Define to 1 if you have the <sys/socket.h> header file. */
+#undef HAVE_SYS_SOCKET_H
+
 /* Define to 1 if you have the <sys/sockio.h> header file. */
 #undef HAVE_SYS_SOCKIO_H
 
@@ -409,6 +430,12 @@ int sigwait(const unsigned int *set, int *sig);
 
 /* Define to 1 if you have the `usleep' function. */
 #undef HAVE_USLEEP
+
+/* Use HMAC-SHA1 for Source Identity Token generation */
+#undef HMAC_SHA1_SIT
+
+/* Use HMAC-SHA256 for Source Identity Token generation */
+#undef HMAC_SHA256_SIT
 
 /* return type of gai_strerror */
 #undef IRS_GAISTRERROR_RETURN_T
@@ -466,6 +493,9 @@ int sigwait(const unsigned int *set, int *sig);
 
 /* Define to 1 if you can safely include both <sys/time.h> and <time.h>. */
 #undef TIME_WITH_SYS_TIME
+
+/* Define to use large-system tuning. */
+#undef TUNE_LARGE
 
 /* Defined if you need to use ioctl(FIONBIO) instead a fcntl call to make
    non-blocking. */

@@ -29,6 +29,9 @@
 #include <isc/string.h>
 #include <isc/util.h>
 
+#include <dns/ttl.h>
+#include <dns/result.h>
+
 #include <isccfg/cfg.h>
 #include <isccfg/grammar.h>
 #include <isccfg/log.h>
@@ -111,6 +114,7 @@ static cfg_type_t cfg_type_logging;
 static cfg_type_t cfg_type_logseverity;
 static cfg_type_t cfg_type_lwres;
 static cfg_type_t cfg_type_masterselement;
+static cfg_type_t cfg_type_maxttl;
 static cfg_type_t cfg_type_nameportiplist;
 static cfg_type_t cfg_type_negated;
 static cfg_type_t cfg_type_notifytype;
@@ -952,6 +956,7 @@ bindkeys_clauses[] = {
  */
 static cfg_clausedef_t
 options_clauses[] = {
+	{ "automatic-interface-scan", &cfg_type_boolean, 0 },
 	{ "avoid-v4-udp-ports", &cfg_type_bracketed_portlist, 0 },
 	{ "avoid-v6-udp-ports", &cfg_type_bracketed_portlist, 0 },
 	{ "bindkeys-file", &cfg_type_qstring, 0 },
@@ -970,6 +975,9 @@ options_clauses[] = {
 	{ "flush-zones-on-shutdown", &cfg_type_boolean, 0 },
 #ifdef HAVE_GEOIP
 	{ "geoip-directory", &cfg_type_qstringornone, 0 },
+#else
+	{ "geoip-directory", &cfg_type_qstringornone,
+	  CFG_CLAUSEFLAG_NOTCONFIGURED },
 #endif /* HAVE_GEOIP */
 	{ "has-old-clients", &cfg_type_boolean, CFG_CLAUSEFLAG_OBSOLETE },
 	{ "heartbeat-interval", &cfg_type_uint32, 0 },
@@ -979,6 +987,11 @@ options_clauses[] = {
 	{ "interface-interval", &cfg_type_uint32, 0 },
 	{ "listen-on", &cfg_type_listenon, CFG_CLAUSEFLAG_MULTI },
 	{ "listen-on-v6", &cfg_type_listenon, CFG_CLAUSEFLAG_MULTI },
+#ifdef ISC_PLATFORM_USESIT
+	{ "sit-secret", &cfg_type_qstring, 0 },
+#else
+	{ "sit-secret", &cfg_type_qstring, CFG_CLAUSEFLAG_NOTCONFIGURED },
+#endif
 	{ "managed-keys-directory", &cfg_type_qstring, 0 },
 	{ "match-mapped-addresses", &cfg_type_boolean, 0 },
 	{ "max-rsa-exponent-size", &cfg_type_uint32, 0 },
@@ -1512,6 +1525,11 @@ view_clauses[] = {
 	{ "fetch-glue", &cfg_type_boolean, CFG_CLAUSEFLAG_OBSOLETE },
 	{ "ixfr-from-differences", &cfg_type_ixfrdifftype, 0 },
 	{ "lame-ttl", &cfg_type_uint32, 0 },
+#ifdef ISC_PLATFORM_USESIT
+	{ "nosit-udp-size", &cfg_type_uint32, 0 },
+#else
+	{ "nosit-udp-size", &cfg_type_uint32, CFG_CLAUSEFLAG_NOTCONFIGURED },
+#endif
 	{ "max-acache-size", &cfg_type_sizenodefault, 0 },
 	{ "max-cache-size", &cfg_type_sizenodefault, 0 },
 	{ "max-cache-ttl", &cfg_type_uint32, 0 },
@@ -1522,6 +1540,7 @@ view_clauses[] = {
 	{ "minimal-responses", &cfg_type_boolean, 0 },
 	{ "prefetch", &cfg_type_prefetch, 0 },
 	{ "preferred-glue", &cfg_type_astring, 0 },
+	{ "no-case-compress", &cfg_type_bracketed_aml, 0 },
 	{ "provide-ixfr", &cfg_type_boolean, 0 },
 	/*
 	 * Note that the query-source option syntax is different
@@ -1533,6 +1552,12 @@ view_clauses[] = {
 	{ "queryport-pool-updateinterval", &cfg_type_uint32,
 	  CFG_CLAUSEFLAG_OBSOLETE },
 	{ "recursion", &cfg_type_boolean, 0 },
+	{ "request-ixfr", &cfg_type_boolean, 0 },
+#ifdef ISC_PLATFORM_USESIT
+	{ "request-sit", &cfg_type_boolean, 0 },
+#else
+	{ "request-sit", &cfg_type_boolean, CFG_CLAUSEFLAG_NOTCONFIGURED },
+#endif
 	{ "request-nsid", &cfg_type_boolean, 0 },
 	{ "resolver-query-timeout", &cfg_type_uint32, 0 },
 	{ "rfc2308-type1", &cfg_type_boolean, CFG_CLAUSEFLAG_NYI },
@@ -1629,6 +1654,7 @@ zone_clauses[] = {
 	{ "max-transfer-idle-out", &cfg_type_uint32, 0 },
 	{ "max-transfer-time-in", &cfg_type_uint32, 0 },
 	{ "max-transfer-time-out", &cfg_type_uint32, 0 },
+	{ "max-zone-ttl", &cfg_type_maxttl, 0 },
 	{ "min-refresh-time", &cfg_type_uint32, 0 },
 	{ "min-retry-time", &cfg_type_uint32, 0 },
 	{ "multi-master", &cfg_type_boolean, 0 },
@@ -1809,6 +1835,12 @@ server_clauses[] = {
 	{ "provide-ixfr", &cfg_type_boolean, 0 },
 	{ "request-ixfr", &cfg_type_boolean, 0 },
 	{ "support-ixfr", &cfg_type_boolean, CFG_CLAUSEFLAG_OBSOLETE },
+#ifdef ISC_PLATFORM_USESIT
+	{ "request-sit", &cfg_type_boolean, 0 },
+#else
+	{ "request-sit", &cfg_type_boolean, CFG_CLAUSEFLAG_NOTCONFIGURED },
+#endif
+	{ "request-nsid", &cfg_type_boolean, 0 },
 	{ "transfers", &cfg_type_uint32, 0 },
 	{ "transfer-format", &cfg_type_transferformat, 0 },
 	{ "keys", &cfg_type_server_key_kludge, 0 },
@@ -2191,8 +2223,8 @@ static cfg_type_t cfg_type_geoipdb = {
 };
 
 static cfg_tuplefielddef_t geoip_fields[] = {
-	{ "negated", &cfg_type_void, 0},
-	{ "db", &cfg_type_geoipdb, 0},
+	{ "negated", &cfg_type_void, 0 },
+	{ "db", &cfg_type_geoipdb, 0 },
 	{ "subtype", &cfg_type_geoiptype, 0 },
 	{ "search", &cfg_type_astring, 0 },
 	{ NULL, NULL, 0 }
@@ -3138,4 +3170,56 @@ parse_masterselement(cfg_parser_t *pctx, const cfg_type_t *type,
 static cfg_type_t cfg_type_masterselement = {
 	"masters_element", parse_masterselement, NULL,
 	 doc_masterselement, NULL, NULL
+};
+
+static isc_result_t
+parse_maxttlval(cfg_parser_t *pctx, const cfg_type_t *type, cfg_obj_t **ret) {
+	isc_result_t result;
+	cfg_obj_t *obj = NULL;
+	isc_uint32_t ttl;
+
+	UNUSED(type);
+
+	CHECK(cfg_gettoken(pctx, 0));
+	if (pctx->token.type != isc_tokentype_string) {
+		result = ISC_R_UNEXPECTEDTOKEN;
+		goto cleanup;
+	}
+
+	result = dns_ttl_fromtext(&pctx->token.value.as_textregion, &ttl);
+	if (result == ISC_R_RANGE ) {
+		cfg_parser_error(pctx, CFG_LOG_NEAR, "TTL out of range ");
+		return (result);
+	} else if (result != ISC_R_SUCCESS)
+		goto cleanup;
+
+	CHECK(cfg_create_obj(pctx, &cfg_type_uint32, &obj));
+	obj->value.uint32 = ttl;
+	*ret = obj;
+	return (ISC_R_SUCCESS);
+
+ cleanup:
+	cfg_parser_error(pctx, CFG_LOG_NEAR, "expected integer and optional unit");
+	return (result);
+}
+
+/*%
+ * A size value (number + optional unit).
+ */
+static cfg_type_t cfg_type_maxttlval = {
+	"maxttlval", parse_maxttlval, cfg_print_uint64, cfg_doc_terminal,
+	&cfg_rep_uint64, NULL };
+
+static isc_result_t
+parse_maxttl(cfg_parser_t *pctx, const cfg_type_t *type, cfg_obj_t **ret) {
+	return (parse_enum_or_other(pctx, type, &cfg_type_maxttlval, ret));
+}
+
+/*%
+ * A size or "unlimited", but not "default".
+ */
+static const char *maxttl_enums[] = { "unlimited", NULL };
+static cfg_type_t cfg_type_maxttl = {
+	"maxttl_no_default", parse_maxttl, cfg_print_ustring, cfg_doc_terminal,
+	&cfg_rep_string, maxttl_enums
 };

@@ -24,6 +24,7 @@
 require 5.000;
 use strict;
 use File::Spec;
+use Cwd;
 
 # files to configure
 
@@ -156,14 +157,10 @@ my @filelist = ("..\\bin\\check\\win32\\checktool.dsp",
                 "..\\lib\\isc\\win32\\libisc.def",
                 "..\\lib\\isc\\win32\\libisc.dsp",
                 "..\\lib\\isc\\win32\\libisc.mak",
-                "..\\lib\\isc\\win32\\mklib.bat",
                 "..\\lib\\isccc\\win32\\libisccc.dsp",
                 "..\\lib\\isccc\\win32\\libisccc.mak",
                 "..\\lib\\isccfg\\win32\\libisccfg.dsp",
                 "..\\lib\\isccfg\\win32\\libisccfg.mak",
-                "..\\lib\\iscpk11\\win32\\libiscpk11.def",
-                "..\\lib\\iscpk11\\win32\\libiscpk11.dsp",
-                "..\\lib\\iscpk11\\win32\\libiscpk11.mak",
                 "..\\lib\\lwres\\win32\\liblwres.dsp",
                 "..\\lib\\lwres\\win32\\liblwres.mak",
                 "..\\lib\\tests\\win32\\libtests.dsp",
@@ -305,8 +302,6 @@ my @projectlist = ("..\\bin\\check\\win32\\checkconf.vcxproj",
                    "..\\lib\\isccc\\win32\\libisccc.vcxproj.filters",
                    "..\\lib\\isccfg\\win32\\libisccfg.vcxproj",
                    "..\\lib\\isccfg\\win32\\libisccfg.vcxproj.filters",
-                   "..\\lib\\iscpk11\\win32\\libiscpk11.vcxproj",
-                   "..\\lib\\iscpk11\\win32\\libiscpk11.vcxproj.filters",
                    "..\\lib\\lwres\\win32\\liblwres.vcxproj",
                    "..\\lib\\lwres\\win32\\liblwres.vcxproj.filters",
                    "..\\lib\\tests\\win32\\libtests.vcxproj",
@@ -339,7 +334,8 @@ my @substdefh = ("ALLOW_FILTER_AAAA",
                  "HAVE_READLINE",
                  "ISC_LIST_CHECKINIT",
                  "PREFER_GOSTASN1",
-                 "WITH_IDN");
+                 "WITH_IDN",
+                 "TUNE_LARGE");
 
 # for platform.h
 
@@ -469,6 +465,7 @@ my @withlist = ("cross-compile",
                 "python",
                 "readline",
                 "tests",
+                "tuning",
                 "vcredist");
 
 # general arguments
@@ -519,6 +516,7 @@ my @help = (
 "  with-idn[=PATH]       build with IDN kit support yes|no|path\n",
 "  with-iconv[=PATH]     path of the iconv DLL [default=same than idn]\n",
 "  with-vcredist[=PATH]  visual C++ redistributable package yes|path\n",
+"  with-tuning=OPTION    tune for plaform size (large|default)\n",
 "  with-cross-compile    32 / 64 bit build / host plaforms\n");
 
 # Parse arguments
@@ -565,6 +563,7 @@ my $iconv_path = " --idn-- ";
 my $use_vcredist = "yes";
 my $vcredist_path = " --infer-- ";
 my $cross_compile = "no";
+my $tuning = "default";
 
 # no arguments -> usage
 
@@ -823,6 +822,10 @@ sub mywith {
         if ($val =~ /^yes$/i) {
             $cross_compile = "yes";
         }
+    } elsif ($key =~ /^tuning$/i) {
+        if ($val =~ /^large$/i) {
+            $tuning = "large";
+        }
     } else {
         $want_unknown = "yes";
         if ($val eq "no") {
@@ -987,50 +990,71 @@ if ($verbose) {
 # Check environment
 
 # infer vcredist when not given
-
 if ($vcredist_path eq " --infer-- ") {
     if ($verbose) {
         print "trying to infer vcredist path from build environment\n";
     }
-    if ($ENV{"VCRedistPath"} ne "") {
-        $vcredist_path = $ENV{"VCRedistPath"};
-    } elsif ($ENV{"FrameworkSDKDir"} ne "") {
-        if (($want_win32 eq "yes") &&
-            (-f File::Spec->catfile($ENV{"FrameworkSDKDir"},
-                                    "BootStrapper", "Packages",
-                                    "vcredist_x86", "vcredist_x86.exe"))) {
-            $vcredist_path = File::Spec->catfile($ENV{"FrameworkSDKDir"},
-                                                 "BootStrapper",
-                                                 "Packages",
-                                                 "vcredist_x86",
-                                                 "vcredist_x86.exe");
-        } elsif (($want_x64 eq "yes") &&
-                 (-f File::Spec->catfile($ENV{"FrameworkSDKDir"},
-                                         "BootStrapper", "Packages",
-                                         "vcredist_x64",
-                                         "vcredist_x64.exe"))) {
-            $vcredist_path = File::Spec->catfile($ENV{"FrameworkSDKDir"},
-                                                 "BootStrapper",
-                                                 "Packages",
-                                                 "vcredist_x64",
-                                                 "vcredist_x64.exe");
-        }
-    } elsif ($ENV{"VCINSTALLDIR"} ne "") {
-        if (($want_win32 eq "yes") &&
-            (-f File::Spec->catfile($ENV{"VCINSTALLDIR"}, "redist",
-                                    "1033", "vcredist_x86.exe"))) {
-            $vcredist_path = File::Spec->catfile($ENV{"VCINSTALLDIR"},
-                                                 "redist", "1033",
-                                                 "vcredist_x86.exe");
-        } elsif (($want_x64 eq "yes") &&
-                 (-f File::Spec->catfile($ENV{"VCINSTALLDIR"}, "redist",
-                                         "1033", "vcredist_x64.exe"))) {
-            $vcredist_path = File::Spec->catfile($ENV{"VCINSTALLDIR"},
-                                                 "redist", "1033",
-                                                 "vcredist_x64.exe");
-        }
+
+    my @vcpaths = {};
+    push(@vcpaths, $ENV{"VCRedistPath"}) if ($ENV{"VCRedistPath"} ne "");
+    push(@vcpaths, File::Spec->catfile( cwd(), "..", ".." ));
+
+    if ($ENV{"FrameworkSDKDir"} ne "" && $want_win32 eq "yes") {
+        push(@vcpaths, File::Spec->catfile($ENV{"FrameworkSDKDir"},
+                                           "BootStrapper", "Packages",
+                                           "vcredist_x86"));
+    } elsif ($ENV{"FrameworkSDKDir"} ne "" && $want_x64 eq "yes") {
+        push(@vcpaths, File::Spec->catfile($ENV{"FrameworkSDKDir"},
+                                           "BootStrapper", "Packages",
+                                           "vcredist_x64"));
+    }
+
+    if ($ENV{"WindowsSDKDir"} ne "" && $want_win32 eq "yes") {
+        push(@vcpaths, File::Spec->catfile($ENV{"WindowsSDKDir"},
+                                           "BootStrapper", "Packages",
+                                           "vcredist_x86"));
+    } elsif ($ENV{"WindowsSDKDir"} ne "" && $want_x64 eq "yes") {
+        push(@vcpaths, File::Spec->catfile($ENV{"WindowsSDKDir"},
+                                           "BootStrapper", "Packages",
+                                           "vcredist_x64"));
+    }
+
+    if ($ENV{"WindowsSDKDir_old"} ne "" && $want_win32 eq "yes") {
+        push(@vcpaths, File::Spec->catfile($ENV{"WindowsSDKDir_old"},
+                                           "BootStrapper", "Packages",
+                                           "vcredist_x86"));
+    } elsif ($ENV{"WindowsSDKDir_old"} ne "" && $want_x64 eq "yes") {
+        push(@vcpaths, File::Spec->catfile($ENV{"WindowsSDKDir_old"},
+                                           "BootStrapper", "Packages",
+                                           "vcredist_x64"));
+    }
+
+    if ($ENV{"VCINSTALLDIR"}) {
+        push(@vcpaths, File::Spec->catfile($ENV{"VCINSTALLDIR"},
+                                           "redist", "1033"));
+    }
+
+    my $rfile;
+    if ($want_win32 eq "yes") {
+        $rfile = "vcredist_x86.exe";
     } else {
+        $rfile = "vcredist_x64.exe";
+    }
+
+    foreach (@vcpaths) {
+        my $vp = File::Spec->catfile($_, $rfile);
+        if (-f $vp) {
+            $vcredist_path = $vp;
+            last;
+        }
+    }
+
+    if ($vcredist_path eq " --infer-- ") {
         die "with-vcredist is REQUIRED\n";
+    }
+
+    if ($verbose) {
+        print "found vcredist at " . $vcredist_path . "\n";
     }
 }
 
@@ -1176,42 +1200,42 @@ if ($enable_intrinsics eq "yes") {
 # enable-native-pkcs11
 if ($enable_native_pkcs11 eq "yes") {
     if ($use_openssl eq "auto") {
-	$use_openssl = "no";
+        $use_openssl = "no";
     }
     if ($use_openssl ne "no") {
-	die "can't have both OpenSSL and native PKCS#11\n";
+        die "can't have both OpenSSL and native PKCS#11\n";
     }
     if ($use_pkcs11 ne "yes") {
-	if ($verbose) {
-	    print "native PKCS#11 support: force with-pkcs11\n";
-	}
-	$use_pkcs11 = "yes";
+        if ($verbose) {
+            print "native PKCS#11 support: force with-pkcs11\n";
+        }
+        $use_pkcs11 = "yes";
     }
     if ($pkcs11_path eq "unknown") {
-	if ($verbose) {
-	    print "native PKCS#11 support: no PKCS#11 provider defined?\n";
-	}
+        if ($verbose) {
+            print "native PKCS#11 support: no PKCS#11 provider defined?\n";
+        }
     }
     $configdefd{"CRYPTO"} = "PKCS11CRYPTO";
     if ($use_ecdsa eq "no") {
-	if ($verbose) {
-	    print "no ECDSA support in native PKCS#11\n";
-	}
+        if ($verbose) {
+            print "no ECDSA support in native PKCS#11\n";
+        }
     } else {
-	if ($verbose) {
-	    print "enabled ECDSA support in native PKCS#11\n";
-	}
-	$configdefh{"HAVE_PKCS11_ECDSA"} = 1;
+        if ($verbose) {
+            print "enabled ECDSA support in native PKCS#11\n";
+        }
+        $configdefh{"HAVE_PKCS11_ECDSA"} = 1;
     }
     if ($use_gost eq "no") {
-	if ($verbose) {
-	    print "no GOST support in native PKCS#11\n";
-	}
+        if ($verbose) {
+            print "no GOST support in native PKCS#11\n";
+        }
     } else {
-	if ($verbose) {
-	    print "enabled GOST support in native PKCS#11\n";
-	}
-	$configdefh{"HAVE_PKCS11_GOST"} = 1;
+        if ($verbose) {
+            print "enabled GOST support in native PKCS#11\n";
+        }
+        $configdefh{"HAVE_PKCS11_GOST"} = 1;
     }
 }
 
@@ -1994,7 +2018,8 @@ if ($use_python ne "no") {
     $configcond{"PYTHON"} = 1;
     $configdefd{"USE_PYTHON"} = "USE_PYTHON";
     $configvar{"PYTHON"} = "$python_command";
-    $configvar{"prefix"} = "C:\\Windows\\system32\\dns";
+    # Only a default!
+    $configvar{"prefix"} = "C:\\Program Files\ISC BIND 9";
 }
 
 # with-vcredist
@@ -2003,6 +2028,11 @@ if (!grep { -f and -x } $vcredist_path) {
     die "$vcredist_path is not correct\n";
 } else {
     $configvar{"VCREDIST_PATH"} = "$vcredist_path";
+}
+
+# tuning
+if ($tuning eq "large") {
+    $configdefh{"TUNE_LARGE"} = 1;
 }
 
 # setup config.h with %configdefh
@@ -2148,8 +2178,10 @@ sub setupfile {
             } elsif ($1 ~~ @substdefd) {
                 if (defined($configdefd{$1})) {
                     my $def = $configdefd{$1};
+                    my $pre = "$`";
+                    my $post = "$'";
                     $def =~ s/([\\ "])/\\$1/g;
-                    $line = qq($`/D "$def"$');
+                    $line = qq($pre/D "$def"$post);
                 } else {
                     $line = "$`$'";
                 }
@@ -2308,15 +2340,13 @@ sub setupproject {
 sub makeversion {
     # List of directories with version files
 
-    my @dirlist = ("iscpk11", "isc", "dns", "isccc",
-                   "isccfg", "lwres", "bind9");
+    my @dirlist = ("isc", "dns", "isccc", "isccfg", "lwres", "bind9");
     my %LibMacros = (
         "bind9"   => "LIBBIND9_EXPORTS",
         "dns"     => "LIBDNS_EXPORTS",
         "isc"     => "LIBISC_EXPORTS",
         "isccc"   => "LIBISCCC_EXPORTS",
         "isccfg"  => "LIBISCCFG_EXPORTS",
-        "iscpk11" => "LIBISCPK11_EXPORTS",
         "lwres"   => "LIBLWRES_EXPORTS");
     my @VersionNames = ("LIBINTERFACE", "LIBREVISION", "LIBAGE");
     my %Versions;
@@ -2626,24 +2656,29 @@ exit 0;
 # Notes: Unix configure.in options
 #  --enable-developer partially supported
 #  --enable-newstats (9.9/9.9sub only)
+#  --enable-native-pkcs11 supported
 #  --enable-openssl-version-check included without a way to disable it
 #  --enable-openssl-hash supported
+#  --enable-openssl-aes TODO
 #  --enable-threads included without a way to disable it
 #  --enable-backtrace backtrace included without a way to disable it
 #  --enable-symtable incompatible with DLLs (or libtool)
 #  --enable-exportlib TODO (obsolete)
 #  --enable-ipv6 included without a way to disable it
-#  --enable-atomic supported (renamed intrinsic)
+#  --enable-atomic supported (renamed to intrinsic)
 #  --enable-spnego support (part of GSSAPI)
 #  --enable-fixed-rrset supported
 #  --disable-rpz-nsip supported
 #  --disable-rpz-nsdname supported
 #  --enable-filter-aaaa supported
+#  --enable-sit included without a way to disable it (TO BE FIXED)
+#  --enable-full-report supported by verbose
 #  --with-python supported
 #  --with-openssl supported
+#  --with-pkcs11 supported
 #  --with-ecdsa supported
 #  --with-gost supported
-#  --with-pkcs11 supported
+#  --with-sit-alg TODO (aes wired down)
 #  --with-geoip supported
 #  --with-gssapi supported with MIT (K)erberos (f)or (W)indows
 #  --with-libxml2 supported

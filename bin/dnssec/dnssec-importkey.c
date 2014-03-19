@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2013  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2013, 2014  Internet Systems Consortium, Inc. ("ISC")
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -313,8 +313,8 @@ main(int argc, char **argv) {
 			if (setdel)
 				fatal("-D specified more than once");
 
-			setdel = ISC_TRUE;
-			del = strtotime(isc_commandline_argument, now, now);
+			del = strtotime(isc_commandline_argument,
+					now, now, &setdel);
 			break;
 		case 'K':
 			dir = isc_commandline_argument;
@@ -322,18 +322,15 @@ main(int argc, char **argv) {
 				fatal("directory must be non-empty string");
 			break;
 		case 'L':
-			if (strcmp(isc_commandline_argument, "none") == 0)
-				ttl = 0;
-			else
-				ttl = strtottl(isc_commandline_argument);
+			ttl = strtottl(isc_commandline_argument);
 			setttl = ISC_TRUE;
 			break;
 		case 'P':
 			if (setpub)
 				fatal("-P specified more than once");
 
-			setpub = ISC_TRUE;
-			pub = strtotime(isc_commandline_argument, now, now);
+			pub = strtotime(isc_commandline_argument,
+					now, now, &setpub);
 			break;
 		case 'f':
 			filename = isc_commandline_argument;

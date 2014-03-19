@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2010, 2012, 2013  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2010, 2012-2014  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -106,6 +106,12 @@
 /*%< EDNS0 extended OPT codes */
 #define DNS_OPT_NSID		0x0003		/*%< NSID opt code */
 #define DNS_OPT_CLIENT_SUBNET	0x0008		/*%< client subnet opt code */
+/*%< Experimental options [65001...65534] as per RFC6891 */
+#define DNS_OPT_SIT		65001		/*%< SIT opt code */
+#define DNS_OPT_EXPIRE		65002		/*%< EXPIRE opt code */
+
+/*%< The number of EDNS options we know about. */
+#define DNS_EDNSOPTIONS	4
 
 #define DNS_MESSAGE_REPLYPRESERVE	(DNS_MESSAGEFLAG_RD|DNS_MESSAGEFLAG_CD)
 #define DNS_MESSAGEEXTFLAG_REPLYPRESERVE (DNS_MESSAGEEXTFLAG_DO)
@@ -139,6 +145,7 @@ typedef int dns_messagetextflag_t;
 #define DNS_MESSAGETEXTFLAG_NOHEADERS	0x0002
 #define DNS_MESSAGETEXTFLAG_ONESOA	0x0004
 #define DNS_MESSAGETEXTFLAG_OMITSOA	0x0008
+#define DNS_MESSAGETEXTFLAG_COMMENTDATA	0x0010
 
 /*
  * Dynamic update names for these sections.
@@ -211,6 +218,8 @@ struct dns_message {
 	unsigned int			verify_attempted : 1;
 	unsigned int			free_query : 1;
 	unsigned int			free_saved : 1;
+	unsigned int			sitok : 1;
+	unsigned int			sitbad : 1;
 
 	unsigned int			opt_reserved;
 	unsigned int			sig_reserved;
@@ -1356,10 +1365,16 @@ dns_message_gettimeadjust(dns_message_t *msg);
  * Requires:
  *\li	msg be a valid message.
  */
+
 void
 dns_message_logpacket(dns_message_t *message, const char *description,
 		      isc_logcategory_t *category, isc_logmodule_t *module,
 		      int level, isc_mem_t *mctx);
+void
+dns_message_logfmtpacket(dns_message_t *message, const char *description,
+			 isc_logcategory_t *category, isc_logmodule_t *module,
+			 const dns_master_style_t *style, int level,
+			 isc_mem_t *mctx);
 /*%<
  * Log 'message' at the specified logging parameters.
  * 'description' will be emitted at the start of the message and will
@@ -1383,7 +1398,6 @@ dns_message_buildopt(dns_message_t *msg, dns_rdataset_t **opt,
  * \li	 ISC_R_NOSPACE
  * \li	 other.
  */
-
 
 ISC_LANG_ENDDECLS
 

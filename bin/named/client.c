@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2013  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2014  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -25,12 +25,20 @@
 #include <isc/platform.h>
 #include <isc/print.h>
 #include <isc/queue.h>
+#include <isc/random.h>
+#include <isc/serial.h>
 #include <isc/stats.h>
 #include <isc/stdio.h>
 #include <isc/string.h>
 #include <isc/task.h>
 #include <isc/timer.h>
 #include <isc/util.h>
+
+#ifdef AES_SIT
+#include <isc/aes.h>
+#else
+#include <isc/hmacsha.h>
+#endif
 
 #include <dns/db.h>
 #include <dns/dispatch.h>
@@ -112,6 +120,8 @@
  * a separate context in this case would simply waste memory.
  */
 #endif
+
+#define SIT_SIZE 24 /* 8 + 4 + 4 + 8 */
 
 /*% nameserver client manager structure */
 struct ns_clientmgr {
@@ -233,6 +243,12 @@ static void client_request(isc_task_t *task, isc_event_t *event);
 static void ns_client_dumpmessage(ns_client_t *client, const char *reason);
 static isc_result_t get_client(ns_clientmgr_t *manager, ns_interface_t *ifp,
 			       dns_dispatch_t *disp, isc_boolean_t tcp);
+static inline isc_boolean_t
+allowed(isc_netaddr_t *addr, dns_name_t *signer, dns_acl_t *acl);
+#ifdef ISC_PLATFORM_USESIT
+static void compute_sit(ns_client_t *client, isc_uint32_t when,
+			isc_uint32_t nonce, isc_buffer_t *buf);
+#endif
 
 void
 ns_client_recursing(ns_client_t *client) {
@@ -800,10 +816,24 @@ client_allocsendbuf(ns_client_t *client, isc_buffer_t *buffer,
 		}
 	} else {
 		data = sendbuf;
+#ifdef ISC_PLATFORM_USESIT
+		if ((client->attributes & NS_CLIENTATTR_HAVESIT) == 0) {
+			if (client->view != NULL)
+				bufsize = client->view->situdp;
+			else
+				bufsize = 512;
+		} else
+			bufsize = client->udpsize;
+		if (bufsize > client->udpsize)
+			bufsize = client->udpsize;
+		if (bufsize > SEND_BUFFER_SIZE)
+			bufsize = SEND_BUFFER_SIZE;
+#else
 		if (client->udpsize < SEND_BUFFER_SIZE)
 			bufsize = client->udpsize;
 		else
 			bufsize = SEND_BUFFER_SIZE;
+#endif
 		if (length > bufsize) {
 			result = ISC_R_NOSPACE;
 			goto done;
@@ -984,6 +1014,16 @@ client_send(ns_client_t *client) {
 #endif
 
 	/*
+	 * Create an OPT for our reply.
+	 */
+	if ((client->attributes & NS_CLIENTATTR_WANTOPT) != 0) {
+		result = ns_client_addopt(client, client->message,
+					  &client->opt);
+		if (result != ISC_R_SUCCESS)
+			goto done;
+	}
+
+	/*
 	 * XXXRTH  The following doesn't deal with TCP buffer resizing.
 	 */
 	result = client_allocsendbuf(client, &buffer, &tcpbuffer, 0,
@@ -994,7 +1034,19 @@ client_send(ns_client_t *client) {
 	result = dns_compress_init(&cctx, -1, client->mctx);
 	if (result != ISC_R_SUCCESS)
 		goto done;
-	dns_compress_setsensitive(&cctx, ISC_TRUE);
+	if (client->peeraddr_valid && client->view != NULL) {
+		isc_netaddr_t netaddr;
+		dns_name_t *name = NULL;
+
+		isc_netaddr_fromsockaddr(&netaddr, &client->peeraddr);
+		if (client->message->tsigkey != NULL)
+			name = &client->message->tsigkey->name;
+		if (client->view->nocasecompress == NULL ||
+		    !allowed(&netaddr, name, client->view->nocasecompress))
+		{
+			dns_compress_setsensitive(&cctx, ISC_TRUE);
+		}
+	}
 	cleanup_cctx = ISC_TRUE;
 
 	result = dns_message_renderbegin(client->message, &cctx, &buffer);
@@ -1325,18 +1377,26 @@ ns_client_error(ns_client_t *client, isc_result_t result) {
 	ns_client_send(client);
 }
 
-static inline isc_result_t
-client_addopt(ns_client_t *client) {
+isc_result_t
+ns_client_addopt(ns_client_t *client, dns_message_t *message,
+		 dns_rdataset_t **opt)
+{
 	char nsid[BUFSIZ], *nsidp;
+#ifdef ISC_PLATFORM_USESIT
+	unsigned char sit[SIT_SIZE];
+#endif
 	isc_result_t result;
 	dns_view_t *view;
 	dns_resolver_t *resolver;
 	isc_uint16_t udpsize;
-	dns_ednsopt_t ednsopts[2];
+	dns_ednsopt_t ednsopts[DNS_EDNSOPTIONS];
 	int count = 0;
 	unsigned int flags;
+	unsigned char expire[4];
 
-	REQUIRE(client->opt == NULL);	/* XXXRTH free old. */
+	REQUIRE(NS_CLIENT_VALID(client));
+	REQUIRE(opt != NULL && *opt == NULL);
+	REQUIRE(message != NULL);
 
 	view = client->view;
 	resolver = (view != NULL) ? view->resolver : NULL;
@@ -1361,14 +1421,47 @@ client_addopt(ns_client_t *client) {
 		} else
 			nsidp = ns_g_server->server_id;
 
+		INSIST(count < DNS_EDNSOPTIONS);
 		ednsopts[count].code = DNS_OPT_NSID;
 		ednsopts[count].length = strlen(nsidp);
 		ednsopts[count].value = (unsigned char *)nsidp;
 		count++;
 	}
  no_nsid:
-	result = dns_message_buildopt(client->message, &client->opt, 0,
-				      udpsize, flags, ednsopts, count);
+#ifdef ISC_PLATFORM_USESIT
+	if ((client->attributes & NS_CLIENTATTR_WANTSIT) != 0) {
+		isc_buffer_t buf;
+		isc_stdtime_t now;
+		isc_uint32_t nonce;
+
+		isc_buffer_init(&buf, sit, sizeof(sit));
+		isc_stdtime_get(&now);
+		isc_random_get(&nonce);
+
+		compute_sit(client, now, nonce, &buf);
+
+		INSIST(count < DNS_EDNSOPTIONS);
+		ednsopts[count].code = DNS_OPT_SIT;
+		ednsopts[count].length = SIT_SIZE;
+		ednsopts[count].value = sit;
+		count++;
+	}
+#endif
+	if ((client->attributes & NS_CLIENTATTR_HAVEEXPIRE) != 0) {
+		isc_buffer_t buf;
+
+		INSIST(count < DNS_EDNSOPTIONS);
+
+		isc_buffer_init(&buf, expire, sizeof(expire));
+		isc_buffer_putuint32(&buf, client->expire);
+		ednsopts[count].code = DNS_OPT_EXPIRE;
+		ednsopts[count].length = 4;
+		ednsopts[count].value = expire;
+		count++;
+	}
+
+	result = dns_message_buildopt(message, opt, 0, udpsize, flags,
+				      ednsopts, count);
 	return (result);
 }
 
@@ -1450,6 +1543,181 @@ ns_client_isself(dns_view_t *myview, dns_tsigkey_t *mykey,
 	return (ISC_TF(view == myview));
 }
 
+#ifdef ISC_PLATFORM_USESIT
+static void
+compute_sit(ns_client_t *client, isc_uint32_t when, isc_uint32_t nonce,
+	    isc_buffer_t *buf)
+{
+#ifdef AES_SIT
+	unsigned char digest[ISC_AES_BLOCK_LENGTH];
+	unsigned char input[4 + 4 + 16];
+	isc_netaddr_t netaddr;
+	unsigned char *cp;
+	unsigned int i;
+
+	memset(input, 0, sizeof(input));
+	cp = isc_buffer_used(buf);
+	isc_buffer_putmem(buf, client->cookie, 8);
+	isc_buffer_putuint32(buf, nonce);
+	isc_buffer_putuint32(buf, when);
+	memmove(input, cp, 16);
+	isc_aes128_crypt(ns_g_server->secret, input, digest);
+	for (i = 0; i < 8; i++)
+		input[i] = digest[i] ^ digest[i + 8];
+	isc_netaddr_fromsockaddr(&netaddr, &client->peeraddr);
+	switch (netaddr.family) {
+	case AF_INET:
+		memmove(input + 8, (unsigned char *)&netaddr.type.in, 4);
+		memset(input + 12, 0, 4);
+		isc_aes128_crypt(ns_g_server->secret, input, digest);
+		break;
+	case AF_INET6:
+		memmove(input + 8, (unsigned char *)&netaddr.type.in6, 16);
+		isc_aes128_crypt(ns_g_server->secret, input, digest);
+		for (i = 0; i < 8; i++)
+			input[i + 8] = digest[i] ^ digest[i + 8];
+		isc_aes128_crypt(ns_g_server->secret, input + 8, digest);
+		break;
+	}
+	for (i = 0; i < 8; i++)
+		digest[i] ^= digest[i + 8];
+	isc_buffer_putmem(buf, digest, 8);
+#endif
+#ifdef HMAC_SHA1_SIT
+	unsigned char digest[ISC_SHA1_DIGESTLENGTH];
+	isc_netaddr_t netaddr;
+	unsigned char *cp;
+	isc_hmacsha1_t hmacsha1;
+
+	cp = isc_buffer_used(buf);
+	isc_buffer_putmem(buf, client->cookie, 8);
+	isc_buffer_putuint32(buf, nonce);
+	isc_buffer_putuint32(buf, when);
+
+	isc_hmacsha1_init(&hmacsha1,
+			  ns_g_server->secret,
+			  ISC_SHA1_DIGESTLENGTH);
+	isc_hmacsha1_update(&hmacsha1, cp, 16);
+	isc_netaddr_fromsockaddr(&netaddr, &client->peeraddr);
+	switch (netaddr.family) {
+	case AF_INET:
+		isc_hmacsha1_update(&hmacsha1,
+				    (unsigned char *)&netaddr.type.in, 4);
+		break;
+	case AF_INET6:
+		isc_hmacsha1_update(&hmacsha1,
+				    (unsigned char *)&netaddr.type.in6, 16);
+		break;
+	}
+	isc_hmacsha1_update(&hmacsha1, client->cookie, sizeof(client->cookie));
+	isc_hmacsha1_sign(&hmacsha1, digest, sizeof(digest));
+	isc_buffer_putmem(buf, digest, 8);
+	isc_hmacsha1_invalidate(&hmacsha1);
+#endif
+#ifdef HMAC_SHA256_SIT
+	unsigned char digest[ISC_SHA256_DIGESTLENGTH];
+	isc_netaddr_t netaddr;
+	unsigned char *cp;
+	isc_hmacsha256_t hmacsha256;
+
+	cp = isc_buffer_used(buf);
+	isc_buffer_putmem(buf, client->cookie, 8);
+	isc_buffer_putuint32(buf, nonce);
+	isc_buffer_putuint32(buf, when);
+
+	isc_hmacsha256_init(&hmacsha256,
+			    ns_g_server->secret,
+			    ISC_SHA256_DIGESTLENGTH);
+	isc_hmacsha256_update(&hmacsha256, cp, 16);
+	isc_netaddr_fromsockaddr(&netaddr, &client->peeraddr);
+	switch (netaddr.family) {
+	case AF_INET:
+		isc_hmacsha256_update(&hmacsha256,
+				      (unsigned char *)&netaddr.type.in, 4);
+		break;
+	case AF_INET6:
+		isc_hmacsha256_update(&hmacsha256,
+				      (unsigned char *)&netaddr.type.in6, 16);
+		break;
+	}
+	isc_hmacsha256_update(&hmacsha256, client->cookie,
+			      sizeof(client->cookie));
+	isc_hmacsha256_sign(&hmacsha256, digest, sizeof(digest));
+	isc_buffer_putmem(buf, digest, 8);
+	isc_hmacsha256_invalidate(&hmacsha256);
+#endif
+}
+
+static void
+process_sit(ns_client_t *client, isc_buffer_t *buf, size_t optlen) {
+	unsigned char dbuf[SIT_SIZE];
+	unsigned char *old;
+	isc_stdtime_t now;
+	isc_uint32_t when;
+	isc_uint32_t nonce;
+	isc_buffer_t db;
+
+	client->attributes |= NS_CLIENTATTR_WANTSIT;
+
+	isc_stats_increment(ns_g_server->nsstats,
+			    dns_nsstatscounter_sitopt);
+
+	if (optlen != SIT_SIZE) {
+		/*
+		 * Not our token.
+		 */
+		if (optlen >= 8U)
+			memmove(client->cookie, isc_buffer_current(buf), 8);
+		else
+			memset(client->cookie, 0, 8);
+		isc_buffer_forward(buf, (unsigned int)optlen);
+
+		if (optlen == 8)
+			isc_stats_increment(ns_g_server->nsstats,
+					    dns_nsstatscounter_sitnew);
+		else
+			isc_stats_increment(ns_g_server->nsstats,
+					    dns_nsstatscounter_sitbadsize);
+		return;
+	}
+
+	/*
+	 * Process all of the incoming buffer.
+	 */
+	old = isc_buffer_current(buf);
+	memmove(client->cookie, old, 8);
+	isc_buffer_forward(buf, 8);
+	nonce = isc_buffer_getuint32(buf);
+	when = isc_buffer_getuint32(buf);
+	isc_buffer_forward(buf, 8);
+
+	/*
+	 * Allow for a 5 minute clock skew between servers sharing a secret.
+	 * Only accept SIT if we have talked to the client in the last hour.
+	 */
+	isc_stdtime_get(&now);
+	if (isc_serial_gt(when, (now + 300)) ||		/* In the future. */
+	    isc_serial_lt(when, (now - 3600))) {	/* In the past. */
+		isc_stats_increment(ns_g_server->nsstats,
+				    dns_nsstatscounter_sitbadtime);
+		return;
+	}
+
+	isc_buffer_init(&db, dbuf, sizeof(dbuf));
+	compute_sit(client, when, nonce, &db);
+
+	if (memcmp(old, dbuf, SIT_SIZE) != 0) {
+		isc_stats_increment(ns_g_server->nsstats,
+				    dns_nsstatscounter_sitnomatch);
+		return;
+	}
+	isc_stats_increment(ns_g_server->nsstats,
+			    dns_nsstatscounter_sitmatch);
+
+	client->attributes |= NS_CLIENTATTR_HAVESIT;
+}
+#endif
+
 static isc_result_t
 process_opt(ns_client_t *client, dns_rdataset_t *opt) {
 	dns_rdata_t rdata;
@@ -1484,7 +1752,8 @@ process_opt(ns_client_t *client, dns_rdataset_t *opt) {
 	if (client->ednsversion > 0) {
 		isc_stats_increment(ns_g_server->nsstats,
 				    dns_nsstatscounter_badednsver);
-		result = client_addopt(client);
+		result = ns_client_addopt(client, client->message,
+					  &client->opt);
 		if (result == ISC_R_SUCCESS)
 			result = DNS_R_BADVERS;
 		ns_client_error(client, result);
@@ -1503,10 +1772,25 @@ process_opt(ns_client_t *client, dns_rdataset_t *opt) {
 			optlen = isc_buffer_getuint16(&optbuf);
 			switch (optcode) {
 			case DNS_OPT_NSID:
+				isc_stats_increment(ns_g_server->nsstats,
+						    dns_nsstatscounter_nsidopt);
 				client->attributes |= NS_CLIENTATTR_WANTNSID;
 				isc_buffer_forward(&optbuf, optlen);
 				break;
+#ifdef ISC_PLATFORM_USESIT
+			case DNS_OPT_SIT:
+				process_sit(client, &optbuf, optlen);
+				break;
+#endif
+			case DNS_OPT_EXPIRE:
+				isc_stats_increment(ns_g_server->nsstats,
+						  dns_nsstatscounter_expireopt);
+				client->attributes |= NS_CLIENTATTR_WANTEXPIRE;
+				isc_buffer_forward(&optbuf, optlen);
+				break;
 			default:
+				isc_stats_increment(ns_g_server->nsstats,
+						  dns_nsstatscounter_otheropt);
 				isc_buffer_forward(&optbuf, optlen);
 				break;
 			}
@@ -1514,15 +1798,8 @@ process_opt(ns_client_t *client, dns_rdataset_t *opt) {
 	}
 
 	isc_stats_increment(ns_g_server->nsstats, dns_nsstatscounter_edns0in);
+	client->attributes |= NS_CLIENTATTR_WANTOPT;
 
-	/*
-	 * Create an OPT for our reply.
-	 */
-	result = client_addopt(client);
-	if (result != ISC_R_SUCCESS) {
-		ns_client_error(client, result);
-		goto cleanup;
-	}
  cleanup:
 	return (result);
 }
@@ -1714,7 +1991,7 @@ client_request(isc_task_t *task, isc_event_t *event) {
 	}
 	if (TCP_CLIENT(client))
 		isc_stats_increment(ns_g_server->nsstats,
-				    dns_nsstatscounter_tcp);
+				    dns_nsstatscounter_requesttcp);
 
 	/*
 	 * It's a request.  Parse it.

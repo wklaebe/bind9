@@ -98,6 +98,13 @@
 /*% Want WANTAD? */
 #define WANTAD(c)		(((c)->attributes & \
 				  NS_CLIENTATTR_WANTAD) != 0)
+#ifdef ISC_PLATFORM_USESIT
+/*% Client presented a valid Source Identity Token. */
+#define HAVESIT(c)		(((c)->attributes & \
+				  NS_CLIENTATTR_HAVESIT) != 0)
+#else
+#define HAVESIT(c)		(0)
+#endif
 
 /*% No authority? */
 #define NOAUTHORITY(c)		(((c)->query.attributes & \
@@ -3836,6 +3843,8 @@ query_prefetch(ns_client_t *client, dns_name_t *qname,
 					  &client->recursionquota);
 		if (result != ISC_R_SUCCESS)
 			return;
+		isc_stats_increment(ns_g_server->nsstats,
+				    dns_nsstatscounter_recursclients);
 	}
 	if (client->query.prefetch != NULL)
 		return;
@@ -4288,7 +4297,7 @@ rpz_get_p_name(ns_client_t *client, dns_name_t *p_name,
 					  &prefix);
 		result = dns_name_concatenate(&prefix, suffix, p_name, NULL);
 		if (result == ISC_R_SUCCESS)
-			return (ISC_R_SUCCESS);
+			break;
 		INSIST(result == DNS_R_NAMETOOLONG);
 		/*
 		 * Trim the trigger name until the combination is not too long.
@@ -4307,6 +4316,7 @@ rpz_get_p_name(ns_client_t *client, dns_name_t *p_name,
 		}
 		++first;
 	}
+	return (ISC_R_SUCCESS);
 }
 
 /*
@@ -6065,7 +6075,7 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype)
 	dns_fixedname_t fixed;
 	dns_fixedname_t wildcardname;
 	dns_dbversion_t *version, *zversion;
-	dns_zone_t *zone;
+	dns_zone_t *zone, *raw = NULL, *mayberaw;
 	dns_rdata_cname_t cname;
 	dns_rdata_dname_t dname;
 	unsigned int options;
@@ -6316,6 +6326,12 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype)
 			dns_db_attach(db, &client->query.authdb);
 		}
 		client->query.authdbset = ISC_TRUE;
+
+		/* Track TCP vs UDP stats per zone */
+		if ((client->attributes & NS_CLIENTATTR_TCP) != 0)
+			inc_stats(client, dns_nsstatscounter_tcp);
+		else
+			inc_stats(client, dns_nsstatscounter_udp);
 	}
 
  db_find:
@@ -6365,7 +6381,7 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype)
 	 * Don't mess with responses rewritten by RPZ
 	 * Count each response at most once.
 	 */
-	if (client->view->rrl != NULL &&
+	if (client->view->rrl != NULL && !HAVESIT(client) &&
 	    ((fname != NULL && dns_name_isabsolute(fname)) ||
 	     (result == ISC_R_NOTFOUND && !RECURSIONOK(client))) &&
 	    !(result == DNS_R_DELEGATION && !is_zone && RECURSIONOK(client)) &&
@@ -7849,6 +7865,29 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype)
 		if (is_zone && qtype == dns_rdatatype_ns &&
 		    dns_name_equal(client->query.qname, dns_rootname))
 			client->query.attributes &= ~NS_QUERYATTR_NOADDITIONAL;
+
+		/*
+		 * Return the time to expire for slave zones.
+		 */
+		if (is_zone)
+			dns_zone_getraw(zone, &raw);
+		mayberaw = (raw != NULL) ? raw : zone;
+
+		if (is_zone && qtype == dns_rdatatype_soa &&
+		    (client->attributes & NS_CLIENTATTR_WANTEXPIRE) != 0 &&
+		    client->query.restarts == 0 &&
+		    dns_zone_gettype(mayberaw) == dns_zone_slave) {
+			isc_time_t expiretime;
+			isc_uint32_t secs;
+			dns_zone_getexpiretime(zone, &expiretime);
+			secs = isc_time_seconds(&expiretime);
+			if (secs >= client->now && result == ISC_R_SUCCESS) {
+				client->attributes |= NS_CLIENTATTR_HAVEEXPIRE;
+				client->expire = secs - client->now;
+			}
+		}
+		if (raw != NULL)
+			dns_zone_detach(&raw);
 
 		if (dns64) {
 			qtype = type = dns_rdatatype_aaaa;

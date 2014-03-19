@@ -2,7 +2,7 @@
                "http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd"
                [<!ENTITY mdash "&#8212;">]>
 <!--
- - Copyright (C) 2004, 2005, 2007, 2013  Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004, 2005, 2007, 2013, 2014  Internet Systems Consortium, Inc. ("ISC")
  - Copyright (C) 2000, 2001  Internet Software Consortium.
  -
  - Permission to use, copy, modify, and/or distribute this software for any
@@ -41,6 +41,7 @@
       <year>2005</year>
       <year>2007</year>
       <year>2013</year>
+      <year>2014</year>
       <holder>Internet Systems Consortium, Inc. ("ISC")</holder>
     </copyright>
     <copyright>
@@ -335,6 +336,18 @@
             reflect changes in the zone.  Otherwise, if the
             zone has changed, any existing journal file will be
             removed.
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><userinput>scan</userinput></term>
+        <listitem>
+          <para>
+             Scan the list of available network interfaces
+             for changes, without performing a full
+             <command>reconfig</command> or waiting for the
+             <command>interface-interval</command> timer.
           </para>
         </listitem>
       </varlistentry>

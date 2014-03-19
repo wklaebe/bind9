@@ -32,6 +32,12 @@
 #include <isc/timer.h>
 #include <isc/util.h>
 
+#ifdef AES_SIT
+#include <isc/aes.h>
+#else
+#include <isc/hmacsha.h>
+#endif
+
 #include <dns/acl.h>
 #include <dns/adb.h>
 #include <dns/cache.h>
@@ -135,7 +141,6 @@
  * Maximum EDNS0 input packet size.
  */
 #define RECV_BUFFER_SIZE                4096            /* XXXRTH  Constant. */
-#define EDNSOPTS			2
 
 /*%
  * This defines the maximum number of timeouts we will permit before we
@@ -351,6 +356,7 @@ typedef struct {
 
 struct dns_fetch {
 	unsigned int			magic;
+	isc_mem_t *			mctx;
 	fetchctx_t *			private;
 };
 
@@ -1539,7 +1545,7 @@ fctx_query(fetchctx_t *fctx, dns_adbaddrinfo_t *addrinfo,
 			result = dns_dispatch_getudp(res->dispatchmgr,
 						     res->socketmgr,
 						     res->taskmgr, &addr,
-						     4096, 1000, 32768, 16411,
+						     4096, 20000, 32768, 16411,
 						     16433, attrs, attrmask,
 						     &query->dispatch);
 			if (result != ISC_R_SUCCESS)
@@ -1733,6 +1739,83 @@ add_triededns512(fetchctx_t *fctx, isc_sockaddr_t *address) {
 	ISC_LIST_INITANDAPPEND(fctx->edns512, tried, link);
 }
 
+#ifdef ISC_PLATFORM_USESIT
+static void
+compute_cc(resquery_t *query, unsigned char *sit, size_t len) {
+#ifdef AES_SIT
+	unsigned char digest[ISC_AES_BLOCK_LENGTH];
+	unsigned char input[16];
+	isc_netaddr_t netaddr;
+	unsigned int i;
+
+	INSIST(len >= 8U);
+
+	isc_netaddr_fromsockaddr(&netaddr, &query->addrinfo->sockaddr);
+	switch (netaddr.family) {
+	case AF_INET:
+		memmove(input, (unsigned char *)&netaddr.type.in, 4);
+		memset(input + 4, 0, 12);
+		break;
+	case AF_INET6:
+		memmove(input, (unsigned char *)&netaddr.type.in6, 16);
+		break;
+	}
+	isc_aes128_crypt(query->fctx->res->view->secret, input, digest);
+	for (i = 0; i < 8; i++)
+		digest[i] ^= digest[i + 8];
+	memmove(sit, digest, 8);
+#endif
+#ifdef HMAC_SHA1_SIT
+	unsigned char digest[ISC_SHA1_DIGESTLENGTH];
+	isc_netaddr_t netaddr;
+	isc_hmacsha1_t hmacsha1;
+
+	INSIST(len >= 8U);
+
+	isc_hmacsha1_init(&hmacsha1, query->fctx->res->view->secret,
+			  ISC_SHA1_DIGESTLENGTH);
+	isc_netaddr_fromsockaddr(&netaddr, &query->addrinfo->sockaddr);
+	switch (netaddr.family) {
+	case AF_INET:
+		isc_hmacsha1_update(&hmacsha1,
+				    (unsigned char *)&netaddr.type.in, 4);
+		break;
+	case AF_INET6:
+		isc_hmacsha1_update(&hmacsha1,
+				    (unsigned char *)&netaddr.type.in6, 16);
+		break;
+	}
+	isc_hmacsha1_sign(&hmacsha1, digest, sizeof(digest));
+	memmove(sit, digest, 8);
+	isc_hmacsha1_invalidate(&hmacsha1);
+#endif
+#ifdef HMAC_SHA256_SIT
+	unsigned char digest[ISC_SHA256_DIGESTLENGTH];
+	isc_netaddr_t netaddr;
+	isc_hmacsha256_t hmacsha256;
+
+	INSIST(len >= 8U);
+
+	isc_hmacsha256_init(&hmacsha256, query->fctx->res->view->secret,
+			    ISC_SHA256_DIGESTLENGTH);
+	isc_netaddr_fromsockaddr(&netaddr, &query->addrinfo->sockaddr);
+	switch (netaddr.family) {
+	case AF_INET:
+		isc_hmacsha256_update(&hmacsha256,
+				      (unsigned char *)&netaddr.type.in, 4);
+		break;
+	case AF_INET6:
+		isc_hmacsha256_update(&hmacsha256,
+				      (unsigned char *)&netaddr.type.in6, 16);
+		break;
+	}
+	isc_hmacsha256_sign(&hmacsha256, digest, sizeof(digest));
+	memmove(sit, digest, 8);
+	isc_hmacsha256_invalidate(&hmacsha256);
+#endif
+}
+#endif
+
 static isc_result_t
 resquery_send(resquery_t *query) {
 	fetchctx_t *fctx;
@@ -1754,13 +1837,9 @@ resquery_send(resquery_t *query) {
 	isc_boolean_t cleanup_cctx = ISC_FALSE;
 	isc_boolean_t secure_domain;
 	isc_boolean_t connecting = ISC_FALSE;
-	dns_ednsopt_t ednsopts[EDNSOPTS];
+	dns_ednsopt_t ednsopts[DNS_EDNSOPTIONS];
 	unsigned ednsopt = 0;
 	isc_uint16_t hint = 0, udpsize = 0;	/* No EDNS */
-
-	char addrbuf[ISC_SOCKADDR_FORMATSIZE];
-	isc_sockaddr_format(&query->addrinfo->sockaddr,
-			    addrbuf, sizeof(addrbuf));
 
 	fctx = query->fctx;
 	QTRACE("send");
@@ -1827,13 +1906,17 @@ resquery_send(resquery_t *query) {
 		fctx->qmessage->flags |= DNS_MESSAGEFLAG_RD;
 
 	/*
-	 * Set CD if the client says don't validate or the question is
-	 * under a secure entry point and it is not a recursive query.
+	 * Set CD if the client says not to validate, or if the
+	 * question is under a secure entry point and this is a
+	 * recursive/forward query -- unless the client said not to.
 	 */
-	if ((query->options & DNS_FETCHOPT_NOVALIDATE) != 0) {
+	if ((query->options & DNS_FETCHOPT_NOCDFLAG) != 0)
+		/* Do nothing */
+		;
+	else if ((query->options & DNS_FETCHOPT_NOVALIDATE) != 0)
 		fctx->qmessage->flags |= DNS_MESSAGEFLAG_CD;
-	} else if (res->view->enablevalidation &&
-		   (fctx->qmessage->flags & DNS_MESSAGEFLAG_RD) != 0) {
+	else if (res->view->enablevalidation &&
+		 ((fctx->qmessage->flags & DNS_MESSAGEFLAG_RD) != 0)) {
 		result = dns_view_issecuredomain(res->view, &fctx->name,
 						 &secure_domain);
 		if (result != ISC_R_SUCCESS)
@@ -1931,6 +2014,10 @@ resquery_send(resquery_t *query) {
 			unsigned int version = 0;       /* Default version. */
 			unsigned int flags = query->addrinfo->flags;
 			isc_boolean_t reqnsid = res->view->requestnsid;
+#ifdef ISC_PLATFORM_USESIT
+			isc_boolean_t reqsit = res->view->requestsit;
+			unsigned char sit[64];
+#endif
 
 			if ((flags & FCTX_ADDRINFO_EDNSOK) != 0 &&
 			    (query->options & DNS_FETCHOPT_EDNS512) == 0) {
@@ -1970,16 +2057,42 @@ resquery_send(resquery_t *query) {
 				version >>= DNS_FETCHOPT_EDNSVERSIONSHIFT;
 			}
 
-			/* request NSID for current view or peer? */
-			if (peer != NULL)
+			/* Request NSID/SIT for current view or peer? */
+			if (peer != NULL) {
 				(void) dns_peer_getrequestnsid(peer, &reqnsid);
+#ifdef ISC_PLATFORM_USESIT
+				(void) dns_peer_getrequestsit(peer, &reqsit);
+#endif
+			}
 			if (reqnsid) {
-				INSIST(ednsopt < EDNSOPTS);
+				INSIST(ednsopt < DNS_EDNSOPTIONS);
 				ednsopts[ednsopt].code = DNS_OPT_NSID;
 				ednsopts[ednsopt].length = 0;
 				ednsopts[ednsopt].value = NULL;
 				ednsopt++;
 			}
+#ifdef ISC_PLATFORM_USESIT
+			if (reqsit) {
+				INSIST(ednsopt < DNS_EDNSOPTIONS);
+				ednsopts[ednsopt].code = DNS_OPT_SIT;
+				ednsopts[ednsopt].length = (isc_uint16_t)
+					dns_adb_getsit(fctx->adb,
+						       query->addrinfo,
+						       sit, sizeof(sit));
+				if (ednsopts[ednsopt].length != 0) {
+					ednsopts[ednsopt].value = sit;
+					inc_stats(fctx->res,
+						  dns_resstatscounter_sitout);
+				} else {
+					compute_cc(query, sit, sizeof(sit));
+					ednsopts[ednsopt].value = sit;
+					ednsopts[ednsopt].length = 8;
+					inc_stats(fctx->res,
+						  dns_resstatscounter_sitcc);
+				}
+				ednsopt++;
+			}
+#endif
 			result = fctx_addopt(fctx->qmessage, version,
 					     udpsize, ednsopts, ednsopt);
 			if (reqnsid && result == ISC_R_SUCCESS) {
@@ -2509,8 +2622,8 @@ add_bad(fetchctx_t *fctx, dns_adbaddrinfo_t *addrinfo, isc_result_t reason,
 	isc_sockaddr_format(address, addrbuf, sizeof(addrbuf));
 	isc_log_write(dns_lctx, DNS_LOGCATEGORY_LAME_SERVERS,
 		      DNS_LOGMODULE_RESOLVER, ISC_LOG_INFO,
-		      "error (%s%s%s) resolving '%s/%s/%s': %s",
-		      dns_result_totext(reason), spc, code,
+		      "%s%s%s resolving '%s/%s/%s': %s",
+		      code, spc, dns_result_totext(reason),
 		      namebuf, typebuf, classbuf, addrbuf);
 }
 
@@ -4711,6 +4824,9 @@ cache_name(fetchctx_t *fctx, dns_name_t *name, dns_adbaddrinfo_t *addrinfo,
 		}
 	}
 
+	if ((fctx->options & DNS_FETCHOPT_NOCDFLAG) != 0)
+		valoptions |= DNS_VALIDATOR_NOCDFLAG;
+
 	if ((fctx->options & DNS_FETCHOPT_NOVALIDATE) != 0)
 		need_validation = ISC_FALSE;
 	else
@@ -5242,6 +5358,9 @@ ncache_message(fetchctx_t *fctx, dns_adbaddrinfo_t *addrinfo,
 			secure_domain = ISC_TRUE;
 		}
 	}
+
+	if ((fctx->options & DNS_FETCHOPT_NOCDFLAG) != 0)
+		valoptions |= DNS_VALIDATOR_NOCDFLAG;
 
 	if ((fctx->options & DNS_FETCHOPT_NOVALIDATE) != 0)
 		need_validation = ISC_FALSE;
@@ -6736,7 +6855,8 @@ resume_dslookup(isc_task_t *task, isc_event_t *event) {
 		FCTXTRACE("continuing to look for parent's NS records");
 		result = dns_resolver_createfetch(fctx->res, &fctx->nsname,
 						  dns_rdatatype_ns, domain,
-						  nsrdataset, NULL, 0, task,
+						  nsrdataset, NULL,
+						  fctx->options, task,
 						  resume_dslookup, fctx,
 						  &fctx->nsrrset, NULL,
 						  &fctx->nsfetch);
@@ -6885,6 +7005,11 @@ process_opt(resquery_t *query, dns_rdataset_t *opt) {
 	isc_result_t result;
 	isc_uint16_t optcode;
 	isc_uint16_t optlen;
+#ifdef ISC_PLATFORM_USESIT
+	unsigned char *sit;
+	dns_adbaddrinfo_t *addrinfo;
+	unsigned char cookie[8];
+#endif
 
 	result = dns_rdataset_first(opt);
 	if (result == ISC_R_SUCCESS) {
@@ -6900,10 +7025,31 @@ process_opt(resquery_t *query, dns_rdataset_t *opt) {
 			case DNS_OPT_NSID:
 				if (query->options & DNS_FETCHOPT_WANTNSID)
 					log_nsid(&optbuf, optlen, query,
-						 ISC_LOG_INFO,
+						 ISC_LOG_DEBUG(3),
 						 query->fctx->res->mctx);
 				isc_buffer_forward(&optbuf, optlen);
 				break;
+#ifdef ISC_PLATFORM_USESIT
+			case DNS_OPT_SIT:
+				sit = isc_buffer_current(&optbuf);
+				compute_cc(query, cookie, sizeof(cookie));
+				INSIST(query->fctx->rmessage->sitbad == 0 &&
+				       query->fctx->rmessage->sitok == 0);
+				if (optlen >= 8U &&
+				    memcmp(cookie, sit, 8) == 0) {
+					query->fctx->rmessage->sitok = 1;
+					inc_stats(query->fctx->res,
+						  dns_resstatscounter_sitok);
+					addrinfo = query->addrinfo;
+					dns_adb_setsit(query->fctx->adb,
+						       addrinfo, sit, optlen);
+				} else
+					query->fctx->rmessage->sitbad = 1;
+				isc_buffer_forward(&optbuf, optlen);
+				inc_stats(query->fctx->res,
+					  dns_resstatscounter_sitin);
+				break;
+#endif
 			default:
 				isc_buffer_forward(&optbuf, optlen);
 				break;
@@ -7106,10 +7252,12 @@ resquery_response(isc_task_t *task, isc_event_t *event) {
 	/*
 	 * Log the incoming packet.
 	 */
-	dns_message_logpacket(message, "received packet:\n",
-			      DNS_LOGCATEGORY_RESOLVER, DNS_LOGMODULE_RESOLVER,
-			      ISC_LOG_DEBUG(10), fctx->res->mctx);
-
+	dns_message_logfmtpacket(message, "received packet:\n",
+				 DNS_LOGCATEGORY_RESOLVER,
+				 DNS_LOGMODULE_PACKETS,
+				 &dns_master_style_comment,
+				 ISC_LOG_DEBUG(10),
+				 fctx->res->mctx);
 	/*
 	 * Process receive opt record.
 	 */
@@ -7700,7 +7848,8 @@ resquery_response(isc_task_t *task, isc_event_t *event) {
 
 		result = dns_resolver_createfetch(fctx->res, &fctx->nsname,
 						  dns_rdatatype_ns,
-						  NULL, NULL, NULL, 0, task,
+						  NULL, NULL, NULL,
+						  fctx->options, task,
 						  resume_dslookup, fctx,
 						  &fctx->nsrrset, NULL,
 						  &fctx->nsfetch);
@@ -8349,7 +8498,7 @@ log_fetch(dns_name_t *name, dns_rdatatype_t type) {
 
 	isc_log_write(dns_lctx, DNS_LOGCATEGORY_RESOLVER,
 		      DNS_LOGMODULE_RESOLVER, level,
-		      "createfetch: %s %s", namebuf, typebuf);
+		      "fetch: %s/%s", namebuf, typebuf);
 }
 
 isc_result_t
@@ -8416,6 +8565,8 @@ dns_resolver_createfetch2(dns_resolver_t *res, dns_name_t *name,
 	fetch = isc_mem_get(res->mctx, sizeof(*fetch));
 	if (fetch == NULL)
 		return (ISC_R_NOMEMORY);
+	fetch->mctx = NULL;
+	isc_mem_attach(res->mctx, &fetch->mctx);
 
 	bucketnum = dns_name_fullhash(name, ISC_FALSE) % res->nbuckets;
 
@@ -8506,7 +8657,7 @@ dns_resolver_createfetch2(dns_resolver_t *res, dns_name_t *name,
 		FTRACE("created");
 		*fetchp = fetch;
 	} else
-		isc_mem_put(res->mctx, fetch, sizeof(*fetch));
+		isc_mem_putanddetach(&fetch->mctx, fetch, sizeof(*fetch));
 
 	return (result);
 }
@@ -8597,7 +8748,7 @@ dns_resolver_destroyfetch(dns_fetch_t **fetchp) {
 
 	UNLOCK(&res->buckets[bucketnum].lock);
 
-	isc_mem_put(res->mctx, fetch, sizeof(*fetch));
+	isc_mem_putanddetach(&fetch->mctx, fetch, sizeof(*fetch));
 	*fetchp = NULL;
 
 	if (bucket_empty)

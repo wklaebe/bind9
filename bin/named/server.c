@@ -40,6 +40,7 @@
 #include <isc/parseint.h>
 #include <isc/portset.h>
 #include <isc/print.h>
+#include <isc/random.h>
 #include <isc/refcount.h>
 #include <isc/resource.h>
 #include <isc/sha2.h>
@@ -52,6 +53,12 @@
 #include <isc/timer.h>
 #include <isc/util.h>
 #include <isc/xml.h>
+
+#ifdef AES_SIT
+#include <isc/aes.h>
+#else
+#include <isc/hmacsha.h>
+#endif
 
 #include <isccfg/namedconf.h>
 
@@ -124,6 +131,16 @@
 #ifndef SIZE_MAX
 #define SIZE_MAX ((size_t)-1)
 #endif
+
+#ifdef TUNE_LARGE
+#define RESOLVER_NTASKS 523
+#define UDPBUFFERS 32768
+#define EXCLBUFFERS 32768
+#else
+#define RESOLVER_NTASKS 31
+#define UDPBUFFERS 1000
+#define EXCLBUFFERS 4096
+#endif /* TUNE_LARGE */
 
 /*%
  * Check an operation for failure.  Assumes that the function
@@ -953,7 +970,7 @@ get_view_querysource_dispatch(const cfg_obj_t **maps, int af,
 	isc_sockaddr_t sa;
 	unsigned int attrs, attrmask;
 	const cfg_obj_t *obj = NULL;
-	unsigned int maxdispatchbuffers;
+	unsigned int maxdispatchbuffers = UDPBUFFERS;
 	isc_dscp_t dscp = -1;
 
 	switch (af) {
@@ -1007,7 +1024,7 @@ get_view_querysource_dispatch(const cfg_obj_t **maps, int af,
 	}
 	if (isc_sockaddr_getport(&sa) == 0) {
 		attrs |= DNS_DISPATCHATTR_EXCLUSIVE;
-		maxdispatchbuffers = 4096;
+		maxdispatchbuffers = EXCLBUFFERS;
 	} else {
 		INSIST(obj != NULL);
 		if (is_firstview) {
@@ -1016,7 +1033,6 @@ get_view_querysource_dispatch(const cfg_obj_t **maps, int af,
 				    "suppresses port randomization and can be "
 				    "insecure.");
 		}
-		maxdispatchbuffers = 1000;
 	}
 
 	attrmask = 0;
@@ -1156,6 +1172,13 @@ configure_peer(const cfg_obj_t *cpeer, isc_mem_t *mctx, dns_peer_t **peerp) {
 	(void)cfg_map_get(cpeer, "request-nsid", &obj);
 	if (obj != NULL)
 		CHECK(dns_peer_setrequestnsid(peer, cfg_obj_asboolean(obj)));
+
+#ifdef ISC_PLATFORM_USESIT
+	obj = NULL;
+	(void)cfg_map_get(cpeer, "request-sit", &obj);
+	if (obj != NULL)
+		CHECK(dns_peer_setrequestsit(peer, cfg_obj_asboolean(obj)));
+#endif
 
 	obj = NULL;
 	(void)cfg_map_get(cpeer, "edns", &obj);
@@ -1628,8 +1651,12 @@ configure_rpz_zone(dns_view_t *view, const cfg_listelt_t *element,
 
 	rpz_obj = cfg_listelt_value(element);
 
-	if (view->rpzs->p.num_zones >= DNS_RPZ_MAX_ZONES)
-		return (ISC_R_NOMEMORY);
+	if (view->rpzs->p.num_zones >= DNS_RPZ_MAX_ZONES) {
+		cfg_obj_log(rpz_obj, ns_g_lctx, DNS_RPZ_ERROR_LEVEL,
+			    "limit of %d response policy zones exceeded",
+			    DNS_RPZ_MAX_ZONES);
+		return (ISC_R_FAILURE);
+	}
 
 	new = isc_mem_get(view->rpzs->mctx, sizeof(*new));
 	if (new == NULL) {
@@ -2911,8 +2938,8 @@ configure_view(dns_view_t *view, dns_viewlist_t *viewlist,
 	dns_view_setresquerystats(view, resquerystats);
 
 	ndisp = 4 * ISC_MIN(ns_g_udpdisp, MAX_UDP_DISPATCH);
-	CHECK(dns_view_createresolver(view, ns_g_taskmgr, 31, ndisp,
-				      ns_g_socketmgr, ns_g_timermgr,
+	CHECK(dns_view_createresolver(view, ns_g_taskmgr, RESOLVER_NTASKS,
+				      ndisp, ns_g_socketmgr, ns_g_timermgr,
 				      resopts, ns_g_dispatchmgr,
 				      dispatch4, dispatch6));
 
@@ -2994,6 +3021,21 @@ configure_view(dns_view_t *view, dns_viewlist_t *viewlist,
 	if (udpsize > 4096)
 		udpsize = 4096;
 	view->maxudp = udpsize;
+
+#ifdef ISC_PLATFORM_USESIT
+	/*
+	 * Set the maximum UDP when a SIT is not provided.
+	 */
+	obj = NULL;
+	result = ns_config_get(maps, "nosit-udp-size", &obj);
+	INSIST(result == ISC_R_SUCCESS);
+	udpsize = cfg_obj_asuint32(obj);
+	if (udpsize < 128)
+		udpsize = 128;
+	if (udpsize > view->maxudp)
+		udpsize = view->maxudp;
+	view->situdp = udpsize;
+#endif
 
 	/*
 	 * Set the maximum rsa exponent bits.
@@ -3303,6 +3345,14 @@ configure_view(dns_view_t *view, dns_viewlist_t *viewlist,
 	}
 
 	/*
+	 * Ignore case when compressing responses to the specified
+	 * clients. This causes case not always to be preserved,
+	 * and is needed by some broken clients.
+	 */
+	CHECK(configure_view_acl(vconfig, config, "no-case-compress", NULL,
+				 actx, ns_g_mctx, &view->nocasecompress));
+
+	/*
 	 * Filter setting on addresses in the answer section.
 	 */
 	CHECK(configure_view_acl(vconfig, config, "deny-answer-addresses",
@@ -3358,6 +3408,13 @@ configure_view(dns_view_t *view, dns_viewlist_t *viewlist,
 	result = ns_config_get(maps, "request-nsid", &obj);
 	INSIST(result == ISC_R_SUCCESS);
 	view->requestnsid = cfg_obj_asboolean(obj);
+
+#ifdef ISC_PLATFORM_USESIT
+	obj = NULL;
+	result = ns_config_get(maps, "request-sit", &obj);
+	INSIST(result == ISC_R_SUCCESS);
+	view->requestsit = cfg_obj_asboolean(obj);
+#endif
 
 	obj = NULL;
 	result = ns_config_get(maps, "max-clients-per-query", &obj);
@@ -4031,6 +4088,13 @@ create_view(const cfg_obj_t *vconfig, dns_viewlist_t *viewlist,
 	if (result != ISC_R_SUCCESS)
 		return (result);
 
+	result = isc_entropy_getdata(ns_g_entropy, view->secret,
+				     sizeof(view->secret), NULL, 0);
+	if (result != ISC_R_SUCCESS) {
+		dns_view_detach(&view);
+		return (result);
+	}
+
 #ifdef HAVE_GEOIP
 	view->aclenv.geoip = ns_g_geoip;
 #endif
@@ -4222,8 +4286,16 @@ configure_zone(const cfg_obj_t *config, const cfg_obj_t *zconfig,
 
 		(void)cfg_map_get(zoptions, "forward", &forwardtype);
 		(void)cfg_map_get(zoptions, "forwarders", &forwarders);
-		result = configure_forward(config, view, origin, forwarders,
-					   forwardtype);
+		CHECK(configure_forward(config, view, origin, forwarders,
+					forwardtype));
+
+		/*
+		 * Forward zones may also set delegation only.
+		 */
+		only = NULL;
+		tresult = cfg_map_get(zoptions, "delegation-only", &only);
+		if (tresult == ISC_R_SUCCESS && cfg_obj_asboolean(only))
+			CHECK(dns_view_adddelegationonly(view, origin));
 		goto cleanup;
 	}
 
@@ -4729,16 +4801,25 @@ adjust_interfaces(ns_server_t *server, isc_mem_t *mctx) {
 }
 
 /*
- * This event callback is invoked to do periodic network
- * interface scanning.
+ * This event callback is invoked to do periodic network interface
+ * scanning.  It is also called by ns_server_scan_interfaces(),
+ * invoked by "rndc scan"
  */
+
 static void
 interface_timer_tick(isc_task_t *task, isc_event_t *event) {
 	isc_result_t result;
 	ns_server_t *server = (ns_server_t *) event->ev_arg;
 	INSIST(task == server->task);
 	UNUSED(task);
+
+	if (event->ev_type == NS_EVENT_IFSCAN)
+		isc_log_write(ns_g_lctx, NS_LOGCATEGORY_GENERAL,
+			      NS_LOGMODULE_SERVER, ISC_LOG_DEBUG(1),
+			      "automatic interface rescan");
+
 	isc_event_free(&event);
+
 	/*
 	 * XXX should scan interfaces unlocked and get exclusive access
 	 * only to replace ACLs.
@@ -5337,9 +5418,10 @@ load_configuration(const char *filename, ns_server_t *server,
 	maps[i] = NULL;
 
 	/*
-	 * If bind.keys exists, load it.  If "dnssec-lookaside auto"
-	 * is turned on, the keys found there will be used as default
-	 * trust anchors.
+	 * If bind.keys exists, load it.  If "dnssec-validation auto"
+	 * is turned on, the root key found there will be used as a
+	 * default trust anchor, and if "dnssec-lookaside auto" is
+	 * turned on, then the DLV key found there will too.
 	 */
 	obj = NULL;
 	result = ns_config_get(maps, "bindkeys-file", &obj);
@@ -5663,6 +5745,14 @@ load_configuration(const char *filename, ns_server_t *server,
 				      NULL, &interval, ISC_FALSE));
 	}
 	server->interface_interval = interface_interval;
+
+	/*
+	 * Enable automatic interface scans.
+	 */
+	obj = NULL;
+	result = ns_config_get(maps, "automatic-interface-scan", &obj);
+	INSIST(result == ISC_R_SUCCESS);
+	server->interface_auto = cfg_obj_asboolean(obj);
 
 	/*
 	 * Configure the dialup heartbeat timer.
@@ -6115,6 +6205,43 @@ load_configuration(const char *filename, ns_server_t *server,
 		server->flushonshutdown = ISC_FALSE;
 	}
 
+#ifdef ISC_PLATFORM_USESIT
+	obj = NULL;
+	result = ns_config_get(maps, "sit-secret", &obj);
+	if (result == ISC_R_SUCCESS) {
+		isc_buffer_t b;
+
+		memset(server->secret, 0, sizeof(server->secret));
+		isc_buffer_init(&b, server->secret, sizeof(server->secret));
+		result = isc_hex_decodestring(cfg_obj_asstring(obj), &b);
+		if (result != ISC_R_SUCCESS && result != ISC_R_NOSPACE)
+			goto cleanup;
+#ifdef AES_SIT
+		if (isc_buffer_usedlength(&b) != ISC_AES128_KEYLENGTH)
+			CHECKM(ISC_R_RANGE,
+			       "AES sit-secret must be on 128 bits");
+#endif
+#ifdef HMAC_SHA1_SIT
+		if (isc_buffer_usedlength(&b) != ISC_SHA1_DIGESTLENGTH)
+			CHECKM(ISC_R_RANGE,
+			       "SHA1 sit-secret must be on 160 bits");
+#endif
+#ifdef HMAC_SHA256_SIT
+		if (isc_buffer_usedlength(&b) != ISC_SHA256_DIGESTLENGTH)
+			CHECKM(ISC_R_RANGE,
+			       "SHA256 sit-secret must be on 256 bits");
+#endif
+	} else {
+		result = isc_entropy_getdata(ns_g_entropy,
+					     server->secret,
+					     sizeof(server->secret),
+					     NULL,
+					     0);
+		if (result != ISC_R_SUCCESS)
+			goto cleanup;
+	}
+#endif
+
 	result = ISC_R_SUCCESS;
 
  cleanup:
@@ -6134,7 +6261,7 @@ load_configuration(const char *filename, ns_server_t *server,
 	}
 
 	if (bindkeys_parser != NULL) {
-		if (bindkeys  != NULL)
+		if (bindkeys != NULL)
 			cfg_obj_destroy(bindkeys_parser, &bindkeys);
 		cfg_parser_destroy(&bindkeys_parser);
 	}
@@ -6780,7 +6907,7 @@ ns_add_reserved_dispatch(ns_server_t *server, const isc_sockaddr_t *addr) {
 
 	result = dns_dispatch_getudp(ns_g_dispatchmgr, ns_g_socketmgr,
 				     ns_g_taskmgr, &dispatch->addr, 4096,
-				     1000, 32768, 16411, 16433,
+				     UDPBUFFERS, 32768, 16411, 16433,
 				     attrs, attrmask, &dispatch->dispatch);
 	if (result != ISC_R_SUCCESS)
 		goto cleanup;
@@ -6888,6 +7015,17 @@ ns_server_reloadwanted(ns_server_t *server) {
 	if (server->reload_event != NULL)
 		isc_task_send(server->task, &server->reload_event);
 	UNLOCK(&server->reload_event_lock);
+}
+
+void
+ns_server_scan_interfaces(ns_server_t *server) {
+	isc_event_t *event;
+
+	event = isc_event_allocate(ns_g_mctx, server, NS_EVENT_IFSCAN,
+				   interface_timer_tick, server,
+				   sizeof(isc_event_t));
+	if (event != NULL)
+		isc_task_send(server->task, &event);
 }
 
 static char *
@@ -9289,7 +9427,7 @@ ns_server_signing(ns_server_t *server, char *args, isc_buffer_t *text) {
 
 static isc_result_t
 putstr(isc_buffer_t *b, const char *str) {
-	size_t l = strlen(str);
+	unsigned int l = strlen(str);
 
 	/*
 	 * Use >= to leave space for NUL termination.

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2013  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2014  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -182,6 +182,7 @@ dns_view_create(isc_mem_t *mctx, dns_rdataclass_t rdclass,
 	view->updateacl = NULL;
 	view->upfwdacl = NULL;
 	view->denyansweracl = NULL;
+	view->nocasecompress = NULL;
 	view->answeracl_exclude = NULL;
 	view->denyanswernames = NULL;
 	view->answernames_exclude = NULL;
@@ -194,6 +195,7 @@ dns_view_create(isc_mem_t *mctx, dns_rdataclass_t rdclass,
 	view->flush = ISC_FALSE;
 	view->dlv = NULL;
 	view->maxudp = 0;
+	view->situdp = 0;
 	view->maxbits = 0;
 	view->v4_aaaa = dns_aaaa_ok;
 	view->v6_aaaa = dns_aaaa_ok;
@@ -202,6 +204,8 @@ dns_view_create(isc_mem_t *mctx, dns_rdataclass_t rdclass,
 	dns_fixedname_init(&view->dlv_fixed);
 	view->managed_keys = NULL;
 	view->redirect = NULL;
+	view->requestnsid = ISC_FALSE;
+	view->requestsit = ISC_TRUE;
 	view->new_zone_file = NULL;
 	view->new_zone_config = NULL;
 	view->cfg_destroy = NULL;
@@ -357,6 +361,8 @@ destroy(dns_view_t *view) {
 		dns_db_detach(&view->cachedb);
 	if (view->cache != NULL)
 		dns_cache_detach(&view->cache);
+	if (view->nocasecompress != NULL)
+		dns_acl_detach(&view->nocasecompress);
 	if (view->matchclients != NULL)
 		dns_acl_detach(&view->matchclients);
 	if (view->matchdestinations != NULL)

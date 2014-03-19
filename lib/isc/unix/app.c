@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005, 2007-2009, 2013  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2007-2009, 2013, 2014  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -219,7 +219,6 @@ isc__app_ctxstart(isc_appctx_t *ctx0) {
 	int presult;
 	sigset_t sset;
 	char strbuf[ISC_STRERRORSIZE];
-
 
 	REQUIRE(VALID_APPCTX(ctx));
 

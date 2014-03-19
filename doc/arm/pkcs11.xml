@@ -149,7 +149,7 @@ $ <userinput>./configure --enable-native-pkcs11 \
       necessary to build OpenSSL with the patch in place, and configure
       it with the path to your HSM's PKCS#11 provider library.
     </para>
-    </sect3>
+    <sect3>
       <title>Patching OpenSSL</title>
       <screen>
 $ <userinput>wget <ulink>http://www.openssl.org/source/openssl-0.9.8y.tar.gz</ulink></userinput>
@@ -293,10 +293,10 @@ $ <userinput>./Configure linux-x86_64 -pthread \
             --pk11-flavor=sign-only \
             --prefix=/opt/pkcs11/usr</userinput>
 </screen>
-     <para>
-       After configuring, run "<command>make</command>"
-       and "<command>make test</command>".
-     </para>
+      <para>
+        After configuring, run "<command>make</command>"
+        and "<command>make test</command>".
+      </para>
     </sect3>
     <para>
       Once you have built OpenSSL, run
@@ -485,6 +485,13 @@ $ <userinput>dnssec-keyfromlabel -l sample-ksk -f KSK example.net</userinput>
       different keylabel, a smaller key size, and omitting "-f KSK"
       from the dnssec-keyfromlabel arguments:
     </para>
+    <para>
+      (Note: When using OpenSSL-based PKCS#11 the label is an arbitrary
+      string which identifies the key.  With native PKCS#11, the label is
+      a PKCS#11 URI string which may include other details about the key
+      and the HSM, including its PIN. See
+      <xref linkend="man.dnssec-keyfromlabel"/> for details.)
+    </para>
     <screen>
 $ <userinput>pkcs11-keygen -b 1024 -l sample-zsk</userinput>
 $ <userinput>dnssec-keyfromlabel -l sample-zsk example.net</userinput>
@@ -595,7 +602,7 @@ $ <userinput>dnssec-signzone -E '' -S example.net</userinput>
       <para>
         Placing the HSM's PIN in a text file in this manner may reduce the
         security advantage of using an HSM. Be sure this is what you want to
-        do before configuring OpenSSL in this way.
+        do before configuring the system in this way.
       </para>
     </warning>
   </sect2>

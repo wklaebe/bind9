@@ -300,11 +300,20 @@ time_units(isc_stdtime_t offset, char *suffix, const char *str) {
 	return(0); /* silence compiler warning */
 }
 
+static inline isc_boolean_t
+isnone(const char *str) {
+	return (ISC_TF((strcasecmp(str, "none") == 0) ||
+		       (strcasecmp(str, "never") == 0)));
+}
+
 dns_ttl_t
 strtottl(const char *str) {
 	const char *orig = str;
 	dns_ttl_t ttl;
 	char *endp;
+
+	if (isnone(str))
+		return ((dns_ttl_t) 0);
 
 	ttl = strtol(str, &endp, 0);
 	if (ttl == 0 && endp == str)
@@ -314,12 +323,23 @@ strtottl(const char *str) {
 }
 
 isc_stdtime_t
-strtotime(const char *str, isc_int64_t now, isc_int64_t base) {
+strtotime(const char *str, isc_int64_t now, isc_int64_t base,
+	  isc_boolean_t *setp)
+{
 	isc_int64_t val, offset;
 	isc_result_t result;
 	const char *orig = str;
 	char *endp;
-	int n;
+	size_t n;
+
+	if (isnone(str)) {
+		if (setp != NULL)
+			*setp = ISC_FALSE;
+		return ((isc_stdtime_t) 0);
+	}
+
+	if (setp != NULL)
+		*setp = ISC_TRUE;
 
 	if ((str[0] == '0' || str[0] == '-') && str[1] == '\0')
 		return ((isc_stdtime_t) 0);
@@ -332,14 +352,14 @@ strtotime(const char *str, isc_int64_t now, isc_int64_t base) {
 	 *   [+-]offset
 	 */
 	n = strspn(str, "0123456789");
-	if ((n == 8 || n == 14) &&
+	if ((n == 8u || n == 14u) &&
 	    (str[n] == '\0' || str[n] == '-' || str[n] == '+'))
 	{
 		char timestr[15];
 
 		strlcpy(timestr, str, sizeof(timestr));
 		timestr[n] = 0;
-		if (n == 8)
+		if (n == 8u)
 			strlcat(timestr, "000000", sizeof(timestr));
 		result = dns_time64_fromtext(timestr, &val);
 		if (result != ISC_R_SUCCESS)

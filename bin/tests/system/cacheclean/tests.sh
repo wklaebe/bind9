@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Copyright (C) 2004, 2007, 2011-2013  Internet Systems Consortium, Inc. ("ISC")
+# Copyright (C) 2004, 2007, 2011-2014  Internet Systems Consortium, Inc. ("ISC")
 # Copyright (C) 2001  Internet Software Consortium.
 #
 # Permission to use, copy, modify, and/or distribute this software for any
@@ -198,6 +198,13 @@ awk '/plain success\/timeout/ {getline; getline; if ($2 == "ns.flushtest.example
 $RNDC $RNDCOPTS flushtree flushtest.example || ret=1
 dump_cache
 awk '/plain success\/timeout/ {getline; getline; if ($2 == "ns.flushtest.example") exit(1); exit(0); }' ns2/named_dump.db || ret=1
+if [ $ret != 0 ]; then echo "I:failed"; fi
+status=`expr $status + $ret`
+
+echo "I:check expire option returned from slave zone"
+ret=0
+$DIG @10.53.0.2 -p 5300 +expire soa expire-test > dig.out.expire
+grep EXPIRE: dig.out.expire > /dev/null || ret=1
 if [ $ret != 0 ]; then echo "I:failed"; fi
 status=`expr $status + $ret`
 

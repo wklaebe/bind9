@@ -1,3 +1,151 @@
+	--- 9.10.0b1 released ---
+
+3755.	[func]		Add stats counters for known EDNS options + others.
+			[RT #35447]
+
+3754.	[cleanup]	win32: Installer now places files in the
+			Program Files area rather than system services.
+			[RT #35361]
+
+3753.	[bug]		allow-notify was ignoring keys. [RT #35425]
+
+3752.	[bug]		Address potential REQUIRE failure if
+			DNS_STYLEFLAG_COMMENTDATA is set when printing out
+			a rdataset.
+
+3751.	[tuning]	The default setting for the -U option (setting
+			the number of UDP listeners per interface) has
+			been adjusted to improve performance. [RT #35417]
+
+3750.	[experimental]	Partially implement EDNS EXPIRE option as described
+			in draft-andrews-dnsext-expire-00.  Retrieval of
+			the remaining time until expiry for slave zones
+			is supported.
+
+			EXPIRE uses an experimental option code (65002),
+			which is subject to change. [RT #35416]
+
+3749.	[func]		"dig +subnet" sends an EDNS client subnet option
+			containing the specified address/prefix when
+			querying. (Thanks to Wilmer van der Gaast.)
+			[RT #35415]
+
+3748.	[test]		Use delve to test dns_client interfaces. [RT #35383]
+
+3747.	[bug]		A race condition could lead to a core dump when
+			destroying a resolver fetch object. [RT #35385]
+
+3746.	[func]		New "max-zone-ttl" option enforces maximum
+			TTLs for zones. If loading a zone containing a
+			higher TTL, the load fails. DDNS updates with
+			higher TTLs are accepted but the TTL is truncated.
+			(Note: Currently supported for master zones only;
+			inline-signing slaves will be added.) [RT #38405]
+
+3745.	[func]		"configure --with-tuning=large" adjusts various
+			compiled-in constants and default settings to
+			values suited to large servers with abundant
+			memory. [RT #29538]
+
+3744.	[experimental]	SIT: send and process Source Identity Tokens
+			(similar to DNS Cookies by Donald Eastlake 3rd),
+			which are designed to help clients detect off-path
+			spoofed responses and for servers to identify
+			legitimate clients.
+
+			SIT uses an experimental EDNS option code (65001),
+			which will be changed to an IANA-assigned value
+			if the experiment is deemed a success.
+
+			SIT can be enabled via "configure --enable-sit" (or
+			--enable-developer). It is enabled by default in
+			Windows.
+
+			Servers can be configured to send smaller responses
+			to clients that have not identified themselves via
+			SIT.  RRL processing has also been updated;
+			legitimate clients are not subject to rate
+			limiting. [RT #35389]
+
+3743.	[bug]		delegation-only flag wasn't working in forward zone
+			declarations despite being documented.  This is
+			needed to support turning off forwarding and turning
+			on delegation only at the same name.  [RT #35392]
+
+3742.	[port]		linux: libcap support: declare curval at start of
+			block. [RT #35387]
+
+3741.	[func]		"delve" (domain entity lookup and validation engine):
+			A new tool with dig-like semantics for performing DNS
+			lookups, with internal DNSSEC validation, using the
+			same resolver and validator logic as named. This
+			allows easy validation of DNSSEC data in environments
+			with untrustworthy resolvers, and assists with
+			troubleshooting of DNSSEC problems. (Note: not yet
+			available on win32.) [RT #32406]
+
+3740.	[contrib]	Minor fixes to configure --with-dlz-bdb,
+			--with-dlz-postgres and --with-dlz-odbc. [RT #35340]
+
+3739.	[func]		Added per-zone stats counters to track TCP and
+			UDP queries. [RT #35375]
+
+3738.	[bug]		--enable-openssl-hash failed to build. [RT #35343]
+
+3737.	[bug]		'rndc retransfer' could trigger a assertion failure
+			with inline zones. [RT #35353]
+
+3736.	[bug]		nsupdate: When specifying a server by name,
+			fall back to alternate addresses if the first
+			address for that name is not reachable. [RT #25784]
+
+3735.	[cleanup]	Merged the libiscpk11 library into libisc
+			to simplify dependencies. [RT #35205]
+
+3734.	[bug]		Improve building with libtool. [RT #35314]
+
+3733.	[func]		Improve interface scanning support.  Interface
+			information will be automatically updated if the
+			OS supports routing sockets (MacOS, *BSD, Linux).
+			Use "automatic-interface-scan no;" to disable.
+
+			Add "rndc scan" to trigger a scan. [RT #23027]
+
+3732.	[contrib]	Fixed a type mismatch causing the ODBC DLZ
+			driver to dump core on 64-bit systems. [RT #35324]
+
+3731.	[func]		Added a "no-case-compress" ACL, which causes
+			named to use case-insensitive compression
+			(disabling change #3645) for specified
+			clients. (This is useful when dealing
+			with broken client implementations that
+			use case-sensitive name comparisons,
+			rejecting responses that fail to match the
+			capitalization of the query that was sent.)
+			[RT #35300]
+
+3730.	[cleanup]	Added "never" as a synonym for "none" when
+			configuring key event dates in the dnssec tools.
+			[RT #35277]
+
+3729.	[bug]		dnssec-keygen could set the publication date
+			incorrectly when only the activation date was
+			specified on the command line. [RT #35278]
+
+3728.	[doc]		Expanded native-PKCS#11 documentation,
+			specifically pkcs11: URI labels. [RT #35287]
+
+3727.	[func]		The isc_bitstring API is no longer used and
+			has been removed from libisc. [RT #35284]
+
+3726.	[cleanup]	Clarified the error message when attempting
+			to configure more than 32 response-policy zones.
+			[RT #35283]
+
+3725.	[contrib]	Updated zkt and nslint to newest versions,
+			cleaned up and rearranged the contrib
+			directory, and added a README.
+
 	--- 9.10.0a2 released ---
 
 3724.	[bug]		win32: Fixed a bug that prevented dig and
@@ -2050,7 +2198,7 @@
 			as a zone's masters clause.  This means it is
 			now possible to specify a TSIG key to use when
 			sending notifies to a given server, or to include
-			an explicit named masters list in an also-notfiy
+			an explicit named masters list in an also-notify
 			statement.  [RT #23508]
 
 3108.	[cleanup]	dnssec-signzone: Clarified some error and

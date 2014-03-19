@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: control.h,v 1.38 2012/01/31 23:47:31 tbox Exp $ */
 
 #ifndef NAMED_CONTROL_H
 #define NAMED_CONTROL_H 1
@@ -65,6 +65,7 @@
 #define NS_COMMAND_DELZONE	"delzone"
 #define NS_COMMAND_SYNC		"sync"
 #define NS_COMMAND_SIGNING	"signing"
+#define NS_COMMAND_ZONESTATUS	"zonestatus"
 
 isc_result_t
 ns_controls_create(ns_server_t *server, ns_controls_t **ctrlsp);

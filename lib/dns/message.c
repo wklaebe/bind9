@@ -1812,7 +1812,7 @@ wrong_priority(dns_rdataset_t *rds, int pass, dns_rdatatype_t preferred_glue) {
 	return (ISC_TRUE);
 }
 
-#ifdef ALLOW_FILTER_AAAA_ON_V4
+#ifdef ALLOW_FILTER_AAAA
 /*
  * Decide whether to not answer with an AAAA record and its RRSIG
  */
@@ -1969,7 +1969,7 @@ dns_message_rendersection(dns_message_t *msg, dns_section_t sectionid,
 						      preferred_glue))
 					goto next;
 
-#ifdef ALLOW_FILTER_AAAA_ON_V4
+#ifdef ALLOW_FILTER_AAAA
 				/*
 				 * Suppress AAAAs if asked and we are
 				 * not doing DNSSEC or are breaking DNSSEC.
@@ -3270,16 +3270,17 @@ dns_message_pseudosectiontotext(dns_message_t *msg,
 					sprintf(buf, "%02x ", optdata[i]);
 					ADD_STRING(target, buf);
 				}
+
+				ADD_STRING(target, "(\"");
 				for (i = 0; i < optlen; i++) {
-					ADD_STRING(target, " (");
 					if (isprint(optdata[i]))
 						isc_buffer_putmem(target,
 								  &optdata[i],
 								  1);
 					else
 						isc_buffer_putstr(target, ".");
-					ADD_STRING(target, ")");
 				}
+				ADD_STRING(target, "\")");
 				isc_buffer_forward(&optbuf, optlen);
 			}
 			ADD_STRING(target, "\n");
@@ -3457,6 +3458,45 @@ dns_opcode_totext(dns_opcode_t opcode, isc_buffer_t *target) {
 		return (ISC_R_NOSPACE);
 	isc_buffer_putstr(target, opcodetext[opcode]);
 	return (ISC_R_SUCCESS);
+}
+
+void
+dns_message_logpacket(dns_message_t *message, const char *description,
+		      isc_logcategory_t *category, isc_logmodule_t *module,
+		      int level, isc_mem_t *mctx)
+{
+	isc_buffer_t buffer;
+	char *buf = NULL;
+	int len = 1024;
+	isc_result_t result;
+
+	if (! isc_log_wouldlog(dns_lctx, level))
+		return;
+
+	/*
+	 * Note that these are multiline debug messages.  We want a newline
+	 * to appear in the log after each message.
+	 */
+
+	do {
+		buf = isc_mem_get(mctx, len);
+		if (buf == NULL)
+			break;
+		isc_buffer_init(&buffer, buf, len);
+		result = dns_message_totext(message, &dns_master_style_debug,
+					    0, &buffer);
+		if (result == ISC_R_NOSPACE) {
+			isc_mem_put(mctx, buf, len);
+			len += 1024;
+		} else if (result == ISC_R_SUCCESS)
+			isc_log_write(dns_lctx, category, module, level,
+				      "%s%.*s", description,
+				      (int)isc_buffer_usedlength(&buffer),
+				      buf);
+	} while (result == ISC_R_NOSPACE);
+
+	if (buf != NULL)
+		isc_mem_put(mctx, buf, len);
 }
 
 isc_result_t

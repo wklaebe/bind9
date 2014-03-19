@@ -61,6 +61,10 @@
 #include <sys/stat.h>
 #include <sys/time.h>
 
+#ifdef HAVE_SYS_MMAN_H
+#include <sys/mman.h>
+#endif
+
 #include <isc/dir.h>
 #include <isc/file.h>
 #include <isc/log.h>
@@ -150,6 +154,22 @@ isc_file_getmodtime(const char *file, isc_time_t *time) {
 		 * such as BSD/OS via st_mtimespec.
 		 */
 		isc_time_set(time, stats.st_mtime, 0);
+
+	return (result);
+}
+
+isc_result_t
+isc_file_getsize(const char *file, off_t *size) {
+	isc_result_t result;
+	struct stat stats;
+
+	REQUIRE(file != NULL);
+	REQUIRE(size != NULL);
+
+	result = file_stats(file, &stats);
+
+	if (result == ISC_R_SUCCESS)
+		*size = stats.st_size;
 
 	return (result);
 }
@@ -420,6 +440,23 @@ isc_file_isplainfile(const char *filename) {
 }
 
 isc_result_t
+isc_file_isplainfilefd(int fd) {
+	/*
+	 * This function returns success if filename is a plain file.
+	 */
+	struct stat filestat;
+	memset(&filestat,0,sizeof(struct stat));
+
+	if ((fstat(fd, &filestat)) == -1)
+		return(isc__errno2result(errno));
+
+	if(! S_ISREG(filestat.st_mode))
+		return(ISC_R_INVALIDFILE);
+
+	return(ISC_R_SUCCESS);
+}
+
+isc_result_t
 isc_file_isdirectory(const char *filename) {
 	/*
 	 * This function returns success if filename exists and is a
@@ -436,6 +473,7 @@ isc_file_isdirectory(const char *filename) {
 
 	return(ISC_R_SUCCESS);
 }
+
 
 isc_boolean_t
 isc_file_isabsolute(const char *filename) {
@@ -613,4 +651,47 @@ isc_file_splitpath(isc_mem_t *mctx, char *path, char **dirname, char **basename)
 	*basename = file;
 
 	return (ISC_R_SUCCESS);
+}
+
+void *
+isc_file_mmap(void *addr, size_t len, int prot,
+	      int flags, int fd, off_t offset)
+{
+#ifdef HAVE_MMAP
+	return (mmap(addr, len, prot, flags, fd, offset));
+#else
+	void *buf;
+	ssize_t ret;
+	off_t end;
+
+	UNUSED(addr);
+	UNUSED(prot);
+	UNUSED(flags);
+
+	end = lseek(fd, 0, SEEK_END);
+	lseek(fd, offset, SEEK_SET);
+	if (end - offset < (off_t) len)
+		len = end - offset;
+
+	buf = malloc(len);
+	ret = read(fd, buf, len);
+	if (ret != (ssize_t) len) {
+		free(buf);
+		buf = NULL;
+	}
+
+	return (buf);
+#endif
+}
+
+int
+isc_file_munmap(void *addr, size_t len) {
+#ifdef HAVE_MMAP
+	return (munmap(addr, len));
+#else
+	UNUSED(len);
+
+	free(addr);
+	return (0);
+#endif
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2005-2007, 2009  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2005-2007, 2009, 2014  Internet Systems Consortium, Inc. ("ISC")
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -83,6 +83,12 @@
 
 typedef EVP_MD_CTX isc_sha256_t;
 typedef EVP_MD_CTX isc_sha512_t;
+
+#elif PKCS11CRYPTO
+#include <iscpk11/pk11.h>
+
+typedef iscpk11_context_t isc_sha256_t;
+typedef iscpk11_context_t isc_sha512_t;
 
 #else
 

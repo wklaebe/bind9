@@ -57,6 +57,11 @@ isc_result_t
 isc_appctx_create(isc_mem_t *mctx, isc_appctx_t **ctxp) {
 	isc_result_t result;
 
+#ifndef WIN32
+	if (isc_bind9)
+		return (isc__appctx_create(mctx, ctxp));
+#endif
+
 	LOCK(&createlock);
 
 	REQUIRE(appctx_createfunc != NULL);
@@ -71,7 +76,12 @@ void
 isc_appctx_destroy(isc_appctx_t **ctxp) {
 	REQUIRE(ctxp != NULL && ISCAPI_APPCTX_VALID(*ctxp));
 
-	(*ctxp)->methods->ctxdestroy(ctxp);
+#ifndef WIN32
+	if (isc_bind9)
+		isc__appctx_destroy(ctxp);
+	else
+#endif
+		(*ctxp)->methods->ctxdestroy(ctxp);
 
 	ENSURE(*ctxp == NULL);
 }
@@ -80,12 +90,22 @@ isc_result_t
 isc_app_ctxstart(isc_appctx_t *ctx) {
 	REQUIRE(ISCAPI_APPCTX_VALID(ctx));
 
+#ifndef WIN32
+	if (isc_bind9)
+		return (isc__app_ctxstart(ctx));
+#endif
+
 	return (ctx->methods->ctxstart(ctx));
 }
 
 isc_result_t
 isc_app_ctxrun(isc_appctx_t *ctx) {
 	REQUIRE(ISCAPI_APPCTX_VALID(ctx));
+
+#ifndef WIN32
+	if (isc_bind9)
+		return (isc__app_ctxrun(ctx));
+#endif
 
 	return (ctx->methods->ctxrun(ctx));
 }
@@ -97,12 +117,22 @@ isc_app_ctxonrun(isc_appctx_t *ctx, isc_mem_t *mctx,
 {
 	REQUIRE(ISCAPI_APPCTX_VALID(ctx));
 
+#ifndef WIN32
+	if (isc_bind9)
+		return (isc__app_ctxonrun(ctx, mctx, task, action, arg));
+#endif
+
 	return (ctx->methods->ctxonrun(ctx, mctx, task, action, arg));
 }
 
 isc_result_t
 isc_app_ctxsuspend(isc_appctx_t *ctx) {
 	REQUIRE(ISCAPI_APPCTX_VALID(ctx));
+
+#ifndef WIN32
+	if (isc_bind9)
+		return (isc__app_ctxsuspend(ctx));
+#endif
 
 	return (ctx->methods->ctxsuspend(ctx));
 }
@@ -111,12 +141,22 @@ isc_result_t
 isc_app_ctxshutdown(isc_appctx_t *ctx) {
 	REQUIRE(ISCAPI_APPCTX_VALID(ctx));
 
+#ifndef WIN32
+	if (isc_bind9)
+		return (isc__app_ctxshutdown(ctx));
+#endif
+
 	return (ctx->methods->ctxshutdown(ctx));
 }
 
 void
 isc_app_ctxfinish(isc_appctx_t *ctx) {
 	REQUIRE(ISCAPI_APPCTX_VALID(ctx));
+
+#ifndef WIN32
+	if (isc_bind9)
+		isc__app_ctxfinish(ctx);
+#endif
 
 	ctx->methods->ctxfinish(ctx);
 }
@@ -126,6 +166,11 @@ isc_appctx_settaskmgr(isc_appctx_t *ctx, isc_taskmgr_t *taskmgr) {
 	REQUIRE(ISCAPI_APPCTX_VALID(ctx));
 	REQUIRE(taskmgr != NULL);
 
+#ifndef WIN32
+	if (isc_bind9)
+		isc__appctx_settaskmgr(ctx, taskmgr);
+#endif
+
 	ctx->methods->settaskmgr(ctx, taskmgr);
 }
 
@@ -133,6 +178,11 @@ void
 isc_appctx_setsocketmgr(isc_appctx_t *ctx, isc_socketmgr_t *socketmgr) {
 	REQUIRE(ISCAPI_APPCTX_VALID(ctx));
 	REQUIRE(socketmgr != NULL);
+
+#ifndef WIN32
+	if (isc_bind9)
+		isc__appctx_setsocketmgr(ctx, socketmgr);
+#endif
 
 	ctx->methods->setsocketmgr(ctx, socketmgr);
 }
@@ -142,5 +192,80 @@ isc_appctx_settimermgr(isc_appctx_t *ctx, isc_timermgr_t *timermgr) {
 	REQUIRE(ISCAPI_APPCTX_VALID(ctx));
 	REQUIRE(timermgr != NULL);
 
+#ifndef WIN32
+	if (isc_bind9)
+		isc__appctx_settimermgr(ctx, timermgr);
+#endif
+
 	ctx->methods->settimermgr(ctx, timermgr);
 }
+
+#ifndef WIN32
+
+isc_result_t
+isc_app_start() {
+	if (isc_bind9)
+		return (isc__app_start());
+
+	return (ISC_R_NOTIMPLEMENTED);
+}
+
+isc_result_t
+isc_app_onrun(isc_mem_t *mctx, isc_task_t *task,
+	       isc_taskaction_t action, void *arg)
+{
+	if (isc_bind9)
+		return (isc__app_onrun(mctx, task, action, arg));
+
+	return (ISC_R_NOTIMPLEMENTED);
+}
+
+isc_result_t
+isc_app_run() {
+	if (isc_bind9)
+		return (isc__app_run());
+
+	return (ISC_R_NOTIMPLEMENTED);
+}
+
+isc_result_t
+isc_app_shutdown() {
+	if (isc_bind9)
+		return (isc__app_shutdown());
+
+	return (ISC_R_NOTIMPLEMENTED);
+}
+
+isc_result_t
+isc_app_reload() {
+	if (isc_bind9)
+		return (isc__app_reload());
+
+	return (ISC_R_NOTIMPLEMENTED);
+}
+
+void
+isc_app_finish() {
+	if (!isc_bind9)
+		return;
+
+	isc__app_finish();
+}
+
+void
+isc_app_block() {
+	if (!isc_bind9)
+		return;
+
+	isc__app_block();
+}
+
+void
+isc_app_unblock() {
+	if (!isc_bind9)
+		return;
+
+	isc__app_unblock();
+}
+
+#endif

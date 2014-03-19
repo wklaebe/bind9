@@ -1,4 +1,4 @@
-.\" Copyright (C) 2004-2009, 2011, 2013 Internet Systems Consortium, Inc. ("ISC")
+.\" Copyright (C) 2004-2009, 2011-2014 Internet Systems Consortium, Inc. ("ISC")
 .\" Copyright (C) 2000-2003 Internet Software Consortium.
 .\" 
 .\" Permission to use, copy, modify, and/or distribute this software for any
@@ -77,13 +77,15 @@ files in
 Output only those record types automatically managed by
 \fBdnssec\-signzone\fR, i.e. RRSIG, NSEC, NSEC3 and NSEC3PARAM records. If smart signing (\fB\-S\fR) is used, DNSKEY records are also included. The resulting file can be included in the original zone file with
 \fB$INCLUDE\fR. This option cannot be combined with
-\fB\-O raw\fR
-or serial number updating.
+\fB\-O raw\fR,
+\fB\-O map\fR, or serial number updating.
 .RE
 .PP
 \-E \fIengine\fR
 .RS 4
-Uses a crypto hardware (OpenSSL engine) for the crypto operations it supports, for instance signing with private keys from a secure key store. When compiled with PKCS#11 support it defaults to pkcs11; the empty name resets it to no engine.
+When applicable, specifies the hardware to use for cryptographic operations, such as a secure key store used for signing.
+.sp
+When BIND is built with OpenSSL PKCS#11 support, this defaults to the string "pkcs11", which identifies an OpenSSL engine that can drive a cryptographic accelerator or hardware service module. When BIND is built with native PKCS#11 cryptography (\-\-enable\-native\-pkcs11), it defaults to the path of the PKCS#11 provider library specified via "\-\-with\-pkcs11".
 .RE
 .PP
 \-g
@@ -178,8 +180,9 @@ generates signatures that are valid for 30 days, with a cycle interval of 7.5 da
 .RS 4
 The format of the input zone file. Possible formats are
 \fB"text"\fR
-(default) and
-\fB"raw"\fR. This option is primarily intended to be used for dynamic signed zones so that the dumped zone file in a non\-text format containing updates can be signed directly. The use of this option does not make much sense for non\-dynamic zones.
+(default),
+\fB"raw"\fR, and
+\fB"map"\fR. This option is primarily intended to be used for dynamic signed zones so that the dumped zone file in a non\-text format containing updates can be signed directly. The use of this option does not make much sense for non\-dynamic zones.
 .RE
 .PP
 \-j \fIjitter\fR
@@ -193,7 +196,7 @@ Signature lifetime jitter also to some extent benefits validators and servers by
 .PP
 \-L \fIserial\fR
 .RS 4
-When writing a signed zone to 'raw' format, set the "source serial" value in the header to the specified serial number. (This is expected to be used primarily for testing purposes.)
+When writing a signed zone to "raw" or "map" format, set the "source serial" value in the header to the specified serial number. (This is expected to be used primarily for testing purposes.)
 .RE
 .PP
 \-n \fIncpus\fR
@@ -237,15 +240,15 @@ The zone origin. If not specified, the name of the zone file is assumed to be th
 .RS 4
 The format of the output file containing the signed zone. Possible formats are
 \fB"text"\fR
-(default)
-\fB"full"\fR, which is text output in a format suitable for processing by external scripts, and
-\fB"raw"\fR
-or
-\fB"raw=N"\fR, which store the zone in a binary format for rapid loading by
+(default), which is the standard textual representation of the zone;
+\fB"full"\fR, which is text output in a format suitable for processing by external scripts; and
+\fB"map"\fR,
+\fB"raw"\fR, and
+\fB"raw=N"\fR, which store the zone in binary formats for rapid loading by
 \fBnamed\fR.
 \fB"raw=N"\fR
 specifies the format version of the raw zone file: if N is 0, the raw file can be read by any version of
-\fBnamed\fR; if N is 1, the file can be read by release 9.9.0 or higher. The default is 1.
+\fBnamed\fR; if N is 1, the file can be read by release 9.9.0 or higher; the default is 1.
 .RE
 .PP
 \-p
@@ -439,7 +442,7 @@ RFC 4641.
 .PP
 Internet Systems Consortium
 .SH "COPYRIGHT"
-Copyright \(co 2004\-2009, 2011, 2013 Internet Systems Consortium, Inc. ("ISC")
+Copyright \(co 2004\-2009, 2011\-2014 Internet Systems Consortium, Inc. ("ISC")
 .br
 Copyright \(co 2000\-2003 Internet Software Consortium.
 .br

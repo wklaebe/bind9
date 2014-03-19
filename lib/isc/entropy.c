@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2007, 2009, 2010  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2007, 2009, 2010, 2014  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -46,6 +46,9 @@
 #include <isc/time.h>
 #include <isc/util.h>
 
+#ifdef PKCS11CRYPTO
+#include <iscpk11/pk11.h>
+#endif
 
 #define ENTROPY_MAGIC		ISC_MAGIC('E', 'n', 't', 'e')
 #define SOURCE_MAGIC		ISC_MAGIC('E', 'n', 't', 's')
@@ -1235,6 +1238,11 @@ isc_entropy_usebestsource(isc_entropy_t *ectx, isc_entropysource_t **source,
 	REQUIRE(use_keyboard == ISC_ENTROPY_KEYBOARDYES ||
 		use_keyboard == ISC_ENTROPY_KEYBOARDNO  ||
 		use_keyboard == ISC_ENTROPY_KEYBOARDMAYBE);
+
+#ifdef PKCS11CRYPTO
+	if (randomfile != NULL)
+		pk11_rand_seed_fromfile(randomfile);
+#endif
 
 #ifdef PATH_RANDOMDEV
 	if (randomfile == NULL) {

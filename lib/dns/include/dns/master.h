@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: master.h,v 1.57.8.1 2012/02/07 00:44:16 each Exp $ */
 
 #ifndef DNS_MASTER_H
 #define DNS_MASTER_H 1
@@ -79,7 +79,9 @@ ISC_LANG_BEGINDECLS
 /* Common header */
 struct dns_masterrawheader {
 	isc_uint32_t		format;		/* must be
-						 * dns_masterformat_raw */
+						 * dns_masterformat_raw
+						 * or
+						 * dns_masterformat_map */
 	isc_uint32_t		version;	/* compatibility for future
 						 * extensions */
 	isc_uint32_t		dumptime;	/* timestamp on creation
@@ -103,6 +105,13 @@ typedef struct {
 	isc_uint32_t		nrdata;		/* number of RRs in this set */
 	/* followed by encoded owner name, and then rdata */
 } dns_masterrawrdataset_t;
+
+/*
+ * Method prototype: a callback to register each include file as
+ * it is encountered.
+ */
+typedef void
+(*dns_masterincludecb_t)(const char *file, void *arg);
 
 /***
  ***	Function
@@ -136,6 +145,18 @@ dns_master_loadfile3(const char *master_file,
 		     isc_uint32_t resign,
 		     dns_rdatacallbacks_t *callbacks,
 		     isc_mem_t *mctx,
+		     dns_masterformat_t format);
+
+isc_result_t
+dns_master_loadfile4(const char *master_file,
+		     dns_name_t *top,
+		     dns_name_t *origin,
+		     dns_rdataclass_t zclass,
+		     unsigned int options,
+		     isc_uint32_t resign,
+		     dns_rdatacallbacks_t *callbacks,
+		     dns_masterincludecb_t include_cb,
+		     void *include_arg, isc_mem_t *mctx,
 		     dns_masterformat_t format);
 
 isc_result_t
@@ -200,6 +221,20 @@ dns_master_loadfileinc3(const char *master_file,
 			dns_loaddonefunc_t done, void *done_arg,
 			dns_loadctx_t **ctxp, isc_mem_t *mctx,
 			dns_masterformat_t format);
+
+isc_result_t
+dns_master_loadfileinc4(const char *master_file,
+			dns_name_t *top,
+			dns_name_t *origin,
+			dns_rdataclass_t zclass,
+			unsigned int options,
+			isc_uint32_t resign,
+			dns_rdatacallbacks_t *callbacks,
+			isc_task_t *task,
+			dns_loaddonefunc_t done, void *done_arg,
+			dns_loadctx_t **ctxp,
+			dns_masterincludecb_t include_cb, void *include_arg,
+			isc_mem_t *mctx, dns_masterformat_t format);
 
 isc_result_t
 dns_master_loadstreaminc(FILE *stream,

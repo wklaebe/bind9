@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005, 2007, 2010, 2011  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2007, 2010, 2011, 2013  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -50,6 +50,7 @@ void DestroySockets(void);
 #endif
 
 extern int debug;
+extern const char *journal;
 extern isc_boolean_t nomerge;
 extern isc_boolean_t docheckmx;
 extern isc_boolean_t docheckns;

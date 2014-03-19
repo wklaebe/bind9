@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2005-2007, 2009  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2005-2007, 2009, 2014  Internet Systems Consortium, Inc. ("ISC")
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -44,6 +44,15 @@ typedef HMAC_CTX isc_hmacsha224_t;
 typedef HMAC_CTX isc_hmacsha256_t;
 typedef HMAC_CTX isc_hmacsha384_t;
 typedef HMAC_CTX isc_hmacsha512_t;
+
+#elif PKCS11CRYPTO
+#include <iscpk11/pk11.h>
+
+typedef iscpk11_context_t isc_hmacsha1_t;
+typedef iscpk11_context_t isc_hmacsha224_t;
+typedef iscpk11_context_t isc_hmacsha256_t;
+typedef iscpk11_context_t isc_hmacsha384_t;
+typedef iscpk11_context_t isc_hmacsha512_t;
 
 #else
 

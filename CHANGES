@@ -1,6 +1,47 @@
-	--- 9.9.5 released ---
+	--- 9.10.0a2 released ---
 
-	--- 9.9.5rc2 released ---
+3724.	[bug]		win32: Fixed a bug that prevented dig and
+			host from exiting properly after completing
+			a UDP query. [RT #35288]
+
+3723.	[cleanup]	Imported keys are now handled the same way
+			regardless of DNSSEC algorithm. [RT #35215]
+
+3722.	[bug]		Using geoip ACLs in a blackhole statement
+			could cause a segfault. [RT #35272]
+
+3721.	[doc]		Improved documentation of the EDNS processing
+			enhancements introduced in change #3593. [RT #35275]
+
+3720.	[bug]		Address compiler warnings. [RT #35261]
+
+3719.	[bug]		Address memory leak in in peer.c. [RT #35255]
+
+3718.	[bug]		A missing ISC_LINK_INIT in log.c. [RT #35260]
+
+3717.	[port]		hpux: Treat EOPNOTSUPP as a expected error code when
+			probing to see if it is possible to set dscp values
+			on a per packet basis. [RT #35252]
+
+3716.	[bug]		The dns_request code was setting dcsp values when not
+			requested.  [RT #35252]
+
+3715.	[bug]		The region and city databases could fail to
+			initialize when using some versions of libGeoIP,
+			causing assertion failures when named was
+			configured to use them. [RT #35427]
+
+3714.	[test]		System tests that need to test for cryptography
+			support before running can now use a common
+			"testcrypto.sh" script to do so. [RT #35213]
+
+3713.	[bug]		Save memory by not storing "also-notify" addresses
+			in zone objects that are configured not to send
+			notify requests. [RT #35195]
+
+3712.	[placeholder]
+
+3711.	[placeholder]
 
 3710.	[bug]		Address double dns_zone_detach when switching to
 			using automatic empty zones from regular zones.
@@ -40,20 +81,46 @@
 3706.	[contrib]	queryperf: Fixed a possible integer overflow when
 			printing results. [RT #35182]
 
+3705.	[func]		"configure --enable-native-pkcs11" enables BIND
+			to use the PKCS#11 API for all cryptographic
+			functions, so that it can drive a hardware service
+			module directly without the need to use a modified
+			OpenSSL as intermediary (so long as the HSM's vendor
+			provides a complete-enough implementation of the
+			PKCS#11 interface). This has been tested successfully
+			with the Thales nShield HSM and with SoftHSMv2 from
+			the OpenDNSSEC project. [RT #29031]
+
 3704.	[protocol]	Accept integer timestamps in RRSIG records. [RT #35185]
 
-	--- 9.9.5rc1 released ---
+3703.	[func]		To improve recursive resolver performance, cache
+			records which are still being requested by clients
+			can now be automatically refreshed from the
+			authoritative server before they expire, reducing
+			or eliminating the time window in which no answer
+			is available in the cache. See the "prefetch" option
+			for more details. [RT #35041]
+
+3702.	[func]		'dnssec-coverage -l' option specifies a length
+			of time to check for coverage; events further into
+			the future are ignored.  'dnssec-coverage -z'
+			checks only ZSK events, and 'dnssec-coverage -k'
+			checks only KSK events.  (Thanks to Peter Palfrader.)
+			[RT #35168]
 
 3701.	[func]		named-checkconf can now obscure shared secrets
 			when printing by specifying '-x'. [RT #34465]
+
+3700.	[func]		Allow access to subgroups of XML statistics via
+			special URLs http://<server>:<port>/xml/v3/server,
+			/zones, /net, /tasks, /mem, and /status.  [RT #35115]
 
 3699.	[bug]		Improvements to statistics channel XSL stylesheet:
 			the stylesheet can now be cached by the browser;
 			section headers are omitted from the stats display
 			when there is no data in those sections to be
 			displayed; counters are now right-justified for
-			easier readability. (Only available with
-			configure --enable-newstats.) [RT #35117]
+			easier readability. [RT #35117]
 
 3698.	[cleanup]	Replaced all uses of memcpy() with memmove().
 			[RT #35120]
@@ -78,6 +145,9 @@
 3692.	[bug]		Two calls to dns_db_getoriginnode were fatal if there
 			was no data at the node. [RT #35080]
 
+3691.	[contrib]	Address null pointer dereference in LDAP and
+			MySQL DLZ modules.
+
 3690.	[bug]		Iterative responses could be missed when the source
 			port for an upstream query was the same as the
 			listener port (53). [RT #34925]
@@ -85,8 +155,6 @@
 3689.	[bug]		Fixed a bug causing an insecure delegation from one
 			static-stub zone to another to fail with a broken
 			trust chain. [RT #35081]
-
-	--- 9.9.5b1 released ---
 
 3688.	[bug]		loadnode could return a freed node on out of memory.
 			[RT #35106]
@@ -101,6 +169,9 @@
 3685.	[bug]		"rndc refresh" didn't work correctly with slave
 			zones using inline-signing. [RT #35105]
 
+3684.	[bug]		The list of included files would grow on reload.
+			[RT 35090]
+
 3683.	[cleanup]	Add a more detailed "not found" message to rndc
 			commands which specify a zone name. [RT #35059]
 
@@ -111,6 +182,9 @@
 3681.	[port]		Update the Windows build system to support feature
 			selection and WIN64 builds.  This is a work in
 			progress. [RT #34160]
+
+3680.	[bug]		Ensure buffer space is available in "rndc zonestatus".
+			[RT #35084]
 
 3679.	[bug]		dig could fail to clean up TCP sockets still
 			waiting on connect(). [RT #35074]
@@ -127,7 +201,12 @@
 			information for their extensions in the version
 			file by setting the EXTENSIONS variable.
 
+	--- 9.10.0a1 released ---
+
 3674.	[bug]		RPZ zeroed ttls if the query type was '*'. [RT #35026]
+
+3673.	[func]		New "in-view" zone option allows direct sharing
+			of zones between views. [RT #32968]
 
 3672.	[func]		Local address can now be specified when using
 			dns_client API. [RT #34811]
@@ -146,6 +225,12 @@
 3667.	[test]		dig: add support to keep the TCP socket open between
 			successive queries (+[no]keepopen).  [RT #34918]
 
+3666.	[func]		Add a tool, named-rrchecker, for checking the syntax
+			of individual resource records.  This tool is intended
+			to be called by provisioning systems so that the front
+			end does not need to be upgraded to support new DNS
+			record types. [RT #34778]
+
 3665.	[bug]		Failure to release lock on error in receive_secure_db.
 			[RT #34944]
 
@@ -163,7 +248,7 @@
 3660.	[cleanup]	Changed the name of "isc-config.sh" to "bind9-config".
 			[RT #23825]
 
-3659.	[port]		solaris: don't add explict dependancies/rules for
+3659.	[port]		solaris: don't add explict dependencies/rules for
 			python programs as make won't use the implicit rules.
 			[RT #34835]
 
@@ -186,6 +271,8 @@
 
 3653.	[func]		Create delegations for all "children" of empty zones
 			except "forward first". [RT #34826]
+
+3652.	[bug]		Address bug with rpz-drop policy. [RT #34816]
 
 3651.	[tuning]	Adjust when a master server is deemed unreachable.
 			[RT #27075]
@@ -211,6 +298,8 @@
 3644.	[protocol]	Check that EDNS subnet client options are well formed.
 			[RT #34718]
 
+3643.	[doc]		Clarify RRL "slip" documentation.
+
 3642.	[func]		Allow externally generated DNSKEY to be imported
 			into the DNSKEY management framework.  A new tool
 			dnssec-importkey is used to do this. [RT #34698]
@@ -225,14 +314,8 @@
 3639.	[bug]		Treat type 65533 (KEYDATA) as opaque except when used
 			in a key zone. [RT #34238]
 
-	--- 9.9.4 released ---
-
-3643.	[doc]		Clarify RRL "slip" documentation.
-
 3638.	[cleanup]	Add the ability to handle ENOPROTOOPT in case it is
 			encountered. [RT #34668]
-
-	--- 9.9.4rc2 released ---
 
 3637.	[bug]		'allow-query-on' was checking the source address
 			rather than the destination address. [RT #34590]
@@ -257,19 +340,44 @@
 
 3630.	[bug]		Ensure correct ID computation for MD5 keys. [RT #33033]
 
+3629.	[func]		Allow the printing of cryptographic fields in DNSSEC
+			records by dig to be suppressed (dig +nocrypto).
+			[RT #34534]
+
+3628.	[func]		Report DNSKEY key id's when dumping the cache.
+			[RT #34533]
+
 3627.	[bug]		RPZ changes were not effective on slaves. [RT #34450]
+
+3626.	[func]		dig: NSID output now easier to read. [RT #21160]
 
 3625.	[bug]		Don't send notify messages to machines outside of the
 			test setup.
 
-3623.	[bug]		zone-statistics was only effective in new statistics.
-			[RT #34466]
+3624.	[bug]		Look for 'json_object_new_int64' when looking for a
+			the json library. [RT #34449]
 
-	--- 9.9.4rc1 released ---
+3623.	[placeholder]
+
+3622.	[tuning]	Eliminate an unnecessary lock when incrementing
+			cache statistics. [RT #34339]
 
 3621.	[security]	Incorrect bounds checking on private type 'keydata'
 			can lead to a remotely triggerable REQUIRE failure
 			(CVE-2013-4854). [RT #34238]
+
+3620.	[func]		Added "rpz-client-ip" policy triggers, enabling
+			RPZ responses to be configured on the basis of
+			the client IP address; this can be used, for
+			example, to blacklist misbehaving recursive
+			or stub resolvers. [RT #33605]
+
+3619.	[bug]		Fixed a bug in RPZ with "recursive-only no;"
+			[RT #33776]
+
+3618.	[func]		"rndc reload" now checks modification times of
+			include files as well as master files to determine
+			whether to skip reloading a zone. [RT #33936]
 
 3617.	[bug]		Named was failing to answer queries during
 			"rndc reload" [RT #34098]
@@ -286,11 +394,16 @@
 3613.	[bug]		named could crash when deleting inline-signing
 			zones with "rndc delzone". [RT #34066]
 
+3612.	[port]		Check whether to use -ljson or -ljson-c. [RT #34115]
+
 3611.	[bug]		Improved resistance to a theoretical authentication
 			attack based on differential timing.  [RT #33939]
 
 3610.	[cleanup]	win32: Some executables had been omitted from the
 			installer. [RT #34116]
+
+3609.	[bug]		Corrected a possible deadlock in applications using
+			the export version of the isc_app API. [RT #33967]
 
 3608.	[port]		win32: added todos.pl script to ensure all text files
 			the win32 build depends on are converted to DOS
@@ -299,12 +412,22 @@
 3607.	[bug]		dnssec-keygen had broken 'Invalid keyfile' error
 			message. [RT #34045]
 
-	--- 9.9.4b1 released ---
+3606.	[func]		"rndc flushtree" now flushes matching
+			records in the address database and bad cache
+			as well as the DNS cache. (Previously only the
+			DNS cache was flushed.) [RT #33970]
 
 3605.	[port]		win32: Addressed several compatibility issues
 			with newer versions of Visual Studio. [RT #33916]
 
+3604.	[bug]		Fixed a compile-time error when building with
+			JSON but not XML. [RT #33959]
+
 3603.	[bug]		Install <isc/stat.h>. [RT #33956]
+
+3602.	[contrib]	Added DLZ Perl module, allowing Perl scripts to
+			integrate with named and serve DNS data.
+			(Contributed by John Eaglesham of Yahoo.)
 
 3601.	[bug]		Added to PKCS#11 openssl patches a value len
 			attribute in DH derive key. [RT #33928]
@@ -315,18 +438,36 @@
 3599.	[tuning]	Check for pointer equivalence in name comparisons.
 			[RT #18125]
 
+3598.	[cleanup]	Improved portability of map file code. [RT #33820]
+
+3597.	[bug]		Ensure automatic-resigning heaps are reconstructed
+			when loading zones in map format. [RT #33381]
+
 3596.	[port]		Updated win32 build documentation, added
 			dnssec-verify. [RT #22067]
 
+3595.	[port]		win32: Fix build problems introduced by change #3550.
+			[RT #33807]
+
 3594.	[maint]		Update config.guess and config.sub. [RT #33816]
+
+3593.	[func]		Update EDNS processing to better track remote server
+			capabilities. [RT #30655]
 
 3592.	[doc]		Moved documentation of rndc command options to the
 			rndc man page. [RT #33506]
+
+3591.	[func]		Use CRC-64 to detect map file corruption at load
+			time. [RT #33746]
 
 3590.	[bug]		When using RRL on recursive servers, defer
 			rate-limiting until after recursion is complete;
 			also, use correct rcode for slipped NXDOMAIN
 			responses.  [RT #33604]
+
+3589.	[func]		Report serial numbers in when starting zone transfers.
+			Report accepted NOTIFY requests including serial.
+			[RT# 33037]
 
 3588.	[bug]		dig: addressed a memory leak in the sigchase code
 			that could cause a shutdown crash.  [RT #33733]
@@ -335,6 +476,9 @@
 			does not use it. [RT #33473]
 
 3586.	[bug]		Handle errors in xmlDocDumpFormatMemoryEnc. [RT #33706]
+
+3585.	[func]		"rndc delzone -clean" option removes zone files
+			when deleting a zone. [RT #33570]
 
 3584.	[security]	Caching data from an incompletely signed zone could
 			trigger an assertion failure in resolver.c
@@ -369,41 +513,37 @@
 			zone names containing punctuation marks and other
 			nonstandard characters. [RT #33419]
 
+3572.	[func]		Threads are now enabled by default on most
+			operating systems. [RT #25483]
+
 3571.	[bug]		Address race condition in dns_client_startresolve().
 			[RT #33234]
 
-3566.	[func]		Log when forwarding updates to master. [RT #33240]
+3570.	[bug]		Check internal pointers are valid when loading map
+			files. [RT #33403]
 
-3554.	[bug]		RRL failed to correctly rate-limit upward
-			referrals and failed to count dropped error
-			responses in the statistics. [RT #33225]
-
-3545.	[bug]		RRL slip behavior was incorrect when set to 1.
-			[RT #33111]
-
-3518.	[bug]		Increase the size of dns_rrl_key.s.rtype by one bit
-			so that all dns_rrl_rtype_t enum values fit regardless
-			of whether it is teated as signed or unsigned by
-			the compiler. [RT #32792]
-
-3494.	[func]		DNS RRL: Blunt the impact of DNS reflection and
-			amplification attacks by rate-limiting substantially-
-			identical responses. To enable, use "configure
-			--enable-rrl". [RT #28130]
-
-	--- 9.9.3 released ---
+3569.	[contrib]	Ported mysql DLZ driver to dynamically-loadable
+			module, and added multithread support. [RT #33394]
 
 3568.	[cleanup]	Add a product description line to the version file,
 			to be reported by named -v/-V. [RT #33366]
 
 3567.	[bug]		Silence clang static analyzer warnings. [RT #33365]
 
+3566.	[func]		Log when forwarding updates to master. [RT #33240]
+
+3565.	[placeholder]
+
+3564.	[bug]		Improved handling of corrupted map files. [RT #33380]
+
 3563.	[contrib]	zone2sqlite failed with some table names. [RT #33375]
+
+3562.	[func]		Update map file header format to include a SHA-1 hash
+			of the database content, so that corrupted map files
+			can be rejected at load time. [RT #32459]
 
 3561.	[bug]		dig: issue a warning if an EDNS query returns FORMERR
 			or NOTIMP.  Adjust usage message. [RT #33363]
-
-	--- 9.9.3rc2 released ---
 
 3560.	[bug]		isc-config.sh did not honor includedir and libdir
 			when set via configure. [RT #33345]
@@ -420,10 +560,20 @@
 3555.	[bug]		Address theoretical race conditions in acache.c
 			(change #3553 was incomplete). [RT #33252]
 
+3554.	[bug]		RRL failed to correctly rate-limit upward
+			referrals and failed to count dropped error
+			responses in the statistics. [RT #33225]
+
 3553.	[bug]		Address suspected double free in acache. [RT #33252]
 
 3552.	[bug]		Wrong getopt option string for 'nsupdate -r'.
 			[RT #33280]
+
+3551.	[bug]		resolver.querydscp[46] were uninitialized.  [RT #32686]
+
+3550.	[func]		Unified the internal and export versions of the
+			BIND libraries, allowing external clients to use
+			the same libraries as BIND. [RT #33131]
 
 3549.	[doc]		Documentation for "request-nsid" was missing.
 			[RT #33153]
@@ -435,9 +585,10 @@
 3547.	[bug]		Some malformed unknown rdata records were not properly
 			detected and rejected. [RT #33129]
 
-	--- 9.9.3rc1 released ---
-
 3546.	[func]		Add EUI48 and EUI64 types. [RT #33082]
+
+3545.	[bug]		RRL slip behavior was incorrect when set to 1.
+			[RT #33111]
 
 3544.	[contrib]	check5011.pl: Script to report the status of
 			managed keys as recorded in managed-keys.bind.
@@ -445,6 +596,8 @@
 
 3543.	[bug]		Update socket structure before attaching to socket
 			manager after accept. [RT #33084]
+
+3542.	[placeholder]
 
 3541.	[bug]		Parts of libdns were not properly initialized when
 			built in libexport mode. [RT #33028]
@@ -460,6 +613,15 @@
 			to peers before being dumped to disk rather than
 			after. [RT #27242]
 
+3536.	[func]		Add support for setting Differentiated Services Code
+			Point (DSCP) values in named.  Most configuration
+			options which take a "port" option (e.g.,
+			listen-on, forwarders, also-notify, masters,
+			notify-source, etc) can now also take a "dscp"
+			option specifying a code point for use with
+			outgoing traffic, if supported by the underlying
+			OS. [RT #27596]
+
 3535.	[bug]		Minor win32 cleanups. [RT #32962]
 
 3534.	[bug]		Extra text after an embedded NULL was ignored when
@@ -473,6 +635,11 @@
 			of memory. [RT #32960]
 
 3530.	[contrib]	Better RTT tracking in queryperf. [RT #30128]
+
+3529.	[func]		Named now listens on both IPv4 and IPv6 interfaces
+			by default.  Named previously only listened on IPv4
+			interfaces by default unless named was running in
+			IPv6 only mode.  [RT #32945]
 
 3528.	[func]		New "dnssec-coverage" command scans the timing
 			metadata for a set of DNSSEC keys and reports if a
@@ -488,14 +655,42 @@
 3526.	[cleanup]	Set up dependencies for unit tests correctly during
 			build. [RT #32803]
 
+3525.	[func]		Support for additional signing algorithms in rndc:
+			hmac-sha1, -sha224, -sha256, -sha384, and -sha512.
+			The -A option to rndc-confgen can be used to
+			select the algorithm for the generated key.
+			(The default is still hmac-md5; this may
+			change in a future release.) [RT #20363]
+
+3524.	[func]		Added an alternate statistics channel in JSON format,
+			when the server is built with the json-c library:
+			http://[address]:[port]/json. [RT #32630]
+
+3523.	[contrib]	Ported filesystem and ldap DLZ drivers to
+			dynamically-loadable modules, and added the
+			"wildcard" module based on a contribution from
+			Vadim Goncharov <vgoncharov@nic.ru>. [RT #23569]
+
+3522.	[bug]		DLZ lookups could fail to return SERVFAIL when
+			they ought to. [RT #32685]
+
 3521.	[bug]		Address memory leak in opensslecdsa_link.c. [RT #32249]
 
 3520.	[bug]		'mctx' was not being referenced counted in some places
 			where it should have been.  [RT #32794]
 
-	--- 9.9.3b2 released ---
+3519.	[func]		Full replay protection via four-way handshake is
+			now mandatory for rndc clients. Very old versions
+			of rndc will no longer work. [RT #32798]
+
+3518.	[bug]		Increase the size of dns_rrl_key.s.rtype by one bit
+			so that all dns_rrl_rtype_t enum values fit regardless
+			of whether it is teated as signed or unsigned by
+			the compiler. [RT #32792]
 
 3517.	[bug]		Reorder destruction to avoid shutdown race. [RT #32777]
+
+3516.	[placeholder]
 
 3515.	[port]		'%T' is not portable in strftime(). [RT #32763]
 
@@ -505,7 +700,16 @@
 			to 1024 bits for hmac-sha384 and hmac-sha512.
 			[RT #32753]
 
+3513.	[func]		"dig -u" prints times in microseconds rather than
+			milliseconds. [RT #32704]
+
+3512.	[func]		"rndc validation check" reports the current status
+			of DNSSEC validation. [RT #21397]
+
 3511.	[doc]		Improve documentation of redirect zones. [RT #32756]
+
+3510.	[func]		"rndc status" and XML statistics channel now report
+			server start and reconfiguration times. [RT #21048]
 
 3509.	[cleanup]	Added a product line to version file to allow for
 			easy naming of different products (BIND
@@ -514,10 +718,14 @@
 3508.	[contrib]	queryperf was incorrectly rejecting the -T option.
 			[RT #32338]
 
-3507.	[bug]		Statistics channel XSL (when built with
-			--enable-newstats) had a glitch when attempting
+3507.	[bug]		Statistics channel XSL had a glitch when attempting
 			to chart query data before any queries had been
 			received. [RT #32620]
+
+3506.	[func]		When setting "max-cache-size" and "max-acache-size",
+			the keyword "unlimited" is no longer defined as equal
+			to 4 gigabytes (except on 32-bit platforms); it
+			means literally unlimited. [RT #32358]
 
 3505.	[bug]		When setting "max-cache-size" and "max-acache-size",
 			larger values than 4 gigabytes could not be set
@@ -526,7 +734,15 @@
 			corrected; the full range is now available.
 			[RT #32358]
 
+3504.	[func]		Add support for ACLs based on geographic location,
+			using MaxMind GeoIP databases. Based on code
+			contributed by Ken Brownfield <kb@slide.com>.
+			[RT #30681]
+
 3503.	[doc]		Clarify size_spec syntax. [RT #32449]
+
+3502.	[func]		zone-statistics: "no" is now a synonym for "none",
+			instead of "terse". [RT #29165]
 
 3501.	[func]		zone-statistics now takes three options: full,
 			terse, and none. "yes" and "no" are retained as
@@ -544,13 +760,24 @@
 			empty zone could have their zone-statistics setting
 			overridden.
 
-3496.	[func]		Improvements to RPZ performance. The "response-policy"
+3497.	[func]		When deleting a slave/stub zone using 'rndc delzone'
+			report the files that were being used so they can
+			be cleaned up if desired. [RT #27899]
+
+3496.	[placeholder]
+
+3495.	[func]		Support multiple response-policy zones (up to 32),
+			while improving RPZ performance.  "response-policy"
 			syntax now includes a "min-ns-dots" clause, with
 			default 1, to exclude top-level domains from
 			NSIP and NSDNAME checking. --enable-rpz-nsip and
 			--enable-rpz-nsdname are now the default. [RT #32251]
 
-3493.	[contrib]	Added BDBHPT dynamically-lodable DLZ module,
+3494.	[func]		DNS RRL: Blunt the impact of DNS reflection and
+			amplification attacks by rate-limiting substantially-
+			identical responses. [RT #28130]
+
+3493.	[contrib]	Added BDBHPT dynamically-loadable DLZ module,
 			contributed by Mark Goldfinch. [RT #32549]
 
 3492.	[bug]		Fixed a regression in zone loading performance
@@ -559,9 +786,13 @@
 3491.	[bug]		Slave zones using inline-signing must specify a
 			file name. [RT #31946]
 
+3490.	[bug]		When logging RDATA during update, truncate if it's
+			too long. [RT #32365]
+
 3489.	[bug]		--enable-developer now turns on ISC_LIST_CHECKINIT.
-			When cloning a rdataset do not copy the link contents.
-			[RT #32651]
+			dns_dlzcreate() failed to properly initialize
+			dlzdb.link.  When cloning a rdataset do not copy
+			the link contents.  [RT #32651]
 
 3488.	[bug]		Use after free error with DH generated keys. [RT #32649]
 
@@ -574,8 +805,14 @@
 
 3485.	[cleanup]	Only compile openssl_gostlink.c if we support GOST.
 
-3483.	[bug]		Corrected XSL code in use with --enable-newstats.
+3484.	[bug]		Some statistics were incorrectly rendered in XML.
 			[RT #32587]
+
+3483.	[placeholder]
+
+3482.	[func]		dig +nssearch now prints name servers that don't
+			have address records (missing AAAA or A, or the name
+			doesn't exist). [RT #29348]
 
 3481.	[cleanup]	Removed use of const const in atf.
 
@@ -588,12 +825,24 @@
 3478.	[port]		Fix a build failure in strict C99 environments
 			[RT #32475]
 
+3477.	[func]		Expand logging when adding records via DDNS update
+			[RT #32365]
+
+3476.	[bug]		"rndc zonestatus" could report a spurious "not
+			found" error on inline-signing zones. [RT #29226]
+
+3475.	[cleanup]	Changed name of 'map' zone file format (previously
+			'fast'). [RT #32458]
+
 3474.	[bug]		nsupdate could assert when the local and remote
 			address families didn't match. [RT #22897]
 
 3473.	[bug]		dnssec-signzone/verify could incorrectly report
 			an error condition due to an empty node above an
 			opt-out delegation lacking an NSEC3. [RT #32072]
+
+3472.	[bug]		The active-connections counter in the socket
+			statistics could underflow. [RT #31747]
 
 3471.	[bug]		The number of UDP dispatches now defaults to
 			the number of CPUs even if -n has been set to
@@ -602,7 +851,9 @@
 3470.	[bug]		Slave zones could fail to dump when successfully
 			refreshing after an initial failure. [RT #31276]
 
-	--- 9.9.3b1 released ---
+3469.	[bug]		Handle DLZ lookup failures more gracefully. Improve
+			backward compatibility between versions of DLZ dlopen
+			API. [RT #32275]
 
 3468.	[security]	RPZ rules to generate A records (but not AAAA records)
 			could trigger an assertion failure when used in
@@ -628,6 +879,9 @@
 			set. [RT #32237]
 
 3460.	[bug]		Only link against readline where needed. [RT #29810]
+
+3459.	[func]		Added -J option to named-checkzone/named-compilezone
+			to specify the path to the journal file. [RT #30958]
 
 3458.	[bug]		Return FORMERR when presented with a overly long
 			domain named in a request. [RT #29682]
@@ -680,7 +934,7 @@
 3440.	[bug]		Reorder get_key_struct to not trigger a assertion when
 			cleaning up due to out of memory error. [RT #32131]
 
-3439.	[bug]		contrib/dlz error checking fixes. [RT #32102]
+3439.	[placeholder]
 
 3438.	[bug]		Don't accept unknown data escape in quotes. [RT #32031]
 
@@ -691,6 +945,24 @@
 
 3435.	[bug]		Cross compilation support in configure was broken.
 			[RT #32078]
+
+3434.	[bug]		Pass client info to the DLZ findzone() entry
+			point in addition to lookup().  This makes it
+			possible for a database to answer differently
+			whether it's authoritative for a name depending
+			on the address of the client.  [RT #31775]
+
+3433.	[bug]		dlz_findzone() did not correctly handle
+			ISC_R_NOMORE. [RT #31172]
+
+3432.	[func]		Multiple DLZ databases can now be configured.
+			DLZ databases are searched in the order configured,
+			unless set to "search no", in which case a
+			zone can be configured to be retrieved from a
+			particular DLZ database by using a "dlz <name>"
+			option in the zone statement.  DLZ databases can
+			support type "master" and "redirect" zones.
+			[RT #27597]
 
 3431.	[bug]		ddns-confgen: Some valid key algorithms were
 			not accepted. [RT #31927]
@@ -729,13 +1001,15 @@
 
 3419.	[bug]		Memory leak on validation cancel. [RT #31869]
 
-3417.	[func]		Optional new XML schema (version 3.0) for the
-			statistics channel adds query type statistics at the
-			zone level, and flattens the XML tree and uses
-			compressed format to optimize parsing. Includes new XSL
-			that permits charting via the Google Charts API on
-			browsers that support javascript in XSL.  To enable,
-			build with "configure --enable-newstats". [RT #30023]
+3418.	[func]		New XML schema (version 3.0) for the statistics channel
+			adds query type statistics at the zone level, and
+			flattens the XML tree and uses compressed format to
+			optimize parsing. Includes new XSL that permits
+			charting via the Google Charts API on browsers that
+			support javascript in XSL.  The old XML schema has been
+			deprecated. [RT #30023]
+
+3417.	[placeholder]
 
 3416.	[bug]		Named could die on shutdown if running with 128 UDP
 			dispatches per interface. [RT #31743]
@@ -744,6 +1018,9 @@
 			was canceled. [RT #31804]
 
 3414.	[bug]		Address locking issues found by Coverity. [RT #31626]
+
+3413.	[func]		Record the number of DNS64 AAAA RRsets that have been
+			synthesized. [RT #27636]
 
 3412.	[bug]		Copy timeval structure from control message data.
 			[RT #31548]
@@ -762,6 +1039,8 @@
 			dnssec-loadkeys-interval, dnssec-dnskey-kskonly)
 			are now legal in slave zones as long as
 			inline-signing is in use. [RT #31078]
+
+3407.	[placeholder]
 
 3406.	[bug]		mem.c: Fix compilation errors when building with
 			ISC_MEM_TRACKLINES or ISC_MEMPOOL_NAMES disabled.
@@ -806,6 +1085,8 @@
 3393.	[bug]		'host -C' could core dump if REFUSED was received.
 			[RT #31381]
 
+3392.	[func]		Keep statistics on REFUSED responses. [RT #31412]
+
 3391.	[bug]		A DNSKEY lookup that encountered a CNAME failed.
 			[RT #31262]
 
@@ -820,6 +1101,9 @@
 			die on specific queries with dns64 enabled.
 			[RT #30996]
 
+3387.	[func]		DS digest can be disabled at runtime with
+			disable-ds-digests. [RT #21581]
+
 3386.	[bug]		Address locking violation when generating new NSEC /
 			NSEC3 chains. [RT #31224]
 
@@ -827,6 +1111,10 @@
 			in also-notify clauses. [RT #30810]
 
 3384.	[bug]		Improved logging of crypto errors. [RT #30963]
+
+3383.	[security]	A certain combination of records in the RBT could
+			cause named to hang while populating the additional
+			section of a response. [RT #31090]
 
 3382.	[bug]		SOA query from slave used use-v6-udp-ports range,
 			if set, regardless of the address family in use.
@@ -850,11 +1138,12 @@
 3376.	[bug]		Lack of EDNS support was being recorded without a
 			successful response. [RT #30811]
 
-3375.	[func]		Check that 'rndc dumpdb' works on a empty cache.
-			[RT #30808]
+3375.	[bug]		'rndc dumpdb' failed on empty caches. [RT #30808]
 
 3374.	[bug]		isc_parse_uint32 failed to return a range error on
 			systems with 64 bit longs. [RT #30232]
+
+3373.	[bug]		win32: open raw files in binary mode. [RT #30944]
 
 3372.	[bug]		Silence spurious "deleted from unreachable cache"
 			messages.  [RT #30501]
@@ -862,27 +1151,6 @@
 3371.	[bug]		AD=1 should behave like DO=1 when deciding whether to
 			add NS RRsets to the additional section or not.
 			[RT #30479]
-
-3316.	[tuning]	Improved locking performance when recursing.
-			[RT #28836]
-
-3315.	[tuning]	Use multiple dispatch objects for sending upstream
-			queries; this can improve performance on busy
-			multiprocessor systems by reducing lock contention.
-			[RT #28605]
-
-	--- 9.9.2 released ---
-
-3383.	[security]	A certain combination of records in the RBT could
-			cause named to hang while populating the additional
-			section of a response. [RT #31090]
-
-3373.	[bug]		win32: open raw files in binary mode. [RT #30944]
-
-3364.	[security]	Named could die on specially crafted record.
-			[RT #30416]
-
-	--- 9.9.2rc1 released ---
 
 3370.	[bug]		Address use after free while shutting down. [RT #30241]
 
@@ -901,6 +1169,9 @@
 3365.	[bug]		Removed spurious newlines from log messages in
 			zone.c [RT #30675]
 
+3364.	[security]	Named could die on specially crafted record.
+			[RT #30416]
+
 3363.	[bug]		Need to allow "forward" and "fowarders" options
 			in static-stub zones; this had been overlooked.
 			[RT #30482]
@@ -917,6 +1188,8 @@
 3359.	[bug]		An improperly-formed TSIG secret could cause a
 			memory leak. [RT #30607]
 
+3358.	[placeholder]
+
 3357.	[port]		Add support for libxml2-2.8.x [RT #30440]
 
 3356.	[bug]		Cap the TTL of signed RRsets when RRSIGs are
@@ -926,8 +1199,6 @@
 3355.	[port]		Use more portable awk in verify system test.
 
 3354.	[func]		Improve OpenSSL error logging. [RT #29932]
-
-	--- 9.9.2b1 released ---
 
 3353.	[bug]		Use a single task for task exclusive operations.
 			[RT #29872]
@@ -971,6 +1242,8 @@
 			systems that do not have a python interpreter.)
 			[RT #28099]
 
+3343.	[placeholder]
+
 3342.	[bug]		Change #3314 broke saving of stub zones to disk
 			resulting in excessive cpu usage in some cases.
 			[RT #29952]
@@ -978,6 +1251,14 @@
 3341.	[func]		New "dnssec-verify" command checks a signed zone
 			to ensure correctness of signatures and of NSEC/NSEC3
 			chains. [RT #23673]
+
+3340.	[func]		Added new 'map' zone file format, which is an image
+			of a zone database that can be loaded directly into
+			memory via mmap(), allowing much faster zone loading.
+			(Note: Because of pointer sizes and other
+			considerations, this file format is platform-dependent;
+			'map' zone files cannot always be transferred from one
+			server to another.) [RT #25419]
 
 3339.	[func]		Allow the maximum supported rsa exponent size to be
 			specified: "max-rsa-exponent-size <value>;" [RT #29228]
@@ -987,6 +1268,9 @@
 
 3337.	[bug]		Change #3294 broke support for the multiple keys
 			in controls. [RT #29694]
+
+3336.	[func]		Maintain statistics for RRsets tagged as "stale".
+			[RT #29514]
 
 3335.	[func]		nslookup: return a nonzero exit code when unable
 			to get an answer. [RT #29492]
@@ -1027,13 +1311,50 @@
 3328.	[bug]		Fixed inconsistent data checking in dst_parse.c.
 			[RT #29401]
 
-3317.	[func]		Add ECDSA support (RFC 6605). [RT #21918]
+3327.	[func]		Added 'filter-aaaa-on-v6' option; this is similar
+			to 'filter-aaaa-on-v4' but applies to IPv6
+			connections.  (Use "configure --enable-filter-aaaa"
+			to enable this option.)  [RT #27308]
 
-	--- 9.9.1 released ---
+3326.	[func]		Added task list statistics: task model, worker
+			threads, quantum, tasks running, tasks ready.
+			[RT #27678]
+
+3325.	[func]		Report cache statistics: memory use, number of
+			nodes, number of hash buckets, hit and miss counts.
+			[RT #27056]
+
+3324.	[test]		Add better tests for ADB stats [RT #27057]
+
+3323.	[func]		Report the number of buckets the resolver is using.
+			[RT #27020]
+
+3322.	[func]		Monitor the number of active TCP and UDP dispatches.
+			[RT #27055]
+
+3321.	[func]		Monitor the number of recursive fetches and the
+			number of open sockets, and report these values in
+			the statistics channel. [RT #27054]
+
+3320.	[func]		Added support for monitoring of recursing client
+			count. [RT #27009]
+
+3319.	[func]		Added support for monitoring of ADB entry count and
+			hash size. [RT #27057]
 
 3318.	[tuning]	Reduce the amount of work performed while holding a
 			bucket lock when finished with a fetch context.
 			[RT #29239]
+
+3317.	[func]		Add ECDSA support (RFC 6605). [RT #21918]
+
+3316.	[tuning]	Improved locking performance when recursing.
+			[RT #28836]
+
+3315.	[tuning]	Use multiple dispatch objects for sending upstream
+			queries; this can improve performance on busy
+			multiprocessor systems by reducing lock contention.
+			[RT #28605]
 
 3314.	[bug]		The masters list could be updated while stub_callback
 			or refresh_callback were using it. [RT #26732]
@@ -1050,6 +1371,8 @@
 
 3309.	[bug]		resolver.c:fctx_finddone() was not thread safe.
 			[RT #27995]
+
+3308.	[placeholder]
 
 3307.	[bug]		Add missing ISC_LANG_BEGINDECLS and ISC_LANG_ENDDECLS.
 			[RT #28956]
@@ -1091,18 +1414,15 @@
 3294.	[bug]		isccc/cc.c:table_fromwire failed to free alist on
 			error. [RT #28265]
 
+3293.	[func]		nsupdate: list supported type. [RT #28261]
+
+3292.	[func]		Log messages in the axfr stream at debug 10.
+			[RT #28040]
+
 3291.	[port]		Fixed a build error on systems without ENOTSUP.
 			[RT #28200]
 
 3290.	[bug]		<isc/hmacsha.h> was not being installed. [RT #28169]
-
-3273.	[bug]		AAAA responses could be returned in the additional
-			section even when filter-aaaa-on-v4 was in use.
-			[RT #27292]
-
-	--- 9.9.0 released ---
-
-	--- 9.9.0rc4 released ---
 
 3289.	[bug]		'rndc retransfer' failed for inline zones. [RT #28036]
 
@@ -1113,8 +1433,6 @@
 
 3286.	[bug]		Managed key maintenance timer could fail to start
 			after 'rndc reconfig'. [RT #26786]
-
-	--- 9.9.0rc3 released ---
 
 3285.	[bug]		val-frdataset was incorrectly disassociated in
 			proveunsecure after calling startfinddlvsep.
@@ -1153,6 +1471,15 @@
 3275.	[bug]		Corrected rndc -h output; the 'rndc sync -clean'
 			option had been misspelled as '-clear'.  (To avoid
 			future confusion, both options now work.) [RT #27173]
+
+3274.	[placeholder]
+
+3273.	[bug]		AAAA responses could be returned in the additional
+			section even when filter-aaaa-on-v4 was in use.
+			[RT #27292]
+
+3272.	[func]		New "rndc zonestatus" command prints information
+			about the specified zone. [RT #21671]
 
 3271.	[port]		darwin: mksymtbl is not always stable, loop several
 			times before giving up.  mksymtbl was using non
@@ -4740,7 +5067,7 @@
 
 2205.	[bug]		libbind: change #2119 broke thread support. [RT #16982]
 
-2204.	[bug]		"rndc flushanme name unknown-view" caused named
+2204.	[bug]		"rndc flushname name unknown-view" caused named
 			to crash. [RT #16984]
 
 2203.	[security]	Query id generation was cryptographically weak.

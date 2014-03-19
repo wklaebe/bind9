@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: client.c,v 1.286 2012/01/31 23:47:30 tbox Exp $ */
 
 #include <config.h>
 
@@ -535,6 +535,8 @@ exit_check(ns_client_t *client) {
 		isc_event_free((isc_event_t **)&client->sendevent);
 		isc_event_free((isc_event_t **)&client->recvevent);
 		isc_timer_detach(&client->timer);
+		if (client->delaytimer != NULL)
+			isc_timer_detach(&client->delaytimer);
 
 		if (client->tcpbuf != NULL)
 			isc_mem_put(client->mctx, client->tcpbuf,
@@ -676,8 +678,11 @@ ns_client_endrequest(ns_client_t *client) {
 	client->ednsversion = -1;
 	dns_message_reset(client->message, DNS_MESSAGE_INTENTPARSE);
 
-	if (client->recursionquota != NULL)
+	if (client->recursionquota != NULL) {
 		isc_quota_detach(&client->recursionquota);
+		isc_stats_decrement(ns_g_server->nsstats,
+				    dns_nsstatscounter_recursclients);
+	}
 
 	/*
 	 * Clear all client attributes that are specific to
@@ -822,6 +827,7 @@ client_sendpkg(ns_client_t *client, isc_buffer_t *buffer) {
 	isc_netaddr_t netaddr;
 	int match;
 	unsigned int sockflags = ISC_SOCKFLAG_IMMEDIATE;
+	isc_dscp_t dispdscp = -1;
 
 	if (TCP_CLIENT(client)) {
 		socket = client->tcpsocket;
@@ -846,6 +852,20 @@ client_sendpkg(ns_client_t *client, isc_buffer_t *buffer) {
 		pktinfo = &client->pktinfo;
 	else
 		pktinfo = NULL;
+
+	if (client->dispatch != NULL) {
+		dispdscp = dns_dispatch_getdscp(client->dispatch);
+		if (dispdscp != -1)
+			client->dscp = dispdscp;
+	}
+
+	if (client->dscp == -1) {
+		client->sendevent->attributes &= ~ISC_SOCKEVENTATTR_DSCP;
+		client->sendevent->dscp = 0;
+	} else {
+		client->sendevent->attributes |= ISC_SOCKEVENTATTR_DSCP;
+		client->sendevent->dscp = client->dscp;
+	}
 
 	isc_buffer_usedregion(buffer, &r);
 
@@ -910,8 +930,8 @@ ns_client_sendraw(ns_client_t *client, dns_message_t *message) {
 	ns_client_next(client, result);
 }
 
-void
-ns_client_send(ns_client_t *client) {
+static void
+client_send(ns_client_t *client) {
 	isc_result_t result;
 	unsigned char *data;
 	isc_buffer_t buffer;
@@ -944,10 +964,11 @@ ns_client_send(ns_client_t *client) {
 			preferred_glue = DNS_MESSAGERENDER_PREFER_AAAA;
 	}
 
-#ifdef ALLOW_FILTER_AAAA_ON_V4
+#ifdef ALLOW_FILTER_AAAA
 	/*
 	 * filter-aaaa-on-v4 yes or break-dnssec option to suppress
-	 * AAAA records
+	 * AAAA records.
+	 *
 	 * We already know that request came via IPv4,
 	 * that we have both AAAA and A records,
 	 * and that we either have no signatures that the client wants
@@ -995,13 +1016,11 @@ ns_client_send(ns_client_t *client) {
 	}
 	if (result != ISC_R_SUCCESS)
 		goto done;
-#ifdef USE_RRL
 	/*
 	 * Stop after the question if TC was set for rate limiting.
 	 */
 	if ((client->message->flags & DNS_MESSAGEFLAG_TC) != 0)
 		goto renderend;
-#endif /* USE_RRL */
 	result = dns_message_rendersection(client->message,
 					   DNS_SECTION_ANSWER,
 					   DNS_MESSAGERENDER_PARTIAL |
@@ -1079,6 +1098,72 @@ ns_client_send(ns_client_t *client) {
 	ns_client_next(client, result);
 }
 
+/*
+ * Completes the sending of a delayed client response.
+ */
+static void
+client_delay(isc_task_t *task, isc_event_t *event) {
+	ns_client_t *client;
+
+	REQUIRE(event != NULL);
+	REQUIRE(event->ev_type == ISC_TIMEREVENT_LIFE ||
+		event->ev_type == ISC_TIMEREVENT_IDLE);
+	client = event->ev_arg;
+	REQUIRE(NS_CLIENT_VALID(client));
+	REQUIRE(task == client->task);
+	REQUIRE(client->delaytimer != NULL);
+
+	UNUSED(task);
+
+	CTRACE("client_delay");
+
+	isc_event_free(&event);
+	isc_timer_detach(&client->delaytimer);
+
+	client_send(client);
+	ns_client_detach(&client);
+}
+
+void
+ns_client_send(ns_client_t *client) {
+
+	/*
+	 * Delay the response by ns_g_delay ms.
+	 */
+	if (ns_g_delay != 0) {
+		ns_client_t *dummy = NULL;
+		isc_result_t result;
+		isc_interval_t interval;
+
+		/*
+		 * Replace ourselves if we have not already been replaced.
+		 */
+		if (!client->mortal) {
+			result = ns_client_replace(client);
+			if (result != ISC_R_SUCCESS)
+				goto nodelay;
+		}
+
+		ns_client_attach(client, &dummy);
+		if (ns_g_delay >= 1000)
+			isc_interval_set(&interval, ns_g_delay / 1000,
+					 (ns_g_delay % 1000) * 1000000);
+		else
+			isc_interval_set(&interval, 0, ns_g_delay * 1000000);
+		result = isc_timer_create(client->manager->timermgr,
+					  isc_timertype_once, NULL, &interval,
+					  client->task, client_delay,
+					  client, &client->delaytimer);
+		if (result == ISC_R_SUCCESS)
+			return;
+
+		ns_client_detach(&dummy);
+	}
+
+ nodelay:
+	client_send(client);
+}
+
 #if NS_CLIENT_DROPPORT
 #define DROPPORT_NO		0
 #define DROPPORT_REQUEST	1
@@ -1141,7 +1226,6 @@ ns_client_error(ns_client_t *client, isc_result_t result) {
 	}
 #endif
 
-#ifdef USE_RRL
 	/*
 	 * Try to rate limit error responses.
 	 */
@@ -1186,7 +1270,6 @@ ns_client_error(ns_client_t *client, isc_result_t result) {
 			}
 		}
 	}
-#endif /* USE_RRL */
 
 	/*
 	 * Message may be an in-progress reply that we had trouble
@@ -1491,6 +1574,13 @@ client_request(isc_task_t *task, isc_event_t *event) {
 			client->peeraddr = sevent->address;
 			client->peeraddr_valid = ISC_TRUE;
 		}
+		if ((sevent->attributes & ISC_SOCKEVENTATTR_DSCP) != 0) {
+			ns_client_log(client, NS_LOGCATEGORY_CLIENT,
+			      NS_LOGMODULE_CLIENT, ISC_LOG_DEBUG(90),
+			      "received DSCP %d", sevent->dscp);
+			if (client->dscp == -1)
+				client->dscp = sevent->dscp;
+		}
 		if ((sevent->attributes & ISC_SOCKEVENTATTR_PKTINFO) != 0) {
 			client->attributes |= NS_CLIENTATTR_PKTINFO;
 			client->pktinfo = sevent->pktinfo;
@@ -1662,8 +1752,18 @@ client_request(isc_task_t *task, isc_event_t *event) {
 	/*
 	 * Deal with EDNS.
 	 */
-	opt = dns_message_getopt(client->message);
+	if (ns_g_noedns)
+		opt = NULL;
+	else
+		opt = dns_message_getopt(client->message);
 	if (opt != NULL) {
+		/*
+		 * Are we dropping all EDNS queries?
+		 */
+		if (ns_g_dropedns) {
+			ns_client_next(client, ISC_R_SUCCESS);
+			goto cleanup;
+		}
 		result = process_opt(client, opt);
 		if (result != ISC_R_SUCCESS)
 			goto cleanup;
@@ -2076,6 +2176,8 @@ client_create(ns_clientmgr_t *manager, ns_client_t **clientp) {
 		goto cleanup_task;
 	client->timerset = ISC_FALSE;
 
+	client->delaytimer = NULL;
+
 	client->message = NULL;
 	result = dns_message_create(client->mctx, DNS_MESSAGE_INTENTPARSE,
 				    &client->message);
@@ -2084,11 +2186,9 @@ client_create(ns_clientmgr_t *manager, ns_client_t **clientp) {
 
 	/* XXXRTH  Hardwired constants */
 
-	client->sendevent = (isc_socketevent_t *)
-			    isc_event_allocate(client->mctx, client,
-					       ISC_SOCKEVENT_SENDDONE,
-					       client_senddone, client,
-					       sizeof(isc_socketevent_t));
+	client->sendevent = isc_socket_socketevent(client->mctx, client,
+						   ISC_SOCKEVENT_SENDDONE,
+						   client_senddone, client);
 	if (client->sendevent == NULL) {
 		result = ISC_R_NOMEMORY;
 		goto cleanup_message;
@@ -2100,11 +2200,9 @@ client_create(ns_clientmgr_t *manager, ns_client_t **clientp) {
 		goto cleanup_sendevent;
 	}
 
-	client->recvevent = (isc_socketevent_t *)
-			    isc_event_allocate(client->mctx, client,
-					       ISC_SOCKEVENT_RECVDONE,
-					       client_request, client,
-					       sizeof(isc_socketevent_t));
+	client->recvevent = isc_socket_socketevent(client->mctx, client,
+						   ISC_SOCKEVENT_RECVDONE,
+						   client_request, client);
 	if (client->recvevent == NULL) {
 		result = ISC_R_NOMEMORY;
 		goto cleanup_recvbuf;
@@ -2131,6 +2229,7 @@ client_create(ns_clientmgr_t *manager, ns_client_t **clientp) {
 	client->tcpbuf = NULL;
 	client->opt = NULL;
 	client->udpsize = 512;
+	client->dscp = -1;
 	client->extflags = 0;
 	client->ednsversion = -1;
 	client->next = NULL;
@@ -2143,8 +2242,8 @@ client_create(ns_clientmgr_t *manager, ns_client_t **clientp) {
 	client->recursionquota = NULL;
 	client->interface = NULL;
 	client->peeraddr_valid = ISC_FALSE;
-#ifdef ALLOW_FILTER_AAAA_ON_V4
-	client->filter_aaaa = dns_v4_aaaa_ok;
+#ifdef ALLOW_FILTER_AAAA
+	client->filter_aaaa = dns_aaaa_ok;
 #endif
 	client->needshutdown = ns_g_clienttest;
 
@@ -2625,6 +2724,8 @@ get_client(ns_clientmgr_t *manager, ns_interface_t *ifp,
 	client->state = NS_CLIENTSTATE_READY;
 	INSIST(client->recursionquota == NULL);
 
+	client->dscp = ifp->dscp;
+
 	if (tcp) {
 		client->attributes |= NS_CLIENTATTR_TCP;
 		isc_socket_attach(ifp->tcpsocket,
@@ -2745,7 +2846,7 @@ void
 ns_client_logv(ns_client_t *client, isc_logcategory_t *category,
 	       isc_logmodule_t *module, int level, const char *fmt, va_list ap)
 {
-	char msgbuf[2048];
+	char msgbuf[4096];
 	char peerbuf[ISC_SOCKADDR_FORMATSIZE];
 	char signerbuf[DNS_NAME_FORMATSIZE], qnamebuf[DNS_NAME_FORMATSIZE];
 	const char *viewname = "";

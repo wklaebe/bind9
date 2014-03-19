@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2009, 2011, 2012  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2009, 2011-2013  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: client.h,v 1.96 2012/01/31 23:47:31 tbox Exp $ */
 
 #ifndef NAMED_CLIENT_H
 #define NAMED_CLIENT_H 1
@@ -115,6 +115,7 @@ struct ns_client {
 	dns_tcpmsg_t		tcpmsg;
 	isc_boolean_t		tcpmsg_valid;
 	isc_timer_t *		timer;
+	isc_timer_t *		delaytimer;
 	isc_boolean_t 		timerset;
 	dns_message_t *		message;
 	isc_socketevent_t *	sendevent;
@@ -140,9 +141,10 @@ struct ns_client {
 	isc_boolean_t		peeraddr_valid;
 	isc_netaddr_t		destaddr;
 	struct in6_pktinfo	pktinfo;
+	isc_dscp_t		dscp;
 	isc_event_t		ctlevent;
-#ifdef ALLOW_FILTER_AAAA_ON_V4
-	dns_v4_aaaa_t		filter_aaaa;
+#ifdef ALLOW_FILTER_AAAA
+	dns_aaaa_t		filter_aaaa;
 #endif
 	/*%
 	 * Information about recent FORMERR response(s), for
@@ -173,7 +175,7 @@ typedef ISC_LIST(ns_client_t) client_list_t;
 #define NS_CLIENTATTR_MULTICAST		0x008 /*%< recv'd from multicast */
 #define NS_CLIENTATTR_WANTDNSSEC	0x010 /*%< include dnssec records */
 #define NS_CLIENTATTR_WANTNSID          0x020 /*%< include nameserver ID */
-#ifdef ALLOW_FILTER_AAAA_ON_V4
+#ifdef ALLOW_FILTER_AAAA
 #define NS_CLIENTATTR_FILTER_AAAA	0x040 /*%< suppress AAAAs */
 #define NS_CLIENTATTR_FILTER_AAAA_RC	0x080 /*%< recursing for A against AAAA */
 #endif

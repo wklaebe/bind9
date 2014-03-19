@@ -250,6 +250,9 @@ hmacmd5_tofile(const dst_key_t *key, const char *directory) {
 	if (key->keydata.hmacmd5 == NULL)
 		return (DST_R_NULLKEY);
 
+	if (key->external)
+		return (DST_R_EXTERNALKEY);
+
 	hkey = key->keydata.hmacmd5;
 
 	priv.elements[cnt].tag = TAG_HMACMD5_KEY;
@@ -281,6 +284,9 @@ hmacmd5_parse(dst_key_t *key, isc_lex_t *lexer, dst_key_t *pub) {
 	if (result != ISC_R_SUCCESS)
 		return (result);
 
+	if (key->external)
+		result = DST_R_EXTERNALKEY;
+
 	key->key_bits = 0;
 	for (i = 0; i < priv.nelements && result == ISC_R_SUCCESS; i++) {
 		switch (priv.elements[i].tag) {
@@ -309,6 +315,7 @@ hmacmd5_parse(dst_key_t *key, isc_lex_t *lexer, dst_key_t *pub) {
 
 static dst_func_t hmacmd5_functions = {
 	hmacmd5_createctx,
+	NULL, /*%< createctx2 */
 	hmacmd5_destroyctx,
 	hmacmd5_adddata,
 	hmacmd5_sign,
@@ -526,6 +533,9 @@ hmacsha1_tofile(const dst_key_t *key, const char *directory) {
 	if (key->keydata.hmacsha1 == NULL)
 		return (DST_R_NULLKEY);
 
+	if (key->external)
+		return (DST_R_EXTERNALKEY);
+
 	hkey = key->keydata.hmacsha1;
 
 	priv.elements[cnt].tag = TAG_HMACSHA1_KEY;
@@ -557,8 +567,11 @@ hmacsha1_parse(dst_key_t *key, isc_lex_t *lexer, dst_key_t *pub) {
 	if (result != ISC_R_SUCCESS)
 		return (result);
 
+	if (key->external)
+		result = DST_R_EXTERNALKEY;
+
 	key->key_bits = 0;
-	for (i = 0; i < priv.nelements; i++) {
+	for (i = 0; i < priv.nelements && result == ISC_R_SUCCESS; i++) {
 		switch (priv.elements[i].tag) {
 		case TAG_HMACSHA1_KEY:
 			isc_buffer_init(&b, priv.elements[i].data,
@@ -585,6 +598,7 @@ hmacsha1_parse(dst_key_t *key, isc_lex_t *lexer, dst_key_t *pub) {
 
 static dst_func_t hmacsha1_functions = {
 	hmacsha1_createctx,
+	NULL, /*%< createctx2 */
 	hmacsha1_destroyctx,
 	hmacsha1_adddata,
 	hmacsha1_sign,
@@ -804,6 +818,9 @@ hmacsha224_tofile(const dst_key_t *key, const char *directory) {
 	if (key->keydata.hmacsha224 == NULL)
 		return (DST_R_NULLKEY);
 
+	if (key->external)
+		return (DST_R_EXTERNALKEY);
+
 	hkey = key->keydata.hmacsha224;
 
 	priv.elements[cnt].tag = TAG_HMACSHA224_KEY;
@@ -835,8 +852,11 @@ hmacsha224_parse(dst_key_t *key, isc_lex_t *lexer, dst_key_t *pub) {
 	if (result != ISC_R_SUCCESS)
 		return (result);
 
+	if (key->external)
+		result = DST_R_EXTERNALKEY;
+
 	key->key_bits = 0;
-	for (i = 0; i < priv.nelements; i++) {
+	for (i = 0; i < priv.nelements && result == ISC_R_SUCCESS; i++) {
 		switch (priv.elements[i].tag) {
 		case TAG_HMACSHA224_KEY:
 			isc_buffer_init(&b, priv.elements[i].data,
@@ -863,6 +883,7 @@ hmacsha224_parse(dst_key_t *key, isc_lex_t *lexer, dst_key_t *pub) {
 
 static dst_func_t hmacsha224_functions = {
 	hmacsha224_createctx,
+	NULL, /*%< createctx2 */
 	hmacsha224_destroyctx,
 	hmacsha224_adddata,
 	hmacsha224_sign,
@@ -1082,6 +1103,9 @@ hmacsha256_tofile(const dst_key_t *key, const char *directory) {
 	if (key->keydata.hmacsha256 == NULL)
 		return (DST_R_NULLKEY);
 
+	if (key->external)
+		return (DST_R_EXTERNALKEY);
+
 	hkey = key->keydata.hmacsha256;
 
 	priv.elements[cnt].tag = TAG_HMACSHA256_KEY;
@@ -1113,8 +1137,11 @@ hmacsha256_parse(dst_key_t *key, isc_lex_t *lexer, dst_key_t *pub) {
 	if (result != ISC_R_SUCCESS)
 		return (result);
 
+	if (key->external)
+		result = DST_R_EXTERNALKEY;
+
 	key->key_bits = 0;
-	for (i = 0; i < priv.nelements; i++) {
+	for (i = 0; i < priv.nelements && result == ISC_R_SUCCESS; i++) {
 		switch (priv.elements[i].tag) {
 		case TAG_HMACSHA256_KEY:
 			isc_buffer_init(&b, priv.elements[i].data,
@@ -1141,6 +1168,7 @@ hmacsha256_parse(dst_key_t *key, isc_lex_t *lexer, dst_key_t *pub) {
 
 static dst_func_t hmacsha256_functions = {
 	hmacsha256_createctx,
+	NULL, /*%< createctx2 */
 	hmacsha256_destroyctx,
 	hmacsha256_adddata,
 	hmacsha256_sign,
@@ -1360,6 +1388,9 @@ hmacsha384_tofile(const dst_key_t *key, const char *directory) {
 	if (key->keydata.hmacsha384 == NULL)
 		return (DST_R_NULLKEY);
 
+	if (key->external)
+		return (DST_R_EXTERNALKEY);
+
 	hkey = key->keydata.hmacsha384;
 
 	priv.elements[cnt].tag = TAG_HMACSHA384_KEY;
@@ -1391,8 +1422,11 @@ hmacsha384_parse(dst_key_t *key, isc_lex_t *lexer, dst_key_t *pub) {
 	if (result != ISC_R_SUCCESS)
 		return (result);
 
+	if (key->external)
+		result = DST_R_EXTERNALKEY;
+
 	key->key_bits = 0;
-	for (i = 0; i < priv.nelements; i++) {
+	for (i = 0; i < priv.nelements && result == ISC_R_SUCCESS; i++) {
 		switch (priv.elements[i].tag) {
 		case TAG_HMACSHA384_KEY:
 			isc_buffer_init(&b, priv.elements[i].data,
@@ -1419,6 +1453,7 @@ hmacsha384_parse(dst_key_t *key, isc_lex_t *lexer, dst_key_t *pub) {
 
 static dst_func_t hmacsha384_functions = {
 	hmacsha384_createctx,
+	NULL, /*%< createctx2 */
 	hmacsha384_destroyctx,
 	hmacsha384_adddata,
 	hmacsha384_sign,
@@ -1638,6 +1673,9 @@ hmacsha512_tofile(const dst_key_t *key, const char *directory) {
 	if (key->keydata.hmacsha512 == NULL)
 		return (DST_R_NULLKEY);
 
+	if (key->external)
+		return (DST_R_EXTERNALKEY);
+
 	hkey = key->keydata.hmacsha512;
 
 	priv.elements[cnt].tag = TAG_HMACSHA512_KEY;
@@ -1669,8 +1707,11 @@ hmacsha512_parse(dst_key_t *key, isc_lex_t *lexer, dst_key_t *pub) {
 	if (result != ISC_R_SUCCESS)
 		return (result);
 
+	if (key->external)
+		result = DST_R_EXTERNALKEY;
+
 	key->key_bits = 0;
-	for (i = 0; i < priv.nelements; i++) {
+	for (i = 0; i < priv.nelements && result == ISC_R_SUCCESS; i++) {
 		switch (priv.elements[i].tag) {
 		case TAG_HMACSHA512_KEY:
 			isc_buffer_init(&b, priv.elements[i].data,
@@ -1697,6 +1738,7 @@ hmacsha512_parse(dst_key_t *key, isc_lex_t *lexer, dst_key_t *pub) {
 
 static dst_func_t hmacsha512_functions = {
 	hmacsha512_createctx,
+	NULL, /*%< createctx2 */
 	hmacsha512_destroyctx,
 	hmacsha512_adddata,
 	hmacsha512_sign,

@@ -1,4 +1,4 @@
-# Copyright (C) 2004, 2005, 2007, 2009, 2012  Internet Systems Consortium, Inc. ("ISC")
+# Copyright (C) 2004, 2005, 2007, 2009, 2012, 2014  Internet Systems Consortium, Inc. ("ISC")
 # Copyright (C) 1998-2002  Internet Software Consortium.
 #
 # Permission to use, copy, modify, and/or distribute this software for any
@@ -27,14 +27,16 @@ CDEFINES =
 CWARNINGS =
 
 ISCLIBS =	../../../lib/isc/libisc.@A@
-TAPIDEPLIBS =	../../../lib/tests/libt_api.@A@
-
-ISCDEPLIBS =	../../../lib/isc/libisc.@A@
+ISCPK11LIBS =	../../../lib/iscpk11/libiscpk11.@A@
 TAPILIBS =	../../../lib/tests/libt_api.@A@
 
-DEPLIBS =	${TAPIDEPLIBS} ${ISCDEPLIBS}
+ISCDEPLIBS =	../../../lib/isc/libisc.@A@
+ISCPK11DEPLIBS = ../../../lib/iscpk11/libiscpk11.@A@
+TAPIDEPLIBS =	../../../lib/tests/libt_api.@A@
 
-LIBS =		${TAPILIBS} ${ISCLIBS} @LIBS@
+DEPLIBS =	${TAPIDEPLIBS} ${ISCDEPLIBS} ${ISCPK11DEPLIBS}
+
+LIBS =		${TAPILIBS} ${ISCLIBS} ${ISCPK11LIBS} @LIBS@
 
 TARGETS =	t_mem@EXEEXT@
 

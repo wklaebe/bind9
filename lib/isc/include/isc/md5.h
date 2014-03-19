@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2007, 2009, 2010  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2007, 2009, 2010, 2014  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000, 2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -54,6 +54,11 @@
 #include <openssl/evp.h>
 
 typedef EVP_MD_CTX isc_md5_t;
+
+#elif PKCS11CRYPTO
+#include <iscpk11/pk11.h>
+
+typedef iscpk11_context_t isc_md5_t;
 
 #else
 

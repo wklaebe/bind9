@@ -75,6 +75,8 @@ my @filelist = ("..\\bin\\check\\win32\\checktool.dsp",
                 "..\\bin\\pkcs11\\win32\\pk11keygen.mak",
                 "..\\bin\\pkcs11\\win32\\pk11list.dsp",
                 "..\\bin\\pkcs11\\win32\\pk11list.mak",
+                "..\\bin\\pkcs11\\win32\\pk11tokens.dsp",
+                "..\\bin\\pkcs11\\win32\\pk11tokens.mak",
                 "..\\bin\\python\\dnssec-checkds.py",
                 "..\\bin\\python\\dnssec-coverage.py",
                 "..\\bin\\rndc\\win32\\rndc.dsp",
@@ -90,6 +92,8 @@ my @filelist = ("..\\bin\\check\\win32\\checktool.dsp",
                 "..\\bin\\tools\\win32\\journalprint.mak",
                 "..\\bin\\tools\\win32\\nsec3hash.dsp",
                 "..\\bin\\tools\\win32\\nsec3hash.mak",
+                "..\\bin\\tools\\win32\\rrchecker.dsp",
+                "..\\bin\\tools\\win32\\rrchecker.mak",
                 "..\\bin\\tests\\atomic\\win32\\t_atomic.dsp",
                 "..\\bin\\tests\\atomic\\win32\\t_atomic.mak",
                 "..\\bin\\tests\\db\\win32\\t_db.dsp",
@@ -152,10 +156,14 @@ my @filelist = ("..\\bin\\check\\win32\\checktool.dsp",
                 "..\\lib\\isc\\win32\\libisc.def",
                 "..\\lib\\isc\\win32\\libisc.dsp",
                 "..\\lib\\isc\\win32\\libisc.mak",
+                "..\\lib\\isc\\win32\\mklib.bat",
                 "..\\lib\\isccc\\win32\\libisccc.dsp",
                 "..\\lib\\isccc\\win32\\libisccc.mak",
                 "..\\lib\\isccfg\\win32\\libisccfg.dsp",
                 "..\\lib\\isccfg\\win32\\libisccfg.mak",
+                "..\\lib\\iscpk11\\win32\\libiscpk11.def",
+                "..\\lib\\iscpk11\\win32\\libiscpk11.dsp",
+                "..\\lib\\iscpk11\\win32\\libiscpk11.mak",
                 "..\\lib\\lwres\\win32\\liblwres.dsp",
                 "..\\lib\\lwres\\win32\\liblwres.mak",
                 "..\\lib\\tests\\win32\\libtests.dsp",
@@ -215,6 +223,8 @@ my @projectlist = ("..\\bin\\check\\win32\\checkconf.vcxproj",
                    "..\\bin\\pkcs11\\win32\\pk11keygen.vcxproj.filters",
                    "..\\bin\\pkcs11\\win32\\pk11list.vcxproj",
                    "..\\bin\\pkcs11\\win32\\pk11list.vcxproj.filters",
+                   "..\\bin\\pkcs11\\win32\\pk11tokens.vcxproj",
+                   "..\\bin\\pkcs11\\win32\\pk11tokens.vcxproj.filters",
                    "..\\bin\\rndc\\win32\\rndc.vcxproj",
                    "..\\bin\\rndc\\win32\\rndc.vcxproj.filters",
                    "..\\bin\\rndc\\win32\\rndcutil.vcxproj",
@@ -229,6 +239,8 @@ my @projectlist = ("..\\bin\\check\\win32\\checkconf.vcxproj",
                    "..\\bin\\tools\\win32\\journalprint.vcxproj.filters",
                    "..\\bin\\tools\\win32\\nsec3hash.vcxproj",
                    "..\\bin\\tools\\win32\\nsec3hash.vcxproj.filters",
+                   "..\\bin\\tools\\win32\\rrchecker.vcxproj",
+                   "..\\bin\\tools\\win32\\rrchecker.vcxproj.filters",
                    "..\\bin\\tests\\atomic\\win32\\t_atomic.vcxproj",
                    "..\\bin\\tests\\atomic\\win32\\t_atomic.vcxproj.filters",
                    "..\\bin\\tests\\db\\win32\\t_db.vcxproj",
@@ -293,6 +305,8 @@ my @projectlist = ("..\\bin\\check\\win32\\checkconf.vcxproj",
                    "..\\lib\\isccc\\win32\\libisccc.vcxproj.filters",
                    "..\\lib\\isccfg\\win32\\libisccfg.vcxproj",
                    "..\\lib\\isccfg\\win32\\libisccfg.vcxproj.filters",
+                   "..\\lib\\iscpk11\\win32\\libiscpk11.vcxproj",
+                   "..\\lib\\iscpk11\\win32\\libiscpk11.vcxproj.filters",
                    "..\\lib\\lwres\\win32\\liblwres.vcxproj",
                    "..\\lib\\lwres\\win32\\liblwres.vcxproj.filters",
                    "..\\lib\\tests\\win32\\libtests.vcxproj",
@@ -320,8 +334,11 @@ my @substdefh = ("ALLOW_FILTER_AAAA",
                  "HAVE_OPENSSL_DSA",
                  "HAVE_OPENSSL_ECDSA",
                  "HAVE_OPENSSL_GOST",
+                 "HAVE_PKCS11_ECDSA",
+                 "HAVE_PKCS11_GOST",
                  "HAVE_READLINE",
                  "ISC_LIST_CHECKINIT",
+                 "PREFER_GOSTASN1",
                  "WITH_IDN");
 
 # for platform.h
@@ -399,9 +416,9 @@ my @substvar = ("BUILD_MACHINE",
 
 my %configdefd;
 
-my @substdefd = ("PK11_LIB_LOCATION",
+my @substdefd = ("CRYPTO",
+                 "PK11_LIB_LOCATION",
                  "USE_GSSAPI",
-                 "USE_OPENSSL",
                  "USE_PKCS11",
                  "USE_PYTHON",
                  "USE_ISC_SPNEGO");
@@ -429,6 +446,7 @@ my @enablelist = ("developer",
                   "fixed-rrset",
                   "intrinsics",
                   "isc-spnego",
+                  "native-pkcs11",
                   "openssl-hash",
                   "filter-aaaa",
                   "rpz-nsdname",
@@ -478,6 +496,7 @@ my @help = (
 "  <none>                (command) print a summary of the configuration\n",
 "\nOptional Features:\n",
 "  enable-intrinsics     enable instrinsic/atomic functions [default=yes]\n",
+"  enable-native-pkcs11  use native PKCS#11 for all crypto [default=no]\n",
 "  enable-openssl-hash   use OpenSSL for hash functions [default=no]\n",
 "  enable-isc-spnego     use SPNEGO from lib/dns [default=yes]\n",
 "  enable-filter-aaaa    enable filtering of AAAA records [default=no]\n",
@@ -491,7 +510,7 @@ my @help = (
 "  with-openssl[=PATH]   build with OpenSSL yes|no|path\n",
 "  with-pkcs11[=PATH]    build with PKCS#11 support yes|no|provider-path\n",
 "  with-ecdsa            crypto ECDSA\n",
-"  with-gost             crypto GOST\n",
+"  with-gost[=ENC]       crypto GOST yes|no|raw|ans1\n",
 "  with-gssapi[=PATH]    build with MIT KfW GSSAPI yes|no|path\n",
 "  with-libxml2[=PATH]   build with libxml2 library yes|no|path\n",
 "  with-geoip[=PATH]     build with GeoIP support yes|no|path\n",
@@ -499,7 +518,7 @@ my @help = (
 "  with-readline[=PATH]  build with readline library support yes|no|path\n",
 "  with-idn[=PATH]       build with IDN kit support yes|no|path\n",
 "  with-iconv[=PATH]     path of the iconv DLL [default=same than idn]\n",
-"  with-vcredist[=PATH]  visual C++ redistributable package yes|path\n\n",
+"  with-vcredist[=PATH]  visual C++ redistributable package yes|path\n",
 "  with-cross-compile    32 / 64 bit build / host plaforms\n");
 
 # Parse arguments
@@ -513,6 +532,7 @@ my $want_clean = "no";
 my $want_unknown = "no";
 my $unknown_value;
 my $enable_intrinsics = "yes";
+my $enable_native_pkcs11 = "no";
 my $enable_openssl_hash = "no";
 my $enable_filter_aaaa = "no";
 my $enable_isc_spnego = "yes";
@@ -528,6 +548,7 @@ my $use_pkcs11 = "no";
 my $pkcs11_path = "unknown";
 my $use_ecdsa = "auto";
 my $use_gost = "auto";
+my $gost_encoding = "raw";
 my $use_gssapi = "no";
 my $gssapi_path = "C:\\Program\ Files\\MIT\\Kerberos\\";
 my $use_geoip = "no";
@@ -644,6 +665,10 @@ sub myenable {
         if ($val =~ /^no$/i) {
             $enable_intrinsics = "no";
         }
+    } elsif ($key =~ /^native-pkcs11$/i) {
+        if ($val =~ /^yes$/i) {
+            $enable_native_pkcs11 = "yes";
+        }
     } elsif ($key =~ /^openssl-hash$/i) {
         if ($val =~ /^yes$/i) {
             $enable_openssl_hash = "yes";
@@ -734,6 +759,7 @@ sub mywith {
             $use_gost = "no";
         } elsif ($val =~ /^yes$/i) {
             $use_gost = "yes";
+            $gost_encoding = $val;
         }
     } elsif ($key =~ /^gssapi$/i) {
         if ($val !~ /^no$/i) {
@@ -855,6 +881,11 @@ if ($verbose) {
     } else {
         print "intrinsics: disabled\n";
     }
+    if ($enable_native_pkcs11 eq "yes") {
+        print "native-pkcs11: enabled\n";
+    } else {
+        print "native-pkcs11: disabled\n";
+    }
     if ($enable_openssl_hash eq "yes") {
         print "openssl-hash: enabled\n";
     } else {
@@ -915,6 +946,7 @@ if ($verbose) {
         print "gost: disabled\n";
     } else {
         print "gost: enabled\n";
+        print "gost private key encoding: $gost_encoding\n";
     }
     if ($use_gssapi eq "no") {
         print "gssapi: disabled\n";
@@ -1141,6 +1173,48 @@ if ($enable_intrinsics eq "yes") {
     $configvar{"INTRINSIC"} = "false";
 }
 
+# enable-native-pkcs11
+if ($enable_native_pkcs11 eq "yes") {
+    if ($use_openssl eq "auto") {
+	$use_openssl = "no";
+    }
+    if ($use_openssl ne "no") {
+	die "can't have both OpenSSL and native PKCS#11\n";
+    }
+    if ($use_pkcs11 ne "yes") {
+	if ($verbose) {
+	    print "native PKCS#11 support: force with-pkcs11\n";
+	}
+	$use_pkcs11 = "yes";
+    }
+    if ($pkcs11_path eq "unknown") {
+	if ($verbose) {
+	    print "native PKCS#11 support: no PKCS#11 provider defined?\n";
+	}
+    }
+    $configdefd{"CRYPTO"} = "PKCS11CRYPTO";
+    if ($use_ecdsa eq "no") {
+	if ($verbose) {
+	    print "no ECDSA support in native PKCS#11\n";
+	}
+    } else {
+	if ($verbose) {
+	    print "enabled ECDSA support in native PKCS#11\n";
+	}
+	$configdefh{"HAVE_PKCS11_ECDSA"} = 1;
+    }
+    if ($use_gost eq "no") {
+	if ($verbose) {
+	    print "no GOST support in native PKCS#11\n";
+	}
+    } else {
+	if ($verbose) {
+	    print "enabled GOST support in native PKCS#11\n";
+	}
+	$configdefh{"HAVE_PKCS11_GOST"} = 1;
+    }
+}
+
 # enable-filter-aaaa
 if ($enable_filter_aaaa eq "yes") {
     $configdefh{"ALLOW_FILTER_AAAA"} = 1;
@@ -1231,7 +1305,7 @@ if ($use_openssl eq "yes") {
     my $openssl_dll = File::Spec->catfile($openssl_libdir, "libeay32.dll");
 
     $configcond{"OPENSSL"} = 1;
-    $configdefd{"USE_OPENSSL"} = "OPENSSL";
+    $configdefd{"CRYPTO"} = "OPENSSL";
     $configvar{"OPENSSL_PATH"} = "$openssl_path";
     $configinc{"OPENSSL_INC"} = "$openssl_inc";
     $configlib{"OPENSSL_LIB"} = "$openssl_lib";
@@ -1519,6 +1593,12 @@ EOF
 if ($use_gost ne "no") {
     $use_gost = "yes";
     $configdefh{"HAVE_OPENSSL_GOST"} = 1;
+}
+
+if ($gost_encoding eq "ans1") {
+    $configdefh{"PREFER_GOSTASN1"} = 1;
+} elsif ($gost_encoding ne "raw") {
+    die "Unrecognized GOST private key encoding: $gost_encoding\n";
 }
 
 # enable-openssl-hash
@@ -2228,14 +2308,16 @@ sub setupproject {
 sub makeversion {
     # List of directories with version files
 
-    my @dirlist = ("isc", "dns", "isccc", "isccfg", "lwres", "bind9");
+    my @dirlist = ("iscpk11", "isc", "dns", "isccc",
+                   "isccfg", "lwres", "bind9");
     my %LibMacros = (
-        "isc"    => "LIBISC_EXPORTS",
-        "dns"    => "LIBDNS_EXPORTS",
-        "isccc"  => "LIBISCCC_EXPORTS",
-        "isccfg" => "LIBISCCFG_EXPORTS",
-        "lwres"  => "LIBLWRES_EXPORTS",
-        "bind9"  => "LIBBIND9_EXPORTS");
+        "bind9"   => "LIBBIND9_EXPORTS",
+        "dns"     => "LIBDNS_EXPORTS",
+        "isc"     => "LIBISC_EXPORTS",
+        "isccc"   => "LIBISCCC_EXPORTS",
+        "isccfg"  => "LIBISCCFG_EXPORTS",
+        "iscpk11" => "LIBISCPK11_EXPORTS",
+        "lwres"   => "LIBLWRES_EXPORTS");
     my @VersionNames = ("LIBINTERFACE", "LIBREVISION", "LIBAGE");
     my %Versions;
     my $Version;

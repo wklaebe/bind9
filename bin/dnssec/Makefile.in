@@ -1,4 +1,4 @@
-# Copyright (C) 2004, 2005, 2007-2009, 2012, 2013  Internet Systems Consortium, Inc. ("ISC")
+# Copyright (C) 2004, 2005, 2007-2009, 2012-2014  Internet Systems Consortium, Inc. ("ISC")
 # Copyright (C) 2000-2002  Internet Software Consortium.
 #
 # Permission to use, copy, modify, and/or distribute this software for any
@@ -23,23 +23,26 @@ top_srcdir =	@top_srcdir@
 
 @BIND9_MAKE_INCLUDES@
 
-CINCLUDES =	${DNS_INCLUDES} ${ISC_INCLUDES}
+CINCLUDES =	${DNS_INCLUDES} ${ISC_INCLUDES} ${ISCPK11_INCLUDES}
 
-CDEFINES =	-DVERSION=\"${VERSION}\" @USE_PKCS11@
+CDEFINES =	-DVERSION=\"${VERSION}\" @USE_PKCS11@ @PKCS11_ENGINE@ \
+		@CRYPTO@ -DPK11_LIB_LOCATION=\"@PKCS11_PROVIDER@\"
 CWARNINGS =
 
 DNSLIBS =	../../lib/dns/libdns.@A@ @DNS_CRYPTO_LIBS@
 ISCLIBS =	../../lib/isc/libisc.@A@
 ISCNOSYMLIBS =	../../lib/isc/libisc-nosymtbl.@A@
+ISCPK11LIBS =	../../lib/iscpk11/libiscpk11.@A@
 
 DNSDEPLIBS =	../../lib/dns/libdns.@A@
 ISCDEPLIBS =	../../lib/isc/libisc.@A@
+ISCPK11DEPLIBS = ../../lib/iscpk11/libiscpk11.@A@
 
-DEPLIBS =	${DNSDEPLIBS} ${ISCDEPLIBS}
+DEPLIBS =	${DNSDEPLIBS} ${ISCDEPLIBS} ${ISCPK11DEPLIBS}
 
-LIBS =		${DNSLIBS} ${ISCLIBS} @LIBS@
+LIBS =		${DNSLIBS} ${ISCLIBS} ${ISCPK11LIBS} @LIBS@
 
-NOSYMLIBS =	${DNSLIBS} ${ISCNOSYMLIBS} @LIBS@
+NOSYMLIBS =	${DNSLIBS} ${ISCNOSYMLIBS} ${ISCPK11LIBS} @LIBS@
 
 # Alphabetically
 TARGETS =	dnssec-keygen@EXEEXT@ dnssec-signzone@EXEEXT@ \

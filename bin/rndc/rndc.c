@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: rndc.c,v 1.142 2012/02/03 22:27:17 each Exp $ */
 
 /*! \file */
 
@@ -77,6 +77,7 @@ static unsigned int remoteport = 0;
 static isc_socketmgr_t *socketmgr = NULL;
 static unsigned char databuf[2048];
 static isccc_ccmsg_t ccmsg;
+static isc_uint32_t algorithm;
 static isccc_region_t secret;
 static isc_boolean_t failed = ISC_FALSE;
 static isc_boolean_t c_flag = ISC_FALSE;
@@ -126,6 +127,8 @@ command is one of the following:\n\
 		Update zone keys, and sign as needed.\n\
   loadkeys zone [class [view]]\n\
 		Update keys without signing immediately.\n\
+  zonestatus zone [class [view]]\n\
+		Display the current status of a zone.\n\
   stats		Write server statistics to the statistics file.\n\
   querylog newstate\n\
 		Enable / disable query logging.\n\
@@ -156,9 +159,9 @@ command is one of the following:\n\
 		Delete a TKEY-negotiated TSIG key.\n\
   validation newstate [view]\n\
 		Enable / disable DNSSEC validation.\n\
-  addzone [\"file\"] zone [class [view]] { zone-options }\n\
+  addzone zone [class [view]] { zone-options }\n\
 		Add zone to given view. Requires new-zone-file option.\n\
-  delzone [\"file\"] zone [class [view]]\n\
+  delzone [-clean] zone [class [view]]\n\
 		Removes zone from given view. Requires new-zone-file option.\n\
   signing -list zone [class [view]]\n\
 		List the private records showing the state of DNSSEC\n\
@@ -249,7 +252,8 @@ rndc_recvdone(isc_task_t *task, isc_event_t *event) {
 	source.rstart = isc_buffer_base(&ccmsg.buffer);
 	source.rend = isc_buffer_used(&ccmsg.buffer);
 
-	DO("parse message", isccc_cc_fromwire(&source, &response, &secret));
+	DO("parse message",
+	   isccc_cc_fromwire(&source, &response, algorithm, &secret));
 
 	data = isccc_alist_lookup(response, "_data");
 	if (data == NULL)
@@ -304,7 +308,8 @@ rndc_recvnonce(isc_task_t *task, isc_event_t *event) {
 		      "* the remote server is using an older version of"
 		      " the command protocol,\n"
 		      "* this host is not authorized to connect,\n"
-		      "* the clocks are not synchronized, or\n"
+		      "* the clocks are not synchronized,\n"
+		      "* the the key signing algorithm is incorrect, or\n"
 		      "* the key is invalid.");
 
 	if (ccmsg.result != ISC_R_SUCCESS)
@@ -313,7 +318,8 @@ rndc_recvnonce(isc_task_t *task, isc_event_t *event) {
 	source.rstart = isc_buffer_base(&ccmsg.buffer);
 	source.rend = isc_buffer_used(&ccmsg.buffer);
 
-	DO("parse message", isccc_cc_fromwire(&source, &response, &secret));
+	DO("parse message",
+	   isccc_cc_fromwire(&source, &response, algorithm, &secret));
 
 	_ctrl = isccc_alist_lookup(response, "_ctrl");
 	if (_ctrl == NULL)
@@ -340,7 +346,8 @@ rndc_recvnonce(isc_task_t *task, isc_event_t *event) {
 	}
 	message.rstart = databuf + 4;
 	message.rend = databuf + sizeof(databuf);
-	DO("render message", isccc_cc_towire(request, &message, &secret));
+	DO("render message",
+	   isccc_cc_towire(request, &message, algorithm, &secret));
 	len = sizeof(databuf) - REGION_SIZE(message);
 	isc_buffer_init(&b, databuf, 4);
 	isc_buffer_putuint32(&b, len - 4);
@@ -402,7 +409,8 @@ rndc_connected(isc_task_t *task, isc_event_t *event) {
 		fatal("out of memory");
 	message.rstart = databuf + 4;
 	message.rend = databuf + sizeof(databuf);
-	DO("render message", isccc_cc_towire(request, &message, &secret));
+	DO("render message",
+	   isccc_cc_towire(request, &message, algorithm, &secret));
 	len = sizeof(databuf) - REGION_SIZE(message);
 	isc_buffer_init(&b, databuf, 4);
 	isc_buffer_putuint32(&b, len - 4);
@@ -482,7 +490,7 @@ parse_config(isc_mem_t *mctx, isc_log_t *log, const char *keyname,
 	const cfg_obj_t *address = NULL;
 	const cfg_listelt_t *elt;
 	const char *secretstr;
-	const char *algorithm;
+	const char *algorithmstr;
 	static char secretarray[1024];
 	const cfg_type_t *conftype = &cfg_type_rndcconf;
 	isc_boolean_t key_only = ISC_FALSE;
@@ -586,10 +594,22 @@ parse_config(isc_mem_t *mctx, isc_log_t *log, const char *keyname,
 		fatal("key must have algorithm and secret");
 
 	secretstr = cfg_obj_asstring(secretobj);
-	algorithm = cfg_obj_asstring(algorithmobj);
+	algorithmstr = cfg_obj_asstring(algorithmobj);
 
-	if (strcasecmp(algorithm, "hmac-md5") != 0)
-		fatal("unsupported algorithm: %s", algorithm);
+	if (strcasecmp(algorithmstr, "hmac-md5") == 0)
+		algorithm = ISCCC_ALG_HMACMD5;
+	else if (strcasecmp(algorithmstr, "hmac-sha1") == 0)
+		algorithm = ISCCC_ALG_HMACSHA1;
+	else if (strcasecmp(algorithmstr, "hmac-sha224") == 0)
+		algorithm = ISCCC_ALG_HMACSHA224;
+	else if (strcasecmp(algorithmstr, "hmac-sha256") == 0)
+		algorithm = ISCCC_ALG_HMACSHA256;
+	else if (strcasecmp(algorithmstr, "hmac-sha384") == 0)
+		algorithm = ISCCC_ALG_HMACSHA384;
+	else if (strcasecmp(algorithmstr, "hmac-sha512") == 0)
+		algorithm = ISCCC_ALG_HMACSHA512;
+	else
+		fatal("unsupported algorithm: %s", algorithmstr);
 
 	secret.rstart = (unsigned char *)secretarray;
 	secret.rend = (unsigned char *)secretarray + sizeof(secretarray);

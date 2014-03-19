@@ -29,7 +29,7 @@
  * IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dnssec-signzone.c,v 1.285 2011/12/22 07:32:39 each Exp $ */
+/* $Id: dnssec-signzone.c,v 1.285.32.1 2012/02/07 00:44:12 each Exp $ */
 
 /*! \file */
 
@@ -307,8 +307,8 @@ signwithkey(dns_name_t *name, dns_rdataset_t *rdataset, dst_key_t *key,
 	}
 
 	tuple = NULL;
-	result = dns_difftuple_create(mctx, DNS_DIFFOP_ADD, name, ttl, &trdata,
-				      &tuple);
+	result = dns_difftuple_create(mctx, DNS_DIFFOP_ADDRESIGN,
+				      name, ttl, &trdata, &tuple);
 	check_result(result, "dns_difftuple_create");
 	dns_diff_append(add, &tuple);
 }
@@ -608,24 +608,23 @@ signset(dns_diff_t *del, dns_diff_t *add, dns_dbnode_t *node, dns_name_t *name,
 				vbprintf(2, "\tfixing ttl %s\n", sigstr);
 				tuple = NULL;
 				result = dns_difftuple_create(mctx,
-							      DNS_DIFFOP_DEL,
-							      name, sigset.ttl,
-							      &sigrdata,
-							      &tuple);
+						      DNS_DIFFOP_DELRESIGN,
+						      name, sigset.ttl,
+						      &sigrdata, &tuple);
 				check_result(result, "dns_difftuple_create");
 				dns_diff_append(del, &tuple);
 				result = dns_difftuple_create(mctx,
-							      DNS_DIFFOP_ADD,
-							      name, ttl,
-							      &sigrdata,
-							      &tuple);
+						      DNS_DIFFOP_ADDRESIGN,
+						      name, ttl,
+						      &sigrdata, &tuple);
 				check_result(result, "dns_difftuple_create");
 				dns_diff_append(add, &tuple);
 			}
 		} else {
 			tuple = NULL;
 			vbprintf(2, "removing signature by %s\n", sigstr);
-			result = dns_difftuple_create(mctx, DNS_DIFFOP_DEL,
+			result = dns_difftuple_create(mctx,
+						      DNS_DIFFOP_DELRESIGN,
 						      name, sigset.ttl,
 						      &sigrdata, &tuple);
 			check_result(result, "dns_difftuple_create");
@@ -970,7 +969,7 @@ loadds(dns_name_t *name, isc_uint32_t ttl, dns_rdataset_t *dsset) {
 					   dsbuf, &ds);
 		check_result(result, "dns_ds_buildrdata");
 
-		result = dns_difftuple_create(mctx, DNS_DIFFOP_ADD, name,
+		result = dns_difftuple_create(mctx, DNS_DIFFOP_ADDRESIGN, name,
 					      ttl, &ds, &tuple);
 		check_result(result, "dns_difftuple_create");
 		dns_diff_append(&diff, &tuple);
@@ -980,7 +979,7 @@ loadds(dns_name_t *name, isc_uint32_t ttl, dns_rdataset_t *dsset) {
 					   dsbuf, &ds);
 		check_result(result, "dns_ds_buildrdata");
 
-		result = dns_difftuple_create(mctx, DNS_DIFFOP_ADD, name,
+		result = dns_difftuple_create(mctx, DNS_DIFFOP_ADDRESIGN, name,
 					      ttl, &ds, &tuple);
 		check_result(result, "dns_difftuple_create");
 		dns_diff_append(&diff, &tuple);
@@ -2067,10 +2066,9 @@ rrset_remove_duplicates(dns_name_t *name, dns_rdataset_t *rdataset,
 			dns_rdataset_current(&tmprdataset, &rdata2);
 			if (dns_rdata_casecompare(&rdata1, &rdata2) == 0) {
 				result = dns_difftuple_create(mctx,
-							      DNS_DIFFOP_DEL,
-							      name,
-							      rdataset->ttl,
-							      &rdata2, &tuple);
+						      DNS_DIFFOP_DELRESIGN,
+						      name, rdataset->ttl,
+						      &rdata2, &tuple);
 				check_result(result, "dns_difftuple_create");
 				dns_diff_append(diff, &tuple);
 			}
@@ -2824,7 +2822,8 @@ writeset(const char *prefix, dns_rdatatype_t type) {
 			check_result(result, "dns_ds_buildrdata");
 			if (type == dns_rdatatype_dlv)
 				ds.type = dns_rdatatype_dlv;
-			result = dns_difftuple_create(mctx, DNS_DIFFOP_ADD,
+			result = dns_difftuple_create(mctx,
+						      DNS_DIFFOP_ADDRESIGN,
 						      name, 0, &ds, &tuple);
 			check_result(result, "dns_difftuple_create");
 			dns_diff_append(&diff, &tuple);
@@ -2836,11 +2835,13 @@ writeset(const char *prefix, dns_rdatatype_t type) {
 			check_result(result, "dns_ds_buildrdata");
 			if (type == dns_rdatatype_dlv)
 				ds.type = dns_rdatatype_dlv;
-			result = dns_difftuple_create(mctx, DNS_DIFFOP_ADD,
+			result = dns_difftuple_create(mctx,
+						      DNS_DIFFOP_ADDRESIGN,
 						      name, 0, &ds, &tuple);
 
 		} else
-			result = dns_difftuple_create(mctx, DNS_DIFFOP_ADD,
+			result = dns_difftuple_create(mctx,
+						      DNS_DIFFOP_ADDRESIGN,
 						      gorigin, zone_soa_min_ttl,
 						      &rdata, &tuple);
 		check_result(result, "dns_difftuple_create");
@@ -2945,7 +2946,10 @@ usage(void) {
 	fprintf(stderr, "verify generated signatures\n");
 	fprintf(stderr, "\t-c class (IN)\n");
 	fprintf(stderr, "\t-E engine:\n");
-#ifdef USE_PKCS11
+#if defined(PKCS11CRYPTO)
+	fprintf(stderr, "\t\tpath to PKCS#11 provider library "
+		"(default is %s)\n", PK11_LIB_LOCATION);
+#elif defined(USE_PKCS11)
 	fprintf(stderr, "\t\tname of an OpenSSL engine to use "
 				"(default is \"pkcs11\")\n");
 #else
@@ -3043,7 +3047,7 @@ main(int argc, char *argv[]) {
 	isc_log_t *log = NULL;
 	isc_boolean_t pseudorandom = ISC_FALSE;
 #ifdef USE_PKCS11
-	const char *engine = "pkcs11";
+	const char *engine = PKCS11_ENGINE;
 #else
 	const char *engine = NULL;
 #endif
@@ -3418,6 +3422,8 @@ main(int argc, char *argv[]) {
 	if (inputformatstr != NULL) {
 		if (strcasecmp(inputformatstr, "text") == 0)
 			inputformat = dns_masterformat_text;
+		else if (strcasecmp(inputformatstr, "map") == 0)
+			inputformat = dns_masterformat_map;
 		else if (strcasecmp(inputformatstr, "raw") == 0)
 			inputformat = dns_masterformat_raw;
 		else if (strncasecmp(inputformatstr, "raw=", 4) == 0) {
@@ -3435,6 +3441,8 @@ main(int argc, char *argv[]) {
 		} else if (strcasecmp(outputformatstr, "full") == 0) {
 			outputformat = dns_masterformat_text;
 			masterstyle = &dns_master_style_full;
+		} else if (strcasecmp(outputformatstr, "map") == 0) {
+			outputformat = dns_masterformat_map;
 		} else if (strcasecmp(outputformatstr, "raw") == 0) {
 			outputformat = dns_masterformat_raw;
 		} else if (strncasecmp(outputformatstr, "raw=", 4) == 0) {

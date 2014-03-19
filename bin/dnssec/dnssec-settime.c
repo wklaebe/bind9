@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2009-2013  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2009-2014  Internet Systems Consortium, Inc. ("ISC")
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -57,9 +57,12 @@ usage(void) {
 	fprintf(stderr,	"    %s [options] keyfile\n\n", program);
 	fprintf(stderr, "Version: %s\n", VERSION);
 	fprintf(stderr, "General options:\n");
-#ifdef USE_PKCS11
+#if defined(PKCS11CRYPTO)
+	fprintf(stderr, "    -E engine:          specify PKCS#11 provider "
+					"(default: %s)\n", PK11_LIB_LOCATION);
+#elif defined(USE_PKCS11)
 	fprintf(stderr, "    -E engine:          specify OpenSSL engine "
-						 "(default \"pkcs11\")\n");
+					   "(default \"pkcs11\")\n");
 #else
 	fprintf(stderr, "    -E engine:          specify OpenSSL engine\n");
 #endif
@@ -119,7 +122,7 @@ int
 main(int argc, char **argv) {
 	isc_result_t	result;
 #ifdef USE_PKCS11
-	const char	*engine = "pkcs11";
+	const char	*engine = PKCS11_ENGINE;
 #else
 	const char	*engine = NULL;
 #endif

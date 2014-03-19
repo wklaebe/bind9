@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: server.h,v 1.118 2012/01/31 23:47:31 tbox Exp $ */
 
 #ifndef NAMED_SERVER_H
 #define NAMED_SERVER_H 1
@@ -165,16 +165,16 @@ enum {
 	dns_nsstatscounter_updatefail = 34,
 	dns_nsstatscounter_updatebadprereq = 35,
 
-	dns_nsstatscounter_rpz_rewrites = 36,
+	dns_nsstatscounter_recursclients = 36,
 
-#ifdef USE_RRL
-	dns_nsstatscounter_ratedropped = 37,
-	dns_nsstatscounter_rateslipped = 38,
+	dns_nsstatscounter_dns64 = 37,
 
-	dns_nsstatscounter_max = 39
-#else /* USE_RRL */
-	dns_nsstatscounter_max = 37
-#endif /* USE_RRL */
+	dns_nsstatscounter_ratedropped = 38,
+	dns_nsstatscounter_rateslipped = 39,
+
+	dns_nsstatscounter_rpz_rewrites = 40,
+
+	dns_nsstatscounter_max = 41
 };
 
 void
@@ -339,7 +339,7 @@ ns_add_reserved_dispatch(ns_server_t *server, const isc_sockaddr_t *addr);
  * Enable or disable dnssec validation.
  */
 isc_result_t
-ns_server_validation(ns_server_t *server, char *args);
+ns_server_validation(ns_server_t *server, char *args, isc_buffer_t *text);
 
 /*%
  * Add a zone to a running process
@@ -358,4 +358,11 @@ ns_server_del_zone(ns_server_t *server, char *args, isc_buffer_t *text);
  */
 isc_result_t
 ns_server_signing(ns_server_t *server, char *args, isc_buffer_t *text);
+
+/*%
+ * Lists status information for a given zone (e.g., name, type, files,
+ * load time, expiry, etc).
+ */
+isc_result_t
+ns_server_zonestatus(ns_server_t *server, char *args, isc_buffer_t *text);
 #endif /* NAMED_SERVER_H */

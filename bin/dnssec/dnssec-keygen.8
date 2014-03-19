@@ -1,4 +1,4 @@
-.\" Copyright (C) 2004, 2005, 2007-2012 Internet Systems Consortium, Inc. ("ISC")
+.\" Copyright (C) 2004, 2005, 2007-2012, 2014 Internet Systems Consortium, Inc. ("ISC")
 .\" Copyright (C) 2000-2003 Internet Software Consortium.
 .\" 
 .\" Permission to use, copy, modify, and/or distribute this software for any
@@ -100,7 +100,9 @@ Indicates that the DNS record containing the key should have the specified class
 .PP
 \-E \fIengine\fR
 .RS 4
-Uses a crypto hardware (OpenSSL engine) for random number and, when supported, key generation. When compiled with PKCS#11 support it defaults to pkcs11; the empty name resets it to no engine.
+Specifies the cryptographic hardware to use, when applicable.
+.sp
+When BIND is built with OpenSSL PKCS#11 support, this defaults to the string "pkcs11", which identifies an OpenSSL engine that can drive a cryptographic accelerator or hardware service module. When BIND is built with native PKCS#11 cryptography (\-\-enable\-native\-pkcs11), it defaults to the path of the PKCS#11 provider library specified via "\-\-with\-pkcs11".
 .RE
 .PP
 \-f \fIflag\fR
@@ -302,7 +304,7 @@ RFC 4034.
 .PP
 Internet Systems Consortium
 .SH "COPYRIGHT"
-Copyright \(co 2004, 2005, 2007\-2012 Internet Systems Consortium, Inc. ("ISC")
+Copyright \(co 2004, 2005, 2007\-2012, 2014 Internet Systems Consortium, Inc. ("ISC")
 .br
 Copyright \(co 2000\-2003 Internet Software Consortium.
 .br

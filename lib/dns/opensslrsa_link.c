@@ -744,8 +744,7 @@ opensslrsa_compare(const dst_key_t *key1, const dst_key_t *key2) {
 
 #if OPENSSL_VERSION_NUMBER > 0x00908000L
 static int
-progress_cb(int p, int n, BN_GENCB *cb)
-{
+progress_cb(int p, int n, BN_GENCB *cb) {
 	union {
 		void *dptr;
 		void (*fptr)(int);
@@ -1196,6 +1195,24 @@ opensslrsa_parse(dst_key_t *key, isc_lex_t *lexer, dst_key_t *pub) {
 	EVP_PKEY *pkey = NULL;
 #endif
 
+	/* read private key file */
+	ret = dst__privstruct_parse(key, DST_ALG_RSA, lexer, mctx, &priv);
+	if (ret != ISC_R_SUCCESS)
+		goto err;
+
+	if (key->external) {
+		if (priv.nelements != 0)
+			DST_RET(DST_R_INVALIDPRIVATEKEY);
+		if (pub == NULL)
+			DST_RET(DST_R_INVALIDPRIVATEKEY);
+		key->keydata.pkey = pub->keydata.pkey;
+		pub->keydata.pkey = NULL;
+		key->key_size = pub->key_size;
+		dst__privstruct_free(&priv, mctx);
+		memset(&priv, 0, sizeof(priv));
+		return (ISC_R_SUCCESS);
+	}
+
 #if USE_EVP
 	if (pub != NULL && pub->keydata.pkey != NULL)
 		pubrsa = EVP_PKEY_get1_RSA(pub->keydata.pkey);
@@ -1205,14 +1222,6 @@ opensslrsa_parse(dst_key_t *key, isc_lex_t *lexer, dst_key_t *pub) {
 		pub->keydata.rsa = NULL;
 	}
 #endif
-
-	/* read private key file */
-	ret = dst__privstruct_parse(key, DST_ALG_RSA, lexer, mctx, &priv);
-	if (ret != ISC_R_SUCCESS)
-		goto err;
-
-	if (key->external && priv.nelements != 0)
-		DST_RET(DST_R_INVALIDPRIVATEKEY);
 
 	for (i = 0; i < priv.nelements; i++) {
 		switch (priv.elements[i].tag) {
@@ -1297,8 +1306,6 @@ opensslrsa_parse(dst_key_t *key, isc_lex_t *lexer, dst_key_t *pub) {
 			continue;
 		case TAG_RSA_LABEL:
 			continue;
-		case TAG_RSA_PIN:
-			continue;
 		default:
 			bn = BN_bin2bn(priv.elements[i].data,
 				       priv.elements[i].length, NULL);
@@ -1338,10 +1345,8 @@ opensslrsa_parse(dst_key_t *key, isc_lex_t *lexer, dst_key_t *pub) {
 
 	if (rsa_check(rsa, pubrsa) != ISC_R_SUCCESS)
 		DST_RET(DST_R_INVALIDPRIVATEKEY);
-	if (!key->external) {
-		if (BN_num_bits(rsa->e) > RSA_MAX_PUBEXP_BITS)
-			DST_RET(ISC_R_RANGE);
-	}
+	if (BN_num_bits(rsa->e) > RSA_MAX_PUBEXP_BITS)
+		DST_RET(ISC_R_RANGE);
 	key->key_size = BN_num_bits(rsa->n);
 	if (pubrsa != NULL)
 		RSA_free(pubrsa);
@@ -1448,6 +1453,7 @@ opensslrsa_fromlabel(dst_key_t *key, const char *engine, const char *label,
 
 static dst_func_t opensslrsa_functions = {
 	opensslrsa_createctx,
+	NULL, /*%< createctx2 */
 	opensslrsa_destroyctx,
 	opensslrsa_adddata,
 	opensslrsa_sign,

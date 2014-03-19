@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: nsupdate.c,v 1.198 2011/12/16 23:01:16 each Exp $ */
 
 /*! \file */
 
@@ -108,7 +108,7 @@ extern int h_errno;
 #endif
 #endif
 
-#define MAXCMD (4 * 1024)
+#define MAXCMD (128 * 1024)
 #define MAXWIRE (64 * 1024)
 #define PACKETSIZE ((64 * 1024) - 1)
 #define INITTEXT (2 * 1024)
@@ -941,11 +941,14 @@ get_address(char *host, in_port_t port, isc_sockaddr_t *sockaddr) {
 	INSIST(count == 1);
 }
 
-#define PARSE_ARGS_FMT "dDML:y:ghlovk:p:r:R::t:u:"
+#define PARSE_ARGS_FMT "dDML:y:ghlovk:p:Pr:R::t:Tu:"
 
 static void
 pre_parse_args(int argc, char **argv) {
+	dns_rdatatype_t t;
 	int ch;
+	char buf[100];
+	isc_boolean_t doexit = ISC_FALSE;
 
 	while ((ch = isc_commandline_parse(argc, argv, PARSE_ARGS_FMT)) != -1) {
 		switch (ch) {
@@ -967,10 +970,34 @@ pre_parse_args(int argc, char **argv) {
 				"[-v] [filename]\n");
 			exit(1);
 
+		case 'P':
+			for (t = 0xff00; t <= 0xfffe; t++) {
+				if (dns_rdatatype_ismeta(t))
+					continue;
+				dns_rdatatype_format(t, buf, sizeof(buf));
+				if (strncmp(buf, "TYPE", 4) != 0)
+					fprintf(stdout, "%s\n", buf);
+			}
+			doexit = ISC_TRUE;
+			break;
+
+		case 'T':
+			for (t = 1; t <= 0xfeff; t++) {
+				if (dns_rdatatype_ismeta(t))
+					continue;
+				dns_rdatatype_format(t, buf, sizeof(buf));
+				if (strncmp(buf, "TYPE", 4) != 0)
+					fprintf(stdout, "%s\n", buf);
+			}
+			doexit = ISC_TRUE;
+			break;
+
 		default:
 			break;
 		}
 	}
+	if (doexit)
+		exit(0);
 	isc_commandline_reset = ISC_TRUE;
 	isc_commandline_index = 1;
 }

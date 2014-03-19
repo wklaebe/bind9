@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: os.c,v 1.39 2012/02/06 23:46:44 tbox Exp $ */
 
 #include <config.h>
 #include <stdarg.h>

@@ -138,6 +138,45 @@ file_stats(const char *file, struct stat *stats) {
 	return (result);
 }
 
+static isc_result_t
+fd_stats(int fd, struct stat *stats) {
+	isc_result_t result = ISC_R_SUCCESS;
+
+	REQUIRE(stats != NULL);
+
+	if (fstat(fd, stats) != 0)
+		result = isc__errno2result(errno);
+
+	return (result);
+}
+
+isc_result_t
+isc_file_getsizefd(int fd, off_t *size) {
+	isc_result_t result;
+	struct stat stats;
+
+	REQUIRE(size != NULL);
+
+	result = fd_stats(fd, &stats);
+
+	if (result == ISC_R_SUCCESS)
+		*size = stats.st_size;
+	return (result);
+}
+
+isc_result_t
+isc_file_mode(const char *file, mode_t *modep) {
+	isc_result_t result;
+	struct stat stats;
+
+	REQUIRE(modep != NULL);
+
+	result = file_stats(file, &stats);
+	if (result == ISC_R_SUCCESS)
+		*modep = (stats.st_mode & 07777);
+	return (result);
+}
+
 /*
  * isc_file_safemovefile is needed to be defined here to ensure that
  * any file with the new name is renamed to a backup name and then the
@@ -223,6 +262,22 @@ isc_file_getmodtime(const char *file, isc_time_t *time) {
 	}
 	close(fh);
 	return (ISC_R_SUCCESS);
+}
+
+isc_result_t
+isc_file_getsize(const char *file, off_t *size) {
+	isc_result_t result;
+	struct stat stats;
+
+	REQUIRE(file != NULL);
+	REQUIRE(size != NULL);
+
+	result = file_stats(file, &stats);
+
+	if (result == ISC_R_SUCCESS)
+		*size = stats.st_size;
+
+	return (result);
 }
 
 isc_result_t
@@ -441,6 +496,23 @@ isc_file_isplainfile(const char *filename) {
 }
 
 isc_result_t
+isc_file_isplainfilefd(int fd) {
+	/*
+	 * This function returns success if filename is a plain file.
+	 */
+	struct stat filestat;
+	memset(&filestat,0,sizeof(struct stat));
+
+	if ((fstat(fd, &filestat)) == -1)
+		return(isc__errno2result(errno));
+
+	if(! S_ISREG(filestat.st_mode))
+		return(ISC_R_INVALIDFILE);
+
+	return(ISC_R_SUCCESS);
+}
+
+isc_result_t
 isc_file_isdirectory(const char *filename) {
 	/*
 	 * This function returns success if filename is a directory.
@@ -456,6 +528,7 @@ isc_file_isdirectory(const char *filename) {
 
 	return(ISC_R_SUCCESS);
 }
+
 
 isc_boolean_t
 isc_file_isabsolute(const char *filename) {
@@ -660,15 +733,36 @@ isc_file_splitpath(isc_mem_t *mctx, char *path, char **dirname, char **basename)
 	return (ISC_R_SUCCESS);
 }
 
-isc_result_t
-isc_file_mode(const char *file, mode_t *modep) {
-	isc_result_t result;
-	struct stat stats;
+void *
+isc_file_mmap(void *addr, size_t len, int prot,
+	      int flags, int fd, off_t offset)
+{
+	void *buf;
+	ssize_t ret;
+	off_t end;
 
-	REQUIRE(modep != NULL);
+	UNUSED(addr);
+	UNUSED(prot);
+	UNUSED(flags);
 
-	result = file_stats(file, &stats);
-	if (result == ISC_R_SUCCESS)
-		*modep = (stats.st_mode & 07777);
-	return (result);
+	end = lseek(fd, 0, SEEK_END);
+	lseek(fd, offset, SEEK_SET);
+	if (end - offset < (off_t) len)
+		len = end - offset;
+
+	buf = malloc(len);
+	ret = read(fd, buf, (unsigned int) len);
+	if (ret != (ssize_t) len) {
+		free(buf);
+		buf = NULL;
+	}
+
+	return (buf);
+}
+
+int
+isc_file_munmap(void *addr, size_t len) {
+	UNUSED(len);
+	free(addr);
+	return (0);
 }

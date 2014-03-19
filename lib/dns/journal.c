@@ -387,7 +387,8 @@ journal_header_encode(journal_header_t *cooked, journal_rawheader_t *raw) {
 static isc_result_t
 journal_seek(dns_journal_t *j, isc_uint32_t offset) {
 	isc_result_t result;
-	result = isc_stdio_seek(j->fp, (long)offset, SEEK_SET);
+
+	result = isc_stdio_seek(j->fp, (off_t)offset, SEEK_SET);
 	if (result != ISC_R_SUCCESS) {
 		isc_log_write(JOURNAL_COMMON_LOGARGS, ISC_LOG_ERROR,
 			      "%s: seek: %s", j->filename,
@@ -1395,24 +1396,14 @@ roll_forward(dns_journal_t *j, dns_db_t *db, unsigned int options) {
 }
 
 isc_result_t
-dns_journal_rollforward(isc_mem_t *mctx, dns_db_t *db,
-			unsigned int options, const char *filename)
-{
-	REQUIRE((options & DNS_JOURNALOPT_RESIGN) == 0);
-	return (dns_journal_rollforward2(mctx, db, options, 0, filename));
-}
-
-isc_result_t
-dns_journal_rollforward2(isc_mem_t *mctx, dns_db_t *db, unsigned int options,
-			 isc_uint32_t resign, const char *filename)
+dns_journal_rollforward(isc_mem_t *mctx, dns_db_t *db, unsigned int options,
+			const char *filename)
 {
 	dns_journal_t *j;
 	isc_result_t result;
 
 	REQUIRE(DNS_DB_VALID(db));
 	REQUIRE(filename != NULL);
-
-	UNUSED(resign);
 
 	j = NULL;
 	result = dns_journal_open(mctx, filename, DNS_JOURNAL_READ, &j);

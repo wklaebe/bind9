@@ -15,7 +15,7 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-# $Id$
+# $Id: clean.sh,v 1.10 2012/02/07 23:47:24 tbox Exp $
 
 rm -f ns1/named.conf ns1/myftp.db
 rm -f ns3/*.jnl ns3/mytest.db ns3/subtest.db

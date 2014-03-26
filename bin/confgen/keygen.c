@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2009, 2012, 2013  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2009, 2012-2014  Internet Systems Consortium, Inc. ("ISC")
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -69,17 +69,21 @@ alg_totext(dns_secalg_t alg) {
  */
 dns_secalg_t
 alg_fromtext(const char *name) {
-	if (strcmp(name, "hmac-md5") == 0)
+	const char *p = name;
+	if (strncasecmp(p, "hmac-", 5) == 0)
+		p = &name[5];
+
+	if (strcasecmp(p, "md5") == 0)
 		return DST_ALG_HMACMD5;
-	if (strcmp(name, "hmac-sha1") == 0)
+	if (strcasecmp(p, "sha1") == 0)
 		return DST_ALG_HMACSHA1;
-	if (strcmp(name, "hmac-sha224") == 0)
+	if (strcasecmp(p, "sha224") == 0)
 		return DST_ALG_HMACSHA224;
-	if (strcmp(name, "hmac-sha256") == 0)
+	if (strcasecmp(p, "sha256") == 0)
 		return DST_ALG_HMACSHA256;
-	if (strcmp(name, "hmac-sha384") == 0)
+	if (strcasecmp(p, "sha384") == 0)
 		return DST_ALG_HMACSHA384;
-	if (strcmp(name, "hmac-sha512") == 0)
+	if (strcasecmp(p, "sha512") == 0)
 		return DST_ALG_HMACSHA512;
 	return DST_ALG_UNKNOWN;
 }

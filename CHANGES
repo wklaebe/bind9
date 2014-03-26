@@ -1,3 +1,117 @@
+	--- 9.10.0b2 released ---
+
+3787.	[bug]		The code that checks whether "auto-dnssec" is
+			allowed was ignoring "allow-update" ACLs set at
+			the options or view level. [RT #29536]
+
+3786.	[func]		Provide more detailed error codes when using
+			native PKCS#11. "pkcs11-tokens" now fails robustly
+			rather than asserting when run against an HSM with
+			an incomplete PCKS#11 API implementation. [RT #35479]
+
+3785.	[bug]		Debugging code dumphex didn't accept arbitarily long
+			input (only compiled with -DDEBUG). [RT #35544]
+
+3784.	[bug]		Using "rrset-order fixed" when it had not been
+			enabled at compile time caused inconsistent
+			results. It now works as documented, defaulting
+			to cyclic mode. [RT #28104]
+
+3783.	[func]		"tsig-keygen" is now available as an alternate
+			command name for "ddns-confgen".  It generates
+			a TSIG key in named.conf format without comments.
+			[RT #35503]
+
+3782.	[func]		Specifying "auto" as the salt when using
+			"rndc signing -nsec3param" causes named to
+			generate a 64-bit salt at random. [RT #35322]
+
+3781.	[tuning]	Use adaptive mutex locks when available; this
+			has been found to improve performance under load
+			on many systems. "configure --with-locktype=standard"
+			restores conventional mutex locks. [RT #32576]
+
+3780.	[bug]		$GENERATE handled negative numbers incorrectly.
+			[RT #25528]
+
+3779.	[cleanup]	Clarify the error message when using an option
+			that was not enabled at compile time. [RT #35504]
+
+3778.	[bug]		Log a warning when the wrong address family is
+			used in "listen-on" or "listen-on-v6". [RT #17848]
+
+3777.	[bug]		EDNS EXPIRE code could dump core when processing
+			DLZ queries. [RT #35493]
+
+3776.	[func]		"rndc -q" suppresses output from successful
+			rndc commands. Errors are printed on stderr.
+			[RT #21393]
+
+3775.	[bug]		dlz_dlopen driver could return the wrong error
+			code on API version mismatch, leading to a segfault.
+			[RT #35495]
+
+3774.	[func]		When using "request-nsid", log the NSID value in
+			printable form as well as hex. [RT #20864]
+
+3773.	[func]		"host", "nslookup" and "nsupdate" now have
+			options to print the version number and exit.
+			[RT #26057]
+
+3772.	[contrib]	Added sqlite3 dynamically-loadable DLZ module.
+			(Based in part on a contribution from Tim Tessier.)
+			[RT #20822]
+
+3771.	[cleanup]	Adjusted log level for "using built-in key"
+			messages. [RT #24383]
+
+3770.	[bug]		"dig +trace" could fail with an assertion when it
+			needed to fall back to TCP due to a truncated
+			response. [RT #24660]
+
+3769.	[doc]		Improved documentation of "rndc signing -list".
+			[RT #30652]
+
+3768.	[bug]		"dnssec-checkds" was missing the SHA-384 digest
+			algorithm. [RT #34000]
+
+3767.	[func]		Log explicitly when using rndc.key to configure
+			command channel. [RT #35316]
+
+3766.	[cleanup]	Fixed problems with building outside the source
+			tree when using native PKCS#11. [RT #35459]
+
+3765.	[bug]		Fixed a bug in "rndc secroots" that could crash
+			named when dumping an empty keynode. [RT #35469]
+
+3764.	[bug]		The dnssec-keygen/settime -S and -i options
+			(to set up a successor key and set the prepublication
+			interval) were missing from dnssec-keyfromlabel.
+			[RT #35394]
+
+3763.	[bug]		delve: Cache DNSSEC records to avoid the need to
+			re-fetch them when restarting validation. [RT #35476]
+
+3762.	[bug]		Address build problems with --pkcs11-native +
+			--with-openssl with ECDSA support. [RT #35467]
+
+3761.	[bug]		Address dangling reference bug in dns_keytable_add.
+			[RT #35471]
+
+3760.	[bug]		Improve SIT with native PKCS#11 and on Windows.
+			[RT #35433]
+
+3759.	[port]		Enable delve on Windows. [RT #35441]
+
+3758.	[port]		Enable export library APIs on Windows. [RT #35382]
+
+3757.	[port]		Enable Python tools (dnssec-coverage,
+			dnssec-checkds) to run on Windows. [RT #34355]
+
+3756.	[bug]		GSSAPI Kerberos realm checking was broken in
+			check_config leading to spurious messages being
+			logged.  [RT #35443]
+
 	--- 9.10.0b1 released ---
 
 3755.	[func]		Add stats counters for known EDNS options + others.
@@ -81,8 +195,7 @@
 			same resolver and validator logic as named. This
 			allows easy validation of DNSSEC data in environments
 			with untrustworthy resolvers, and assists with
-			troubleshooting of DNSSEC problems. (Note: not yet
-			available on win32.) [RT #32406]
+			troubleshooting of DNSSEC problems. [RT #32406]
 
 3740.	[contrib]	Minor fixes to configure --with-dlz-bdb,
 			--with-dlz-postgres and --with-dlz-odbc. [RT #35340]
@@ -1447,7 +1560,7 @@
 			     when queryperf is available.
 			 - the encoding of PASSTHRU action to "rpz-passthru".
 			     (The old encoding is still accepted.)
-		       [RT #26172]
+			[RT #26172]
 
 
 3329.	[bug]		Handle RRSIG signer-name case consistently: We

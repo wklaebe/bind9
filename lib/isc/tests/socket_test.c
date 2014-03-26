@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011-2013  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2011-2014  Internet Systems Consortium, Inc. ("ISC")
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -112,7 +112,7 @@ waitfor(completion_t *completion) {
 #endif
 
 static void
-waitbody() {
+waitbody(void) {
 #ifndef ISC_PLATFORM_USETHREADS
 	struct timeval tv;
 	isc_socketwait_t *swait = NULL;

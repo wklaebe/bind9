@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005, 2007, 2009, 2013  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2007, 2009, 2013, 2014  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -83,8 +83,6 @@ isc_lib_initmsgcat(void) {
 	}
 }
 
-#ifndef WIN32
-
 static isc_once_t		register_once = ISC_ONCE_INIT;
 
 static void
@@ -99,9 +97,7 @@ do_register(void) {
 }
 
 void
-isc_lib_register() {
+isc_lib_register(void) {
 	RUNTIME_CHECK(isc_once_do(&register_once, do_register)
 		      == ISC_R_SUCCESS);
 }
-
-#endif

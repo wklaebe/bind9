@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2013  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2014  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1998-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -1757,7 +1757,7 @@ isc__task_privilege(isc_task_t *task0) {
 }
 
 isc_result_t
-isc__task_register() {
+isc__task_register(void) {
 	return (isc_task_register(isc__taskmgr_create));
 }
 

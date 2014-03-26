@@ -378,12 +378,12 @@ ns_server_reload(isc_task_t *task, isc_event_t *event);
 
 static isc_result_t
 ns_listenelt_fromconfig(const cfg_obj_t *listener, const cfg_obj_t *config,
-			cfg_aclconfctx_t *actx,
-			isc_mem_t *mctx, ns_listenelt_t **target);
+			cfg_aclconfctx_t *actx, isc_mem_t *mctx,
+			isc_uint16_t family, ns_listenelt_t **target);
 static isc_result_t
 ns_listenlist_fromconfig(const cfg_obj_t *listenlist, const cfg_obj_t *config,
-			 cfg_aclconfctx_t *actx,
-			 isc_mem_t *mctx, ns_listenlist_t **target);
+			 cfg_aclconfctx_t *actx, isc_mem_t *mctx,
+			 isc_uint16_t family, ns_listenlist_t **target);
 
 static isc_result_t
 configure_forward(const cfg_obj_t *config, dns_view_t *view, dns_name_t *origin,
@@ -829,7 +829,7 @@ configure_view_dnsseckeys(dns_view_t *view, const cfg_obj_t *vconfig,
 		const cfg_obj_t *builtin_managed_keys = NULL;
 
 		isc_log_write(ns_g_lctx, DNS_LOGCATEGORY_SECURITY,
-			      NS_LOGMODULE_SERVER, ISC_LOG_WARNING,
+			      NS_LOGMODULE_SERVER, ISC_LOG_INFO,
 			      "using built-in DLV key for view %s",
 			      view->name);
 
@@ -862,7 +862,7 @@ configure_view_dnsseckeys(dns_view_t *view, const cfg_obj_t *vconfig,
 		const cfg_obj_t *builtin_managed_keys = NULL;
 
 		isc_log_write(ns_g_lctx, DNS_LOGCATEGORY_SECURITY,
-			      NS_LOGMODULE_SERVER, ISC_LOG_WARNING,
+			      NS_LOGMODULE_SERVER, ISC_LOG_INFO,
 			      "using built-in root key for view %s",
 			      view->name);
 
@@ -1113,7 +1113,11 @@ configure_order(dns_order_t *order, const cfg_obj_t *ent) {
 	INSIST(cfg_obj_isstring(obj));
 	str = cfg_obj_asstring(obj);
 	if (!strcasecmp(str, "fixed"))
+#if DNS_RDATASET_FIXED
 		mode = DNS_RDATASETATTR_FIXEDORDER;
+#else
+		mode = 0;
+#endif /* DNS_RDATASET_FIXED */
 	else if (!strcasecmp(str, "random"))
 		mode = DNS_RDATASETATTR_RANDOMIZE;
 	else if (!strcasecmp(str, "cyclic"))
@@ -5676,7 +5680,8 @@ load_configuration(const char *filename, ns_server_t *server,
 			/* check return code? */
 			(void)ns_listenlist_fromconfig(clistenon, config,
 						       ns_g_aclconfctx,
-						       ns_g_mctx, &listenon);
+						       ns_g_mctx, AF_INET,
+						       &listenon);
 		} else if (!ns_g_lwresdonly) {
 			/*
 			 * Not specified, use default.
@@ -5703,7 +5708,8 @@ load_configuration(const char *filename, ns_server_t *server,
 			/* check return code? */
 			(void)ns_listenlist_fromconfig(clistenon, config,
 						       ns_g_aclconfctx,
-						       ns_g_mctx, &listenon);
+						       ns_g_mctx, AF_INET6,
+						       &listenon);
 		} else if (!ns_g_lwresdonly) {
 			/*
 			 * Not specified, use default.
@@ -7343,8 +7349,8 @@ ns_server_togglequerylog(ns_server_t *server, char *args) {
 
 static isc_result_t
 ns_listenlist_fromconfig(const cfg_obj_t *listenlist, const cfg_obj_t *config,
-			 cfg_aclconfctx_t *actx,
-			 isc_mem_t *mctx, ns_listenlist_t **target)
+			 cfg_aclconfctx_t *actx, isc_mem_t *mctx,
+			 isc_uint16_t family, ns_listenlist_t **target)
 {
 	isc_result_t result;
 	const cfg_listelt_t *element;
@@ -7363,7 +7369,7 @@ ns_listenlist_fromconfig(const cfg_obj_t *listenlist, const cfg_obj_t *config,
 		ns_listenelt_t *delt = NULL;
 		const cfg_obj_t *listener = cfg_listelt_value(element);
 		result = ns_listenelt_fromconfig(listener, config, actx,
-						 mctx, &delt);
+						 mctx, family, &delt);
 		if (result != ISC_R_SUCCESS)
 			goto cleanup;
 		ISC_LIST_APPEND(dlist->elts, delt, link);
@@ -7382,8 +7388,8 @@ ns_listenlist_fromconfig(const cfg_obj_t *listenlist, const cfg_obj_t *config,
  */
 static isc_result_t
 ns_listenelt_fromconfig(const cfg_obj_t *listener, const cfg_obj_t *config,
-			cfg_aclconfctx_t *actx,
-			isc_mem_t *mctx, ns_listenelt_t **target)
+			cfg_aclconfctx_t *actx, isc_mem_t *mctx,
+			isc_uint16_t family, ns_listenelt_t **target)
 {
 	isc_result_t result;
 	const cfg_obj_t *portobj, *dscpobj;
@@ -7428,9 +7434,9 @@ ns_listenelt_fromconfig(const cfg_obj_t *listener, const cfg_obj_t *config,
 	if (result != ISC_R_SUCCESS)
 		return (result);
 
-	result = cfg_acl_fromconfig(cfg_tuple_get(listener, "acl"),
-				   config, ns_g_lctx, actx, mctx, 0,
-				   &delt->acl);
+	result = cfg_acl_fromconfig2(cfg_tuple_get(listener, "acl"),
+				     config, ns_g_lctx, actx, mctx, 0,
+				     family, &delt->acl);
 	if (result != ISC_R_SUCCESS) {
 		ns_listenelt_destroy(delt);
 		return (result);
@@ -9263,6 +9269,42 @@ newzone_cfgctx_destroy(void **cfgp) {
 	*cfgp = NULL;
 }
 
+static isc_result_t
+generate_salt(unsigned char *salt, size_t saltlen) {
+	int i, n;
+	union {
+		unsigned char rnd[256];
+		isc_uint32_t rnd32[64];
+	} rnd;
+	unsigned char text[512 + 1];
+	isc_region_t r;
+	isc_buffer_t buf;
+	isc_result_t result;
+
+	if (saltlen > 256U)
+		return (ISC_R_RANGE);
+
+	n = (int) (saltlen + sizeof(isc_uint32_t) - 1) / sizeof(isc_uint32_t);
+	for (i = 0; i < n; i++)
+		isc_random_get(&rnd.rnd32[i]);
+
+	memcpy(salt, rnd.rnd, saltlen);
+
+	r.base = rnd.rnd;
+	r.length = (unsigned int) saltlen;
+
+	isc_buffer_init(&buf, text, sizeof(text));
+	result = isc_hex_totext(&r, 2, "", &buf);
+	RUNTIME_CHECK(result == ISC_R_SUCCESS);
+	text[saltlen * 2] = 0;
+
+	isc_log_write(ns_g_lctx, NS_LOGCATEGORY_GENERAL,
+		      NS_LOGMODULE_SERVER, ISC_LOG_INFO,
+		      "generated salt: %s", text);
+
+	return (ISC_R_SUCCESS);
+}
+
 isc_result_t
 ns_server_signing(ns_server_t *server, char *args, isc_buffer_t *text) {
 	isc_result_t result = ISC_R_SUCCESS;
@@ -9332,9 +9374,18 @@ ns_server_signing(ns_server_t *server, char *args, isc_buffer_t *text) {
 				return (ISC_R_RANGE);
 
 			ptr = next_token(&args, " \t");
-			if (ptr == NULL)
+			if (ptr == NULL) {
 				return (ISC_R_UNEXPECTEDEND);
-			if (strcmp(ptr, "-") != 0) {
+			} else if (strcasecmp(ptr, "auto") == 0) {
+				/* Auto-generate a random salt.
+				 * XXXMUKS: This currently uses the
+				 * minimum recommended length by RFC
+				 * 5155 (64 bits). It should be made
+				 * configurable.
+				 */
+				saltlen = 8;
+				CHECK(generate_salt(salt, saltlen));
+			} else if (strcmp(ptr, "-") != 0) {
 				isc_buffer_t buf;
 
 				isc_buffer_init(&buf, salt, sizeof(salt));

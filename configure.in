@@ -3500,7 +3500,7 @@ fi
 
 if test "$dlopen" = "yes"; then
 	case $host in
-		*-linux*)
+		*-linux*|*-gnu)
 			SO_CFLAGS="-fPIC"
 			if test "$have_dl" = "yes"
 			then

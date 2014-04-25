@@ -1,0 +1,10 @@
+[Unit]
+Description=Lightweight Resolver Daemon
+Documentation=man:lwresd(8)
+After=network.target
+
+[Service]
+ExecStart=/usr/sbin/lwresd -f
+
+[Install]
+WantedBy=multi-user.target

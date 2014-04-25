@@ -43,7 +43,7 @@ ISCLIBS =	../../lib/isc/libisc.@A@
 
 ISCDEPLIBS =	../../lib/isc/libisc.@A@
 
-LIBS =		@LIBS@
+LIBS =		@LIBS@ -L../../lib/isc -lcrypto
 
 # Alphabetically
 
@@ -66,6 +66,7 @@ DNSOBJS =	acache.@O@ acl.@O@ adb.@O@ byaddr.@O@ \
 		cache.@O@ callbacks.@O@ clientinfo.@O@ compress.@O@ \
 		db.@O@ dbiterator.@O@ dbtable.@O@ diff.@O@ dispatch.@O@ \
 		dlz.@O@ dns64.@O@ dnssec.@O@ ds.@O@ forward.@O@ \
+		dynamic_db.@O@ \
 		iptable.@O@ journal.@O@ keydata.@O@ keytable.@O@ \
 		lib.@O@ log.@O@ lookup.@O@ \
 		master.@O@ masterdump.@O@ message.@O@ \
@@ -104,6 +105,7 @@ DNSSRCS =	acache.c acl.c adb.c byaddr.c \
 		cache.c callbacks.c clientinfo.c compress.c \
 		db.c dbiterator.c dbtable.c diff.c dispatch.c \
 		dlz.c dns64.c dnssec.c ds.c forward.c geoip.c \
+		dynamic_db.c \
 		iptable.c journal.c keydata.c keytable.c lib.c log.c \
 		lookup.c master.c masterdump.c message.c \
 		name.c ncache.c nsec.c nsec3.c order.c peer.c portlist.c \
@@ -138,6 +140,11 @@ version.@O@: version.c
 		-DLIBAGE=${LIBAGE} \
 		-c ${srcdir}/version.c
 
+dynamic_db.@O@: dynamic_db.c
+	${LIBTOOL_MODE_COMPILE} ${CC} ${ALL_CFLAGS} \
+	-DDYNDB_LIBDIR=\"@libdir@/bind/\" \
+	-c ${srcdir}/dynamic_db.c
+
 libdns.@SA@: ${OBJS}
 	${AR} ${ARFLAGS} $@ ${OBJS}
 	${RANLIB} $@
@@ -147,6 +154,7 @@ libdns.la: ${OBJS}
 		${CC} ${ALL_CFLAGS} ${LDFLAGS} -o libdns.la -rpath ${libdir} \
 		-version-info ${LIBINTERFACE}:${LIBREVISION}:${LIBAGE} \
 		${OBJS} ${ISCLIBS} @DNS_CRYPTO_LIBS@ ${LIBS}
+	ln -sf .libs/libdns.so .
 
 timestamp: libdns.@A@
 	touch timestamp
@@ -161,6 +169,7 @@ clean distclean::
 	rm -f libdns.@A@ timestamp
 	rm -f gen code.h include/dns/enumtype.h include/dns/enumclass.h
 	rm -f include/dns/rdatastruct.h
+	rm -f libdns.so
 
 newrr::
 	rm -f code.h include/dns/enumtype.h include/dns/enumclass.h

@@ -153,6 +153,8 @@ struct dns_view {
 	dns_ttl_t			maxncachettl;
 	dns_ttl_t			prefetch_trigger;
 	dns_ttl_t			prefetch_eligible;
+	dns_ttl_t			mincachettl;
+	dns_ttl_t			minncachettl;
 	in_port_t			dstport;
 	dns_aclenv_t			aclenv;
 	dns_rdatatype_t			preferred_glue;

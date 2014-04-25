@@ -207,6 +207,8 @@ struct dns_rdataset {
 #define DNS_RDATASETATTR_NEGATIVE	0x00200000
 #define DNS_RDATASETATTR_PREFETCH	0x00400000
 
+#define DNS_RDATASETATTR_SINGLE		0x10000000	/* Only return 1 answer */
+
 /*%
  * _OMITDNSSEC:
  * 	Omit DNSSEC records when rendering ncache records.

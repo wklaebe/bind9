@@ -8,4 +8,4 @@ MINORVER=10
 PATCHVER=0
 RELEASETYPE=rc
 RELEASEVER=1
-EXTENSIONS=
+EXTENSIONS="$(dpkg-parsechangelog | sed -n '/^Version/s/[^-]*//p')-$(dpkg-vendor --query Vendor)"

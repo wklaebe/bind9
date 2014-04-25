@@ -36,7 +36,7 @@ ISCCCLIBS =	../../lib/isccc/libisccc.@A@
 ISCDEPLIBS =	../../lib/isc/libisc.@A@
 ISCCCDEPLIBS =	libisccc.@A@
 
-LIBS =		@LIBS@
+LIBS =		@LIBS@ -L../../lib/isc
 
 SUBDIRS =	include
 
@@ -72,6 +72,7 @@ libisccc.la: ${OBJS}
 		${CC} ${ALL_CFLAGS} ${LDFLAGS} -o libisccc.la -rpath ${libdir} \
 		-version-info ${LIBINTERFACE}:${LIBREVISION}:${LIBAGE} \
 		${OBJS} ${ISCLIBS} ${LIBS}
+	ln -sf .libs/libisccc.so .
 
 timestamp: libisccc.@A@
 	touch timestamp
@@ -84,3 +85,4 @@ install:: timestamp installdirs
 
 clean distclean::
 	rm -f libisccc.@A@ timestamp
+	rm -f libisccc.so 

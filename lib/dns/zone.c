@@ -4837,6 +4837,21 @@ zone_get_from_db(dns_zone_t *zone, dns_db_t *db, unsigned int *nscount,
 
 	dns_db_currentversion(db, &version);
 
+	if (nscount != NULL)
+		*nscount = 0;
+	if (soacount != NULL)
+		*soacount = 0;
+	if (serial != NULL)
+		*serial = 0;
+	if (refresh != NULL)
+		*refresh = 0;
+	if (retry != NULL)
+		*retry = 0;
+	if (expire != NULL)
+		*expire = 0;
+	if (errors != NULL)
+		*errors = 0;
+
 	node = NULL;
 	result = dns_db_findnode(db, &zone->origin, ISC_FALSE, &node);
 	if (result != ISC_R_SUCCESS) {
@@ -13555,10 +13570,12 @@ save_nsec3param(dns_zone_t *zone, nsec3paramlist_t *nsec3list) {
 	REQUIRE(nsec3list != NULL);
 	REQUIRE(ISC_LIST_EMPTY(*nsec3list));
 
+	dns_rdataset_init(&rdataset);
+	dns_rdataset_init(&prdataset);
+
 	dns_db_attach(zone->db, &db);
 	CHECK(dns_db_getoriginnode(db, &node));
 
-	dns_rdataset_init(&rdataset);
 	dns_db_currentversion(db, &version);
 	result = dns_db_findrdataset(db, node, version,
 				     dns_rdatatype_nsec3param,
@@ -13601,7 +13618,6 @@ save_nsec3param(dns_zone_t *zone, nsec3paramlist_t *nsec3list) {
 	}
 
  getprivate:
-	dns_rdataset_init(&prdataset);
 	result = dns_db_findrdataset(db, node, version, zone->privatetype,
 				     dns_rdatatype_none, 0, &prdataset, NULL);
 	if (result != ISC_R_SUCCESS)
@@ -14014,7 +14030,6 @@ zone_replacedb(dns_zone_t *zone, dns_db_t *db, isc_boolean_t dump) {
 	    !DNS_ZONE_FLAG(zone, DNS_ZONEFLG_FORCEXFER))
 	{
 		isc_uint32_t serial, oldserial;
-		unsigned int soacount;
 
 		dns_zone_log(zone, ISC_LOG_DEBUG(3), "generating diffs");
 

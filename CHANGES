@@ -1,3 +1,54 @@
+	--- 9.10.0rc1 released ---
+
+3804.	[bug]		Corrected a race condition in dispatch.c in which
+			portentry could be reset leading to an assertion
+			failure in socket_search(). (Change #3708
+			addressed the same issue but was incomplete.)
+			[RT #35128]
+
+3803.	[bug]		"named-checkconf -z" incorrectly rejected zones
+			using alternate data sources for not having a "file"
+			option. [RT #35685]
+
+3802.	[bug]		Various header files were not being installed.
+
+3801.	[port]		Fix probing for gssapi support on FreeBSD. [RT #35615]
+
+3800.	[bug]		A pending event on the route socket could cause an
+			assertion failure when shutting down named. [RT #35674]
+
+3799.	[bug]		Improve named's command line error reporting.
+			[RT #35603]
+
+3798.	[bug]		'rndc zonestatus' was reporting the wrong re-signing
+			time. [RT #35659]
+
+3797.	[port]		netbsd: geoip support probing was broken. [RT #35642]
+
+3796.	[bug]		Register dns and pkcs#11 error codes. [RT #35629]
+
+3795.	[bug]		Make named-checkconf detect raw masterfiles for
+			hint zones and reject them. [RT #35268]
+
+3794.	[maint]		Added AAAA for C.ROOT-SERVERS.NET.
+
+3793.	[bug]		zone.c:save_nsec3param() could assert when out of
+			memory. [RT #35621]
+
+3792.	[func]		Provide links to the alternate statistics views when
+			displaying in a browser.  [RT #35605]
+
+3791.	[placeholder]
+
+3790.	[bug]		Handle broken nameservers that send BADVERS in
+			response to unknown EDNS options.  Maintain
+			statistics on BADVERS responses.
+
+3789.	[bug]		Null pointer dereference on rbt creation failure.
+
+3788.	[bug]		dns_peer_getrequestsit was returning request_nsid by
+			mistake.
+
 	--- 9.10.0b2 released ---
 
 3787.	[bug]		The code that checks whether "auto-dnssec" is
@@ -7,9 +58,9 @@
 3786.	[func]		Provide more detailed error codes when using
 			native PKCS#11. "pkcs11-tokens" now fails robustly
 			rather than asserting when run against an HSM with
-			an incomplete PCKS#11 API implementation. [RT #35479]
+			an incomplete PKCS#11 API implementation. [RT #35479]
 
-3785.	[bug]		Debugging code dumphex didn't accept arbitarily long
+3785.	[bug]		Debugging code dumphex didn't accept arbitrarily long
 			input (only compiled with -DDEBUG). [RT #35544]
 
 3784.	[bug]		Using "rrset-order fixed" when it had not been

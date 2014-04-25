@@ -644,12 +644,11 @@ case "$use_geoip" in
 		then
 			CFLAGS="$CFLAGS -I$use_geoip/include"
 			CPPFLAGS="$CPPFLAGS -I$use_geoip/include"
+			LIBS="$LIBS -L$use_geoip/lib"
 			case "$host_os" in
 				netbsd*|openbsd*|solaris*)
 					LIBS="$LIBS -Wl,-rpath=$use_geoip/lib"
 					;;
-				*)
-					LIBS="$LIBS -L$use_geoip/lib"
 			esac
 		elif test "$use_geoip" = "yes"
 		then
@@ -764,23 +763,24 @@ case "$use_gssapi" in
 		saved_cppflags="$CPPFLAGS"
 		CPPFLAGS="-I$use_gssapi/include $CPPFLAGS"
 		AC_CHECK_HEADERS(gssapi.h gssapi/gssapi.h,
-		    [ISC_PLATFORM_GSSAPIHEADER="#define ISC_PLATFORM_GSSAPIHEADER <$ac_header>"])
+		    [ISC_PLATFORM_GSSAPIHEADER="#define ISC_PLATFORM_GSSAPIHEADER <$ac_header>"
+		     gssapi_hack="#include <$ac_header>"])
 
 		if test "$ISC_PLATFORM_GSSAPIHEADER" = ""; then
 		    AC_MSG_ERROR([gssapi.h not found])
 		fi
 
 		AC_CHECK_HEADERS(gssapi_krb5.h gssapi/gssapi_krb5.h,
-		    [ISC_PLATFORM_GSSAPI_KRB5_HEADER="#define ISC_PLATFORM_GSSAPI_KRB5_HEADER <$ac_header>"])
+		    [ISC_PLATFORM_GSSAPI_KRB5_HEADER="#define ISC_PLATFORM_GSSAPI_KRB5_HEADER <$ac_header>"
+		     gssapi_krb5_hack="#include <$ac_header>"])
 
 		AC_CHECK_HEADERS(krb5.h krb5/krb5.h kerberosv5/krb5.h,
-		    [ISC_PLATFORM_KRB5HEADER="#define ISC_PLATFORM_KRB5HEADER <$ac_header>"])
+		    [ISC_PLATFORM_KRB5HEADER="#define ISC_PLATFORM_KRB5HEADER <$ac_header>"
+		    krb5_hack="#include <$ac_header>"])
 
 		if test "$ISC_PLATFORM_KRB5HEADER" = ""; then
 		    AC_MSG_ERROR([krb5.h not found])
 		fi
-
-		CPPFLAGS="$saved_cppflags"
 
 		#
 		# XXXDCL This probably doesn't work right on all systems.
@@ -810,6 +810,7 @@ case "$use_gssapi" in
 		    "-lgssapi" \
 		    "-lgssapi -lkrb5 -ldes -lcrypt -lasn1 -lroken -lcom_err" \
 		    "-lgssapi -lkrb5 -lcrypto -lcrypt -lasn1 -lroken -lcom_err" \
+		    "-lgssapi -lkrb5 -lgssapi_krb5 -lcrypto -lcrypt -lasn1 -lroken -lcom_err" \
 		    "-lgssapi -lkrb5 -lhx509 -lcrypto -lcrypt -lasn1 -lroken -lcom_err" \
 		    "-lgss -lkrb5"
 		do
@@ -825,13 +826,23 @@ case "$use_gssapi" in
 			    LIBS="-L$use_gssapi/lib $TRY_LIBS"
 		    fi
 		    AC_MSG_CHECKING(linking as $TRY_LIBS)
-		    AC_TRY_LINK( , [gss_acquire_cred();krb5_init_context()],
+		    AC_TRY_LINK([
+#include <sys/types.h>
+$gssapi_hack
+$gssapi_krb5_hack
+$krb5_hack
+				] , [gss_acquire_cred(NULL, NULL, 0, NULL, 0, NULL, NULL, NULL);krb5_init_context(NULL);
+#if defined(HAVE_GSSAPI_KRB5_H) || defined(HAVE_GSSAPI_GSSAPI_KRB5_H)
+gsskrb5_register_acceptor_identity(NULL);
+#endif],
 				gssapi_linked=yes, gssapi_linked=no)
 		    case $gssapi_linked in
 		    yes) AC_MSG_RESULT(yes); break ;;
 		    no)  AC_MSG_RESULT(no) ;;
 		    esac
 		done
+
+		CPPFLAGS="$saved_cppflags"
 
 		case $gssapi_linked in
 		no) AC_MSG_ERROR(could not determine proper GSSAPI linkage) ;;
@@ -1963,11 +1974,15 @@ AC_SUBST(PKCS11_TEST)
 have_clock_gt=no
 AC_CHECK_FUNC(clock_gettime,have_clock_gt=yes,)
 if test "$have_clock_gt" = "no"; then
-	AC_CHECK_LIB(rt,clock_gettime,have_clock_gt=yes,)
+	AC_CHECK_LIB(rt,clock_gettime,have_clock_gt=rt,)
 fi
 
-if test "$have_clock_gt" = "yes"; then
+if test "$have_clock_gt" != "no"; then
 	AC_DEFINE(HAVE_CLOCK_GETTIME, 1, [Define if clock_gettime is available.])
+fi
+
+if test "$have_clock_gt" = "rt"; then
+	LIBS="-lrt $LIBS"
 fi
 
 #

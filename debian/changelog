@@ -1,3 +1,15 @@
+bind9 (1:9.9.5.dfsg-4) unstable; urgency=low
+
+  [Julien Cristau]
+
+  * FTBFS on kfreebsd.  Closes: #741285
+
+  [LaMont Jones]
+
+  * revert aclocal.m4 expansion from earlier merge
+
+ -- LaMont Jones <lamont@debian.org>  Tue, 29 Apr 2014 14:48:50 -0600
+
 bind9 (1:9.9.5.dfsg-3) unstable; urgency=low
 
   * Re-enable rrl (now a configure option).  Closes: #741059 LP: #1288823

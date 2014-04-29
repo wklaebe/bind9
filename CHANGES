@@ -1,3 +1,26 @@
+	--- 9.10.0rc2 released ---
+
+3817.	[func]		The "delve" command is now spelled "delv" to avoid
+			a namespace collision with the Xapian project.
+			[RT #35801]
+
+3815.	[doc]		Clarify "nsupdate -y" usage in man page. [RT #35808]
+
+3810.	[bug]		Work around broken nameservers that fail to ignore
+			unknown EDNS options. [RT #35766]
+
+3809.	[doc]		Fix SIT and NSID documentation.
+
+3808.	[doc]		Clean up "prefetch" documentation. [RT #35751]
+
+3807.	[bug]		Fix sign extention bug in dns_name_fromtext when
+			lowercase is set. [RT #35743]
+
+3806.	[test]		Improved system test portability. [RT #35625]
+
+3805.	[contrib]	Added contrib/perftcpdns, a performance testing tool
+			for DNS over TCP. [RT #35710]
+
 	--- 9.10.0rc1 released ---
 
 3804.	[bug]		Corrected a race condition in dispatch.c in which

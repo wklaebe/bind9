@@ -11,7 +11,7 @@ XS-Vcs-Git: git://git.debian.org/~lamont/bind9.git
 
 Package: bind9
 Architecture: any
-Depends: ${shlibs:Depends}, ${misc:Depends}, debconf | debconf-2.0, netbase, adduser, libdns142 (=${binary:Version}), libisccfg140 (=${binary:Version}), libisc142 (=${binary:Version}), libisccc140 (=${binary:Version}), lsb-base (>= 3.2-14), bind9utils (=${binary:Version}), liblwres140 (=${binary:Version}), libbind9-140 (=${binary:Version}), net-tools
+Depends: ${shlibs:Depends}, ${misc:Depends}, debconf | debconf-2.0, netbase, adduser, libdns142 (=${binary:Version}), libirs141 (=${binary:Version}), libisccfg140 (=${binary:Version}), libisc142 (=${binary:Version}), libisccc140 (=${binary:Version}), lsb-base (>= 3.2-14), bind9utils (=${binary:Version}), liblwres140 (=${binary:Version}), libbind9-140 (=${binary:Version}), net-tools
 Conflicts: bind, apparmor-profiles (<< 2.1+1075-0ubuntu4)
 Replaces: bind, dnsutils (<< 1:9.1.0-3), apparmor-profiles (<< 2.1+1075-0ubuntu4), bind9utils (<< 1:9.9.3.dfsg.P2-3)
 Suggests: dnsutils, bind9-doc, resolvconf, ufw

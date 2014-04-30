@@ -6753,9 +6753,7 @@ ns_server_create(isc_mem_t *mctx, ns_server_t **serverp) {
 	server->blackholeacl = NULL;
 
 	/* Must be first. */
-	CHECKFATAL(dst_lib_init2(ns_g_mctx, ns_g_entropy,
-				 ns_g_engine, ISC_ENTROPY_GOODONLY),
-		   "initializing DST");
+	/* dst_lib_init2 call moved to before chroot. */
 
 	CHECKFATAL(dns_rootns_create(mctx, dns_rdataclass_in, NULL,
 				     &server->in_roothints),

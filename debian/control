@@ -93,6 +93,17 @@ Description: DNS Shared Library used by BIND
  This package delivers the libdns shared library used by BIND's daemons and
  clients.
 
+Package: libirs141
+Section: libs
+Priority: standard
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}, libisc142, libdns142, libisccfg140
+Description: IRS Shared Library used by BIND
+ ${Description}
+ .
+ This package delivers the libirs shared library used by BIND's daemons and
+ clients.
+
 Package: libisc142
 Section: libs
 Priority: standard

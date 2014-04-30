@@ -42,7 +42,7 @@ SRCS =		context.c \
 		gai_strerror.c getaddrinfo.c getnameinfo.c \
 		resconf.c
 
-LIBS =		@LIBS@
+LIBS =		@LIBS@ -L../../lib/isc -L../../lib/dns -L../../lib/isccfg
 
 SUBDIRS =	include
 TARGETS =	timestamp
@@ -66,6 +66,7 @@ libirs.la: ${OBJS} version.@O@
 		${CC} ${ALL_CFLAGS} ${LDFLAGS} -o libirs.la -rpath ${libdir} \
 		-version-info ${LIBINTERFACE}:${LIBREVISION}:${LIBAGE} \
 		${OBJS} version.@O@ ${LIBS}
+	ln -sf .libs/libirs.so .
 
 timestamp: libirs.@A@
 	touch timestamp
@@ -78,3 +79,4 @@ install:: timestamp installdirs
 
 clean distclean::
 	rm -f libirs.@A@ libirs.la timestamp
+	rm -f libirs.so

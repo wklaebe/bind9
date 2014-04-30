@@ -1,3 +1,10 @@
+bind9 (1:9.10.0.dfsg~rc2-1) experimental; urgency=low
+
+  * New upstream version
+  * new shared library: libirs
+
+ -- LaMont Jones <lamont@debian.org>  Wed, 30 Apr 2014 07:23:59 -0600
+
 bind9 (1:9.10.0.dfsg~rc1-1) experimental; urgency=low
 
   * New upstream version
